@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/core", "crates/ui"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Golden Geek <contact@goldengeek.com>"]
+license = "MIT"
+repository = "https://github.com/Golden-Geek/golden_core"
+
+[[workspace.metadata.docs.rs]]
+all-features = true
+
+[profile.release]
+opt-level = 3
+lto = true
