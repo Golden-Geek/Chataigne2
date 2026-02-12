@@ -1,0 +1,3 @@
+[submodule "submodules/golden_core"]
+	path = submodules/golden_core
+	url = https://github.com/Golden-Geek/golden_core
