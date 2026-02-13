@@ -38,10 +38,20 @@ dependencies = [
 name = "golden_core"
 version = "0.1.0"
 dependencies = [
+ "golden_core_macros",
  "serde",
  "serde_json",
  "slotmap",
  "uuid",
+]
+
+[[package]]
+name = "golden_core_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
