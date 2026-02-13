@@ -1,4 +1,4 @@
-use crate::edit::{Edit, EditOrigin, EditQueue, Propagation};
+use crate::edit::{Edit, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::node::NodeId;
@@ -21,19 +21,7 @@ pub struct ProcessCtx {
 
 impl ProcessCtx {
     pub fn set_param(&mut self, node: NodeId, value: ParamValue) {
-        self.set_param_with(node, value, Propagation::EndOfTick);
-    }
-
-    pub fn set_param_with(&mut self, node: NodeId, value: ParamValue, propagation: Propagation) {
-        self.edits.push(Edit::SetParam { node, value }, propagation, EditOrigin::Internal);
-    }
-
-    pub fn set_param_immediate(&mut self, node: NodeId, value: ParamValue) {
-        self.set_param_with(node, value, Propagation::Immediate);
-    }
-
-    pub fn set_param_next_tick(&mut self, node: NodeId, value: ParamValue) {
-        self.set_param_with(node, value, Propagation::NextTick);
+        self.edits.push(Edit::SetParam { node, value });
     }
 
     pub fn emit_custom_event(&mut self, event: CustomEvent) {

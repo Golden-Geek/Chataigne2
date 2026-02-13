@@ -92,3 +92,81 @@ macro_rules! define_node_enum {
         }
     };
 }
+
+/// Defines a single app node type with the common `NodeData` boilerplate.
+///
+/// Example:
+/// `define_node_type!(struct DummyNode { dummy_prop: String } type_name: "dummy");`
+#[macro_export]
+macro_rules! define_node_type {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $node_name:ident {
+            $($field_vis:vis $field:ident : $field_ty:ty),* $(,)?
+        }
+        type_name: $type_name:expr
+    ) => {
+        $(#[$meta])*
+        $vis struct $node_name {
+            node_data: $crate::node::NodeData,
+            $($field_vis $field: $field_ty),*
+        }
+
+        impl $node_name {
+            pub fn new(label: impl Into<String> $(, $field: $field_ty)*) -> Self {
+                Self {
+                    node_data: $crate::node::NodeData::new(label.into()),
+                    $($field),*
+                }
+            }
+        }
+
+        impl $crate::node::Node for $node_name {
+            fn node_data(&self) -> &$crate::node::NodeData {
+                &self.node_data
+            }
+
+            fn node_data_mut(&mut self) -> &mut $crate::node::NodeData {
+                &mut self.node_data
+            }
+
+            fn get_type(&self) -> &str {
+                $type_name
+            }
+        }
+    };
+}
+
+/// Defines app node structs and registers them in a node enum in one place.
+///
+/// Example:
+/// `define_app_nodes!(pub enum ChataigneNode { DummyNode => "dummy" { value: i32 } });`
+#[macro_export]
+macro_rules! define_app_nodes {
+    (
+        $vis:vis enum $enum_name:ident {
+            $(
+                $(#[$meta:meta])*
+                $node_vis:vis $node_name:ident => $type_name:literal {
+                    $($field_vis:vis $field:ident : $field_ty:ty),* $(,)?
+                }
+            ),* $(,)?
+        }
+    ) => {
+        $(
+            $crate::define_node_type! {
+                $(#[$meta])*
+                $node_vis struct $node_name {
+                    $($field_vis $field: $field_ty),*
+                }
+                type_name: $type_name
+            }
+        )*
+
+        $crate::define_node_enum! {
+            $vis enum $enum_name {
+                $($node_name),*
+            }
+        }
+    };
+}

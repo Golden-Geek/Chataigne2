@@ -25,12 +25,12 @@ impl<T: Node> NodeStore<T> {
         id
     }
 
-    pub fn get(&self, id: &NodeId) -> Option<&T> {
-        self.inner.get(Self::key_from_id(*id))
+    pub fn get(&self, id: NodeId) -> Option<&T> {
+        self.inner.get(Self::key_from_id(id))
     }
 
-    pub fn get_mut(&mut self, id: &NodeId) -> Option<&mut T> {
-        self.inner.get_mut(Self::key_from_id(*id))
+    pub fn get_mut(&mut self, id: NodeId) -> Option<&mut T> {
+        self.inner.get_mut(Self::key_from_id(id))
     }
 
     pub fn values(&self) -> impl Iterator<Item = &T> {

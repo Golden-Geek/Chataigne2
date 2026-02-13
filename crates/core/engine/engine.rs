@@ -1,4 +1,4 @@
-use crate::edit::{BuildEdit, BuildEditQueue, EditOrigin, Propagation};
+use crate::edit::{BuildEdit, BuildEditQueue};
 use crate::events::Inbox;
 use crate::node::*;
 use serde::{Deserialize, Serialize};
@@ -39,12 +39,22 @@ impl<T: Node> Engine<T> {
             build_edits: BuildEditQueue::new(),
         }
     }
-    
-    pub fn add_node(&mut self, parent: NodeId, node: T, propagation: Propagation, origin: EditOrigin) {
-        self.build_edits.push(BuildEdit::AddNode { parent, node }, propagation, origin);
+
+    pub fn add_node(&mut self, node: T, parent: Option<NodeId>) {
+        println!("Add node requested : {}", node.get_type());
+        self.build_edits.push(BuildEdit::AddNode {
+            parent: parent.unwrap_or(self.root),
+            node,
+            prev_sibling: None,
+        });
     }
 
-    pub fn replace_node(&mut self, node: NodeId, new_node: T, propagation: Propagation, origin: EditOrigin) {
-        self.build_edits.push(BuildEdit::ReplaceNode { node, new_node }, propagation, origin);
+    pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
+        let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
+        self.build_edits.push(BuildEdit::AddNode { parent, prev_sibling: Some(sibling), node });
+    }
+
+    pub fn replace_node(&mut self, node: NodeId, new_node: T) {
+        self.build_edits.push(BuildEdit::ReplaceNode { node, new_node });
     }
 }

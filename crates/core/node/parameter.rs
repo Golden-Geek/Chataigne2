@@ -155,4 +155,18 @@ impl Node for Parameter {
     fn node_data_mut(&mut self) -> &mut crate::node::NodeData {
         &mut self.node_data
     }
+
+    fn get_type(&self) -> &str {
+        match self.value {
+            ParamValue::Trigger() => "trigger",
+            ParamValue::Int(_) => "int",
+            ParamValue::Float(_) => "float",
+            ParamValue::Str(_) => "str",
+            ParamValue::Bool(_) => "bool",
+            ParamValue::Vec2(_, _) => "vec2",
+            ParamValue::Vec3(_, _, _) => "vec3",
+            ParamValue::Color(_, _, _, _) => "color",
+            ParamValue::Reference(_) => "reference",
+        }
+    }
 }

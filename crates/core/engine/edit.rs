@@ -1,20 +1,6 @@
 use crate::node::{Node, NodeId, NodeMetaPatch};
 use crate::parameter::ParamValue;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Propagation {
-    Immediate,
-    EndOfTick,
-    NextTick,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditOrigin {
-    UI,
-    Network,
-    Script,
-    Internal,
-}
 
 pub enum Edit {
     SetParam { node: NodeId, value: ParamValue },
@@ -24,9 +10,7 @@ pub enum Edit {
 }
 
 pub struct EditRequest {
-    pub edit: Edit,
-    pub propagation: Propagation,
-    pub origin: EditOrigin,
+    pub edit: Edit
 }
 
 #[derive(Default)]
@@ -39,8 +23,8 @@ impl EditQueue {
         Self { pending: Vec::new() }
     }
 
-    pub fn push(&mut self, edit: Edit, propagation: Propagation, origin: EditOrigin) {
-        self.pending.push(EditRequest { edit, propagation, origin });
+    pub fn push(&mut self, edit: Edit) { 
+        self.pending.push(EditRequest { edit });
     }
 
     pub fn drain(&mut self) -> Vec<EditRequest> {
@@ -49,14 +33,12 @@ impl EditQueue {
 }
 
 pub enum BuildEdit<T: Node> {
-    AddNode { parent: NodeId, node: T },
+    AddNode { node: T, parent: NodeId, prev_sibling: Option<NodeId> },
     ReplaceNode { node: NodeId, new_node: T },
 }
 
 pub struct BuildEditRequest<T: Node> {
-    pub edit: BuildEdit<T>,
-    pub propagation: Propagation,
-    pub origin: EditOrigin,
+    pub edit: BuildEdit<T>
 }
 
 #[derive(Default)]
@@ -69,11 +51,9 @@ impl<T: Node> BuildEditQueue<T> {
         Self { pending: Vec::new() }
     }
 
-    pub fn push(&mut self, edit: BuildEdit<T>, propagation: Propagation, origin: EditOrigin) {
+    pub fn push(&mut self, edit: BuildEdit<T>) {
         self.pending.push(BuildEditRequest {
             edit,
-            propagation,
-            origin,
         });
     }
 

@@ -39,7 +39,7 @@ pub struct NodeData {
 
 impl NodeData {
     pub fn new(label: String) -> Self {
-        println!("New node ! Label: {}", label);
+        println!("New node data, label: {}", label);
         let meta = NodeMeta::new(label);
 
         Self {
@@ -149,7 +149,7 @@ pub trait Node: Send {
     fn node_data(&self) -> &NodeData;
     fn node_data_mut(&mut self) -> &mut NodeData;
 
-    fn get_type(&self) -> &str { "Node" }
+    fn get_type(&self) -> &str;
 
     fn id(&self) -> NodeId {
         self.node_data().id
