@@ -13,20 +13,22 @@ pub struct Event {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CustomEvent {
     pub topic: String,
+    pub origin: Option<NodeId>,
     #[serde(default)]
     pub payload: serde_json::Value,
 }
 
 impl CustomEvent {
-    pub fn new(topic: impl Into<String>, payload: serde_json::Value) -> Self {
+    pub fn new(topic: impl Into<String>, origin: Option<NodeId>, payload: serde_json::Value) -> Self {
         Self {
             topic: topic.into(),
+            origin,
             payload,
         }
     }
 
-    pub fn from_payload<T: Serialize>(topic: impl Into<String>, payload: &T) -> serde_json::Result<Self> {
-        Ok(Self::new(topic, serde_json::to_value(payload)?))
+    pub fn from_payload<T: Serialize>(topic: impl Into<String>, origin: Option<NodeId>, payload: &T) -> serde_json::Result<Self> {
+        Ok(Self::new(topic, origin, serde_json::to_value(payload)?))
     }
 
     pub fn payload_as<T: DeserializeOwned>(&self) -> serde_json::Result<T> {

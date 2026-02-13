@@ -9,7 +9,6 @@ use serde::Serialize;
 pub enum ExecutionPhase {
     EngineTick,
     EndOfTickStabilization,
-    FlushImmediate,
 }
 
 pub struct ProcessCtx {
@@ -28,8 +27,8 @@ impl ProcessCtx {
         self.inbox.push(Event { time: self.time, kind: EventKind::Custom(event) });
     }
 
-    pub fn emit_custom_payload<U: Serialize>(&mut self, topic: impl Into<String>, payload: &U) -> serde_json::Result<()> {
-        let event = CustomEvent::from_payload(topic, payload)?;
+    pub fn emit_custom_payload<U: Serialize>(&mut self, topic:  impl Into<String>, origin: Option<NodeId>, payload: &U) -> serde_json::Result<()> {
+        let event = CustomEvent::from_payload(topic, origin, payload)?;
         self.emit_custom_event(event);
         Ok(())
     }

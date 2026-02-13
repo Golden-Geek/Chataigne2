@@ -14,7 +14,6 @@ pub struct NodeUuid(pub Uuid);
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeclId(pub String);
 
-
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SemanticsHint {
     pub intent: Option<String>,
@@ -159,14 +158,23 @@ pub trait Node: Send {
         self.id() == id
     }
 
+    // Lifecycle methods
     fn init(&mut self, _ctx: &mut ProcessCtx) {}
-    fn update(&mut self, _ctx: &mut ProcessCtx) {}
+    fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
-
-    fn process(&mut self, ctx: &mut ProcessCtx) {
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.dispatch_inbox(ctx);
     }
 
+    fn add_child(&mut self, _ctx: &mut ProcessCtx, _child: Box<dyn Node>, _after: Option<NodeId>) {
+    }
+    fn remove_child(&mut self, _ctx: &mut ProcessCtx, _child: NodeId) {}
+    fn move_child(&mut self, _ctx: &mut ProcessCtx, _child: NodeId, _new_parent: NodeId, _after: Option<NodeId>) {}
+    fn replace_child(&mut self, _ctx: &mut ProcessCtx, _old: NodeId, _new: Box<dyn Node>) {}
+
+    // DEFAULT IMPLEMENTATIONS FOR EVENT HANDLERS
+
+    // Dispatch events from the inbox to the appropriate handlers
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in ctx.inbox.clone() {
             match event.kind {
@@ -204,6 +212,8 @@ pub trait Node: Send {
         }
     }
 
+    // Default handlers for events, can be overridden by nodes to implement custom behaviour
+
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
     fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
     fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
@@ -237,7 +247,7 @@ impl Node for Container {
         &mut self.node_data
     }
 
-    fn get_type(&self) ->  &str {
+    fn get_type(&self) -> &str {
         "container"
     }
 }
@@ -263,7 +273,7 @@ impl Node for Manager {
         &mut self.node_data
     }
 
-    fn get_type(&self) ->  &str {
+    fn get_type(&self) -> &str {
         "manager"
     }
 }

@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::node::{Node, NodeData, NodeId};
+use crate::{
+    node::{Node, NodeData, NodeId},
+    process_ctx::ProcessCtx,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParamValue {
@@ -16,6 +19,55 @@ pub enum ParamValue {
     Color(f64, f64, f64, f64),
 
     Reference(NodeId),
+}
+
+//implement into for ParamValue
+impl From<i32> for ParamValue {
+    fn from(value: i32) -> Self {
+        ParamValue::Int(value)
+    }
+}
+
+impl From<f64> for ParamValue {
+    fn from(value: f64) -> Self {
+        ParamValue::Float(value)
+    }
+}
+
+impl From<String> for ParamValue {
+    fn from(value: String) -> Self {
+        ParamValue::Str(value)
+    }
+}
+
+impl From<&str> for ParamValue {
+    fn from(value: &str) -> Self {
+        ParamValue::Str(value.to_string())
+    }
+}
+
+impl From<bool> for ParamValue {
+    fn from(value: bool) -> Self {
+        ParamValue::Bool(value)
+    }
+}
+
+impl From<(f64, f64)> for ParamValue {
+    fn from(value: (f64, f64)) -> Self {
+        ParamValue::Vec2(value.0, value.1)
+    }
+}
+
+impl From<(f64, f64, f64)> for ParamValue {
+    fn from(value: (f64, f64, f64)) -> Self {
+        ParamValue::Vec3(value.0, value.1, value.2)
+    }
+}
+
+impl From<(f64, f64, f64, f64)> for ParamValue {
+    fn from(value: (f64, f64, f64, f64)) -> Self {
+        ParamValue::Color(value.0, value.1, value.2, value.3)
+    }
 }
 
 //Implement value coercion
@@ -138,8 +190,11 @@ impl Parameter {
         }
     }
 
-    pub fn set(&mut self, new_value: ParamValue) {
-        self.value = new_value;
+    pub fn set(&mut self, _ctx: &mut ProcessCtx, new_value: ParamValue) {
+        let value_changed = self.value != new_value;
+        if self.change_check == ParameterChangeCheck::None || value_changed {
+            _ctx.set_param(self.node_data().id, new_value.clone());
+        }
     }
 
     pub fn get(&self) -> &ParamValue {
