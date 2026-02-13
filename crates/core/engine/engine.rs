@@ -1,6 +1,7 @@
-use crate::edit::{BuildEdit, BuildEditQueue};
+use crate::edit::{Edit, EditQueue};
 use crate::events::Inbox;
 use crate::node::*;
+use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 pub mod node_store;
 use node_store::NodeStore;
@@ -23,7 +24,7 @@ pub struct Engine<T: Node> {
     pub root: NodeId,
     pub time: EngineTime,
     pub inbox: Inbox,
-    pub build_edits: BuildEditQueue<T>,
+    pub edits: EditQueue,
 }
 
 impl<T: Node> Engine<T> {
@@ -36,25 +37,35 @@ impl<T: Node> Engine<T> {
             root,
             time: EngineTime { tick: 0, micro: 0, seq: 0 },
             inbox: Inbox::new(),
-            build_edits: BuildEditQueue::new(),
+            edits: EditQueue::new(),
         }
     }
 
     pub fn add_node(&mut self, node: T, parent: Option<NodeId>) {
-        println!("Add node requested, type = {}", node.get_type());
-        self.build_edits.push(BuildEdit::AddNode {
+        self.edits.push(Edit::AddNode {
             parent: parent.unwrap_or(self.root),
-            node,
+            node: Box::new(node),
             prev_sibling: None,
         });
     }
 
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
         let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
-        self.build_edits.push(BuildEdit::AddNode { parent, prev_sibling: Some(sibling), node });
+        self.edits.push(Edit::AddNode {
+            parent,
+            prev_sibling: Some(sibling),
+            node: Box::new(node),
+        });
     }
 
     pub fn replace_node(&mut self, node: NodeId, new_node: T) {
-        self.build_edits.push(BuildEdit::ReplaceNode { node, new_node });
+        self.edits.push(Edit::ReplaceNode {
+            node,
+            new_node: Box::new(new_node),
+        });
+    }
+
+    pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) {
+        self.edits.pending.extend(ctx.edits.drain());
     }
 }

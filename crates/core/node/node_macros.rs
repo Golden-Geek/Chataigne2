@@ -47,6 +47,43 @@ macro_rules! define_node_enum {
                     $(Self::$variant(node) => node.get_type(),)*
                 }
             }
+
+            fn from_boxed_node(node: Box<dyn $crate::node::Node>) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                let any: Box<dyn std::any::Any> = node;
+
+                let any = match any.downcast::<Self>() {
+                    Ok(node) => return Some(*node),
+                    Err(any) => any,
+                };
+
+                let any = match any.downcast::<$crate::node::Container>() {
+                    Ok(node) => return Some(Self::Container(*node)),
+                    Err(any) => any,
+                };
+
+                let any = match any.downcast::<$crate::parameter::Parameter>() {
+                    Ok(node) => return Some(Self::Parameter(*node)),
+                    Err(any) => any,
+                };
+
+                let any = match any.downcast::<$crate::node::Manager>() {
+                    Ok(node) => return Some(Self::Manager(*node)),
+                    Err(any) => any,
+                };
+
+                $(
+                    let any = match any.downcast::<$node_ty>() {
+                        Ok(node) => return Some(Self::$variant(*node)),
+                        Err(any) => any,
+                    };
+                )*
+
+                let _ = any;
+                None
+            }
         }
 
         impl From<$crate::node::Container> for $enum_name {

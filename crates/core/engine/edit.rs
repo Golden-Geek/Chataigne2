@@ -4,6 +4,8 @@ use crate::parameter::ParamValue;
 
 pub enum Edit {
     SetParam { node: NodeId, value: ParamValue },
+    AddNode { node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId> },
+    ReplaceNode { node: NodeId, new_node: Box<dyn Node> },
     RemoveNode { node: NodeId },
     MoveNode { node: NodeId, new_parent: NodeId, new_prev_sibling: Option<NodeId> },
     PatchMeta { node: NodeId, patch: NodeMetaPatch },
@@ -28,36 +30,6 @@ impl EditQueue {
     }
 
     pub fn drain(&mut self) -> Vec<EditRequest> {
-        std::mem::take(&mut self.pending)
-    }
-}
-
-pub enum BuildEdit<T: Node> {
-    AddNode { node: T, parent: NodeId, prev_sibling: Option<NodeId> },
-    ReplaceNode { node: NodeId, new_node: T },
-}
-
-pub struct BuildEditRequest<T: Node> {
-    pub edit: BuildEdit<T>
-}
-
-#[derive(Default)]
-pub struct BuildEditQueue<T: Node> {
-    pub pending: Vec<BuildEditRequest<T>>,
-}
-
-impl<T: Node> BuildEditQueue<T> {
-    pub fn new() -> Self {
-        Self { pending: Vec::new() }
-    }
-
-    pub fn push(&mut self, edit: BuildEdit<T>) {
-        self.pending.push(BuildEditRequest {
-            edit,
-        });
-    }
-
-    pub fn drain(&mut self) -> Vec<BuildEditRequest<T>> {
         std::mem::take(&mut self.pending)
     }
 }

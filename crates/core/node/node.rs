@@ -1,4 +1,7 @@
+use std::any::Any;
+
 use crate::color::Color;
+use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::parameter::ParamValue;
 use crate::process_ctx::ProcessCtx;
@@ -144,11 +147,19 @@ pub struct NodeMetaPatch {
 }
 
 // Behaviour of a node, which determines how it reacts to events and updates
-pub trait Node: Send {
+pub trait Node: Send + Any {
     fn node_data(&self) -> &NodeData;
     fn node_data_mut(&mut self) -> &mut NodeData;
 
     fn get_type(&self) -> &str;
+
+    fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let any: Box<dyn Any> = node;
+        any.downcast::<Self>().ok().map(|node| *node)
+    }
 
     fn id(&self) -> NodeId {
         self.node_data().id
@@ -166,11 +177,37 @@ pub trait Node: Send {
         self.dispatch_inbox(ctx);
     }
 
-    fn add_child(&mut self, _ctx: &mut ProcessCtx, _child: Box<dyn Node>, _after: Option<NodeId>) {
+    fn add_child_boxed(&mut self, ctx: &mut ProcessCtx, child: Box<dyn Node>, after: Option<NodeId>) {
+        ctx.add_child_boxed(self.id(), child, after);
     }
-    fn remove_child(&mut self, _ctx: &mut ProcessCtx, _child: NodeId) {}
-    fn move_child(&mut self, _ctx: &mut ProcessCtx, _child: NodeId, _new_parent: NodeId, _after: Option<NodeId>) {}
-    fn replace_child(&mut self, _ctx: &mut ProcessCtx, _old: NodeId, _new: Box<dyn Node>) {}
+
+    fn add_child<N>(&mut self, ctx: &mut ProcessCtx, child: N, after: Option<NodeId>)
+    where
+        Self: Sized,
+        N: Node + 'static,
+    {
+        self.add_child_boxed(ctx, Box::new(child), after);
+    }
+    fn remove_child(&mut self, ctx: &mut ProcessCtx, child: NodeId) {
+        ctx.edits.push(Edit::RemoveNode { node: child });
+    }
+    fn move_child(&mut self, ctx: &mut ProcessCtx, child: NodeId, new_parent: NodeId, after: Option<NodeId>) {
+        ctx.edits.push(Edit::MoveNode {
+            node: child,
+            new_parent,
+            new_prev_sibling: after,
+        });
+    }
+    fn replace_child_boxed(&mut self, ctx: &mut ProcessCtx, old: NodeId, new_node: Box<dyn Node>) {
+        ctx.replace_node_boxed(old, new_node);
+    }
+    fn replace_child<N>(&mut self, ctx: &mut ProcessCtx, old: NodeId, new_node: N)
+    where
+        Self: Sized,
+        N: Node + 'static,
+    {
+        self.replace_child_boxed(ctx, old, Box::new(new_node));
+    }
 
     // DEFAULT IMPLEMENTATIONS FOR EVENT HANDLERS
 
