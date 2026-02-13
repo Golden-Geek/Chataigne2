@@ -215,7 +215,8 @@ pub enum ParameterChangeCheck {
 /// parameter.set(&mut ctx, ParamValue::Float(0.75));
 /// assert_eq!(ctx.edits.pending.len(), 1);
 /// ```
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+
+
 pub struct Parameter {
     node_data: NodeData,
     /// Current parameter value.

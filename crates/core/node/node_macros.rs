@@ -1,7 +1,63 @@
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __dispatch_node_enum {
+    ($self:expr, $method:ident ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method(),
+            Self::Parameter(node) => node.$method(),
+            Self::Manager(node) => node.$method(),
+            $(Self::$variant(node) => node.$method(),)*
+        }
+    };
+    ($self:expr, $method:ident, $arg1:expr ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method($arg1),
+            Self::Parameter(node) => node.$method($arg1),
+            Self::Manager(node) => node.$method($arg1),
+            $(Self::$variant(node) => node.$method($arg1),)*
+        }
+    };
+    ($self:expr, $method:ident, $arg1:expr, $arg2:expr ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method($arg1, $arg2),
+            Self::Parameter(node) => node.$method($arg1, $arg2),
+            Self::Manager(node) => node.$method($arg1, $arg2),
+            $(Self::$variant(node) => node.$method($arg1, $arg2),)*
+        }
+    };
+    ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Manager(node) => node.$method($arg1, $arg2, $arg3),
+            $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
+        }
+    };
+    ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Manager(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __downcast_node_enum_variant {
+    ($any:ident, $variant:ident, $node_ty:ty) => {
+        let $any = match $any.downcast::<$node_ty>() {
+            Ok(node) => return Some(Self::$variant(*node)),
+            Err(any) => any,
+        };
+    };
+}
+
 /// Defines a node enum with static dispatch over `golden_core::node::Node`.
 ///
 /// Internal node variants are always included automatically:
-/// - `Container($crate::node::Container)`
+/// - `Folder($crate::node::Folder)`
 /// - `Parameter($crate::parameter::Parameter)`
 /// - `Manager($crate::node::Manager)`
 ///
@@ -14,200 +70,116 @@
 macro_rules! define_node_enum {
     ($vis:vis enum $enum_name:ident { $($variant:ident($node_ty:ty)),* $(,)? }) => {
         $vis enum $enum_name {
-            Container($crate::node::Container),
+            Folder($crate::node::Folder),
             Parameter($crate::parameter::Parameter),
             Manager($crate::node::Manager),
             $($variant($node_ty),)*
         }
 
         impl $crate::node::Node for $enum_name {
+            #[inline(always)]
             fn node_data(&self) -> &$crate::node::NodeData {
-                match self {
-                    Self::Container(node) => node.node_data(),
-                    Self::Parameter(node) => node.node_data(),
-                    Self::Manager(node) => node.node_data(),
-                    $(Self::$variant(node) => node.node_data(),)*
-                }
+                $crate::__dispatch_node_enum!(self, node_data; $($variant),*)
             }
 
+            #[inline(always)]
             fn node_data_mut(&mut self) -> &mut $crate::node::NodeData {
-                match self {
-                    Self::Container(node) => node.node_data_mut(),
-                    Self::Parameter(node) => node.node_data_mut(),
-                    Self::Manager(node) => node.node_data_mut(),
-                    $(Self::$variant(node) => node.node_data_mut(),)*
-                }
+                $crate::__dispatch_node_enum!(self, node_data_mut; $($variant),*)
             }
 
+            #[inline(always)]
             fn get_type(&self) -> &str {
-                match self {
-                    Self::Container(node) => node.get_type(),
-                    Self::Parameter(node) => node.get_type(),
-                    Self::Manager(node) => node.get_type(),
-                    $(Self::$variant(node) => node.get_type(),)*
-                }
+                $crate::__dispatch_node_enum!(self, get_type; $($variant),*)
             }
 
+            #[inline(always)]
             fn set_param_value(&mut self, value: $crate::parameter::ParamValue) -> Option<$crate::parameter::ParamValue> {
-                match self {
-                    Self::Container(node) => node.set_param_value(value),
-                    Self::Parameter(node) => node.set_param_value(value),
-                    Self::Manager(node) => node.set_param_value(value),
-                    $(Self::$variant(node) => node.set_param_value(value),)*
-                }
+                $crate::__dispatch_node_enum!(self, set_param_value, value; $($variant),*)
             }
 
+            #[inline(always)]
             fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
-                match self {
-                    Self::Container(node) => node.init(ctx),
-                    Self::Parameter(node) => node.init(ctx),
-                    Self::Manager(node) => node.init(ctx),
-                    $(Self::$variant(node) => node.init(ctx),)*
-                }
+                $crate::__dispatch_node_enum!(self, init, ctx; $($variant),*)
             }
 
+            #[inline(always)]
             fn update(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
-                match self {
-                    Self::Container(node) => node.update(ctx),
-                    Self::Parameter(node) => node.update(ctx),
-                    Self::Manager(node) => node.update(ctx),
-                    $(Self::$variant(node) => node.update(ctx),)*
-                }
+                $crate::__dispatch_node_enum!(self, update, ctx; $($variant),*)
             }
 
+            #[inline(always)]
             fn destroy(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
-                match self {
-                    Self::Container(node) => node.destroy(ctx),
-                    Self::Parameter(node) => node.destroy(ctx),
-                    Self::Manager(node) => node.destroy(ctx),
-                    $(Self::$variant(node) => node.destroy(ctx),)*
-                }
+                $crate::__dispatch_node_enum!(self, destroy, ctx; $($variant),*)
             }
 
+            #[inline(always)]
             fn child_event_interest_depth(&self, event: &$crate::events::Event) -> u32 {
-                match self {
-                    Self::Container(node) => node.child_event_interest_depth(event),
-                    Self::Parameter(node) => node.child_event_interest_depth(event),
-                    Self::Manager(node) => node.child_event_interest_depth(event),
-                    $(Self::$variant(node) => node.child_event_interest_depth(event),)*
-                }
+                $crate::__dispatch_node_enum!(self, child_event_interest_depth, event; $($variant),*)
             }
 
+            #[inline(always)]
             fn bubble_event_depth(&self, event: &$crate::events::Event) -> u32 {
-                match self {
-                    Self::Container(node) => node.bubble_event_depth(event),
-                    Self::Parameter(node) => node.bubble_event_depth(event),
-                    Self::Manager(node) => node.bubble_event_depth(event),
-                    $(Self::$variant(node) => node.bubble_event_depth(event),)*
-                }
+                $crate::__dispatch_node_enum!(self, bubble_event_depth, event; $($variant),*)
             }
 
+            #[inline(always)]
             fn event_propagation(&self, event: &$crate::events::Event, depth: u32) -> $crate::node::EventPropagation {
-                match self {
-                    Self::Container(node) => node.event_propagation(event, depth),
-                    Self::Parameter(node) => node.event_propagation(event, depth),
-                    Self::Manager(node) => node.event_propagation(event, depth),
-                    $(Self::$variant(node) => node.event_propagation(event, depth),)*
-                }
+                $crate::__dispatch_node_enum!(self, event_propagation, event, depth; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_inbox(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
-                match self {
-                    Self::Container(node) => node.on_inbox(ctx),
-                    Self::Parameter(node) => node.on_inbox(ctx),
-                    Self::Manager(node) => node.on_inbox(ctx),
-                    $(Self::$variant(node) => node.on_inbox(ctx),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_inbox, ctx; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_param_change(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, param: $crate::node::NodeId, old_value: $crate::parameter::ParamValue) {
-                match self {
-                    Self::Container(node) => node.on_param_change(ctx, param, old_value),
-                    Self::Parameter(node) => node.on_param_change(ctx, param, old_value),
-                    Self::Manager(node) => node.on_param_change(ctx, param, old_value),
-                    $(Self::$variant(node) => node.on_param_change(ctx, param, old_value),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_param_change, ctx, param, old_value; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_child_added(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_child_added(ctx, parent, child),
-                    Self::Parameter(node) => node.on_child_added(ctx, parent, child),
-                    Self::Manager(node) => node.on_child_added(ctx, parent, child),
-                    $(Self::$variant(node) => node.on_child_added(ctx, parent, child),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_child_added, ctx, parent, child; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_child_removed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_child_removed(ctx, parent, child),
-                    Self::Parameter(node) => node.on_child_removed(ctx, parent, child),
-                    Self::Manager(node) => node.on_child_removed(ctx, parent, child),
-                    $(Self::$variant(node) => node.on_child_removed(ctx, parent, child),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_child_removed, ctx, parent, child; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_child_replaced(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, old: $crate::node::NodeId, new: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_child_replaced(ctx, parent, old, new),
-                    Self::Parameter(node) => node.on_child_replaced(ctx, parent, old, new),
-                    Self::Manager(node) => node.on_child_replaced(ctx, parent, old, new),
-                    $(Self::$variant(node) => node.on_child_replaced(ctx, parent, old, new),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_child_replaced, ctx, parent, old, new; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_child_moved(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, child: $crate::node::NodeId, old_parent: $crate::node::NodeId, new_parent: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
-                    Self::Parameter(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
-                    Self::Manager(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
-                    $(Self::$variant(node) => node.on_child_moved(ctx, child, old_parent, new_parent),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_child_moved, ctx, child, old_parent, new_parent; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_child_reordered(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_child_reordered(ctx, parent, child),
-                    Self::Parameter(node) => node.on_child_reordered(ctx, parent, child),
-                    Self::Manager(node) => node.on_child_reordered(ctx, parent, child),
-                    $(Self::$variant(node) => node.on_child_reordered(ctx, parent, child),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_child_reordered, ctx, parent, child; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_node_created(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_node_created(ctx, node_id),
-                    Self::Parameter(node) => node.on_node_created(ctx, node_id),
-                    Self::Manager(node) => node.on_node_created(ctx, node_id),
-                    $(Self::$variant(node) => node.on_node_created(ctx, node_id),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_node_created, ctx, node_id; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_node_deleted(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId) {
-                match self {
-                    Self::Container(node) => node.on_node_deleted(ctx, node_id),
-                    Self::Parameter(node) => node.on_node_deleted(ctx, node_id),
-                    Self::Manager(node) => node.on_node_deleted(ctx, node_id),
-                    $(Self::$variant(node) => node.on_node_deleted(ctx, node_id),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_node_deleted, ctx, node_id; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_meta_changed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId, patch: $crate::node::NodeMetaPatch) {
-                match self {
-                    Self::Container(node) => node.on_meta_changed(ctx, node_id, patch),
-                    Self::Parameter(node) => node.on_meta_changed(ctx, node_id, patch),
-                    Self::Manager(node) => node.on_meta_changed(ctx, node_id, patch),
-                    $(Self::$variant(node) => node.on_meta_changed(ctx, node_id, patch),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_meta_changed, ctx, node_id, patch; $($variant),*)
             }
 
+            #[inline(always)]
             fn on_custom_event(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, event: $crate::events::CustomEvent) {
-                match self {
-                    Self::Container(node) => node.on_custom_event(ctx, event),
-                    Self::Parameter(node) => node.on_custom_event(ctx, event),
-                    Self::Manager(node) => node.on_custom_event(ctx, event),
-                    $(Self::$variant(node) => node.on_custom_event(ctx, event),)*
-                }
+                $crate::__dispatch_node_enum!(self, on_custom_event, ctx, event; $($variant),*)
             }
 
             fn from_boxed_node(node: Box<dyn $crate::node::Node>) -> Option<Self>
@@ -221,26 +193,12 @@ macro_rules! define_node_enum {
                     Err(any) => any,
                 };
 
-                let any = match any.downcast::<$crate::node::Container>() {
-                    Ok(node) => return Some(Self::Container(*node)),
-                    Err(any) => any,
-                };
-
-                let any = match any.downcast::<$crate::parameter::Parameter>() {
-                    Ok(node) => return Some(Self::Parameter(*node)),
-                    Err(any) => any,
-                };
-
-                let any = match any.downcast::<$crate::node::Manager>() {
-                    Ok(node) => return Some(Self::Manager(*node)),
-                    Err(any) => any,
-                };
+                $crate::__downcast_node_enum_variant!(any, Folder, $crate::node::Folder);
+                $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
+                $crate::__downcast_node_enum_variant!(any, Manager, $crate::node::Manager);
 
                 $(
-                    let any = match any.downcast::<$node_ty>() {
-                        Ok(node) => return Some(Self::$variant(*node)),
-                        Err(any) => any,
-                    };
+                    $crate::__downcast_node_enum_variant!(any, $variant, $node_ty);
                 )*
 
                 let _ = any;
@@ -248,9 +206,9 @@ macro_rules! define_node_enum {
             }
         }
 
-        impl From<$crate::node::Container> for $enum_name {
-            fn from(node: $crate::node::Container) -> Self {
-                Self::Container(node)
+        impl From<$crate::node::Folder> for $enum_name {
+            fn from(node: $crate::node::Folder) -> Self {
+                Self::Folder(node)
             }
         }
 
@@ -429,11 +387,12 @@ macro_rules! define_node_type {
         }
 
         impl $node_name {
+            /// Creates a new node of type "$type_name" with the given label and fields.
             pub fn new(label: impl Into<String> $(, $field: $field_ty)*) -> Self {
                 Self {
                     node_data: $crate::node::NodeData::new(label.into()),
                     $($field),*
-                }
+            }
             }
         }
 

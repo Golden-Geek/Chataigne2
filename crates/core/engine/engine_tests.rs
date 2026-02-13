@@ -1,13 +1,13 @@
 use super::*;
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
-use crate::node::{Container, EventPropagation, EventSubscription, Manager, Node, NodeData, NodeId};
+use crate::node::{Folder, EventPropagation, EventSubscription, Manager, Node, NodeData, NodeId};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 #[test]
 fn absorb_edits_reports_node_type_mismatch() {
-    let root = Container::new("root".to_string());
+    let root = Folder::new("root".to_string());
     let mut engine = Engine::new(root);
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
 
@@ -19,11 +19,11 @@ fn absorb_edits_reports_node_type_mismatch() {
 
 #[test]
 fn absorb_edits_accepts_matching_node_type() {
-    let root = Container::new("root".to_string());
+    let root = Folder::new("root".to_string());
     let mut engine = Engine::new(root);
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
 
-    ctx.add_child(NodeId(0), Container::new("child".to_string()), None);
+    ctx.add_child(NodeId(0), Folder::new("child".to_string()), None);
 
     let result = engine.absorb_edits(&mut ctx);
     assert!(result.is_ok());
@@ -32,9 +32,9 @@ fn absorb_edits_accepts_matching_node_type() {
 
 #[test]
 fn apply_edits_adds_children_in_call_order() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("child_a".to_string()), None);
-    engine.add_node(Container::new("child_b".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child_a".to_string()), None);
+    engine.add_node(Folder::new("child_b".to_string()), None);
 
     engine.apply_edits().expect("apply_edits should succeed");
 
@@ -49,9 +49,9 @@ fn apply_edits_adds_children_in_call_order() {
 
 #[test]
 fn apply_edits_move_reorders_children() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("child_a".to_string()), None);
-    engine.add_node(Container::new("child_b".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child_a".to_string()), None);
+    engine.add_node(Folder::new("child_b".to_string()), None);
     engine.apply_edits().expect("initial apply_edits should succeed");
 
     let child_a = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("child_a should exist");
@@ -79,13 +79,13 @@ fn apply_edits_move_reorders_children() {
 
 #[test]
 fn apply_edits_rejects_cycle_move() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("parent".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("parent".to_string()), None);
     engine.apply_edits().expect("initial apply should succeed");
 
     let parent = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("parent should exist");
 
-    engine.add_node(Container::new("child".to_string()), Some(parent));
+    engine.add_node(Folder::new("child".to_string()), Some(parent));
     engine.apply_edits().expect("second apply should succeed");
 
     let child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child).expect("child should exist");
@@ -102,7 +102,7 @@ fn apply_edits_rejects_cycle_move() {
 
 #[test]
 fn apply_edits_set_param_rejects_non_parameter_node() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
+    let mut engine = Engine::new(Folder::new("root".to_string()));
     engine.edits.push(Edit::SetParam { node: engine.root, value: ParamValue::Int(12) });
 
     let result = engine.apply_edits();
@@ -134,7 +134,7 @@ fn apply_edits_set_param_updates_parameter_node() {
 
 #[test]
 fn emit_custom_event_uses_edit_pipeline() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
+    let mut engine = Engine::new(Folder::new("root".to_string()));
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
 
     ctx.emit_custom_event(CustomEvent::new("transport.play", Some(engine.root), serde_json::Value::Null));
@@ -176,8 +176,8 @@ fn undo_redo_set_param_restores_value() {
 
 #[test]
 fn undo_redo_add_node_restores_same_node_id() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("child".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child".to_string()), None);
     engine.apply_edits().expect("add should succeed");
 
     let child = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("child should exist");
@@ -192,8 +192,8 @@ fn undo_redo_add_node_restores_same_node_id() {
 
 #[test]
 fn undo_redo_remove_node_restores_same_node_id() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("child".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child".to_string()), None);
     engine.apply_edits().expect("initial add should succeed");
 
     let child = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("child should exist");
@@ -211,9 +211,9 @@ fn undo_redo_remove_node_restores_same_node_id() {
 
 #[test]
 fn undo_redo_move_restores_child_order() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("child_a".to_string()), None);
-    engine.add_node(Container::new("child_b".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child_a".to_string()), None);
+    engine.add_node(Folder::new("child_b".to_string()), None);
     engine.apply_edits().expect("initial add should succeed");
 
     let child_a = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("child_a should exist");
@@ -237,13 +237,13 @@ fn undo_redo_move_restores_child_order() {
 
 #[test]
 fn undo_redo_replace_restores_original_node_id() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("original".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("original".to_string()), None);
     engine.apply_edits().expect("initial add should succeed");
 
     let original_id = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("original child should exist");
 
-    engine.replace_node(original_id, Container::new("replacement".to_string()));
+    engine.replace_node(original_id, Folder::new("replacement".to_string()));
     engine.apply_edits().expect("replace should succeed");
 
     let replacement_id = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("replacement child should exist");
@@ -262,14 +262,14 @@ fn undo_redo_replace_restores_original_node_id() {
 
 #[test]
 fn applying_new_edits_after_undo_clears_redo_stack() {
-    let mut engine = Engine::new(Container::new("root".to_string()));
-    engine.add_node(Container::new("first".to_string()), None);
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("first".to_string()), None);
     engine.apply_edits().expect("initial add should succeed");
 
     assert!(engine.undo().expect("undo should succeed"));
     assert_eq!(engine.redo_len(), 1);
 
-    engine.add_node(Container::new("second".to_string()), None);
+    engine.add_node(Folder::new("second".to_string()), None);
     engine.apply_edits().expect("second add should succeed");
 
     assert_eq!(engine.redo_len(), 0, "new edits should invalidate redo history");

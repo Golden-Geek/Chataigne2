@@ -1,6 +1,7 @@
 use std::any::Any;
 
 use crate::color::Color;
+use crate::define_node_type;
 use crate::edit::Edit;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::parameter::ParamValue;
@@ -178,9 +179,7 @@ impl NodeMeta {
 ///
 /// This currently carries no fields and acts as a forward-compatible marker.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct NodeMetaPatch {
-    // For now, we can just replace the whole meta of a node. In the future, we can add more fine-grained patches. pub new_meta: NodeMeta, }
-}
+pub struct NodeMetaPatch {}
 
 /// Controls whether an event reaching a node should notify, pass through, or stop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -193,7 +192,7 @@ pub enum EventPropagation {
     Stop,
 }
 
-/// Explicit subscription to a specific node or one of its descendants.
+/// Runtime listener subscription targeting a node and optional subtree depth.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EventSubscription {
     /// Subscription root node id.
@@ -205,12 +204,12 @@ pub struct EventSubscription {
 }
 
 impl EventSubscription {
-    /// Subscribes only to events originating from `node`.
+    /// Creates a subscription matching events originating exactly from `node`.
     pub fn node(node: NodeId) -> Self {
         Self { node, max_depth: 0 }
     }
 
-    /// Subscribes to events originating from `node` and descendants up to `max_depth`.
+    /// Creates a subscription matching `node` and descendants up to `max_depth`.
     pub fn subtree(node: NodeId, max_depth: u32) -> Self {
         Self { node, max_depth }
     }
@@ -256,15 +255,16 @@ pub trait Node: Send + Any {
     fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
     /// Called before node destruction.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
+
     /// Returns how many descendant levels of events this node subscribes to.
     ///
-    /// `0` means this node does not subscribe to descendant events.
+    /// `0` means this node does not subscribe to descendant events, `1` means it subscribes to direct child events, etc.
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
-        0
+        1
     }
     /// Returns how many additional ancestor hops this node grants to a received event.
     ///
-    /// `1` allows bubbling to the direct parent by default.
+    /// `0` means no additional bubbling, `1` allows bubbling to the direct parent by default.
     fn bubble_event_depth(&self, _event: &Event) -> u32 {
         1
     }
@@ -389,56 +389,38 @@ pub trait Node: Send + Any {
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
 }
 
-/// Basic folder-like node used as a structural container.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Container {
-    node_data: NodeData,
-}
-
-impl Container {
-    /// Creates a new container node.
-    pub fn new(label: String) -> Self {
-        Self { node_data: NodeData::new(label) }
+define_node_type!(
+    /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
+    pub struct Folder {
     }
-}
+    type_name: "folder",
+    node_impl {
+        fn init(&mut self, _ctx: &mut ProcessCtx) {
+            println!("Folder init");
+        }
 
-impl Node for Container {
-    fn node_data(&self) -> &NodeData {
-        &self.node_data
+        fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+            println!("Folder destroy");
+        }
+
+        fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
+            EventPropagation::PassOn
+        }
     }
+);
 
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.node_data
+define_node_type!(
+    /// Internal Folder-like node used as a curated user-extensible root.
+    pub struct Manager {
     }
+    type_name: "manager",
+    node_impl {
+        fn init(&mut self, _ctx: &mut ProcessCtx) {
+            println!("Manager init");
+        }
 
-    fn get_type(&self) -> &str {
-        "container"
+        fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+            println!("Manager destroy");
+        }
     }
-}
-
-/// Internal container-like node used as a curated user-extensible root.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Manager {
-    node_data: NodeData,
-}
-
-impl Manager {
-    /// Creates a new manager node.
-    pub fn new(label: String) -> Self {
-        Self { node_data: NodeData::new(label) }
-    }
-}
-
-impl Node for Manager {
-    fn node_data(&self) -> &NodeData {
-        &self.node_data
-    }
-
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.node_data
-    }
-
-    fn get_type(&self) -> &str {
-        "manager"
-    }
-}
+);

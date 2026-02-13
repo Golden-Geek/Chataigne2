@@ -13,10 +13,10 @@ impl<T: Node> Engine<T> {
     /// # Examples
     /// ```rust
     /// use golden_core::engine::Engine;
-    /// use golden_core::node::Container;
+    /// use golden_core::node::Folder;
     ///
-    /// let mut engine = Engine::new(Container::new("root".to_string()));
-    /// engine.add_node(Container::new("child".to_string()), None);
+    /// let mut engine = Engine::new(Folder::new("root".to_string()));
+    /// engine.add_node(Folder::new("child".to_string()), None);
     /// engine.apply_edits().expect("edit application should succeed");
     /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
