@@ -224,4 +224,9 @@ impl Node for Parameter {
             ParamValue::Reference(_) => "reference",
         }
     }
+
+    fn set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
+        let old = std::mem::replace(&mut self.value, value);
+        Some(old)
+    }
 }

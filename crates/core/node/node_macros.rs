@@ -48,6 +48,15 @@ macro_rules! define_node_enum {
                 }
             }
 
+            fn set_param_value(&mut self, value: $crate::parameter::ParamValue) -> Option<$crate::parameter::ParamValue> {
+                match self {
+                    Self::Container(node) => node.set_param_value(value),
+                    Self::Parameter(node) => node.set_param_value(value),
+                    Self::Manager(node) => node.set_param_value(value),
+                    $(Self::$variant(node) => node.set_param_value(value),)*
+                }
+            }
+
             fn from_boxed_node(node: Box<dyn $crate::node::Node>) -> Option<Self>
             where
                 Self: Sized,

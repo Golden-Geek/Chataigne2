@@ -1,6 +1,6 @@
 use crate::edit::{Edit, EditQueue};
 use crate::engine::EngineTime;
-use crate::events::{CustomEvent, Event, EventKind};
+use crate::events::{CustomEvent, Event};
 use crate::node::{Node, NodeId};
 use crate::parameter::ParamValue;
 use serde::Serialize;
@@ -13,7 +13,7 @@ pub enum ExecutionPhase {
 
 pub struct ProcessCtx {
     pub phase: ExecutionPhase,
-    pub inbox: Vec<Event>,
+    pub events: Vec<Event>,
     pub edits: EditQueue,
     pub time: EngineTime,
 }
@@ -22,7 +22,7 @@ impl ProcessCtx {
     pub fn new(phase: ExecutionPhase, time: EngineTime) -> Self {
         Self {
             phase,
-            inbox: Vec::new(),
+            events: Vec::new(),
             edits: EditQueue::new(),
             time,
         }
@@ -56,7 +56,7 @@ impl ProcessCtx {
     }
 
     pub fn emit_custom_event(&mut self, event: CustomEvent) {
-        self.inbox.push(Event { time: self.time, kind: EventKind::Custom(event) });
+        self.edits.push(Edit::EmitCustomEvent { event });
     }
 
     pub fn emit_custom_payload<U: Serialize>(&mut self, topic:  impl Into<String>, origin: Option<NodeId>, payload: &U) -> serde_json::Result<()> {

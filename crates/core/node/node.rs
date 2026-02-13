@@ -153,6 +153,10 @@ pub trait Node: Send + Any {
 
     fn get_type(&self) -> &str;
 
+    fn set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
+        None
+    }
+
     fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
     where
         Self: Sized,
@@ -213,7 +217,7 @@ pub trait Node: Send + Any {
 
     // Dispatch events from the inbox to the appropriate handlers
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
-        for event in ctx.inbox.clone() {
+        for event in ctx.events.clone() {
             match event.kind {
                 EventKind::ParamChanged { param, old_value } => {
                     self.on_param_change(ctx, param, old_value);

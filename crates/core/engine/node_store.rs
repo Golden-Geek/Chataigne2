@@ -33,6 +33,14 @@ impl<T: Node> NodeStore<T> {
         self.inner.get_mut(Self::key_from_id(id))
     }
 
+    pub fn remove(&mut self, id: NodeId) -> Option<T> {
+        self.inner.remove(Self::key_from_id(id))
+    }
+
+    pub fn contains(&self, id: NodeId) -> bool {
+        self.inner.contains_key(Self::key_from_id(id))
+    }
+
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.inner.values()
     }

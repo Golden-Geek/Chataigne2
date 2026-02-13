@@ -1,4 +1,5 @@
 use crate::node::{Node, NodeId, NodeMetaPatch};
+use crate::events::CustomEvent;
 use crate::parameter::ParamValue;
 
 
@@ -9,6 +10,7 @@ pub enum Edit {
     RemoveNode { node: NodeId },
     MoveNode { node: NodeId, new_parent: NodeId, new_prev_sibling: Option<NodeId> },
     PatchMeta { node: NodeId, patch: NodeMetaPatch },
+    EmitCustomEvent { event: CustomEvent },
 }
 
 pub struct EditRequest {
