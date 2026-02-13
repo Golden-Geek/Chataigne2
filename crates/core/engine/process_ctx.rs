@@ -1,7 +1,7 @@
 use crate::edit::{Edit, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
-use crate::node::{Node, NodeId};
+use crate::node::{EventSubscription, Node, NodeId};
 use crate::parameter::ParamValue;
 use serde::Serialize;
 
@@ -59,11 +59,7 @@ impl ProcessCtx {
 
     /// Queues insertion of a boxed child node.
     pub fn add_child_boxed(&mut self, parent: NodeId, child: Box<dyn Node>, after: Option<NodeId>) {
-        self.edits.push(Edit::AddNode {
-            parent,
-            prev_sibling: after,
-            node: child,
-        });
+        self.edits.push(Edit::AddNode { parent, prev_sibling: after, node: child });
     }
 
     /// Queues replacement of a node by a typed node value.
@@ -73,15 +69,38 @@ impl ProcessCtx {
 
     /// Queues replacement of a node by a boxed node value.
     pub fn replace_node_boxed(&mut self, node: NodeId, new_node: Box<dyn Node>) {
-        self.edits.push(Edit::ReplaceNode {
-            node,
-            new_node,
-        });
+        self.edits.push(Edit::ReplaceNode { node, new_node });
     }
 
     /// Queues a custom event to be emitted by the engine.
     pub fn emit_custom_event(&mut self, event: CustomEvent) {
         self.edits.push(Edit::EmitCustomEvent { event });
+    }
+
+    /// Queues a direct listener subscription from `subscriber` to `target`.
+    pub fn add_event_listener(&mut self, subscriber: NodeId, target: NodeId) {
+        self.add_event_listener_subtree(subscriber, target, 0);
+    }
+
+    /// Queues a listener subscription from `subscriber` to `target` subtree.
+    pub fn add_event_listener_subtree(&mut self, subscriber: NodeId, target: NodeId, max_depth: u32) {
+        self.edits.push(Edit::AddEventListener {
+            subscriber,
+            subscription: EventSubscription::subtree(target, max_depth),
+        });
+    }
+
+    /// Queues removal of a direct listener subscription from `subscriber` to `target`.
+    pub fn remove_event_listener(&mut self, subscriber: NodeId, target: NodeId) {
+        self.remove_event_listener_subtree(subscriber, target, 0);
+    }
+
+    /// Queues removal of a subtree listener subscription from `subscriber` to `target`.
+    pub fn remove_event_listener_subtree(&mut self, subscriber: NodeId, target: NodeId, max_depth: u32) {
+        self.edits.push(Edit::RemoveEventListener {
+            subscriber,
+            subscription: EventSubscription::subtree(target, max_depth),
+        });
     }
 
     /// Serializes and queues a custom event payload.

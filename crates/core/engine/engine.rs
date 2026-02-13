@@ -1,8 +1,9 @@
 use std::any::type_name;
+use std::collections::{HashMap, HashSet};
 
 use crate::edit::{Edit, EditQueue};
 use crate::events::Inbox;
-use crate::node::*;
+use crate::node::{EventSubscription, *};
 use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,9 @@ mod engine_apply_param;
 /// Tree mutation, attachment, and topology validation helpers.
 #[path = "engine_apply_tree.rs"]
 mod engine_apply_tree;
+/// Event bubbling and inbox dispatch orchestration.
+#[path = "engine_dispatch.rs"]
+mod engine_dispatch;
 /// Engine edit error type definitions.
 #[path = "engine_error.rs"]
 mod engine_error;
@@ -58,6 +62,8 @@ pub struct Engine<T: Node> {
     pub inbox: Inbox,
     /// Pending edits to be applied.
     pub edits: EditQueue,
+    /// Runtime listener subscriptions keyed by subscriber node id.
+    pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
     /// Applied edit transactions available for undo.
     undo_stack: Vec<engine_history::HistoryTransaction<T>>,
     /// Undone edit transactions available for redo.
@@ -73,13 +79,10 @@ impl<T: Node> Engine<T> {
         Self {
             nodes,
             root,
-            time: EngineTime {
-                tick: 0,
-                micro: 0,
-                seq: 0,
-            },
+            time: EngineTime { tick: 0, micro: 0, seq: 0 },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
+            event_listeners: HashMap::new(),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
         }
@@ -96,11 +99,7 @@ impl<T: Node> Engine<T> {
 
     /// Queues insertion of a node after an existing sibling.
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
-        let parent = self
-            .nodes
-            .get(sibling)
-            .and_then(|n| n.node_data().parent)
-            .unwrap_or(self.root);
+        let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
         self.edits.push(Edit::AddNode {
             parent,
             prev_sibling: Some(sibling),
@@ -110,10 +109,7 @@ impl<T: Node> Engine<T> {
 
     /// Queues replacement of an existing node.
     pub fn replace_node(&mut self, node: NodeId, new_node: T) {
-        self.edits.push(Edit::ReplaceNode {
-            node,
-            new_node: Box::new(new_node),
-        });
+        self.edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
     }
 
     /// Moves edits from a processing context into the engine queue.
@@ -124,11 +120,7 @@ impl<T: Node> Engine<T> {
 
         for (edit_index, request) in ctx.edits.drain().into_iter().enumerate() {
             match request.edit {
-                Edit::AddNode {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
+                Edit::AddNode { node, parent, prev_sibling } => {
                     let provided_node_type = node.get_type().to_string();
                     let Some(node) = T::from_boxed_node(node) else {
                         return Err(EngineEditError::NodeTypeMismatch {
@@ -139,11 +131,7 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::AddNode {
-                        node: Box::new(node),
-                        parent,
-                        prev_sibling,
-                    });
+                    validated_edits.push(Edit::AddNode { node: Box::new(node), parent, prev_sibling });
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let provided_node_type = new_node.get_type().to_string();
@@ -156,10 +144,7 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::ReplaceNode {
-                        node,
-                        new_node: Box::new(new_node),
-                    });
+                    validated_edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
                 }
                 edit => validated_edits.push(edit),
             }

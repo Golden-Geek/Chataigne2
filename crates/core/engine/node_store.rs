@@ -1,5 +1,5 @@
-use slotmap::{Key, KeyData, SlotMap, new_key_type};
 use crate::node::{Node, NodeId};
+use slotmap::{Key, KeyData, SlotMap, new_key_type};
 
 new_key_type! {
     struct NodeKey;

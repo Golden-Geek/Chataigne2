@@ -29,11 +29,7 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_set_param(edit_index, node, value)?;
                     Ok(Some(effect.into()))
                 }
-                Edit::AddNode {
-                    node,
-                    parent,
-                    prev_sibling,
-                } => {
+                Edit::AddNode { node, parent, prev_sibling } => {
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
                     Ok(Some(effect.into()))
                 }
@@ -45,11 +41,7 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_remove_node(edit_index, node)?;
                     Ok(Some(effect.into()))
                 }
-                Edit::MoveNode {
-                    node,
-                    new_parent,
-                    new_prev_sibling,
-                } => {
+                Edit::MoveNode { node, new_parent, new_prev_sibling } => {
                     let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
                     Ok(Some(effect.into()))
                 }
@@ -59,6 +51,14 @@ impl<T: Node> Engine<T> {
                 }
                 Edit::EmitCustomEvent { event } => {
                     self.emit_event(EventKind::Custom(event));
+                    Ok(None)
+                }
+                Edit::AddEventListener { subscriber, subscription } => {
+                    self.apply_add_event_listener(edit_index, subscriber, subscription)?;
+                    Ok(None)
+                }
+                Edit::RemoveEventListener { subscriber, subscription } => {
+                    self.apply_remove_event_listener(subscriber, subscription);
                     Ok(None)
                 }
             };
@@ -91,12 +91,7 @@ impl<T: Node> Engine<T> {
     /// Validates and downcasts a dynamically provided node to the engine node type `T`.
     ///
     /// Returns [`EngineEditError::NodeTypeMismatch`] when the node cannot be coerced.
-    pub(crate) fn coerce_node_for_engine(
-        &self,
-        edit_index: usize,
-        operation: &'static str,
-        node: Box<dyn Node>,
-    ) -> Result<T, EngineEditError> {
+    pub(crate) fn coerce_node_for_engine(&self, edit_index: usize, operation: &'static str, node: Box<dyn Node>) -> Result<T, EngineEditError> {
         let provided_node_type = node.get_type().to_string();
         T::from_boxed_node(node).ok_or(EngineEditError::NodeTypeMismatch {
             edit_index,
@@ -108,6 +103,9 @@ impl<T: Node> Engine<T> {
 
     /// Pushes an event into the inbox and advances the per-tick event sequence counter.
     pub(crate) fn emit_event(&mut self, kind: EventKind) {
+        if let EventKind::NodeDeleted { node } = &kind {
+            self.purge_event_listeners_for_node(*node);
+        }
         let time = self.time;
         self.inbox.push(Event { time, kind });
         self.time.seq = self.time.seq.saturating_add(1);

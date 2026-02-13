@@ -79,20 +79,13 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let parent = engine.detach_node(0, OP, step.node)?;
-                let detached_node = engine.nodes.detach(step.node).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: OP,
-                    node: step.node,
-                })?;
+                let detached_node = engine.nodes.detach(step.node).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.node })?;
 
                 step.parent = parent;
                 step.detached_node = Some(detached_node);
 
                 engine.emit_event(EventKind::NodeDeleted { node: step.node });
-                engine.emit_event(EventKind::ChildRemoved {
-                    parent,
-                    child: step.node,
-                });
+                engine.emit_event(EventKind::ChildRemoved { parent, child: step.node });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "UndoRemoveNode";
@@ -106,22 +99,12 @@ impl<T: Node> HistoryStep<T> {
                     engine.nodes.reattach(id, node);
                 }
 
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.node,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 for node in created_ids.into_iter().rev() {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
-                engine.emit_event(EventKind::ChildAdded {
-                    parent: step.parent,
-                    child: step.node,
-                });
+                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node });
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -131,20 +114,10 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.node,
-                    step.old_parent,
-                    step.old_prev_sibling,
-                    step.old_next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.node, step.old_parent, step.old_prev_sibling, step.old_next_sibling)?;
 
                 if current_parent == step.old_parent {
-                    engine.emit_event(EventKind::ChildReordered {
-                        parent: step.old_parent,
-                        child: step.node,
-                    });
+                    engine.emit_event(EventKind::ChildReordered { parent: step.old_parent, child: step.node });
                 } else {
                     engine.emit_event(EventKind::ChildMoved {
                         child: step.node,
@@ -163,32 +136,12 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 engine.detach_node(0, OP, step.new_id)?;
-                let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: OP,
-                    node: step.new_id,
-                })?;
+                let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?;
 
                 engine.nodes.reattach(step.old_id, old_node);
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.old_id,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.old_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                let first_child = engine
-                    .nodes
-                    .get(step.old_id)
-                    .ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.old_id,
-                    })?
-                    .node_data()
-                    .first_child;
+                let first_child = engine.nodes.get(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?.node_data().first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.old_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.old_id });
@@ -220,20 +173,10 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 engine.nodes.reattach(step.node, node);
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.node,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.node });
-                engine.emit_event(EventKind::ChildAdded {
-                    parent: step.parent,
-                    child: step.node,
-                });
+                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "RedoRemoveNode";
@@ -248,19 +191,12 @@ impl<T: Node> HistoryStep<T> {
 
                 let mut detached_nodes = Vec::with_capacity(subtree.len());
                 for removed in subtree.into_iter().rev() {
-                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: removed,
-                    })?;
+                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: removed })?;
                     detached_nodes.push((removed, detached));
                     engine.emit_event(EventKind::NodeDeleted { node: removed });
                 }
 
-                engine.emit_event(EventKind::ChildRemoved {
-                    parent,
-                    child: step.node,
-                });
+                engine.emit_event(EventKind::ChildRemoved { parent, child: step.node });
 
                 step.parent = parent;
                 step.prev_sibling = prev_sibling;
@@ -275,20 +211,10 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.node,
-                    step.new_parent,
-                    step.new_prev_sibling,
-                    step.new_next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.node, step.new_parent, step.new_prev_sibling, step.new_next_sibling)?;
 
                 if current_parent == step.new_parent {
-                    engine.emit_event(EventKind::ChildReordered {
-                        parent: step.new_parent,
-                        child: step.node,
-                    });
+                    engine.emit_event(EventKind::ChildReordered { parent: step.new_parent, child: step.node });
                 } else {
                     engine.emit_event(EventKind::ChildMoved {
                         child: step.node,
@@ -307,32 +233,12 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 engine.detach_node(0, OP, step.old_id)?;
-                let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
-                    edit_index: 0,
-                    operation: OP,
-                    node: step.old_id,
-                })?;
+                let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?;
 
                 engine.nodes.reattach(step.new_id, new_node);
-                engine.attach_node_between(
-                    0,
-                    OP,
-                    step.new_id,
-                    step.parent,
-                    step.prev_sibling,
-                    step.next_sibling,
-                )?;
+                engine.attach_node_between(0, OP, step.new_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                let first_child = engine
-                    .nodes
-                    .get(step.new_id)
-                    .ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.new_id,
-                    })?
-                    .node_data()
-                    .first_child;
+                let first_child = engine.nodes.get(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?.node_data().first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.new_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.new_id });

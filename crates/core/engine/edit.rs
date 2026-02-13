@@ -1,5 +1,5 @@
 use crate::events::CustomEvent;
-use crate::node::{Node, NodeId, NodeMetaPatch};
+use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch};
 use crate::parameter::ParamValue;
 
 /// Mutable operations queued and then applied by the engine.
@@ -52,6 +52,20 @@ pub enum Edit {
     EmitCustomEvent {
         /// Custom event payload to emit.
         event: CustomEvent,
+    },
+    /// Adds or updates a runtime event listener for a subscriber node.
+    AddEventListener {
+        /// Listener owner node id.
+        subscriber: NodeId,
+        /// Subscription target and depth scope.
+        subscription: EventSubscription,
+    },
+    /// Removes a runtime event listener for a subscriber node.
+    RemoveEventListener {
+        /// Listener owner node id.
+        subscriber: NodeId,
+        /// Subscription target and depth scope.
+        subscription: EventSubscription,
     },
 }
 

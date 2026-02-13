@@ -40,4 +40,3 @@ pub mod process_ctx;
 
 /// Attribute macro used to declare node types.
 pub use golden_core_macros::node;
-

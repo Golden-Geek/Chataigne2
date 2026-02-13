@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::color::Color;
 use crate::edit::Edit;
-use crate::events::{CustomEvent, EventKind};
+use crate::events::{CustomEvent, Event, EventKind};
 use crate::parameter::ParamValue;
 use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
@@ -182,6 +182,40 @@ pub struct NodeMetaPatch {
     // For now, we can just replace the whole meta of a node. In the future, we can add more fine-grained patches. pub new_meta: NodeMeta, }
 }
 
+/// Controls whether an event reaching a node should notify, pass through, or stop.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventPropagation {
+    /// Notify this node when it is interested and continue bubbling.
+    Notify,
+    /// Do not notify this node, but still allow bubbling to continue.
+    PassOn,
+    /// Notify this node when it is interested and stop bubbling.
+    Stop,
+}
+
+/// Explicit subscription to a specific node or one of its descendants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct EventSubscription {
+    /// Subscription root node id.
+    pub node: NodeId,
+    /// Maximum descendant depth from `node` that should match.
+    ///
+    /// `0` matches only `node`, `1` includes direct children, and so on.
+    pub max_depth: u32,
+}
+
+impl EventSubscription {
+    /// Subscribes only to events originating from `node`.
+    pub fn node(node: NodeId) -> Self {
+        Self { node, max_depth: 0 }
+    }
+
+    /// Subscribes to events originating from `node` and descendants up to `max_depth`.
+    pub fn subtree(node: NodeId, max_depth: u32) -> Self {
+        Self { node, max_depth }
+    }
+}
+
 /// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
     /// Returns immutable runtime node data.
@@ -222,6 +256,24 @@ pub trait Node: Send + Any {
     fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
     /// Called before node destruction.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
+    /// Returns how many descendant levels of events this node subscribes to.
+    ///
+    /// `0` means this node does not subscribe to descendant events.
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        0
+    }
+    /// Returns how many additional ancestor hops this node grants to a received event.
+    ///
+    /// `1` allows bubbling to the direct parent by default.
+    fn bubble_event_depth(&self, _event: &Event) -> u32 {
+        1
+    }
+    /// Returns propagation behavior for an event that has reached this node.
+    ///
+    /// `depth` is the ancestor distance from event origin (`0` for the origin node).
+    fn event_propagation(&self, _event: &Event, _depth: u32) -> EventPropagation {
+        EventPropagation::Notify
+    }
     /// Dispatches inbox events to per-event handlers.
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.dispatch_inbox(ctx);
@@ -246,11 +298,23 @@ pub trait Node: Send + Any {
     }
     /// Queues move of an existing child.
     fn move_child(&mut self, ctx: &mut ProcessCtx, child: NodeId, new_parent: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode {
-            node: child,
-            new_parent,
-            new_prev_sibling: after,
-        });
+        ctx.edits.push(Edit::MoveNode { node: child, new_parent, new_prev_sibling: after });
+    }
+    /// Subscribes this node to direct events originating from `target`.
+    fn add_listener(&mut self, ctx: &mut ProcessCtx, target: NodeId) {
+        ctx.add_event_listener(self.id(), target);
+    }
+    /// Subscribes this node to events from `target` and descendants up to `max_depth`.
+    fn add_listener_subtree(&mut self, ctx: &mut ProcessCtx, target: NodeId, max_depth: u32) {
+        ctx.add_event_listener_subtree(self.id(), target, max_depth);
+    }
+    /// Removes this node's direct listener subscription to `target`.
+    fn remove_listener(&mut self, ctx: &mut ProcessCtx, target: NodeId) {
+        ctx.remove_event_listener(self.id(), target);
+    }
+    /// Removes this node's subtree listener subscription to `target`.
+    fn remove_listener_subtree(&mut self, ctx: &mut ProcessCtx, target: NodeId, max_depth: u32) {
+        ctx.remove_event_listener_subtree(self.id(), target, max_depth);
     }
     /// Queues replacement of a child by a boxed node.
     fn replace_child_boxed(&mut self, ctx: &mut ProcessCtx, old: NodeId, new_node: Box<dyn Node>) {

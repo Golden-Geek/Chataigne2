@@ -28,11 +28,7 @@ pub struct CustomEvent {
 impl CustomEvent {
     /// Creates a custom event from raw JSON payload.
     pub fn new(topic: impl Into<String>, origin: Option<NodeId>, payload: serde_json::Value) -> Self {
-        Self {
-            topic: topic.into(),
-            origin,
-            payload,
-        }
+        Self { topic: topic.into(), origin, payload }
     }
 
     /// Creates a custom event by serializing a typed payload into JSON.
@@ -49,10 +45,7 @@ impl CustomEvent {
 impl Event {
     /// Convenience constructor for a [`EventKind::Custom`] event.
     pub fn custom(time: EngineTime, event: CustomEvent) -> Self {
-        Self {
-            time,
-            kind: EventKind::Custom(event),
-        }
+        Self { time, kind: EventKind::Custom(event) }
     }
 }
 
@@ -128,6 +121,24 @@ pub enum EventKind {
 
     /// User-defined event emitted through the edit pipeline.
     Custom(CustomEvent),
+}
+
+impl EventKind {
+    /// Returns the node used as the bubbling origin for this event when available.
+    pub fn propagation_origin(&self) -> Option<NodeId> {
+        match self {
+            Self::ParamChanged { param, .. } => Some(*param),
+            Self::ChildAdded { child, .. } => Some(*child),
+            Self::ChildRemoved { parent, .. } => Some(*parent),
+            Self::ChildReplaced { new, .. } => Some(*new),
+            Self::ChildMoved { child, .. } => Some(*child),
+            Self::ChildReordered { child, .. } => Some(*child),
+            Self::NodeCreated { node } => Some(*node),
+            Self::NodeDeleted { .. } => None,
+            Self::MetaChanged { node, .. } => Some(*node),
+            Self::Custom(event) => event.origin,
+        }
+    }
 }
 
 /// Engine-owned event buffer.

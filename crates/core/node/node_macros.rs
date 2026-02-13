@@ -57,6 +57,159 @@ macro_rules! define_node_enum {
                 }
             }
 
+            fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                match self {
+                    Self::Container(node) => node.init(ctx),
+                    Self::Parameter(node) => node.init(ctx),
+                    Self::Manager(node) => node.init(ctx),
+                    $(Self::$variant(node) => node.init(ctx),)*
+                }
+            }
+
+            fn update(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                match self {
+                    Self::Container(node) => node.update(ctx),
+                    Self::Parameter(node) => node.update(ctx),
+                    Self::Manager(node) => node.update(ctx),
+                    $(Self::$variant(node) => node.update(ctx),)*
+                }
+            }
+
+            fn destroy(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                match self {
+                    Self::Container(node) => node.destroy(ctx),
+                    Self::Parameter(node) => node.destroy(ctx),
+                    Self::Manager(node) => node.destroy(ctx),
+                    $(Self::$variant(node) => node.destroy(ctx),)*
+                }
+            }
+
+            fn child_event_interest_depth(&self, event: &$crate::events::Event) -> u32 {
+                match self {
+                    Self::Container(node) => node.child_event_interest_depth(event),
+                    Self::Parameter(node) => node.child_event_interest_depth(event),
+                    Self::Manager(node) => node.child_event_interest_depth(event),
+                    $(Self::$variant(node) => node.child_event_interest_depth(event),)*
+                }
+            }
+
+            fn bubble_event_depth(&self, event: &$crate::events::Event) -> u32 {
+                match self {
+                    Self::Container(node) => node.bubble_event_depth(event),
+                    Self::Parameter(node) => node.bubble_event_depth(event),
+                    Self::Manager(node) => node.bubble_event_depth(event),
+                    $(Self::$variant(node) => node.bubble_event_depth(event),)*
+                }
+            }
+
+            fn event_propagation(&self, event: &$crate::events::Event, depth: u32) -> $crate::node::EventPropagation {
+                match self {
+                    Self::Container(node) => node.event_propagation(event, depth),
+                    Self::Parameter(node) => node.event_propagation(event, depth),
+                    Self::Manager(node) => node.event_propagation(event, depth),
+                    $(Self::$variant(node) => node.event_propagation(event, depth),)*
+                }
+            }
+
+            fn on_inbox(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                match self {
+                    Self::Container(node) => node.on_inbox(ctx),
+                    Self::Parameter(node) => node.on_inbox(ctx),
+                    Self::Manager(node) => node.on_inbox(ctx),
+                    $(Self::$variant(node) => node.on_inbox(ctx),)*
+                }
+            }
+
+            fn on_param_change(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, param: $crate::node::NodeId, old_value: $crate::parameter::ParamValue) {
+                match self {
+                    Self::Container(node) => node.on_param_change(ctx, param, old_value),
+                    Self::Parameter(node) => node.on_param_change(ctx, param, old_value),
+                    Self::Manager(node) => node.on_param_change(ctx, param, old_value),
+                    $(Self::$variant(node) => node.on_param_change(ctx, param, old_value),)*
+                }
+            }
+
+            fn on_child_added(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_child_added(ctx, parent, child),
+                    Self::Parameter(node) => node.on_child_added(ctx, parent, child),
+                    Self::Manager(node) => node.on_child_added(ctx, parent, child),
+                    $(Self::$variant(node) => node.on_child_added(ctx, parent, child),)*
+                }
+            }
+
+            fn on_child_removed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_child_removed(ctx, parent, child),
+                    Self::Parameter(node) => node.on_child_removed(ctx, parent, child),
+                    Self::Manager(node) => node.on_child_removed(ctx, parent, child),
+                    $(Self::$variant(node) => node.on_child_removed(ctx, parent, child),)*
+                }
+            }
+
+            fn on_child_replaced(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, old: $crate::node::NodeId, new: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_child_replaced(ctx, parent, old, new),
+                    Self::Parameter(node) => node.on_child_replaced(ctx, parent, old, new),
+                    Self::Manager(node) => node.on_child_replaced(ctx, parent, old, new),
+                    $(Self::$variant(node) => node.on_child_replaced(ctx, parent, old, new),)*
+                }
+            }
+
+            fn on_child_moved(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, child: $crate::node::NodeId, old_parent: $crate::node::NodeId, new_parent: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
+                    Self::Parameter(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
+                    Self::Manager(node) => node.on_child_moved(ctx, child, old_parent, new_parent),
+                    $(Self::$variant(node) => node.on_child_moved(ctx, child, old_parent, new_parent),)*
+                }
+            }
+
+            fn on_child_reordered(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_child_reordered(ctx, parent, child),
+                    Self::Parameter(node) => node.on_child_reordered(ctx, parent, child),
+                    Self::Manager(node) => node.on_child_reordered(ctx, parent, child),
+                    $(Self::$variant(node) => node.on_child_reordered(ctx, parent, child),)*
+                }
+            }
+
+            fn on_node_created(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_node_created(ctx, node_id),
+                    Self::Parameter(node) => node.on_node_created(ctx, node_id),
+                    Self::Manager(node) => node.on_node_created(ctx, node_id),
+                    $(Self::$variant(node) => node.on_node_created(ctx, node_id),)*
+                }
+            }
+
+            fn on_node_deleted(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId) {
+                match self {
+                    Self::Container(node) => node.on_node_deleted(ctx, node_id),
+                    Self::Parameter(node) => node.on_node_deleted(ctx, node_id),
+                    Self::Manager(node) => node.on_node_deleted(ctx, node_id),
+                    $(Self::$variant(node) => node.on_node_deleted(ctx, node_id),)*
+                }
+            }
+
+            fn on_meta_changed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, node_id: $crate::node::NodeId, patch: $crate::node::NodeMetaPatch) {
+                match self {
+                    Self::Container(node) => node.on_meta_changed(ctx, node_id, patch),
+                    Self::Parameter(node) => node.on_meta_changed(ctx, node_id, patch),
+                    Self::Manager(node) => node.on_meta_changed(ctx, node_id, patch),
+                    $(Self::$variant(node) => node.on_meta_changed(ctx, node_id, patch),)*
+                }
+            }
+
+            fn on_custom_event(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, event: $crate::events::CustomEvent) {
+                match self {
+                    Self::Container(node) => node.on_custom_event(ctx, event),
+                    Self::Parameter(node) => node.on_custom_event(ctx, event),
+                    Self::Manager(node) => node.on_custom_event(ctx, event),
+                    $(Self::$variant(node) => node.on_custom_event(ctx, event),)*
+                }
+            }
+
             fn from_boxed_node(node: Box<dyn $crate::node::Node>) -> Option<Self>
             where
                 Self: Sized,

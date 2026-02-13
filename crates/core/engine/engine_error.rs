@@ -108,89 +108,18 @@ impl fmt::Display for EngineEditError {
                 provided_node_type,
                 expected_engine_node_type,
             } => {
-                write!(
-                    f,
-                    "edit #{edit_index} ({operation}) carries node type '{provided_node_type}', expected engine node type {expected_engine_node_type}"
-                )
+                write!(f, "edit #{edit_index} ({operation}) carries node type '{provided_node_type}', expected engine node type {expected_engine_node_type}")
             }
-            Self::ParamEditTargetMismatch {
-                edit_index,
-                node,
-                node_type,
-            } => {
-                write!(
-                    f,
-                    "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node",
-                    node
-                )
+            Self::ParamEditTargetMismatch { edit_index, node, node_type } => {
+                write!(f, "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node", node)
             }
-            Self::NodeNotFound {
-                edit_index,
-                operation,
-                node,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) references missing node {:?}",
-                node
-            ),
-            Self::ParentNotFound {
-                edit_index,
-                operation,
-                parent,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) references missing parent {:?}",
-                parent
-            ),
-            Self::SiblingNotFound {
-                edit_index,
-                operation,
-                sibling,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) references missing sibling {:?}",
-                sibling
-            ),
-            Self::InvalidSiblingParent {
-                edit_index,
-                operation,
-                parent,
-                sibling,
-                sibling_parent,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) uses sibling {:?} under parent {:?}, but sibling parent is {:?}",
-                sibling, parent, sibling_parent
-            ),
-            Self::InvalidSiblingReference {
-                edit_index,
-                operation,
-                node,
-                sibling,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) has invalid sibling reference: node {:?} cannot use itself as sibling {:?}",
-                node, sibling
-            ),
-            Self::CannotMutateRoot {
-                edit_index,
-                operation,
-                node,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) cannot target root node {:?}",
-                node
-            ),
-            Self::CycleDetected {
-                edit_index,
-                operation,
-                node,
-                new_parent,
-            } => write!(
-                f,
-                "edit #{edit_index} ({operation}) would create a cycle by moving node {:?} under {:?}",
-                node, new_parent
-            ),
+            Self::NodeNotFound { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
+            Self::ParentNotFound { edit_index, operation, parent } => write!(f, "edit #{edit_index} ({operation}) references missing parent {:?}", parent),
+            Self::SiblingNotFound { edit_index, operation, sibling } => write!(f, "edit #{edit_index} ({operation}) references missing sibling {:?}", sibling),
+            Self::InvalidSiblingParent { edit_index, operation, parent, sibling, sibling_parent } => write!(f, "edit #{edit_index} ({operation}) uses sibling {:?} under parent {:?}, but sibling parent is {:?}", sibling, parent, sibling_parent),
+            Self::InvalidSiblingReference { edit_index, operation, node, sibling } => write!(f, "edit #{edit_index} ({operation}) has invalid sibling reference: node {:?} cannot use itself as sibling {:?}", node, sibling),
+            Self::CannotMutateRoot { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) cannot target root node {:?}", node),
+            Self::CycleDetected { edit_index, operation, node, new_parent } => write!(f, "edit #{edit_index} ({operation}) would create a cycle by moving node {:?} under {:?}", node, new_parent),
         }
     }
 }
