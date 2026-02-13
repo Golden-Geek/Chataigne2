@@ -252,3 +252,248 @@ fn emit_custom_event_uses_edit_pipeline() {
         "last event should be the emitted custom event",
     );
 }
+
+#[test]
+fn undo_redo_set_param_restores_value() {
+    let root = Parameter::new("root_param", ParamValue::Int(10), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(42),
+    });
+    engine.apply_edits().expect("set param should succeed");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(42)
+    );
+    assert_eq!(engine.undo_len(), 1);
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(10)
+    );
+    assert_eq!(engine.redo_len(), 1);
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(42)
+    );
+}
+
+#[test]
+fn undo_redo_add_node_restores_same_node_id() {
+    let mut engine = Engine::new(Container::new("root".to_string()));
+    engine.add_node(Container::new("child".to_string()), None);
+    engine.apply_edits().expect("add should succeed");
+
+    let child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("child should exist");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .is_none(),
+        "child should be detached after undo",
+    );
+    assert!(
+        engine.nodes.get(child).is_none(),
+        "detached child should not be accessible while undone",
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child)
+    );
+}
+
+#[test]
+fn undo_redo_remove_node_restores_same_node_id() {
+    let mut engine = Engine::new(Container::new("root".to_string()));
+    engine.add_node(Container::new("child".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("child should exist");
+
+    engine.edits.push(Edit::RemoveNode { node: child });
+    engine.apply_edits().expect("remove should succeed");
+    assert!(engine.nodes.get(child).is_none(), "removed child should be detached");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child),
+        "undo should restore removed child id",
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert!(
+        engine.nodes.get(child).is_none(),
+        "redo should detach the child again",
+    );
+}
+
+#[test]
+fn undo_redo_move_restores_child_order() {
+    let mut engine = Engine::new(Container::new("root".to_string()));
+    engine.add_node(Container::new("child_a".to_string()), None);
+    engine.add_node(Container::new("child_b".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let child_a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("child_a should exist");
+    let child_b = engine
+        .nodes
+        .get(child_a)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("child_b should exist");
+
+    engine.edits.push(Edit::MoveNode {
+        node: child_a,
+        new_parent: engine.root,
+        new_prev_sibling: Some(child_b),
+    });
+    engine.apply_edits().expect("move should succeed");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child_b),
+        "move should reorder children",
+    );
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child_a),
+        "undo should restore original order",
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child_b),
+        "redo should reapply reordered state",
+    );
+}
+
+#[test]
+fn undo_redo_replace_restores_original_node_id() {
+    let mut engine = Engine::new(Container::new("root".to_string()));
+    engine.add_node(Container::new("original".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let original_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("original child should exist");
+
+    engine.replace_node(original_id, Container::new("replacement".to_string()));
+    engine.apply_edits().expect("replace should succeed");
+
+    let replacement_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("replacement child should exist");
+    assert_ne!(
+        replacement_id, original_id,
+        "replace should assign a fresh node id",
+    );
+
+    assert!(engine.undo().expect("undo should succeed"));
+    let restored = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("restored child should exist");
+    assert_eq!(restored, original_id);
+    assert_eq!(
+        engine
+            .nodes
+            .get(restored)
+            .expect("restored node should exist")
+            .node_data()
+            .meta
+            .label,
+        "original"
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    let replaced_again = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("replaced node should exist");
+    assert_eq!(replaced_again, replacement_id);
+    assert_eq!(
+        engine
+            .nodes
+            .get(replaced_again)
+            .expect("replacement node should exist")
+            .node_data()
+            .meta
+            .label,
+        "replacement"
+    );
+}
+
+#[test]
+fn applying_new_edits_after_undo_clears_redo_stack() {
+    let mut engine = Engine::new(Container::new("root".to_string()));
+    engine.add_node(Container::new("first".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.redo_len(), 1);
+
+    engine.add_node(Container::new("second".to_string()), None);
+    engine.apply_edits().expect("second add should succeed");
+
+    assert_eq!(engine.redo_len(), 0, "new edits should invalidate redo history");
+    assert!(!engine.redo().expect("redo query should succeed"));
+}

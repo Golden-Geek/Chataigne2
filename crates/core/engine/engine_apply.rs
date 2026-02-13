@@ -4,6 +4,7 @@ use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::Node;
 
+use super::engine_history::{HistoryStep, HistoryTransaction};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
@@ -19,31 +20,77 @@ impl<T: Node> Engine<T> {
     /// engine.apply_edits().expect("edit application should succeed");
     /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
+        let mut transaction = HistoryTransaction::new();
+        let mut applied_any_edit = false;
+
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
-            match request.edit {
-                Edit::SetParam { node, value } => self.apply_set_param(edit_index, node, value)?,
+            let outcome: Result<Option<HistoryStep<T>>, EngineEditError> = match request.edit {
+                Edit::SetParam { node, value } => {
+                    let effect = self.apply_set_param(edit_index, node, value)?;
+                    Ok(Some(effect.into()))
+                }
                 Edit::AddNode {
                     node,
                     parent,
                     prev_sibling,
-                } => self.apply_add_node(edit_index, node, parent, prev_sibling)?,
-                Edit::ReplaceNode { node, new_node } => {
-                    self.apply_replace_node(edit_index, node, new_node)?
+                } => {
+                    let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
+                    Ok(Some(effect.into()))
                 }
-                Edit::RemoveNode { node } => self.apply_remove_node(edit_index, node)?,
+                Edit::ReplaceNode { node, new_node } => {
+                    let effect = self.apply_replace_node(edit_index, node, new_node)?;
+                    Ok(Some(effect.into()))
+                }
+                Edit::RemoveNode { node } => {
+                    let effect = self.apply_remove_node(edit_index, node)?;
+                    Ok(Some(effect.into()))
+                }
                 Edit::MoveNode {
                     node,
                     new_parent,
                     new_prev_sibling,
-                } => self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?,
-                Edit::PatchMeta { node, patch } => self.apply_patch_meta(edit_index, node, patch)?,
-                Edit::EmitCustomEvent { event } => self.emit_event(EventKind::Custom(event)),
+                } => {
+                    let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
+                    Ok(Some(effect.into()))
+                }
+                Edit::PatchMeta { node, patch } => {
+                    self.apply_patch_meta(edit_index, node, patch)?;
+                    Ok(None)
+                }
+                Edit::EmitCustomEvent { event } => {
+                    self.emit_event(EventKind::Custom(event));
+                    Ok(None)
+                }
+            };
+
+            match outcome {
+                Ok(step) => {
+                    applied_any_edit = true;
+                    if let Some(step) = step {
+                        transaction.push(step);
+                    }
+                }
+                Err(err) => {
+                    if applied_any_edit {
+                        self.clear_redo_history();
+                        self.push_undo_transaction(transaction);
+                    }
+                    return Err(err);
+                }
             }
+        }
+
+        if applied_any_edit {
+            self.clear_redo_history();
+            self.push_undo_transaction(transaction);
         }
 
         Ok(())
     }
 
+    /// Validates and downcasts a dynamically provided node to the engine node type `T`.
+    ///
+    /// Returns [`EngineEditError::NodeTypeMismatch`] when the node cannot be coerced.
     pub(crate) fn coerce_node_for_engine(
         &self,
         edit_index: usize,
@@ -59,6 +106,7 @@ impl<T: Node> Engine<T> {
         })
     }
 
+    /// Pushes an event into the inbox and advances the per-tick event sequence counter.
     pub(crate) fn emit_event(&mut self, kind: EventKind) {
         let time = self.time;
         self.inbox.push(Event { time, kind });

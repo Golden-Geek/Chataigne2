@@ -6,14 +6,21 @@ use crate::node::*;
 use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 
+/// Edit-application entry point and queue-drain transaction orchestration.
 #[path = "engine_apply.rs"]
 mod engine_apply;
+/// Parameter and metadata edit application helpers.
 #[path = "engine_apply_param.rs"]
 mod engine_apply_param;
+/// Tree mutation, attachment, and topology validation helpers.
 #[path = "engine_apply_tree.rs"]
 mod engine_apply_tree;
+/// Engine edit error type definitions.
 #[path = "engine_error.rs"]
 mod engine_error;
+/// Undo/redo history transaction and effect models.
+#[path = "engine_history.rs"]
+mod engine_history;
 #[cfg(test)]
 #[path = "engine_tests.rs"]
 mod engine_tests;
@@ -51,6 +58,10 @@ pub struct Engine<T: Node> {
     pub inbox: Inbox,
     /// Pending edits to be applied.
     pub edits: EditQueue,
+    /// Applied edit transactions available for undo.
+    undo_stack: Vec<engine_history::HistoryTransaction<T>>,
+    /// Undone edit transactions available for redo.
+    redo_stack: Vec<engine_history::HistoryTransaction<T>>,
 }
 
 impl<T: Node> Engine<T> {
@@ -69,6 +80,8 @@ impl<T: Node> Engine<T> {
             },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
         }
     }
 

@@ -8,6 +8,7 @@ new_key_type! {
 /// Storage backend for nodes keyed by stable [`NodeId`] values.
 #[derive(Default)]
 pub struct NodeStore<T: Node> {
+    /// Slotmap storage keyed by internal node keys.
     inner: SlotMap<NodeKey, T>,
 }
 
@@ -43,6 +44,20 @@ impl<T: Node> NodeStore<T> {
         self.inner.remove(Self::key_from_id(id))
     }
 
+    /// Detaches and returns a node by id while reserving its key for later reattachment.
+    pub fn detach(&mut self, id: NodeId) -> Option<T> {
+        self.inner.detach(Self::key_from_id(id))
+    }
+
+    /// Reattaches a previously detached node at the same id.
+    ///
+    /// # Panics
+    /// Panics if `id` is not currently detached.
+    pub fn reattach(&mut self, id: NodeId, mut node: T) {
+        node.node_data_mut().id = id;
+        self.inner.reattach(Self::key_from_id(id), node);
+    }
+
     /// Returns `true` when an id exists in the store.
     pub fn contains(&self, id: NodeId) -> bool {
         self.inner.contains_key(Self::key_from_id(id))
@@ -63,10 +78,12 @@ impl<T: Node> NodeStore<T> {
         self.inner.iter().map(|(key, node)| (Self::id_from_key(key), node))
     }
 
+    /// Converts an internal slot key to the external stable [`NodeId`] representation.
     fn id_from_key(key: NodeKey) -> NodeId {
         NodeId(key.data().as_ffi())
     }
 
+    /// Converts a stable external [`NodeId`] to its internal slot key representation.
     fn key_from_id(id: NodeId) -> NodeKey {
         NodeKey::from(KeyData::from_ffi(id.0))
     }
