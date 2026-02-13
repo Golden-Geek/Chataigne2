@@ -3,56 +3,98 @@ use std::fmt;
 
 use crate::node::NodeId;
 
+/// Error returned when edit validation or application fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineEditError {
+    /// A node-carrying edit provided a node of the wrong runtime type.
     NodeTypeMismatch {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Runtime type name reported by the provided node.
         provided_node_type: String,
+        /// Runtime type expected by the engine (`T`).
         expected_engine_node_type: &'static str,
     },
+    /// A `SetParam` edit targeted a node that is not a parameter node.
     ParamEditTargetMismatch {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Target node id.
         node: NodeId,
+        /// Runtime type name of the target node.
         node_type: String,
     },
+    /// A node id referenced by an edit was not found.
     NodeNotFound {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Missing node id.
         node: NodeId,
     },
+    /// A referenced parent id does not exist.
     ParentNotFound {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Missing parent id.
         parent: NodeId,
     },
+    /// A referenced sibling id does not exist.
     SiblingNotFound {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Missing sibling id.
         sibling: NodeId,
     },
+    /// The sibling used for insertion is not under the expected parent.
     InvalidSiblingParent {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Expected parent id.
         parent: NodeId,
+        /// Sibling id provided by the edit.
         sibling: NodeId,
+        /// Actual parent of `sibling` when known.
         sibling_parent: Option<NodeId>,
     },
+    /// A sibling reference is structurally invalid (for example node == sibling).
     InvalidSiblingReference {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Node being modified.
         node: NodeId,
+        /// Invalid sibling id.
         sibling: NodeId,
     },
+    /// The requested operation cannot be applied to the root node.
     CannotMutateRoot {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Root node id that was targeted.
         node: NodeId,
     },
+    /// A move operation would introduce a cycle in the tree.
     CycleDetected {
+        /// Index of the edit in the drained queue.
         edit_index: usize,
+        /// Operation name associated with this edit.
         operation: &'static str,
+        /// Node being moved.
         node: NodeId,
+        /// Destination parent that would create a cycle.
         new_parent: NodeId,
     },
 }

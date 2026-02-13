@@ -7,6 +7,17 @@ use crate::node::Node;
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
+    /// Applies all pending edits in queue order and emits resulting events.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use golden_core::engine::Engine;
+    /// use golden_core::node::Container;
+    ///
+    /// let mut engine = Engine::new(Container::new("root".to_string()));
+    /// engine.add_node(Container::new("child".to_string()), None);
+    /// engine.apply_edits().expect("edit application should succeed");
+    /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
             match request.edit {

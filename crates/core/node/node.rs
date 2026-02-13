@@ -8,38 +8,55 @@ use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub u64);
 
+/// Persistent UUID assigned to node metadata.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeUuid(pub Uuid);
 
+/// Declaration identifier used to refer to node definitions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeclId(pub String);
 
+/// Semantic hints used for tooling, UX, and interpretation.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SemanticsHint {
+    /// Optional high-level intent of the node.
     pub intent: Option<String>,
+    /// Optional unit for value-oriented nodes.
     pub unit: Option<String>,
 }
 
+/// Presentation hints used for editor rendering.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PresentationHint {
+    /// Preferred UI color.
     pub color: Option<Color>,
 }
 
+/// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeData {
+    /// Stable node id assigned by the store.
     pub id: NodeId,
+    /// Parent node id (`None` for root or detached nodes).
     pub parent: Option<NodeId>,
+    /// First child in sibling chain.
     pub first_child: Option<NodeId>,
+    /// Last child in sibling chain.
     pub last_child: Option<NodeId>,
+    /// Previous sibling in parent chain.
     pub prev_sibling: Option<NodeId>,
+    /// Next sibling in parent chain.
     pub next_sibling: Option<NodeId>,
+    /// User-facing metadata.
     pub meta: NodeMeta,
 }
 
 impl NodeData {
+    /// Creates detached node data initialized with default metadata.
     pub fn new(label: String) -> Self {
         println!("New node data, label: {}", label);
         let meta = NodeMeta::new(label);
@@ -56,22 +73,33 @@ impl NodeData {
     }
 }
 
-// To contain other meta, like tags
+/// Metadata associated with a node.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeMeta {
+    /// Persistent unique id for this node instance.
     pub uuid: NodeUuid,
+    /// Declaration id used by schema and tools.
     pub decl_id: DeclId,
+    /// Generated short name.
     pub short_name: String,
+    /// Whether the node is currently enabled.
     pub enabled: bool,
+    /// Whether the enabled flag may be toggled.
     pub can_be_disabled: bool,
+    /// User-visible label.
     pub label: String,
+    /// Optional free-form description.
     pub description: Option<String>,
+    /// Arbitrary classification tags.
     pub tags: Vec<String>,
+    /// Semantic hints.
     pub semantics: SemanticsHint,
+    /// Presentation hints.
     pub presentation: PresentationHint,
 }
 
 impl NodeMeta {
+    /// Creates default metadata from a label.
     pub fn new(label: String) -> Self {
         let short_name = Self::generate_short_name(&label);
 
@@ -89,26 +117,31 @@ impl NodeMeta {
         }
     }
 
+    /// Sets a description.
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
     }
 
+    /// Replaces tags.
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
         self
     }
 
+    /// Replaces semantic hints.
     pub fn with_semantics(mut self, semantics: SemanticsHint) -> Self {
         self.semantics = semantics;
         self
     }
 
+    /// Replaces presentation hints.
     pub fn with_presentation(mut self, presentation: PresentationHint) -> Self {
         self.presentation = presentation;
         self
     }
 
+    /// Sets enablement metadata.
     pub fn with_enabled(mut self, enabled: bool, can_be_disabled: bool) -> Self {
         self.enabled = enabled;
         self.can_be_disabled = can_be_disabled;
@@ -141,22 +174,30 @@ impl NodeMeta {
     }
 }
 
+/// Patch placeholder for metadata updates.
+///
+/// This currently carries no fields and acts as a forward-compatible marker.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct NodeMetaPatch {
     // For now, we can just replace the whole meta of a node. In the future, we can add more fine-grained patches. pub new_meta: NodeMeta, }
 }
 
-// Behaviour of a node, which determines how it reacts to events and updates
+/// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
+    /// Returns immutable runtime node data.
     fn node_data(&self) -> &NodeData;
+    /// Returns mutable runtime node data.
     fn node_data_mut(&mut self) -> &mut NodeData;
 
+    /// Returns the node type identifier.
     fn get_type(&self) -> &str;
 
+    /// Applies a parameter value to the node and returns the previous value when supported.
     fn set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
         None
     }
 
+    /// Attempts to downcast a boxed trait object into `Self`.
     fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
     where
         Self: Sized,
@@ -165,26 +206,33 @@ pub trait Node: Send + Any {
         any.downcast::<Self>().ok().map(|node| *node)
     }
 
+    /// Returns this node id.
     fn id(&self) -> NodeId {
         self.node_data().id
     }
 
+    /// Returns `true` when this node id matches `id`.
     fn is(&self, id: NodeId) -> bool {
         self.id() == id
     }
 
-    // Lifecycle methods
+    /// Called when the node is initialized.
     fn init(&mut self, _ctx: &mut ProcessCtx) {}
+    /// Called at this node's update rate.
     fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
+    /// Called before node destruction.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
+    /// Dispatches inbox events to per-event handlers.
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.dispatch_inbox(ctx);
     }
 
+    /// Queues insertion of a boxed child node.
     fn add_child_boxed(&mut self, ctx: &mut ProcessCtx, child: Box<dyn Node>, after: Option<NodeId>) {
         ctx.add_child_boxed(self.id(), child, after);
     }
 
+    /// Queues insertion of a typed child node.
     fn add_child<N>(&mut self, ctx: &mut ProcessCtx, child: N, after: Option<NodeId>)
     where
         Self: Sized,
@@ -192,9 +240,11 @@ pub trait Node: Send + Any {
     {
         self.add_child_boxed(ctx, Box::new(child), after);
     }
+    /// Queues removal of an existing child.
     fn remove_child(&mut self, ctx: &mut ProcessCtx, child: NodeId) {
         ctx.edits.push(Edit::RemoveNode { node: child });
     }
+    /// Queues move of an existing child.
     fn move_child(&mut self, ctx: &mut ProcessCtx, child: NodeId, new_parent: NodeId, after: Option<NodeId>) {
         ctx.edits.push(Edit::MoveNode {
             node: child,
@@ -202,9 +252,11 @@ pub trait Node: Send + Any {
             new_prev_sibling: after,
         });
     }
+    /// Queues replacement of a child by a boxed node.
     fn replace_child_boxed(&mut self, ctx: &mut ProcessCtx, old: NodeId, new_node: Box<dyn Node>) {
         ctx.replace_node_boxed(old, new_node);
     }
+    /// Queues replacement of a child by a typed node.
     fn replace_child<N>(&mut self, ctx: &mut ProcessCtx, old: NodeId, new_node: N)
     where
         Self: Sized,
@@ -213,9 +265,7 @@ pub trait Node: Send + Any {
         self.replace_child_boxed(ctx, old, Box::new(new_node));
     }
 
-    // DEFAULT IMPLEMENTATIONS FOR EVENT HANDLERS
-
-    // Dispatch events from the inbox to the appropriate handlers
+    /// Dispatches all events in the process context to typed handlers.
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in ctx.events.clone() {
             match event.kind {
@@ -253,27 +303,36 @@ pub trait Node: Send + Any {
         }
     }
 
-    // Default handlers for events, can be overridden by nodes to implement custom behaviour
-
+    /// Called when a parameter has changed.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
+    /// Called when a child is added.
     fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    /// Called when a child is removed.
     fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    /// Called when a child is replaced.
     fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {}
+    /// Called when a child is moved to another parent.
     fn on_child_moved(&mut self, _ctx: &mut ProcessCtx, _child: NodeId, _old_parent: NodeId, _new_parent: NodeId) {}
+    /// Called when a child is reordered under the same parent.
     fn on_child_reordered(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    /// Called when a node is created.
     fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
+    /// Called when a node is deleted.
     fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
+    /// Called when node metadata changes.
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {}
+    /// Called when a custom event is emitted.
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
 }
 
-//Implement default node, which is a basic container / folder
+/// Basic folder-like node used as a structural container.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Container {
     node_data: NodeData,
 }
 
 impl Container {
+    /// Creates a new container node.
     pub fn new(label: String) -> Self {
         Self { node_data: NodeData::new(label) }
     }
@@ -293,13 +352,14 @@ impl Node for Container {
     }
 }
 
-// Manager is an internal container-like node used as a curated user-extensible root.
+/// Internal container-like node used as a curated user-extensible root.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Manager {
     node_data: NodeData,
 }
 
 impl Manager {
+    /// Creates a new manager node.
     pub fn new(label: String) -> Self {
         Self { node_data: NodeData::new(label) }
     }

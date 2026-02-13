@@ -5,19 +5,29 @@ use crate::{
     process_ctx::ProcessCtx,
 };
 
+/// Runtime value variants used by parameter nodes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParamValue {
+    /// Trigger-like pulse with no payload.
     Trigger(),
 
+    /// Signed integer value.
     Int(i32),
+    /// Floating-point value.
     Float(f64),
+    /// UTF-8 string value.
     Str(String),
+    /// Boolean value.
     Bool(bool),
 
+    /// 2D vector value.
     Vec2(f64, f64),
+    /// 3D vector value.
     Vec3(f64, f64, f64),
+    /// RGBA color value.
     Color(f64, f64, f64, f64),
 
+    /// Reference to another node id.
     Reference(NodeId),
 }
 
@@ -72,6 +82,7 @@ impl From<(f64, f64, f64, f64)> for ParamValue {
 
 //Implement value coercion
 impl ParamValue {
+    /// Coerces this value into an integer, when possible.
     pub fn as_int(&self) -> Option<i32> {
         match self {
             ParamValue::Int(i) => Some(*i),
@@ -82,6 +93,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into a floating-point value, when possible.
     pub fn as_float(&self) -> Option<f64> {
         match self {
             ParamValue::Int(i) => Some(*i as f64),
@@ -92,6 +104,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into a string, when possible.
     pub fn as_str(&self) -> Option<String> {
         match self {
             ParamValue::Int(i) => Some(i.to_string()),
@@ -102,6 +115,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into a boolean, when possible.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             ParamValue::Int(i) => Some(*i != 0),
@@ -112,6 +126,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into a 2D vector, when possible.
     pub fn as_vec2(&self) -> Option<(f64, f64)> {
         match self {
             ParamValue::Int(i) => Some((*i as f64, *i as f64)),
@@ -130,6 +145,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into a 3D vector, when possible.
     pub fn as_vec3(&self) -> Option<(f64, f64, f64)> {
         match self {
             ParamValue::Int(i) => Some((*i as f64, *i as f64, *i as f64)),
@@ -149,6 +165,7 @@ impl ParamValue {
         }
     }
 
+    /// Coerces this value into an RGBA color, when possible.
     pub fn as_color(&self) -> Option<(f64, f64, f64, f64)> {
         match self {
             ParamValue::Int(i) => Some(((*i as f64 / 255.0), (*i as f64 / 255.0), (*i as f64 / 255.0), 1.0)),
@@ -168,20 +185,47 @@ impl ParamValue {
     }
 }
 
+/// Strategy used to decide whether a `set` call should enqueue an edit.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParameterChangeCheck {
+    /// Emit only when the value differs.
     ValueChange,
+    /// Always emit, even if unchanged.
     None,
 }
 
+/// Built-in node type that stores a [`ParamValue`].
+///
+/// # Examples
+/// ```rust
+/// use golden_core::engine::EngineTime;
+/// use golden_core::parameter::{ParamValue, Parameter, ParameterChangeCheck};
+/// use golden_core::process_ctx::{ExecutionPhase, ProcessCtx};
+///
+/// let mut parameter = Parameter::new(
+///     "gain",
+///     ParamValue::Float(0.5),
+///     ParameterChangeCheck::ValueChange,
+/// );
+/// let mut ctx = ProcessCtx::new(
+///     ExecutionPhase::EngineTick,
+///     EngineTime { tick: 0, micro: 0, seq: 0 },
+/// );
+///
+/// parameter.set(&mut ctx, ParamValue::Float(0.75));
+/// assert_eq!(ctx.edits.pending.len(), 1);
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Parameter {
     node_data: NodeData,
+    /// Current parameter value.
     pub value: ParamValue,
+    /// Change-detection policy for `set`.
     pub change_check: ParameterChangeCheck,
 }
 
 impl Parameter {
+    /// Creates a new parameter node.
     pub fn new(label: &str, value: ParamValue, change_check: ParameterChangeCheck) -> Self {
         Self {
             node_data: NodeData::new(label.to_string()),
@@ -190,6 +234,7 @@ impl Parameter {
         }
     }
 
+    /// Requests a parameter update through the process context.
     pub fn set(&mut self, _ctx: &mut ProcessCtx, new_value: ParamValue) {
         let value_changed = self.value != new_value;
         if self.change_check == ParameterChangeCheck::None || value_changed {
@@ -197,6 +242,7 @@ impl Parameter {
         }
     }
 
+    /// Returns the current parameter value.
     pub fn get(&self) -> &ParamValue {
         &self.value
     }

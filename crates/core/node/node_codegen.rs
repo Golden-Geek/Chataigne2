@@ -1,3 +1,5 @@
+//! Code-generation helpers used to build an application node registry.
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -9,6 +11,9 @@ struct NodeEntry {
     source_path: String,
 }
 
+/// Scans `src_root` for node declarations and writes a generated node registry file.
+///
+/// This function is intended to be called from `build.rs`.
 pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
     println!("cargo:rerun-if-changed={}", src_root.display());
 

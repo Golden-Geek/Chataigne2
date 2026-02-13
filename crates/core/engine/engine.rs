@@ -18,11 +18,14 @@ mod engine_error;
 #[path = "engine_tests.rs"]
 mod engine_tests;
 
+/// Node storage implementation used by the engine.
 pub mod node_store;
 use node_store::NodeStore;
 
+/// Error type returned when validating or applying edits.
 pub use engine_error::EngineEditError;
 
+/// Logical time tracked by the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EngineTime {
     /// Monotonic engine tick counter. Increments only on EngineTick.
@@ -36,15 +39,22 @@ pub struct EngineTime {
     pub seq: u32,
 }
 
+/// Node engine storing graph state, pending edits, and emitted events.
 pub struct Engine<T: Node> {
+    /// Backing node store indexed by stable node ids.
     pub nodes: NodeStore<T>,
+    /// Root node id.
     pub root: NodeId,
+    /// Current engine logical time.
     pub time: EngineTime,
+    /// Engine-owned event stream.
     pub inbox: Inbox,
+    /// Pending edits to be applied.
     pub edits: EditQueue,
 }
 
 impl<T: Node> Engine<T> {
+    /// Creates a new engine with `root` as the graph root node.
     pub fn new(root: T) -> Self {
         let mut nodes: NodeStore<T> = NodeStore::new();
         let root = nodes.insert(root);
@@ -62,6 +72,7 @@ impl<T: Node> Engine<T> {
         }
     }
 
+    /// Queues insertion of a node under `parent` (or root when `None`).
     pub fn add_node(&mut self, node: T, parent: Option<NodeId>) {
         self.edits.push(Edit::AddNode {
             parent: parent.unwrap_or(self.root),
@@ -70,6 +81,7 @@ impl<T: Node> Engine<T> {
         });
     }
 
+    /// Queues insertion of a node after an existing sibling.
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
         let parent = self
             .nodes
@@ -83,6 +95,7 @@ impl<T: Node> Engine<T> {
         });
     }
 
+    /// Queues replacement of an existing node.
     pub fn replace_node(&mut self, node: NodeId, new_node: T) {
         self.edits.push(Edit::ReplaceNode {
             node,
@@ -90,6 +103,9 @@ impl<T: Node> Engine<T> {
         });
     }
 
+    /// Moves edits from a processing context into the engine queue.
+    ///
+    /// Node-bearing edits are validated to ensure node types match `T`.
     pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
         let mut validated_edits = Vec::new();
 
