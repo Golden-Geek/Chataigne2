@@ -1,197 +1,269 @@
-use crate::engine::ProcessCtx;
-use crate::schema::{NodeId, NodeTypeId};
-use crate::parameter::ParameterData;
+use crate::color::Color;
+use crate::events::{CustomEvent, EventKind};
+use crate::parameter::ParamValue;
+use crate::process_ctx::ProcessCtx;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-pub struct Node {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NodeId(pub u64);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NodeUuid(pub Uuid);
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DeclId(pub String);
+
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SemanticsHint {
+    pub intent: Option<String>,
+    pub unit: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct PresentationHint {
+    pub color: Option<Color>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NodeData {
     pub id: NodeId,
-    pub node_type: NodeTypeId,
-    pub execution: NodeExecution,
     pub parent: Option<NodeId>,
     pub first_child: Option<NodeId>,
     pub last_child: Option<NodeId>,
     pub prev_sibling: Option<NodeId>,
     pub next_sibling: Option<NodeId>,
     pub meta: NodeMeta,
-    pub data: NodeData,
-    pub behaviour: Option<Box<dyn NodeBehaviour>>,
 }
 
-impl Node {
+impl NodeData {
+    pub fn new(label: String) -> Self {
+        println!("New node ! Label: {}", label);
+        let meta = NodeMeta::new(label);
 
-}
-
-// To Contain other data, like parameters
-pub enum NodeData {
-    None,
-    Parameter(ParameterData),
+        Self {
+            id: NodeId(0),
+            parent: None,
+            first_child: None,
+            last_child: None,
+            prev_sibling: None,
+            next_sibling: None,
+            meta,
+        }
+    }
 }
 
 // To contain other meta, like tags
-#[derive(Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeMeta {
-    pub nodes: std::collections::HashMap<NodeId, Node>,
+    pub uuid: NodeUuid,
+    pub decl_id: DeclId,
+    pub short_name: String,
+    pub enabled: bool,
+    pub can_be_disabled: bool,
+    pub label: String,
+    pub description: Option<String>,
+    pub tags: Vec<String>,
+    pub semantics: SemanticsHint,
+    pub presentation: PresentationHint,
 }
 
-// Handle for mutably accessing a node's data and behaviour
-pub struct NodeHandleMut<'a> {
-    pub id: NodeId,
-    pub meta: &'a mut NodeMeta,
-    pub data: &'a mut NodeData,
-    pub behaviour: Option<&'a mut Box<dyn NodeBehaviour>>,
-}
+impl NodeMeta {
+    pub fn new(label: String) -> Self {
+        let short_name = Self::generate_short_name(&label);
 
-impl NodeHandleMut<'_> {
-    pub fn get_children(&self) -> Vec<NodeId> {
-        let mut children = Vec::new();
-        let mut current = self
-            .meta
-            .nodes
-            .get(&self.id)
-            .and_then(|node| node.first_child);
-        while let Some(child_id) = current {
-            children.push(child_id);
-            current = self
-                .meta
-                .nodes
-                .get(&child_id)
-                .and_then(|node| node.next_sibling);
+        Self {
+            uuid: NodeUuid(Uuid::new_v4()),
+            decl_id: DeclId(short_name.clone()),
+            short_name,
+            enabled: true,
+            can_be_disabled: true,
+            label,
+            description: None,
+            tags: vec![],
+            semantics: SemanticsHint::default(),
+            presentation: PresentationHint::default(),
         }
-        children
     }
 
-    // pub fn call_on_children(&self, ctx: &mut ProcessCtx, f: impl FnMut(&NodeHandleMut)) {}
+    pub fn with_description(mut self, description: String) -> Self {
+        self.description = Some(description);
+        self
+    }
 
-    // pub fn create_child(
-    //     &mut self,
-    //     ctx: &mut ProcessCtx,
-    //     node_type: NodeTypeId,
-    //     execution: NodeExecution,
-    // ) -> NodeId {
-    //     let new_id = ctx.create_node(node_type, execution);
-    //     ctx.add_child(self.id, new_id);
-    //     new_id
-    // }
+    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
+        self.tags = tags;
+        self
+    }
 
-    // pub fn add_child(&mut self, ctx: &mut ProcessCtx, child_id: NodeId) {
-    //     ctx.add_child(self.id, child_id);
-    // }
+    pub fn with_semantics(mut self, semantics: SemanticsHint) -> Self {
+        self.semantics = semantics;
+        self
+    }
 
-    // pub fn remove_child(&mut self, ctx: &mut ProcessCtx, child_id: NodeId) {
-    //     ctx.remove_child(self.id, child_id);
-    // }
+    pub fn with_presentation(mut self, presentation: PresentationHint) -> Self {
+        self.presentation = presentation;
+        self
+    }
 
-    // pub fn move_child(&mut self, ctx: &mut ProcessCtx, child_id: NodeId, new_parent_id: NodeId) {
-    //     ctx.move_child(child_id, new_parent_id);
-    // }
+    pub fn with_enabled(mut self, enabled: bool, can_be_disabled: bool) -> Self {
+        self.enabled = enabled;
+        self.can_be_disabled = can_be_disabled;
+        self
+    }
 
-    // pub fn replace_child(
-    //     &mut self,
-    //     ctx: &mut ProcessCtx,
-    //     old_child_id: NodeId,
-    //     new_child_id: NodeId,
-    // ) {
-    //     ctx.replace_child(self.id, old_child_id, new_child_id);
-    // }
+    fn generate_short_name(label: &String) -> String {
+        //from label to lowerCamelCase, "+" and "-" are replaced by "Plus" and "Minus", other are removed
+        let mut short_name = String::new();
+        let mut capitalize_next = false;
+        for c in label.chars() {
+            if c.is_alphanumeric() {
+                if capitalize_next {
+                    short_name.push(c.to_ascii_uppercase());
+                    capitalize_next = false;
+                } else {
+                    short_name.push(c.to_ascii_lowercase());
+                }
+            } else if c == '+' {
+                short_name.push_str(if capitalize_next { "Plus" } else { "plus" });
+                capitalize_next = false;
+            } else if c == '-' {
+                short_name.push_str(if capitalize_next { "Minus" } else { "minus" });
+                capitalize_next = false;
+            } else {
+                capitalize_next = true;
+            }
+        }
+        short_name
+    }
+}
 
-    // pub fn delete_child(&mut self, ctx: &mut ProcessCtx, child_id: NodeId) {
-    //     ctx.remove_child(self.id, child_id);
-    //     ctx.delete_node(child_id);
-    // }
-} // Handle for immutably accessing a node's data and behaviour pub struct NodeHandle<'a> { pub id: NodeId, pub meta: &'a NodeMeta, pub data: &'a NodeData, pub behaviour: Option<&'a Box<dyn NodeBehaviour>>,
-
-// Execution mode of a node, which determines when its process function is called
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeExecution {
-    Passive,
-    Reactive,
-    Continuous,
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct NodeMetaPatch {
+    // For now, we can just replace the whole meta of a node. In the future, we can add more fine-grained patches. pub new_meta: NodeMeta, }
 }
 
 // Behaviour of a node, which determines how it reacts to events and updates
-pub trait NodeBehaviour: Send {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {}
-    fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
-}
+pub trait Node: Send {
+    fn node_data(&self) -> &NodeData;
+    fn node_data_mut(&mut self) -> &mut NodeData;
 
-pub trait NodeReactive {
+    fn get_type(&self) -> &str { "Node" }
+
+    fn id(&self) -> NodeId {
+        self.node_data().id
+    }
+
+    fn is(&self, id: NodeId) -> bool {
+        self.id() == id
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {}
+    fn update(&mut self, _ctx: &mut ProcessCtx) {}
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
+
     fn process(&mut self, ctx: &mut ProcessCtx) {
         self.dispatch_inbox(ctx);
     }
 
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
-        // let inbox_events = ctx.inbox.clone();
-        // for event in inbox_events {
-            //         match event.kind {
-            //             core::schema::EventKind::ParamChanged { param, value } => {
-            //                 self.on_param_change(ctx, param, value);
-            //             }
-            //             core::schema::EventKind::ChildAdded { parent, child } => {
-            //                 self.on_child_added(ctx, parent, child);
-            //             }
-            //             core::schema::EventKind::ChildRemoved { parent, child } => {
-            //                 self.on_child_removed(ctx, parent, child);
-            //             }
-            //             core::schema::EventKind::ChildReplaced { parent, old, new } => {
-            //                 self.on_child_replaced(ctx, parent, old, new);
-            //             }
-            //             core::schema::EventKind::ChildMoved {
-            //                 child,
-            //                 old_parent,
-            //                 new_parent,
-            //             } => {
-            //                 self.on_child_moved(ctx, child, old_parent, new_parent);
-            //             }
-            //             core::schema::EventKind::ChildReordered { parent, child } => {
-            //                 self.on_child_reordered(ctx, parent, child);
-            //             }
-            //             core::schema::EventKind::NodeCreated { node } => {
-            //                 self.on_node_created(ctx, node);
-            //             }
-            //             core::schema::EventKind::NodeDeleted { node } => {
-            //                 self.on_node_deleted(ctx, node);
-            //             }
-            //             core::schema::EventKind::MetaChanged { node, patch } => {
-            //                 self.on_meta_changed(ctx, node, patch);
-            //             }
-            //         }
-            //     }
-            // }
+        for event in ctx.inbox.clone() {
+            match event.kind {
+                EventKind::ParamChanged { param, old_value } => {
+                    self.on_param_change(ctx, param, old_value);
+                }
+                EventKind::ChildAdded { parent, child } => {
+                    self.on_child_added(ctx, parent, child);
+                }
+                EventKind::ChildRemoved { parent, child } => {
+                    self.on_child_removed(ctx, parent, child);
+                }
+                EventKind::ChildReplaced { parent, old, new } => {
+                    self.on_child_replaced(ctx, parent, old, new);
+                }
+                EventKind::ChildMoved { child, old_parent, new_parent } => {
+                    self.on_child_moved(ctx, child, old_parent, new_parent);
+                }
+                EventKind::ChildReordered { parent, child } => {
+                    self.on_child_reordered(ctx, parent, child);
+                }
+                EventKind::NodeCreated { node } => {
+                    self.on_node_created(ctx, node);
+                }
+                EventKind::NodeDeleted { node } => {
+                    self.on_node_deleted(ctx, node);
+                }
+                EventKind::MetaChanged { node, patch } => {
+                    self.on_meta_changed(ctx, node, patch);
+                }
+                EventKind::Custom(event) => {
+                    self.on_custom_event(ctx, event);
+                }
+            }
+        }
+    }
 
-            // fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _value: Value) {}
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
+    fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {}
+    fn on_child_moved(&mut self, _ctx: &mut ProcessCtx, _child: NodeId, _old_parent: NodeId, _new_parent: NodeId) {}
+    fn on_child_reordered(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
+    fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {}
+    fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
+}
 
-            // fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+//Implement default node, which is a basic container / folder
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Container {
+    node_data: NodeData,
+}
 
-            // fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
-
-            // fn on_child_replaced(
-            //     &mut self,
-            //     _ctx: &mut ProcessCtx,
-            //     _parent: NodeId,
-            //     _old: NodeId,
-            //     _new: NodeId,
-            // ) {
-            // }
-
-            // fn on_child_moved(
-            //     &mut self,
-            //     _ctx: &mut ProcessCtx,
-            //     _child: NodeId,
-            //     _old_parent: NodeId,
-            //     _new_parent: NodeId,
-            // ) {
-            // }
-
-            // fn on_child_reordered(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
-
-            // fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
-
-            // fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
-
-            // fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {}
-        // }
+impl Container {
+    pub fn new(label: String) -> Self {
+        Self { node_data: NodeData::new(label) }
     }
 }
 
-pub trait NodeContinuous: NodeReactive {
-    fn update(&mut self, ctx: &mut ProcessCtx);
+impl Node for Container {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) ->  &str {
+        "container"
+    }
+}
+
+// Manager is an internal container-like node used as a curated user-extensible root.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Manager {
+    node_data: NodeData,
+}
+
+impl Manager {
+    pub fn new(label: String) -> Self {
+        Self { node_data: NodeData::new(label) }
+    }
+}
+
+impl Node for Manager {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) ->  &str {
+        "manager"
+    }
 }
