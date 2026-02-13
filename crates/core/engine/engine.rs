@@ -25,6 +25,9 @@ mod engine_error;
 /// Undo/redo history transaction and effect models.
 #[path = "engine_history.rs"]
 mod engine_history;
+/// Runtime resolve/scheduling and ticking orchestration.
+#[path = "engine_runtime.rs"]
+mod engine_runtime;
 #[cfg(test)]
 #[path = "engine_tests.rs"]
 mod engine_tests;
@@ -35,6 +38,14 @@ use node_store::NodeStore;
 
 /// Error type returned when validating or applying edits.
 pub use engine_error::EngineEditError;
+/// Runtime error type returned by resolve/scheduling and tick execution.
+pub use engine_runtime::EngineRuntimeError;
+/// Per-node execution rule returned to the runtime scheduler.
+pub use engine_runtime::NodeExecutionRule;
+/// Per-node update frequency in hertz.
+pub use engine_runtime::NodeUpdateRate;
+/// Runtime safety and scheduling limits.
+pub use engine_runtime::RuntimeLimits;
 
 /// Logical time tracked by the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -68,6 +79,12 @@ pub struct Engine<T: Node> {
     undo_stack: Vec<engine_history::HistoryTransaction<T>>,
     /// Undone edit transactions available for redo.
     redo_stack: Vec<engine_history::HistoryTransaction<T>>,
+    /// Runtime schedule built by `resolve()`.
+    runtime_schedule: engine_runtime::ScheduleMgr,
+    /// Tracks whether runtime schedule requires a resolve pass.
+    runtime_resolve_pending: bool,
+    /// Runtime loop guardrails.
+    runtime_limits: engine_runtime::RuntimeLimits,
 }
 
 impl<T: Node> Engine<T> {
@@ -85,6 +102,9 @@ impl<T: Node> Engine<T> {
             event_listeners: HashMap::new(),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            runtime_schedule: engine_runtime::ScheduleMgr::default(),
+            runtime_resolve_pending: true,
+            runtime_limits: engine_runtime::RuntimeLimits::default(),
         }
     }
 

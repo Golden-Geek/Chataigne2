@@ -573,3 +573,213 @@ fn runtime_listener_is_removed_automatically_when_target_is_deleted() {
         "listeners targeting deleted node should be purged automatically",
     );
 }
+
+#[derive(Clone, Debug, PartialEq)]
+struct RuntimeNode {
+    node_data: NodeData,
+    rule: NodeExecutionRule,
+    updates: usize,
+    bounce_custom_events: bool,
+}
+
+impl RuntimeNode {
+    fn new(label: &str, rule: NodeExecutionRule) -> Self {
+        Self {
+            node_data: NodeData::new(label.to_string()),
+            rule,
+            updates: 0,
+            bounce_custom_events: false,
+        }
+    }
+
+    fn bouncing(label: &str) -> Self {
+        Self {
+            node_data: NodeData::new(label.to_string()),
+            rule: NodeExecutionRule::passive(),
+            updates: 0,
+            bounce_custom_events: true,
+        }
+    }
+}
+
+impl Node for RuntimeNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        "runtime_node"
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        self.rule.clone()
+    }
+
+    fn update(&mut self, _ctx: &mut ProcessCtx) {
+        self.updates += 1;
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, _event: CustomEvent) {
+        if self.bounce_custom_events {
+            ctx.emit_custom_event(CustomEvent::new("runtime.loop", Some(self.id()), serde_json::Value::Null));
+        }
+    }
+}
+
+#[test]
+fn resolve_builds_topological_rate_buckets() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("slow", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("fast_a", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("fast_b", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("setup edits should succeed");
+
+    let slow = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("slow node should exist");
+    let fast_a = engine
+        .nodes
+        .get(slow)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("fast_a should exist");
+    let fast_b = engine
+        .nodes
+        .get(fast_a)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("fast_b should exist");
+
+    engine.nodes.get_mut(slow).expect("slow node should exist").rule = NodeExecutionRule::periodic(3);
+    engine.nodes.get_mut(fast_a).expect("fast_a should exist").rule = NodeExecutionRule::periodic(200).with_dependencies([slow]);
+    engine.nodes.get_mut(fast_b).expect("fast_b should exist").rule = NodeExecutionRule::periodic(200).with_dependencies([fast_a]);
+
+    engine.resolve().expect("resolve should succeed");
+
+    let topo = engine.schedule_topology();
+    let slow_pos = topo.iter().position(|node| *node == slow).expect("slow should be in topo order");
+    let fast_a_pos = topo.iter().position(|node| *node == fast_a).expect("fast_a should be in topo order");
+    let fast_b_pos = topo.iter().position(|node| *node == fast_b).expect("fast_b should be in topo order");
+    assert!(slow_pos < fast_a_pos && fast_a_pos < fast_b_pos, "topology should honor dependency chain");
+
+    assert_eq!(engine.schedule_bucket_nodes(3), Some([slow].as_slice()));
+    assert_eq!(engine.schedule_bucket_nodes(200), Some([fast_a, fast_b].as_slice()));
+}
+
+#[test]
+fn resolve_detects_dependency_cycles() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("setup edits should succeed");
+
+    let node_a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("node_a should exist");
+    let node_b = engine
+        .nodes
+        .get(node_a)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("node_b should exist");
+
+    engine.nodes.get_mut(node_a).expect("node_a should exist").rule = NodeExecutionRule::periodic(10).with_dependencies([node_b]);
+    engine.nodes.get_mut(node_b).expect("node_b should exist").rule = NodeExecutionRule::periodic(10).with_dependencies([node_a]);
+
+    let result = engine.resolve();
+    assert!(
+        matches!(result, Err(EngineRuntimeError::DependencyCycle { .. })),
+        "mutual dependencies should fail topological sorting",
+    );
+}
+
+#[test]
+fn reevaluate_graph_edit_marks_and_rebuilds_schedule() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("initial resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+    assert_eq!(engine.schedule_bucket_nodes(2), Some([runner].as_slice()));
+
+    engine.nodes.get_mut(runner).expect("runner should exist").rule = NodeExecutionRule::periodic(120);
+    engine.request_graph_reevaluation();
+    engine.apply_edits().expect("reevaluate edit should succeed");
+
+    assert!(engine.is_resolve_pending(), "reevaluate edit should mark schedule dirty");
+    assert!(engine.resolve_if_needed().expect("resolve_if_needed should succeed"));
+    assert_eq!(engine.schedule_bucket_nodes(120), Some([runner].as_slice()));
+    assert!(engine.schedule_bucket_nodes(2).is_none(), "old rate bucket should be dropped");
+}
+
+#[test]
+fn run_tick_respects_update_rate_buckets() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine.run_tick(std::time::Duration::from_millis(200)).expect("tick should succeed");
+    assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 0);
+
+    engine.run_tick(std::time::Duration::from_millis(300)).expect("tick should succeed");
+    assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 1);
+
+    engine.run_tick(std::time::Duration::from_millis(1000)).expect("tick should succeed");
+    assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 3);
+}
+
+#[test]
+fn run_tick_detects_event_edit_cycles() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::bouncing("looper"), None);
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let looper = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("looper should exist");
+
+    engine.set_runtime_limits(RuntimeLimits {
+        max_stabilization_passes_per_tick: 8,
+        ..RuntimeLimits::default()
+    });
+
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::new("runtime.loop", Some(looper), serde_json::Value::Null),
+    });
+
+    let result = engine.run_tick(std::time::Duration::from_millis(1));
+    assert!(
+        matches!(result, Err(EngineRuntimeError::InfiniteEventEditCycle { .. })),
+        "run_tick should abort when event/edit stabilization never converges",
+    );
+}

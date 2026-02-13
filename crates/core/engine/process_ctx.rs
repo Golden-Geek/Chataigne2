@@ -77,6 +77,11 @@ impl ProcessCtx {
         self.edits.push(Edit::EmitCustomEvent { event });
     }
 
+    /// Requests a full graph execution-rule reevaluation.
+    pub fn reevaluate_graph(&mut self) {
+        self.edits.push(Edit::ReevaluateGraph);
+    }
+
     /// Queues a direct listener subscription from `subscriber` to `target`.
     pub fn add_event_listener(&mut self, subscriber: NodeId, target: NodeId) {
         self.add_event_listener_subtree(subscriber, target, 0);

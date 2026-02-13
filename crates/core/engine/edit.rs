@@ -53,6 +53,8 @@ pub enum Edit {
         /// Custom event payload to emit.
         event: CustomEvent,
     },
+    /// Requests a full scheduler reevaluation on the next runtime resolve pass.
+    ReevaluateGraph,
     /// Adds or updates a runtime event listener for a subscriber node.
     AddEventListener {
         /// Listener owner node id.

@@ -38,5 +38,9 @@ pub mod edit;
 /// Processing-time context passed to node callbacks.
 pub mod process_ctx;
 
+#[path = "../app/mod.rs"]
+/// App-level runtime helpers.
+pub mod app;
+
 /// Attribute macro used to declare node types.
 pub use golden_core_macros::node;

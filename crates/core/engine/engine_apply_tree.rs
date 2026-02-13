@@ -99,6 +99,7 @@ impl<T: Node> Engine<T> {
             self.nodes.get_mut(parent).ok_or(EngineEditError::ParentNotFound { edit_index, operation, parent })?.node_data_mut().last_child = Some(node);
         }
 
+        self.mark_schedule_dirty();
         Ok(())
     }
 
@@ -129,6 +130,7 @@ impl<T: Node> Engine<T> {
             node_data.next_sibling = None;
         }
 
+        self.mark_schedule_dirty();
         Ok(parent)
     }
 
@@ -272,6 +274,7 @@ impl<T: Node> Engine<T> {
         self.reparent_child_chain(edit_index, OP, old_data.first_child, new_id)?;
 
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
+        self.mark_schedule_dirty();
 
         self.emit_event(EventKind::NodeCreated { node: new_id });
         self.emit_event(EventKind::ChildReplaced { parent, old: node, new: new_id });

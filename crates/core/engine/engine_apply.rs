@@ -53,6 +53,10 @@ impl<T: Node> Engine<T> {
                     self.emit_event(EventKind::Custom(event));
                     Ok(None)
                 }
+                Edit::ReevaluateGraph => {
+                    self.mark_schedule_dirty();
+                    Ok(None)
+                }
                 Edit::AddEventListener { subscriber, subscription } => {
                     self.apply_add_event_listener(edit_index, subscriber, subscription)?;
                     Ok(None)

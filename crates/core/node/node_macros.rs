@@ -93,6 +93,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn execution_rule(&self) -> $crate::engine::NodeExecutionRule {
+                $crate::__dispatch_node_enum!(self, execution_rule; $($variant),*)
+            }
+
+            #[inline(always)]
             fn set_param_value(&mut self, value: $crate::parameter::ParamValue) -> Option<$crate::parameter::ParamValue> {
                 $crate::__dispatch_node_enum!(self, set_param_value, value; $($variant),*)
             }

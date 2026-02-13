@@ -3,6 +3,7 @@ use std::any::Any;
 use crate::color::Color;
 use crate::define_node_type;
 use crate::edit::Edit;
+use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::parameter::ParamValue;
 use crate::process_ctx::ProcessCtx;
@@ -255,6 +256,13 @@ pub trait Node: Send + Any {
     fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
     /// Called before node destruction.
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
+
+    /// Returns the runtime execution rule used by the engine scheduler.
+    ///
+    /// The default rule is passive: no dependencies and no update rate.
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::default()
+    }
 
     /// Returns how many descendant levels of events this node subscribes to.
     ///
