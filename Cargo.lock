@@ -7,6 +7,7 @@ name = "Chataigne2"
 version = "0.1.0"
 dependencies = [
  "golden_core",
+ "serde",
 ]
 
 [[package]]
