@@ -22,3 +22,5 @@ pub mod edit;
 #[path = "../engine/process_ctx.rs"]
 pub mod process_ctx;
 
+pub use golden_core_macros::node;
+

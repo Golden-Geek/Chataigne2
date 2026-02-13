@@ -98,6 +98,19 @@ macro_rules! define_node_enum {
 /// Example:
 /// `define_node_type!(struct DummyNode { dummy_prop: String } type_name: "dummy");`
 ///
+/// Delegate node data to a nested node (no extra `node_data` field):
+/// `define_node_type!(
+///     struct VeryDummy { dummy_node: DummyNode, verydummy_prop: String }
+///     type_name: "verydummy",
+///     via: dummy_node,
+///     constructor(label, dummy_prop: String, verydummy_prop: String) {
+///         Self {
+///             dummy_node: DummyNode::new(label, dummy_prop),
+///             verydummy_prop,
+///         }
+///     }
+/// );`
+///
 /// Overriding node lifecycle methods:
 /// `define_node_type!(
 ///     struct DummyNode { dummy_prop: String }
@@ -109,6 +122,94 @@ macro_rules! define_node_enum {
 /// );`
 #[macro_export]
 macro_rules! define_node_type {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $node_name:ident {
+            $($field_vis:vis $field:ident : $field_ty:ty),* $(,)?
+        }
+        type_name: $type_name:literal,
+        via: $($via:ident).+,
+        constructor($label:ident $(, $ctor_arg:ident : $ctor_ty:ty)* $(,)?) $ctor_body:block
+        $(,
+            node_impl {
+                $($node_impl:item)*
+            }
+        )?
+        $(,)?
+    ) => {
+        $(#[$meta])*
+        $vis struct $node_name {
+            $($field_vis $field: $field_ty),*
+        }
+
+        impl $node_name {
+            pub fn new(label: impl Into<String> $(, $ctor_arg: $ctor_ty)*) -> Self {
+                let $label = label.into();
+                $ctor_body
+            }
+        }
+
+        impl $crate::node::Node for $node_name {
+            fn node_data(&self) -> &$crate::node::NodeData {
+                $crate::node::Node::node_data(&self.$($via).+)
+            }
+
+            fn node_data_mut(&mut self) -> &mut $crate::node::NodeData {
+                $crate::node::Node::node_data_mut(&mut self.$($via).+)
+            }
+
+            fn get_type(&self) -> &str {
+                $type_name
+            }
+
+            $($($node_impl)*)?
+        }
+    };
+
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $node_name:ident {
+            $($field_vis:vis $field:ident : $field_ty:ty),* $(,)?
+        }
+        type_name: $type_name:literal,
+        via: $($via:ident).+
+        $(,
+            node_impl {
+                $($node_impl:item)*
+            }
+        )?
+        $(,)?
+    ) => {
+        $(#[$meta])*
+        $vis struct $node_name {
+            $($field_vis $field: $field_ty),*
+        }
+
+        impl $node_name {
+            pub fn new(_label: impl Into<String> $(, $field: $field_ty)*) -> Self {
+                Self {
+                    $($field),*
+                }
+            }
+        }
+
+        impl $crate::node::Node for $node_name {
+            fn node_data(&self) -> &$crate::node::NodeData {
+                $crate::node::Node::node_data(&self.$($via).+)
+            }
+
+            fn node_data_mut(&mut self) -> &mut $crate::node::NodeData {
+                $crate::node::Node::node_data_mut(&mut self.$($via).+)
+            }
+
+            fn get_type(&self) -> &str {
+                $type_name
+            }
+
+            $($($node_impl)*)?
+        }
+    };
+
     (
         $(#[$meta:meta])*
         $vis:vis struct $node_name:ident {

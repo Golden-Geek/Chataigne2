@@ -41,7 +41,7 @@ impl<T: Node> Engine<T> {
     }
 
     pub fn add_node(&mut self, node: T, parent: Option<NodeId>) {
-        println!("Add node requested : {}", node.get_type());
+        println!("Add node requested, type = {}", node.get_type());
         self.build_edits.push(BuildEdit::AddNode {
             parent: parent.unwrap_or(self.root),
             node,
