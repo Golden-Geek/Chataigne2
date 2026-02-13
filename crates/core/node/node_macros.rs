@@ -97,6 +97,16 @@ macro_rules! define_node_enum {
 ///
 /// Example:
 /// `define_node_type!(struct DummyNode { dummy_prop: String } type_name: "dummy");`
+///
+/// Overriding node lifecycle methods:
+/// `define_node_type!(
+///     struct DummyNode { dummy_prop: String }
+///     type_name: "dummy",
+///     node_impl {
+///         fn init(&mut self, _ctx: &mut golden_core::process_ctx::ProcessCtx) {}
+///         fn destroy(&mut self, _ctx: &mut golden_core::process_ctx::ProcessCtx) {}
+///     }
+/// );`
 #[macro_export]
 macro_rules! define_node_type {
     (
@@ -104,7 +114,13 @@ macro_rules! define_node_type {
         $vis:vis struct $node_name:ident {
             $($field_vis:vis $field:ident : $field_ty:ty),* $(,)?
         }
-        type_name: $type_name:expr
+        type_name: $type_name:literal
+        $(,
+            node_impl {
+                $($node_impl:item)*
+            }
+        )?
+        $(,)?
     ) => {
         $(#[$meta])*
         $vis struct $node_name {
@@ -133,6 +149,8 @@ macro_rules! define_node_type {
             fn get_type(&self) -> &str {
                 $type_name
             }
+
+            $($($node_impl)*)?
         }
     };
 }
