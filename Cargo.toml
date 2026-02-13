@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 golden_core = { path = "submodules/golden_core/crates/core" }
+
