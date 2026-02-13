@@ -272,7 +272,7 @@ impl Node for Parameter {
         }
     }
 
-    fn set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
+    fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
         let old = std::mem::replace(&mut self.value, value);
         Some(old)
     }

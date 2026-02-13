@@ -42,5 +42,5 @@ pub mod process_ctx;
 /// App-level runtime helpers.
 pub mod app;
 
-/// Attribute macro used to declare node types.
-pub use golden_core_macros::node;
+/// Attribute macros used to declare node types and runtime update rates.
+pub use golden_core_macros::{node, update};

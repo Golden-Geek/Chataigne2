@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{
     parse_macro_input, parse_quote, Error, Fields, Ident, ImplItem, Item, ItemImpl, ItemStruct,
-    LitStr, Result, Token, Type,
+    LitInt, LitStr, Result, Token, Type,
 };
 
 #[derive(Clone)]
@@ -76,6 +76,23 @@ impl Parse for NodeAttr {
     }
 }
 
+struct UpdateAttr {
+    rate_hz: LitInt,
+}
+
+impl Parse for UpdateAttr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let rate_hz = input.parse::<LitInt>()?;
+        if !input.is_empty() {
+            return Err(Error::new(
+                input.span(),
+                "unexpected tokens, expected a single integer like #[update(60)]",
+            ));
+        }
+        Ok(Self { rate_hz })
+    }
+}
+
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let NodeAttr { type_name, via } = parse_macro_input!(attr as NodeAttr);
@@ -87,6 +104,76 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
         other => Error::new_spanned(
             other,
             "#[node] supports only structs and `impl Node for ...` blocks",
+        )
+        .to_compile_error()
+        .into(),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let UpdateAttr { rate_hz } = parse_macro_input!(attr as UpdateAttr);
+    let input = parse_macro_input!(item as Item);
+
+    let rate = match rate_hz.base10_parse::<u32>() {
+        Ok(rate) => rate,
+        Err(err) => {
+            return Error::new(rate_hz.span(), format!("invalid update rate: {err}"))
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    if rate == 0 {
+        return Error::new(rate_hz.span(), "update rate must be greater than zero")
+            .to_compile_error()
+            .into();
+    }
+
+    match input {
+        Item::Impl(mut input) => {
+            let Some((_, trait_path, _)) = &input.trait_ else {
+                return Error::new_spanned(
+                    input,
+                    "#[update(...)] requires a trait impl: `impl Node for Type`",
+                )
+                .to_compile_error()
+                .into();
+            };
+
+            let is_node_impl = trait_path
+                .segments
+                .last()
+                .is_some_and(|seg| seg.ident == "Node");
+            if !is_node_impl {
+                return Error::new_spanned(
+                    trait_path,
+                    "#[update(...)] can only be used with `Node` trait impls",
+                )
+                .to_compile_error()
+                .into();
+            }
+
+            if has_method(&input, "execution_rule") {
+                return Error::new_spanned(
+                    input,
+                    "impl already defines `execution_rule`; remove #[update(...)] or the method",
+                )
+                .to_compile_error()
+                .into();
+            }
+
+            input.items.push(parse_quote! {
+                fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
+                    golden_core::engine::NodeExecutionRule::periodic(#rate)
+                }
+            });
+
+            quote!(#input).into()
+        }
+        other => Error::new_spanned(
+            other,
+            "#[update(...)] supports only `impl Node for ...` blocks",
         )
         .to_compile_error()
         .into(),

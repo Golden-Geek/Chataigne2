@@ -14,7 +14,7 @@ impl<T: Node> Engine<T> {
         let old_value = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
             let node_type = target.get_type().to_string();
-            match target.set_param_value(value) {
+            match target.engine_set_param_value(value) {
                 Some(old) => old,
                 None => {
                     return Err(EngineEditError::ParamEditTargetMismatch { edit_index, node, node_type });

@@ -188,8 +188,7 @@ fn ensure_unique_type_names(entries: &[NodeEntry]) {
 }
 
 fn declares_node_type(source: &str) -> bool {
-    source.contains("define_node_type!")
-        || source.contains("#[node(")
+    source.contains("#[node(")
         || source.contains("#[node]")
         || source.contains("#[golden_core::node(")
         || source.contains("#[golden_core::node]")

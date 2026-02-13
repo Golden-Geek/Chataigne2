@@ -1,7 +1,6 @@
 use std::any::Any;
 
 use crate::color::Color;
-use crate::define_node_type;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
@@ -226,8 +225,12 @@ pub trait Node: Send + Any {
     /// Returns the node type identifier.
     fn get_type(&self) -> &str;
 
-    /// Applies a parameter value to the node and returns the previous value when supported.
-    fn set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
+    /// Engine-internal hook used while applying `SetParam` edits.
+    ///
+    /// App node code should request parameter changes through [`crate::parameter::Parameter::set`]
+    /// (or `ProcessCtx::set_param`) instead of calling this directly.
+    #[doc(hidden)]
+    fn engine_set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
         None
     }
 
@@ -397,38 +400,74 @@ pub trait Node: Send + Any {
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
 }
 
-define_node_type!(
-    /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
-    pub struct Folder {
-    }
-    type_name: "folder",
-    node_impl {
-        fn init(&mut self, _ctx: &mut ProcessCtx) {
-            println!("Folder init");
-        }
+/// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
+pub struct Folder {
+    node_data: NodeData,
+}
 
-        fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-            println!("Folder destroy");
-        }
-
-        fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-            EventPropagation::PassOn
-        }
+impl Folder {
+    /// Creates a new folder node.
+    pub fn new(label: impl Into<String>) -> Self {
+        Self { node_data: NodeData::new(label.into()) }
     }
-);
+}
 
-define_node_type!(
-    /// Internal Folder-like node used as a curated user-extensible root.
-    pub struct Manager {
+impl Node for Folder {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
     }
-    type_name: "manager",
-    node_impl {
-        fn init(&mut self, _ctx: &mut ProcessCtx) {
-            println!("Manager init");
-        }
 
-        fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-            println!("Manager destroy");
-        }
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
     }
-);
+
+    fn get_type(&self) -> &str {
+        "folder"
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        println!("Folder init");
+    }
+
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        println!("Folder destroy");
+    }
+
+    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
+        EventPropagation::PassOn
+    }
+}
+
+/// Internal Folder-like node used as a curated user-extensible root.
+pub struct Manager {
+    node_data: NodeData,
+}
+
+impl Manager {
+    /// Creates a new manager node.
+    pub fn new(label: impl Into<String>) -> Self {
+        Self { node_data: NodeData::new(label.into()) }
+    }
+}
+
+impl Node for Manager {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        "manager"
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        println!("Manager init");
+    }
+
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        println!("Manager destroy");
+    }
+}
