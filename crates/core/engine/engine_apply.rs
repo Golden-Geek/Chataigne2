@@ -23,64 +23,109 @@ impl<T: Node> Engine<T> {
         self.absorb_external_edits()?;
 
         let mut transaction = HistoryTransaction::new();
-        let mut applied_any_edit = false;
+        let mut redo_cleared = false;
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
-            let outcome: Result<Option<HistoryStep<T>>, EngineEditError> = match request.edit {
+            let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request.edit {
+                Edit::BeginEditSession { origin, label, client_edit_id } => {
+                    if let Some(active) = &self.active_edit_session {
+                        (
+                            Err(EngineEditError::EditSessionAlreadyActive {
+                                edit_index,
+                                requested_client_edit_id: client_edit_id,
+                                active_client_edit_id: active.client_edit_id.clone(),
+                            }),
+                            false,
+                        )
+                    } else {
+                        self.active_edit_session = Some(super::engine_history::ActiveEditSession::new(origin, label, client_edit_id));
+                        (Ok(None), false)
+                    }
+                }
+                Edit::EndEditSession { client_edit_id } => {
+                    if let Some(active) = self.active_edit_session.take() {
+                        if active.client_edit_id != client_edit_id {
+                            let active_client_edit_id = active.client_edit_id.clone();
+                            self.active_edit_session = Some(active);
+                            (
+                                Err(EngineEditError::EditSessionIdMismatch {
+                                    edit_index,
+                                    requested_client_edit_id: client_edit_id,
+                                    active_client_edit_id,
+                                }),
+                                false,
+                            )
+                        } else {
+                            if !active.transaction.is_empty() {
+                                self.push_undo_transaction(active.transaction);
+                            }
+                            (Ok(None), false)
+                        }
+                    } else {
+                        (Err(EngineEditError::EditSessionNotActive { edit_index, requested_client_edit_id: client_edit_id }), false)
+                    }
+                }
                 Edit::SetParam { node, value, behaviour } => {
                     let mut effect = self.apply_set_param(edit_index, node, value)?;
                     effect.behaviour = behaviour;
                     effect.tick = self.time.tick;
-                    Ok(Some(effect.into()))
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
-                    Ok(Some(effect.into()))
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let effect = self.apply_replace_node(edit_index, node, new_node)?;
-                    Ok(Some(effect.into()))
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::RemoveNode { node } => {
                     let effect = self.apply_remove_node(edit_index, node)?;
-                    Ok(Some(effect.into()))
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::MoveNode { node, new_parent, new_prev_sibling } => {
                     let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
-                    Ok(Some(effect.into()))
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::PatchMeta { node, patch } => {
                     self.apply_patch_meta(edit_index, node, patch)?;
-                    Ok(None)
+                    (Ok(None), true)
                 }
                 Edit::EmitCustomEvent { event } => {
                     self.emit_event(EventKind::Custom(event));
-                    Ok(None)
+                    (Ok(None), true)
                 }
                 Edit::ReevaluateGraph => {
                     self.mark_schedule_dirty();
-                    Ok(None)
+                    (Ok(None), true)
                 }
                 Edit::AddEventListener { subscriber, subscription } => {
                     self.apply_add_event_listener(edit_index, subscriber, subscription)?;
-                    Ok(None)
+                    (Ok(None), true)
                 }
                 Edit::RemoveEventListener { subscriber, subscription } => {
                     self.apply_remove_event_listener(subscriber, subscription);
-                    Ok(None)
+                    (Ok(None), true)
                 }
             };
 
             match outcome {
                 Ok(step) => {
-                    applied_any_edit = true;
+                    if should_clear_redo && !redo_cleared {
+                        self.clear_redo_history();
+                        redo_cleared = true;
+                    }
+
                     if let Some(step) = step {
-                        transaction.push(step);
+                        if let Some(active) = self.active_edit_session.as_mut() {
+                            active.transaction.push(step);
+                        } else {
+                            transaction.push(step);
+                        }
                     }
                 }
                 Err(err) => {
-                    if applied_any_edit {
-                        self.clear_redo_history();
+                    if !transaction.is_empty() {
                         self.push_undo_transaction(transaction);
                     }
                     return Err(err);
@@ -88,8 +133,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        if applied_any_edit {
-            self.clear_redo_history();
+        if !transaction.is_empty() {
             self.push_undo_transaction(transaction);
         }
 
@@ -122,7 +166,9 @@ impl<T: Node> Engine<T> {
             _ => {}
         }
         let time = self.time;
-        self.inbox.push(Event { time, kind });
+        let event = Event { time, kind };
+        self.push_ui_event_log(event.clone());
+        self.inbox.push(event);
         self.time.seq = self.time.seq.saturating_add(1);
     }
 }

@@ -5,8 +5,9 @@ use uuid::Uuid;
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::node::{EventPropagation, EventSubscription, Folder, Manager, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
+use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
 
 #[test]
 fn absorb_edits_reports_node_type_mismatch() {
@@ -372,6 +373,7 @@ fn apply_edits_set_param_updates_parameter_node() {
             Some(EventKind::ParamChanged {
                 param,
                 old_value: ParamValue::Int(10),
+                new_value: ParamValue::Int(42),
             }) if *param == engine.root
         ),
         "last event should report previous parameter value",
@@ -415,6 +417,91 @@ fn parameter_set_append_behaviour_keeps_all_pending_set_param_edits() {
         matches!(ctx.edits.pending.first().map(|request| &request.edit), Some(Edit::SetParam { behaviour: ParameterEventBehaviour::Append, .. })),
         "queued edits should retain append behaviour metadata",
     );
+}
+
+#[test]
+fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
+    let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        min: Some(0.0),
+        max: Some(1.0),
+        step: Some(0.25),
+        step_base: Some(0.0),
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::ClampAdapt,
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(1.13),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should clamp and adapt");
+
+    let value = engine.nodes.get(engine.root).expect("root parameter should exist").value.clone();
+    assert_eq!(value, ParamValue::Float(1.0), "value should clamp to max after step adaptation");
+}
+
+#[test]
+fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
+    let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        min: Some(0.0),
+        max: Some(1.0),
+        step: Some(0.5),
+        step_base: Some(0.0),
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::Reject,
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(0.3),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+}
+
+#[test]
+fn apply_set_param_rejects_values_outside_enum_constraints() {
+    let mut root = Parameter::new("mode", ParamValue::Str("a".to_string()), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        min: None,
+        max: None,
+        step: None,
+        step_base: None,
+        enum_options: vec![
+            ParameterEnumOption {
+                variant_id: "a".to_string(),
+                value: ParamValue::Str("a".to_string()),
+                label: "Mode A".to_string(),
+                tags: Vec::new(),
+                ordering: Some(0),
+            },
+            ParameterEnumOption {
+                variant_id: "b".to_string(),
+                value: ParamValue::Str("b".to_string()),
+                label: "Mode B".to_string(),
+                tags: Vec::new(),
+                ordering: Some(1),
+            },
+        ],
+        policy: ParameterConstraintPolicy::ClampAdapt,
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Str("c".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
 }
 
 fn encode_parameter_node(node: &Parameter) -> Result<serde_json::Value, String> {
@@ -497,37 +584,13 @@ fn project_load_save_load_roundtrip_is_stable() {
     let root = Parameter::new("root", ParamValue::Int(123), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
 
-    engine.add_node(
-        Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None),
-        None,
-    );
-    engine.add_node(
-        Parameter::new(
-            "target_ref",
-            ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))),
-            ParameterChangeCheck::None,
-        ),
-        None,
-    );
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None), None);
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))), ParameterChangeCheck::None), None);
     engine.apply_edits().expect("initial add should succeed");
 
-    let target = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("target child should exist");
-    let target_ref = engine
-        .nodes
-        .get(target)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("reference child should exist");
-    let target_uuid = engine
-        .nodes
-        .get(target)
-        .expect("target node should exist")
-        .node_data()
-        .meta
-        .uuid;
+    let target = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("target child should exist");
+    let target_ref = engine.nodes.get(target).and_then(|node| node.node_data().next_sibling).expect("reference child should exist");
+    let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
 
     engine.edits.push(Edit::SetParam {
         node: target_ref,
@@ -536,21 +599,13 @@ fn project_load_save_load_roundtrip_is_stable() {
     });
     engine.apply_edits().expect("reference set should succeed");
 
-    let json1 = engine
-        .to_project_json_pretty_with(encode_parameter_node)
-        .expect("first project serialization should succeed");
-    let loaded1 = Engine::<Parameter>::from_project_json_with(&json1, decode_parameter_node)
-        .expect("first project load should succeed");
+    let json1 = engine.to_project_json_pretty_with(encode_parameter_node).expect("first project serialization should succeed");
+    let loaded1 = Engine::<Parameter>::from_project_json_with(&json1, decode_parameter_node).expect("first project load should succeed");
 
-    let json2 = loaded1
-        .to_project_json_pretty_with(encode_parameter_node)
-        .expect("second project serialization should succeed");
-    let loaded2 = Engine::<Parameter>::from_project_json_with(&json2, decode_parameter_node)
-        .expect("second project load should succeed");
+    let json2 = loaded1.to_project_json_pretty_with(encode_parameter_node).expect("second project serialization should succeed");
+    let loaded2 = Engine::<Parameter>::from_project_json_with(&json2, decode_parameter_node).expect("second project load should succeed");
 
-    let json3 = loaded2
-        .to_project_json_pretty_with(encode_parameter_node)
-        .expect("third project serialization should succeed");
+    let json3 = loaded2.to_project_json_pretty_with(encode_parameter_node).expect("third project serialization should succeed");
 
     let value1: serde_json::Value = serde_json::from_str(&json1).expect("json1 should parse");
     let value2: serde_json::Value = serde_json::from_str(&json2).expect("json2 should parse");
@@ -558,23 +613,10 @@ fn project_load_save_load_roundtrip_is_stable() {
     assert_eq!(value1, value2, "load-save should preserve full project data");
     assert_eq!(value2, value3, "second load-save should remain stable");
 
-    let loaded2_target = loaded2
-        .nodes
-        .get(loaded2.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("loaded2 target child should exist");
-    let loaded2_target_ref = loaded2
-        .nodes
-        .get(loaded2_target)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("loaded2 reference child should exist");
+    let loaded2_target = loaded2.nodes.get(loaded2.root).and_then(|root| root.node_data().first_child).expect("loaded2 target child should exist");
+    let loaded2_target_ref = loaded2.nodes.get(loaded2_target).and_then(|node| node.node_data().next_sibling).expect("loaded2 reference child should exist");
 
-    match &loaded2
-        .nodes
-        .get(loaded2_target_ref)
-        .expect("loaded2 reference node should exist")
-        .value
-    {
+    match &loaded2.nodes.get(loaded2_target_ref).expect("loaded2 reference node should exist").value {
         ParamValue::Reference(reference) => {
             assert_eq!(reference.uuid(), loaded2.nodes.get(loaded2_target).expect("loaded2 target should exist").node_data().meta.uuid);
             assert_eq!(reference.cached_id(), Some(loaded2_target));
@@ -591,11 +633,7 @@ fn project_serialization_omits_null_and_empty_meta_fields() {
     let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
     let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
 
-    let meta = value
-        .get("root")
-        .and_then(|root| root.get("meta"))
-        .and_then(|meta| meta.as_object())
-        .expect("root.meta should be an object");
+    let meta = value.get("root").and_then(|root| root.get("meta")).and_then(|meta| meta.as_object()).expect("root.meta should be an object");
 
     assert!(!meta.contains_key("description"), "null description should be omitted");
     assert!(!meta.contains_key("tags"), "empty tags should be omitted");
@@ -607,15 +645,10 @@ fn project_serialization_omits_null_and_empty_meta_fields() {
 fn project_serialization_omits_null_data_and_empty_children() {
     let engine = Engine::new(Folder::new("root"));
 
-    let json = engine
-        .to_project_json_with(|_node| Ok(serde_json::Value::Null))
-        .expect("project serialization should succeed");
+    let json = engine.to_project_json_with(|_node| Ok(serde_json::Value::Null)).expect("project serialization should succeed");
     let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
 
-    let root = value
-        .get("root")
-        .and_then(|root| root.as_object())
-        .expect("root should be an object");
+    let root = value.get("root").and_then(|root| root.as_object()).expect("root should be an object");
 
     assert!(!root.contains_key("data"), "null data should be omitted");
     assert!(!root.contains_key("children"), "empty children should be omitted");
@@ -716,6 +749,114 @@ fn same_tick_append_set_param_keeps_distinct_undo_steps() {
 
     assert!(engine.undo().expect("undo should succeed"));
     assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Float(0.5), "append undo should step back to the immediately previous value",);
+}
+
+#[test]
+fn begin_end_edit_session_groups_multiple_queue_drains_into_one_undo() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: crate::edit::EditOrigin::Ui,
+        label: Some("Slider drag".to_string()),
+        client_edit_id: "drag-1".to_string(),
+    });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(10),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("first session chunk should apply");
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(20),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("second session chunk should apply");
+
+    assert!(engine.has_active_edit_session());
+    assert_eq!(engine.active_edit_session_id(), Some("drag-1"));
+    assert_eq!(engine.undo_len(), 0, "undo entry should not be committed before EndEditSession");
+
+    engine.edits.push(Edit::EndEditSession { client_edit_id: "drag-1".to_string() });
+    engine.apply_edits().expect("session end should commit history");
+
+    assert!(!engine.has_active_edit_session());
+    assert_eq!(engine.undo_len(), 1, "all session edits should be grouped as one undo step");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(0));
+}
+
+#[test]
+fn patch_meta_applies_patch_to_runtime_node_metadata() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+
+    engine.edits.push(Edit::PatchMeta {
+        node: engine.root,
+        patch: crate::node::NodeMetaPatch {
+            label: Some("Renamed Root".to_string()),
+            enabled: Some(false),
+            description: Some(Some("Updated from UI".to_string())),
+            ..Default::default()
+        },
+    });
+
+    engine.apply_edits().expect("meta patch should apply");
+
+    let root_meta = &engine.nodes.get(engine.root).expect("root should exist").node_data().meta;
+    assert_eq!(root_meta.label, "Renamed Root");
+    assert!(!root_meta.enabled);
+    assert_eq!(root_meta.description.as_deref(), Some("Updated from UI"));
+}
+
+#[test]
+fn ui_event_log_retains_events_after_inbox_dispatch() {
+    let root = Parameter::new("root_param", ParamValue::Int(1), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(2),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should apply");
+
+    assert_eq!(engine.ui_event_log().len(), 1, "ui event log should capture emitted events");
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).expect("dispatch should succeed");
+    assert!(engine.inbox.events.is_empty(), "inbox should be cleared by dispatch");
+    assert_eq!(engine.ui_event_log().len(), 1, "ui event log should remain available for replay");
+}
+
+#[test]
+fn ui_snapshot_projects_parameter_nodes_with_param_payload() {
+    let root = Parameter::new("root_param", ParamValue::Float(0.5), ParameterChangeCheck::None);
+    let engine = Engine::new(root);
+
+    let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    assert_eq!(snapshot.nodes.len(), 1);
+
+    match &snapshot.nodes[0].data {
+        UiNodeDataDto::Parameter { param } => {
+            assert_eq!(param.value, ParamValue::Float(0.5));
+        }
+        UiNodeDataDto::Node { .. } => panic!("expected parameter payload for parameter node"),
+    }
+}
+
+#[test]
+fn ui_set_param_ack_applies_immediately() {
+    let root = Parameter::new("root_param", ParamValue::Int(1), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(7),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert_eq!(ack.status, UiAckStatus::Applied);
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(7));
 }
 
 #[test]

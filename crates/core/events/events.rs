@@ -58,6 +58,8 @@ pub enum EventKind {
         param: NodeId,
         /// Previous value before the change.
         old_value: ParamValue,
+        /// Value after the change.
+        new_value: ParamValue,
     },
 
     /// A child node was attached under a parent.

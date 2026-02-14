@@ -26,6 +26,17 @@ pub enum EngineEditError {
         /// Runtime type name of the target node.
         node_type: String,
     },
+    /// A `SetParam` edit value failed constraint normalization or validation.
+    ParamConstraintViolation {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Target node id.
+        node: NodeId,
+        /// Runtime type name of the target node.
+        node_type: String,
+        /// Human-readable constraint failure message.
+        message: String,
+    },
     /// A node id referenced by an edit was not found.
     NodeNotFound {
         /// Index of the edit in the drained queue.
@@ -97,6 +108,31 @@ pub enum EngineEditError {
         /// Destination parent that would create a cycle.
         new_parent: NodeId,
     },
+    /// Attempted to start an edit session while one is already active.
+    EditSessionAlreadyActive {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Requested session id.
+        requested_client_edit_id: String,
+        /// Currently active session id.
+        active_client_edit_id: String,
+    },
+    /// Attempted to end an edit session while none is active.
+    EditSessionNotActive {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Requested session id.
+        requested_client_edit_id: String,
+    },
+    /// Attempted to end an edit session with a mismatched id.
+    EditSessionIdMismatch {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Requested session id.
+        requested_client_edit_id: String,
+        /// Expected currently active id.
+        active_client_edit_id: String,
+    },
 }
 
 impl fmt::Display for EngineEditError {
@@ -113,6 +149,7 @@ impl fmt::Display for EngineEditError {
             Self::ParamEditTargetMismatch { edit_index, node, node_type } => {
                 write!(f, "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node", node)
             }
+            Self::ParamConstraintViolation { edit_index, node, node_type, message } => write!(f, "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::NodeNotFound { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
             Self::ParentNotFound { edit_index, operation, parent } => write!(f, "edit #{edit_index} ({operation}) references missing parent {:?}", parent),
             Self::SiblingNotFound { edit_index, operation, sibling } => write!(f, "edit #{edit_index} ({operation}) references missing sibling {:?}", sibling),
@@ -120,6 +157,17 @@ impl fmt::Display for EngineEditError {
             Self::InvalidSiblingReference { edit_index, operation, node, sibling } => write!(f, "edit #{edit_index} ({operation}) has invalid sibling reference: node {:?} cannot use itself as sibling {:?}", node, sibling),
             Self::CannotMutateRoot { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) cannot target root node {:?}", node),
             Self::CycleDetected { edit_index, operation, node, new_parent } => write!(f, "edit #{edit_index} ({operation}) would create a cycle by moving node {:?} under {:?}", node, new_parent),
+            Self::EditSessionAlreadyActive {
+                edit_index,
+                requested_client_edit_id,
+                active_client_edit_id,
+            } => write!(f, "edit #{edit_index} (BeginEditSession) requested session '{requested_client_edit_id}' but '{active_client_edit_id}' is already active"),
+            Self::EditSessionNotActive { edit_index, requested_client_edit_id } => write!(f, "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but no session is active"),
+            Self::EditSessionIdMismatch {
+                edit_index,
+                requested_client_edit_id,
+                active_client_edit_id,
+            } => write!(f, "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but active session is '{active_client_edit_id}'"),
         }
     }
 }

@@ -1,9 +1,33 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use serde::{Deserialize, Serialize};
+
+/// Origin of an edit session boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EditOrigin {
+    /// Internal/runtime initiated edits.
+    Runtime,
+    /// UI/client initiated edits.
+    Ui,
+}
 
 /// Mutable operations queued and then applied by the engine.
 pub enum Edit {
+    /// Begins a multi-intent edit session used as one undo/redo boundary.
+    BeginEditSession {
+        /// Source of the session request.
+        origin: EditOrigin,
+        /// Optional user-facing label describing the interaction.
+        label: Option<String>,
+        /// Client-provided id used to match begin/end.
+        client_edit_id: String,
+    },
+    /// Ends a previously opened edit session.
+    EndEditSession {
+        /// Client-provided id expected to match the active session.
+        client_edit_id: String,
+    },
     /// Set a parameter value on an existing node.
     SetParam {
         /// Target node id.

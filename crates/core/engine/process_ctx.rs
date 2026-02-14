@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::edit::{Edit, EditQueue};
+use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
 use crate::node::{EventSubscription, Node, NodeId};
@@ -57,6 +57,16 @@ impl ProcessCtx {
     /// Queues a parameter update edit.
     pub fn set_param(&mut self, node: NodeId, value: ParamValue) {
         self.set_param_with_behaviour(node, value, ParameterEventBehaviour::Coalesce);
+    }
+
+    /// Begins an edit session for grouping subsequent intents into one undo boundary.
+    pub fn begin_edit_session(&mut self, origin: EditOrigin, client_edit_id: impl Into<String>, label: Option<String>) {
+        self.edits.push(Edit::BeginEditSession { origin, label, client_edit_id: client_edit_id.into() });
+    }
+
+    /// Ends an edit session previously opened with [`Self::begin_edit_session`].
+    pub fn end_edit_session(&mut self, client_edit_id: impl Into<String>) {
+        self.edits.push(Edit::EndEditSession { client_edit_id: client_edit_id.into() });
     }
 
     /// Queues a parameter update edit with an explicit coalescing strategy.

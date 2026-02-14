@@ -1,3 +1,4 @@
+use crate::edit::EditOrigin;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
@@ -82,6 +83,30 @@ impl<T: Node> HistoryTransaction<T> {
     fn dispose(&mut self, engine: &mut Engine<T>) {
         for step in self.steps.iter_mut() {
             step.dispose(engine);
+        }
+    }
+}
+
+/// Currently open edit session, used to group multiple queue drains into one undo entry.
+pub(crate) struct ActiveEditSession<T: Node> {
+    /// Source of the session.
+    pub(crate) origin: EditOrigin,
+    /// Optional user-facing label for this session.
+    pub(crate) label: Option<String>,
+    /// Client-provided id linking begin/end.
+    pub(crate) client_edit_id: String,
+    /// Accumulated history transaction for this session.
+    pub(crate) transaction: HistoryTransaction<T>,
+}
+
+impl<T: Node> ActiveEditSession<T> {
+    /// Creates a new empty active edit session.
+    pub(crate) fn new(origin: EditOrigin, label: Option<String>, client_edit_id: String) -> Self {
+        Self {
+            origin,
+            label,
+            client_edit_id,
+            transaction: HistoryTransaction::new(),
         }
     }
 }
@@ -674,5 +699,25 @@ impl<T: Node> Engine<T> {
         transaction.redo(self)?;
         self.undo_stack.push(transaction);
         Ok(true)
+    }
+
+    /// Returns `true` when an edit session is currently active.
+    pub fn has_active_edit_session(&self) -> bool {
+        self.active_edit_session.is_some()
+    }
+
+    /// Returns the currently active client edit id, when present.
+    pub fn active_edit_session_id(&self) -> Option<&str> {
+        self.active_edit_session.as_ref().map(|session| session.client_edit_id.as_str())
+    }
+
+    /// Returns the origin of the currently active edit session.
+    pub fn active_edit_session_origin(&self) -> Option<EditOrigin> {
+        self.active_edit_session.as_ref().map(|session| session.origin)
+    }
+
+    /// Returns the label of the currently active edit session.
+    pub fn active_edit_session_label(&self) -> Option<&str> {
+        self.active_edit_session.as_ref().and_then(|session| session.label.as_deref())
     }
 }

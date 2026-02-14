@@ -4,7 +4,7 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterSnapshot};
 use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -231,11 +231,64 @@ impl NodeMeta {
     }
 }
 
-/// Patch placeholder for metadata updates.
-///
-/// This currently carries no fields and acts as a forward-compatible marker.
+/// Patch payload for metadata updates.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct NodeMetaPatch {}
+pub struct NodeMetaPatch {
+    /// Optional short name replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_name: Option<String>,
+    /// Optional enabled-state replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// Optional disablement capability replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_be_disabled: Option<bool>,
+    /// Optional label replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// Optional description replacement (`Some(None)` clears the description).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    /// Optional tags replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// Optional semantic hints replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantics: Option<SemanticsHint>,
+    /// Optional presentation hints replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation: Option<PresentationHint>,
+}
+
+impl NodeMetaPatch {
+    /// Applies this patch to runtime metadata.
+    pub fn apply_to(&self, meta: &mut NodeMeta) {
+        if let Some(short_name) = &self.short_name {
+            meta.short_name = short_name.clone();
+        }
+        if let Some(enabled) = self.enabled {
+            meta.enabled = enabled;
+        }
+        if let Some(can_be_disabled) = self.can_be_disabled {
+            meta.can_be_disabled = can_be_disabled;
+        }
+        if let Some(label) = &self.label {
+            meta.label = label.clone();
+        }
+        if let Some(description) = &self.description {
+            meta.description = description.clone();
+        }
+        if let Some(tags) = &self.tags {
+            meta.tags = tags.clone();
+        }
+        if let Some(semantics) = &self.semantics {
+            meta.semantics = semantics.clone();
+        }
+        if let Some(presentation) = &self.presentation {
+            meta.presentation = presentation.clone();
+        }
+    }
+}
 
 /// Controls whether an event reaching a node should notify, pass through, or stop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -287,6 +340,18 @@ pub trait Node: Send + Any {
     /// (or `ProcessCtx::set_param`) instead of calling this directly.
     #[doc(hidden)]
     fn engine_set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
+        None
+    }
+
+    /// Engine-internal hook used to validate or normalize parameter values before apply.
+    #[doc(hidden)]
+    fn engine_prepare_param_value(&self, value: ParamValue) -> Result<ParamValue, String> {
+        Ok(value)
+    }
+
+    /// Engine-internal hook used by UI snapshot building to expose parameter details.
+    #[doc(hidden)]
+    fn engine_param_snapshot(&self) -> Option<ParameterSnapshot> {
         None
     }
 
@@ -406,7 +471,7 @@ pub trait Node: Send + Any {
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in ctx.events.clone() {
             match event.kind {
-                EventKind::ParamChanged { param, old_value } => {
+                EventKind::ParamChanged { param, old_value, .. } => {
                     self.on_param_change(ctx, param, old_value);
                 }
                 EventKind::ChildAdded { parent, child, decl_id } => {

@@ -111,6 +111,16 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_prepare_param_value(&self, value: $crate::parameter::ParamValue) -> Result<$crate::parameter::ParamValue, String> {
+                $crate::__dispatch_node_enum!(self, engine_prepare_param_value, value; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_param_snapshot(&self) -> Option<$crate::parameter::ParameterSnapshot> {
+                $crate::__dispatch_node_enum!(self, engine_param_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
             fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut $crate::node::NodeReference)) {
                 $crate::__dispatch_node_enum!(self, engine_visit_references_mut, visit; $($variant),*)
             }

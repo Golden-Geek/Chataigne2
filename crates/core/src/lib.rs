@@ -44,5 +44,9 @@ pub mod process_ctx;
 /// App-level runtime helpers.
 pub mod app;
 
+#[path = "../ui/ui_sync.rs"]
+/// UI sync DTOs and transport-agnostic protocol helpers.
+pub mod ui_sync;
+
 /// Attribute macros used to declare node types and runtime update rates.
 pub use golden_core_macros::{node, update};

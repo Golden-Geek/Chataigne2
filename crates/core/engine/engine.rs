@@ -39,6 +39,9 @@ mod engine_runtime;
 #[cfg(test)]
 #[path = "engine_tests.rs"]
 mod engine_tests;
+/// UI-facing event outbox helpers.
+#[path = "engine_ui.rs"]
+mod engine_ui;
 
 /// Node storage implementation used by the engine.
 pub mod node_store;
@@ -97,10 +100,16 @@ pub struct Engine<T: Node> {
     external_edits_rx: Receiver<Edit>,
     /// Runtime listener subscriptions keyed by subscriber node id.
     pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
+    /// UI-facing append-only event log used for replay/subscription.
+    ui_event_log: Vec<crate::events::Event>,
+    /// Maximum number of events retained in `ui_event_log`.
+    ui_event_log_capacity: usize,
     /// Applied edit transactions available for undo.
     undo_stack: Vec<engine_history::HistoryTransaction<T>>,
     /// Undone edit transactions available for redo.
     redo_stack: Vec<engine_history::HistoryTransaction<T>>,
+    /// Currently active edit session boundary.
+    active_edit_session: Option<engine_history::ActiveEditSession<T>>,
     /// Runtime schedule built by `resolve()`.
     runtime_schedule: engine_runtime::ScheduleMgr,
     /// Tracks whether runtime schedule requires a resolve pass.
@@ -131,8 +140,11 @@ impl<T: Node> Engine<T> {
             external_edits_tx,
             external_edits_rx,
             event_listeners: HashMap::new(),
+            ui_event_log: Vec::new(),
+            ui_event_log_capacity: engine_ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            active_edit_session: None,
             runtime_schedule: engine_runtime::ScheduleMgr::default(),
             runtime_resolve_pending: true,
             runtime_limits: engine_runtime::RuntimeLimits::default(),
