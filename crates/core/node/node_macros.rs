@@ -111,6 +111,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut $crate::node::NodeReference)) {
+                $crate::__dispatch_node_enum!(self, engine_visit_references_mut, visit; $($variant),*)
+            }
+
+            #[inline(always)]
             fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
                 $crate::__dispatch_node_enum!(self, init, ctx; $($variant),*)
             }
@@ -292,8 +297,6 @@ macro_rules! define_node_enum {
 #[macro_export]
 macro_rules! params {
     ($($tt:tt)*) => {
-        compile_error!(
-            "`params!{...}` is consumed by #[golden_core::node] on `impl Node for ...` blocks and cannot be used standalone"
-        );
+        compile_error!("`params!{...}` is consumed by #[golden_core::node] on `impl Node for ...` blocks and cannot be used standalone");
     };
 }

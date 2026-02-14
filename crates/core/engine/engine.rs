@@ -27,6 +27,12 @@ mod engine_error;
 /// Undo/redo history transaction and effect models.
 #[path = "engine_history.rs"]
 mod engine_history;
+/// Project save/load support.
+#[path = "engine_persistence.rs"]
+mod engine_persistence;
+/// UUID reference cache helpers.
+#[path = "engine_refs.rs"]
+mod engine_refs;
 /// Runtime resolve/scheduling and ticking orchestration.
 #[path = "engine_runtime.rs"]
 mod engine_runtime;
@@ -40,6 +46,16 @@ use node_store::NodeStore;
 
 /// Error type returned when validating or applying edits.
 pub use engine_error::EngineEditError;
+/// Current project file format version.
+pub use engine_persistence::PROJECT_FILE_VERSION;
+/// Persisted project file DTO.
+pub use engine_persistence::ProjectFile;
+/// Persisted node metadata DTO.
+pub use engine_persistence::ProjectNodeMeta;
+/// Persisted node record DTO.
+pub use engine_persistence::ProjectNodeRecord;
+/// Project persistence error type.
+pub use engine_persistence::ProjectPersistenceError;
 /// Runtime error type returned by resolve/scheduling and tick execution.
 pub use engine_runtime::EngineRuntimeError;
 /// Per-node execution rule returned to the runtime scheduler.
@@ -194,11 +210,7 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::AddNode {
-                        node: Box::new(node),
-                        parent,
-                        prev_sibling,
-                    });
+                    validated_edits.push(Edit::AddNode { node: Box::new(node), parent, prev_sibling });
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let provided_node_type = new_node.get_type().to_string();

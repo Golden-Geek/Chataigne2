@@ -4,10 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, TokenTree};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{
-    parse_macro_input, parse_quote, Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem,
-    Item, ItemImpl, ItemStruct, LitInt, LitStr, PathArguments, Result, Token, Type,
-};
+use syn::{Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -53,16 +50,10 @@ impl Parse for NodeAttr {
                     input.parse::<Token![=]>()?;
                     via = Some(input.parse::<DelegatePath>()?);
                 } else {
-                    return Err(Error::new(
-                        key.span(),
-                        "unsupported argument, expected string literal or `via = field.path`",
-                    ));
+                    return Err(Error::new(key.span(), "unsupported argument, expected string literal or `via = field.path`"));
                 }
             } else {
-                return Err(Error::new(
-                    input.span(),
-                    "unexpected attribute arguments, expected string literal or `via = field.path`",
-                ));
+                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal or `via = field.path`"));
             }
 
             if input.is_empty() {
@@ -87,10 +78,7 @@ impl Parse for UpdateAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let rate_hz = input.parse::<LitInt>()?;
         if !input.is_empty() {
-            return Err(Error::new(
-                input.span(),
-                "unexpected tokens, expected a single integer like #[update(60)]",
-            ));
+            return Err(Error::new(input.span(), "unexpected tokens, expected a single integer like #[update(60)]"));
         }
         Ok(Self { rate_hz })
     }
@@ -133,10 +121,7 @@ impl Parse for ParamFieldArgs {
                 }
                 out.description = Some(input.parse::<LitStr>()?);
             } else {
-                return Err(Error::new(
-                    key.span(),
-                    "unsupported #[param(...)] argument (supported: default, decl_id, label, description)",
-                ));
+                return Err(Error::new(key.span(), "unsupported #[param(...)] argument (supported: default, decl_id, label, description)"));
             }
 
             if input.is_empty() {
@@ -169,10 +154,7 @@ impl Parse for PotentialNodeFieldArgs {
                 }
                 out.decl_id = Some(input.parse::<LitStr>()?);
             } else {
-                return Err(Error::new(
-                    key.span(),
-                    "unsupported #[potential_node(...)] argument (supported: decl_id)",
-                ));
+                return Err(Error::new(key.span(), "unsupported #[potential_node(...)] argument (supported: decl_id)"));
             }
 
             if input.is_empty() {
@@ -225,9 +207,7 @@ impl Parse for ParamsDslOptionsOnly {
 
 impl Parse for ParamsDsl {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self {
-            items: parse_params_dsl_items(input)?,
-        })
+        Ok(Self { items: parse_params_dsl_items(input)? })
     }
 }
 
@@ -271,11 +251,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 input.parse::<Token![;]>()?;
             }
 
-            items.push(ParamsDslItem::Folder(ParamsDslFolder {
-                name: folder_name,
-                label: folder_label,
-                items: nested,
-            }));
+            items.push(ParamsDslItem::Folder(ParamsDslFolder { name: folder_name, label: folder_label, items: nested }));
             continue;
         }
 
@@ -290,12 +266,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
         let (default, options) = parse_param_tail(tail)?;
 
-        items.push(ParamsDslItem::Param(ParamsDslParam {
-            field: ident,
-            ty,
-            default,
-            options,
-        }));
+        items.push(ParamsDslItem::Param(ParamsDslParam { field: ident, ty, default, options }));
     }
 
     Ok(items)
@@ -364,25 +335,16 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
     }
 
     let Some(TokenTree::Punct(prefix)) = tail.first() else {
-        return Err(Error::new(
-            proc_macro2::Span::call_site(),
-            "expected `=` before parameter default expression",
-        ));
+        return Err(Error::new(proc_macro2::Span::call_site(), "expected `=` before parameter default expression"));
     };
 
     if prefix.as_char() != '=' {
-        return Err(Error::new(
-            prefix.span(),
-            "expected `=` before parameter default expression",
-        ));
+        return Err(Error::new(prefix.span(), "expected `=` before parameter default expression"));
     }
 
     let default_tokens: proc_macro2::TokenStream = tail.into_iter().skip(1).collect();
     if default_tokens.is_empty() {
-        return Err(Error::new(
-            proc_macro2::Span::call_site(),
-            "missing parameter default expression after `=`",
-        ));
+        return Err(Error::new(proc_macro2::Span::call_site(), "missing parameter default expression after `=`"));
     }
 
     let default_expr = syn::parse2::<Expr>(default_tokens)?;
@@ -440,10 +402,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 path.push(folder.name.to_string());
                 let decl_id_str = join_decl_path(&path);
                 let decl_id_lit = LitStr::new(&decl_id_str, folder.name.span());
-                let label_lit = folder
-                    .label
-                    .clone()
-                    .unwrap_or_else(|| LitStr::new(&folder.name.to_string(), folder.name.span()));
+                let label_lit = folder.label.clone().unwrap_or_else(|| LitStr::new(&folder.name.to_string(), folder.name.span()));
 
                 let folder_index = plan.folders.len();
                 plan.folders.push(ParamsFolderSpec {
@@ -451,11 +410,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     decl_id: decl_id_lit,
                     label: label_lit,
                 });
-                plan.children_by_parent
-                    .entry(parent_key.clone())
-                    .or_default()
-                    .folders
-                    .push(folder_index);
+                plan.children_by_parent.entry(parent_key.clone()).or_default().folders.push(folder_index);
 
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
                 push_params_items_into_plan(&folder.items, &path, plan)?;
@@ -465,21 +420,14 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 path.push(param.field.to_string());
                 let decl_id_str = join_decl_path(&path);
                 let decl_id_lit = LitStr::new(&decl_id_str, param.field.span());
-                let label_lit = param
-                    .options
-                    .label
-                    .clone()
-                    .unwrap_or_else(|| LitStr::new(&param.field.to_string(), param.field.span()));
+                let label_lit = param.options.label.clone().unwrap_or_else(|| LitStr::new(&param.field.to_string(), param.field.span()));
 
                 let behaviour = if let Some(value) = param.options.behaviour.clone() {
                     match value.value().to_ascii_lowercase().as_str() {
                         "append" => Some(ParamEventBehaviourSpec::Append),
                         "coalesce" => Some(ParamEventBehaviourSpec::Coalesce),
                         _ => {
-                            return Err(Error::new(
-                                value.span(),
-                                "unsupported `behavior`; expected \"Append\" or \"Coalesce\"",
-                            ));
+                            return Err(Error::new(value.span(), "unsupported `behavior`; expected \"Append\" or \"Coalesce\""));
                         }
                     }
                 } else {
@@ -497,11 +445,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     default: param.default.clone(),
                     behaviour,
                 });
-                plan.children_by_parent
-                    .entry(parent_key.clone())
-                    .or_default()
-                    .params
-                    .push(param_index);
+                plan.children_by_parent.entry(parent_key.clone()).or_default().params.push(param_index);
 
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
             }
@@ -523,12 +467,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     match input {
         Item::Struct(input) => expand_struct(type_name, via, input).into(),
         Item::Impl(input) => expand_impl(type_name, via, input).into(),
-        other => Error::new_spanned(
-            other,
-            "#[node] supports only structs and `impl Node for ...` blocks",
-        )
-        .to_compile_error()
-        .into(),
+        other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
 
@@ -540,49 +479,27 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     let rate = match rate_hz.base10_parse::<u32>() {
         Ok(rate) => rate,
         Err(err) => {
-            return Error::new(rate_hz.span(), format!("invalid update rate: {err}"))
-                .to_compile_error()
-                .into();
+            return Error::new(rate_hz.span(), format!("invalid update rate: {err}")).to_compile_error().into();
         }
     };
 
     if rate == 0 {
-        return Error::new(rate_hz.span(), "update rate must be greater than zero")
-            .to_compile_error()
-            .into();
+        return Error::new(rate_hz.span(), "update rate must be greater than zero").to_compile_error().into();
     }
 
     match input {
         Item::Impl(mut input) => {
             let Some((_, trait_path, _)) = &input.trait_ else {
-                return Error::new_spanned(
-                    input,
-                    "#[update(...)] requires a trait impl: `impl Node for Type`",
-                )
-                .to_compile_error()
-                .into();
+                return Error::new_spanned(input, "#[update(...)] requires a trait impl: `impl Node for Type`").to_compile_error().into();
             };
 
-            let is_node_impl = trait_path
-                .segments
-                .last()
-                .is_some_and(|seg| seg.ident == "Node");
+            let is_node_impl = trait_path.segments.last().is_some_and(|seg| seg.ident == "Node");
             if !is_node_impl {
-                return Error::new_spanned(
-                    trait_path,
-                    "#[update(...)] can only be used with `Node` trait impls",
-                )
-                .to_compile_error()
-                .into();
+                return Error::new_spanned(trait_path, "#[update(...)] can only be used with `Node` trait impls").to_compile_error().into();
             }
 
             if has_method(&input, "execution_rule") {
-                return Error::new_spanned(
-                    input,
-                    "impl already defines `execution_rule`; remove #[update(...)] or the method",
-                )
-                .to_compile_error()
-                .into();
+                return Error::new_spanned(input, "impl already defines `execution_rule`; remove #[update(...)] or the method").to_compile_error().into();
             }
 
             input.items.push(parse_quote! {
@@ -593,26 +510,13 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             quote!(#input).into()
         }
-        other => Error::new_spanned(
-            other,
-            "#[update(...)] supports only `impl Node for ...` blocks",
-        )
-        .to_compile_error()
-        .into(),
+        other => Error::new_spanned(other, "#[update(...)] supports only `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
 
-fn expand_struct(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    mut input: ItemStruct,
-) -> proc_macro2::TokenStream {
+fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: ItemStruct) -> proc_macro2::TokenStream {
     if via.is_some() {
-        return Error::new_spanned(
-            input,
-            "`via = ...` is only supported on `impl Node for ...` blocks",
-        )
-        .to_compile_error();
+        return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
 
     let struct_name = input.ident.clone();
@@ -623,18 +527,11 @@ fn expand_struct(
     let fields = match &mut input.fields {
         Fields::Named(named) => &mut named.named,
         _ => {
-            return Error::new_spanned(
-                input,
-                "#[node(\"...\")] supports only structs with named fields",
-            )
-            .to_compile_error()
-            .into();
+            return Error::new_spanned(input, "#[node(\"...\")] supports only structs with named fields").to_compile_error().into();
         }
     };
 
-    let has_node_data = fields
-        .iter()
-        .any(|f| f.ident.as_ref().is_some_and(|ident| ident == "node_data"));
+    let has_node_data = fields.iter().any(|f| f.ident.as_ref().is_some_and(|ident| ident == "node_data"));
     if !has_node_data {
         fields.insert(0, parse_quote!(node_data: golden_core::node::NodeData));
     }
@@ -657,11 +554,7 @@ fn expand_struct(
 
         let (param_attr, potential_attr) = take_handle_attrs(field);
         if param_attr.is_some() && potential_attr.is_some() {
-            return Error::new_spanned(
-                field,
-                "field cannot have both #[param(...)] and #[potential_node(...)]",
-            )
-            .to_compile_error();
+            return Error::new_spanned(field, "field cannot have both #[param(...)] and #[potential_node(...)]").to_compile_error();
         }
 
         if let Some(param_attr) = param_attr {
@@ -671,19 +564,11 @@ fn expand_struct(
             };
 
             let Some(default_expr) = args.default else {
-                return Error::new_spanned(
-                    param_attr,
-                    "#[param(...)] requires `default = ...`",
-                )
-                .to_compile_error();
+                return Error::new_spanned(param_attr, "#[param(...)] requires `default = ...`").to_compile_error();
             };
 
             let Some(param_value_ty) = extract_handle_inner_type(&field.ty, "ParameterHandle") else {
-                return Error::new_spanned(
-                    &field.ty,
-                    "#[param(...)] requires field type ParameterHandle<T>",
-                )
-                .to_compile_error();
+                return Error::new_spanned(&field.ty, "#[param(...)] requires field type ParameterHandle<T>").to_compile_error();
             };
 
             let decl_id_lit = args.decl_id.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
@@ -747,11 +632,7 @@ fn expand_struct(
             };
 
             if !is_named_type(&field.ty, "PotentialNodeHandle") {
-                return Error::new_spanned(
-                    &field.ty,
-                    "#[potential_node(...)] requires field type PotentialNodeHandle",
-                )
-                .to_compile_error();
+                return Error::new_spanned(&field.ty, "#[potential_node(...)] requires field type PotentialNodeHandle").to_compile_error();
             }
 
             let decl_id_lit = args.decl_id.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
@@ -850,26 +731,14 @@ fn expand_struct(
     }
 }
 
-fn expand_impl(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    mut input: ItemImpl,
-) -> proc_macro2::TokenStream {
+fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: ItemImpl) -> proc_macro2::TokenStream {
     let Some((_, trait_path, _)) = &input.trait_ else {
-        return Error::new_spanned(
-            input,
-            "#[node] on impl requires a trait impl: `impl Node for Type`",
-        )
-        .to_compile_error();
+        return Error::new_spanned(input, "#[node] on impl requires a trait impl: `impl Node for Type`").to_compile_error();
     };
 
     let is_node_impl = trait_path.segments.last().is_some_and(|seg| seg.ident == "Node");
     if !is_node_impl {
-        return Error::new_spanned(
-            trait_path,
-            "#[node] on impl can only be used with `Node` trait",
-        )
-        .to_compile_error();
+        return Error::new_spanned(trait_path, "#[node] on impl can only be used with `Node` trait").to_compile_error();
     }
 
     let node_data_body = if let Some(path) = via.as_ref() {
@@ -892,8 +761,7 @@ fn expand_impl(
         match item {
             ImplItem::Macro(macro_item) if is_params_macro(&macro_item) => {
                 if params_dsl.is_some() {
-                    return Error::new_spanned(macro_item, "only one params! { ... } block is supported per impl")
-                        .to_compile_error();
+                    return Error::new_spanned(macro_item, "only one params! { ... } block is supported per impl").to_compile_error();
                 }
                 let parsed = match syn::parse2::<ParamsDsl>(macro_item.mac.tokens.clone()) {
                     Ok(parsed) => parsed,
@@ -953,28 +821,13 @@ fn expand_impl(
 }
 
 fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
-    item.mac
-        .path
-        .segments
-        .last()
-        .is_some_and(|segment| segment.ident == "params")
+    item.mac.path.segments.last().is_some_and(|segment| segment.ident == "params")
 }
 
 fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Result<()> {
-    for method_name in [
-        "init",
-        "child_event_interest_depth",
-        "on_child_added_decl",
-        "on_child_replaced_decl",
-        "on_child_removed",
-    ] {
+    for method_name in ["init", "child_event_interest_depth", "on_child_added_decl", "on_child_replaced_decl", "on_child_removed"] {
         if has_method(input, method_name) {
-            return Err(Error::new_spanned(
-                &*input,
-                format!(
-                    "params! generates `{method_name}`; remove the manual method or the params! block"
-                ),
-            ));
+            return Err(Error::new_spanned(&*input, format!("params! generates `{method_name}`; remove the manual method or the params! block")));
         }
     }
 
@@ -1085,11 +938,7 @@ fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Res
     Ok(())
 }
 
-fn materialize_children_tokens(
-    plan: &ParamsPlan,
-    parent_key: &str,
-    parent_expr: proc_macro2::TokenStream,
-) -> Vec<proc_macro2::TokenStream> {
+fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
     let mut out = Vec::new();
     let Some(children) = plan.children_by_parent.get(parent_key) else {
         return out;
@@ -1165,18 +1014,9 @@ fn materialize_children_tokens(
 
 fn folder_materialization_guard(plan: &ParamsPlan, folder_index: usize) -> proc_macro2::TokenStream {
     let folder = &plan.folders[folder_index];
-    let descendant_params = plan
-        .params
-        .iter()
-        .filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path))
-        .map(|param| param.field.clone())
-        .collect::<Vec<_>>();
+    let descendant_params = plan.params.iter().filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path)).map(|param| param.field.clone()).collect::<Vec<_>>();
 
-    if descendant_params.is_empty() {
-        quote!(true)
-    } else {
-        quote!(!(#(self.#descendant_params.is_bound())||*))
-    }
+    if descendant_params.is_empty() { quote!(true) } else { quote!(!(#(self.#descendant_params.is_bound())||*)) }
 }
 
 fn take_handle_attrs(field: &mut Field) -> (Option<syn::Attribute>, Option<syn::Attribute>) {
@@ -1203,10 +1043,7 @@ fn is_named_type(ty: &Type, ident: &str) -> bool {
         return false;
     };
 
-    path.path
-        .segments
-        .last()
-        .is_some_and(|segment| segment.ident == ident)
+    path.path.segments.last().is_some_and(|segment| segment.ident == ident)
 }
 
 fn extract_handle_inner_type(ty: &Type, handle_ident: &str) -> Option<Type> {
@@ -1238,10 +1075,7 @@ fn infer_type_name_from_impl(input: &ItemImpl) -> Result<LitStr> {
     };
 
     let Some(ident) = ident else {
-        return Err(Error::new_spanned(
-            &input.self_ty,
-            "cannot infer node type name from impl target; use #[node(\"your_type\")]",
-        ));
+        return Err(Error::new_spanned(&input.self_ty, "cannot infer node type name from impl target; use #[node(\"your_type\")]"));
     };
 
     Ok(make_type_name_literal(&ident))

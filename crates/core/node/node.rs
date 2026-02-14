@@ -20,6 +20,59 @@ pub struct NodeId(pub u64);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeUuid(pub Uuid);
 
+/// Persistent reference to another node.
+///
+/// The UUID is the source of truth and persists on disk.
+/// The cached runtime id is optional and never serialized.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct NodeReference {
+    /// Persistent target identity.
+    pub uuid: NodeUuid,
+    /// Best-effort runtime cache for faster lookups.
+    #[serde(skip, default)]
+    pub cached_id: Option<NodeId>,
+}
+
+impl NodeReference {
+    /// Creates a reference from a persistent UUID.
+    pub fn new(uuid: NodeUuid) -> Self {
+        Self { uuid, cached_id: None }
+    }
+
+    /// Creates a reference with an explicit runtime cache.
+    pub fn with_cached_id(uuid: NodeUuid, cached_id: Option<NodeId>) -> Self {
+        Self { uuid, cached_id }
+    }
+
+    /// Returns the persistent target UUID.
+    pub fn uuid(&self) -> NodeUuid {
+        self.uuid
+    }
+
+    /// Returns the cached runtime node id, when available.
+    pub fn cached_id(&self) -> Option<NodeId> {
+        self.cached_id
+    }
+
+    /// Replaces the cached runtime id.
+    pub fn set_cached_id(&mut self, cached_id: Option<NodeId>) {
+        self.cached_id = cached_id;
+    }
+
+    /// Clears the cached runtime id.
+    pub fn clear_cached_id(&mut self) {
+        self.cached_id = None;
+    }
+}
+
+impl PartialEq for NodeReference {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+    }
+}
+
+impl Eq for NodeReference {}
+
 /// Declaration identifier used to refer to node definitions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeclId(pub String);
@@ -237,6 +290,12 @@ pub trait Node: Send + Any {
         None
     }
 
+    /// Engine-internal hook used to traverse mutable node references.
+    ///
+    /// App node code should not call this directly.
+    #[doc(hidden)]
+    fn engine_visit_references_mut(&mut self, _visit: &mut dyn FnMut(&mut NodeReference)) {}
+
     /// Attempts to downcast a boxed trait object into `Self`.
     fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
     where
@@ -350,22 +409,13 @@ pub trait Node: Send + Any {
                 EventKind::ParamChanged { param, old_value } => {
                     self.on_param_change(ctx, param, old_value);
                 }
-                EventKind::ChildAdded {
-                    parent,
-                    child,
-                    decl_id,
-                } => {
+                EventKind::ChildAdded { parent, child, decl_id } => {
                     self.on_child_added_decl(ctx, parent, child, &decl_id);
                 }
                 EventKind::ChildRemoved { parent, child } => {
                     self.on_child_removed(ctx, parent, child);
                 }
-                EventKind::ChildReplaced {
-                    parent,
-                    old,
-                    new,
-                    decl_id,
-                } => {
+                EventKind::ChildReplaced { parent, old, new, decl_id } => {
                     self.on_child_replaced_decl(ctx, parent, old, new, &decl_id);
                 }
                 EventKind::ChildMoved { child, old_parent, new_parent } => {

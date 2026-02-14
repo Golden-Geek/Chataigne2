@@ -222,11 +222,7 @@ impl<T: Node> Engine<T> {
         let decl_id = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: child_id })?.node_data().meta.decl_id.clone();
 
         self.emit_event(EventKind::NodeCreated { node: child_id });
-        self.emit_event(EventKind::ChildAdded {
-            parent,
-            child: child_id,
-            decl_id,
-        });
+        self.emit_event(EventKind::ChildAdded { parent, child: child_id, decl_id });
 
         // Allow newly attached nodes to request deterministic follow-up structure.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);

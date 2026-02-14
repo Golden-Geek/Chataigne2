@@ -49,8 +49,7 @@ impl<T: Node> HistoryTransaction<T> {
         for step in self.steps.drain(..) {
             match step {
                 HistoryStep::SetParam(incoming) => {
-                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce
-                        && previous.try_update_coalesced_set_param(incoming.node, incoming.tick, incoming.new_value.clone());
+                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce && previous.try_update_coalesced_set_param(incoming.node, incoming.tick, incoming.new_value.clone());
 
                     if !merged {
                         remaining_steps.push(HistoryStep::SetParam(incoming));
@@ -142,11 +141,7 @@ impl<T: Node> HistoryStep<T> {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
-                engine.emit_event(EventKind::ChildAdded {
-                    parent: step.parent,
-                    child: step.node,
-                    decl_id,
-                });
+                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node, decl_id });
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -178,16 +173,7 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 if step.old_id == step.new_id {
-                    let live_node_data = engine
-                        .nodes
-                        .get(step.new_id)
-                        .ok_or(EngineEditError::NodeNotFound {
-                            edit_index: 0,
-                            operation: OP,
-                            node: step.new_id,
-                        })?
-                        .node_data()
-                        .clone();
+                    let live_node_data = engine.nodes.get(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?.node_data().clone();
 
                     let mut old_node = old_node;
                     {
@@ -200,11 +186,7 @@ impl<T: Node> HistoryStep<T> {
                         old_data.next_sibling = live_node_data.next_sibling;
                     }
 
-                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.new_id,
-                    })?;
+                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?;
                     engine.nodes.reattach(step.old_id, old_node);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
@@ -263,11 +245,7 @@ impl<T: Node> HistoryStep<T> {
 
                 engine.emit_event(EventKind::NodeCreated { node: step.node });
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
-                engine.emit_event(EventKind::ChildAdded {
-                    parent: step.parent,
-                    child: step.node,
-                    decl_id,
-                });
+                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node, decl_id });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "RedoRemoveNode";
@@ -324,16 +302,7 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 if step.old_id == step.new_id {
-                    let live_node_data = engine
-                        .nodes
-                        .get(step.old_id)
-                        .ok_or(EngineEditError::NodeNotFound {
-                            edit_index: 0,
-                            operation: OP,
-                            node: step.old_id,
-                        })?
-                        .node_data()
-                        .clone();
+                    let live_node_data = engine.nodes.get(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?.node_data().clone();
 
                     let mut new_node = new_node;
                     {
@@ -346,11 +315,7 @@ impl<T: Node> HistoryStep<T> {
                         new_data.next_sibling = live_node_data.next_sibling;
                     }
 
-                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
-                        edit_index: 0,
-                        operation: OP,
-                        node: step.old_id,
-                    })?;
+                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?;
                     engine.nodes.reattach(step.new_id, new_node);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
@@ -426,18 +391,7 @@ fn purge_detached_node<T: Node>(engine: &mut Engine<T>, id: NodeId, node: T) {
 }
 
 fn child_decl_id<T: Node>(engine: &Engine<T>, edit_index: usize, operation: &'static str, node: NodeId) -> Result<crate::node::DeclId, EngineEditError> {
-    Ok(engine
-        .nodes
-        .get(node)
-        .ok_or(EngineEditError::NodeNotFound {
-            edit_index,
-            operation,
-            node,
-        })?
-        .node_data()
-        .meta
-        .decl_id
-        .clone())
+    Ok(engine.nodes.get(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node })?.node_data().meta.decl_id.clone())
 }
 
 /// Captured effect for a successful `SetParam` edit.

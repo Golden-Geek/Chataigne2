@@ -34,10 +34,7 @@ impl NodeExecutionRule {
 
     /// Returns a periodic rule with `rate_hz` and no dependencies.
     pub fn periodic(rate_hz: NodeUpdateRate) -> Self {
-        Self {
-            dependencies: Vec::new(),
-            update_rate: Some(rate_hz),
-        }
+        Self { dependencies: Vec::new(), update_rate: Some(rate_hz) }
     }
 
     /// Replaces dependencies on this rule.
@@ -52,10 +49,7 @@ impl NodeExecutionRule {
 
 impl Default for NodeExecutionRule {
     fn default() -> Self {
-        Self {
-            dependencies: Vec::new(),
-            update_rate: None,
-        }
+        Self { dependencies: Vec::new(), update_rate: None }
     }
 }
 
@@ -205,10 +199,7 @@ impl ScheduleMgr {
             };
 
             if rate_hz == 0 {
-                return Err(EngineRuntimeError::InvalidUpdateRate {
-                    node: *node_id,
-                    rate_hz,
-                });
+                return Err(EngineRuntimeError::InvalidUpdateRate { node: *node_id, rate_hz });
             }
 
             buckets_by_rate.entry(rate_hz).or_default().push(*node_id);
@@ -269,10 +260,7 @@ impl ScheduleMgr {
     }
 
     fn bucket_nodes(&self, rate_hz: NodeUpdateRate) -> Option<&[NodeId]> {
-        self.buckets
-            .iter()
-            .find(|bucket| bucket.rate_hz == rate_hz)
-            .map(|bucket| bucket.nodes.as_slice())
+        self.buckets.iter().find(|bucket| bucket.rate_hz == rate_hz).map(|bucket| bucket.nodes.as_slice())
     }
 }
 
@@ -397,10 +385,7 @@ impl<T: Node> Engine<T> {
     }
 
     fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
-        self.nodes
-            .iter()
-            .map(|(node_id, node)| (node_id, node.execution_rule()))
-            .collect()
+        self.nodes.iter().map(|(node_id, node)| (node_id, node.execution_rule())).collect()
     }
 
     fn topological_sort(&self, rules: &HashMap<NodeId, NodeExecutionRule>) -> Result<Vec<NodeId>, EngineRuntimeError> {
@@ -411,10 +396,7 @@ impl<T: Node> Engine<T> {
             let mut dedupe = HashSet::new();
             for dependency in &rule.dependencies {
                 if !indegree.contains_key(dependency) {
-                    return Err(EngineRuntimeError::MissingDependency {
-                        node: *node_id,
-                        dependency: *dependency,
-                    });
+                    return Err(EngineRuntimeError::MissingDependency { node: *node_id, dependency: *dependency });
                 }
                 if !dedupe.insert(*dependency) {
                     continue;
@@ -427,10 +409,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let mut ready: BTreeSet<u64> = indegree
-            .iter()
-            .filter_map(|(node_id, indegree)| (*indegree == 0).then_some(node_id.0))
-            .collect();
+        let mut ready: BTreeSet<u64> = indegree.iter().filter_map(|(node_id, indegree)| (*indegree == 0).then_some(node_id.0)).collect();
 
         let mut sorted = Vec::with_capacity(indegree.len());
 
@@ -455,19 +434,14 @@ impl<T: Node> Engine<T> {
             return Ok(sorted);
         }
 
-        let mut cycle_nodes: Vec<NodeId> = indegree
-            .into_iter()
-            .filter_map(|(node, indegree)| (indegree > 0).then_some(node))
-            .collect();
+        let mut cycle_nodes: Vec<NodeId> = indegree.into_iter().filter_map(|(node, indegree)| (indegree > 0).then_some(node)).collect();
         cycle_nodes.sort_by_key(|node| node.0);
 
         Err(EngineRuntimeError::DependencyCycle { nodes: cycle_nodes })
     }
 
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
-        let due_nodes = self
-            .runtime_schedule
-            .collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        let due_nodes = self.runtime_schedule.collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
         let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
@@ -537,10 +511,7 @@ impl<T: Node> Engine<T> {
             }
 
             if pass >= self.runtime_limits.max_stabilization_passes_per_tick {
-                return Err(EngineRuntimeError::InfiniteEventEditCycle {
-                    tick: self.time.tick,
-                    passes: pass,
-                });
+                return Err(EngineRuntimeError::InfiniteEventEditCycle { tick: self.time.tick, passes: pass });
             }
 
             self.time.micro = (pass as u32).saturating_add(1);

@@ -3,7 +3,7 @@ use crate::events::EventKind;
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::process_ctx::ProcessCtx;
 
-use super::{DeclId, Node, NodeId};
+use super::{DeclId, Node, NodeId, NodeReference, NodeUuid};
 
 /// Typed conversion contract between Rust values and [`ParamValue`].
 pub trait ParameterValueType: Clone {
@@ -84,17 +84,23 @@ impl ParameterValueType for (f64, f64, f64, f64) {
     }
 }
 
-impl ParameterValueType for NodeId {
+impl ParameterValueType for NodeReference {
     fn to_param_value(value: Self) -> ParamValue {
         ParamValue::Reference(value)
     }
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
-        if let ParamValue::Reference(node) = value {
-            Some(*node)
-        } else {
-            None
-        }
+        if let ParamValue::Reference(reference) = value { Some(*reference) } else { None }
+    }
+}
+
+impl ParameterValueType for NodeUuid {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Reference(NodeReference::new(value))
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        if let ParamValue::Reference(reference) = value { Some(reference.uuid()) } else { None }
     }
 }
 
@@ -129,18 +135,8 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
     }
 
     /// Creates a typed parameter handle with explicit policies.
-    pub fn with_policies(
-        node: NodeId,
-        initial: T,
-        change_check: ParameterChangeCheck,
-        event_behaviour: ParameterEventBehaviour,
-    ) -> Self {
-        Self {
-            node,
-            cached: initial,
-            change_check,
-            event_behaviour,
-        }
+    pub fn with_policies(node: NodeId, initial: T, change_check: ParameterChangeCheck, event_behaviour: ParameterEventBehaviour) -> Self {
+        Self { node, cached: initial, change_check, event_behaviour }
     }
 
     /// Returns the parameter node id.
@@ -242,11 +238,7 @@ impl NodeHandle {
 
     /// Queues movement of this node under a new parent.
     pub fn move_to(&self, ctx: &mut ProcessCtx, new_parent: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode {
-            node: self.node,
-            new_parent,
-            new_prev_sibling: after,
-        });
+        ctx.edits.push(Edit::MoveNode { node: self.node, new_parent, new_prev_sibling: after });
     }
 
     /// Queues replacement of this node id by a typed node value.
@@ -341,11 +333,7 @@ impl PotentialNodeHandle {
 
     /// Moves an existing node under this slot parent and marks it as current.
     pub fn attach_existing(&mut self, ctx: &mut ProcessCtx, node: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode {
-            node,
-            new_parent: self.parent,
-            new_prev_sibling: after,
-        });
+        ctx.edits.push(Edit::MoveNode { node, new_parent: self.parent, new_prev_sibling: after });
         self.current = Some(node);
         self.pending_create = false;
     }
@@ -418,17 +406,8 @@ impl PotentialNodeHandle {
     /// Reconciles this slot from a generic engine event.
     pub fn reconcile_event(&mut self, event: &EventKind) -> bool {
         match event {
-            EventKind::ChildAdded {
-                parent,
-                child,
-                decl_id,
-            } => self.reconcile_child_added(*parent, *child, decl_id),
-            EventKind::ChildReplaced {
-                parent,
-                old,
-                new,
-                decl_id,
-            } => self.reconcile_child_replaced(*parent, *old, *new, decl_id),
+            EventKind::ChildAdded { parent, child, decl_id } => self.reconcile_child_added(*parent, *child, decl_id),
+            EventKind::ChildReplaced { parent, old, new, decl_id } => self.reconcile_child_replaced(*parent, *old, *new, decl_id),
             EventKind::ChildRemoved { parent, child } => self.reconcile_child_removed(*parent, *child),
             _ => false,
         }
@@ -451,11 +430,7 @@ mod tests {
         assert_eq!(*handle.get_cached(), 0.75);
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
-            Edit::SetParam {
-                node,
-                value,
-                behaviour,
-            } => {
+            Edit::SetParam { node, value, behaviour } => {
                 assert_eq!(*node, NodeId(10));
                 assert_eq!(value, &ParamValue::Float(0.75));
                 assert_eq!(*behaviour, ParameterEventBehaviour::Coalesce);
@@ -466,12 +441,7 @@ mod tests {
 
     #[test]
     fn parameter_handle_value_change_policy_skips_unchanged_values() {
-        let mut handle = ParameterHandle::with_policies(
-            NodeId(11),
-            1.0f64,
-            ParameterChangeCheck::ValueChange,
-            ParameterEventBehaviour::Coalesce,
-        );
+        let mut handle = ParameterHandle::with_policies(NodeId(11), 1.0f64, ParameterChangeCheck::ValueChange, ParameterEventBehaviour::Coalesce);
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
         handle.set(&mut ctx, 1.0);
@@ -500,11 +470,7 @@ mod tests {
 
         assert_eq!(ctx.edits.pending.len(), 2);
         match &ctx.edits.pending[0].edit {
-            Edit::MoveNode {
-                node,
-                new_parent,
-                new_prev_sibling,
-            } => {
+            Edit::MoveNode { node, new_parent, new_prev_sibling } => {
                 assert_eq!(*node, NodeId(20));
                 assert_eq!(*new_parent, NodeId(30));
                 assert_eq!(*new_prev_sibling, Some(NodeId(31)));
@@ -575,11 +541,7 @@ mod tests {
         assert_eq!(handle.current_id(), Some(NodeId(42)));
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
-            Edit::MoveNode {
-                node,
-                new_parent,
-                new_prev_sibling,
-            } => {
+            Edit::MoveNode { node, new_parent, new_prev_sibling } => {
                 assert_eq!(*node, NodeId(42));
                 assert_eq!(*new_parent, NodeId(8));
                 assert_eq!(*new_prev_sibling, None);

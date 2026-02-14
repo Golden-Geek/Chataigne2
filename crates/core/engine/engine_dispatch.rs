@@ -7,33 +7,17 @@ use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
-    pub(crate) fn apply_add_event_listener(
-        &mut self,
-        edit_index: usize,
-        subscriber: NodeId,
-        subscription: EventSubscription,
-    ) -> Result<(), EngineEditError> {
+    pub(crate) fn apply_add_event_listener(&mut self, edit_index: usize, subscriber: NodeId, subscription: EventSubscription) -> Result<(), EngineEditError> {
         const OP: &str = "AddEventListener";
 
         if !self.nodes.contains(subscriber) {
-            return Err(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: OP,
-                node: subscriber,
-            });
+            return Err(EngineEditError::NodeNotFound { edit_index, operation: OP, node: subscriber });
         }
         if !self.nodes.contains(subscription.node) {
-            return Err(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: OP,
-                node: subscription.node,
-            });
+            return Err(EngineEditError::NodeNotFound { edit_index, operation: OP, node: subscription.node });
         }
 
-        self.event_listeners
-            .entry(subscriber)
-            .or_default()
-            .insert(subscription);
+        self.event_listeners.entry(subscriber).or_default().insert(subscription);
         Ok(())
     }
 
@@ -189,13 +173,7 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn collect_subscription_recipients(
-        &self,
-        event: &Event,
-        ancestry_depths: &HashMap<NodeId, u32>,
-        recipients: &mut Vec<NodeId>,
-        dedupe: &mut HashSet<NodeId>,
-    ) {
+    fn collect_subscription_recipients(&self, event: &Event, ancestry_depths: &HashMap<NodeId, u32>, recipients: &mut Vec<NodeId>, dedupe: &mut HashSet<NodeId>) {
         for (subscriber_id, subscriber) in self.nodes.iter() {
             let propagation = subscriber.event_propagation(event, 0);
             if propagation == EventPropagation::PassOn {
@@ -205,16 +183,11 @@ impl<T: Node> Engine<T> {
             let matches_runtime = self
                 .event_listeners
                 .get(&subscriber_id)
-                .is_some_and(|subscriptions| {
-                    subscriptions
-                        .iter()
-                        .copied()
-                        .any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription))
-                });
+                .is_some_and(|subscriptions| subscriptions.iter().copied().any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription)));
             let matches_subscription = matches_runtime;
 
             if matches_subscription && dedupe.insert(subscriber_id) {
-                recipients.push(subscriber_id); 
+                recipients.push(subscriber_id);
             }
         }
     }

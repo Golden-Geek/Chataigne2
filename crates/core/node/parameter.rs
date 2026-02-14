@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    node::{Node, NodeData, NodeId},
+    node::{Node, NodeData, NodeReference, NodeUuid},
     process_ctx::ProcessCtx,
 };
 
@@ -27,8 +27,8 @@ pub enum ParamValue {
     /// RGBA color value.
     Color(f64, f64, f64, f64),
 
-    /// Reference to another node id.
-    Reference(NodeId),
+    /// Reference to another node.
+    Reference(NodeReference),
 }
 
 //implement into for ParamValue
@@ -77,6 +77,18 @@ impl From<(f64, f64, f64)> for ParamValue {
 impl From<(f64, f64, f64, f64)> for ParamValue {
     fn from(value: (f64, f64, f64, f64)) -> Self {
         ParamValue::Color(value.0, value.1, value.2, value.3)
+    }
+}
+
+impl From<NodeReference> for ParamValue {
+    fn from(value: NodeReference) -> Self {
+        ParamValue::Reference(value)
+    }
+}
+
+impl From<NodeUuid> for ParamValue {
+    fn from(value: NodeUuid) -> Self {
+        ParamValue::Reference(NodeReference::new(value))
     }
 }
 
@@ -287,5 +299,11 @@ impl Node for Parameter {
     fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
         let old = std::mem::replace(&mut self.value, value);
         Some(old)
+    }
+
+    fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut NodeReference)) {
+        if let ParamValue::Reference(reference) = &mut self.value {
+            visit(reference);
+        }
     }
 }

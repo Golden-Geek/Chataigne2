@@ -1,9 +1,10 @@
 use super::*;
 use std::time::{Duration, Instant};
+use uuid::Uuid;
 
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
-use crate::node::{Folder, EventPropagation, EventSubscription, Manager, Node, NodeData, NodeId};
+use crate::node::{EventPropagation, EventSubscription, Folder, Manager, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
@@ -52,11 +53,7 @@ fn external_edit_sender_sets_param_from_another_thread() {
     .expect("external producer thread should join");
 
     engine.apply_edits().expect("external edit should apply");
-    assert_eq!(
-        engine.nodes.get(root_id).expect("root parameter should exist").value,
-        ParamValue::Int(33),
-        "external set-param should be drained and applied",
-    );
+    assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(33), "external set-param should be drained and applied",);
 }
 
 #[test]
@@ -79,15 +76,8 @@ fn external_edit_sender_adds_node_from_another_thread() {
 
     engine.apply_edits().expect("external add-node edit should apply");
 
-    let child = engine
-        .nodes
-        .get(root_id)
-        .and_then(|root| root.node_data().first_child)
-        .expect("root should contain one child");
-    assert_eq!(
-        engine.nodes.get(child).expect("child node should exist").node_data().meta.label,
-        "external_child"
-    );
+    let child = engine.nodes.get(root_id).and_then(|root| root.node_data().first_child).expect("root should contain one child");
+    assert_eq!(engine.nodes.get(child).expect("child node should exist").node_data().meta.label, "external_child");
 }
 
 #[test]
@@ -106,14 +96,9 @@ fn run_tick_drains_external_edits_without_manual_apply_call() {
         })
         .expect("external set-param send should succeed");
 
-    engine
-        .run_tick(Duration::from_millis(1))
-        .expect("tick should drain and apply external edits");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should drain and apply external edits");
 
-    assert_eq!(
-        engine.nodes.get(root_id).expect("root parameter should exist").value,
-        ParamValue::Int(7)
-    );
+    assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(7));
 }
 
 #[test]
@@ -142,11 +127,7 @@ fn external_coalesced_set_param_edits_keep_latest_value() {
     assert_eq!(engine.edits.pending.len(), 1, "coalesced external edits should collapse before apply");
 
     engine.apply_edits().expect("external edits should apply");
-    assert_eq!(
-        engine.nodes.get(root_id).expect("root parameter should exist").value,
-        ParamValue::Int(2),
-        "latest coalesced value should win",
-    );
+    assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(2), "latest coalesced value should win",);
 }
 
 #[crate::node("auto_declared")]
@@ -194,7 +175,7 @@ impl Node for DslParamsNode {
 crate::define_node_enum!(
     enum MacroTestNode {
         AutoDeclaredNode,
-        DslParamsNode
+        DslParamsNode,
     }
 );
 
@@ -209,11 +190,7 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     // Second pass materializes generated child param nodes.
     engine.apply_edits().expect("second apply should succeed");
 
-    let declared_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("declared child should exist");
+    let declared_id = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("declared child should exist");
 
     let child_added_decl = engine.inbox.events.iter().any(|event| {
         matches!(
@@ -225,25 +202,13 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     assert!(child_added_decl, "generated param child should emit ChildAdded with decl_id=decay");
 
     let decay_param = find_child_by_decl(&engine, declared_id, "decay").expect("decay child should exist");
-    let decay_meta = engine
-        .nodes
-        .get(decay_param)
-        .expect("decay node should exist")
-        .node_data()
-        .meta
-        .clone();
+    let decay_meta = engine.nodes.get(decay_param).expect("decay node should exist").node_data().meta.clone();
     assert_eq!(decay_meta.label, "Decay");
     assert_eq!(decay_meta.description.as_deref(), Some("Envelope decay time"));
 
-    engine
-        .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
-        .expect("dispatch should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
 
-    let MacroTestNode::AutoDeclaredNode(node) = engine
-        .nodes
-        .get(declared_id)
-        .expect("declared node should exist")
-    else {
+    let MacroTestNode::AutoDeclaredNode(node) = engine.nodes.get(declared_id).expect("declared node should exist") else {
         panic!("expected AutoDeclaredNode variant");
     };
 
@@ -271,16 +236,10 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
-        engine
-            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
-            .expect("dispatch should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("dsl node should be attached under root");
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dsl node should be attached under root");
 
     let output = find_child_by_decl(&engine, owner, "output").expect("output folder should exist");
     let color = find_child_by_decl(&engine, output, "output/color").expect("output/color folder should exist");
@@ -300,23 +259,11 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     assert_eq!(node.host.id(), host);
     assert_eq!(node.gamma.id(), gamma);
 
-    let feedback_meta = engine
-        .nodes
-        .get(feedback)
-        .expect("feedback node should exist")
-        .node_data()
-        .meta
-        .clone();
+    let feedback_meta = engine.nodes.get(feedback).expect("feedback node should exist").node_data().meta.clone();
     assert_eq!(feedback_meta.label, "Feedback");
     assert_eq!(feedback_meta.description.as_deref(), Some("Delay feedback amount"));
 
-    let host_meta = engine
-        .nodes
-        .get(host)
-        .expect("host node should exist")
-        .node_data()
-        .meta
-        .clone();
+    let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");
     assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
 }
@@ -434,14 +381,7 @@ fn apply_edits_set_param_updates_parameter_node() {
 #[test]
 fn parameter_set_coalesces_pending_set_param_edits_by_default() {
     let mut parameter = Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None);
-    let mut ctx = ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick: 0,
-            micro: 0,
-            seq: 0,
-        },
-    );
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
     parameter.set(&mut ctx, ParamValue::Int(1));
     parameter.set(&mut ctx, ParamValue::Int(2));
@@ -465,29 +405,220 @@ fn parameter_set_append_behaviour_keeps_all_pending_set_param_edits() {
     let mut parameter = Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None);
     parameter.event_behaviour = ParameterEventBehaviour::Append;
 
-    let mut ctx = ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick: 0,
-            micro: 0,
-            seq: 0,
-        },
-    );
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
     parameter.set(&mut ctx, ParamValue::Int(1));
     parameter.set(&mut ctx, ParamValue::Int(2));
 
     assert_eq!(ctx.edits.pending.len(), 2, "append mode should keep every queued SetParam");
     assert!(
-        matches!(
-            ctx.edits.pending.first().map(|request| &request.edit),
-            Some(Edit::SetParam {
-                behaviour: ParameterEventBehaviour::Append,
-                ..
-            })
-        ),
+        matches!(ctx.edits.pending.first().map(|request| &request.edit), Some(Edit::SetParam { behaviour: ParameterEventBehaviour::Append, .. })),
         "queued edits should retain append behaviour metadata",
     );
+}
+
+fn encode_parameter_node(node: &Parameter) -> Result<serde_json::Value, String> {
+    serde_json::to_value(serde_json::json!({
+        "value": node.value,
+        "change_check": node.change_check,
+        "event_behaviour": node.event_behaviour,
+    }))
+    .map_err(|err| format!("failed to encode parameter node: {err}"))
+}
+
+fn decode_parameter_node(_node_type: &str, data: &serde_json::Value, meta: &NodeMeta) -> Result<Parameter, String> {
+    let value: ParamValue = serde_json::from_value(data.get("value").cloned().ok_or("missing 'value' field")?).map_err(|err| format!("invalid parameter value payload: {err}"))?;
+    let change_check: ParameterChangeCheck = serde_json::from_value(data.get("change_check").cloned().ok_or("missing 'change_check' field")?).map_err(|err| format!("invalid change_check payload: {err}"))?;
+    let event_behaviour: ParameterEventBehaviour = serde_json::from_value(data.get("event_behaviour").cloned().ok_or("missing 'event_behaviour' field")?).map_err(|err| format!("invalid event_behaviour payload: {err}"))?;
+
+    let mut node = Parameter::new(&meta.label, value, change_check);
+    node.event_behaviour = event_behaviour;
+    Ok(node)
+}
+
+#[test]
+fn project_roundtrip_restores_reference_uuid_and_cached_runtime_id() {
+    let root = Parameter::new("root", ParamValue::Int(10), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None), None);
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))), ParameterChangeCheck::None), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let target = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("target child should exist");
+    let target_ref = engine.nodes.get(target).and_then(|node| node.node_data().next_sibling).expect("reference child should exist");
+    let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
+    let loaded = Engine::<Parameter>::from_project_json_with(&json, decode_parameter_node).expect("project load should succeed");
+
+    let loaded_target = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("loaded target child should exist");
+    let loaded_target_ref = loaded.nodes.get(loaded_target).and_then(|node| node.node_data().next_sibling).expect("loaded reference child should exist");
+    let loaded_target_uuid = loaded.nodes.get(loaded_target).expect("loaded target node should exist").node_data().meta.uuid;
+
+    let loaded_ref_value = &loaded.nodes.get(loaded_target_ref).expect("loaded reference node should exist").value;
+    match loaded_ref_value {
+        ParamValue::Reference(reference) => {
+            assert_eq!(reference.uuid(), loaded_target_uuid);
+            assert_eq!(reference.cached_id(), Some(loaded_target));
+        }
+        other => panic!("expected reference value after load, got {:?}", other),
+    }
+}
+
+#[test]
+fn project_roundtrip_keeps_dangling_reference_uuid_with_empty_cache() {
+    let dangling_uuid = NodeUuid(Uuid::new_v4());
+    let root = Parameter::new("root", ParamValue::Reference(NodeReference::new(dangling_uuid)), ParameterChangeCheck::None);
+    let engine = Engine::new(root);
+
+    let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
+    let loaded = Engine::<Parameter>::from_project_json_with(&json, decode_parameter_node).expect("project load should succeed");
+
+    let loaded_root = loaded.nodes.get(loaded.root).expect("loaded root should exist");
+    match &loaded_root.value {
+        ParamValue::Reference(reference) => {
+            assert_eq!(reference.uuid(), dangling_uuid);
+            assert_eq!(reference.cached_id(), None);
+        }
+        other => panic!("expected dangling reference value, got {:?}", other),
+    }
+}
+
+#[test]
+fn project_load_save_load_roundtrip_is_stable() {
+    let root = Parameter::new("root", ParamValue::Int(123), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None),
+        None,
+    );
+    engine.add_node(
+        Parameter::new(
+            "target_ref",
+            ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))),
+            ParameterChangeCheck::None,
+        ),
+        None,
+    );
+    engine.apply_edits().expect("initial add should succeed");
+
+    let target = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("target child should exist");
+    let target_ref = engine
+        .nodes
+        .get(target)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("reference child should exist");
+    let target_uuid = engine
+        .nodes
+        .get(target)
+        .expect("target node should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    let json1 = engine
+        .to_project_json_pretty_with(encode_parameter_node)
+        .expect("first project serialization should succeed");
+    let loaded1 = Engine::<Parameter>::from_project_json_with(&json1, decode_parameter_node)
+        .expect("first project load should succeed");
+
+    let json2 = loaded1
+        .to_project_json_pretty_with(encode_parameter_node)
+        .expect("second project serialization should succeed");
+    let loaded2 = Engine::<Parameter>::from_project_json_with(&json2, decode_parameter_node)
+        .expect("second project load should succeed");
+
+    let json3 = loaded2
+        .to_project_json_pretty_with(encode_parameter_node)
+        .expect("third project serialization should succeed");
+
+    let value1: serde_json::Value = serde_json::from_str(&json1).expect("json1 should parse");
+    let value2: serde_json::Value = serde_json::from_str(&json2).expect("json2 should parse");
+    let value3: serde_json::Value = serde_json::from_str(&json3).expect("json3 should parse");
+    assert_eq!(value1, value2, "load-save should preserve full project data");
+    assert_eq!(value2, value3, "second load-save should remain stable");
+
+    let loaded2_target = loaded2
+        .nodes
+        .get(loaded2.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("loaded2 target child should exist");
+    let loaded2_target_ref = loaded2
+        .nodes
+        .get(loaded2_target)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("loaded2 reference child should exist");
+
+    match &loaded2
+        .nodes
+        .get(loaded2_target_ref)
+        .expect("loaded2 reference node should exist")
+        .value
+    {
+        ParamValue::Reference(reference) => {
+            assert_eq!(reference.uuid(), loaded2.nodes.get(loaded2_target).expect("loaded2 target should exist").node_data().meta.uuid);
+            assert_eq!(reference.cached_id(), Some(loaded2_target));
+        }
+        other => panic!("expected loaded2 reference value, got {:?}", other),
+    }
+}
+
+#[test]
+fn project_serialization_omits_null_and_empty_meta_fields() {
+    let root = Parameter::new("root", ParamValue::Int(1), ParameterChangeCheck::None);
+    let engine = Engine::new(root);
+
+    let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
+
+    let meta = value
+        .get("root")
+        .and_then(|root| root.get("meta"))
+        .and_then(|meta| meta.as_object())
+        .expect("root.meta should be an object");
+
+    assert!(!meta.contains_key("description"), "null description should be omitted");
+    assert!(!meta.contains_key("tags"), "empty tags should be omitted");
+    assert!(!meta.contains_key("semantics"), "empty semantics should be omitted");
+    assert!(!meta.contains_key("presentation"), "empty presentation should be omitted");
+}
+
+#[test]
+fn project_serialization_omits_null_data_and_empty_children() {
+    let engine = Engine::new(Folder::new("root"));
+
+    let json = engine
+        .to_project_json_with(|_node| Ok(serde_json::Value::Null))
+        .expect("project serialization should succeed");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
+
+    let root = value
+        .get("root")
+        .and_then(|root| root.as_object())
+        .expect("root should be an object");
+
+    assert!(!root.contains_key("data"), "null data should be omitted");
+    assert!(!root.contains_key("children"), "empty children should be omitted");
 }
 
 #[test]
@@ -555,18 +686,11 @@ fn same_tick_coalesced_set_param_keeps_first_old_value_for_undo() {
     });
     engine.apply_edits().expect("second set should succeed");
 
-    assert_eq!(
-        engine.nodes.get(engine.root).expect("root parameter should exist").value,
-        ParamValue::Float(0.7)
-    );
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Float(0.7));
     assert_eq!(engine.undo_len(), 1, "same-tick coalesced updates should keep one undo step");
 
     assert!(engine.undo().expect("undo should succeed"));
-    assert_eq!(
-        engine.nodes.get(engine.root).expect("root parameter should exist").value,
-        ParamValue::Float(0.3),
-        "undo should restore the original value before the first coalesced update",
-    );
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Float(0.3), "undo should restore the original value before the first coalesced update",);
 }
 
 #[test]
@@ -591,11 +715,7 @@ fn same_tick_append_set_param_keeps_distinct_undo_steps() {
     assert_eq!(engine.undo_len(), 2, "append mode should keep both updates in undo history");
 
     assert!(engine.undo().expect("undo should succeed"));
-    assert_eq!(
-        engine.nodes.get(engine.root).expect("root parameter should exist").value,
-        ParamValue::Float(0.5),
-        "append undo should step back to the immediately previous value",
-    );
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Float(0.5), "append undo should step back to the immediately previous value",);
 }
 
 #[test]
@@ -866,11 +986,7 @@ fn subscription_to_specific_subtree_respects_depth() {
     engine.apply_edits().expect("watcher add should succeed");
 
     let watch_depth0 = engine.nodes.get(parent).and_then(|node| node.node_data().next_sibling).expect("watch_depth0 should exist");
-    let watch_depth1 = engine
-        .nodes
-        .get(watch_depth0)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("watch_depth1 should exist");
+    let watch_depth1 = engine.nodes.get(watch_depth0).and_then(|node| node.node_data().next_sibling).expect("watch_depth1 should exist");
 
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
     ctx.add_event_listener_subtree(watch_depth0, parent, 0);
@@ -938,13 +1054,7 @@ fn runtime_listener_can_be_added_and_removed_via_ctx() {
     engine.absorb_edits(&mut ctx).expect("listener add edits should be accepted");
     engine.apply_edits().expect("listener add should succeed");
 
-    assert!(
-        engine
-            .event_listeners
-            .get(&watcher)
-            .is_some_and(|subscriptions| subscriptions.contains(&EventSubscription::node(source))),
-        "watcher should have runtime listener to source",
-    );
+    assert!(engine.event_listeners.get(&watcher).is_some_and(|subscriptions| subscriptions.contains(&EventSubscription::node(source))), "watcher should have runtime listener to source",);
 
     engine.edits.push(Edit::EmitCustomEvent {
         event: CustomEvent::new("source.changed", Some(source), serde_json::Value::Null),
@@ -963,11 +1073,7 @@ fn runtime_listener_can_be_added_and_removed_via_ctx() {
     });
     engine.apply_edits().expect("custom event emit should succeed");
     engine.dispatch_inbox(ExecutionPhase::EngineTick).expect("inbox dispatch should succeed");
-    assert_eq!(
-        engine.nodes.get(watcher).expect("watcher should exist").observed_custom_events,
-        1,
-        "watcher should not receive events after removing listener",
-    );
+    assert_eq!(engine.nodes.get(watcher).expect("watcher should exist").observed_custom_events, 1, "watcher should not receive events after removing listener",);
 }
 
 #[test]
@@ -991,10 +1097,7 @@ fn runtime_listener_is_removed_automatically_when_target_is_deleted() {
     engine.apply_edits().expect("source removal should succeed");
 
     assert!(
-        !engine
-            .event_listeners
-            .values()
-            .any(|subscriptions| subscriptions.iter().any(|subscription| subscription.node == source)),
+        !engine.event_listeners.values().any(|subscriptions| subscriptions.iter().any(|subscription| subscription.node == source)),
         "listeners targeting deleted node should be purged automatically",
     );
 }
@@ -1069,21 +1172,9 @@ fn resolve_builds_topological_rate_buckets() {
     engine.add_node(RuntimeNode::new("fast_b", NodeExecutionRule::passive()), None);
     engine.apply_edits().expect("setup edits should succeed");
 
-    let slow = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("slow node should exist");
-    let fast_a = engine
-        .nodes
-        .get(slow)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("fast_a should exist");
-    let fast_b = engine
-        .nodes
-        .get(fast_a)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("fast_b should exist");
+    let slow = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("slow node should exist");
+    let fast_a = engine.nodes.get(slow).and_then(|node| node.node_data().next_sibling).expect("fast_a should exist");
+    let fast_b = engine.nodes.get(fast_a).and_then(|node| node.node_data().next_sibling).expect("fast_b should exist");
 
     engine.nodes.get_mut(slow).expect("slow node should exist").rule = NodeExecutionRule::periodic(3);
     engine.nodes.get_mut(fast_a).expect("fast_a should exist").rule = NodeExecutionRule::periodic(200).with_dependencies([slow]);
@@ -1110,25 +1201,14 @@ fn resolve_detects_dependency_cycles() {
     engine.add_node(RuntimeNode::new("b", NodeExecutionRule::passive()), None);
     engine.apply_edits().expect("setup edits should succeed");
 
-    let node_a = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("node_a should exist");
-    let node_b = engine
-        .nodes
-        .get(node_a)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("node_b should exist");
+    let node_a = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node_a should exist");
+    let node_b = engine.nodes.get(node_a).and_then(|node| node.node_data().next_sibling).expect("node_b should exist");
 
     engine.nodes.get_mut(node_a).expect("node_a should exist").rule = NodeExecutionRule::periodic(10).with_dependencies([node_b]);
     engine.nodes.get_mut(node_b).expect("node_b should exist").rule = NodeExecutionRule::periodic(10).with_dependencies([node_a]);
 
     let result = engine.resolve();
-    assert!(
-        matches!(result, Err(EngineRuntimeError::DependencyCycle { .. })),
-        "mutual dependencies should fail topological sorting",
-    );
+    assert!(matches!(result, Err(EngineRuntimeError::DependencyCycle { .. })), "mutual dependencies should fail topological sorting",);
 }
 
 #[test]
@@ -1140,11 +1220,7 @@ fn reevaluate_graph_edit_marks_and_rebuilds_schedule() {
     engine.apply_edits().expect("setup edits should succeed");
     engine.resolve().expect("initial resolve should succeed");
 
-    let runner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("runner should exist");
+    let runner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("runner should exist");
     assert_eq!(engine.schedule_bucket_nodes(2), Some([runner].as_slice()));
 
     engine.nodes.get_mut(runner).expect("runner should exist").rule = NodeExecutionRule::periodic(120);
@@ -1166,11 +1242,7 @@ fn run_tick_respects_update_rate_buckets() {
     engine.apply_edits().expect("setup edits should succeed");
     engine.resolve().expect("resolve should succeed");
 
-    let runner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("runner should exist");
+    let runner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("runner should exist");
 
     engine.run_tick(Duration::from_millis(200)).expect("tick should succeed");
     assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 0);
@@ -1181,15 +1253,7 @@ fn run_tick_respects_update_rate_buckets() {
     engine.run_tick(Duration::from_millis(1000)).expect("tick should succeed");
     let runner = engine.nodes.get(runner).expect("runner should exist");
     assert_eq!(runner.updates, 3);
-    assert_eq!(
-        runner.delta_times,
-        vec![
-            Duration::from_millis(500),
-            Duration::from_millis(500),
-            Duration::from_millis(500),
-        ],
-        "runner should receive real elapsed deltas between update callbacks",
-    );
+    assert_eq!(runner.delta_times, vec![Duration::from_millis(500), Duration::from_millis(500), Duration::from_millis(500),], "runner should receive real elapsed deltas between update callbacks",);
 }
 
 #[test]
@@ -1203,22 +1267,14 @@ fn delta_time_starts_from_node_creation_time() {
     engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
     engine.apply_edits().expect("node creation should succeed");
 
-    let runner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("runner should exist");
+    let runner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("runner should exist");
 
     engine.run_tick(Duration::from_millis(250)).expect("tick should succeed");
     engine.run_tick(Duration::from_millis(300)).expect("tick should succeed");
 
     let runner = engine.nodes.get(runner).expect("runner should exist");
     assert_eq!(runner.updates, 1, "runner should have updated once");
-    assert_eq!(
-        runner.delta_times,
-        vec![Duration::from_millis(550)],
-        "first delta should measure time since node creation",
-    );
+    assert_eq!(runner.delta_times, vec![Duration::from_millis(550)], "first delta should measure time since node creation",);
 }
 
 #[test]
@@ -1230,11 +1286,7 @@ fn run_tick_detects_event_edit_cycles() {
     engine.apply_edits().expect("setup edits should succeed");
     engine.resolve().expect("resolve should succeed");
 
-    let looper = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("looper should exist");
+    let looper = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("looper should exist");
 
     engine.set_runtime_limits(RuntimeLimits {
         max_stabilization_passes_per_tick: 8,
@@ -1246,10 +1298,7 @@ fn run_tick_detects_event_edit_cycles() {
     });
 
     let result = engine.run_tick(Duration::from_millis(1));
-    assert!(
-        matches!(result, Err(EngineRuntimeError::InfiniteEventEditCycle { .. })),
-        "run_tick should abort when event/edit stabilization never converges",
-    );
+    assert!(matches!(result, Err(EngineRuntimeError::InfiniteEventEditCycle { .. })), "run_tick should abort when event/edit stabilization never converges",);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1311,11 +1360,7 @@ impl Node for StressNode {
 }
 
 fn bench_env_usize(name: &str, default: usize) -> usize {
-    std::env::var(name)
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(default)
+    std::env::var(name).ok().and_then(|raw| raw.parse::<usize>().ok()).filter(|value| *value > 0).unwrap_or(default)
 }
 
 #[test]
@@ -1328,19 +1373,14 @@ fn bench_stress_20k_nodes_fast_updates_and_edits() {
     let elapsed_per_tick_ms = bench_env_usize("GC_BENCH_ELAPSED_MS", 16) as u64;
     let elapsed_per_tick = Duration::from_millis(elapsed_per_tick_ms);
 
-    eprintln!(
-        "[bench] starting: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms"
-    );
+    eprintln!("[bench] starting: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms");
 
     let mut engine = Engine::new(StressNode::new("root", NodeExecutionRule::passive(), false));
 
     let setup_start = Instant::now();
     eprintln!("[bench] setup: queueing node additions");
     for _ in 0..node_count {
-        engine.add_node(
-            StressNode::new("stress", NodeExecutionRule::periodic(rate_hz), true),
-            None,
-        );
+        engine.add_node(StressNode::new("stress", NodeExecutionRule::periodic(rate_hz), true), None);
     }
     eprintln!("[bench] setup: applying edits + resolving schedule");
     engine.apply_edits().expect("setup edits should succeed");
@@ -1350,9 +1390,7 @@ fn bench_stress_20k_nodes_fast_updates_and_edits() {
 
     eprintln!("[bench] warmup: {} tick(s)", warmup_ticks);
     for _ in 0..warmup_ticks {
-        engine
-            .run_tick(elapsed_per_tick)
-            .expect("warmup tick should succeed");
+        engine.run_tick(elapsed_per_tick).expect("warmup tick should succeed");
     }
     eprintln!("[bench] warmup complete");
 
@@ -1360,9 +1398,7 @@ fn bench_stress_20k_nodes_fast_updates_and_edits() {
     let benchmark_start = Instant::now();
     eprintln!("[bench] benchmark: {} tick(s)", bench_ticks);
     for tick in 0..bench_ticks {
-        engine
-            .run_tick(elapsed_per_tick)
-            .expect("benchmark tick should succeed");
+        engine.run_tick(elapsed_per_tick).expect("benchmark tick should succeed");
         eprintln!("[bench] benchmark tick {}/{}", tick + 1, bench_ticks);
     }
     let benchmark_elapsed = benchmark_start.elapsed();
@@ -1374,14 +1410,9 @@ fn bench_stress_20k_nodes_fast_updates_and_edits() {
     let updates_per_sec = benchmark_updates as f64 / secs;
     let edits_per_sec = benchmark_edits as f64 / secs;
 
-    println!(
-        "stress bench: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms"
-    );
+    println!("stress bench: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms");
     println!("setup: {:?}, benchmark: {:?}", setup_elapsed, benchmark_elapsed);
-    println!(
-        "workload: updates={}, edits~= {} | throughput: updates/s={:.0}, edits/s={:.0}",
-        benchmark_updates, benchmark_edits, updates_per_sec, edits_per_sec
-    );
+    println!("workload: updates={}, edits~= {} | throughput: updates/s={:.0}, edits/s={:.0}", benchmark_updates, benchmark_edits, updates_per_sec, edits_per_sec);
 
     assert!(benchmark_updates > 0, "benchmark should execute update callbacks");
 }
