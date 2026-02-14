@@ -148,6 +148,21 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
         self.node
     }
 
+    /// Returns `true` when this handle is bound to a runtime node id.
+    pub fn is_bound(&self) -> bool {
+        self.node.0 != 0
+    }
+
+    /// Rebinds this handle to a new runtime node id.
+    pub fn set_node_id(&mut self, node: NodeId) {
+        self.node = node;
+    }
+
+    /// Clears runtime node binding for this handle.
+    pub fn clear_node_id(&mut self) {
+        self.node = NodeId(0);
+    }
+
     /// Returns the locally cached value.
     pub fn get_cached(&self) -> &T {
         &self.cached
@@ -195,7 +210,7 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
         let value_changed = self.cached != value;
         let should_emit = self.change_check == ParameterChangeCheck::None || value_changed;
 
-        if should_emit {
+        if should_emit && self.is_bound() {
             ctx.set_param_with_behaviour(self.node, T::to_param_value(value.clone()), self.event_behaviour);
         }
 
@@ -280,6 +295,11 @@ impl PotentialNodeHandle {
     /// Returns the parent node id for this slot.
     pub fn parent(&self) -> NodeId {
         self.parent
+    }
+
+    /// Rebinds the parent node for this slot.
+    pub fn set_parent(&mut self, parent: NodeId) {
+        self.parent = parent;
     }
 
     /// Returns the declared slot id.

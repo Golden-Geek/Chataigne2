@@ -1,5 +1,6 @@
 use crate::events::EventKind;
 use crate::node::{Node, NodeId};
+use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::engine_history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
 use super::{Engine, EngineEditError};
@@ -226,6 +227,13 @@ impl<T: Node> Engine<T> {
             child: child_id,
             decl_id,
         });
+
+        // Allow newly attached nodes to request deterministic follow-up structure.
+        let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        if let Some(node) = self.nodes.get_mut(child_id) {
+            node.init(&mut init_ctx);
+        }
+        self.absorb_edits(&mut init_ctx)?;
 
         Ok(AddNodeEffect {
             node: child_id,

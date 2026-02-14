@@ -6,6 +6,8 @@
 //! - runtime processing context and engine (`process_ctx`, `engine`)
 #![warn(missing_docs)]
 
+extern crate self as golden_core;
+
 #[path = "../schema/color.rs"]
 /// Basic color schema types.
 pub mod color;

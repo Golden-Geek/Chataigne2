@@ -32,6 +32,178 @@ fn absorb_edits_accepts_matching_node_type() {
     assert_eq!(engine.edits.pending.len(), 1);
 }
 
+#[crate::node("auto_declared")]
+struct AutoDeclaredNode {
+    #[param(default = 0.5, label = "Decay", description = "Envelope decay time")]
+    decay: crate::node::ParameterHandle<f64>,
+
+    #[potential_node(decl_id = "value")]
+    value: crate::node::PotentialNodeHandle,
+}
+
+struct DslParamsNode {
+    node_data: NodeData,
+    feedback: crate::node::ParameterHandle<f64>,
+    host: crate::node::ParameterHandle<String>,
+    gamma: crate::node::ParameterHandle<f64>,
+}
+
+impl DslParamsNode {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            node_data: NodeData::new(label.into()),
+            feedback: crate::node::ParameterHandle::new(NodeId(0), 0.5),
+            host: crate::node::ParameterHandle::new(NodeId(0), "127.0.0.1".to_string()),
+            gamma: crate::node::ParameterHandle::new(NodeId(0), 2.2),
+        }
+    }
+}
+
+#[crate::node("dsl_params_node")]
+impl Node for DslParamsNode {
+    crate::params! {
+        feedback: f64 = 0.5 [0.0..1.0] (label = "Feedback", description = "Delay feedback amount");
+
+        folder(output, label = "Output") {
+            host: String = "127.0.0.1" (label = "Host", description = "OSC destination host");
+
+            folder(color, label = "Color") {
+                gamma: f64 = 2.2 (behavior = "Append");
+            }
+        }
+    }
+}
+
+crate::define_node_enum!(
+    enum MacroTestNode {
+        AutoDeclaredNode,
+        DslParamsNode
+    }
+);
+
+#[test]
+fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(AutoDeclaredNode::new("declared").into(), None);
+
+    // First pass adds the node and runs generated init, which queues param creation.
+    engine.apply_edits().expect("first apply should succeed");
+    // Second pass materializes generated child param nodes.
+    engine.apply_edits().expect("second apply should succeed");
+
+    let declared_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("declared child should exist");
+
+    let child_added_decl = engine.inbox.events.iter().any(|event| {
+        matches!(
+            &event.kind,
+            EventKind::ChildAdded { parent, decl_id, .. }
+                if *parent == declared_id && decl_id.0 == "decay"
+        )
+    });
+    assert!(child_added_decl, "generated param child should emit ChildAdded with decl_id=decay");
+
+    let decay_param = find_child_by_decl(&engine, declared_id, "decay").expect("decay child should exist");
+    let decay_meta = engine
+        .nodes
+        .get(decay_param)
+        .expect("decay node should exist")
+        .node_data()
+        .meta
+        .clone();
+    assert_eq!(decay_meta.label, "Decay");
+    assert_eq!(decay_meta.description.as_deref(), Some("Envelope decay time"));
+
+    engine
+        .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+        .expect("dispatch should succeed");
+
+    let MacroTestNode::AutoDeclaredNode(node) = engine
+        .nodes
+        .get(declared_id)
+        .expect("declared node should exist")
+    else {
+        panic!("expected AutoDeclaredNode variant");
+    };
+
+    assert!(node.decay.is_bound(), "generated param handle should be bound after ChildAdded dispatch");
+    assert!(!node.value.is_pending_create(), "potential slot should not be pending by default");
+}
+
+fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    while let Some(id) = child {
+        let node = engine.nodes.get(id)?;
+        if node.node_data().meta.decl_id.0 == decl_id {
+            return Some(id);
+        }
+        child = node.node_data().next_sibling;
+    }
+    None
+}
+
+#[test]
+fn params_macro_materializes_nested_folders_and_binds_handles() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslParamsNode::new("dsl").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine
+            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("dsl node should be attached under root");
+
+    let output = find_child_by_decl(&engine, owner, "output").expect("output folder should exist");
+    let color = find_child_by_decl(&engine, output, "output/color").expect("output/color folder should exist");
+    let feedback = find_child_by_decl(&engine, owner, "feedback").expect("feedback parameter should exist");
+    let host = find_child_by_decl(&engine, output, "output/host").expect("output/host parameter should exist");
+    let gamma = find_child_by_decl(&engine, color, "output/color/gamma").expect("output/color/gamma parameter should exist");
+
+    let MacroTestNode::DslParamsNode(node) = engine.nodes.get(owner).expect("dsl node should exist") else {
+        panic!("expected DslParamsNode variant");
+    };
+
+    assert!(node.feedback.is_bound(), "feedback handle should be bound");
+    assert!(node.host.is_bound(), "host handle should be bound");
+    assert!(node.gamma.is_bound(), "gamma handle should be bound");
+    assert_eq!(node.gamma.event_behaviour(), ParameterEventBehaviour::Append);
+    assert_eq!(node.feedback.id(), feedback);
+    assert_eq!(node.host.id(), host);
+    assert_eq!(node.gamma.id(), gamma);
+
+    let feedback_meta = engine
+        .nodes
+        .get(feedback)
+        .expect("feedback node should exist")
+        .node_data()
+        .meta
+        .clone();
+    assert_eq!(feedback_meta.label, "Feedback");
+    assert_eq!(feedback_meta.description.as_deref(), Some("Delay feedback amount"));
+
+    let host_meta = engine
+        .nodes
+        .get(host)
+        .expect("host node should exist")
+        .node_data()
+        .meta
+        .clone();
+    assert_eq!(host_meta.label, "Host");
+    assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
+}
+
 #[test]
 fn apply_edits_adds_children_in_call_order() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
