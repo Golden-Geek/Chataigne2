@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 use crate::edit::{Edit, EditQueue};
 use crate::events::Inbox;
@@ -85,6 +86,10 @@ pub struct Engine<T: Node> {
     runtime_resolve_pending: bool,
     /// Runtime loop guardrails.
     runtime_limits: engine_runtime::RuntimeLimits,
+    /// Accumulated wall-clock runtime elapsed while ticking.
+    runtime_elapsed: Duration,
+    /// Last runtime timestamp at which each node received an update callback.
+    last_update_elapsed_by_node: HashMap<NodeId, Duration>,
 }
 
 impl<T: Node> Engine<T> {
@@ -92,6 +97,8 @@ impl<T: Node> Engine<T> {
     pub fn new(root: T) -> Self {
         let mut nodes: NodeStore<T> = NodeStore::new();
         let root = nodes.insert(root);
+        let mut last_update_elapsed_by_node = HashMap::new();
+        last_update_elapsed_by_node.insert(root, Duration::ZERO);
 
         Self {
             nodes,
@@ -105,6 +112,8 @@ impl<T: Node> Engine<T> {
             runtime_schedule: engine_runtime::ScheduleMgr::default(),
             runtime_resolve_pending: true,
             runtime_limits: engine_runtime::RuntimeLimits::default(),
+            runtime_elapsed: Duration::ZERO,
+            last_update_elapsed_by_node,
         }
     }
 

@@ -339,6 +339,7 @@ impl<T: Node> Engine<T> {
         self.time.tick = self.time.tick.saturating_add(1);
         self.time.micro = 0;
         self.time.seq = 0;
+        self.runtime_elapsed = self.runtime_elapsed.saturating_add(elapsed);
 
         self.run_scheduled_updates(elapsed)?;
 
@@ -462,11 +463,43 @@ impl<T: Node> Engine<T> {
             .runtime_schedule
             .collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
         let mut callback_count = 0usize;
+        let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
+        let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
+        let mut seen_by_node: HashMap<NodeId, usize> = HashMap::new();
+
+        for node_id in &due_nodes {
+            *due_counts.entry(*node_id).or_default() += 1;
+        }
+
+        for node_id in due_counts.keys() {
+            let previous = self.last_update_elapsed_by_node.get(node_id).copied().unwrap_or(Duration::ZERO);
+            remaining_delta_by_node.insert(*node_id, self.runtime_elapsed.saturating_sub(previous));
+        }
 
         for node_id in due_nodes {
+            let seen = seen_by_node.entry(node_id).or_default();
+            *seen += 1;
+
+            let total_occurrences = due_counts.get(&node_id).copied().unwrap_or(1);
+            let remaining_occurrences = total_occurrences.saturating_sub(*seen - 1).max(1);
+            let remaining_delta = remaining_delta_by_node.entry(node_id).or_insert(Duration::ZERO);
+
+            let delta_time = if remaining_occurrences == 1 {
+                let dt = *remaining_delta;
+                *remaining_delta = Duration::ZERO;
+                dt
+            } else {
+                let dt = *remaining_delta / remaining_occurrences as u32;
+                *remaining_delta = remaining_delta.saturating_sub(dt);
+                dt
+            };
+
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.delta_time = delta_time;
+            let mut did_update = false;
             if let Some(node) = self.nodes.get_mut(node_id) {
                 node.update(&mut ctx);
+                did_update = true;
                 callback_count += 1;
                 if callback_count > self.runtime_limits.max_update_callbacks_per_tick {
                     return Err(EngineRuntimeError::UpdateBudgetExceeded {
@@ -477,6 +510,11 @@ impl<T: Node> Engine<T> {
                 }
             }
             self.absorb_edits(&mut ctx)?;
+
+            if did_update {
+                let last = self.last_update_elapsed_by_node.entry(node_id).or_insert(Duration::ZERO);
+                *last = last.saturating_add(delta_time);
+            }
         }
 
         Ok(())

@@ -109,8 +109,15 @@ impl<T: Node> Engine<T> {
 
     /// Pushes an event into the inbox and advances the per-tick event sequence counter.
     pub(crate) fn emit_event(&mut self, kind: EventKind) {
-        if let EventKind::NodeDeleted { node } = &kind {
-            self.purge_event_listeners_for_node(*node);
+        match &kind {
+            EventKind::NodeCreated { node } => {
+                self.last_update_elapsed_by_node.entry(*node).or_insert(self.runtime_elapsed);
+            }
+            EventKind::NodeDeleted { node } => {
+                self.purge_event_listeners_for_node(*node);
+                self.last_update_elapsed_by_node.remove(node);
+            }
+            _ => {}
         }
         let time = self.time;
         self.inbox.push(Event { time, kind });

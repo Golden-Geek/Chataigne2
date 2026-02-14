@@ -1,4 +1,6 @@
 use super::*;
+use std::time::Duration;
+
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::node::{Folder, EventPropagation, EventSubscription, Manager, Node, NodeData, NodeId};
@@ -712,6 +714,7 @@ struct RuntimeNode {
     node_data: NodeData,
     rule: NodeExecutionRule,
     updates: usize,
+    delta_times: Vec<Duration>,
     bounce_custom_events: bool,
 }
 
@@ -721,6 +724,7 @@ impl RuntimeNode {
             node_data: NodeData::new(label.to_string()),
             rule,
             updates: 0,
+            delta_times: Vec::new(),
             bounce_custom_events: false,
         }
     }
@@ -730,6 +734,7 @@ impl RuntimeNode {
             node_data: NodeData::new(label.to_string()),
             rule: NodeExecutionRule::passive(),
             updates: 0,
+            delta_times: Vec::new(),
             bounce_custom_events: true,
         }
     }
@@ -752,8 +757,9 @@ impl Node for RuntimeNode {
         self.rule.clone()
     }
 
-    fn update(&mut self, _ctx: &mut ProcessCtx) {
+    fn update(&mut self, ctx: &mut ProcessCtx) {
         self.updates += 1;
+        self.delta_times.push(ctx.delta_time);
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, _event: CustomEvent) {
@@ -876,14 +882,53 @@ fn run_tick_respects_update_rate_buckets() {
         .and_then(|root| root.node_data().first_child)
         .expect("runner should exist");
 
-    engine.run_tick(std::time::Duration::from_millis(200)).expect("tick should succeed");
+    engine.run_tick(Duration::from_millis(200)).expect("tick should succeed");
     assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 0);
 
-    engine.run_tick(std::time::Duration::from_millis(300)).expect("tick should succeed");
+    engine.run_tick(Duration::from_millis(300)).expect("tick should succeed");
     assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 1);
 
-    engine.run_tick(std::time::Duration::from_millis(1000)).expect("tick should succeed");
-    assert_eq!(engine.nodes.get(runner).expect("runner should exist").updates, 3);
+    engine.run_tick(Duration::from_millis(1000)).expect("tick should succeed");
+    let runner = engine.nodes.get(runner).expect("runner should exist");
+    assert_eq!(runner.updates, 3);
+    assert_eq!(
+        runner.delta_times,
+        vec![
+            Duration::from_millis(500),
+            Duration::from_millis(500),
+            Duration::from_millis(500),
+        ],
+        "runner should receive real elapsed deltas between update callbacks",
+    );
+}
+
+#[test]
+fn delta_time_starts_from_node_creation_time() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.resolve().expect("resolve should succeed");
+
+    engine.run_tick(Duration::from_millis(1000)).expect("initial tick should succeed");
+
+    engine.add_node(RuntimeNode::new("runner", NodeExecutionRule::periodic(2)), None);
+    engine.apply_edits().expect("node creation should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine.run_tick(Duration::from_millis(250)).expect("tick should succeed");
+    engine.run_tick(Duration::from_millis(300)).expect("tick should succeed");
+
+    let runner = engine.nodes.get(runner).expect("runner should exist");
+    assert_eq!(runner.updates, 1, "runner should have updated once");
+    assert_eq!(
+        runner.delta_times,
+        vec![Duration::from_millis(550)],
+        "first delta should measure time since node creation",
+    );
 }
 
 #[test]
@@ -910,7 +955,7 @@ fn run_tick_detects_event_edit_cycles() {
         event: CustomEvent::new("runtime.loop", Some(looper), serde_json::Value::Null),
     });
 
-    let result = engine.run_tick(std::time::Duration::from_millis(1));
+    let result = engine.run_tick(Duration::from_millis(1));
     assert!(
         matches!(result, Err(EngineRuntimeError::InfiniteEventEditCycle { .. })),
         "run_tick should abort when event/edit stabilization never converges",

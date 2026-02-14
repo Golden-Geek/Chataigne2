@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::edit::{Edit, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
@@ -34,6 +36,10 @@ pub struct ProcessCtx {
     pub edits: EditQueue,
     /// Current engine timestamp for emitted operations.
     pub time: EngineTime,
+    /// Time elapsed since this node's previous update callback.
+    ///
+    /// This value is meaningful in `Node::update`.
+    pub delta_time: Duration,
 }
 
 impl ProcessCtx {
@@ -44,6 +50,7 @@ impl ProcessCtx {
             events: Vec::new(),
             edits: EditQueue::new(),
             time,
+            delta_time: Duration::ZERO,
         }
     }
 
