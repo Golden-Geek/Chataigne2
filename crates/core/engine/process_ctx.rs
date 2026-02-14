@@ -71,7 +71,11 @@ impl ProcessCtx {
 
     /// Queues insertion of a boxed child node.
     pub fn add_child_boxed(&mut self, parent: NodeId, child: Box<dyn Node>, after: Option<NodeId>) {
-        self.edits.push(Edit::AddNode { parent, prev_sibling: after, node: child });
+        self.edits.push(Edit::AddNode {
+            parent,
+            prev_sibling: after,
+            node: child,
+        });
     }
 
     /// Queues replacement of a node by a typed node value.

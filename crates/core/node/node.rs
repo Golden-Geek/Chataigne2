@@ -350,14 +350,23 @@ pub trait Node: Send + Any {
                 EventKind::ParamChanged { param, old_value } => {
                     self.on_param_change(ctx, param, old_value);
                 }
-                EventKind::ChildAdded { parent, child } => {
-                    self.on_child_added(ctx, parent, child);
+                EventKind::ChildAdded {
+                    parent,
+                    child,
+                    decl_id,
+                } => {
+                    self.on_child_added_decl(ctx, parent, child, &decl_id);
                 }
                 EventKind::ChildRemoved { parent, child } => {
                     self.on_child_removed(ctx, parent, child);
                 }
-                EventKind::ChildReplaced { parent, old, new } => {
-                    self.on_child_replaced(ctx, parent, old, new);
+                EventKind::ChildReplaced {
+                    parent,
+                    old,
+                    new,
+                    decl_id,
+                } => {
+                    self.on_child_replaced_decl(ctx, parent, old, new, &decl_id);
                 }
                 EventKind::ChildMoved { child, old_parent, new_parent } => {
                     self.on_child_moved(ctx, child, old_parent, new_parent);
@@ -385,10 +394,18 @@ pub trait Node: Send + Any {
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
     /// Called when a child is added.
     fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
+    /// Called when a child is added, including its declared slot id.
+    fn on_child_added_decl(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId, _decl_id: &DeclId) {
+        self.on_child_added(ctx, parent, child);
+    }
     /// Called when a child is removed.
     fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
     /// Called when a child is replaced.
     fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {}
+    /// Called when a child is replaced, including the replacement slot id.
+    fn on_child_replaced_decl(&mut self, ctx: &mut ProcessCtx, parent: NodeId, old: NodeId, new: NodeId, _decl_id: &DeclId) {
+        self.on_child_replaced(ctx, parent, old, new);
+    }
     /// Called when a child is moved to another parent.
     fn on_child_moved(&mut self, _ctx: &mut ProcessCtx, _child: NodeId, _old_parent: NodeId, _new_parent: NodeId) {}
     /// Called when a child is reordered under the same parent.

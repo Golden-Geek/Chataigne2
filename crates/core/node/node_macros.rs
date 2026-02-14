@@ -41,6 +41,14 @@ macro_rules! __dispatch_node_enum {
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
         }
     };
+    ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr ; $($variant:ident),* $(,)?) => {
+        match $self {
+            Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Manager(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
+        }
+    };
 }
 
 #[doc(hidden)]
@@ -148,6 +156,17 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn on_child_added_decl(
+                &mut self,
+                ctx: &mut $crate::process_ctx::ProcessCtx,
+                parent: $crate::node::NodeId,
+                child: $crate::node::NodeId,
+                decl_id: &$crate::node::DeclId,
+            ) {
+                $crate::__dispatch_node_enum!(self, on_child_added_decl, ctx, parent, child, decl_id; $($variant),*)
+            }
+
+            #[inline(always)]
             fn on_child_removed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, child: $crate::node::NodeId) {
                 $crate::__dispatch_node_enum!(self, on_child_removed, ctx, parent, child; $($variant),*)
             }
@@ -155,6 +174,18 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn on_child_replaced(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, parent: $crate::node::NodeId, old: $crate::node::NodeId, new: $crate::node::NodeId) {
                 $crate::__dispatch_node_enum!(self, on_child_replaced, ctx, parent, old, new; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn on_child_replaced_decl(
+                &mut self,
+                ctx: &mut $crate::process_ctx::ProcessCtx,
+                parent: $crate::node::NodeId,
+                old: $crate::node::NodeId,
+                new: $crate::node::NodeId,
+                decl_id: &$crate::node::DeclId,
+            ) {
+                $crate::__dispatch_node_enum!(self, on_child_replaced_decl, ctx, parent, old, new, decl_id; $($variant),*)
             }
 
             #[inline(always)]

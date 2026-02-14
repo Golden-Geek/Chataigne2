@@ -1,4 +1,5 @@
 use crate::edit::Edit;
+use crate::events::EventKind;
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::process_ctx::ProcessCtx;
 
@@ -252,6 +253,7 @@ pub struct PotentialNodeHandle {
     parent: NodeId,
     decl_id: DeclId,
     current: Option<NodeId>,
+    pending_create: bool,
 }
 
 impl PotentialNodeHandle {
@@ -261,6 +263,7 @@ impl PotentialNodeHandle {
             parent,
             decl_id: DeclId(decl_id.into()),
             current: None,
+            pending_create: false,
         }
     }
 
@@ -270,6 +273,7 @@ impl PotentialNodeHandle {
             parent,
             decl_id: DeclId(decl_id.into()),
             current: Some(current),
+            pending_create: false,
         }
     }
 
@@ -288,6 +292,11 @@ impl PotentialNodeHandle {
         self.current.is_some()
     }
 
+    /// Returns `true` when this slot has queued creation and is waiting for `ChildAdded`.
+    pub fn is_pending_create(&self) -> bool {
+        self.pending_create
+    }
+
     /// Returns the currently bound node id, when present.
     pub fn current_id(&self) -> Option<NodeId> {
         self.current
@@ -301,10 +310,12 @@ impl PotentialNodeHandle {
     /// Binds an existing node id as the current materialized slot value.
     pub fn bind_existing(&mut self, node: NodeId) {
         self.current = Some(node);
+        self.pending_create = false;
     }
 
     /// Detaches local knowledge of the current node id without queuing edits.
     pub fn detach_current(&mut self) -> Option<NodeId> {
+        self.pending_create = false;
         self.current.take()
     }
 
@@ -316,6 +327,7 @@ impl PotentialNodeHandle {
             new_prev_sibling: after,
         });
         self.current = Some(node);
+        self.pending_create = false;
     }
 
     /// Removes the current slot node if present and clears local binding.
@@ -324,6 +336,7 @@ impl PotentialNodeHandle {
         if let Some(node) = removed {
             ctx.edits.push(Edit::RemoveNode { node });
         }
+        self.pending_create = false;
         removed
     }
 
@@ -342,10 +355,62 @@ impl PotentialNodeHandle {
     pub fn replace_with_boxed(&mut self, ctx: &mut ProcessCtx, new_node: Box<dyn Node>) {
         if let Some(current) = self.current {
             ctx.replace_node_boxed(current, new_node);
+            self.pending_create = false;
         } else {
+            let mut new_node = new_node;
+            new_node.node_data_mut().meta.decl_id = self.decl_id.clone();
             ctx.add_child_boxed(self.parent, new_node, None);
-            // New ids are assigned when add-node edits are applied by the engine.
             self.current = None;
+            self.pending_create = true;
+        }
+    }
+
+    /// Reconciles a `ChildAdded` event and binds this slot when `decl_id` matches.
+    pub fn reconcile_child_added(&mut self, parent: NodeId, child: NodeId, decl_id: &DeclId) -> bool {
+        if parent == self.parent && decl_id == &self.decl_id {
+            self.current = Some(child);
+            self.pending_create = false;
+            return true;
+        }
+        false
+    }
+
+    /// Reconciles a `ChildReplaced` event and binds this slot when `decl_id` matches.
+    pub fn reconcile_child_replaced(&mut self, parent: NodeId, _old: NodeId, new: NodeId, decl_id: &DeclId) -> bool {
+        if parent == self.parent && decl_id == &self.decl_id {
+            self.current = Some(new);
+            self.pending_create = false;
+            return true;
+        }
+        false
+    }
+
+    /// Reconciles a `ChildRemoved` event and clears this slot when its current node is removed.
+    pub fn reconcile_child_removed(&mut self, parent: NodeId, child: NodeId) -> bool {
+        if parent == self.parent && self.current == Some(child) {
+            self.current = None;
+            self.pending_create = false;
+            return true;
+        }
+        false
+    }
+
+    /// Reconciles this slot from a generic engine event.
+    pub fn reconcile_event(&mut self, event: &EventKind) -> bool {
+        match event {
+            EventKind::ChildAdded {
+                parent,
+                child,
+                decl_id,
+            } => self.reconcile_child_added(*parent, *child, decl_id),
+            EventKind::ChildReplaced {
+                parent,
+                old,
+                new,
+                decl_id,
+            } => self.reconcile_child_replaced(*parent, *old, *new, decl_id),
+            EventKind::ChildRemoved { parent, child } => self.reconcile_child_removed(*parent, *child),
+            _ => false,
         }
     }
 }
@@ -455,9 +520,13 @@ mod tests {
 
         handle.replace_with(&mut ctx, crate::node::Folder::new("slot-value"));
         assert!(!handle.is_present());
+        assert!(handle.is_pending_create());
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
-            Edit::AddNode { parent, .. } => assert_eq!(*parent, NodeId(5)),
+            Edit::AddNode { parent, node, .. } => {
+                assert_eq!(*parent, NodeId(5));
+                assert_eq!(node.node_data().meta.decl_id, DeclId("value".to_string()));
+            }
             _ => panic!("expected AddNode edit"),
         }
     }
@@ -497,5 +566,24 @@ mod tests {
             }
             _ => panic!("expected MoveNode edit"),
         }
+    }
+
+    #[test]
+    fn potential_handle_reconcile_child_added_binds_pending_slot() {
+        let mut handle = PotentialNodeHandle::new(NodeId(9), "value");
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+
+        handle.replace_with(&mut ctx, crate::node::Folder::new("slot-value"));
+        assert!(handle.is_pending_create());
+        assert_eq!(handle.current_id(), None);
+
+        let changed = handle.reconcile_event(&EventKind::ChildAdded {
+            parent: NodeId(9),
+            child: NodeId(99),
+            decl_id: DeclId("value".to_string()),
+        });
+        assert!(changed);
+        assert!(!handle.is_pending_create());
+        assert_eq!(handle.current_id(), Some(NodeId(99)));
     }
 }

@@ -160,7 +160,11 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::AddNode { node: Box::new(node), parent, prev_sibling });
+                    validated_edits.push(Edit::AddNode {
+                        node: Box::new(node),
+                        parent,
+                        prev_sibling,
+                    });
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let provided_node_type = new_node.get_type().to_string();

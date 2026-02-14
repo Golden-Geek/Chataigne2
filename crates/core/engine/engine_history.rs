@@ -141,7 +141,12 @@ impl<T: Node> HistoryStep<T> {
                 for node in created_ids.into_iter().rev() {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
-                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node });
+                let decl_id = child_decl_id(engine, 0, OP, step.node)?;
+                engine.emit_event(EventKind::ChildAdded {
+                    parent: step.parent,
+                    child: step.node,
+                    decl_id,
+                });
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -202,10 +207,12 @@ impl<T: Node> HistoryStep<T> {
                     })?;
                     engine.nodes.reattach(step.old_id, old_node);
                     engine.mark_schedule_dirty();
+                    let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
                         parent: step.parent,
                         old: step.new_id,
                         new: step.old_id,
+                        decl_id,
                     });
 
                     step.new_node = Some(detached_new_node);
@@ -222,10 +229,12 @@ impl<T: Node> HistoryStep<T> {
                 engine.reparent_child_chain(0, OP, first_child, step.old_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.old_id });
+                let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
                 engine.emit_event(EventKind::ChildReplaced {
                     parent: step.parent,
                     old: step.new_id,
                     new: step.old_id,
+                    decl_id,
                 });
                 engine.emit_event(EventKind::NodeDeleted { node: step.new_id });
 
@@ -253,7 +262,12 @@ impl<T: Node> HistoryStep<T> {
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.node });
-                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node });
+                let decl_id = child_decl_id(engine, 0, OP, step.node)?;
+                engine.emit_event(EventKind::ChildAdded {
+                    parent: step.parent,
+                    child: step.node,
+                    decl_id,
+                });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "RedoRemoveNode";
@@ -339,10 +353,12 @@ impl<T: Node> HistoryStep<T> {
                     })?;
                     engine.nodes.reattach(step.new_id, new_node);
                     engine.mark_schedule_dirty();
+                    let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
                         parent: step.parent,
                         old: step.old_id,
                         new: step.new_id,
+                        decl_id,
                     });
 
                     step.old_node = Some(detached_old_node);
@@ -359,10 +375,12 @@ impl<T: Node> HistoryStep<T> {
                 engine.reparent_child_chain(0, OP, first_child, step.new_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.new_id });
+                let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
                 engine.emit_event(EventKind::ChildReplaced {
                     parent: step.parent,
                     old: step.old_id,
                     new: step.new_id,
+                    decl_id,
                 });
                 engine.emit_event(EventKind::NodeDeleted { node: step.old_id });
 
@@ -405,6 +423,21 @@ impl<T: Node> HistoryStep<T> {
 fn purge_detached_node<T: Node>(engine: &mut Engine<T>, id: NodeId, node: T) {
     engine.nodes.reattach(id, node);
     let _ = engine.nodes.remove(id);
+}
+
+fn child_decl_id<T: Node>(engine: &Engine<T>, edit_index: usize, operation: &'static str, node: NodeId) -> Result<crate::node::DeclId, EngineEditError> {
+    Ok(engine
+        .nodes
+        .get(node)
+        .ok_or(EngineEditError::NodeNotFound {
+            edit_index,
+            operation,
+            node,
+        })?
+        .node_data()
+        .meta
+        .decl_id
+        .clone())
 }
 
 /// Captured effect for a successful `SetParam` edit.

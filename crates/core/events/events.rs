@@ -1,5 +1,5 @@
 use crate::engine::EngineTime;
-use crate::node::{NodeId, NodeMetaPatch};
+use crate::node::{DeclId, NodeId, NodeMetaPatch};
 use crate::parameter::ParamValue;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -66,6 +66,8 @@ pub enum EventKind {
         parent: NodeId,
         /// Child node that was added.
         child: NodeId,
+        /// Declared slot id of the added child.
+        decl_id: DeclId,
     },
     /// A child node was detached from a parent.
     ChildRemoved {
@@ -82,6 +84,8 @@ pub enum EventKind {
         old: NodeId,
         /// New child id.
         new: NodeId,
+        /// Declared slot id of the replacement child.
+        decl_id: DeclId,
     },
     /// A child node changed parent.
     ChildMoved {

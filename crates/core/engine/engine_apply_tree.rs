@@ -218,8 +218,14 @@ impl<T: Node> Engine<T> {
             (attached_data.prev_sibling, attached_data.next_sibling)
         };
 
+        let decl_id = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: child_id })?.node_data().meta.decl_id.clone();
+
         self.emit_event(EventKind::NodeCreated { node: child_id });
-        self.emit_event(EventKind::ChildAdded { parent, child: child_id });
+        self.emit_event(EventKind::ChildAdded {
+            parent,
+            child: child_id,
+            decl_id,
+        });
 
         Ok(AddNodeEffect {
             node: child_id,
@@ -248,13 +254,19 @@ impl<T: Node> Engine<T> {
             replacement_data.last_child = old_data.last_child;
             replacement_data.prev_sibling = old_data.prev_sibling;
             replacement_data.next_sibling = old_data.next_sibling;
+            replacement_data.meta.decl_id = old_data.meta.decl_id.clone();
         }
 
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
         self.nodes.reattach(node, replacement);
         self.mark_schedule_dirty();
 
-        self.emit_event(EventKind::ChildReplaced { parent, old: node, new: node });
+        self.emit_event(EventKind::ChildReplaced {
+            parent,
+            old: node,
+            new: node,
+            decl_id: old_data.meta.decl_id.clone(),
+        });
 
         Ok(ReplaceNodeEffect {
             parent,
