@@ -186,12 +186,21 @@ impl ParamValue {
 }
 
 /// Strategy used to decide whether a `set` call should enqueue an edit.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParameterChangeCheck {
     /// Emit only when the value differs.
     ValueChange,
     /// Always emit, even if unchanged.
     None,
+}
+
+/// Strategy for handling multiple parameter changes within the same process tick.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ParameterEventBehaviour {
+    /// Keep only the latest pending set for this parameter within a queue drain.
+    Coalesce,
+    /// Keep every pending set for this parameter within a queue drain.
+    Append,
 }
 
 /// Built-in node type that stores a [`ParamValue`].
@@ -216,13 +225,15 @@ pub enum ParameterChangeCheck {
 /// assert_eq!(ctx.edits.pending.len(), 1);
 /// ```
 
-
 pub struct Parameter {
     node_data: NodeData,
     /// Current parameter value.
     pub value: ParamValue,
     /// Change-detection policy for `set`.
     pub change_check: ParameterChangeCheck,
+
+    /// Strategy for handling multiple parameter changes within the same process tick.
+    pub event_behaviour: ParameterEventBehaviour,
 }
 
 impl Parameter {
@@ -232,14 +243,15 @@ impl Parameter {
             node_data: NodeData::new(label.to_string()),
             value,
             change_check,
+            event_behaviour: ParameterEventBehaviour::Coalesce,
         }
     }
 
     /// Requests a parameter update through the process context.
-    pub fn set(&mut self, _ctx: &mut ProcessCtx, new_value: ParamValue) {
+    pub fn set(&mut self, ctx: &mut ProcessCtx, new_value: ParamValue) {
         let value_changed = self.value != new_value;
         if self.change_check == ParameterChangeCheck::None || value_changed {
-            _ctx.set_param(self.node_data().id, new_value.clone());
+            ctx.set_param_with_behaviour(self.node_data().id, new_value.clone(), self.event_behaviour);
         }
     }
 

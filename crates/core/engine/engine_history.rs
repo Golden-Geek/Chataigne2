@@ -1,6 +1,6 @@
 use crate::events::EventKind;
 use crate::node::{Node, NodeId};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 use super::{Engine, EngineEditError};
 
@@ -24,6 +24,43 @@ impl<T: Node> HistoryTransaction<T> {
     /// Returns `true` when no reversible steps were captured.
     pub(crate) fn is_empty(&self) -> bool {
         self.steps.is_empty()
+    }
+
+    /// Updates the newest matching coalesced SetParam step in this transaction, if present.
+    fn try_update_coalesced_set_param(&mut self, node: NodeId, tick: u64, new_value: ParamValue) -> bool {
+        for step in self.steps.iter_mut().rev() {
+            let HistoryStep::SetParam(existing) = step else {
+                continue;
+            };
+
+            if existing.behaviour == ParameterEventBehaviour::Coalesce && existing.node == node && existing.tick == tick {
+                existing.new_value = new_value;
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Moves coalescable SetParam steps into `previous` when they target the same node/tick.
+    fn absorb_coalesced_set_params(&mut self, previous: &mut HistoryTransaction<T>) {
+        let mut remaining_steps = Vec::with_capacity(self.steps.len());
+
+        for step in self.steps.drain(..) {
+            match step {
+                HistoryStep::SetParam(incoming) => {
+                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce
+                        && previous.try_update_coalesced_set_param(incoming.node, incoming.tick, incoming.new_value.clone());
+
+                    if !merged {
+                        remaining_steps.push(HistoryStep::SetParam(incoming));
+                    }
+                }
+                other => remaining_steps.push(other),
+            }
+        }
+
+        self.steps = remaining_steps;
     }
 
     /// Replays all steps in reverse order to undo this transaction.
@@ -298,6 +335,10 @@ pub(crate) struct SetParamEffect {
     pub(crate) old_value: ParamValue,
     /// Parameter value after the edit.
     pub(crate) new_value: ParamValue,
+    /// Coalescing strategy chosen for this edit request.
+    pub(crate) behaviour: ParameterEventBehaviour,
+    /// Tick at which this edit was applied.
+    pub(crate) tick: u64,
 }
 
 /// Captured effect for a successful `AddNode` edit.
@@ -368,6 +409,10 @@ pub(crate) struct SetParamHistory {
     old_value: ParamValue,
     /// Value after the edit.
     new_value: ParamValue,
+    /// Coalescing strategy chosen for this edit request.
+    behaviour: ParameterEventBehaviour,
+    /// Tick at which this edit was applied.
+    tick: u64,
 }
 
 /// Undo/redo payload for add-node edits.
@@ -442,6 +487,8 @@ impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
             node: effect.node,
             old_value: effect.old_value,
             new_value: effect.new_value,
+            behaviour: effect.behaviour,
+            tick: effect.tick,
         })
     }
 }
@@ -508,7 +555,15 @@ impl<T: Node> Engine<T> {
     }
 
     /// Pushes a non-empty transaction onto the undo stack.
-    pub(crate) fn push_undo_transaction(&mut self, transaction: HistoryTransaction<T>) {
+    pub(crate) fn push_undo_transaction(&mut self, mut transaction: HistoryTransaction<T>) {
+        if transaction.is_empty() {
+            return;
+        }
+
+        if let Some(previous) = self.undo_stack.last_mut() {
+            transaction.absorb_coalesced_set_params(previous);
+        }
+
         if !transaction.is_empty() {
             self.undo_stack.push(transaction);
         }

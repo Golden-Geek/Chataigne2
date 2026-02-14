@@ -25,8 +25,10 @@ impl<T: Node> Engine<T> {
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
             let outcome: Result<Option<HistoryStep<T>>, EngineEditError> = match request.edit {
-                Edit::SetParam { node, value } => {
-                    let effect = self.apply_set_param(edit_index, node, value)?;
+                Edit::SetParam { node, value, behaviour } => {
+                    let mut effect = self.apply_set_param(edit_index, node, value)?;
+                    effect.behaviour = behaviour;
+                    effect.tick = self.time.tick;
                     Ok(Some(effect.into()))
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {

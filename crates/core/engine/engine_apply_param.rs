@@ -1,6 +1,6 @@
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 use super::engine_history::SetParamEffect;
 use super::{Engine, EngineEditError};
@@ -24,7 +24,13 @@ impl<T: Node> Engine<T> {
 
         self.emit_event(EventKind::ParamChanged { param: node, old_value: old_value.clone() });
 
-        Ok(SetParamEffect { node, old_value, new_value })
+        Ok(SetParamEffect {
+            node,
+            old_value,
+            new_value,
+            behaviour: ParameterEventBehaviour::Append,
+            tick: self.time.tick,
+        })
     }
 
     /// Validates a node target for metadata changes and emits the corresponding meta-changed event.

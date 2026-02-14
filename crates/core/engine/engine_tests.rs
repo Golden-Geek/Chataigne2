@@ -2,7 +2,7 @@ use super::*;
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::node::{Folder, EventPropagation, EventSubscription, Manager, Node, NodeData, NodeId};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 #[test]
@@ -103,7 +103,11 @@ fn apply_edits_rejects_cycle_move() {
 #[test]
 fn apply_edits_set_param_rejects_non_parameter_node() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
-    engine.edits.push(Edit::SetParam { node: engine.root, value: ParamValue::Int(12) });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(12),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
 
     let result = engine.apply_edits();
     assert!(matches!(result, Err(EngineEditError::ParamEditTargetMismatch { .. })));
@@ -114,7 +118,11 @@ fn apply_edits_set_param_updates_parameter_node() {
     let root = Parameter::new("root_param", ParamValue::Int(10), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
 
-    engine.edits.push(Edit::SetParam { node: engine.root, value: ParamValue::Int(42) });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(42),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
 
     engine.apply_edits().expect("set param should succeed");
 
@@ -129,6 +137,65 @@ fn apply_edits_set_param_updates_parameter_node() {
             }) if *param == engine.root
         ),
         "last event should report previous parameter value",
+    );
+}
+
+#[test]
+fn parameter_set_coalesces_pending_set_param_edits_by_default() {
+    let mut parameter = Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 0,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    parameter.set(&mut ctx, ParamValue::Int(1));
+    parameter.set(&mut ctx, ParamValue::Int(2));
+
+    assert_eq!(ctx.edits.pending.len(), 1, "coalesce mode should keep only one queued SetParam");
+    assert!(
+        matches!(
+            ctx.edits.pending.first().map(|request| &request.edit),
+            Some(Edit::SetParam {
+                node,
+                value: ParamValue::Int(2),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            }) if *node == parameter.id()
+        ),
+        "queued SetParam should keep the latest value",
+    );
+}
+
+#[test]
+fn parameter_set_append_behaviour_keeps_all_pending_set_param_edits() {
+    let mut parameter = Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None);
+    parameter.event_behaviour = ParameterEventBehaviour::Append;
+
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 0,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    parameter.set(&mut ctx, ParamValue::Int(1));
+    parameter.set(&mut ctx, ParamValue::Int(2));
+
+    assert_eq!(ctx.edits.pending.len(), 2, "append mode should keep every queued SetParam");
+    assert!(
+        matches!(
+            ctx.edits.pending.first().map(|request| &request.edit),
+            Some(Edit::SetParam {
+                behaviour: ParameterEventBehaviour::Append,
+                ..
+            })
+        ),
+        "queued edits should retain append behaviour metadata",
     );
 }
 
@@ -160,7 +227,11 @@ fn undo_redo_set_param_restores_value() {
     let root = Parameter::new("root_param", ParamValue::Int(10), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
 
-    engine.edits.push(Edit::SetParam { node: engine.root, value: ParamValue::Int(42) });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(42),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
     engine.apply_edits().expect("set param should succeed");
 
     assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(42));
@@ -172,6 +243,68 @@ fn undo_redo_set_param_restores_value() {
 
     assert!(engine.redo().expect("redo should succeed"));
     assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(42));
+}
+
+#[test]
+fn same_tick_coalesced_set_param_keeps_first_old_value_for_undo() {
+    let root = Parameter::new("root_param", ParamValue::Float(0.3), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(0.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("first set should succeed");
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(0.7),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("second set should succeed");
+
+    assert_eq!(
+        engine.nodes.get(engine.root).expect("root parameter should exist").value,
+        ParamValue::Float(0.7)
+    );
+    assert_eq!(engine.undo_len(), 1, "same-tick coalesced updates should keep one undo step");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine.nodes.get(engine.root).expect("root parameter should exist").value,
+        ParamValue::Float(0.3),
+        "undo should restore the original value before the first coalesced update",
+    );
+}
+
+#[test]
+fn same_tick_append_set_param_keeps_distinct_undo_steps() {
+    let root = Parameter::new("root_param", ParamValue::Float(0.3), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(0.5),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().expect("first append set should succeed");
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(0.7),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().expect("second append set should succeed");
+
+    assert_eq!(engine.undo_len(), 2, "append mode should keep both updates in undo history");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine.nodes.get(engine.root).expect("root parameter should exist").value,
+        ParamValue::Float(0.5),
+        "append undo should step back to the immediately previous value",
+    );
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 /// Mutable operations queued and then applied by the engine.
 pub enum Edit {
@@ -10,6 +10,8 @@ pub enum Edit {
         node: NodeId,
         /// New parameter value.
         value: ParamValue,
+        /// Coalescing strategy requested by the parameter/node API.
+        behaviour: ParameterEventBehaviour,
     },
     /// Insert a node under `parent`, optionally after a sibling.
     AddNode {
@@ -92,7 +94,34 @@ impl EditQueue {
 
     /// Pushes a new edit at the back of the queue.
     pub fn push(&mut self, edit: Edit) {
-        self.pending.push(EditRequest { edit });
+        match edit {
+            Edit::SetParam {
+                node,
+                value,
+                behaviour: ParameterEventBehaviour::Coalesce,
+            } => {
+                // Keep only the latest coalescable set for a given parameter id in this queue.
+                self.pending.retain(|request| {
+                    !matches!(
+                        &request.edit,
+                        Edit::SetParam {
+                            node: existing_node,
+                            behaviour: ParameterEventBehaviour::Coalesce,
+                            ..
+                        } if *existing_node == node
+                    )
+                });
+
+                self.pending.push(EditRequest {
+                    edit: Edit::SetParam {
+                        node,
+                        value,
+                        behaviour: ParameterEventBehaviour::Coalesce,
+                    },
+                });
+            }
+            edit => self.pending.push(EditRequest { edit }),
+        }
     }
 
     /// Drains all edits and leaves the queue empty.

@@ -2,7 +2,7 @@ use crate::edit::{Edit, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
 use crate::node::{EventSubscription, Node, NodeId};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use serde::Serialize;
 
 /// Runtime phase of the current processing pass.
@@ -49,7 +49,12 @@ impl ProcessCtx {
 
     /// Queues a parameter update edit.
     pub fn set_param(&mut self, node: NodeId, value: ParamValue) {
-        self.edits.push(Edit::SetParam { node, value });
+        self.set_param_with_behaviour(node, value, ParameterEventBehaviour::Coalesce);
+    }
+
+    /// Queues a parameter update edit with an explicit coalescing strategy.
+    pub fn set_param_with_behaviour(&mut self, node: NodeId, value: ParamValue, behaviour: ParameterEventBehaviour) {
+        self.edits.push(Edit::SetParam { node, value, behaviour });
     }
 
     /// Queues insertion of a child node.
