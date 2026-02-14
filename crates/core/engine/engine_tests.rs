@@ -1,5 +1,5 @@
 use super::*;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
@@ -960,4 +960,138 @@ fn run_tick_detects_event_edit_cycles() {
         matches!(result, Err(EngineRuntimeError::InfiniteEventEditCycle { .. })),
         "run_tick should abort when event/edit stabilization never converges",
     );
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct StressNode {
+    node_data: NodeData,
+    rule: NodeExecutionRule,
+    updates: usize,
+    value: ParamValue,
+    emit_set_param_in_update: bool,
+}
+
+impl StressNode {
+    fn new(label: &str, rule: NodeExecutionRule, emit_set_param_in_update: bool) -> Self {
+        Self {
+            node_data: NodeData::new(label.to_string()),
+            rule,
+            updates: 0,
+            value: ParamValue::Int(0),
+            emit_set_param_in_update,
+        }
+    }
+}
+
+impl Node for StressNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        "stress_node"
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        self.rule.clone()
+    }
+
+    fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
+        let old = std::mem::replace(&mut self.value, value);
+        Some(old)
+    }
+
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        self.updates += 1;
+        if !self.emit_set_param_in_update {
+            return;
+        }
+
+        let next_value = match self.value {
+            ParamValue::Int(current) => current.wrapping_add(1),
+            _ => 1,
+        };
+
+        ctx.set_param_with_behaviour(self.id(), ParamValue::Int(next_value), ParameterEventBehaviour::Coalesce);
+    }
+}
+
+fn bench_env_usize(name: &str, default: usize) -> usize {
+    std::env::var(name)
+        .ok()
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
+}
+
+#[test]
+#[ignore = "stress benchmark: run manually with --ignored --nocapture"]
+fn bench_stress_20k_nodes_fast_updates_and_edits() {
+    let node_count = bench_env_usize("GC_BENCH_NODES", 20_000);
+    let rate_hz = bench_env_usize("GC_BENCH_RATE_HZ", 240) as u32;
+    let warmup_ticks = bench_env_usize("GC_BENCH_WARMUP_TICKS", 1);
+    let bench_ticks = bench_env_usize("GC_BENCH_TICKS", 1);
+    let elapsed_per_tick_ms = bench_env_usize("GC_BENCH_ELAPSED_MS", 16) as u64;
+    let elapsed_per_tick = Duration::from_millis(elapsed_per_tick_ms);
+
+    eprintln!(
+        "[bench] starting: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms"
+    );
+
+    let mut engine = Engine::new(StressNode::new("root", NodeExecutionRule::passive(), false));
+
+    let setup_start = Instant::now();
+    eprintln!("[bench] setup: queueing node additions");
+    for _ in 0..node_count {
+        engine.add_node(
+            StressNode::new("stress", NodeExecutionRule::periodic(rate_hz), true),
+            None,
+        );
+    }
+    eprintln!("[bench] setup: applying edits + resolving schedule");
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+    let setup_elapsed = setup_start.elapsed();
+    eprintln!("[bench] setup complete in {:?}", setup_elapsed);
+
+    eprintln!("[bench] warmup: {} tick(s)", warmup_ticks);
+    for _ in 0..warmup_ticks {
+        engine
+            .run_tick(elapsed_per_tick)
+            .expect("warmup tick should succeed");
+    }
+    eprintln!("[bench] warmup complete");
+
+    let updates_before: usize = engine.nodes.values().map(|node| node.updates).sum();
+    let benchmark_start = Instant::now();
+    eprintln!("[bench] benchmark: {} tick(s)", bench_ticks);
+    for tick in 0..bench_ticks {
+        engine
+            .run_tick(elapsed_per_tick)
+            .expect("benchmark tick should succeed");
+        eprintln!("[bench] benchmark tick {}/{}", tick + 1, bench_ticks);
+    }
+    let benchmark_elapsed = benchmark_start.elapsed();
+    let updates_after: usize = engine.nodes.values().map(|node| node.updates).sum();
+
+    let benchmark_updates = updates_after.saturating_sub(updates_before);
+    let benchmark_edits = benchmark_updates.saturating_sub(bench_ticks);
+    let secs = benchmark_elapsed.as_secs_f64().max(f64::EPSILON);
+    let updates_per_sec = benchmark_updates as f64 / secs;
+    let edits_per_sec = benchmark_edits as f64 / secs;
+
+    println!(
+        "stress bench: nodes={node_count}, rate_hz={rate_hz}, warmup_ticks={warmup_ticks}, bench_ticks={bench_ticks}, elapsed_per_tick={elapsed_per_tick_ms}ms"
+    );
+    println!("setup: {:?}, benchmark: {:?}", setup_elapsed, benchmark_elapsed);
+    println!(
+        "workload: updates={}, edits~= {} | throughput: updates/s={:.0}, edits/s={:.0}",
+        benchmark_updates, benchmark_edits, updates_per_sec, edits_per_sec
+    );
+
+    assert!(benchmark_updates > 0, "benchmark should execute update callbacks");
 }

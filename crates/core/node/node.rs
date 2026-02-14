@@ -59,7 +59,7 @@ pub struct NodeData {
 impl NodeData {
     /// Creates detached node data initialized with default metadata.
     pub fn new(label: String) -> Self {
-        println!("New node data, label: {}", label);
+        // println!("New node data, label: {}", label);
         let meta = NodeMeta::new(label);
 
         Self {
