@@ -172,6 +172,46 @@ impl<T: Node> HistoryStep<T> {
                     return Ok(());
                 };
 
+                if step.old_id == step.new_id {
+                    let live_node_data = engine
+                        .nodes
+                        .get(step.new_id)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: OP,
+                            node: step.new_id,
+                        })?
+                        .node_data()
+                        .clone();
+
+                    let mut old_node = old_node;
+                    {
+                        let old_data = old_node.node_data_mut();
+                        old_data.id = step.old_id;
+                        old_data.parent = live_node_data.parent;
+                        old_data.first_child = live_node_data.first_child;
+                        old_data.last_child = live_node_data.last_child;
+                        old_data.prev_sibling = live_node_data.prev_sibling;
+                        old_data.next_sibling = live_node_data.next_sibling;
+                    }
+
+                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.new_id,
+                    })?;
+                    engine.nodes.reattach(step.old_id, old_node);
+                    engine.mark_schedule_dirty();
+                    engine.emit_event(EventKind::ChildReplaced {
+                        parent: step.parent,
+                        old: step.new_id,
+                        new: step.old_id,
+                    });
+
+                    step.new_node = Some(detached_new_node);
+                    return Ok(());
+                }
+
                 engine.detach_node(0, OP, step.new_id)?;
                 let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?;
 
@@ -268,6 +308,46 @@ impl<T: Node> HistoryStep<T> {
                 let Some(new_node) = step.new_node.take() else {
                     return Ok(());
                 };
+
+                if step.old_id == step.new_id {
+                    let live_node_data = engine
+                        .nodes
+                        .get(step.old_id)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: OP,
+                            node: step.old_id,
+                        })?
+                        .node_data()
+                        .clone();
+
+                    let mut new_node = new_node;
+                    {
+                        let new_data = new_node.node_data_mut();
+                        new_data.id = step.new_id;
+                        new_data.parent = live_node_data.parent;
+                        new_data.first_child = live_node_data.first_child;
+                        new_data.last_child = live_node_data.last_child;
+                        new_data.prev_sibling = live_node_data.prev_sibling;
+                        new_data.next_sibling = live_node_data.next_sibling;
+                    }
+
+                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.old_id,
+                    })?;
+                    engine.nodes.reattach(step.new_id, new_node);
+                    engine.mark_schedule_dirty();
+                    engine.emit_event(EventKind::ChildReplaced {
+                        parent: step.parent,
+                        old: step.old_id,
+                        new: step.new_id,
+                    });
+
+                    step.old_node = Some(detached_old_node);
+                    return Ok(());
+                }
 
                 engine.detach_node(0, OP, step.old_id)?;
                 let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?;

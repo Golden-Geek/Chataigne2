@@ -382,7 +382,8 @@ fn undo_redo_replace_restores_original_node_id() {
     engine.apply_edits().expect("replace should succeed");
 
     let replacement_id = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("replacement child should exist");
-    assert_ne!(replacement_id, original_id, "replace should assign a fresh node id",);
+    assert_eq!(replacement_id, original_id, "replace should preserve the same node id",);
+    assert_eq!(engine.nodes.get(replacement_id).expect("replacement node should exist").node_data().meta.label, "replacement");
 
     assert!(engine.undo().expect("undo should succeed"));
     let restored = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("restored child should exist");

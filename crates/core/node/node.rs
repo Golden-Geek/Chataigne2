@@ -9,6 +9,9 @@ use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+mod handles;
+pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
+
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub u64);

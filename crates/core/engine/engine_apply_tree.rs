@@ -242,6 +242,7 @@ impl<T: Node> Engine<T> {
         let mut replacement = self.coerce_node_for_engine(edit_index, OP, new_node)?;
         {
             let replacement_data = replacement.node_data_mut();
+            replacement_data.id = node;
             replacement_data.parent = old_data.parent;
             replacement_data.first_child = old_data.first_child;
             replacement_data.last_child = old_data.last_child;
@@ -249,41 +250,16 @@ impl<T: Node> Engine<T> {
             replacement_data.next_sibling = old_data.next_sibling;
         }
 
-        let new_id = self.nodes.insert(replacement);
-
-        {
-            let parent_data = self.nodes.get_mut(parent).ok_or(EngineEditError::ParentNotFound { edit_index, operation: OP, parent })?.node_data_mut();
-            if parent_data.first_child == Some(node) {
-                parent_data.first_child = Some(new_id);
-            }
-            if parent_data.last_child == Some(node) {
-                parent_data.last_child = Some(new_id);
-            }
-        }
-
-        if let Some(prev) = old_data.prev_sibling {
-            let prev_data = self.nodes.get_mut(prev).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: prev })?.node_data_mut();
-            prev_data.next_sibling = Some(new_id);
-        }
-
-        if let Some(next) = old_data.next_sibling {
-            let next_data = self.nodes.get_mut(next).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: next })?.node_data_mut();
-            next_data.prev_sibling = Some(new_id);
-        }
-
-        self.reparent_child_chain(edit_index, OP, old_data.first_child, new_id)?;
-
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
+        self.nodes.reattach(node, replacement);
         self.mark_schedule_dirty();
 
-        self.emit_event(EventKind::NodeCreated { node: new_id });
-        self.emit_event(EventKind::ChildReplaced { parent, old: node, new: new_id });
-        self.emit_event(EventKind::NodeDeleted { node });
+        self.emit_event(EventKind::ChildReplaced { parent, old: node, new: node });
 
         Ok(ReplaceNodeEffect {
             parent,
             old_id: node,
-            new_id,
+            new_id: node,
             prev_sibling: old_data.prev_sibling,
             next_sibling: old_data.next_sibling,
             old_node,
