@@ -1,8 +1,9 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
 
-use crate::edit::{Edit, EditQueue};
+use crate::edit::{Edit, EditQueue, EditRequest};
 use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
 use crate::process_ctx::ProcessCtx;
@@ -74,6 +75,10 @@ pub struct Engine<T: Node> {
     pub inbox: Inbox,
     /// Pending edits to be applied.
     pub edits: EditQueue,
+    /// Cross-thread sender used by external producers to enqueue edits.
+    external_edits_tx: Sender<Edit>,
+    /// Cross-thread receiver drained by the engine before edit application.
+    external_edits_rx: Receiver<Edit>,
     /// Runtime listener subscriptions keyed by subscriber node id.
     pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
     /// Applied edit transactions available for undo.
@@ -99,6 +104,7 @@ impl<T: Node> Engine<T> {
         let root = nodes.insert(root);
         let mut last_update_elapsed_by_node = HashMap::new();
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
+        let (external_edits_tx, external_edits_rx) = mpsc::channel();
 
         Self {
             nodes,
@@ -106,6 +112,8 @@ impl<T: Node> Engine<T> {
             time: EngineTime { tick: 0, micro: 0, seq: 0 },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
+            external_edits_tx,
+            external_edits_rx,
             event_listeners: HashMap::new(),
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
@@ -141,13 +149,39 @@ impl<T: Node> Engine<T> {
         self.edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
     }
 
+    /// Returns a cloneable sender for queuing edits from external threads/tasks.
+    ///
+    /// Edits sent through this channel are merged into `self.edits` during
+    /// `apply_edits()` and runtime tick stabilization passes.
+    pub fn external_edit_sender(&self) -> Sender<Edit> {
+        self.external_edits_tx.clone()
+    }
+
+    /// Drains all externally queued edits into the engine edit queue.
+    ///
+    /// Returns how many external edit messages were drained.
+    pub fn absorb_external_edits(&mut self) -> Result<usize, EngineEditError> {
+        let mut queued_requests = Vec::new();
+        while let Ok(edit) = self.external_edits_rx.try_recv() {
+            queued_requests.push(EditRequest { edit });
+        }
+
+        let drained = queued_requests.len();
+        self.absorb_edit_requests(queued_requests)?;
+        Ok(drained)
+    }
+
     /// Moves edits from a processing context into the engine queue.
     ///
     /// Node-bearing edits are validated to ensure node types match `T`.
     pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        self.absorb_edit_requests(ctx.edits.drain())
+    }
+
+    fn absorb_edit_requests(&mut self, requests: Vec<EditRequest>) -> Result<(), EngineEditError> {
         let mut validated_edits = Vec::new();
 
-        for (edit_index, request) in ctx.edits.drain().into_iter().enumerate() {
+        for (edit_index, request) in requests.into_iter().enumerate() {
             match request.edit {
                 Edit::AddNode { node, parent, prev_sibling } => {
                     let provided_node_type = node.get_type().to_string();

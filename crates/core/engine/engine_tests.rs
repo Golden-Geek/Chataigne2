@@ -32,6 +32,123 @@ fn absorb_edits_accepts_matching_node_type() {
     assert_eq!(engine.edits.pending.len(), 1);
 }
 
+#[test]
+fn external_edit_sender_sets_param_from_another_thread() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+    let root_id = engine.root;
+    let sender = engine.external_edit_sender();
+
+    std::thread::spawn(move || {
+        sender
+            .send(Edit::SetParam {
+                node: root_id,
+                value: ParamValue::Int(33),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            })
+            .expect("external edit send should succeed");
+    })
+    .join()
+    .expect("external producer thread should join");
+
+    engine.apply_edits().expect("external edit should apply");
+    assert_eq!(
+        engine.nodes.get(root_id).expect("root parameter should exist").value,
+        ParamValue::Int(33),
+        "external set-param should be drained and applied",
+    );
+}
+
+#[test]
+fn external_edit_sender_adds_node_from_another_thread() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let root_id = engine.root;
+    let sender = engine.external_edit_sender();
+
+    std::thread::spawn(move || {
+        sender
+            .send(Edit::AddNode {
+                parent: root_id,
+                prev_sibling: None,
+                node: Box::new(Folder::new("external_child".to_string())),
+            })
+            .expect("external add-node send should succeed");
+    })
+    .join()
+    .expect("external producer thread should join");
+
+    engine.apply_edits().expect("external add-node edit should apply");
+
+    let child = engine
+        .nodes
+        .get(root_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("root should contain one child");
+    assert_eq!(
+        engine.nodes.get(child).expect("child node should exist").node_data().meta.label,
+        "external_child"
+    );
+}
+
+#[test]
+fn run_tick_drains_external_edits_without_manual_apply_call() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+    engine.resolve().expect("resolve should succeed");
+
+    let root_id = engine.root;
+    let sender = engine.external_edit_sender();
+    sender
+        .send(Edit::SetParam {
+            node: root_id,
+            value: ParamValue::Int(7),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        })
+        .expect("external set-param send should succeed");
+
+    engine
+        .run_tick(Duration::from_millis(1))
+        .expect("tick should drain and apply external edits");
+
+    assert_eq!(
+        engine.nodes.get(root_id).expect("root parameter should exist").value,
+        ParamValue::Int(7)
+    );
+}
+
+#[test]
+fn external_coalesced_set_param_edits_keep_latest_value() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+    let root_id = engine.root;
+    let sender = engine.external_edit_sender();
+
+    sender
+        .send(Edit::SetParam {
+            node: root_id,
+            value: ParamValue::Int(1),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        })
+        .expect("first external set-param send should succeed");
+    sender
+        .send(Edit::SetParam {
+            node: root_id,
+            value: ParamValue::Int(2),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        })
+        .expect("second external set-param send should succeed");
+
+    engine.absorb_external_edits().expect("external edits should be absorbed");
+    assert_eq!(engine.edits.pending.len(), 1, "coalesced external edits should collapse before apply");
+
+    engine.apply_edits().expect("external edits should apply");
+    assert_eq!(
+        engine.nodes.get(root_id).expect("root parameter should exist").value,
+        ParamValue::Int(2),
+        "latest coalesced value should win",
+    );
+}
+
 #[crate::node("auto_declared")]
 struct AutoDeclaredNode {
     #[param(default = 0.5, label = "Decay", description = "Envelope decay time")]

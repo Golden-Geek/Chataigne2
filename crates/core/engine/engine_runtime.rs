@@ -341,6 +341,12 @@ impl<T: Node> Engine<T> {
         self.time.seq = 0;
         self.runtime_elapsed = self.runtime_elapsed.saturating_add(elapsed);
 
+        self.absorb_external_edits()?;
+        if !self.edits.pending.is_empty() {
+            self.apply_edits()?;
+            self.resolve_if_needed()?;
+        }
+
         self.run_scheduled_updates(elapsed)?;
 
         self.run_stabilization_rounds()?;
@@ -523,7 +529,13 @@ impl<T: Node> Engine<T> {
     fn run_stabilization_rounds(&mut self) -> Result<(), EngineRuntimeError> {
         let mut pass = 0usize;
 
-        while !self.inbox.events.is_empty() || !self.edits.pending.is_empty() {
+        loop {
+            self.absorb_external_edits()?;
+
+            if self.inbox.events.is_empty() && self.edits.pending.is_empty() {
+                break;
+            }
+
             if pass >= self.runtime_limits.max_stabilization_passes_per_tick {
                 return Err(EngineRuntimeError::InfiniteEventEditCycle {
                     tick: self.time.tick,

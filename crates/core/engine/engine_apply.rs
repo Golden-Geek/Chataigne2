@@ -20,6 +20,8 @@ impl<T: Node> Engine<T> {
     /// engine.apply_edits().expect("edit application should succeed");
     /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
+        self.absorb_external_edits()?;
+
         let mut transaction = HistoryTransaction::new();
         let mut applied_any_edit = false;
 
