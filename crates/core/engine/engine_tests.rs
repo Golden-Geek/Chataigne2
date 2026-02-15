@@ -1190,7 +1190,7 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
 
 #[test]
 fn apply_set_param_rejects_values_outside_enum_constraints() {
-    let mut root = Parameter::new("mode", ParamValue::Str("a".to_string()), ParameterChangeCheck::None);
+    let mut root = Parameter::new("mode", ParamValue::Enum("a".to_string()), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
         min: None,
         max: None,
@@ -1199,13 +1199,51 @@ fn apply_set_param_rejects_values_outside_enum_constraints() {
         enum_options: vec![
             ParameterEnumOption {
                 variant_id: "a".to_string(),
-                value: ParamValue::Str("a".to_string()),
+                value: ParamValue::Enum("a".to_string()),
                 label: "Mode A".to_string(),
                 tags: Vec::new(),
                 ordering: Some(0),
             },
             ParameterEnumOption {
                 variant_id: "b".to_string(),
+                value: ParamValue::Enum("b".to_string()),
+                label: "Mode B".to_string(),
+                tags: Vec::new(),
+                ordering: Some(1),
+            },
+        ],
+        policy: ParameterConstraintPolicy::ClampAdapt,
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Enum("c".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+}
+
+#[test]
+fn apply_set_param_accepts_enum_variant_ids_with_legacy_string_enum_values() {
+    let mut root = Parameter::new("mode", ParamValue::Str("legacy_a".to_string()), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        min: None,
+        max: None,
+        step: None,
+        step_base: None,
+        enum_options: vec![
+            ParameterEnumOption {
+                variant_id: "legacy_a".to_string(),
+                value: ParamValue::Str("a".to_string()),
+                label: "Mode A".to_string(),
+                tags: Vec::new(),
+                ordering: Some(0),
+            },
+            ParameterEnumOption {
+                variant_id: "legacy_b".to_string(),
                 value: ParamValue::Str("b".to_string()),
                 label: "Mode B".to_string(),
                 tags: Vec::new(),
@@ -1218,12 +1256,13 @@ fn apply_set_param_rejects_values_outside_enum_constraints() {
 
     engine.edits.push(Edit::SetParam {
         node: engine.root,
-        value: ParamValue::Str("c".to_string()),
+        value: ParamValue::Enum("legacy_b".to_string()),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
+    engine.apply_edits().expect("enum variant ids should be accepted against legacy string enum values");
 
-    let result = engine.apply_edits();
-    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+    let value = engine.nodes.get(engine.root).expect("root parameter should exist").value.clone();
+    assert_eq!(value, ParamValue::Enum("legacy_b".to_string()));
 }
 
 fn encode_parameter_node(node: &Parameter) -> Result<serde_json::Value, String> {

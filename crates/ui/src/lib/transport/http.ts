@@ -209,6 +209,9 @@ const fromRustParamValue = (value: unknown): ParamValue => {
 	if ('Str' in value) {
 		return { kind: 'str', value: String(value.Str ?? '') };
 	}
+	if ('Enum' in value) {
+		return { kind: 'enum', value: String(value.Enum ?? '') };
+	}
 	if ('Bool' in value) {
 		return { kind: 'bool', value: Boolean(value.Bool) };
 	}
@@ -260,6 +263,8 @@ const toRustParamValue = (value: ParamValue): RustParamValue => {
 			return { Float: value.value };
 		case 'str':
 			return { Str: value.value };
+		case 'enum':
+			return { Enum: value.value };
 		case 'bool':
 			return { Bool: value.value };
 		case 'vec2':

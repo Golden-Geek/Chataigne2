@@ -12,13 +12,30 @@
 	} = $props();
 
 	const param = $derived(node.data.kind === 'parameter' ? node.data.param : null);
-	const selectedEnumVariantId = $derived(
-		param
-			? param.constraints.enum_options.find(
-					(option) => JSON.stringify(option.value) === JSON.stringify(param.value)
-				)?.variant_id
-			: undefined
-	);
+	const selectedEnumVariantId = $derived.by(() => {
+		if (!param) {
+			return undefined;
+		}
+
+		if (param.value.kind === 'enum') {
+			return param.value.value;
+		}
+
+		const exactValueMatch = param.constraints.enum_options.find(
+			(option) => JSON.stringify(option.value) === JSON.stringify(param.value)
+		);
+		if (exactValueMatch) {
+			return exactValueMatch.variant_id;
+		}
+
+		if (param.value.kind === 'str') {
+			return param.constraints.enum_options.find(
+				(option) => option.variant_id === param.value.value
+			)?.variant_id;
+		}
+
+		return undefined;
+	});
 
 	let activeContinuousEditId: string | null = null;
 
@@ -145,6 +162,17 @@
 					onpointercancel={() => endContinuousEdit()}
 					onblur={() => endContinuousEdit()}
 				/>
+			{:else if param.value.kind === 'enum'}
+				<input
+					type="text"
+					value={param.value.value}
+					disabled={param.read_only}
+					onchange={(event) =>
+						dispatchSetParam(node, {
+							kind: 'enum',
+							value: (event.currentTarget as HTMLInputElement).value
+						})}
+				/>
 			{:else if param.value.kind === 'str'}
 				<input
 					type="text"
@@ -170,7 +198,7 @@
 							(option) => option.variant_id === variantId
 						);
 						if (variant) {
-							dispatchSetParam(node, variant.value);
+							dispatchSetParam(node, { kind: 'enum', value: variant.variant_id });
 						}
 					}}
 				>

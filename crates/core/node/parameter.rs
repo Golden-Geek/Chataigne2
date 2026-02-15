@@ -17,6 +17,8 @@ pub enum ParamValue {
     Float(f64),
     /// UTF-8 string value.
     Str(String),
+    /// Enum variant identifier.
+    Enum(String),
     /// Boolean value.
     Bool(bool),
 
@@ -99,7 +101,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(*i),
             ParamValue::Float(f) => Some(*f as i32),
-            ParamValue::Str(s) => s.parse().ok(),
+            ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(if *b { 1 } else { 0 }),
             _ => None,
         }
@@ -110,7 +112,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(*i as f64),
             ParamValue::Float(f) => Some(*f),
-            ParamValue::Str(s) => s.parse().ok(),
+            ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
             _ => None,
         }
@@ -121,8 +123,17 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(i.to_string()),
             ParamValue::Float(f) => Some(f.to_string()),
-            ParamValue::Str(s) => Some(s.clone()),
+            ParamValue::Str(s) | ParamValue::Enum(s) => Some(s.clone()),
             ParamValue::Bool(b) => Some(b.to_string()),
+            _ => None,
+        }
+    }
+
+    /// Coerces this value into an enum variant id, when possible.
+    pub fn as_enum(&self) -> Option<String> {
+        match self {
+            ParamValue::Enum(variant_id) => Some(variant_id.clone()),
+            ParamValue::Str(s) => Some(s.clone()),
             _ => None,
         }
     }
@@ -132,7 +143,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(*i != 0),
             ParamValue::Float(f) => Some(*f != 0.0),
-            ParamValue::Str(s) => s.parse().ok(),
+            ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(*b),
             _ => None,
         }
@@ -143,7 +154,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some((*i as f64, *i as f64)),
             ParamValue::Float(f) => Some((*f, *f)),
-            ParamValue::Str(s) => {
+            ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
                 if parts.len() == 2 {
                     if let (Ok(x), Ok(y)) = (parts[0].trim().parse(), parts[1].trim().parse()) {
@@ -162,7 +173,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some((*i as f64, *i as f64, *i as f64)),
             ParamValue::Float(f) => Some((*f, *f, *f)),
-            ParamValue::Str(s) => {
+            ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
                 if parts.len() == 3 {
                     if let (Ok(x), Ok(y), Ok(z)) = (parts[0].trim().parse(), parts[1].trim().parse(), parts[2].trim().parse()) {
@@ -182,7 +193,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(((*i as f64 / 255.0), (*i as f64 / 255.0), (*i as f64 / 255.0), 1.0)),
             ParamValue::Float(f) => Some((*f, *f, *f, 1.0)),
-            ParamValue::Str(s) => {
+            ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
                 if parts.len() == 4 {
                     if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (parts[0].trim().parse(), parts[1].trim().parse(), parts[2].trim().parse(), parts[3].trim().parse()) {
@@ -276,15 +287,30 @@ impl ParameterConstraints {
             }
         }
 
-        let normalized = match incoming {
+        let mut normalized = match incoming {
             ParamValue::Int(value) => self.normalize_int(value)?,
             ParamValue::Float(value) => self.normalize_float(value)?,
             other => other,
         };
 
-        if !self.enum_options.is_empty() && !self.enum_options.iter().any(|option| option.value == normalized) {
-            let allowed: Vec<String> = self.enum_options.iter().map(|option| option.variant_id.clone()).collect();
-            return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
+        if !self.enum_options.is_empty() {
+            let matches_value = self.enum_options.iter().any(|option| option.value == normalized);
+            let matches_variant_id = self.enum_options.iter().any(|option| match &normalized {
+                ParamValue::Enum(variant_id) => option.variant_id == *variant_id,
+                ParamValue::Str(variant_id) => option.variant_id == *variant_id,
+                _ => false,
+            });
+
+            if !matches_value && !matches_variant_id {
+                let allowed: Vec<String> = self.enum_options.iter().map(|option| option.variant_id.clone()).collect();
+                return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
+            }
+
+            if let ParamValue::Str(variant_id) = &normalized {
+                if self.enum_options.iter().any(|option| option.variant_id == *variant_id) {
+                    normalized = ParamValue::Enum(variant_id.clone());
+                }
+            }
         }
 
         Ok(normalized)
@@ -495,6 +521,7 @@ impl Node for Parameter {
             ParamValue::Int(_) => "int",
             ParamValue::Float(_) => "float",
             ParamValue::Str(_) => "str",
+            ParamValue::Enum(_) => "enum",
             ParamValue::Bool(_) => "bool",
             ParamValue::Vec2(_, _) => "vec2",
             ParamValue::Vec3(_, _, _) => "vec3",
