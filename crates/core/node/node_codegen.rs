@@ -25,8 +25,7 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
     for path in rust_files {
         println!("cargo:rerun-if-changed={}", path.display());
 
-        let source_raw = fs::read_to_string(&path)
-            .unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+        let source_raw = fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
         let source = strip_for_scanning(&source_raw);
 
         // Only files declaring node types through supported node declaration macros
@@ -36,17 +35,11 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
         }
 
         let module = module_name_from_relative(src_root, &path);
-        let source_path = normalize_absolute_path(
-            path.canonicalize()
-                .unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", path.display(), err)),
-        );
+        let source_path = normalize_absolute_path(path.canonicalize().unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", path.display(), err)));
 
         let type_names = extract_struct_names(&source);
         if type_names.is_empty() {
-            panic!(
-                "could not find any `struct <Type>` in {} (expected node type declaration)",
-                path.display()
-            );
+            panic!("could not find any `struct <Type>` in {} (expected node type declaration)", path.display());
         }
 
         for type_name in type_names {
@@ -62,8 +55,7 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
     ensure_unique_type_names(&entries);
 
     let generated = render_registry(&entries);
-    fs::write(out_file, generated)
-        .unwrap_or_else(|err| panic!("failed to write {}: {}", out_file.display(), err));
+    fs::write(out_file, generated).unwrap_or_else(|err| panic!("failed to write {}: {}", out_file.display(), err));
 }
 
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -71,8 +63,7 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
         return;
     }
 
-    let read_dir = fs::read_dir(dir)
-        .unwrap_or_else(|err| panic!("failed to read {}: {}", dir.display(), err));
+    let read_dir = fs::read_dir(dir).unwrap_or_else(|err| panic!("failed to read {}: {}", dir.display(), err));
 
     for entry in read_dir {
         let entry = entry.unwrap_or_else(|err| panic!("failed to read dir entry: {}", err));
@@ -110,10 +101,7 @@ fn extract_all_after_marker(source: &str, marker: &str) -> Vec<String> {
     while let Some(found) = source[offset..].find(marker) {
         let start = offset + found + marker.len();
         let tail = &source[start..];
-        let ident: String = tail
-            .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-            .collect();
+        let ident: String = tail.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
 
         if !ident.is_empty() {
             out.push(ident);
@@ -126,13 +114,7 @@ fn extract_all_after_marker(source: &str, marker: &str) -> Vec<String> {
 }
 
 fn module_name_from_relative(src_root: &Path, file: &Path) -> String {
-    let relative = file.strip_prefix(src_root).unwrap_or_else(|_| {
-        panic!(
-            "failed to compute relative path for {} from {}",
-            file.display(),
-            src_root.display()
-        )
-    });
+    let relative = file.strip_prefix(src_root).unwrap_or_else(|_| panic!("failed to compute relative path for {} from {}", file.display(), src_root.display()));
 
     let mut module = String::new();
     for component in relative.components() {
@@ -141,11 +123,7 @@ fn module_name_from_relative(src_root: &Path, file: &Path) -> String {
             continue;
         }
 
-        let stem = if s.ends_with(".rs") {
-            &s[..s.len() - 3]
-        } else {
-            &s
-        };
+        let stem = if s.ends_with(".rs") { &s[..s.len() - 3] } else { &s };
 
         if module.is_empty() {
             module.push_str(&sanitize_ident_part(stem));
@@ -179,21 +157,13 @@ fn ensure_unique_type_names(entries: &[NodeEntry]) {
     let mut seen = HashSet::new();
     for entry in entries {
         if !seen.insert(entry.type_name.clone()) {
-            panic!(
-                "duplicate node type `{}` detected; node type names must be unique",
-                entry.type_name
-            );
+            panic!("duplicate node type `{}` detected; node type names must be unique", entry.type_name);
         }
     }
 }
 
 fn declares_node_type(source: &str) -> bool {
-    source.contains("#[node(")
-        || source.contains("#[node]")
-        || source.contains("#[golden_core::node(")
-        || source.contains("#[golden_core::node]")
-        || source.contains("#[::golden_core::node(")
-        || source.contains("#[::golden_core::node]")
+    source.contains("#[node(") || source.contains("#[node]") || source.contains("#[golden_core::node(") || source.contains("#[golden_core::node]") || source.contains("#[::golden_core::node(") || source.contains("#[::golden_core::node]")
 }
 
 fn render_registry(entries: &[NodeEntry]) -> String {
@@ -268,11 +238,7 @@ fn strip_for_scanning(source: &str) -> String {
             i += 1;
         }
 
-        if i < bytes.len() && bytes[i] == b'"' {
-            Some((hashes, i + 1 - at))
-        } else {
-            None
-        }
+        if i < bytes.len() && bytes[i] == b'"' { Some((hashes, i + 1 - at)) } else { None }
     }
 
     let bytes = source.as_bytes();

@@ -361,6 +361,34 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_visit_references_mut(&mut self, _visit: &mut dyn FnMut(&mut NodeReference)) {}
 
+    /// Engine-internal hook used to synchronize local parameter-handle caches.
+    ///
+    /// App node code should not call this directly.
+    #[doc(hidden)]
+    fn engine_sync_param_handle_cache(&mut self, _param: NodeId, _new_value: &ParamValue) {}
+
+    /// Engine-internal hook run immediately after attachment, before `init`.
+    ///
+    /// App node code should not call this directly.
+    #[doc(hidden)]
+    fn engine_on_attached(&mut self, _ctx: &mut ProcessCtx) {}
+
+    /// Engine-internal hook to refresh all currently bound parameter handles.
+    ///
+    /// App node code should not call this directly.
+    #[doc(hidden)]
+    fn engine_sync_bound_param_handles(&mut self, _resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {}
+
+    /// Engine-internal inbox preprocessing hook run before app-level inbox handling.
+    #[doc(hidden)]
+    fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
+        for event in ctx.events.clone() {
+            if let EventKind::ParamChanged { param, new_value, .. } = event.kind {
+                self.engine_sync_param_handle_cache(param, &new_value);
+            }
+        }
+    }
+
     /// Attempts to downcast a boxed trait object into `Self`.
     fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
     where
@@ -381,6 +409,8 @@ pub trait Node: Send + Any {
     }
 
     /// Called when the node is initialized.
+    ///
+    /// Core internal attachment/setup hooks run before this callback.
     fn init(&mut self, _ctx: &mut ProcessCtx) {}
     /// Called at this node's update rate.
     fn update(&mut self, _ctx: &mut ProcessCtx) {} // called at this node's desired update rate
@@ -411,6 +441,15 @@ pub trait Node: Send + Any {
     /// `depth` is the ancestor distance from event origin (`0` for the origin node).
     fn event_propagation(&self, _event: &Event, _depth: u32) -> EventPropagation {
         EventPropagation::Notify
+    }
+
+    /// Engine-internal additional descendant interest depth.
+    ///
+    /// This is merged by the engine with `child_event_interest_depth` so core
+    /// features can subscribe without taking over app-facing callbacks.
+    #[doc(hidden)]
+    fn engine_child_event_interest_depth(&self, _event: &Event) -> u32 {
+        0
     }
     /// Dispatches inbox events to per-event handlers.
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {

@@ -133,7 +133,7 @@ fn external_coalesced_set_param_edits_keep_latest_value() {
 
 #[crate::node("auto_declared")]
 struct AutoDeclaredNode {
-    #[param(default = 0.5, label = "Decay", description = "Envelope decay time")]
+    #[param(default = 0.5, label = "Decay", description = "Envelope decay time", min = 0.0, max = 1.0, step = 0.05, step_base = 0.0, policy = "ClampAdapt")]
     decay: crate::node::ParameterHandle<f64>,
 
     #[potential_node(decl_id = "value")]
@@ -145,15 +145,53 @@ struct DslParamsNode {
     feedback: crate::node::ParameterHandle<f64>,
     host: crate::node::ParameterHandle<String>,
     gamma: crate::node::ParameterHandle<f64>,
+    observed_feedback_new: Option<f64>,
+    observed_feedback_old: Option<ParamValue>,
 }
 
 impl DslParamsNode {
     fn new(label: impl Into<String>) -> Self {
         Self {
             node_data: NodeData::new(label.into()),
-            feedback: crate::node::ParameterHandle::new(NodeId(0), 0.5),
-            host: crate::node::ParameterHandle::new(NodeId(0), "127.0.0.1".to_string()),
-            gamma: crate::node::ParameterHandle::new(NodeId(0), 2.2),
+            feedback: crate::node::ParameterHandle::new(0.5),
+            host: crate::node::ParameterHandle::new("127.0.0.1".to_string()),
+            gamma: crate::node::ParameterHandle::new(2.2),
+            observed_feedback_new: None,
+            observed_feedback_old: None,
+        }
+    }
+}
+
+struct ManualInboxParamsNode {
+    node_data: NodeData,
+    value: crate::node::ParameterHandle<f64>,
+    observed_inbox_value: Option<f64>,
+}
+
+impl ManualInboxParamsNode {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            node_data: NodeData::new(label.into()),
+            value: crate::node::ParameterHandle::new(0.5),
+            observed_inbox_value: None,
+        }
+    }
+}
+
+struct ParamsWithCustomInitNode {
+    node_data: NodeData,
+    value: crate::node::ParameterHandle<f64>,
+    init_calls: usize,
+    init_observed_value: Option<f64>,
+}
+
+impl ParamsWithCustomInitNode {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            node_data: NodeData::new(label.into()),
+            value: crate::node::ParameterHandle::unbound(),
+            init_calls: 0,
+            init_observed_value: None,
         }
     }
 }
@@ -161,7 +199,13 @@ impl DslParamsNode {
 #[crate::node("dsl_params_node")]
 impl Node for DslParamsNode {
     crate::params! {
-        feedback: f64 = 0.5 [0.0..1.0] (label = "Feedback", description = "Delay feedback amount");
+        feedback: f64 = 0.5 [0.0..1.0] (
+            label = "Feedback",
+            description = "Delay feedback amount",
+            step = 0.1,
+            step_base = 0.0,
+            policy = "Reject",
+        );
 
         folder(output, label = "Output") {
             host: String = "127.0.0.1" (label = "Host", description = "OSC destination host");
@@ -171,12 +215,54 @@ impl Node for DslParamsNode {
             }
         }
     }
+
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
+        if param == self.feedback.id() {
+            self.observed_feedback_old = Some(old_value);
+            self.observed_feedback_new = Some(*self.feedback.get());
+        }
+    }
+}
+
+#[crate::node("manual_inbox_params_node")]
+impl Node for ManualInboxParamsNode {
+    crate::params! {
+        value: f64 = 0.5 [0.0..1.0] (label = "Value");
+    }
+
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        for event in &ctx.events {
+            if let EventKind::ParamChanged { param, .. } = &event.kind {
+                if *param == self.value.id() {
+                    self.observed_inbox_value = Some(*self.value.get());
+                }
+            }
+        }
+    }
+}
+
+#[crate::node("params_with_custom_init_node")]
+impl Node for ParamsWithCustomInitNode {
+    crate::params! {
+        value: f64 = 0.5 [0.0..1.0] (label = "Value");
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.init_calls += 1;
+        self.init_observed_value = Some(*self.value.get());
+    }
+
+    fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
+        0
+    }
 }
 
 crate::define_node_enum!(
     enum MacroTestNode {
         AutoDeclaredNode,
         DslParamsNode,
+        ManualInboxParamsNode,
+        ParamsWithCustomInitNode,
     }
 );
 
@@ -206,6 +292,14 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     let decay_meta = engine.nodes.get(decay_param).expect("decay node should exist").node_data().meta.clone();
     assert_eq!(decay_meta.label, "Decay");
     assert_eq!(decay_meta.description.as_deref(), Some("Envelope decay time"));
+    let MacroTestNode::Parameter(decay_param_node) = engine.nodes.get(decay_param).expect("decay parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(decay_param_node.constraints.min, Some(0.0));
+    assert_eq!(decay_param_node.constraints.max, Some(1.0));
+    assert_eq!(decay_param_node.constraints.step, Some(0.05));
+    assert_eq!(decay_param_node.constraints.step_base, Some(0.0));
+    assert_eq!(decay_param_node.constraints.policy, ParameterConstraintPolicy::ClampAdapt);
 
     engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
 
@@ -263,10 +357,151 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let feedback_meta = engine.nodes.get(feedback).expect("feedback node should exist").node_data().meta.clone();
     assert_eq!(feedback_meta.label, "Feedback");
     assert_eq!(feedback_meta.description.as_deref(), Some("Delay feedback amount"));
+    let MacroTestNode::Parameter(feedback_param) = engine.nodes.get(feedback).expect("feedback parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(feedback_param.constraints.min, Some(0.0));
+    assert_eq!(feedback_param.constraints.max, Some(1.0));
+    assert_eq!(feedback_param.constraints.step, Some(0.1));
+    assert_eq!(feedback_param.constraints.step_base, Some(0.0));
+    assert_eq!(feedback_param.constraints.policy, ParameterConstraintPolicy::Reject);
 
     let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");
     assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
+}
+
+#[test]
+fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslParamsNode::new("dsl").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dsl node should be attached under root");
+    let feedback = find_child_by_decl(&engine, owner, "feedback").expect("feedback parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: feedback,
+        value: ParamValue::Float(0.6),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+
+    let MacroTestNode::DslParamsNode(node) = engine.nodes.get(owner).expect("dsl node should exist") else {
+        panic!("expected DslParamsNode variant");
+    };
+
+    assert!(
+        node.observed_feedback_new.is_some_and(|value| (value - 0.6).abs() < 1e-9),
+        "on_param_change should observe synced handle cache with new value",
+    );
+    assert!(
+        matches!(node.observed_feedback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9),
+        "on_param_change should still receive previous parameter value",
+    );
+}
+
+#[test]
+fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(ManualInboxParamsNode::new("manual").into(), None);
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("manual node should be attached under root");
+    let value_param = find_child_by_decl(&engine, owner, "value").expect("value parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(0.6),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+
+    let MacroTestNode::ManualInboxParamsNode(node) = engine.nodes.get(owner).expect("manual node should exist") else {
+        panic!("expected ManualInboxParamsNode variant");
+    };
+
+    assert!(
+        node.observed_inbox_value.is_some_and(|value| (value - 0.6).abs() < 1e-9),
+        "custom on_inbox should observe already-preprocessed handle value",
+    );
+}
+
+#[test]
+fn params_macro_keeps_init_and_child_interest_overrides_available() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(ParamsWithCustomInitNode::new("custom").into(), None);
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("custom node should be attached under root");
+    let value_param = find_child_by_decl(&engine, owner, "value").expect("value parameter should exist");
+
+    let MacroTestNode::ParamsWithCustomInitNode(node) = engine.nodes.get(owner).expect("custom node should exist") else {
+        panic!("expected ParamsWithCustomInitNode variant");
+    };
+
+    assert_eq!(node.init_calls, 1, "custom init override should remain active");
+    assert_eq!(node.value.id(), value_param, "params preprocessing should still bind handles");
+    assert!(
+        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
+        "custom init should observe params! default value before app init runs",
+    );
+}
+
+#[test]
+fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_event() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslParamsNode::new("dsl").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("dsl node should be attached under root");
+    let feedback = find_child_by_decl(&engine, owner, "feedback").expect("feedback parameter should exist");
+
+    let MacroTestNode::Parameter(feedback_param) = engine.nodes.get_mut(feedback).expect("feedback parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    feedback_param.value = ParamValue::Float(0.9);
+
+    engine.edits.push(Edit::EmitCustomEvent {
+        event: CustomEvent::new("owner.ping", Some(owner), serde_json::Value::Null),
+    });
+    engine.apply_edits().expect("custom event emit should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+
+    let MacroTestNode::DslParamsNode(node) = engine.nodes.get(owner).expect("dsl node should exist") else {
+        panic!("expected DslParamsNode variant");
+    };
+
+    assert!(
+        (*node.feedback.get() - 0.9).abs() < 1e-9,
+        "bound handle should refresh from runtime parameter value before node callbacks",
+    );
 }
 
 #[test]

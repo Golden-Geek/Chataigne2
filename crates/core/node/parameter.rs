@@ -198,18 +198,20 @@ impl ParamValue {
 }
 
 /// Strategy used to decide whether a `set` call should enqueue an edit.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Default, Deserialize)]
 pub enum ParameterChangeCheck {
     /// Emit only when the value differs.
+    #[default]
     ValueChange,
     /// Always emit, even if unchanged.
     None,
 }
 
 /// Strategy for handling multiple parameter changes within the same process tick.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Default, Deserialize)]
 pub enum ParameterEventBehaviour {
     /// Keep only the latest pending set for this parameter within a queue drain.
+    #[default]
     Coalesce,
     /// Keep every pending set for this parameter within a queue drain.
     Append,

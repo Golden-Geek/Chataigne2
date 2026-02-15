@@ -96,7 +96,7 @@
 					/>
 				{:else if selectedParam.value.kind === 'float'}
 					<input
-						type="number"
+						type="{ selectedParam.constraints.min !== undefined && selectedParam.constraints.max !== undefined ? 'range' : 'number' }"
 						value={selectedParam.value.value}
 						min={selectedParam.constraints.min}
 						max={selectedParam.constraints.max}

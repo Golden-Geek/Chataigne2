@@ -126,6 +126,26 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_sync_param_handle_cache(&mut self, param: $crate::node::NodeId, new_value: &$crate::parameter::ParamValue) {
+                $crate::__dispatch_node_enum!(self, engine_sync_param_handle_cache, param, new_value; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_on_attached(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                $crate::__dispatch_node_enum!(self, engine_on_attached, ctx; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_sync_bound_param_handles(&mut self, resolve: &mut dyn FnMut($crate::node::NodeId) -> Option<$crate::parameter::ParamValue>) {
+                $crate::__dispatch_node_enum!(self, engine_sync_bound_param_handles, resolve; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_preprocess_inbox(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
+                $crate::__dispatch_node_enum!(self, engine_preprocess_inbox, ctx; $($variant),*)
+            }
+
+            #[inline(always)]
             fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
                 $crate::__dispatch_node_enum!(self, init, ctx; $($variant),*)
             }
@@ -153,6 +173,11 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn event_propagation(&self, event: &$crate::events::Event, depth: u32) -> $crate::node::EventPropagation {
                 $crate::__dispatch_node_enum!(self, event_propagation, event, depth; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_child_event_interest_depth(&self, event: &$crate::events::Event) -> u32 {
+                $crate::__dispatch_node_enum!(self, engine_child_event_interest_depth, event; $($variant),*)
             }
 
             #[inline(always)]

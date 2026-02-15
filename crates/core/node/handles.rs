@@ -124,19 +124,39 @@ pub struct ParameterHandle<T: ParameterValueType + PartialEq> {
 }
 
 impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
-    /// Creates a typed parameter handle with default policies.
-    pub fn new(node: NodeId, initial: T) -> Self {
+    /// Creates an unbound typed parameter handle with default policies.
+    ///
+    /// The runtime node id is assigned later by the engine.
+    pub fn new(initial: T) -> Self {
         Self {
-            node,
+            node: NodeId(0),
             cached: initial,
             change_check: ParameterChangeCheck::ValueChange,
             event_behaviour: ParameterEventBehaviour::Coalesce,
         }
     }
 
-    /// Creates a typed parameter handle with explicit policies.
-    pub fn with_policies(node: NodeId, initial: T, change_check: ParameterChangeCheck, event_behaviour: ParameterEventBehaviour) -> Self {
-        Self { node, cached: initial, change_check, event_behaviour }
+    /// Creates an unbound typed parameter handle with explicit policies.
+    ///
+    /// The runtime node id is assigned later by the engine.
+    pub fn with_policies(initial: T, change_check: ParameterChangeCheck, event_behaviour: ParameterEventBehaviour) -> Self {
+        Self {
+            node: NodeId(0),
+            cached: initial,
+            change_check,
+            event_behaviour,
+        }
+    }
+
+    /// Creates an unbound typed parameter handle with a `Default` cached value.
+    ///
+    /// This is useful when the runtime value is declared through `params!` and the
+    /// handle will be synchronized by engine preprocessing.
+    pub fn unbound() -> Self
+    where
+        T: Default,
+    {
+        Self::new(T::default())
     }
 
     /// Returns the parameter node id.
@@ -160,13 +180,8 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
     }
 
     /// Returns the locally cached value.
-    pub fn get_cached(&self) -> &T {
+    pub fn get(&self) -> &T {
         &self.cached
-    }
-
-    /// Replaces the local cache without emitting an edit.
-    pub fn set_cached(&mut self, value: T) {
-        self.cached = value;
     }
 
     /// Returns the current change-check policy.
@@ -422,12 +437,13 @@ mod tests {
 
     #[test]
     fn parameter_handle_set_queues_coalesced_set_param_and_updates_cache() {
-        let mut handle = ParameterHandle::new(NodeId(10), 0.5f64);
+        let mut handle = ParameterHandle::new(0.5f64);
+        handle.set_node_id(NodeId(10));
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
         handle.set(&mut ctx, 0.75);
 
-        assert_eq!(*handle.get_cached(), 0.75);
+        assert_eq!(*handle.get(), 0.75);
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
             Edit::SetParam { node, value, behaviour } => {
@@ -441,7 +457,8 @@ mod tests {
 
     #[test]
     fn parameter_handle_value_change_policy_skips_unchanged_values() {
-        let mut handle = ParameterHandle::with_policies(NodeId(11), 1.0f64, ParameterChangeCheck::ValueChange, ParameterEventBehaviour::Coalesce);
+        let mut handle = ParameterHandle::with_policies(1.0f64, ParameterChangeCheck::ValueChange, ParameterEventBehaviour::Coalesce);
+        handle.set_node_id(NodeId(11));
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
         handle.set(&mut ctx, 1.0);
@@ -454,10 +471,11 @@ mod tests {
 
     #[test]
     fn parameter_handle_can_update_cache_from_runtime_value() {
-        let mut handle = ParameterHandle::new(NodeId(12), 0.0f64);
+        let mut handle = ParameterHandle::new(0.0f64);
+        handle.set_node_id(NodeId(12));
         let ok = handle.apply_runtime_value(&ParamValue::Int(3));
         assert!(ok);
-        assert_eq!(*handle.get_cached(), 3.0);
+        assert_eq!(*handle.get(), 3.0);
     }
 
     #[test]

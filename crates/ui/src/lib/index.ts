@@ -1,7 +1,7 @@
 export { createGraphStore } from './store/graph';
 export type { GraphState, GraphStore } from './store/graph';
 
-export { createMockUiClient } from './transport/mock';
+export { createHttpUiClient } from './transport/http';
 
 export { default as Workbench } from './components/Workbench.svelte';
 export { default as NodeTree } from './components/NodeTree.svelte';

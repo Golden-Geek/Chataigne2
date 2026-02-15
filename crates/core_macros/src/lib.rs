@@ -90,6 +90,12 @@ struct ParamFieldArgs {
     decl_id: Option<LitStr>,
     label: Option<LitStr>,
     description: Option<LitStr>,
+    min: Option<Expr>,
+    max: Option<Expr>,
+    step: Option<Expr>,
+    step_base: Option<Expr>,
+    policy: Option<LitStr>,
+    enum_options: Option<Expr>,
 }
 
 impl Parse for ParamFieldArgs {
@@ -120,8 +126,38 @@ impl Parse for ParamFieldArgs {
                     return Err(Error::new(key.span(), "duplicate `description`"));
                 }
                 out.description = Some(input.parse::<LitStr>()?);
+            } else if key == "min" {
+                if out.min.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `min`"));
+                }
+                out.min = Some(input.parse::<Expr>()?);
+            } else if key == "max" {
+                if out.max.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `max`"));
+                }
+                out.max = Some(input.parse::<Expr>()?);
+            } else if key == "step" {
+                if out.step.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `step`"));
+                }
+                out.step = Some(input.parse::<Expr>()?);
+            } else if key == "step_base" || key == "stepBase" {
+                if out.step_base.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `step_base`"));
+                }
+                out.step_base = Some(input.parse::<Expr>()?);
+            } else if key == "policy" || key == "constraint_policy" || key == "constraintPolicy" {
+                if out.policy.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `policy`"));
+                }
+                out.policy = Some(input.parse::<LitStr>()?);
+            } else if key == "enum_options" || key == "enumOptions" {
+                if out.enum_options.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `enum_options`"));
+                }
+                out.enum_options = Some(input.parse::<Expr>()?);
             } else {
-                return Err(Error::new(key.span(), "unsupported #[param(...)] argument (supported: default, decl_id, label, description)"));
+                return Err(Error::new(key.span(), "unsupported #[param(...)] argument (supported: default, decl_id, label, description, min, max, step, step_base, policy, enum_options)"));
             }
 
             if input.is_empty() {
@@ -188,6 +224,12 @@ struct ParamsDslParamOptions {
     label: Option<LitStr>,
     description: Option<LitStr>,
     behaviour: Option<LitStr>,
+    min: Option<Expr>,
+    max: Option<Expr>,
+    step: Option<Expr>,
+    step_base: Option<Expr>,
+    policy: Option<LitStr>,
+    enum_options: Option<Expr>,
 }
 
 struct ParamsDslParam {
@@ -296,6 +338,36 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `behavior` option"));
                 }
                 out.behaviour = Some(input.parse::<LitStr>()?);
+            } else if key == "min" {
+                if out.min.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `min` option"));
+                }
+                out.min = Some(input.parse::<Expr>()?);
+            } else if key == "max" {
+                if out.max.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `max` option"));
+                }
+                out.max = Some(input.parse::<Expr>()?);
+            } else if key == "step" {
+                if out.step.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `step` option"));
+                }
+                out.step = Some(input.parse::<Expr>()?);
+            } else if key == "step_base" || key == "stepBase" {
+                if out.step_base.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `step_base` option"));
+                }
+                out.step_base = Some(input.parse::<Expr>()?);
+            } else if key == "policy" || key == "constraint_policy" || key == "constraintPolicy" {
+                if out.policy.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `policy` option"));
+                }
+                out.policy = Some(input.parse::<LitStr>()?);
+            } else if key == "enum_options" || key == "enumOptions" {
+                if out.enum_options.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `enum_options` option"));
+                }
+                out.enum_options = Some(input.parse::<Expr>()?);
             } else {
                 let _: Expr = input.parse()?;
             }
@@ -323,12 +395,21 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
         }
     }
 
-    tail.retain(|token| {
-        !matches!(
-            token,
-            TokenTree::Group(group) if group.delimiter() == Delimiter::Bracket
-        )
-    });
+    if let Some(TokenTree::Group(group)) = tail.last() {
+        if group.delimiter() == Delimiter::Bracket {
+            if let Some(range) = parse_param_range_group(group)? {
+                if range.min.is_some() && options.min.is_some() {
+                    return Err(Error::new(group.span(), "duplicate `min`; provided by both `[...]` and options"));
+                }
+                if range.max.is_some() && options.max.is_some() {
+                    return Err(Error::new(group.span(), "duplicate `max`; provided by both `[...]` and options"));
+                }
+                options.min = options.min.or(range.min);
+                options.max = options.max.or(range.max);
+                tail.pop();
+            }
+        }
+    }
 
     if tail.is_empty() {
         return Ok((None, options));
@@ -351,6 +432,64 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
     Ok((Some(default_expr), options))
 }
 
+struct ParamsDslRange {
+    min: Option<Expr>,
+    max: Option<Expr>,
+}
+
+fn parse_param_range_group(group: &proc_macro2::Group) -> Result<Option<ParamsDslRange>> {
+    let tokens: Vec<TokenTree> = group.stream().into_iter().collect();
+    if tokens.is_empty() {
+        return Ok(None);
+    }
+
+    let mut separator = None::<(usize, usize)>;
+    let mut i = 0usize;
+
+    while i < tokens.len() {
+        let two_dots = matches!(tokens.get(i), Some(TokenTree::Punct(p)) if p.as_char() == '.') && matches!(tokens.get(i + 1), Some(TokenTree::Punct(p)) if p.as_char() == '.');
+        if two_dots {
+            if separator.is_some() {
+                return Err(Error::new(group.span(), "invalid `[...]` range: expected a single `..` separator"));
+            }
+            if matches!(tokens.get(i + 2), Some(TokenTree::Punct(p)) if p.as_char() == '=') {
+                separator = Some((i, 3));
+                i += 3;
+            } else {
+                separator = Some((i, 2));
+                i += 2;
+            }
+            continue;
+        }
+        i += 1;
+    }
+
+    let Some((separator_start, separator_width)) = separator else {
+        return Ok(None);
+    };
+
+    let left_tokens: proc_macro2::TokenStream = tokens.iter().take(separator_start).cloned().collect();
+    let right_tokens: proc_macro2::TokenStream = tokens.iter().skip(separator_start + separator_width).cloned().collect();
+
+    let min = if left_tokens.is_empty() {
+        None
+    } else {
+        Some(syn::parse2::<Expr>(left_tokens).map_err(|err| Error::new(group.span(), format!("invalid min expression in `[...]`: {err}")))?)
+    };
+
+    let max = if right_tokens.is_empty() {
+        None
+    } else {
+        Some(syn::parse2::<Expr>(right_tokens).map_err(|err| Error::new(group.span(), format!("invalid max expression in `[...]`: {err}")))?)
+    };
+
+    if min.is_none() && max.is_none() {
+        return Err(Error::new(group.span(), "invalid `[...]` range: expected at least one bound"));
+    }
+
+    Ok(Some(ParamsDslRange { min, max }))
+}
+
 #[derive(Default)]
 struct ParamsParentChildren {
     folders: Vec<usize>,
@@ -368,6 +507,11 @@ enum ParamEventBehaviourSpec {
     Coalesce,
 }
 
+enum ParamConstraintPolicySpec {
+    ClampAdapt,
+    Reject,
+}
+
 struct ParamsParamSpec {
     field: Ident,
     ty: Type,
@@ -377,6 +521,12 @@ struct ParamsParamSpec {
     description: Option<LitStr>,
     default: Option<Expr>,
     behaviour: Option<ParamEventBehaviourSpec>,
+    min: Option<Expr>,
+    max: Option<Expr>,
+    step: Option<Expr>,
+    step_base: Option<Expr>,
+    enum_options: Option<Expr>,
+    constraint_policy: Option<ParamConstraintPolicySpec>,
 }
 
 #[derive(Default)]
@@ -434,6 +584,18 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     None
                 };
 
+                let constraint_policy = if let Some(value) = param.options.policy.clone() {
+                    match value.value().to_ascii_lowercase().as_str() {
+                        "clampadapt" | "clamp_adapt" | "clamp-adapt" | "clamp" => Some(ParamConstraintPolicySpec::ClampAdapt),
+                        "reject" => Some(ParamConstraintPolicySpec::Reject),
+                        _ => {
+                            return Err(Error::new(value.span(), "unsupported `policy`; expected \"ClampAdapt\" or \"Reject\""));
+                        }
+                    }
+                } else {
+                    None
+                };
+
                 let param_index = plan.params.len();
                 plan.params.push(ParamsParamSpec {
                     field: param.field.clone(),
@@ -444,6 +606,12 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     description: param.options.description.clone(),
                     default: param.default.clone(),
                     behaviour,
+                    min: param.options.min.clone(),
+                    max: param.options.max.clone(),
+                    step: param.options.step.clone(),
+                    step_base: param.options.step_base.clone(),
+                    enum_options: param.options.enum_options.clone(),
+                    constraint_policy,
                 });
                 plan.children_by_parent.entry(parent_key.clone()).or_default().params.push(param_index);
 
@@ -579,12 +747,49 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
                         Some(::std::string::String::from(#description_lit));
                 }
             });
+            let set_min = args.min.map(|expr| {
+                quote! {
+                    __param_node.constraints.min = Some((#expr) as f64);
+                }
+            });
+            let set_max = args.max.map(|expr| {
+                quote! {
+                    __param_node.constraints.max = Some((#expr) as f64);
+                }
+            });
+            let set_step = args.step.map(|expr| {
+                quote! {
+                    __param_node.constraints.step = Some((#expr) as f64);
+                }
+            });
+            let set_step_base = args.step_base.map(|expr| {
+                quote! {
+                    __param_node.constraints.step_base = Some((#expr) as f64);
+                }
+            });
+            let set_enum_options = args.enum_options.map(|expr| {
+                quote! {
+                    __param_node.constraints.enum_options = #expr;
+                }
+            });
+            let set_constraint_policy = if let Some(value) = args.policy {
+                match value.value().to_ascii_lowercase().as_str() {
+                    "clampadapt" | "clamp_adapt" | "clamp-adapt" | "clamp" => Some(quote! {
+                        __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::ClampAdapt;
+                    }),
+                    "reject" => Some(quote! {
+                        __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::Reject;
+                    }),
+                    _ => {
+                        return Error::new(value.span(), "unsupported #[param(...)] `policy`; expected \"ClampAdapt\" or \"Reject\"").to_compile_error();
+                    }
+                }
+            } else {
+                None
+            };
 
             ctor_inits.push(quote! {
-                #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(
-                    golden_core::node::NodeId(0),
-                    #default_expr
-                )
+                #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
             });
 
             generated_init_statements.push(quote! {
@@ -592,11 +797,17 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
                     let mut __param_node = golden_core::parameter::Parameter::new(
                         #label_lit,
                         <#param_value_ty as golden_core::node::ParameterValueType>::to_param_value(
-                            self.#field_ident.get_cached().clone()
+                            self.#field_ident.get().clone()
                         ),
                         self.#field_ident.change_check().clone(),
                     );
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
+                    #set_min
+                    #set_max
+                    #set_step
+                    #set_step_base
+                    #set_enum_options
+                    #set_constraint_policy
                     golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                     #set_description
@@ -825,7 +1036,13 @@ fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
 }
 
 fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Result<()> {
-    for method_name in ["init", "child_event_interest_depth", "on_child_added_decl", "on_child_replaced_decl", "on_child_removed"] {
+    for method_name in [
+        "engine_child_event_interest_depth",
+        "engine_sync_param_handle_cache",
+        "engine_on_attached",
+        "engine_sync_bound_param_handles",
+        "engine_preprocess_inbox",
+    ] {
         if has_method(input, method_name) {
             return Err(Error::new_spanned(&*input, format!("params! generates `{method_name}`; remove the manual method or the params! block")));
         }
@@ -885,53 +1102,78 @@ fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Res
         }
     });
 
-    input.items.push(parse_quote! {
-        fn init(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
-            #(#root_materialize)*
+    let param_runtime_sync_bindings = plan.params.iter().map(|param| {
+        let field_ident = &param.field;
+        quote! {
+            if self.#field_ident.id() == param {
+                let _ = self.#field_ident.apply_runtime_value(new_value);
+            }
+        }
+    });
+
+    let param_refresh_bindings = plan.params.iter().map(|param| {
+        let field_ident = &param.field;
+        quote! {
+            if self.#field_ident.is_bound() {
+                if let Some(value) = resolve(self.#field_ident.id()) {
+                    let _ = self.#field_ident.apply_runtime_value(&value);
+                }
+            }
         }
     });
 
     input.items.push(parse_quote! {
-        fn child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
+        fn engine_child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
             #max_depth
         }
     });
 
     input.items.push(parse_quote! {
-        fn on_child_added_decl(
-            &mut self,
-            ctx: &mut golden_core::process_ctx::ProcessCtx,
-            _parent: golden_core::node::NodeId,
-            child: golden_core::node::NodeId,
-            decl_id: &golden_core::node::DeclId,
-        ) {
-            #(#folder_added_blocks)*
-            #(#param_added_bindings)*
+        fn engine_on_attached(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+            #(#root_materialize)*
         }
     });
 
     input.items.push(parse_quote! {
-        fn on_child_replaced_decl(
-            &mut self,
-            ctx: &mut golden_core::process_ctx::ProcessCtx,
-            _parent: golden_core::node::NodeId,
-            _old: golden_core::node::NodeId,
-            new: golden_core::node::NodeId,
-            decl_id: &golden_core::node::DeclId,
-        ) {
-            #(#folder_replaced_blocks)*
-            #(#param_replaced_bindings)*
+        fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+            for event in ctx.events.clone() {
+                match event.kind {
+                    golden_core::events::EventKind::ParamChanged { param, new_value, .. } => {
+                        self.engine_sync_param_handle_cache(param, &new_value);
+                    }
+                    golden_core::events::EventKind::ChildAdded { child, decl_id, .. } => {
+                        #(#folder_added_blocks)*
+                        #(#param_added_bindings)*
+                    }
+                    golden_core::events::EventKind::ChildReplaced { new, decl_id, .. } => {
+                        #(#folder_replaced_blocks)*
+                        #(#param_replaced_bindings)*
+                    }
+                    golden_core::events::EventKind::ChildRemoved { child, .. } => {
+                        #(#param_removed_bindings)*
+                    }
+                    _ => {}
+                }
+            }
         }
     });
 
     input.items.push(parse_quote! {
-        fn on_child_removed(
+        fn engine_sync_param_handle_cache(
             &mut self,
-            _ctx: &mut golden_core::process_ctx::ProcessCtx,
-            _parent: golden_core::node::NodeId,
-            child: golden_core::node::NodeId,
+            param: golden_core::node::NodeId,
+            new_value: &golden_core::parameter::ParamValue,
         ) {
-            #(#param_removed_bindings)*
+            #(#param_runtime_sync_bindings)*
+        }
+    });
+
+    input.items.push(parse_quote! {
+        fn engine_sync_bound_param_handles(
+            &mut self,
+            resolve: &mut dyn FnMut(golden_core::node::NodeId) -> Option<golden_core::parameter::ParamValue>,
+        ) {
+            #(#param_refresh_bindings)*
         }
     });
 
@@ -974,7 +1216,9 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
 
         let set_default = param.default.as_ref().map(|default_expr| {
             quote! {
-                self.#field_ident.set_cached((#default_expr).into());
+                let _ = self.#field_ident.apply_runtime_value(
+                    &<#ty as golden_core::node::ParameterValueType>::to_param_value((#default_expr).into())
+                );
             }
         });
 
@@ -988,6 +1232,46 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             None => None,
         };
 
+        let set_min = param.min.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.min = Some((#expr) as f64);
+            }
+        });
+
+        let set_max = param.max.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.max = Some((#expr) as f64);
+            }
+        });
+
+        let set_step = param.step.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.step = Some((#expr) as f64);
+            }
+        });
+
+        let set_step_base = param.step_base.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.step_base = Some((#expr) as f64);
+            }
+        });
+
+        let set_enum_options = param.enum_options.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.enum_options = #expr;
+            }
+        });
+
+        let set_constraint_policy = match param.constraint_policy {
+            Some(ParamConstraintPolicySpec::ClampAdapt) => Some(quote! {
+                __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::ClampAdapt;
+            }),
+            Some(ParamConstraintPolicySpec::Reject) => Some(quote! {
+                __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::Reject;
+            }),
+            None => None,
+        };
+
         out.push(quote! {
             if !self.#field_ident.is_bound() {
                 let _: &golden_core::node::ParameterHandle<#ty> = &self.#field_ident;
@@ -996,11 +1280,17 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 let mut __param_node = golden_core::parameter::Parameter::new(
                     #label_lit,
                     <#ty as golden_core::node::ParameterValueType>::to_param_value(
-                        self.#field_ident.get_cached().clone()
+                        self.#field_ident.get().clone()
                     ),
                     self.#field_ident.change_check().clone(),
                 );
                 __param_node.event_behaviour = self.#field_ident.event_behaviour();
+                #set_min
+                #set_max
+                #set_step
+                #set_step_base
+                #set_enum_options
+                #set_constraint_policy
                 golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                 #set_description

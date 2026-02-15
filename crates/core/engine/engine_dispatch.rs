@@ -68,6 +68,12 @@ impl<T: Node> Engine<T> {
     ///
     /// Edits requested by node callbacks are absorbed into the engine queue.
     pub fn dispatch_precomputed_inbox(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>) -> Result<(), EngineEditError> {
+        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
+            .collect();
+
         for (node_id, events) in per_node_events {
             if events.is_empty() {
                 continue;
@@ -77,6 +83,9 @@ impl<T: Node> Engine<T> {
             ctx.events = events;
 
             if let Some(node) = self.nodes.get_mut(node_id) {
+                node.engine_preprocess_inbox(&mut ctx);
+                let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
+                node.engine_sync_bound_param_handles(&mut resolve);
                 node.on_inbox(&mut ctx);
                 self.absorb_edits(&mut ctx)?;
             }
@@ -141,7 +150,8 @@ impl<T: Node> Engine<T> {
                 break;
             };
 
-            let interested = depth == 0 || node.child_event_interest_depth(event) >= depth;
+            let effective_interest_depth = node.child_event_interest_depth(event).max(node.engine_child_event_interest_depth(event));
+            let interested = depth == 0 || effective_interest_depth >= depth;
             let propagation = node.event_propagation(event, depth);
 
             if interested && matches!(propagation, EventPropagation::Notify | EventPropagation::Stop) && dedupe.insert(current) {
@@ -158,7 +168,11 @@ impl<T: Node> Engine<T> {
                 break;
             };
             let next_depth = depth.saturating_add(1);
-            let parent_is_interested = self.nodes.get(parent).map(|parent| parent.child_event_interest_depth(event) >= next_depth).unwrap_or(false);
+            let parent_is_interested = self
+                .nodes
+                .get(parent)
+                .map(|parent| parent.child_event_interest_depth(event).max(parent.engine_child_event_interest_depth(event)) >= next_depth)
+                .unwrap_or(false);
 
             if remaining_bubble == 0 && !parent_is_interested {
                 break;
