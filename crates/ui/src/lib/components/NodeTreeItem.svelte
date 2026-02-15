@@ -20,6 +20,7 @@
 	const node = $derived(state.nodesById.get(nodeId));
 	const children = $derived(state.childrenById.get(nodeId) ?? []);
 	const isSelected = $derived(nodeId === selectedNodeId);
+	const hasChildren = $derived(children.length > 0);
 </script>
 
 {#if node}
@@ -27,7 +28,8 @@
 		<button
 			type="button"
 			class:selected={isSelected}
-			class="tree-button"
+			class="tree-button type-{node.node_type}"
+			class:has-children={hasChildren}
 			onclick={() => onSelect(nodeId)}
 		>
 			<span class="tree-label">{node.meta.label}</span>
@@ -63,6 +65,7 @@
 		cursor: pointer;
 	}
 
+
 	.tree-button:hover {
 		background: color-mix(in srgb, var(--panel-bg) 82%, white 18%);
 	}
@@ -72,9 +75,21 @@
 		background: color-mix(in srgb, var(--panel-bg) 72%, var(--accent) 28%);
 	}
 
+	
 	.tree-label {
-		font-weight: 600;
+		font-weight: 200;
 	}
+
+	.has-children .tree-label {
+		font-weight: 700;
+		color: rgb(235, 10, 85);
+	}
+
+	.type-folder .tree-label {
+		color: rgb(10, 150, 240);
+	}
+
+	
 
 	.tree-type {
 		font-size: 0.72rem;

@@ -191,6 +191,59 @@ impl Node for ViaStructDeclaredParamsNode {
     }
 }
 
+#[crate::node("via_composed_leaf_node")]
+struct ViaComposedLeafNode {
+    #[param(default = 0.5, label = "Leaf Value")]
+    leaf_value: crate::node::ParameterHandle<f64>,
+}
+
+#[crate::node("via_composed_leaf_node", from_struct)]
+impl Node for ViaComposedLeafNode {}
+
+#[crate::node("via_composed_mid_node")]
+struct ViaComposedMidNode {
+    leaf: ViaComposedLeafNode,
+    #[param(default = 0.25, label = "Mid Value")]
+    mid_value: crate::node::ParameterHandle<f64>,
+}
+
+#[crate::node("via_composed_mid_node", via = leaf, from_struct)]
+impl Node for ViaComposedMidNode {}
+
+#[crate::node("via_composed_root_node")]
+struct ViaComposedRootNode {
+    mid: ViaComposedMidNode,
+    #[param(default = 0.75, label = "Root Value")]
+    root_value: crate::node::ParameterHandle<f64>,
+}
+
+#[crate::node("via_composed_root_node", via = mid, from_struct)]
+impl Node for ViaComposedRootNode {}
+
+#[crate::node("reuse_folder_base_node")]
+#[params(
+    folder(output, label = "Output") {
+        host: String = "127.0.0.1" (label = "Host");
+    }
+)]
+struct ReuseFolderBaseNode {}
+
+#[crate::node("reuse_folder_base_node", from_struct)]
+impl Node for ReuseFolderBaseNode {}
+
+#[crate::node("reuse_folder_via_node")]
+#[params(
+    folder(output, label = "Output", reuse = true) {
+        gain: f64 = 0.5 [0.0..1.0] (label = "Gain");
+    }
+)]
+struct ReuseFolderViaNode {
+    base: ReuseFolderBaseNode,
+}
+
+#[crate::node("reuse_folder_via_node", via = base, from_struct)]
+impl Node for ReuseFolderViaNode {}
+
 #[crate::node("dsl_params_node")]
 #[params(
     feedback: f64 = 0.5 [0.0..1.0] (
@@ -272,6 +325,11 @@ crate::define_node_enum!(
         AutoDeclaredNode,
         StructDeclaredParamsNode,
         ViaStructDeclaredParamsNode,
+        ViaComposedLeafNode,
+        ViaComposedMidNode,
+        ViaComposedRootNode,
+        ReuseFolderBaseNode,
+        ReuseFolderViaNode,
         DslParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
@@ -333,6 +391,19 @@ fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &
         child = node.node_data().next_sibling;
     }
     None
+}
+
+fn child_decl_ids(engine: &Engine<MacroTestNode>, parent: NodeId) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+    while let Some(id) = child {
+        let Some(node) = engine.nodes.get(id) else {
+            break;
+        };
+        out.push(node.node_data().meta.decl_id.0.clone());
+        child = node.node_data().next_sibling;
+    }
+    out
 }
 
 #[test]
@@ -528,6 +599,84 @@ fn struct_param_declarations_with_via_use_composed_node_data() {
         node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
         "custom init should observe struct-declared default before app init runs",
     );
+}
+
+#[test]
+fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        ViaComposedRootNode::new(
+            "composed",
+            ViaComposedMidNode::new("mid", ViaComposedLeafNode::new("leaf")),
+        )
+        .into(),
+        None,
+    );
+
+    for _ in 0..8 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node should be attached under root");
+    let decl_ids = child_decl_ids(&engine, owner);
+    let root_value = find_child_by_decl(&engine, owner, "root_value").expect("root_value parameter should exist");
+    let mid_value = find_child_by_decl(&engine, owner, "mid_value").expect("mid_value parameter should exist");
+    let leaf_value = find_child_by_decl(&engine, owner, "leaf_value").expect("leaf_value parameter should exist");
+
+    let MacroTestNode::ViaComposedRootNode(node) = engine.nodes.get(owner).expect("node should exist") else {
+        panic!("expected ViaComposedRootNode variant");
+    };
+
+    assert_eq!(node.root_value.id(), root_value, "root-level generated handle should bind");
+    assert_eq!(node.mid.mid_value.id(), mid_value, "mid-level generated handle should bind via delegation");
+    assert_eq!(node.mid.leaf.leaf_value.id(), leaf_value, "leaf-level generated handle should bind via recursive delegation");
+    assert_eq!(
+        decl_ids,
+        vec!["leaf_value".to_string(), "mid_value".to_string(), "root_value".to_string()],
+        "when using `via`, nested parameters should materialize before outer parameters",
+    );
+}
+
+#[test]
+fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        ReuseFolderViaNode::new("reuse", ReuseFolderBaseNode::new("base")).into(),
+        None,
+    );
+
+    for _ in 0..8 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node should be attached under root");
+    let owner_decl_ids = child_decl_ids(&engine, owner);
+    let output_count = owner_decl_ids.iter().filter(|decl| decl.as_str() == "output").count();
+    assert_eq!(output_count, 1, "folder(reuse = true) should avoid creating a duplicate folder when via already queued the same decl_id");
+
+    let output = find_child_by_decl(&engine, owner, "output").expect("shared output folder should exist");
+    let host = find_child_by_decl(&engine, output, "output/host").expect("base param should exist in shared folder");
+    let gain = find_child_by_decl(&engine, output, "output/gain").expect("outer param should exist in shared folder");
+    let output_decl_ids = child_decl_ids(&engine, output);
+
+    assert_eq!(output_decl_ids.iter().filter(|decl| decl.as_str() == "output/host").count(), 1);
+    assert_eq!(output_decl_ids.iter().filter(|decl| decl.as_str() == "output/gain").count(), 1);
+    assert_eq!(
+        output_decl_ids,
+        vec!["output/host".to_string(), "output/gain".to_string()],
+        "reused folder children should preserve inner(via) items first and outer items at the end",
+    );
+
+    let MacroTestNode::ReuseFolderViaNode(node) = engine.nodes.get(owner).expect("node should exist") else {
+        panic!("expected ReuseFolderViaNode variant");
+    };
+
+    assert_eq!(node.base.host.id(), host, "base handle should bind to shared-folder host parameter");
+    assert_eq!(node.gain.id(), gain, "outer handle should bind to shared-folder gain parameter");
 }
 
 #[test]

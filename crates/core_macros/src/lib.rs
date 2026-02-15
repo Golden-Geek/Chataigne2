@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, TokenTree};
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
+use syn::{Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -241,6 +241,7 @@ enum ParamsDslItem {
 struct ParamsDslFolder {
     name: Ident,
     label: Option<LitStr>,
+    reuse: bool,
     items: Vec<ParamsDslItem>,
 }
 
@@ -293,6 +294,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
             let folder_name = content.parse::<Ident>()?;
             let mut folder_label = None::<LitStr>;
+            let mut folder_reuse = None::<bool>;
 
             while !content.is_empty() {
                 content.parse::<Token![,]>()?;
@@ -304,6 +306,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                     }
                     content.parse::<Token![=]>()?;
                     folder_label = Some(content.parse::<LitStr>()?);
+                } else if key == "reuse" {
+                    if folder_reuse.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder reuse flag"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_reuse = Some(content.parse::<LitBool>()?.value);
                 } else if content.peek(Token![=]) {
                     content.parse::<Token![=]>()?;
                     let _: Expr = content.parse()?;
@@ -318,7 +326,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 input.parse::<Token![;]>()?;
             }
 
-            items.push(ParamsDslItem::Folder(ParamsDslFolder { name: folder_name, label: folder_label, items: nested }));
+            items.push(ParamsDslItem::Folder(ParamsDslFolder {
+                name: folder_name,
+                label: folder_label,
+                reuse: folder_reuse.unwrap_or(false),
+                items: nested,
+            }));
             continue;
         }
 
@@ -525,6 +538,7 @@ struct ParamsFolderSpec {
     path: Vec<String>,
     decl_id: LitStr,
     label: LitStr,
+    reuse: bool,
 }
 
 enum ParamEventBehaviourSpec {
@@ -584,6 +598,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     path: path.clone(),
                     decl_id: decl_id_lit,
                     label: label_lit,
+                    reuse: folder.reuse,
                 });
                 plan.children_by_parent.entry(parent_key.clone()).or_default().folders.push(folder_index);
 
@@ -1204,14 +1219,14 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
 
     let node_data_body = if let Some(path) = via.as_ref() {
         let segments = &path.segments;
-        quote! { &self.#(#segments).* }
+        quote! { golden_core::node::ViaTarget::via_node_data(&self.#(#segments).*) }
     } else {
         quote! { &self.node_data }
     };
 
     let node_data_mut_body = if let Some(path) = via.as_ref() {
         let segments = &path.segments;
-        quote! { &mut self.#(#segments).* }
+        quote! { golden_core::node::ViaTarget::via_node_data_mut(&mut self.#(#segments).*) }
     } else {
         quote! { &mut self.node_data }
     };
@@ -1263,7 +1278,7 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     }
 
     if from_struct {
-        if let Err(err) = append_struct_methods_from_helpers(&mut input) {
+        if let Err(err) = append_struct_methods_from_helpers(&mut input, via.as_ref()) {
             return err.to_compile_error();
         }
     }
@@ -1277,7 +1292,7 @@ fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
     item.mac.path.segments.last().is_some_and(|segment| segment.ident == "params")
 }
 
-fn append_struct_methods_from_helpers(input: &mut ItemImpl) -> Result<()> {
+fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&DelegatePath>) -> Result<()> {
     for method_name in [
         "engine_child_event_interest_depth",
         "engine_sync_param_handle_cache",
@@ -1293,15 +1308,66 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl) -> Result<()> {
         }
     }
 
+    let via_child_event_interest_depth = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            let __golden_via_depth = golden_core::node::ViaTarget::via_engine_child_event_interest_depth(&self.#(#segments).*, event);
+            if __golden_via_depth > __golden_depth {
+                __golden_depth = __golden_via_depth;
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let via_on_attached = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            golden_core::node::ViaTarget::via_engine_on_attached(&mut self.#(#segments).*, ctx);
+        }
+    } else {
+        quote! {}
+    };
+
+    let via_sync_param_handle_cache = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            golden_core::node::ViaTarget::via_engine_sync_param_handle_cache(&mut self.#(#segments).*, param, new_value);
+        }
+    } else {
+        quote! {}
+    };
+
+    let via_sync_bound_param_handles = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            golden_core::node::ViaTarget::via_engine_sync_bound_param_handles(&mut self.#(#segments).*, resolve);
+        }
+    } else {
+        quote! {}
+    };
+
+    let via_preprocess_inbox = if let Some(path) = via {
+        let segments = &path.segments;
+        quote! {
+            golden_core::node::ViaTarget::via_engine_preprocess_inbox(&mut self.#(#segments).*, ctx);
+        }
+    } else {
+        quote! {}
+    };
+
     input.items.push(parse_quote! {
         fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
-            self.__golden_node_engine_child_event_interest_depth(event)
+            let mut __golden_depth = self.__golden_node_engine_child_event_interest_depth(event);
+            #via_child_event_interest_depth
+            __golden_depth
         }
     });
 
     input.items.push(parse_quote! {
         fn engine_on_attached(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
             let owner_id = golden_core::node::Node::id(self);
+            #via_on_attached
             self.__golden_node_engine_on_attached(ctx, owner_id);
         }
     });
@@ -1313,6 +1379,7 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl) -> Result<()> {
             new_value: &golden_core::parameter::ParamValue,
         ) {
             self.__golden_node_engine_sync_param_handle_cache(param, new_value);
+            #via_sync_param_handle_cache
         }
     });
 
@@ -1322,12 +1389,14 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl) -> Result<()> {
             resolve: &mut dyn FnMut(golden_core::node::NodeId) -> Option<golden_core::parameter::ParamValue>,
         ) {
             self.__golden_node_engine_sync_bound_param_handles(resolve);
+            #via_sync_bound_param_handles
         }
     });
 
     input.items.push(parse_quote! {
         fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
             let owner_id = golden_core::node::Node::id(self);
+            #via_preprocess_inbox
             self.__golden_node_engine_preprocess_inbox(ctx, owner_id);
         }
     });
@@ -1346,14 +1415,35 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
         let label_lit = &folder.label;
         let decl_id_lit = &folder.decl_id;
         let guard = folder_materialization_guard(plan, *folder_index);
-        out.push(quote! {
-            if #guard {
-                let mut __folder_node = golden_core::node::Folder::new(#label_lit);
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
-                    golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                ctx.add_child(#parent_expr, __folder_node, None);
-            }
-        });
+        if folder.reuse {
+            out.push(quote! {
+                if #guard {
+                    let __golden_folder_already_pending = ctx.edits.pending.iter().any(|request| {
+                        matches!(
+                            &request.edit,
+                            golden_core::edit::Edit::AddNode { parent, node, .. }
+                                if *parent == #parent_expr
+                                    && node.node_data().meta.decl_id.0 == #decl_id_lit
+                        )
+                    });
+                    if !__golden_folder_already_pending {
+                        let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
+                            golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                        ctx.add_child(#parent_expr, __folder_node, None);
+                    }
+                }
+            });
+        } else {
+            out.push(quote! {
+                if #guard {
+                    let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                    golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
+                        golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                    ctx.add_child(#parent_expr, __folder_node, None);
+                }
+            });
+        }
     }
 
     for param_index in &children.params {

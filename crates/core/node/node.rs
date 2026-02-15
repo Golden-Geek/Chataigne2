@@ -574,6 +574,72 @@ pub trait Node: Send + Any {
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
 }
 
+/// Adapter used by `#[node(..., via = ...)]` to access either a `NodeData` field
+/// directly or a composed node that owns the runtime identity.
+pub trait ViaTarget {
+    /// Returns the node data backing the via target.
+    fn via_node_data(&self) -> &NodeData;
+    /// Returns mutable node data backing the via target.
+    fn via_node_data_mut(&mut self) -> &mut NodeData;
+
+    /// Forwards generated engine descendant-interest depth to the via target when relevant.
+    fn via_engine_child_event_interest_depth(&self, _event: &Event) -> u32 {
+        0
+    }
+
+    /// Forwards generated attachment wiring to the via target when relevant.
+    fn via_engine_on_attached(&mut self, _ctx: &mut ProcessCtx) {}
+
+    /// Forwards generated runtime cache sync to the via target when relevant.
+    fn via_engine_sync_param_handle_cache(&mut self, _param: NodeId, _new_value: &ParamValue) {}
+
+    /// Forwards generated bound-handle refresh to the via target when relevant.
+    fn via_engine_sync_bound_param_handles(&mut self, _resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {}
+
+    /// Forwards generated inbox preprocessing to the via target when relevant.
+    fn via_engine_preprocess_inbox(&mut self, _ctx: &mut ProcessCtx) {}
+}
+
+impl ViaTarget for NodeData {
+    fn via_node_data(&self) -> &NodeData {
+        self
+    }
+
+    fn via_node_data_mut(&mut self) -> &mut NodeData {
+        self
+    }
+}
+
+impl<T: Node + ?Sized> ViaTarget for T {
+    fn via_node_data(&self) -> &NodeData {
+        self.node_data()
+    }
+
+    fn via_node_data_mut(&mut self) -> &mut NodeData {
+        self.node_data_mut()
+    }
+
+    fn via_engine_child_event_interest_depth(&self, event: &Event) -> u32 {
+        self.engine_child_event_interest_depth(event)
+    }
+
+    fn via_engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
+        self.engine_on_attached(ctx);
+    }
+
+    fn via_engine_sync_param_handle_cache(&mut self, param: NodeId, new_value: &ParamValue) {
+        self.engine_sync_param_handle_cache(param, new_value);
+    }
+
+    fn via_engine_sync_bound_param_handles(&mut self, resolve: &mut dyn FnMut(NodeId) -> Option<ParamValue>) {
+        self.engine_sync_bound_param_handles(resolve);
+    }
+
+    fn via_engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.engine_preprocess_inbox(ctx);
+    }
+}
+
 /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
 pub struct Folder {
     node_data: NodeData,
