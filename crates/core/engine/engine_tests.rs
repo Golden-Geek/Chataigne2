@@ -131,6 +131,66 @@ fn external_coalesced_set_param_edits_keep_latest_value() {
     assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(2), "latest coalesced value should win",);
 }
 
+#[test]
+fn parameter_handle_trigger_value_emits_even_when_unchanged() {
+    let mut handle = crate::node::ParameterHandle::<ParamValue>::new(ParamValue::Trigger());
+    handle.set_node_id(NodeId(42));
+
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 0,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    handle.set(&mut ctx, ParamValue::Trigger());
+
+    assert_eq!(ctx.edits.pending.len(), 1, "trigger writes should emit even when value appears unchanged");
+    assert!(
+        matches!(
+            &ctx.edits.pending[0].edit,
+            Edit::SetParam {
+                node,
+                value: ParamValue::Trigger(),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            } if *node == NodeId(42)
+        ),
+        "trigger write should enqueue SetParam with trigger payload",
+    );
+}
+
+#[test]
+fn parameter_node_trigger_value_emits_even_when_unchanged() {
+    let mut parameter = Parameter::new("trigger", ParamValue::Trigger(), ParameterChangeCheck::ValueChange);
+    parameter.node_data_mut().id = NodeId(7);
+
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 0,
+            micro: 0,
+            seq: 0,
+        },
+    );
+
+    parameter.set(&mut ctx, ParamValue::Trigger());
+
+    assert_eq!(ctx.edits.pending.len(), 1, "trigger values should bypass value-change dedupe");
+    assert!(
+        matches!(
+            &ctx.edits.pending[0].edit,
+            Edit::SetParam {
+                node,
+                value: ParamValue::Trigger(),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            } if *node == NodeId(7)
+        ),
+        "parameter trigger write should enqueue SetParam",
+    );
+}
+
 #[crate::node("auto_declared", impl_node)]
 struct AutoDeclaredNode {
     #[param(default = 0.5, label = "Decay", description = "Envelope decay time", min = 0.0, max = 1.0, step = 0.05, step_base = 0.0, policy = "ClampAdapt")]
@@ -284,6 +344,77 @@ struct ParamsWithCustomInitNode {
     init_observed_value: Option<f64>,
 }
 
+#[crate::node("dsl_callback_params_node")]
+#[params(
+    default_value: f64 = 0.1 (default_callback);
+    named_value: f64 = 0.2 (callback = Self::named_value_callback);
+    closure_value: f64 = 0.3 (
+        callback = |node: &mut Self, _ctx: &mut ProcessCtx, old_value: ParamValue| {
+            node.closure_callback_calls += 1;
+            node.closure_callback_old = Some(old_value);
+        }
+    );
+)]
+struct DslCallbackParamsNode {
+    on_param_change_calls: usize,
+    default_callback_calls: usize,
+    named_callback_calls: usize,
+    closure_callback_calls: usize,
+    default_callback_old: Option<ParamValue>,
+    named_callback_old: Option<ParamValue>,
+    closure_callback_old: Option<ParamValue>,
+}
+
+#[crate::node("field_callback_params_node")]
+struct FieldCallbackParamsNode {
+    #[param(default = 0.4, default_callback)]
+    default_value: crate::node::ParameterHandle<f64>,
+
+    #[param(default = 0.5, callback = Self::named_value_callback)]
+    named_value: crate::node::ParameterHandle<f64>,
+
+    #[param(
+        default = 0.6,
+        callback = |node: &mut Self, _ctx: &mut ProcessCtx, old_value: ParamValue| {
+            node.closure_callback_calls += 1;
+            node.closure_callback_old = Some(old_value);
+        }
+    )]
+    closure_value: crate::node::ParameterHandle<f64>,
+
+    on_param_change_calls: usize,
+    default_callback_calls: usize,
+    named_callback_calls: usize,
+    closure_callback_calls: usize,
+    default_callback_old: Option<ParamValue>,
+    named_callback_old: Option<ParamValue>,
+    closure_callback_old: Option<ParamValue>,
+}
+
+impl DslCallbackParamsNode {
+    fn on_default_value_change(&mut self, _ctx: &mut ProcessCtx, old_value: ParamValue) {
+        self.default_callback_calls += 1;
+        self.default_callback_old = Some(old_value);
+    }
+
+    fn named_value_callback(&mut self, _ctx: &mut ProcessCtx, old_value: ParamValue) {
+        self.named_callback_calls += 1;
+        self.named_callback_old = Some(old_value);
+    }
+}
+
+impl FieldCallbackParamsNode {
+    fn on_default_value_change(&mut self, _ctx: &mut ProcessCtx, old_value: ParamValue) {
+        self.default_callback_calls += 1;
+        self.default_callback_old = Some(old_value);
+    }
+
+    fn named_value_callback(&mut self, _ctx: &mut ProcessCtx, old_value: ParamValue) {
+        self.named_callback_calls += 1;
+        self.named_callback_old = Some(old_value);
+    }
+}
+
 #[crate::node("dsl_params_node", from_struct)]
 impl Node for DslParamsNode {
 
@@ -320,6 +451,20 @@ impl Node for ParamsWithCustomInitNode {
     }
 }
 
+#[crate::node("dsl_callback_params_node", from_struct)]
+impl Node for DslCallbackParamsNode {
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {
+        self.on_param_change_calls += 1;
+    }
+}
+
+#[crate::node("field_callback_params_node", from_struct)]
+impl Node for FieldCallbackParamsNode {
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {
+        self.on_param_change_calls += 1;
+    }
+}
+
 crate::define_node_enum!(
     enum MacroTestNode {
         AutoDeclaredNode,
@@ -333,6 +478,8 @@ crate::define_node_enum!(
         DslParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
+        DslCallbackParamsNode,
+        FieldCallbackParamsNode,
     }
 );
 
@@ -487,6 +634,132 @@ fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
     assert!(
         matches!(node.observed_feedback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9),
         "on_param_change should still receive previous parameter value",
+    );
+}
+
+#[test]
+fn params_macro_supports_default_named_and_closure_callbacks() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        DslCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(),
+        None,
+    );
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("callback node should be attached under root");
+    let default_value = find_child_by_decl(&engine, owner, "default_value").expect("default_value parameter should exist");
+    let named_value = find_child_by_decl(&engine, owner, "named_value").expect("named_value parameter should exist");
+    let closure_value = find_child_by_decl(&engine, owner, "closure_value").expect("closure_value parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: default_value,
+        value: ParamValue::Float(1.1),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: named_value,
+        value: ParamValue::Float(1.2),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: closure_value,
+        value: ParamValue::Float(1.3),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+
+    let MacroTestNode::DslCallbackParamsNode(node) = engine.nodes.get(owner).expect("callback node should exist") else {
+        panic!("expected DslCallbackParamsNode variant");
+    };
+
+    assert_eq!(node.default_callback_calls, 1, "default callback should run once");
+    assert_eq!(node.named_callback_calls, 1, "named callback should run once");
+    assert_eq!(node.closure_callback_calls, 1, "closure callback should run once");
+    assert_eq!(node.on_param_change_calls, 3, "callbacks should not replace on_param_change");
+    assert!(
+        matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.1).abs() < 1e-9),
+        "default callback should receive previous value",
+    );
+    assert!(
+        matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.2).abs() < 1e-9),
+        "named callback should receive previous value",
+    );
+    assert!(
+        matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.3).abs() < 1e-9),
+        "closure callback should receive previous value",
+    );
+}
+
+#[test]
+fn field_params_support_default_named_and_closure_callbacks() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        FieldCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(),
+        None,
+    );
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("callback node should be attached under root");
+    let default_value = find_child_by_decl(&engine, owner, "default_value").expect("default_value parameter should exist");
+    let named_value = find_child_by_decl(&engine, owner, "named_value").expect("named_value parameter should exist");
+    let closure_value = find_child_by_decl(&engine, owner, "closure_value").expect("closure_value parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: default_value,
+        value: ParamValue::Float(1.4),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: named_value,
+        value: ParamValue::Float(1.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: closure_value,
+        value: ParamValue::Float(1.6),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should succeed");
+    engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+
+    let MacroTestNode::FieldCallbackParamsNode(node) = engine.nodes.get(owner).expect("callback node should exist") else {
+        panic!("expected FieldCallbackParamsNode variant");
+    };
+
+    assert_eq!(node.default_callback_calls, 1, "default callback should run once");
+    assert_eq!(node.named_callback_calls, 1, "named callback should run once");
+    assert_eq!(node.closure_callback_calls, 1, "closure callback should run once");
+    assert_eq!(node.on_param_change_calls, 3, "callbacks should not replace on_param_change");
+    assert!(
+        matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.4).abs() < 1e-9),
+        "default callback should receive previous value",
+    );
+    assert!(
+        matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9),
+        "named callback should receive previous value",
+    );
+    assert!(
+        matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.6).abs() < 1e-9),
+        "closure callback should receive previous value",
     );
 }
 

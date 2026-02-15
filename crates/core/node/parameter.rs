@@ -445,10 +445,21 @@ impl Parameter {
 
     /// Requests a parameter update through the process context.
     pub fn set(&mut self, ctx: &mut ProcessCtx, new_value: ParamValue) {
+        let is_trigger = matches!(&new_value, ParamValue::Trigger());
         let value_changed = self.value != new_value;
-        if self.change_check == ParameterChangeCheck::None || value_changed {
+        if is_trigger || self.change_check == ParameterChangeCheck::None || value_changed {
             ctx.set_param_with_behaviour(self.node_data().id, new_value.clone(), self.event_behaviour);
         }
+    }
+
+    /// Convenience method to fire a trigger parameter.
+    pub fn fire(&mut self, ctx: &mut ProcessCtx) {
+        // verify that it's a trigger
+        if !matches!(self.value, ParamValue::Trigger()) {
+            eprintln!("Attempted to fire a non-trigger parameter '{}'", self.node_data().meta.label);
+            return;
+        }
+        self.set(ctx, ParamValue::Trigger());
     }
 
     /// Returns the current parameter value.

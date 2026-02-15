@@ -290,19 +290,19 @@ fn handle_ws_hub_command<T: Node>(
         }
         WsHubCommand::Subscribe { client_id, subscription_id, scope, from } => {
             if let Some(client) = clients.get_mut(&client_id) {
-                let log_scope = scope.clone();
-                let log_from = from;
-                let log_subscription_id = subscription_id.clone();
-                let replaced = client.subscriptions.insert(subscription_id, WsSubscriptionState { scope, cursor: from }).is_some();
-                eprintln!("[ui-ws] client {client_id} subscribe id='{log_subscription_id}' scope={log_scope:?} from={log_from:?} replaced={replaced} total_subscriptions={}", client.subscriptions.len());
+                // let log_scope = scope.clone();
+                // let log_from = from;
+                // let log_subscription_id = subscription_id.clone();
+                let _replaced = client.subscriptions.insert(subscription_id, WsSubscriptionState { scope, cursor: from }).is_some();
+                // eprintln!("[ui-ws] client {client_id} subscribe id='{log_subscription_id}' scope={log_scope:?} from={log_from:?} replaced={replaced} total_subscriptions={}", client.subscriptions.len());
             } else {
-                eprintln!("[ui-ws] subscribe ignored for unknown client {client_id} id='{subscription_id}'");
+                // eprintln!("[ui-ws] subscribe ignored for unknown client {client_id} id='{subscription_id}'");
             }
         }
         WsHubCommand::Unsubscribe { client_id, subscription_id } => {
             if let Some(client) = clients.get_mut(&client_id) {
-                let existed = client.subscriptions.remove(&subscription_id).is_some();
-                eprintln!("[ui-ws] client {client_id} unsubscribe id='{subscription_id}' existed={existed} total_subscriptions={}", client.subscriptions.len());
+                let _existed = client.subscriptions.remove(&subscription_id).is_some();
+                // eprintln!("[ui-ws] client {client_id} unsubscribe id='{subscription_id}' existed={existed} total_subscriptions={}", client.subscriptions.len());
             } else {
                 eprintln!("[ui-ws] unsubscribe ignored for unknown client {client_id} id='{subscription_id}'");
             }

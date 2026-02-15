@@ -218,11 +218,13 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
 
     /// Queues a `SetParam` edit using this handle policies and updates local cache.
     pub fn set(&mut self, ctx: &mut ProcessCtx, value: T) {
+        let queued_value = T::to_param_value(value.clone());
+        let is_trigger = matches!(&queued_value, ParamValue::Trigger());
         let value_changed = self.cached != value;
-        let should_emit = self.change_check == ParameterChangeCheck::None || value_changed;
+        let should_emit = is_trigger || self.change_check == ParameterChangeCheck::None || value_changed;
 
         if should_emit && self.is_bound() {
-            ctx.set_param_with_behaviour(self.node, T::to_param_value(value.clone()), self.event_behaviour);
+            ctx.set_param_with_behaviour(self.node, queued_value, self.event_behaviour);
         }
 
         self.cached = value;

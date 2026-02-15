@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, TokenTree};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::{Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
 
@@ -121,6 +121,8 @@ struct ParamFieldArgs {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    default_callback: bool,
+    callback: Option<Expr>,
 }
 
 impl Parse for ParamFieldArgs {
@@ -129,60 +131,80 @@ impl Parse for ParamFieldArgs {
 
         while !input.is_empty() {
             let key = input.parse::<Ident>()?;
-            input.parse::<Token![=]>()?;
-
-            if key == "default" {
-                if out.default.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `default`"));
+            if key == "default_callback" || key == "defaultCallback" {
+                if out.default_callback {
+                    return Err(Error::new(key.span(), "duplicate `default_callback`"));
                 }
-                out.default = Some(input.parse::<Expr>()?);
-            } else if key == "decl_id" {
-                if out.decl_id.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `decl_id`"));
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>()?;
+                    out.default_callback = input.parse::<LitBool>()?.value;
+                } else {
+                    out.default_callback = true;
                 }
-                out.decl_id = Some(input.parse::<LitStr>()?);
-            } else if key == "label" {
-                if out.label.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `label`"));
-                }
-                out.label = Some(input.parse::<LitStr>()?);
-            } else if key == "description" {
-                if out.description.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `description`"));
-                }
-                out.description = Some(input.parse::<LitStr>()?);
-            } else if key == "min" {
-                if out.min.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `min`"));
-                }
-                out.min = Some(input.parse::<Expr>()?);
-            } else if key == "max" {
-                if out.max.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `max`"));
-                }
-                out.max = Some(input.parse::<Expr>()?);
-            } else if key == "step" {
-                if out.step.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `step`"));
-                }
-                out.step = Some(input.parse::<Expr>()?);
-            } else if key == "step_base" || key == "stepBase" {
-                if out.step_base.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `step_base`"));
-                }
-                out.step_base = Some(input.parse::<Expr>()?);
-            } else if key == "policy" || key == "constraint_policy" || key == "constraintPolicy" {
-                if out.policy.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `policy`"));
-                }
-                out.policy = Some(input.parse::<LitStr>()?);
-            } else if key == "enum_options" || key == "enumOptions" {
-                if out.enum_options.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `enum_options`"));
-                }
-                out.enum_options = Some(input.parse::<Expr>()?);
             } else {
-                return Err(Error::new(key.span(), "unsupported #[param(...)] argument (supported: default, decl_id, label, description, min, max, step, step_base, policy, enum_options)"));
+                input.parse::<Token![=]>()?;
+
+                if key == "default" {
+                    if out.default.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `default`"));
+                    }
+                    out.default = Some(input.parse::<Expr>()?);
+                } else if key == "decl_id" {
+                    if out.decl_id.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `decl_id`"));
+                    }
+                    out.decl_id = Some(input.parse::<LitStr>()?);
+                } else if key == "label" {
+                    if out.label.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `label`"));
+                    }
+                    out.label = Some(input.parse::<LitStr>()?);
+                } else if key == "description" {
+                    if out.description.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `description`"));
+                    }
+                    out.description = Some(input.parse::<LitStr>()?);
+                } else if key == "min" {
+                    if out.min.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `min`"));
+                    }
+                    out.min = Some(input.parse::<Expr>()?);
+                } else if key == "max" {
+                    if out.max.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `max`"));
+                    }
+                    out.max = Some(input.parse::<Expr>()?);
+                } else if key == "step" {
+                    if out.step.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `step`"));
+                    }
+                    out.step = Some(input.parse::<Expr>()?);
+                } else if key == "step_base" || key == "stepBase" {
+                    if out.step_base.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `step_base`"));
+                    }
+                    out.step_base = Some(input.parse::<Expr>()?);
+                } else if key == "policy" || key == "constraint_policy" || key == "constraintPolicy" {
+                    if out.policy.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `policy`"));
+                    }
+                    out.policy = Some(input.parse::<LitStr>()?);
+                } else if key == "enum_options" || key == "enumOptions" {
+                    if out.enum_options.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `enum_options`"));
+                    }
+                    out.enum_options = Some(input.parse::<Expr>()?);
+                } else if key == "callback" {
+                    if out.callback.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `callback`"));
+                    }
+                    out.callback = Some(input.parse::<Expr>()?);
+                } else {
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, min, max, step, step_base, policy, enum_options, default_callback, callback)",
+                    ));
+                }
             }
 
             if input.is_empty() {
@@ -190,6 +212,10 @@ impl Parse for ParamFieldArgs {
             }
 
             input.parse::<Token![,]>()?;
+        }
+
+        if out.default_callback && out.callback.is_some() {
+            return Err(Error::new(input.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
         }
 
         Ok(out)
@@ -256,6 +282,8 @@ struct ParamsDslParamOptions {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    default_callback: bool,
+    callback: Option<Expr>,
 }
 
 struct ParamsDslParam {
@@ -358,7 +386,17 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
     while !input.is_empty() {
         let key = input.parse::<Ident>()?;
 
-        if input.peek(Token![=]) {
+        if key == "default_callback" || key == "defaultCallback" {
+            if out.default_callback {
+                return Err(Error::new(key.span(), "duplicate `default_callback` option"));
+            }
+            if input.peek(Token![=]) {
+                input.parse::<Token![=]>()?;
+                out.default_callback = input.parse::<LitBool>()?.value;
+            } else {
+                out.default_callback = true;
+            }
+        } else if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
 
             if key == "label" {
@@ -406,9 +444,16 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_options` option"));
                 }
                 out.enum_options = Some(input.parse::<Expr>()?);
+            } else if key == "callback" {
+                if out.callback.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `callback` option"));
+                }
+                out.callback = Some(input.parse::<Expr>()?);
             } else {
                 let _: Expr = input.parse()?;
             }
+        } else {
+            return Err(Error::new(key.span(), "unsupported flag option; expected `default_callback`"));
         }
 
         if input.is_empty() {
@@ -416,6 +461,10 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
         }
 
         input.parse::<Token![,]>()?;
+    }
+
+    if out.default_callback && out.callback.is_some() {
+        return Err(Error::new(input.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
     }
 
     Ok(out)
@@ -551,6 +600,12 @@ enum ParamConstraintPolicySpec {
     Reject,
 }
 
+#[derive(Clone)]
+enum ParamCallbackSpec {
+    Default,
+    Custom(Expr),
+}
+
 struct ParamsParamSpec {
     field: Ident,
     ty: Type,
@@ -566,6 +621,7 @@ struct ParamsParamSpec {
     step_base: Option<Expr>,
     enum_options: Option<Expr>,
     constraint_policy: Option<ParamConstraintPolicySpec>,
+    callback: Option<ParamCallbackSpec>,
 }
 
 #[derive(Default)]
@@ -636,6 +692,15 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     None
                 };
 
+                let callback = match (param.options.default_callback, param.options.callback.clone()) {
+                    (true, Some(_)) => {
+                        return Err(Error::new(param.field.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
+                    }
+                    (true, None) => Some(ParamCallbackSpec::Default),
+                    (false, Some(expr)) => Some(ParamCallbackSpec::Custom(expr)),
+                    (false, None) => None,
+                };
+
                 let param_index = plan.params.len();
                 plan.params.push(ParamsParamSpec {
                     field: param.field.clone(),
@@ -652,6 +717,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     step_base: param.options.step_base.clone(),
                     enum_options: param.options.enum_options.clone(),
                     constraint_policy,
+                    callback,
                 });
                 plan.children_by_parent.entry(parent_key.clone()).or_default().params.push(param_index);
 
@@ -786,6 +852,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     let mut child_replaced_decl_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut child_removed_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut param_runtime_sync_bindings = Vec::<proc_macro2::TokenStream>::new();
+    let mut param_change_callback_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut param_refresh_bindings = Vec::<proc_macro2::TokenStream>::new();
 
     for field in fields.iter_mut() {
@@ -871,6 +938,11 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             } else {
                 None
             };
+            let callback = if args.default_callback {
+                Some(ParamCallbackSpec::Default)
+            } else {
+                args.callback.map(ParamCallbackSpec::Custom)
+            };
 
             ctor_inits.push(quote! {
                 #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
@@ -922,6 +994,10 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                     let _ = self.#field_ident.apply_runtime_value(new_value);
                 }
             });
+
+            if let Some(callback_spec) = &callback {
+                param_change_callback_statements.push(build_param_callback_dispatch(field_ident.clone(), callback_spec));
+            }
 
             param_refresh_bindings.push(quote! {
                 if self.#field_ident.is_bound() {
@@ -1067,6 +1143,13 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         }
 
         for param in &plan.params {
+            let field_ident = param.field.clone();
+            if let Some(callback_spec) = &param.callback {
+                param_change_callback_statements.push(build_param_callback_dispatch(field_ident, callback_spec));
+            }
+        }
+
+        for param in &plan.params {
             let field_ident = &param.field;
             param_refresh_bindings.push(quote! {
                 if self.#field_ident.is_bound() {
@@ -1181,8 +1264,10 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 let __golden_node_owner_id = owner_id;
                 for event in ctx.events.clone() {
                     match event.kind {
-                        golden_core::events::EventKind::ParamChanged { param, new_value, .. } => {
+                        golden_core::events::EventKind::ParamChanged { param, old_value, new_value } => {
                             self.__golden_node_engine_sync_param_handle_cache(param, &new_value);
+                            #(#param_change_callback_statements)*
+                            let _ = &old_value;
                         }
                         golden_core::events::EventKind::ChildAdded { parent, child, decl_id } => {
                             #(#child_added_decl_statements)*
@@ -1552,6 +1637,28 @@ fn folder_materialization_guard(plan: &ParamsPlan, folder_index: usize) -> proc_
     let descendant_params = plan.params.iter().filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path)).map(|param| param.field.clone()).collect::<Vec<_>>();
 
     if descendant_params.is_empty() { quote!(true) } else { quote!(!(#(self.#descendant_params.is_bound())||*)) }
+}
+
+fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallbackSpec) -> proc_macro2::TokenStream {
+    match callback_spec {
+        ParamCallbackSpec::Default => {
+            let field_name = field_ident.to_string();
+            let field_name = field_name.strip_prefix("r#").unwrap_or(&field_name);
+            let method_ident = format_ident!("on_{}_change", field_name);
+            quote! {
+                if self.#field_ident.id() == param {
+                    self.#method_ident(ctx, old_value.clone());
+                }
+            }
+        }
+        ParamCallbackSpec::Custom(callback_expr) => {
+            quote! {
+                if self.#field_ident.id() == param {
+                    (#callback_expr)(self, ctx, old_value.clone());
+                }
+            }
+        }
+    }
 }
 
 fn take_handle_attrs(field: &mut Field) -> (Option<syn::Attribute>, Option<syn::Attribute>) {
