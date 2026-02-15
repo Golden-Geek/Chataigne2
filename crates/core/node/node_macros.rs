@@ -325,13 +325,3 @@ macro_rules! define_node_enum {
         }
     };
 }
-
-/// Marker macro consumed by `#[golden_core::node]` on `impl Node for ...` blocks.
-///
-/// This fallback exists so accidental standalone usage produces a clear error.
-#[macro_export]
-macro_rules! params {
-    ($($tt:tt)*) => {
-        compile_error!("`params!{...}` is consumed by #[golden_core::node] on `impl Node for ...` blocks and cannot be used standalone");
-    };
-}

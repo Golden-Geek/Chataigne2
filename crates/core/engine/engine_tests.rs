@@ -131,7 +131,7 @@ fn external_coalesced_set_param_edits_keep_latest_value() {
     assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(2), "latest coalesced value should win",);
 }
 
-#[crate::node("auto_declared")]
+#[crate::node("auto_declared", impl_node)]
 struct AutoDeclaredNode {
     #[param(default = 0.5, label = "Decay", description = "Envelope decay time", min = 0.0, max = 1.0, step = 0.05, step_base = 0.0, policy = "ClampAdapt")]
     decay: crate::node::ParameterHandle<f64>,
@@ -140,81 +140,99 @@ struct AutoDeclaredNode {
     value: crate::node::PotentialNodeHandle,
 }
 
-struct DslParamsNode {
+struct ViaNodeCore {
     node_data: NodeData,
-    feedback: crate::node::ParameterHandle<f64>,
-    host: crate::node::ParameterHandle<String>,
-    gamma: crate::node::ParameterHandle<f64>,
-    observed_feedback_new: Option<f64>,
-    observed_feedback_old: Option<ParamValue>,
 }
 
-impl DslParamsNode {
+impl ViaNodeCore {
     fn new(label: impl Into<String>) -> Self {
-        Self {
-            node_data: NodeData::new(label.into()),
-            feedback: crate::node::ParameterHandle::new(0.5),
-            host: crate::node::ParameterHandle::new("127.0.0.1".to_string()),
-            gamma: crate::node::ParameterHandle::new(2.2),
-            observed_feedback_new: None,
-            observed_feedback_old: None,
-        }
+        Self { node_data: NodeData::new(label.into()) }
     }
 }
 
-struct ManualInboxParamsNode {
-    node_data: NodeData,
-    value: crate::node::ParameterHandle<f64>,
-    observed_inbox_value: Option<f64>,
-}
-
-impl ManualInboxParamsNode {
-    fn new(label: impl Into<String>) -> Self {
-        Self {
-            node_data: NodeData::new(label.into()),
-            value: crate::node::ParameterHandle::new(0.5),
-            observed_inbox_value: None,
-        }
-    }
-}
-
-struct ParamsWithCustomInitNode {
-    node_data: NodeData,
+#[crate::node("struct_declared_params_node")]
+struct StructDeclaredParamsNode {
+    #[param(default = 0.5, label = "Value")]
     value: crate::node::ParameterHandle<f64>,
     init_calls: usize,
     init_observed_value: Option<f64>,
 }
 
-impl ParamsWithCustomInitNode {
-    fn new(label: impl Into<String>) -> Self {
-        Self {
-            node_data: NodeData::new(label.into()),
-            value: crate::node::ParameterHandle::unbound(),
-            init_calls: 0,
-            init_observed_value: None,
-        }
+#[crate::node("struct_declared_params_node", from_struct)]
+impl Node for StructDeclaredParamsNode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.init_calls += 1;
+        self.init_observed_value = Some(*self.value.get());
+    }
+
+    fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
+        0
+    }
+}
+
+#[crate::node("via_struct_declared_params_node")]
+struct ViaStructDeclaredParamsNode {
+    base: ViaNodeCore,
+    #[param(default = 0.5, label = "Value")]
+    value: crate::node::ParameterHandle<f64>,
+    init_calls: usize,
+    init_observed_value: Option<f64>,
+}
+
+#[crate::node("via_struct_declared_params_node", via = base.node_data, from_struct)]
+impl Node for ViaStructDeclaredParamsNode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.init_calls += 1;
+        self.init_observed_value = Some(*self.value.get());
+    }
+
+    fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
+        0
     }
 }
 
 #[crate::node("dsl_params_node")]
-impl Node for DslParamsNode {
-    crate::params! {
-        feedback: f64 = 0.5 [0.0..1.0] (
-            label = "Feedback",
-            description = "Delay feedback amount",
-            step = 0.1,
-            step_base = 0.0,
-            policy = "Reject",
-        );
+#[params(
+    feedback: f64 = 0.5 [0.0..1.0] (
+        label = "Feedback",
+        description = "Delay feedback amount",
+        step = 0.1,
+        step_base = 0.0,
+        policy = "Reject",
+    );
 
-        folder(output, label = "Output") {
-            host: String = "127.0.0.1" (label = "Host", description = "OSC destination host");
+    folder(output, label = "Output") {
+        host: String = "127.0.0.1" (label = "Host", description = "OSC destination host");
 
-            folder(color, label = "Color") {
-                gamma: f64 = 2.2 (behavior = "Append");
-            }
+        folder(color, label = "Color") {
+            gamma: f64 = 2.2 (behavior = "Append");
         }
     }
+)]
+struct DslParamsNode {
+    observed_feedback_new: Option<f64>,
+    observed_feedback_old: Option<ParamValue>,
+}
+
+#[crate::node("manual_inbox_params_node")]
+#[params(
+    value: f64 = 0.5 [0.0..1.0] (label = "Value");
+)]
+struct ManualInboxParamsNode {
+    observed_inbox_value: Option<f64>,
+}
+
+#[crate::node("params_with_custom_init_node")]
+#[params(
+    value: f64 = 0.5 [0.0..1.0] (label = "Value");
+)]
+struct ParamsWithCustomInitNode {
+    init_calls: usize,
+    init_observed_value: Option<f64>,
+}
+
+#[crate::node("dsl_params_node", from_struct)]
+impl Node for DslParamsNode {
 
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
         if param == self.feedback.id() {
@@ -224,12 +242,8 @@ impl Node for DslParamsNode {
     }
 }
 
-#[crate::node("manual_inbox_params_node")]
+#[crate::node("manual_inbox_params_node", from_struct)]
 impl Node for ManualInboxParamsNode {
-    crate::params! {
-        value: f64 = 0.5 [0.0..1.0] (label = "Value");
-    }
-
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in &ctx.events {
             if let EventKind::ParamChanged { param, .. } = &event.kind {
@@ -241,12 +255,8 @@ impl Node for ManualInboxParamsNode {
     }
 }
 
-#[crate::node("params_with_custom_init_node")]
+#[crate::node("params_with_custom_init_node", from_struct)]
 impl Node for ParamsWithCustomInitNode {
-    crate::params! {
-        value: f64 = 0.5 [0.0..1.0] (label = "Value");
-    }
-
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.init_calls += 1;
         self.init_observed_value = Some(*self.value.get());
@@ -260,6 +270,8 @@ impl Node for ParamsWithCustomInitNode {
 crate::define_node_enum!(
     enum MacroTestNode {
         AutoDeclaredNode,
+        StructDeclaredParamsNode,
+        ViaStructDeclaredParamsNode,
         DslParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
@@ -327,7 +339,7 @@ fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &
 fn params_macro_materializes_nested_folders_and_binds_handles() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl").into(), None);
+    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -375,7 +387,7 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
 fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl").into(), None);
+    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -411,7 +423,7 @@ fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
 fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ManualInboxParamsNode::new("manual").into(), None);
+    engine.add_node(ManualInboxParamsNode::new("manual", None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -443,7 +455,7 @@ fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
 fn params_macro_keeps_init_and_child_interest_overrides_available() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ParamsWithCustomInitNode::new("custom").into(), None);
+    engine.add_node(ParamsWithCustomInitNode::new("custom", 0, None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -461,7 +473,60 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
     assert_eq!(node.value.id(), value_param, "params preprocessing should still bind handles");
     assert!(
         node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
-        "custom init should observe params! default value before app init runs",
+        "custom init should observe declared default value before app init runs",
+    );
+}
+
+#[test]
+fn struct_param_declarations_delegate_wiring_into_impl_node() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(StructDeclaredParamsNode::new("decl", 0, None).into(), None);
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node should be attached under root");
+    let value_param = find_child_by_decl(&engine, owner, "value").expect("value parameter should exist");
+
+    let MacroTestNode::StructDeclaredParamsNode(node) = engine.nodes.get(owner).expect("node should exist") else {
+        panic!("expected StructDeclaredParamsNode variant");
+    };
+
+    assert_eq!(node.init_calls, 1, "custom init override should run once");
+    assert_eq!(node.value.id(), value_param, "struct-declared param handle should bind to runtime parameter child");
+    assert!(
+        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
+        "custom init should observe struct-declared default before app init runs",
+    );
+}
+
+#[test]
+fn struct_param_declarations_with_via_use_composed_node_data() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(ViaStructDeclaredParamsNode::new("decl", ViaNodeCore::new("base"), 0, None).into(), None);
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node should be attached under root");
+    let value_param = find_child_by_decl(&engine, owner, "value").expect("value parameter should exist");
+
+    let MacroTestNode::ViaStructDeclaredParamsNode(node) = engine.nodes.get(owner).expect("node should exist") else {
+        panic!("expected ViaStructDeclaredParamsNode variant");
+    };
+
+    assert_eq!(node.base.node_data.id, owner, "via path should be the runtime node identity source");
+    assert_eq!(node.value.id(), value_param, "struct-declared param handle should bind using composed node identity");
+    assert_eq!(node.init_calls, 1, "custom init override should run once");
+    assert!(
+        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
+        "custom init should observe struct-declared default before app init runs",
     );
 }
 
@@ -469,7 +534,7 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
 fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_event() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl").into(), None);
+    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");

@@ -600,11 +600,11 @@ impl Node for Folder {
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Folder init");
+        println!("Folder init {}", self.node_data.meta.label);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Folder destroy");
+        println!("Folder destroy {}", self.node_data.meta.label);
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {

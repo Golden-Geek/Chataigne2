@@ -28,12 +28,16 @@ impl Parse for DelegatePath {
 struct NodeAttr {
     type_name: Option<LitStr>,
     via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
 }
 
 impl Parse for NodeAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut type_name = None;
         let mut via = None;
+        let mut impl_node = false;
+        let mut from_struct = false;
 
         while !input.is_empty() {
             if input.peek(LitStr) {
@@ -49,11 +53,27 @@ impl Parse for NodeAttr {
                     }
                     input.parse::<Token![=]>()?;
                     via = Some(input.parse::<DelegatePath>()?);
+                } else if key == "impl_node" {
+                    if impl_node {
+                        return Err(Error::new(key.span(), "duplicate `impl_node` argument"));
+                    }
+                    impl_node = true;
+                } else if key == "from_struct" {
+                    if from_struct {
+                        return Err(Error::new(key.span(), "duplicate `from_struct` argument"));
+                    }
+                    from_struct = true;
                 } else {
-                    return Err(Error::new(key.span(), "unsupported argument, expected string literal or `via = field.path`"));
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, or `from_struct`",
+                    ));
                 }
             } else {
-                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal or `via = field.path`"));
+                return Err(Error::new(
+                    input.span(),
+                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, or `from_struct`",
+                ));
             }
 
             if input.is_empty() {
@@ -66,7 +86,12 @@ impl Parse for NodeAttr {
             }
         }
 
-        Ok(Self { type_name, via })
+        Ok(Self {
+            type_name,
+            via,
+            impl_node,
+            from_struct,
+        })
     }
 }
 
@@ -629,12 +654,17 @@ fn join_decl_path(path: &[String]) -> String {
 
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let NodeAttr { type_name, via } = parse_macro_input!(attr as NodeAttr);
+    let NodeAttr {
+        type_name,
+        via,
+        impl_node,
+        from_struct,
+    } = parse_macro_input!(attr as NodeAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -682,15 +712,45 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: ItemStruct) -> proc_macro2::TokenStream {
+fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, mut input: ItemStruct) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
+    if from_struct {
+        return Error::new_spanned(input, "`from_struct` is only supported on `impl Node for ...` blocks").to_compile_error();
+    }
+
+    let mut params_dsl = None::<ParamsDsl>;
+    let mut kept_attrs = Vec::with_capacity(input.attrs.len());
+    for attr in input.attrs.drain(..) {
+        if attr.path().segments.last().is_some_and(|segment| segment.ident == "params") {
+            if params_dsl.is_some() {
+                return Error::new_spanned(attr, "only one #[params(...)] attribute is supported per struct").to_compile_error();
+            }
+            let parsed = match attr.parse_args::<ParamsDsl>() {
+                Ok(parsed) => parsed,
+                Err(err) => return err.to_compile_error(),
+            };
+            params_dsl = Some(parsed);
+        } else {
+            kept_attrs.push(attr);
+        }
+    }
+    input.attrs = kept_attrs;
 
     let struct_name = input.ident.clone();
     let resolved_type_name = type_name.unwrap_or_else(|| make_type_name_literal(&struct_name.to_string()));
     let generics = input.generics.clone();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let params_plan = if let Some(params_dsl) = &params_dsl {
+        match build_params_plan(params_dsl) {
+            Ok(plan) => Some(plan),
+            Err(err) => return err.to_compile_error(),
+        }
+    } else {
+        None
+    };
 
     let fields = match &mut input.fields {
         Fields::Named(named) => &mut named.named,
@@ -710,6 +770,8 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
     let mut child_added_decl_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut child_replaced_decl_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut child_removed_statements = Vec::<proc_macro2::TokenStream>::new();
+    let mut param_runtime_sync_bindings = Vec::<proc_macro2::TokenStream>::new();
+    let mut param_refresh_bindings = Vec::<proc_macro2::TokenStream>::new();
 
     for field in fields.iter_mut() {
         let Some(field_ident) = field.ident.clone() else {
@@ -726,6 +788,13 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
         }
 
         if let Some(param_attr) = param_attr {
+            if params_plan.is_some() {
+                return Error::new_spanned(
+                    param_attr,
+                    "cannot combine field-level #[param(...)] with struct-level #[params(...)]; choose one parameter declaration style",
+                )
+                .to_compile_error();
+            }
             let args = match param_attr.parse_args::<ParamFieldArgs>() {
                 Ok(args) => args,
                 Err(err) => return err.to_compile_error(),
@@ -811,25 +880,39 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
                     golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                     #set_description
-                    self.add_child(ctx, __param_node, None);
+                    ctx.add_child(__golden_node_owner_id, __param_node, None);
                 }
             });
 
             child_added_decl_statements.push(quote! {
-                if parent == self.id() && decl_id.0 == #decl_id_lit {
+                if parent == __golden_node_owner_id && decl_id.0 == #decl_id_lit {
                     self.#field_ident.set_node_id(child);
                 }
             });
 
             child_replaced_decl_statements.push(quote! {
-                if parent == self.id() && decl_id.0 == #decl_id_lit {
+                if parent == __golden_node_owner_id && decl_id.0 == #decl_id_lit {
                     self.#field_ident.set_node_id(new);
                 }
             });
 
             child_removed_statements.push(quote! {
-                if parent == self.id() && self.#field_ident.id() == child {
+                if parent == __golden_node_owner_id && self.#field_ident.id() == child {
                     self.#field_ident.clear_node_id();
+                }
+            });
+
+            param_runtime_sync_bindings.push(quote! {
+                if self.#field_ident.id() == param {
+                    let _ = self.#field_ident.apply_runtime_value(new_value);
+                }
+            });
+
+            param_refresh_bindings.push(quote! {
+                if self.#field_ident.is_bound() {
+                    if let Some(value) = resolve(self.#field_ident.id()) {
+                        let _ = self.#field_ident.apply_runtime_value(&value);
+                    }
                 }
             });
 
@@ -856,15 +939,15 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
             });
 
             generated_init_statements.push(quote! {
-                self.#field_ident.set_parent(self.id());
+                self.#field_ident.set_parent(__golden_node_owner_id);
             });
 
             child_added_decl_statements.push(quote! {
-                let _ = self.#field_ident.reconcile_child_added(parent, child, decl_id);
+                let _ = self.#field_ident.reconcile_child_added(parent, child, &decl_id);
             });
 
             child_replaced_decl_statements.push(quote! {
-                let _ = self.#field_ident.reconcile_child_replaced(parent, old, new, decl_id);
+                let _ = self.#field_ident.reconcile_child_replaced(parent, old, new, &decl_id);
             });
 
             child_removed_statements.push(quote! {
@@ -878,7 +961,158 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
         ctor_inits.push(quote! { #field_ident });
     }
 
+    let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() {
+        0u32
+    } else {
+        1u32
+    };
+
+    if let Some(plan) = &params_plan {
+        for param in &plan.params {
+            if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &param.field)) {
+                return Error::new(param.field.span(), format!("duplicate field `{}` generated by #[params(...)]", param.field)).to_compile_error();
+            }
+            let field_ident = &param.field;
+            let ty = &param.ty;
+            fields.push(parse_quote! {
+                #field_ident: golden_core::node::ParameterHandle<#ty>
+            });
+            if let Some(default_expr) = &param.default {
+                ctor_inits.push(quote! {
+                    #field_ident: golden_core::node::ParameterHandle::<#ty>::new((#default_expr).into())
+                });
+            } else {
+                ctor_inits.push(quote! {
+                    #field_ident: golden_core::node::ParameterHandle::<#ty>::unbound()
+                });
+            }
+        }
+
+        let root_materialize = materialize_children_tokens(plan, "", quote!(__golden_node_owner_id));
+        generated_init_statements.extend(root_materialize);
+
+        for folder in &plan.folders {
+            let decl_id_lit = &folder.decl_id;
+            let folder_key = join_decl_path(&folder.path);
+            let materialize = materialize_children_tokens(plan, &folder_key, quote!(child));
+            child_added_decl_statements.push(quote! {
+                if decl_id.0 == #decl_id_lit {
+                    #(#materialize)*
+                }
+            });
+        }
+
+        for param in &plan.params {
+            let decl_id_lit = &param.decl_id;
+            let field_ident = &param.field;
+            child_added_decl_statements.push(quote! {
+                if decl_id.0 == #decl_id_lit {
+                    self.#field_ident.set_node_id(child);
+                }
+            });
+        }
+
+        for folder in &plan.folders {
+            let decl_id_lit = &folder.decl_id;
+            let folder_key = join_decl_path(&folder.path);
+            let materialize = materialize_children_tokens(plan, &folder_key, quote!(new));
+            child_replaced_decl_statements.push(quote! {
+                if decl_id.0 == #decl_id_lit {
+                    #(#materialize)*
+                }
+            });
+        }
+
+        for param in &plan.params {
+            let decl_id_lit = &param.decl_id;
+            let field_ident = &param.field;
+            child_replaced_decl_statements.push(quote! {
+                if decl_id.0 == #decl_id_lit {
+                    self.#field_ident.set_node_id(new);
+                }
+            });
+        }
+
+        for param in &plan.params {
+            let field_ident = &param.field;
+            child_removed_statements.push(quote! {
+                if self.#field_ident.id() == child {
+                    self.#field_ident.clear_node_id();
+                }
+            });
+        }
+
+        for param in &plan.params {
+            let field_ident = &param.field;
+            param_runtime_sync_bindings.push(quote! {
+                if self.#field_ident.id() == param {
+                    let _ = self.#field_ident.apply_runtime_value(new_value);
+                }
+            });
+        }
+
+        for param in &plan.params {
+            let field_ident = &param.field;
+            param_refresh_bindings.push(quote! {
+                if self.#field_ident.is_bound() {
+                    if let Some(value) = resolve(self.#field_ident.id()) {
+                        let _ = self.#field_ident.apply_runtime_value(&value);
+                    }
+                }
+            });
+        }
+
+        generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
+    }
+
     let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty));
+
+    let generated_node_impl = if impl_node {
+        quote! {
+            impl #impl_generics golden_core::node::Node for #struct_name #ty_generics #where_clause {
+                fn node_data(&self) -> &golden_core::node::NodeData {
+                    &self.node_data
+                }
+
+                fn node_data_mut(&mut self) -> &mut golden_core::node::NodeData {
+                    &mut self.node_data
+                }
+
+                fn get_type(&self) -> &str {
+                    #resolved_type_name
+                }
+
+                fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
+                    self.__golden_node_engine_child_event_interest_depth(event)
+                }
+
+                fn engine_on_attached(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+                    self.__golden_node_engine_on_attached(ctx, self.node_data.id);
+                }
+
+                fn engine_sync_param_handle_cache(
+                    &mut self,
+                    param: golden_core::node::NodeId,
+                    new_value: &golden_core::parameter::ParamValue,
+                ) {
+                    self.__golden_node_engine_sync_param_handle_cache(param, new_value);
+                }
+
+                fn engine_sync_bound_param_handles(
+                    &mut self,
+                    resolve: &mut dyn FnMut(golden_core::node::NodeId) -> Option<golden_core::parameter::ParamValue>,
+                ) {
+                    self.__golden_node_engine_sync_bound_param_handles(resolve);
+                }
+
+                fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+                    self.__golden_node_engine_preprocess_inbox(ctx, self.node_data.id);
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
 
     quote! {
         #input
@@ -890,59 +1124,75 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input
                     #(#ctor_inits),*
                 }
             }
-        }
 
-        impl #impl_generics golden_core::node::Node for #struct_name #ty_generics #where_clause {
-            fn node_data(&self) -> &golden_core::node::NodeData {
-                &self.node_data
+            #[doc(hidden)]
+            pub fn __golden_node_engine_child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
+                #generated_child_interest_depth
             }
 
-            fn node_data_mut(&mut self) -> &mut golden_core::node::NodeData {
-                &mut self.node_data
-            }
-
-            fn get_type(&self) -> &str {
-                #resolved_type_name
-            }
-
-            fn init(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+            #[doc(hidden)]
+            pub fn __golden_node_engine_on_attached(
+                &mut self,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
+            ) {
+                let __golden_node_owner_id = owner_id;
                 #(#generated_init_statements)*
             }
 
-            fn on_child_added_decl(
+            #[doc(hidden)]
+            pub fn __golden_node_engine_sync_param_handle_cache(
                 &mut self,
-                _ctx: &mut golden_core::process_ctx::ProcessCtx,
-                parent: golden_core::node::NodeId,
-                child: golden_core::node::NodeId,
-                decl_id: &golden_core::node::DeclId,
+                param: golden_core::node::NodeId,
+                new_value: &golden_core::parameter::ParamValue,
             ) {
-                #(#child_added_decl_statements)*
+                #(#param_runtime_sync_bindings)*
             }
 
-            fn on_child_replaced_decl(
+            #[doc(hidden)]
+            pub fn __golden_node_engine_sync_bound_param_handles(
                 &mut self,
-                _ctx: &mut golden_core::process_ctx::ProcessCtx,
-                parent: golden_core::node::NodeId,
-                old: golden_core::node::NodeId,
-                new: golden_core::node::NodeId,
-                decl_id: &golden_core::node::DeclId,
+                resolve: &mut dyn FnMut(golden_core::node::NodeId) -> Option<golden_core::parameter::ParamValue>,
             ) {
-                #(#child_replaced_decl_statements)*
+                #(#param_refresh_bindings)*
             }
 
-            fn on_child_removed(
+            #[doc(hidden)]
+            pub fn __golden_node_engine_preprocess_inbox(
                 &mut self,
-                _ctx: &mut golden_core::process_ctx::ProcessCtx,
-                parent: golden_core::node::NodeId,
-                child: golden_core::node::NodeId,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
             ) {
-                #(#child_removed_statements)*
+                let __golden_node_owner_id = owner_id;
+                for event in ctx.events.clone() {
+                    match event.kind {
+                        golden_core::events::EventKind::ParamChanged { param, new_value, .. } => {
+                            self.__golden_node_engine_sync_param_handle_cache(param, &new_value);
+                        }
+                        golden_core::events::EventKind::ChildAdded { parent, child, decl_id } => {
+                            #(#child_added_decl_statements)*
+                        }
+                        golden_core::events::EventKind::ChildReplaced { parent, old, new, decl_id } => {
+                            #(#child_replaced_decl_statements)*
+                        }
+                        golden_core::events::EventKind::ChildRemoved { parent, child } => {
+                            #(#child_removed_statements)*
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
+
+        #generated_node_impl
     }
 }
 
-fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: ItemImpl) -> proc_macro2::TokenStream {
+fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, mut input: ItemImpl) -> proc_macro2::TokenStream {
+    if impl_node {
+        return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
+    }
+
     let Some((_, trait_path, _)) = &input.trait_ else {
         return Error::new_spanned(input, "#[node] on impl requires a trait impl: `impl Node for Type`").to_compile_error();
     };
@@ -954,31 +1204,27 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: 
 
     let node_data_body = if let Some(path) = via.as_ref() {
         let segments = &path.segments;
-        quote! { golden_core::node::Node::node_data(&self.#(#segments).*) }
+        quote! { &self.#(#segments).* }
     } else {
         quote! { &self.node_data }
     };
 
     let node_data_mut_body = if let Some(path) = via.as_ref() {
         let segments = &path.segments;
-        quote! { golden_core::node::Node::node_data_mut(&mut self.#(#segments).*) }
+        quote! { &mut self.#(#segments).* }
     } else {
         quote! { &mut self.node_data }
     };
 
-    let mut params_dsl = None::<ParamsDsl>;
     let mut kept_items = Vec::with_capacity(input.items.len());
     for item in input.items.drain(..) {
         match item {
             ImplItem::Macro(macro_item) if is_params_macro(&macro_item) => {
-                if params_dsl.is_some() {
-                    return Error::new_spanned(macro_item, "only one params! { ... } block is supported per impl").to_compile_error();
-                }
-                let parsed = match syn::parse2::<ParamsDsl>(macro_item.mac.tokens.clone()) {
-                    Ok(parsed) => parsed,
-                    Err(err) => return err.to_compile_error(),
-                };
-                params_dsl = Some(parsed);
+                return Error::new_spanned(
+                    macro_item,
+                    "`params! { ... }` on `impl Node` has been removed; use `#[params(...)]` on the struct and `#[node(..., from_struct)]` on the impl",
+                )
+                .to_compile_error();
             }
             other => kept_items.push(other),
         }
@@ -1016,12 +1262,8 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, mut input: 
         });
     }
 
-    if let Some(params_dsl) = params_dsl {
-        let plan = match build_params_plan(&params_dsl) {
-            Ok(plan) => plan,
-            Err(err) => return err.to_compile_error(),
-        };
-        if let Err(err) = append_params_methods_to_impl(&mut input, &plan) {
+    if from_struct {
+        if let Err(err) = append_struct_methods_from_helpers(&mut input) {
             return err.to_compile_error();
         }
     }
@@ -1035,7 +1277,7 @@ fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
     item.mac.path.segments.last().is_some_and(|segment| segment.ident == "params")
 }
 
-fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Result<()> {
+fn append_struct_methods_from_helpers(input: &mut ItemImpl) -> Result<()> {
     for method_name in [
         "engine_child_event_interest_depth",
         "engine_sync_param_handle_cache",
@@ -1044,117 +1286,23 @@ fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Res
         "engine_preprocess_inbox",
     ] {
         if has_method(input, method_name) {
-            return Err(Error::new_spanned(&*input, format!("params! generates `{method_name}`; remove the manual method or the params! block")));
+            return Err(Error::new_spanned(
+                &*input,
+                format!("`from_struct` generates `{method_name}`; remove the manual method or `from_struct`"),
+            ));
         }
     }
 
-    let root_materialize = materialize_children_tokens(plan, "", quote!(self.id()));
-    let max_depth = plan.max_depth.max(1);
-
-    let folder_added_blocks = plan.folders.iter().map(|folder| {
-        let decl_id_lit = &folder.decl_id;
-        let folder_key = join_decl_path(&folder.path);
-        let materialize = materialize_children_tokens(plan, &folder_key, quote!(child));
-        quote! {
-            if decl_id.0 == #decl_id_lit {
-                #(#materialize)*
-            }
-        }
-    });
-
-    let folder_replaced_blocks = plan.folders.iter().map(|folder| {
-        let decl_id_lit = &folder.decl_id;
-        let folder_key = join_decl_path(&folder.path);
-        let materialize = materialize_children_tokens(plan, &folder_key, quote!(new));
-        quote! {
-            if decl_id.0 == #decl_id_lit {
-                #(#materialize)*
-            }
-        }
-    });
-
-    let param_added_bindings = plan.params.iter().map(|param| {
-        let decl_id_lit = &param.decl_id;
-        let field_ident = &param.field;
-        quote! {
-            if decl_id.0 == #decl_id_lit {
-                self.#field_ident.set_node_id(child);
-            }
-        }
-    });
-
-    let param_replaced_bindings = plan.params.iter().map(|param| {
-        let decl_id_lit = &param.decl_id;
-        let field_ident = &param.field;
-        quote! {
-            if decl_id.0 == #decl_id_lit {
-                self.#field_ident.set_node_id(new);
-            }
-        }
-    });
-
-    let param_removed_bindings = plan.params.iter().map(|param| {
-        let field_ident = &param.field;
-        quote! {
-            if self.#field_ident.id() == child {
-                self.#field_ident.clear_node_id();
-            }
-        }
-    });
-
-    let param_runtime_sync_bindings = plan.params.iter().map(|param| {
-        let field_ident = &param.field;
-        quote! {
-            if self.#field_ident.id() == param {
-                let _ = self.#field_ident.apply_runtime_value(new_value);
-            }
-        }
-    });
-
-    let param_refresh_bindings = plan.params.iter().map(|param| {
-        let field_ident = &param.field;
-        quote! {
-            if self.#field_ident.is_bound() {
-                if let Some(value) = resolve(self.#field_ident.id()) {
-                    let _ = self.#field_ident.apply_runtime_value(&value);
-                }
-            }
-        }
-    });
-
     input.items.push(parse_quote! {
-        fn engine_child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
-            #max_depth
+        fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
+            self.__golden_node_engine_child_event_interest_depth(event)
         }
     });
 
     input.items.push(parse_quote! {
         fn engine_on_attached(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
-            #(#root_materialize)*
-        }
-    });
-
-    input.items.push(parse_quote! {
-        fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
-            for event in ctx.events.clone() {
-                match event.kind {
-                    golden_core::events::EventKind::ParamChanged { param, new_value, .. } => {
-                        self.engine_sync_param_handle_cache(param, &new_value);
-                    }
-                    golden_core::events::EventKind::ChildAdded { child, decl_id, .. } => {
-                        #(#folder_added_blocks)*
-                        #(#param_added_bindings)*
-                    }
-                    golden_core::events::EventKind::ChildReplaced { new, decl_id, .. } => {
-                        #(#folder_replaced_blocks)*
-                        #(#param_replaced_bindings)*
-                    }
-                    golden_core::events::EventKind::ChildRemoved { child, .. } => {
-                        #(#param_removed_bindings)*
-                    }
-                    _ => {}
-                }
-            }
+            let owner_id = golden_core::node::Node::id(self);
+            self.__golden_node_engine_on_attached(ctx, owner_id);
         }
     });
 
@@ -1164,7 +1312,7 @@ fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Res
             param: golden_core::node::NodeId,
             new_value: &golden_core::parameter::ParamValue,
         ) {
-            #(#param_runtime_sync_bindings)*
+            self.__golden_node_engine_sync_param_handle_cache(param, new_value);
         }
     });
 
@@ -1173,7 +1321,14 @@ fn append_params_methods_to_impl(input: &mut ItemImpl, plan: &ParamsPlan) -> Res
             &mut self,
             resolve: &mut dyn FnMut(golden_core::node::NodeId) -> Option<golden_core::parameter::ParamValue>,
         ) {
-            #(#param_refresh_bindings)*
+            self.__golden_node_engine_sync_bound_param_handles(resolve);
+        }
+    });
+
+    input.items.push(parse_quote! {
+        fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
+            let owner_id = golden_core::node::Node::id(self);
+            self.__golden_node_engine_preprocess_inbox(ctx, owner_id);
         }
     });
 

@@ -150,7 +150,7 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
 
     /// Creates an unbound typed parameter handle with a `Default` cached value.
     ///
-    /// This is useful when the runtime value is declared through `params!` and the
+    /// This is useful when the runtime value is declared through `#[params(...)]` and the
     /// handle will be synchronized by engine preprocessing.
     pub fn unbound() -> Self
     where
