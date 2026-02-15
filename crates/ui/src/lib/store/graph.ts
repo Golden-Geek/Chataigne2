@@ -218,6 +218,9 @@ const reduceEvent = (state: GraphState, event: UiEventDto): GraphState => {
 			break;
 		}
 		case 'custom': {
+			if (event.kind.topic === '__transport.resync_required') {
+				next.requiresResync = true;
+			}
 			break;
 		}
 	}

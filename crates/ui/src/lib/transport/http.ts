@@ -27,18 +27,18 @@ interface HttpClientOptions {
 	fetchImpl?: typeof fetch;
 }
 
-type RustScope = string | { subtree: { root: number; max_depth: number } };
+export type RustScope = string | { subtree: { root: number; max_depth: number } };
 
-interface RustSnapshotRequest {
+export interface RustSnapshotRequest {
 	scope: RustScope;
 }
 
-interface RustReplayRequest {
+export interface RustReplayRequest {
 	scope: RustScope;
 	from?: EventTime;
 }
 
-type RustParamValue =
+export type RustParamValue =
 	| string
 	| {
 			[key: string]: unknown;
@@ -78,7 +78,7 @@ interface RustUiNodeDto {
 	children: number[];
 }
 
-interface RustUiSnapshot {
+export interface RustUiSnapshot {
 	protocol_version: string;
 	scope: RustScope;
 	at: EventTime;
@@ -86,18 +86,37 @@ interface RustUiSnapshot {
 	schema: Partial<UiSnapshot['schema']>;
 }
 
-type RustUiEventDto = Omit<UiEventDto, 'kind'> & {
-	kind:
-		| {
-				kind: 'paramChanged';
-				param: number;
-				old_value: RustParamValue;
-				new_value: RustParamValue;
-		  }
-		| Exclude<UiEventDto['kind'], { kind: 'paramChanged' }>;
-};
+type RustUiEventDto =
+	| (Omit<UiEventDto, 'kind'> & {
+			kind:
+				| {
+						kind: 'paramChanged';
+						param: number;
+						old_value: RustParamValue;
+						new_value: RustParamValue;
+				  }
+				| Exclude<UiEventDto['kind'], { kind: 'paramChanged' }>;
+	  })
+	| (Omit<UiEventDto, 'kind'> & {
+			kind: UiEventDto['kind']['kind'];
+			param?: number;
+			old_value?: RustParamValue;
+			new_value?: RustParamValue;
+			parent?: number;
+			child?: number;
+			decl_id?: string;
+			old?: number;
+			new?: number;
+			old_parent?: number;
+			new_parent?: number;
+			node?: number;
+			patch?: unknown;
+			topic?: string;
+			origin?: number;
+			payload?: unknown;
+	  });
 
-interface RustUiEventBatch {
+export interface RustUiEventBatch {
 	from?: EventTime;
 	to?: EventTime;
 	events: RustUiEventDto[];
@@ -106,14 +125,14 @@ interface RustUiEventBatch {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const toRustScope = (scope: UiSubscriptionScope): RustScope => {
+export const toRustScope = (scope: UiSubscriptionScope): RustScope => {
 	if (scope.kind === 'wholeGraph') {
 		return 'wholeGraph';
 	}
 	return { subtree: { root: scope.root, max_depth: scope.max_depth } };
 };
 
-const fromRustScope = (scope: unknown): UiSubscriptionScope => {
+export const fromRustScope = (scope: unknown): UiSubscriptionScope => {
 	if (scope === 'wholeGraph' || scope === 'WholeGraph') {
 		return { kind: 'wholeGraph' };
 	}
@@ -295,21 +314,55 @@ const fromRustNode = (node: RustUiNodeDto): UiNodeDto => ({
 });
 
 const fromRustEvent = (event: RustUiEventDto): UiEventDto => {
-	if (event.kind.kind === 'paramChanged') {
+	if (!isRecord(event)) {
+		return event as UiEventDto;
+	}
+
+	const nestedKind = event.kind;
+	if (isRecord(nestedKind) && typeof nestedKind.kind === 'string') {
+		if (nestedKind.kind === 'paramChanged') {
+			return {
+				...(event as Omit<UiEventDto, 'kind'>),
+				kind: {
+					kind: 'paramChanged',
+					param: Number(nestedKind.param ?? 0),
+					old_value: fromRustParamValue(nestedKind.old_value),
+					new_value: fromRustParamValue(nestedKind.new_value)
+				}
+			};
+		}
+		return event as UiEventDto;
+	}
+
+	if (typeof nestedKind !== 'string') {
+		return event as UiEventDto;
+	}
+
+	if (nestedKind === 'paramChanged') {
 		return {
-			...event,
+			...(event as Omit<UiEventDto, 'kind'>),
 			kind: {
 				kind: 'paramChanged',
-				param: event.kind.param,
-				old_value: fromRustParamValue(event.kind.old_value),
-				new_value: fromRustParamValue(event.kind.new_value)
+				param: Number((event as Record<string, unknown>).param ?? 0),
+				old_value: fromRustParamValue((event as Record<string, unknown>).old_value),
+				new_value: fromRustParamValue((event as Record<string, unknown>).new_value)
 			}
 		};
 	}
-	return event as UiEventDto;
+
+	const payload = { ...(event as Record<string, unknown>) };
+	delete payload.time;
+	delete payload.kind;
+	return {
+		...(event as Omit<UiEventDto, 'kind'>),
+		kind: {
+			kind: nestedKind,
+			...(payload as Record<string, unknown>)
+		} as UiEventDto['kind']
+	};
 };
 
-const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => ({
+export const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => ({
 	protocol_version: snapshot.protocol_version,
 	scope: fromRustScope(snapshot.scope),
 	at: snapshot.at,
@@ -320,13 +373,13 @@ const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => ({
 	}
 });
 
-const fromRustEventBatch = (batch: RustUiEventBatch): UiEventBatch => ({
+export const fromRustEventBatch = (batch: RustUiEventBatch): UiEventBatch => ({
 	from: batch.from,
 	to: batch.to,
 	events: batch.events.map(fromRustEvent)
 });
 
-const toRustIntent = (intent: UiEditIntent): unknown => {
+export const toRustIntent = (intent: UiEditIntent): unknown => {
 	if (intent.kind === 'setParam') {
 		return {
 			...intent,

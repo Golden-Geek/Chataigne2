@@ -2,15 +2,17 @@
 	import Inspector from './Inspector.svelte';
 	import NodeTree from './NodeTree.svelte';
 	import type { GraphState } from '../store/graph';
-	import type { NodeId, UiEditIntent } from '../types';
+	import type { NodeId, UiClient, UiEditIntent } from '../types';
 
 	let {
 		state,
+		client,
 		status = '',
 		onSelect,
 		onIntent
 	}: {
 		state: GraphState;
+		client: UiClient;
 		status?: string;
 		onSelect: (nodeId: NodeId) => void;
 		onIntent: (intent: UiEditIntent) => void;
@@ -34,7 +36,7 @@
 			selectedNodeId={state.selectedNodeId}
 			onSelect={(nodeId) => onSelect(nodeId)}
 		/>
-		<Inspector {state} {onIntent} />
+		<Inspector {state} {client} {onIntent} />
 	</div>
 </main>
 
