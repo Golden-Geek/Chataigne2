@@ -18,7 +18,6 @@ use golden_core::{
 )]
 pub struct DummyNode {}
 
-#[update(10)]
 #[node(from_struct)]
 impl Node for DummyNode {
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, old_value: ParamValue) {
@@ -32,9 +31,9 @@ impl Node for DummyNode {
         println!("DummyNode init, dummy_param initial value: {}", self.dummy_param.get());
     }
 
-    fn update(&mut self, _ctx: &mut ProcessCtx) {
-        // let osc: f64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64().sin() * 0.5 + 0.5;
-        // self.dummy_param.set(ctx, osc);
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        let osc: f64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64().sin() * 0.5 + 0.5;
+        self.dummy_param.set(ctx, osc * 10.0);
         // println!("DummyNode update: {}", self.dummy_param.get());
     }
 
@@ -51,8 +50,6 @@ folder(output, label = "Output", reuse = true) {
 )]
 pub struct VeryDummyNode {
     dummy: DummyNode,
-
-  
 }
 
 impl VeryDummyNode {
@@ -62,6 +59,7 @@ impl VeryDummyNode {
     }
 }
 
+#[update(100)]
 #[node(via = dummy, from_struct)]
 impl Node for VeryDummyNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -69,12 +67,16 @@ impl Node for VeryDummyNode {
         println!("VeryDummyNode init, dummy_param initial value: {}", self.dummy.dummy_param.get());
     }
 
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        self.dummy.update(ctx);
+    }
+
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, old_value: ParamValue) {
         if node_id == self.very_dummy_param.id() {
-            println!("VeryDummyNode very_dummy_param changed: old={:?} new={}", old_value, self.very_dummy_param.get());
+            // println!("VeryDummyNode very_dummy_param changed: old={:?} new={}", old_value, self.very_dummy_param.get());
         }
         if node_id == self.dummy.dummy_param.id() {
-            println!("VeryDummyNode dummy_param changed: old={:?} new={}", old_value, self.dummy.dummy_param.get());
+            // println!("VeryDummyNode dummy_param changed: old={:?} new={}", old_value, self.dummy.dummy_param.get());
         }
     }
 }
@@ -103,10 +105,10 @@ impl Node for SuperDummyNode {
 
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, old_value: ParamValue) {
         if node_id == self.super_dummy_param.id() {
-            println!("SuperDummyNode super_dummy_param changed: old={:?} new={}", old_value, self.super_dummy_param.get());
+            // println!("SuperDummyNode super_dummy_param changed: old={:?} new={}", old_value, self.super_dummy_param.get());
         }
         if node_id == self.very_dummy.very_dummy_param.id() {
-            println!("SuperDummyNode very_dummy_param changed: old={:?} new={}", old_value, self.very_dummy.very_dummy_param.get());
+            // println!("SuperDummyNode very_dummy_param changed: old={:?} new={}", old_value, self.very_dummy.very_dummy_param.get());
         }
     }
 }
