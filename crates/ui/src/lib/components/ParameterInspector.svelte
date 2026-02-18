@@ -149,6 +149,11 @@
 						}
 					}}
 					onchange={(event) => {
+						if (param.constraints.min !== undefined && param.constraints.max !== undefined) {
+							endContinuousEdit();
+							return;
+						}
+
 						dispatchSetParam(
 							node,
 							{
@@ -157,7 +162,6 @@
 							},
 							'Append'
 						);
-						endContinuousEdit();
 					}}
 					onpointerup={() => endContinuousEdit()}
 					onpointercancel={() => endContinuousEdit()}

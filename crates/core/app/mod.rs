@@ -75,6 +75,7 @@ pub fn run_app_with_config<T: Node + 'static>(
     engine
         .resolve_if_needed()
         .map_err(|err| Error::new(ErrorKind::Other, format!("initial resolve failed: {err}")))?;
+    engine.clear_history(); // keep runtime undo history strictly post-start
 
     let shared_engine = Arc::new(Mutex::new(engine));
     run_ui_server(shared_engine, config)
