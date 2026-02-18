@@ -359,14 +359,27 @@ enum ParamsDslItem {
 struct ParamsDslFolder {
     name: Ident,
     label: Option<LitStr>,
+    description: Option<LitStr>,
     reuse: bool,
+    meta: ParamsDslMetaOptions,
     items: Vec<ParamsDslItem>,
+}
+
+#[derive(Clone, Default)]
+struct ParamsDslMetaOptions {
+    short_name: Option<LitStr>,
+    enabled: Option<Expr>,
+    can_be_disabled: Option<Expr>,
+    tags: Option<Expr>,
+    semantics: Option<Expr>,
+    presentation: Option<Expr>,
 }
 
 #[derive(Default)]
 struct ParamsDslParamOptions {
     label: Option<LitStr>,
     description: Option<LitStr>,
+    meta: ParamsDslMetaOptions,
     behaviour: Option<LitStr>,
     min: Option<Expr>,
     max: Option<Expr>,
@@ -414,10 +427,15 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
             let folder_name = content.parse::<Ident>()?;
             let mut folder_label = None::<LitStr>;
+            let mut folder_description = None::<LitStr>;
             let mut folder_reuse = None::<bool>;
+            let mut folder_meta = ParamsDslMetaOptions::default();
 
             while !content.is_empty() {
                 content.parse::<Token![,]>()?;
+                if content.is_empty() {
+                    break;
+                }
                 let key = content.parse::<Ident>()?;
 
                 if key == "label" {
@@ -426,15 +444,59 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                     }
                     content.parse::<Token![=]>()?;
                     folder_label = Some(content.parse::<LitStr>()?);
+                } else if key == "description" {
+                    if folder_description.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder description"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_description = Some(content.parse::<LitStr>()?);
                 } else if key == "reuse" {
                     if folder_reuse.is_some() {
                         return Err(Error::new(key.span(), "duplicate folder reuse flag"));
                     }
                     content.parse::<Token![=]>()?;
                     folder_reuse = Some(content.parse::<LitBool>()?.value);
-                } else if content.peek(Token![=]) {
+                } else if key == "short_name" || key == "shortName" {
+                    if folder_meta.short_name.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder short_name"));
+                    }
                     content.parse::<Token![=]>()?;
-                    let _: Expr = content.parse()?;
+                    folder_meta.short_name = Some(content.parse::<LitStr>()?);
+                } else if key == "enabled" {
+                    if folder_meta.enabled.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder enabled"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_meta.enabled = Some(content.parse::<Expr>()?);
+                } else if key == "can_be_disabled" || key == "canBeDisabled" {
+                    if folder_meta.can_be_disabled.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder can_be_disabled"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_meta.can_be_disabled = Some(content.parse::<Expr>()?);
+                } else if key == "tags" {
+                    if folder_meta.tags.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder tags"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_meta.tags = Some(content.parse::<Expr>()?);
+                } else if key == "semantics" {
+                    if folder_meta.semantics.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder semantics"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_meta.semantics = Some(content.parse::<Expr>()?);
+                } else if key == "presentation" {
+                    if folder_meta.presentation.is_some() {
+                        return Err(Error::new(key.span(), "duplicate folder presentation"));
+                    }
+                    content.parse::<Token![=]>()?;
+                    folder_meta.presentation = Some(content.parse::<Expr>()?);
+                } else {
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
+                    ));
                 }
             }
 
@@ -449,7 +511,9 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
             items.push(ParamsDslItem::Folder(ParamsDslFolder {
                 name: folder_name,
                 label: folder_label,
+                description: folder_description,
                 reuse: folder_reuse.unwrap_or(false),
+                meta: folder_meta,
                 items: nested,
             }));
             continue;
@@ -501,6 +565,36 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `description` option"));
                 }
                 out.description = Some(input.parse::<LitStr>()?);
+            } else if key == "short_name" || key == "shortName" {
+                if out.meta.short_name.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `short_name` option"));
+                }
+                out.meta.short_name = Some(input.parse::<LitStr>()?);
+            } else if key == "enabled" {
+                if out.meta.enabled.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `enabled` option"));
+                }
+                out.meta.enabled = Some(input.parse::<Expr>()?);
+            } else if key == "can_be_disabled" || key == "canBeDisabled" {
+                if out.meta.can_be_disabled.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `can_be_disabled` option"));
+                }
+                out.meta.can_be_disabled = Some(input.parse::<Expr>()?);
+            } else if key == "tags" {
+                if out.meta.tags.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `tags` option"));
+                }
+                out.meta.tags = Some(input.parse::<Expr>()?);
+            } else if key == "semantics" {
+                if out.meta.semantics.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `semantics` option"));
+                }
+                out.meta.semantics = Some(input.parse::<Expr>()?);
+            } else if key == "presentation" {
+                if out.meta.presentation.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `presentation` option"));
+                }
+                out.meta.presentation = Some(input.parse::<Expr>()?);
             } else if key == "behavior" || key == "behaviour" {
                 if out.behaviour.is_some() {
                     return Err(Error::new(key.span(), "duplicate `behavior` option"));
@@ -542,7 +636,10 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                 }
                 out.callback = Some(input.parse::<Expr>()?);
             } else {
-                let _: Expr = input.parse()?;
+                return Err(Error::new(
+                    key.span(),
+                    "unsupported params option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, default_callback, callback)",
+                ));
             }
         } else {
             return Err(Error::new(key.span(), "unsupported flag option; expected `default_callback`"));
@@ -679,7 +776,9 @@ struct ParamsFolderSpec {
     path: Vec<String>,
     decl_id: LitStr,
     label: LitStr,
+    description: Option<LitStr>,
     reuse: bool,
+    meta: ParamsDslMetaOptions,
 }
 
 enum ParamEventBehaviourSpec {
@@ -705,6 +804,7 @@ struct ParamsParamSpec {
     decl_id: LitStr,
     label: LitStr,
     description: Option<LitStr>,
+    meta: ParamsDslMetaOptions,
     default: Option<Expr>,
     behaviour: Option<ParamEventBehaviourSpec>,
     min: Option<Expr>,
@@ -746,7 +846,9 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     path: path.clone(),
                     decl_id: decl_id_lit,
                     label: label_lit,
+                    description: folder.description.clone(),
                     reuse: folder.reuse,
+                    meta: folder.meta.clone(),
                 });
                 plan.children_by_parent.entry(parent_key.clone()).or_default().folders.push(folder_index);
 
@@ -801,6 +903,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     decl_id: decl_id_lit,
                     label: label_lit,
                     description: param.options.description.clone(),
+                    meta: param.options.meta.clone(),
                     default: param.default.clone(),
                     behaviour,
                     min: param.options.min.clone(),
@@ -1649,6 +1752,43 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
         let folder = &plan.folders[*folder_index];
         let label_lit = &folder.label;
         let decl_id_lit = &folder.decl_id;
+        let set_description = folder.description.as_ref().map(|description_lit| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.description =
+                    Some(::std::string::String::from(#description_lit));
+            }
+        });
+        let set_short_name = folder.meta.short_name.as_ref().map(|short_name_lit| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.short_name =
+                    ::std::string::String::from(#short_name_lit);
+            }
+        });
+        let set_enabled = folder.meta.enabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.enabled = #expr;
+            }
+        });
+        let set_can_be_disabled = folder.meta.can_be_disabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.can_be_disabled = #expr;
+            }
+        });
+        let set_tags = folder.meta.tags.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.tags = #expr;
+            }
+        });
+        let set_semantics = folder.meta.semantics.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.semantics = #expr;
+            }
+        });
+        let set_presentation = folder.meta.presentation.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.presentation = #expr;
+            }
+        });
         let guard = folder_materialization_guard(plan, *folder_index);
         if folder.reuse {
             out.push(quote! {
@@ -1665,6 +1805,13 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                         let mut __folder_node = golden_core::node::Folder::new(#label_lit);
                         golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
                             golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                        #set_description
+                        #set_short_name
+                        #set_enabled
+                        #set_can_be_disabled
+                        #set_tags
+                        #set_semantics
+                        #set_presentation
                         ctx.add_child(#parent_expr, __folder_node, None);
                     }
                 }
@@ -1675,6 +1822,13 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                     let mut __folder_node = golden_core::node::Folder::new(#label_lit);
                     golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                    #set_description
+                    #set_short_name
+                    #set_enabled
+                    #set_can_be_disabled
+                    #set_tags
+                    #set_semantics
+                    #set_presentation
                     ctx.add_child(#parent_expr, __folder_node, None);
                 }
             });
@@ -1691,6 +1845,37 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             quote! {
                 golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
                     Some(::std::string::String::from(#description_lit));
+            }
+        });
+        let set_short_name = param.meta.short_name.as_ref().map(|short_name_lit| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.short_name =
+                    ::std::string::String::from(#short_name_lit);
+            }
+        });
+        let set_enabled = param.meta.enabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.enabled = #expr;
+            }
+        });
+        let set_can_be_disabled = param.meta.can_be_disabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.can_be_disabled = #expr;
+            }
+        });
+        let set_tags = param.meta.tags.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.tags = #expr;
+            }
+        });
+        let set_semantics = param.meta.semantics.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.semantics = #expr;
+            }
+        });
+        let set_presentation = param.meta.presentation.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __param_node).meta.presentation = #expr;
             }
         });
 
@@ -1774,6 +1959,12 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                 #set_description
+                #set_short_name
+                #set_enabled
+                #set_can_be_disabled
+                #set_tags
+                #set_semantics
+                #set_presentation
                 ctx.add_child(#parent_expr, __param_node, None);
             }
         });

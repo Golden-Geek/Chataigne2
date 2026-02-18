@@ -458,8 +458,11 @@ pub struct Parameter {
 impl Parameter {
     /// Creates a new parameter node.
     pub fn new(label: &str, value: ParamValue, change_check: ParameterChangeCheck) -> Self {
+        let mut node_data = NodeData::new(label.to_string());
+        node_data.meta.can_be_disabled = false;
+
         Self {
-            node_data: NodeData::new(label.to_string()),
+            node_data,
             value,
             change_check,
             event_behaviour: ParameterEventBehaviour::Coalesce,

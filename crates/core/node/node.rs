@@ -757,7 +757,9 @@ pub struct Folder {
 impl Folder {
     /// Creates a new folder node.
     pub fn new(label: impl Into<String>) -> Self {
-        Self { node_data: NodeData::new(label.into()) }
+        let mut node_data = NodeData::new(label.into());
+        node_data.meta.can_be_disabled = false;
+        Self { node_data }
     }
 }
 
@@ -786,4 +788,3 @@ impl Node for Folder {
         EventPropagation::PassOn
     }
 }
-

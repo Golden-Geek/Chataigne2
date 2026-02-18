@@ -329,6 +329,7 @@
 			<p class="subtitle">{selectedNode.node_type}</p>
 		</div>
 
+		{#if selectedNode.meta.can_be_disabled !== false}
 		<div class="field">
 			<label for="node-enabled">Enabled</label>
 			<input
@@ -340,7 +341,7 @@
 					dispatchEnableToggle(selectedNode, (event.currentTarget as HTMLInputElement).checked)}
 			/>
 		</div>
-
+		{/if}
 		{#if selectedNode.data.kind === 'parameter'}
 			<ParameterInspector node={selectedNode} {onIntent} />
 		{/if}

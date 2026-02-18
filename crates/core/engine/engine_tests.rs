@@ -341,6 +341,43 @@ struct DslParamsNode {
     observed_feedback_old: Option<ParamValue>,
 }
 
+#[crate::node("dsl_meta_params_node")]
+#[params(
+    folder(
+        settings,
+        label = "Settings",
+        description = "Settings folder metadata",
+        short_name = "settings_folder",
+        enabled = false,
+        can_be_disabled = true,
+        tags = vec![String::from("group")],
+        semantics = crate::node::SemanticsHint {
+            intent: Some(String::from("container")),
+            unit: Some(String::from("section")),
+        },
+        presentation = crate::node::PresentationHint {
+            color: Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0)),
+        },
+    ) {
+        gain: f64 = 0.5 (
+            label = "Gain",
+            description = "Gain parameter metadata",
+            short_name = "gain_param",
+            enabled = false,
+            can_be_disabled = true,
+            tags = vec![String::from("audio"), String::from("gain")],
+            semantics = crate::node::SemanticsHint {
+                intent: Some(String::from("level")),
+                unit: Some(String::from("db")),
+            },
+            presentation = crate::node::PresentationHint {
+                color: Some(crate::color::Color::new(0.7, 0.8, 0.9, 1.0)),
+            },
+        );
+    }
+)]
+struct DslMetaParamsNode {}
+
 #[crate::node("manual_inbox_params_node")]
 #[params(
     value: f64 = 0.5 [0.0..1.0] (label = "Value");
@@ -439,6 +476,9 @@ impl Node for DslParamsNode {
     }
 }
 
+#[crate::node("dsl_meta_params_node", from_struct)]
+impl Node for DslMetaParamsNode {}
+
 #[crate::node("manual_inbox_params_node", from_struct)]
 impl Node for ManualInboxParamsNode {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
@@ -489,6 +529,7 @@ crate::define_node_enum!(
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
         DslParamsNode,
+        DslMetaParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
         DslCallbackParamsNode,
@@ -612,6 +653,44 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");
     assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
+}
+
+#[test]
+fn params_macro_applies_metadata_overrides_for_generated_nodes() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslMetaParamsNode::new("meta").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dsl meta node should be attached under root");
+    let settings = find_child_by_decl(&engine, owner, "settings").expect("settings folder should exist");
+    let gain = find_child_by_decl(&engine, settings, "settings/gain").expect("settings/gain parameter should exist");
+
+    let settings_meta = engine.nodes.get(settings).expect("settings folder should exist").node_data().meta.clone();
+    assert_eq!(settings_meta.label, "Settings");
+    assert_eq!(settings_meta.short_name, "settings_folder");
+    assert!(!settings_meta.enabled);
+    assert!(settings_meta.can_be_disabled);
+    assert_eq!(settings_meta.description.as_deref(), Some("Settings folder metadata"));
+    assert_eq!(settings_meta.tags, vec![String::from("group")]);
+    assert_eq!(settings_meta.semantics.intent.as_deref(), Some("container"));
+    assert_eq!(settings_meta.semantics.unit.as_deref(), Some("section"));
+    assert_eq!(settings_meta.presentation.color, Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0)));
+
+    let gain_meta = engine.nodes.get(gain).expect("gain parameter should exist").node_data().meta.clone();
+    assert_eq!(gain_meta.label, "Gain");
+    assert_eq!(gain_meta.short_name, "gain_param");
+    assert!(!gain_meta.enabled);
+    assert!(gain_meta.can_be_disabled);
+    assert_eq!(gain_meta.description.as_deref(), Some("Gain parameter metadata"));
+    assert_eq!(gain_meta.tags, vec![String::from("audio"), String::from("gain")]);
+    assert_eq!(gain_meta.semantics.intent.as_deref(), Some("level"));
+    assert_eq!(gain_meta.semantics.unit.as_deref(), Some("db"));
+    assert_eq!(gain_meta.presentation.color, Some(crate::color::Color::new(0.7, 0.8, 0.9, 1.0)));
 }
 
 #[test]
