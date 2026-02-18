@@ -250,8 +250,7 @@ impl<T: Node> Engine<T> {
         // Freshly loaded projects should start with no pending edits/history/events.
         engine.inbox.clear();
         engine.edits.pending.clear();
-        engine.undo_stack.clear();
-        engine.redo_stack.clear();
+        engine.clear_history();
         engine.event_listeners.clear();
         engine.time = super::EngineTime { tick: 0, micro: 0, seq: 0 };
 

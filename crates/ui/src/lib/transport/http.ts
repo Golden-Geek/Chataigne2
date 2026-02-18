@@ -10,6 +10,7 @@ import type {
 	UiEventDto,
 	UiNodeDataDto,
 	UiNodeDto,
+	UiHistoryState,
 	UiNodeMetaDto,
 	UiParamConstraints,
 	UiParamDto,
@@ -88,6 +89,7 @@ export interface RustUiSnapshot {
 	at: EventTime;
 	nodes: RustUiNodeDto[];
 	schema: Partial<UiSnapshot['schema']>;
+	history?: UiHistoryState;
 }
 
 type RustUiEventDto =
@@ -383,6 +385,13 @@ export const fromRustSnapshot = (snapshot: RustUiSnapshot): UiSnapshot => ({
 	schema: {
 		node_types: snapshot.schema.node_types ?? [],
 		enums: snapshot.schema.enums ?? []
+	},
+	history: snapshot.history ?? {
+		can_undo: false,
+		can_redo: false,
+		undo_len: 0,
+		redo_len: 0,
+		active_edit_session: false
 	}
 });
 

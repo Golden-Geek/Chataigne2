@@ -1,4 +1,3 @@
-import { writable, type Readable } from 'svelte/store';
 import type {
 	EventTime,
 	NodeId,
@@ -15,17 +14,16 @@ export interface GraphState {
 	nodesById: Map<NodeId, UiNodeDto>;
 	childrenById: Map<NodeId, NodeId[]>;
 	paramsById: Map<NodeId, UiParamDto>;
-	selectedNodeId: NodeId | null;
 	lastEventTime?: EventTime;
 	requiresResync: boolean;
 }
 
-export interface GraphStore extends Readable<GraphState> {
+export interface GraphStore {
+	readonly state: GraphState;
 	loadSnapshot(snapshot: UiSnapshot): void;
 	applyEvent(event: UiEventDto): void;
 	applyBatch(batch: UiEventBatch): void;
-	selectNode(nodeId: NodeId | null): void;
-	resetSelection(): void;
+	reset(): void;
 }
 
 const createEmptyState = (): GraphState => ({
@@ -33,7 +31,6 @@ const createEmptyState = (): GraphState => ({
 	nodesById: new Map(),
 	childrenById: new Map(),
 	paramsById: new Map(),
-	selectedNodeId: null,
 	lastEventTime: undefined,
 	requiresResync: false
 });
@@ -73,7 +70,6 @@ const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
 		nodesById,
 		childrenById,
 		paramsById,
-		selectedNodeId: null,
 		lastEventTime: snapshot.at,
 		requiresResync: false
 	};
@@ -122,9 +118,6 @@ const removeSubtree = (state: GraphState, nodeId: NodeId): void => {
 	state.childrenById.delete(nodeId);
 	state.nodesById.delete(nodeId);
 	state.paramsById.delete(nodeId);
-	if (state.selectedNodeId === nodeId) {
-		state.selectedNodeId = null;
-	}
 };
 
 const applyMetaPatch = (node: UiNodeDto, patch: Partial<UiNodeMetaDto>): UiNodeDto => ({
@@ -192,7 +185,6 @@ const reduceEvent = (state: GraphState, event: UiEventDto): GraphState => {
 			break;
 		}
 		case 'childReordered': {
-			// No index payload yet, so order cannot be reconstructed reliably.
 			next.requiresResync = true;
 			break;
 		}
@@ -230,39 +222,30 @@ const reduceEvent = (state: GraphState, event: UiEventDto): GraphState => {
 };
 
 export const createGraphStore = (): GraphStore => {
-	const { subscribe, set, update } = writable<GraphState>(createEmptyState());
+	let state = $state<GraphState>(createEmptyState());
 
 	return {
-		subscribe,
+		get state(): GraphState {
+			return state;
+		},
 		loadSnapshot(snapshot: UiSnapshot): void {
-			set(stateFromSnapshot(snapshot));
+			state = stateFromSnapshot(snapshot);
 		},
 		applyEvent(event: UiEventDto): void {
-			update((state) => reduceEvent(state, event));
+			state = reduceEvent(state, event);
 		},
 		applyBatch(batch: UiEventBatch): void {
-			update((state) => {
-				let next = state;
-				for (const event of batch.events) {
-					next = reduceEvent(next, event);
-				}
-				if (batch.to) {
-					next = { ...next, lastEventTime: batch.to };
-				}
-				return next;
-			});
+			let next = state;
+			for (const event of batch.events) {
+				next = reduceEvent(next, event);
+			}
+			if (batch.to) {
+				next = { ...next, lastEventTime: batch.to };
+			}
+			state = next;
 		},
-		selectNode(nodeId: NodeId | null): void {
-			update((state) => ({
-				...state,
-				selectedNodeId: nodeId
-			}));
-		},
-		resetSelection(): void {
-			update((state) => ({
-				...state,
-				selectedNodeId: null
-			}));
+		reset(): void {
+			state = createEmptyState();
 		}
 	};
 };

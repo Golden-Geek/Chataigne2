@@ -1,6 +1,6 @@
 use crate::edit::EditOrigin;
 use crate::events::EventKind;
-use crate::node::{Node, NodeId};
+use crate::node::{Node, NodeId, NodeMeta, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 use super::{Engine, EngineEditError};
@@ -115,6 +115,8 @@ impl<T: Node> ActiveEditSession<T> {
 pub(crate) enum HistoryStep<T: Node> {
     /// Parameter value update history.
     SetParam(SetParamHistory),
+    /// Node metadata patch history.
+    PatchMeta(PatchMetaHistory),
     /// Child insertion history.
     AddNode(AddNodeHistory<T>),
     /// Node/subtree removal history.
@@ -131,6 +133,21 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
+            }
+            Self::PatchMeta(step) => {
+                let target = engine
+                    .nodes
+                    .get_mut(step.node)
+                    .ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: "UndoPatchMeta",
+                        node: step.node,
+                    })?;
+                target.node_data_mut().meta = step.old_meta.clone();
+                engine.emit_event(EventKind::MetaChanged {
+                    node: step.node,
+                    patch: meta_to_patch(&step.old_meta),
+                });
             }
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
@@ -258,6 +275,21 @@ impl<T: Node> HistoryStep<T> {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
             }
+            Self::PatchMeta(step) => {
+                let target = engine
+                    .nodes
+                    .get_mut(step.node)
+                    .ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: "RedoPatchMeta",
+                        node: step.node,
+                    })?;
+                target.node_data_mut().meta = step.new_meta.clone();
+                engine.emit_event(EventKind::MetaChanged {
+                    node: step.node,
+                    patch: meta_to_patch(&step.new_meta),
+                });
+            }
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";
 
@@ -384,7 +416,7 @@ impl<T: Node> HistoryStep<T> {
     /// Releases detached node payloads owned by this step, if any.
     fn dispose(&mut self, engine: &mut Engine<T>) {
         match self {
-            Self::SetParam(_) | Self::MoveNode(_) => {}
+            Self::SetParam(_) | Self::PatchMeta(_) | Self::MoveNode(_) => {}
             Self::AddNode(step) => {
                 if let Some(node) = step.detached_node.take() {
                     purge_detached_node(engine, step.node, node);
@@ -419,6 +451,19 @@ fn child_decl_id<T: Node>(engine: &Engine<T>, edit_index: usize, operation: &'st
     Ok(engine.nodes.get(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node })?.node_data().meta.decl_id.clone())
 }
 
+fn meta_to_patch(meta: &NodeMeta) -> NodeMetaPatch {
+    NodeMetaPatch {
+        short_name: Some(meta.short_name.clone()),
+        enabled: Some(meta.enabled),
+        can_be_disabled: Some(meta.can_be_disabled),
+        label: Some(meta.label.clone()),
+        description: Some(meta.description.clone()),
+        tags: Some(meta.tags.clone()),
+        semantics: Some(meta.semantics.clone()),
+        presentation: Some(meta.presentation.clone()),
+    }
+}
+
 /// Captured effect for a successful `SetParam` edit.
 pub(crate) struct SetParamEffect {
     /// Edited parameter node id.
@@ -431,6 +476,16 @@ pub(crate) struct SetParamEffect {
     pub(crate) behaviour: ParameterEventBehaviour,
     /// Tick at which this edit was applied.
     pub(crate) tick: u64,
+}
+
+/// Captured effect for a successful `PatchMeta` edit.
+pub(crate) struct PatchMetaEffect {
+    /// Edited node id.
+    pub(crate) node: NodeId,
+    /// Metadata before patch.
+    pub(crate) old_meta: NodeMeta,
+    /// Metadata after patch.
+    pub(crate) new_meta: NodeMeta,
 }
 
 /// Captured effect for a successful `AddNode` edit.
@@ -505,6 +560,16 @@ pub(crate) struct SetParamHistory {
     behaviour: ParameterEventBehaviour,
     /// Tick at which this edit was applied.
     tick: u64,
+}
+
+/// Undo/redo payload for metadata patches.
+pub(crate) struct PatchMetaHistory {
+    /// Edited node id.
+    node: NodeId,
+    /// Metadata before patch.
+    old_meta: NodeMeta,
+    /// Metadata after patch.
+    new_meta: NodeMeta,
 }
 
 /// Undo/redo payload for add-node edits.
@@ -585,6 +650,16 @@ impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
     }
 }
 
+impl<T: Node> From<PatchMetaEffect> for HistoryStep<T> {
+    fn from(effect: PatchMetaEffect) -> Self {
+        Self::PatchMeta(PatchMetaHistory {
+            node: effect.node,
+            old_meta: effect.old_meta,
+            new_meta: effect.new_meta,
+        })
+    }
+}
+
 impl<T: Node> From<AddNodeEffect> for HistoryStep<T> {
     fn from(effect: AddNodeEffect) -> Self {
         Self::AddNode(AddNodeHistory {
@@ -639,6 +714,22 @@ impl<T: Node> From<ReplaceNodeEffect<T>> for HistoryStep<T> {
 }
 
 impl<T: Node> Engine<T> {
+    fn drop_active_edit_session_history(&mut self) {
+        let Some(mut active) = self.active_edit_session.take() else {
+            return;
+        };
+
+        let dropped_steps = active.transaction.steps.len();
+        if dropped_steps > 0 {
+            eprintln!(
+                "[gc-history] drop active edit session during history clear: client_edit_id='{}' steps={}",
+                active.client_edit_id,
+                dropped_steps
+            );
+        }
+        active.transaction.dispose(self);
+    }
+
     /// Drops all redo transactions and releases any detached payloads they own.
     pub(crate) fn clear_redo_history(&mut self) {
         while let Some(mut transaction) = self.redo_stack.pop() {
@@ -652,12 +743,24 @@ impl<T: Node> Engine<T> {
             return;
         }
 
+        eprintln!(
+            "[gc-history] push undo tx: steps={} undo_before={} redo_current={}",
+            transaction.steps.len(),
+            self.undo_stack.len(),
+            self.redo_stack.len()
+        );
+
         if let Some(previous) = self.undo_stack.last_mut() {
             transaction.absorb_coalesced_set_params(previous);
         }
 
         if !transaction.is_empty() {
             self.undo_stack.push(transaction);
+            eprintln!(
+                "[gc-history] push undo tx done: undo_after={} redo_current={}",
+                self.undo_stack.len(),
+                self.redo_stack.len()
+            );
         }
     }
 
@@ -672,32 +775,66 @@ impl<T: Node> Engine<T> {
     }
 
     /// Clears undo/redo history and releases detached node payloads that can no longer be restored.
+    ///
+    /// Any active edit session history is also discarded so stale pre-baseline
+    /// session edits cannot be committed later.
     pub fn clear_history(&mut self) {
         self.clear_redo_history();
         while let Some(mut transaction) = self.undo_stack.pop() {
             transaction.dispose(self);
         }
+        self.drop_active_edit_session_history();
     }
 
     /// Reverts the last applied edit transaction.
     pub fn undo(&mut self) -> Result<bool, EngineEditError> {
         let Some(mut transaction) = self.undo_stack.pop() else {
+            eprintln!(
+                "[gc-history] undo: no-op (undo_len=0, redo_len={})",
+                self.redo_stack.len()
+            );
             return Ok(false);
         };
 
+        eprintln!(
+            "[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}",
+            transaction.steps.len(),
+            self.undo_stack.len(),
+            self.redo_stack.len()
+        );
         transaction.undo(self)?;
         self.redo_stack.push(transaction);
+        eprintln!(
+            "[gc-history] undo done: undo_len={} redo_len={}",
+            self.undo_stack.len(),
+            self.redo_stack.len()
+        );
         Ok(true)
     }
 
     /// Reapplies the last undone edit transaction.
     pub fn redo(&mut self) -> Result<bool, EngineEditError> {
         let Some(mut transaction) = self.redo_stack.pop() else {
+            eprintln!(
+                "[gc-history] redo: no-op (undo_len={}, redo_len=0)",
+                self.undo_stack.len()
+            );
             return Ok(false);
         };
 
+        eprintln!(
+            "[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}",
+            transaction.steps.len(),
+            self.undo_stack.len(),
+            self.redo_stack.len()
+        );
         transaction.redo(self)?;
         self.undo_stack.push(transaction);
+        eprintln!(
+            "[gc-history] redo done: undo_len={} redo_len={}",
+            self.undo_stack.len(),
+            self.redo_stack.len()
+        );
         Ok(true)
     }
 

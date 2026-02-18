@@ -99,12 +99,21 @@ export interface UiSchemaView {
 	}>;
 }
 
+export interface UiHistoryState {
+	can_undo: boolean;
+	can_redo: boolean;
+	undo_len: number;
+	redo_len: number;
+	active_edit_session: boolean;
+}
+
 export interface UiSnapshot {
 	protocol_version: string;
 	scope: UiSubscriptionScope;
 	at: EventTime;
 	nodes: UiNodeDto[];
 	schema: UiSchemaView;
+	history: UiHistoryState;
 }
 
 export type UiEventKind =
@@ -148,6 +157,7 @@ export interface UiAck {
 	error_code?: string;
 	error_message?: string;
 	earliest_event_time?: EventTime;
+	history?: UiHistoryState;
 }
 
 export interface UiClient {

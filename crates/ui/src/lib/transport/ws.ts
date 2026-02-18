@@ -81,12 +81,7 @@ const toWsUrl = (value?: string): string => {
 	return value.replace(/^http/i, 'ws');
 };
 
-const includeSelfEventsForIntent = (intent: UiEditIntent): boolean => {
-	if (intent.kind === 'setParam') {
-		return intent.behaviour === 'Append';
-	}
-	return true;
-};
+const includeSelfEventsForIntent = (_intent: UiEditIntent): boolean => true;
 
 export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}): UiClient => {
 	const wsUrl = toWsUrl(
@@ -546,12 +541,22 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		}
 	};
 
+	const defer = (callback: () => void): void => {
+		if (typeof queueMicrotask === 'function') {
+			queueMicrotask(callback);
+			return;
+		}
+		void Promise.resolve().then(callback);
+	};
+
 	if (WebSocketImpl) {
-		void ensureSocket().catch((error) => {
-			console.error('initial websocket connect failed', error);
-			startFallbackForAllSubscriptions();
-			emitConnectionState('disconnected', 'initial connect failed', true);
-			scheduleReconnect('initial connect failed');
+		defer(() => {
+			void ensureSocket().catch((error) => {
+				console.error('initial websocket connect failed', error);
+				startFallbackForAllSubscriptions();
+				emitConnectionState('disconnected', 'initial connect failed', true);
+				scheduleReconnect('initial connect failed');
+			});
 		});
 	} else {
 		emitConnectionState('fallbackPolling', 'websocket unavailable', true);

@@ -2,7 +2,7 @@ use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
-use super::engine_history::SetParamEffect;
+use super::engine_history::{PatchMetaEffect, SetParamEffect};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
@@ -28,6 +28,11 @@ impl<T: Node> Engine<T> {
             }
         };
 
+        eprintln!(
+            "[gc-engine] apply_set_param node={:?} old={:?} new={:?}",
+            node, old_value, new_value
+        );
+
         self.emit_event(EventKind::ParamChanged {
             param: node,
             old_value: old_value.clone(),
@@ -44,13 +49,33 @@ impl<T: Node> Engine<T> {
     }
 
     /// Validates a node target for metadata changes and emits the corresponding meta-changed event.
-    pub(crate) fn apply_patch_meta(&mut self, edit_index: usize, node: NodeId, patch: NodeMetaPatch) -> Result<(), EngineEditError> {
+    pub(crate) fn apply_patch_meta(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        patch: NodeMetaPatch,
+    ) -> Result<PatchMetaEffect, EngineEditError> {
         const OP: &str = "PatchMeta";
 
         let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
+        let old_meta = target.node_data().meta.clone();
         patch.apply_to(&mut target.node_data_mut().meta);
+        let new_meta = target.node_data().meta.clone();
+
+        eprintln!(
+            "[gc-engine] apply_patch_meta node={:?} label='{}' enabled={} -> '{}'/{}",
+            node,
+            old_meta.label,
+            old_meta.enabled,
+            new_meta.label,
+            new_meta.enabled
+        );
 
         self.emit_event(EventKind::MetaChanged { node, patch });
-        Ok(())
+        Ok(PatchMetaEffect {
+            node,
+            old_meta,
+            new_meta,
+        })
     }
 }

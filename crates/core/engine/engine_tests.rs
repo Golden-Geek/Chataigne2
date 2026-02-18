@@ -128,6 +128,9 @@ fn run_tick_drains_external_edits_without_manual_apply_call() {
     engine.run_tick(Duration::from_millis(1)).expect("tick should drain and apply external edits");
 
     assert_eq!(engine.nodes.get(root_id).expect("root parameter should exist").value, ParamValue::Int(7));
+    assert_eq!(engine.undo_len(), 0, "runtime tick edits should not create undo entries");
+    assert_eq!(engine.redo_len(), 0, "runtime tick edits should not create redo entries");
+    assert!(!engine.undo().expect("undo query should succeed"), "runtime-only edits should not be undoable");
 }
 
 #[test]
@@ -1708,6 +1711,53 @@ fn begin_end_edit_session_groups_multiple_queue_drains_into_one_undo() {
 
     assert!(engine.undo().expect("undo should succeed"));
     assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(0));
+}
+
+#[test]
+fn clear_history_drops_active_edit_session_state() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: crate::edit::EditOrigin::Ui,
+        label: Some("bootstrap".to_string()),
+        client_edit_id: "bootstrap-1".to_string(),
+    });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(10),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("bootstrap edit session should apply");
+
+    assert!(engine.has_active_edit_session(), "session should remain open before clear");
+    assert_eq!(engine.undo_len(), 0, "open session should not commit undo history yet");
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(10));
+
+    engine.clear_history();
+
+    assert!(!engine.has_active_edit_session(), "clear_history should drop active session state");
+    assert_eq!(engine.undo_len(), 0);
+    assert_eq!(engine.redo_len(), 0);
+
+    engine.edits.push(Edit::EndEditSession { client_edit_id: "bootstrap-1".to_string() });
+    let stale_end = engine.apply_edits();
+    assert!(matches!(stale_end, Err(EngineEditError::EditSessionNotActive { .. })), "stale session end should fail after clear_history");
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(25),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("post-clear edit should apply");
+    assert_eq!(engine.undo_len(), 1, "only post-clear edits should be undoable");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine.nodes.get(engine.root).expect("root parameter should exist").value,
+        ParamValue::Int(10),
+        "undo should restore to the runtime-baseline value, not pre-clear session history",
+    );
 }
 
 #[test]

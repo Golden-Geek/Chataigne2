@@ -1,31 +1,22 @@
 <script lang="ts">
 	import NodeTreeItem from './NodeTreeItem.svelte';
-	import type { GraphState } from '../store/graph';
-	import type { NodeId } from '../types';
+	import { getWorkbenchContext } from '../store/workbench-context';
 
-	let {
-		state,
-		selectedNodeId = null,
-		onSelect
-	}: {
-		state: GraphState;
-		selectedNodeId?: NodeId | null;
-		onSelect: (nodeId: NodeId) => void;
-	} = $props();
-
-	const rootId = $derived(state.rootId);
+	const session = getWorkbenchContext();
+	const graph = $derived(session.graph.state);
+	const rootId = $derived(graph.rootId);
 </script>
 
 <section class="tree-panel">
 	<header class="tree-header">
 		<h2>Graph</h2>
-		{#if state.requiresResync}
+		{#if graph.requiresResync}
 			<span class="sync-flag">Resync needed</span>
 		{/if}
 	</header>
 	{#if rootId !== null}
 		<ul class="tree-root">
-			<NodeTreeItem nodeId={rootId} {state} depth={0} {selectedNodeId} {onSelect} />
+			<NodeTreeItem nodeId={rootId} depth={0} />
 		</ul>
 	{:else}
 		<p class="empty">No nodes available.</p>
@@ -35,8 +26,8 @@
 <style>
 	.tree-panel {
 		background: var(--panel-bg);
-		border: 1px solid var(--panel-border);
-		border-radius: 14px;
+		border: 0.0625rem solid var(--panel-border);
+		border-radius: 0.875rem;
 		padding: 0.65rem;
 	}
 

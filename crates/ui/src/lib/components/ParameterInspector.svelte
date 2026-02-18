@@ -1,16 +1,16 @@
 <script lang="ts">
-	import type { ParamEventBehaviour, ParamValue, UiEditIntent, UiNodeDto } from '../types';
+	import { getWorkbenchContext } from '../store/workbench-context';
+	import type { ParamEventBehaviour, ParamValue, UiNodeDto } from '../types';
 
 	let {
 		node,
-		onIntent,
 		title = null
 	}: {
 		node: UiNodeDto;
-		onIntent: (intent: UiEditIntent) => void;
 		title?: string | null;
 	} = $props();
 
+	const session = getWorkbenchContext();
 	const param = $derived(node.data.kind === 'parameter' ? node.data.param : null);
 	const selectedEnumVariantId = $derived.by(() => {
 		if (!param) {
@@ -29,8 +29,9 @@
 		}
 
 		if (param.value.kind === 'str') {
+			const variantId = param.value.value;
 			return param.constraints.enum_options.find(
-				(option) => option.variant_id === param.value.value
+				(option) => option.variant_id === variantId
 			)?.variant_id;
 		}
 
@@ -52,7 +53,7 @@
 		}
 		const clientEditId = createClientEditId(currentNode);
 		activeContinuousEditId = clientEditId;
-		onIntent({
+		void session.sendIntent({
 			kind: 'beginEdit',
 			client_edit_id: clientEditId,
 			label: `Adjust ${currentNode.meta.label}`
@@ -64,7 +65,7 @@
 			return;
 		}
 
-		onIntent({
+		void session.sendIntent({
 			kind: 'endEdit',
 			client_edit_id: activeContinuousEditId
 		});
@@ -79,7 +80,7 @@
 		if (currentNode.data.kind !== 'parameter') {
 			return;
 		}
-		onIntent({
+		void session.sendIntent({
 			kind: 'setParam',
 			node: currentNode.node_id,
 			value,
@@ -220,8 +221,8 @@
 <style>
 	.param-card {
 		background: color-mix(in srgb, var(--panel-bg) 86%, white 14%);
-		border: 1px solid var(--panel-border);
-		border-radius: 10px;
+		border: 0.0625rem solid var(--panel-border);
+		border-radius: 0.625rem;
 		padding: 0.65rem;
 		display: grid;
 		gap: 0.55rem;
@@ -267,8 +268,8 @@
 		width: 100%;
 		background: color-mix(in srgb, var(--panel-bg) 75%, white 25%);
 		color: inherit;
-		border: 1px solid var(--panel-border);
-		border-radius: 8px;
+		border: 0.0625rem solid var(--panel-border);
+		border-radius: 0.5rem;
 		padding: 0.4rem 0.45rem;
 	}
 

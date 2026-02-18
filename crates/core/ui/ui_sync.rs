@@ -194,6 +194,21 @@ pub struct UiSchemaView {
     pub enums: Vec<UiEnumDefinition>,
 }
 
+/// UI-facing history status payload.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct UiHistoryState {
+    /// Whether undo is currently possible.
+    pub can_undo: bool,
+    /// Whether redo is currently possible.
+    pub can_redo: bool,
+    /// Number of undo transactions available.
+    pub undo_len: usize,
+    /// Number of redo transactions available.
+    pub redo_len: usize,
+    /// Whether an edit session is currently active.
+    pub active_edit_session: bool,
+}
+
 /// Snapshot payload for initial sync.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiSnapshot {
@@ -207,6 +222,8 @@ pub struct UiSnapshot {
     pub nodes: Vec<UiNodeDto>,
     /// Schema fragments required by editors.
     pub schema: UiSchemaView,
+    /// Current undo/redo state.
+    pub history: UiHistoryState,
 }
 
 /// UI-facing event kind.
@@ -433,6 +450,8 @@ pub struct UiAck {
     /// Optional earliest resulting event timestamp.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub earliest_event_time: Option<EngineTime>,
+    /// Current undo/redo state after applying the intent.
+    pub history: UiHistoryState,
 }
 
 impl<T: Node> Engine<T> {
@@ -505,6 +524,7 @@ impl<T: Node> Engine<T> {
             at: self.time,
             nodes,
             schema: UiSchemaView { node_types, enums: Vec::new() },
+            history: self.ui_history_state(),
         }
     }
 
@@ -519,8 +539,15 @@ impl<T: Node> Engine<T> {
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         let before_len = self.ui_event_log().len();
+        let intent_debug = format!("{intent:?}");
+        eprintln!(
+            "[gc-ui] intent recv: {intent_debug} | undo_len={} redo_len={} active_session={}",
+            self.undo_len(),
+            self.redo_len(),
+            self.has_active_edit_session()
+        );
 
-        match intent {
+        let ack = match intent {
             UiEditIntent::BeginEdit { client_edit_id, label } => {
                 self.edits.push(Edit::BeginEditSession { origin: EditOrigin::Ui, label, client_edit_id });
                 let result = self.apply_edits();
@@ -600,6 +627,7 @@ impl<T: Node> Engine<T> {
                     error_code: None,
                     error_message: None,
                     earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
                 },
                 Err(err) => UiAck {
                     success: false,
@@ -607,6 +635,7 @@ impl<T: Node> Engine<T> {
                     error_code: Some(ui_error_code(&err).to_string()),
                     error_message: Some(err.to_string()),
                     earliest_event_time: None,
+                    history: self.ui_history_state(),
                 },
             },
             UiEditIntent::Redo => match self.redo() {
@@ -616,6 +645,7 @@ impl<T: Node> Engine<T> {
                     error_code: None,
                     error_message: None,
                     earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
                 },
                 Err(err) => UiAck {
                     success: false,
@@ -623,9 +653,25 @@ impl<T: Node> Engine<T> {
                     error_code: Some(ui_error_code(&err).to_string()),
                     error_message: Some(err.to_string()),
                     earliest_event_time: None,
+                    history: self.ui_history_state(),
                 },
             },
-        }
+        };
+
+        eprintln!(
+            "[gc-ui] intent ack: success={} status={:?} code={:?} earliest={:?} history={{undo_len:{}, redo_len:{}, can_undo:{}, can_redo:{}, active_session:{}}}",
+            ack.success,
+            ack.status,
+            ack.error_code,
+            ack.earliest_event_time,
+            ack.history.undo_len,
+            ack.history.redo_len,
+            ack.history.can_undo,
+            ack.history.can_redo,
+            ack.history.active_edit_session
+        );
+
+        ack
     }
 
     fn finish_ui_apply_now(&self, before_len: usize, result: Result<(), crate::engine::EngineEditError>) -> UiAck {
@@ -636,6 +682,7 @@ impl<T: Node> Engine<T> {
                 error_code: None,
                 error_message: None,
                 earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                history: self.ui_history_state(),
             },
             Err(err) => UiAck {
                 success: false,
@@ -643,7 +690,18 @@ impl<T: Node> Engine<T> {
                 error_code: Some(ui_error_code(&err).to_string()),
                 error_message: Some(err.to_string()),
                 earliest_event_time: None,
+                history: self.ui_history_state(),
             },
+        }
+    }
+
+    fn ui_history_state(&self) -> UiHistoryState {
+        UiHistoryState {
+            can_undo: self.undo_len() > 0,
+            can_redo: self.redo_len() > 0,
+            undo_len: self.undo_len(),
+            redo_len: self.redo_len(),
+            active_edit_session: self.has_active_edit_session(),
         }
     }
 

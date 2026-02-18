@@ -1,25 +1,21 @@
 <script lang="ts">
 	import NodeTreeItem from './NodeTreeItem.svelte';
-	import type { GraphState } from '../store/graph';
+	import { getWorkbenchContext } from '../store/workbench-context';
 	import type { NodeId } from '../types';
 
 	let {
 		nodeId,
-		state,
-		depth = 0,
-		selectedNodeId = null,
-		onSelect
+		depth = 0
 	}: {
 		nodeId: NodeId;
-		state: GraphState;
 		depth?: number;
-		selectedNodeId?: NodeId | null;
-		onSelect: (nodeId: NodeId) => void;
 	} = $props();
 
-	const node = $derived(state.nodesById.get(nodeId));
-	const children = $derived(state.childrenById.get(nodeId) ?? []);
-	const isSelected = $derived(nodeId === selectedNodeId);
+	const session = getWorkbenchContext();
+	const graph = $derived(session.graph.state);
+	const node = $derived(graph.nodesById.get(nodeId));
+	const children = $derived(graph.childrenById.get(nodeId) ?? []);
+	const isSelected = $derived(nodeId === session.selectedNodeId);
 	const hasChildren = $derived(children.length > 0);
 </script>
 
@@ -30,7 +26,7 @@
 			class:selected={isSelected}
 			class="tree-button type-{node.node_type}"
 			class:has-children={hasChildren}
-			onclick={() => onSelect(nodeId)}
+			onclick={() => session.selectNode(nodeId)}
 		>
 			<span class="tree-label">{node.meta.label}</span>
 			<span class="tree-type">{node.node_type}</span>
@@ -39,7 +35,7 @@
 	{#if children.length > 0}
 		<ul class="tree-children">
 			{#each children as childId (childId)}
-				<NodeTreeItem {state} nodeId={childId} depth={depth + 1} {selectedNodeId} {onSelect} />
+				<NodeTreeItem nodeId={childId} depth={depth + 1} />
 			{/each}
 		</ul>
 	{/if}
@@ -57,14 +53,13 @@
 		gap: 0.75rem;
 		width: 100%;
 		border: none;
-		border-left: 2px solid transparent;
+		border-left: 0.125rem solid transparent;
 		background: transparent;
 		padding: 0.35rem 0.5rem 0.35rem calc(0.5rem + var(--depth) * 1rem);
 		text-align: left;
 		color: inherit;
 		cursor: pointer;
 	}
-
 
 	.tree-button:hover {
 		background: color-mix(in srgb, var(--panel-bg) 82%, white 18%);
@@ -88,8 +83,6 @@
 	.type-folder .tree-label {
 		color: rgb(10, 150, 240);
 	}
-
-	
 
 	.tree-type {
 		font-size: 0.72rem;

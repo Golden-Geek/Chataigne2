@@ -20,6 +20,18 @@ impl<T: Node> Engine<T> {
     /// engine.apply_edits().expect("edit application should succeed");
     /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
+        self.apply_edits_internal(true)
+    }
+
+    /// Applies pending edits without recording undo transactions.
+    ///
+    /// Runtime-driven edit flushes use this so periodic/internal graph activity
+    /// does not pollute user-facing undo history.
+    pub(crate) fn apply_edits_without_history(&mut self) -> Result<(), EngineEditError> {
+        self.apply_edits_internal(false)
+    }
+
+    fn apply_edits_internal(&mut self, capture_history: bool) -> Result<(), EngineEditError> {
         self.absorb_external_edits()?;
 
         let mut transaction = HistoryTransaction::new();
@@ -92,8 +104,8 @@ impl<T: Node> Engine<T> {
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::PatchMeta { node, patch } => {
-                    self.apply_patch_meta(edit_index, node, patch)?;
-                    (Ok(None), true)
+                    let effect = self.apply_patch_meta(edit_index, node, patch)?;
+                    (Ok(Some(effect.into())), true)
                 }
                 Edit::EmitCustomEvent { event } => {
                     self.emit_event(EventKind::Custom(event));
@@ -120,16 +132,18 @@ impl<T: Node> Engine<T> {
                         redo_cleared = true;
                     }
 
-                    if let Some(step) = step {
-                        if let Some(active) = self.active_edit_session.as_mut() {
-                            active.transaction.push(step);
-                        } else {
-                            transaction.push(step);
+                    if capture_history {
+                        if let Some(step) = step {
+                            if let Some(active) = self.active_edit_session.as_mut() {
+                                active.transaction.push(step);
+                            } else {
+                                transaction.push(step);
+                            }
                         }
                     }
                 }
                 Err(err) => {
-                    if !transaction.is_empty() {
+                    if capture_history && !transaction.is_empty() {
                         self.push_undo_transaction(transaction);
                     }
                     return Err(err);
@@ -137,7 +151,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        if !transaction.is_empty() {
+        if capture_history && !transaction.is_empty() {
             self.push_undo_transaction(transaction);
         }
 

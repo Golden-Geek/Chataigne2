@@ -331,7 +331,7 @@ impl<T: Node> Engine<T> {
 
         self.absorb_external_edits()?;
         if !self.edits.pending.is_empty() {
-            self.apply_edits()?;
+            self.apply_edits_without_history()?;
             self.resolve_if_needed()?;
         }
 
@@ -522,7 +522,7 @@ impl<T: Node> Engine<T> {
             }
 
             if !self.edits.pending.is_empty() {
-                self.apply_edits()?;
+                self.apply_edits_without_history()?;
                 self.resolve_if_needed()?;
             }
 
