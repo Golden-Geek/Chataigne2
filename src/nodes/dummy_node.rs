@@ -1,6 +1,6 @@
 use golden_core::{
     node,
-    node::{Node, NodeId, ParameterHandle},
+    node::{Node, NodeId},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
     update,
@@ -9,14 +9,15 @@ use golden_core::{
 #[node]
 #[params(
     feedback: f64 = 0.5 [0.0..1.0] (label = "Feedback");
-    folder(output, label = "Output") {
+    folder(output, label = "Output 2") {
+        host: String = "127.0.0.1" (label = "Host");
         folder(color, label = "Color") {
             dummy_param: f64 = 2.2 [0.0..10.0] (label = "Dummy Param", description = "A parameter stored on a node using the #[param] attribute macro");
         }
-        host: String = "127.0.0.1" (label = "Host");
     }
 )]
 pub struct DummyNode {}
+
 
 #[node(from_struct)]
 impl Node for DummyNode {
@@ -42,7 +43,10 @@ impl Node for DummyNode {
     }
 }
 
-#[node]
+
+// VERY DUMMY
+
+#[node] //est-ce que celui la crée quand meme un node_data dans VeryDummyNode ?
 #[params(
 folder(output, label = "Output", reuse = true) {
     very_dummy_param: f64 = 2.2 [0.0..10.0] (label = "Very Dummy Param", description = "A parameter stored on a node using the #[param] attribute macro", default_callback);
@@ -68,7 +72,7 @@ impl VeryDummyNode {
     }
 }
 
-#[update(100)]
+#[update(1)]
 #[node(via = dummy, from_struct)]
 impl Node for VeryDummyNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -91,46 +95,3 @@ impl Node for VeryDummyNode {
         }
     }
 }
-
-// #[node]
-// pub struct SuperDummyNode {
-//     very_dummy: VeryDummyNode,
-
-//     #[param(default = 0.25, min = 0.0, max = 1.0, label = "Super Dummy Param", description = "A parameter stored on a node using via composition")]
-//     super_dummy_param: ParameterHandle<f64>,
-// }
-
-// impl SuperDummyNode {
-//     pub fn create(label: impl Into<String>) -> Self {
-//         let label = label.into();
-//         Self::new(label.clone(), VeryDummyNode::create(label))
-//     }
-// }
-
-// #[node(via = very_dummy, from_struct)]
-// impl Node for SuperDummyNode {
-//     fn init(&mut self, _ctx: &mut ProcessCtx) {
-//         println!("SuperDummyNode init, super_dummy_param initial value: {}", self.super_dummy_param.get());
-//         println!("SuperDummyNode init, very_dummy_param initial value: {}", self.very_dummy.very_dummy_param.get());
-//     }
-
-//     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
-        
-//         match node_id {
-//             id if id == self.super_dummy_param.id() => {
-//                 let _new_value = self.super_dummy_param.get();
-//                 if cfg!(debug_assertions) {
-//                     // println!("SuperDummyNode super_dummy_param changed: old={:?} new={new_value}", old_value);
-//                 }
-//             },
-//             id if id == self.very_dummy.very_dummy_param.id() => {
-//                 let _new_value = self.very_dummy.very_dummy_param.get();
-//                 if cfg!(debug_assertions) {
-//                     // println!("SuperDummyNode very_dummy_param changed: old={:?} new={new_value}", old_value);
-//                 }
-//             },
-//             _ => {},
-//         }
-        
-//     }
-// }
