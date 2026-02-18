@@ -6,8 +6,10 @@ use std::sync::{Arc, Mutex};
 use crate::engine::{Engine, EngineRuntimeError};
 use crate::node::Node;
 
+mod desktop;
 mod ui_server;
 
+pub use desktop::run_app;
 pub use ui_server::{UiServerConfig, run_ui_server};
 
 /// App-level runtime wrapper around a configured engine.
@@ -46,22 +48,6 @@ impl<T: Node> GoldenApp<T> {
         self.engine.clear_history();
         self.engine.run_loop()
     }
-}
-
-/// Boots an engine and starts the default UI/API runtime.
-///
-/// This is the canonical app entry point for hosts using `golden_core`.
-/// It applies pending bootstrap edits, resolves runtime scheduling, then
-/// serves the UI API using default settings (optionally overridden by env).
-pub fn run_app<T: Node + 'static>(engine: Engine<T>) -> std::io::Result<()> {
-    let mut config = UiServerConfig::default();
-    if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
-        if !bind_addr.trim().is_empty() {
-            config.bind_addr = bind_addr;
-        }
-    }
-
-    run_app_with_config(engine, config)
 }
 
 /// Boots an engine and starts the UI/API runtime with explicit server config.
