@@ -75,6 +75,10 @@ interface RustUiNodeDto {
 	node_type: string;
 	meta: Omit<UiNodeMetaDto, 'tags'> & { tags?: string[] };
 	data: { kind: 'parameter'; param: RustUiParamDto } | { kind: 'node'; node_type: string };
+	user_role?: 'regular' | 'itemRoot';
+	user_item_kind?: string;
+	accepted_user_item_kinds?: string[];
+	creatable_user_items?: Array<{ node_type: string; item_kind: string; label: string }>;
 	children: number[];
 }
 
@@ -315,6 +319,10 @@ const fromRustNode = (node: RustUiNodeDto): UiNodeDto => ({
 	node_type: node.node_type,
 	meta: { ...node.meta, tags: [...(node.meta.tags ?? [])] },
 	data: fromRustNodeData(node.data),
+	user_role: node.user_role ?? 'regular',
+	user_item_kind: node.user_item_kind ?? node.node_type,
+	accepted_user_item_kinds: [...(node.accepted_user_item_kinds ?? [])],
+	creatable_user_items: [...(node.creatable_user_items ?? [])],
 	children: [...node.children]
 });
 

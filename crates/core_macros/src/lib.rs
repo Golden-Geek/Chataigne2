@@ -95,6 +95,98 @@ impl Parse for NodeAttr {
     }
 }
 
+struct ItemAttr {
+    item_kind: LitStr,
+    node: NodeAttr,
+}
+
+impl Parse for ItemAttr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut item_kind = None;
+        let mut type_name = None;
+        let mut via = None;
+        let mut impl_node = false;
+        let mut from_struct = false;
+
+        while !input.is_empty() {
+            if input.peek(LitStr) {
+                let lit = input.parse::<LitStr>()?;
+                if item_kind.is_none() {
+                    item_kind = Some(lit);
+                } else if type_name.is_none() {
+                    type_name = Some(lit);
+                } else {
+                    return Err(Error::new(input.span(), "unexpected extra string literal; expected at most item kind and optional node type"));
+                }
+            } else if input.peek(Ident) {
+                let key = input.parse::<Ident>()?;
+                if key == "kind" {
+                    if item_kind.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `kind` argument"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    item_kind = Some(input.parse::<LitStr>()?);
+                } else if key == "node" || key == "node_type" {
+                    if type_name.is_some() {
+                        return Err(Error::new(key.span(), "duplicate node type argument"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    type_name = Some(input.parse::<LitStr>()?);
+                } else if key == "via" {
+                    if via.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `via` argument"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    via = Some(input.parse::<DelegatePath>()?);
+                } else if key == "impl_node" {
+                    if impl_node {
+                        return Err(Error::new(key.span(), "duplicate `impl_node` argument"));
+                    }
+                    impl_node = true;
+                } else if key == "from_struct" {
+                    if from_struct {
+                        return Err(Error::new(key.span(), "duplicate `from_struct` argument"));
+                    }
+                    from_struct = true;
+                } else {
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`",
+                    ));
+                }
+            } else {
+                return Err(Error::new(
+                    input.span(),
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`",
+                ));
+            }
+
+            if input.is_empty() {
+                break;
+            }
+
+            input.parse::<Token![,]>()?;
+            if input.is_empty() {
+                break;
+            }
+        }
+
+        let Some(item_kind) = item_kind else {
+            return Err(Error::new(input.span(), "missing item kind; use #[item(\"kind\", ...)] or `kind = \"kind\"`"));
+        };
+
+        Ok(Self {
+            item_kind,
+            node: NodeAttr {
+                type_name,
+                via,
+                impl_node,
+                from_struct,
+            },
+        })
+    }
+}
+
 struct UpdateAttr {
     rate_hz: LitInt,
 }
@@ -744,9 +836,30 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, None, input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, None, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let ItemAttr {
+        item_kind,
+        node:
+            NodeAttr {
+                type_name,
+                via,
+                impl_node,
+                from_struct,
+            },
+    } = parse_macro_input!(attr as ItemAttr);
+    let input = parse_macro_input!(item as Item);
+
+    match input {
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, Some(item_kind), input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, Some(item_kind), input).into(),
+        other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
 
@@ -793,12 +906,22 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, mut input: ItemStruct) -> proc_macro2::TokenStream {
+fn expand_struct(
+    type_name: Option<LitStr>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    item_kind: Option<LitStr>,
+    mut input: ItemStruct,
+) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
     if from_struct {
         return Error::new_spanned(input, "`from_struct` is only supported on `impl Node for ...` blocks").to_compile_error();
+    }
+    if item_kind.is_some() && !impl_node {
+        return Error::new_spanned(input, "`#[item(...)]` on a struct requires `impl_node`, or apply `#[item(...)]` on `impl Node for ...`").to_compile_error();
     }
 
     let mut params_dsl = None::<ParamsDsl>;
@@ -1165,6 +1288,14 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
     let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty));
 
+    let generated_user_item_kind = item_kind.as_ref().map(|item_kind| {
+        quote! {
+            fn user_item_kind(&self) -> &str {
+                #item_kind
+            }
+        }
+    });
+
     let generated_node_impl = if impl_node {
         quote! {
             impl #impl_generics golden_core::node::Node for #struct_name #ty_generics #where_clause {
@@ -1179,6 +1310,8 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 fn get_type(&self) -> &str {
                     #resolved_type_name
                 }
+
+                #generated_user_item_kind
 
                 fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
                     self.__golden_node_engine_child_event_interest_depth(event)
@@ -1288,7 +1421,14 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     }
 }
 
-fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, mut input: ItemImpl) -> proc_macro2::TokenStream {
+fn expand_impl(
+    type_name: Option<LitStr>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    item_kind: Option<LitStr>,
+    mut input: ItemImpl,
+) -> proc_macro2::TokenStream {
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -1360,6 +1500,16 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
                 #resolved_type_name
             }
         });
+    }
+
+    if let Some(item_kind) = item_kind {
+        if !has_method(&input, "user_item_kind") {
+            input.items.push(parse_quote! {
+                fn user_item_kind(&self) -> &str {
+                    #item_kind
+                }
+            });
+        }
     }
 
     if from_struct {

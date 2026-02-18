@@ -133,6 +133,41 @@ pub enum EngineEditError {
         /// Expected currently active id.
         active_client_edit_id: String,
     },
+    /// A user-item operation targeted a location that is not inside a container.
+    UserItemContainerRequired {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Parent targeted by the operation.
+        parent: NodeId,
+    },
+    /// A container rejected an item kind during add/move validation.
+    UserItemKindRejected {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Runtime node id of the container.
+        container: NodeId,
+        /// Runtime node type of the container.
+        container_type: String,
+        /// Runtime node type of the rejected item.
+        item_type: String,
+        /// Logical item kind requested by the item node.
+        item_kind: String,
+    },
+    /// A requested user-item node type is not creatable by the target container.
+    UserItemTypeUnavailable {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Parent container id.
+        parent: NodeId,
+        /// Requested runtime node type.
+        node_type: String,
+    },
 }
 
 impl fmt::Display for EngineEditError {
@@ -168,6 +203,23 @@ impl fmt::Display for EngineEditError {
                 requested_client_edit_id,
                 active_client_edit_id,
             } => write!(f, "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but active session is '{active_client_edit_id}'"),
+            Self::UserItemContainerRequired { edit_index, operation, parent } => {
+                write!(f, "edit #{edit_index} ({operation}) requires a container target, but parent {:?} has no container in its ancestry", parent)
+            }
+            Self::UserItemKindRejected {
+                edit_index,
+                operation,
+                container,
+                container_type,
+                item_type,
+                item_kind,
+            } => write!(f, "edit #{edit_index} ({operation}) rejected item type '{}' kind '{}' for container {:?} ('{}')", item_type, item_kind, container, container_type),
+            Self::UserItemTypeUnavailable {
+                edit_index,
+                operation,
+                parent,
+                node_type,
+            } => write!(f, "edit #{edit_index} ({operation}) cannot create item type '{}' under parent {:?}", node_type, parent),
         }
     }
 }

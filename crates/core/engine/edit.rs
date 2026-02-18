@@ -46,6 +46,15 @@ pub enum Edit {
         /// Optional sibling after which insertion occurs.
         prev_sibling: Option<NodeId>,
     },
+    /// Insert a user-curated item node under `parent`, optionally after a sibling.
+    AddUserItem {
+        /// Node instance to insert.
+        node: Box<dyn Node>,
+        /// Parent receiving the node.
+        parent: NodeId,
+        /// Optional sibling after which insertion occurs.
+        prev_sibling: Option<NodeId>,
+    },
     /// Replace an existing node with a new node value.
     ReplaceNode {
         /// Existing node id to replace.

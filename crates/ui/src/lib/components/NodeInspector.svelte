@@ -90,6 +90,30 @@
 			)
 	);
 
+	const selectedNodeCreatableItems = $derived.by(() =>
+		selectedNode ? selectedNode.creatable_user_items : []
+	);
+
+	let selectedCreatableNodeType = $state('');
+	let createLabel = $state('');
+
+	$effect(() => {
+		const items = selectedNodeCreatableItems;
+		if (items.length === 0) {
+			selectedCreatableNodeType = '';
+			createLabel = '';
+			return;
+		}
+		if (!items.some((item) => item.node_type === selectedCreatableNodeType)) {
+			selectedCreatableNodeType = items[0].node_type;
+			createLabel = items[0].label;
+		}
+	});
+
+	const selectedCreatableItem = $derived.by(() =>
+		selectedNodeCreatableItems.find((item) => item.node_type === selectedCreatableNodeType) ?? null
+	);
+
 	const refreshScopeSnapshot = async (
 		scope: UiSubscriptionScope,
 		runId: number,
@@ -274,6 +298,19 @@
 			patch: { enabled }
 		});
 	};
+
+	const dispatchCreateUserItem = (node: UiNodeDto): void => {
+		if (!selectedCreatableItem) {
+			return;
+		}
+		const trimmed = createLabel.trim();
+		onIntent({
+			kind: 'createUserItem',
+			parent: node.node_id,
+			node_type: selectedCreatableItem.node_type,
+			label: trimmed.length > 0 ? trimmed : selectedCreatableItem.label
+		});
+	};
 </script>
 
 <section class="inspector-panel">
@@ -306,6 +343,35 @@
 
 		{#if selectedNode.data.kind === 'parameter'}
 			<ParameterInspector node={selectedNode} {onIntent} />
+		{/if}
+
+		{#if selectedNodeCreatableItems.length > 0}
+			<div class="create-panel">
+				<p class="create-title">Add Item</p>
+				<div class="field">
+					<label for="create-item-type">Type</label>
+					<select
+						id="create-item-type"
+						bind:value={selectedCreatableNodeType}
+						onchange={() => {
+							if (selectedCreatableItem) {
+								createLabel = selectedCreatableItem.label;
+							}
+						}}
+					>
+						{#each selectedNodeCreatableItems as item (item.node_type)}
+							<option value={item.node_type}>{item.label} ({item.node_type})</option>
+						{/each}
+					</select>
+				</div>
+				<div class="field">
+					<label for="create-item-label">Label</label>
+					<input id="create-item-label" type="text" bind:value={createLabel} />
+				</div>
+				<button type="button" class="create-button" onclick={() => dispatchCreateUserItem(selectedNode)}>
+					Add
+				</button>
+			</div>
 		{/if}
 
 		{#if selectedNodeChildParameters.length > 0}
@@ -396,12 +462,52 @@
 		gap: 0.5rem;
 	}
 
+	.create-panel {
+		display: grid;
+		gap: 0.45rem;
+		padding: 0.55rem;
+		border: 1px solid color-mix(in srgb, var(--panel-border) 84%, white 16%);
+		border-radius: 10px;
+	}
+
+	.create-title {
+		margin: 0;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		opacity: 0.75;
+	}
+
 	.param-list-title {
 		margin: 0;
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		opacity: 0.75;
+	}
+
+	select,
+	input[type='text'] {
+		background: color-mix(in srgb, var(--panel-bg) 82%, white 18%);
+		color: inherit;
+		border: 1px solid color-mix(in srgb, var(--panel-border) 84%, white 16%);
+		border-radius: 8px;
+		padding: 0.35rem 0.45rem;
+	}
+
+	.create-button {
+		border: none;
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--accent) 72%, black 28%);
+		color: #fff;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		padding: 0.45rem 0.6rem;
+		cursor: pointer;
+	}
+
+	.create-button:hover {
+		background: color-mix(in srgb, var(--accent) 82%, black 18%);
 	}
 
 	.hint {

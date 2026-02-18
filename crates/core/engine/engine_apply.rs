@@ -75,6 +75,10 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::AddUserItem { node, parent, prev_sibling } => {
+                    let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
+                    (Ok(Some(effect.into())), true)
+                }
                 Edit::ReplaceNode { node, new_node } => {
                     let effect = self.apply_replace_node(edit_index, node, new_node)?;
                     (Ok(Some(effect.into())), true)

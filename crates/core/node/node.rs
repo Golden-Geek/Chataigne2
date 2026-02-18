@@ -93,6 +93,60 @@ pub struct PresentationHint {
     pub color: Option<Color>,
 }
 
+/// Classification for user-managed structure inside the runtime tree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum UserNodeRole {
+    /// Regular runtime node (internal/generated or non-curated).
+    #[default]
+    Regular,
+    /// User-curated item root inside a container.
+    ItemRoot,
+}
+
+/// Declarative container admission rules for user-curated items.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UserContainerRules {
+    /// Supported item kinds accepted by this container.
+    pub accepts_item_kinds: &'static [&'static str],
+}
+
+impl UserContainerRules {
+    /// Creates a new static container rule set.
+    pub const fn new(accepts_item_kinds: &'static [&'static str]) -> Self {
+        Self { accepts_item_kinds }
+    }
+
+    /// Returns `true` when `item_kind` is accepted by this container.
+    ///
+    /// The wildcard `"*"` accepts any item kind.
+    pub fn accepts(&self, item_kind: &str) -> bool {
+        self.accepts_item_kinds.iter().any(|kind| *kind == "*" || *kind == item_kind)
+    }
+}
+
+/// UI-facing descriptor for a user-creatable item node type.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UserCreatableItem {
+    /// Runtime node type identifier.
+    pub node_type: String,
+    /// Logical user-item kind used for container admission.
+    pub item_kind: String,
+    /// Suggested default label for newly created items.
+    pub label: String,
+}
+
+impl UserCreatableItem {
+    /// Creates a new user-creatable item descriptor.
+    pub fn new(node_type: impl Into<String>, item_kind: impl Into<String>, label: impl Into<String>) -> Self {
+        Self {
+            node_type: node_type.into(),
+            item_kind: item_kind.into(),
+            label: label.into(),
+        }
+    }
+}
+
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NodeData {
@@ -108,6 +162,8 @@ pub struct NodeData {
     pub prev_sibling: Option<NodeId>,
     /// Next sibling in parent chain.
     pub next_sibling: Option<NodeId>,
+    /// User-facing role for curation and container logic.
+    pub user_role: UserNodeRole,
     /// User-facing metadata.
     pub meta: NodeMeta,
 }
@@ -125,6 +181,7 @@ impl NodeData {
             last_child: None,
             prev_sibling: None,
             next_sibling: None,
+            user_role: UserNodeRole::Regular,
             meta,
         }
     }
@@ -334,6 +391,43 @@ pub trait Node: Send + Any {
     /// Returns the node type identifier.
     fn get_type(&self) -> &str;
 
+    /// Returns the item-kind identifier used by container admission rules.
+    ///
+    /// By default this matches [`Self::get_type`].
+    fn user_item_kind(&self) -> &str {
+        self.get_type()
+    }
+
+    /// Returns container admission rules when this node accepts user-curated items.
+    ///
+    /// Nodes that are not containers return `None`.
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        None
+    }
+
+    /// Returns `true` when this container currently accepts `item_type` / `item_kind`.
+    ///
+    /// The default implementation checks [`Self::user_container_rules`].
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        let _ = item_type;
+        self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind))
+    }
+
+    /// Returns user-creatable item descriptors for this node instance.
+    ///
+    /// Nodes that do not create items return an empty list.
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        Vec::new()
+    }
+
+    /// Creates one user item for `node_type` with `label` when supported.
+    ///
+    /// Containers that do not support creation return `None`.
+    fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
+        let _ = (node_type, label);
+        None
+    }
+
     /// Engine-internal hook used while applying `SetParam` edits.
     ///
     /// App node code should request parameter changes through [`crate::parameter::Parameter::set`]
@@ -469,6 +563,21 @@ pub trait Node: Send + Any {
     {
         self.add_child_boxed(ctx, Box::new(child), after);
     }
+
+    /// Queues insertion of a boxed user-curated item.
+    fn add_user_child_boxed(&mut self, ctx: &mut ProcessCtx, child: Box<dyn Node>, after: Option<NodeId>) {
+        ctx.add_user_item_boxed(self.id(), child, after);
+    }
+
+    /// Queues insertion of a typed user-curated item.
+    fn add_user_child<N>(&mut self, ctx: &mut ProcessCtx, child: N, after: Option<NodeId>)
+    where
+        Self: Sized,
+        N: Node + 'static,
+    {
+        self.add_user_child_boxed(ctx, Box::new(child), after);
+    }
+
     /// Queues removal of an existing child.
     fn remove_child(&mut self, ctx: &mut ProcessCtx, child: NodeId) {
         ctx.edits.push(Edit::RemoveNode { node: child });
@@ -678,36 +787,3 @@ impl Node for Folder {
     }
 }
 
-/// Internal Folder-like node used as a curated user-extensible root.
-pub struct Manager {
-    node_data: NodeData,
-}
-
-impl Manager {
-    /// Creates a new manager node.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self { node_data: NodeData::new(label.into()) }
-    }
-}
-
-impl Node for Manager {
-    fn node_data(&self) -> &NodeData {
-        &self.node_data
-    }
-
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.node_data
-    }
-
-    fn get_type(&self) -> &str {
-        "manager"
-    }
-
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Manager init");
-    }
-
-    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Manager destroy");
-    }
-}

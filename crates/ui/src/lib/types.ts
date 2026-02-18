@@ -20,6 +20,8 @@ export type UiSubscriptionScope =
 	| { kind: 'wholeGraph' }
 	| { kind: 'subtree'; root: NodeId; max_depth: number };
 
+export type UiUserNodeRole = 'regular' | 'itemRoot';
+
 export interface EventTime {
 	tick: number;
 	micro: number;
@@ -76,7 +78,17 @@ export interface UiNodeDto {
 	node_type: string;
 	meta: UiNodeMetaDto;
 	data: UiNodeDataDto;
+	user_role: UiUserNodeRole;
+	user_item_kind: string;
+	accepted_user_item_kinds: string[];
+	creatable_user_items: UiCreatableUserItem[];
 	children: NodeId[];
+}
+
+export interface UiCreatableUserItem {
+	node_type: string;
+	item_kind: string;
+	label: string;
 }
 
 export interface UiSchemaView {
@@ -124,6 +136,7 @@ export type UiEditIntent =
 	| { kind: 'setParam'; node: NodeId; value: ParamValue; behaviour: ParamEventBehaviour }
 	| { kind: 'moveNode'; node: NodeId; new_parent: NodeId; new_prev_sibling?: NodeId }
 	| { kind: 'removeNode'; node: NodeId }
+	| { kind: 'createUserItem'; parent: NodeId; node_type: string; label?: string }
 	| { kind: 'patchMeta'; node: NodeId; patch: Partial<UiNodeMetaDto> }
 	| { kind: 'reevaluateGraph' }
 	| { kind: 'undo' }

@@ -48,8 +48,8 @@ pub mod app;
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
 
-/// Attribute macros used to declare node types and runtime update rates.
-pub use golden_core_macros::{node, update};
+/// Attribute macros used to declare node types, item kinds, and runtime update rates.
+pub use golden_core_macros::{item, node, update};
 
 /// Canonical host entrypoint: boot a configured engine and run app services.
 pub use app::run_app;

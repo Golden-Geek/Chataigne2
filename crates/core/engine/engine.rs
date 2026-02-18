@@ -162,10 +162,29 @@ impl<T: Node> Engine<T> {
         });
     }
 
+    /// Queues insertion of a user-curated item under `parent` (or root when `None`).
+    pub fn add_user_item(&mut self, node: T, parent: Option<NodeId>) {
+        self.edits.push(Edit::AddUserItem {
+            parent: parent.unwrap_or(self.root),
+            node: Box::new(node),
+            prev_sibling: None,
+        });
+    }
+
     /// Queues insertion of a node after an existing sibling.
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
         let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
         self.edits.push(Edit::AddNode {
+            parent,
+            prev_sibling: Some(sibling),
+            node: Box::new(node),
+        });
+    }
+
+    /// Queues insertion of a user-curated item after an existing sibling.
+    pub fn add_user_item_after(&mut self, node: T, sibling: NodeId) {
+        let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
+        self.edits.push(Edit::AddUserItem {
             parent,
             prev_sibling: Some(sibling),
             node: Box::new(node),
@@ -223,6 +242,19 @@ impl<T: Node> Engine<T> {
                     };
 
                     validated_edits.push(Edit::AddNode { node: Box::new(node), parent, prev_sibling });
+                }
+                Edit::AddUserItem { node, parent, prev_sibling } => {
+                    let provided_node_type = node.get_type().to_string();
+                    let Some(node) = T::from_boxed_node(node) else {
+                        return Err(EngineEditError::NodeTypeMismatch {
+                            edit_index,
+                            operation: "AddUserItem",
+                            provided_node_type,
+                            expected_engine_node_type: type_name::<T>(),
+                        });
+                    };
+
+                    validated_edits.push(Edit::AddUserItem { node: Box::new(node), parent, prev_sibling });
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let provided_node_type = new_node.get_type().to_string();

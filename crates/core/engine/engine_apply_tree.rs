@@ -1,5 +1,7 @@
+use std::collections::HashSet;
+
 use crate::events::EventKind;
-use crate::node::{Node, NodeId};
+use crate::node::{Node, NodeId, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::engine_history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -197,11 +199,84 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    /// Applies an add-node edit and returns history data required for undo/redo.
-    pub(crate) fn apply_add_node(&mut self, edit_index: usize, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>) -> Result<AddNodeEffect, EngineEditError> {
-        const OP: &str = "AddNode";
+    fn nearest_container_ancestor(&self, start: NodeId) -> Option<NodeId> {
+        let mut cursor = Some(start);
+        while let Some(node_id) = cursor {
+            let node = self.nodes.get(node_id)?;
+            if node.user_container_rules().is_some() {
+                return Some(node_id);
+            }
+            cursor = node.node_data().parent;
+        }
+        None
+    }
 
-        let mut node = self.coerce_node_for_engine(edit_index, OP, node)?;
+    fn ensure_item_kind_allowed(&self, edit_index: usize, operation: &'static str, container: NodeId, item_type: &str, item_kind: &str) -> Result<(), EngineEditError> {
+        let container_node = self.nodes.get(container).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: container })?;
+
+        let container_type = container_node.get_type().to_string();
+        let Some(_) = container_node.user_container_rules() else {
+            return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: container });
+        };
+
+        if container_node.user_container_accepts_item(item_type, item_kind) {
+            Ok(())
+        } else {
+            Err(EngineEditError::UserItemKindRejected {
+                edit_index,
+                operation,
+                container,
+                container_type,
+                item_type: item_type.to_string(),
+                item_kind: item_kind.to_string(),
+            })
+        }
+    }
+
+    fn validate_item_roots_for_move(&self, edit_index: usize, operation: &'static str, node: NodeId, new_parent: NodeId) -> Result<(), EngineEditError> {
+        let subtree = self.collect_subtree(edit_index, operation, node)?;
+        let subtree_set: HashSet<NodeId> = subtree.iter().copied().collect();
+        let target_container = self.nearest_container_ancestor(new_parent);
+
+        for moved in subtree {
+            let moved_node = self.nodes.get(moved).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: moved })?;
+
+            if moved_node.node_data().user_role != UserNodeRole::ItemRoot {
+                continue;
+            }
+
+            let old_container = self.nearest_container_ancestor(moved);
+            let container_changes = match old_container {
+                Some(container) => !subtree_set.contains(&container),
+                None => target_container.is_some(),
+            };
+
+            if !container_changes {
+                continue;
+            }
+
+            let Some(target_container) = target_container else {
+                return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: new_parent });
+            };
+
+            self.ensure_item_kind_allowed(edit_index, operation, target_container, moved_node.get_type(), moved_node.user_item_kind())?;
+        }
+
+        Ok(())
+    }
+
+    fn apply_add_node_with_role(&mut self, edit_index: usize, operation: &'static str, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>, user_role: UserNodeRole, validate_as_user_item: bool) -> Result<AddNodeEffect, EngineEditError> {
+        if !self.nodes.contains(parent) {
+            return Err(EngineEditError::ParentNotFound { edit_index, operation, parent });
+        }
+
+        let mut node = self.coerce_node_for_engine(edit_index, operation, node)?;
+
+        if validate_as_user_item {
+            let container = self.nearest_container_ancestor(parent).ok_or(EngineEditError::UserItemContainerRequired { edit_index, operation, parent })?;
+            self.ensure_item_kind_allowed(edit_index, operation, container, node.get_type(), node.user_item_kind())?;
+        }
+
         {
             let node_data = node.node_data_mut();
             node_data.parent = None;
@@ -209,17 +284,18 @@ impl<T: Node> Engine<T> {
             node_data.last_child = None;
             node_data.prev_sibling = None;
             node_data.next_sibling = None;
+            node_data.user_role = user_role;
         }
 
         let child_id = self.nodes.insert(node);
-        self.attach_node(edit_index, OP, child_id, parent, prev_sibling)?;
+        self.attach_node(edit_index, operation, child_id, parent, prev_sibling)?;
 
         let (attached_prev_sibling, attached_next_sibling) = {
-            let attached_data = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: child_id })?.node_data();
+            let attached_data = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: child_id })?.node_data();
             (attached_data.prev_sibling, attached_data.next_sibling)
         };
 
-        let decl_id = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: child_id })?.node_data().meta.decl_id.clone();
+        let decl_id = self.nodes.get(child_id).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: child_id })?.node_data().meta.decl_id.clone();
 
         self.emit_event(EventKind::NodeCreated { node: child_id });
         self.emit_event(EventKind::ChildAdded { parent, child: child_id, decl_id });
@@ -238,6 +314,16 @@ impl<T: Node> Engine<T> {
             prev_sibling: attached_prev_sibling,
             next_sibling: attached_next_sibling,
         })
+    }
+
+    /// Applies an add-node edit and returns history data required for undo/redo.
+    pub(crate) fn apply_add_node(&mut self, edit_index: usize, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>) -> Result<AddNodeEffect, EngineEditError> {
+        self.apply_add_node_with_role(edit_index, "AddNode", node, parent, prev_sibling, UserNodeRole::Regular, false)
+    }
+
+    /// Applies an add-user-item edit and returns history data required for undo/redo.
+    pub(crate) fn apply_add_user_item(&mut self, edit_index: usize, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>) -> Result<AddNodeEffect, EngineEditError> {
+        self.apply_add_node_with_role(edit_index, "AddUserItem", node, parent, prev_sibling, UserNodeRole::ItemRoot, true)
     }
 
     /// Applies a replace-node edit and returns history data required for undo/redo.
@@ -338,6 +424,8 @@ impl<T: Node> Engine<T> {
                 return Err(EngineEditError::InvalidSiblingReference { edit_index, operation: OP, node, sibling });
             }
         }
+
+        self.validate_item_roots_for_move(edit_index, OP, node, new_parent)?;
 
         let (old_parent, old_prev_sibling, old_next_sibling) = self.node_position(edit_index, OP, node)?;
 

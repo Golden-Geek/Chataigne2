@@ -84,6 +84,16 @@ impl ProcessCtx {
         self.edits.push(Edit::AddNode { parent, prev_sibling: after, node: child });
     }
 
+    /// Queues insertion of a typed user-curated item node.
+    pub fn add_user_item<N: Node + 'static>(&mut self, parent: NodeId, child: N, after: Option<NodeId>) {
+        self.add_user_item_boxed(parent, Box::new(child), after);
+    }
+
+    /// Queues insertion of a boxed user-curated item node.
+    pub fn add_user_item_boxed(&mut self, parent: NodeId, child: Box<dyn Node>, after: Option<NodeId>) {
+        self.edits.push(Edit::AddUserItem { parent, prev_sibling: after, node: child });
+    }
+
     /// Queues replacement of a node by a typed node value.
     pub fn replace_node<N: Node + 'static>(&mut self, node: NodeId, new_node: N) {
         self.replace_node_boxed(node, Box::new(new_node));

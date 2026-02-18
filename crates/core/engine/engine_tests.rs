@@ -4,10 +4,38 @@ use uuid::Uuid;
 
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
-use crate::node::{EventPropagation, EventSubscription, Folder, Manager, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid};
+use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
+
+#[crate::node]
+struct ItemMacroAutoKindNode {}
+
+#[crate::item("sequence", from_struct)]
+impl Node for ItemMacroAutoKindNode {}
+
+#[crate::node]
+struct ItemMacroOverrideKindNode {}
+
+#[crate::item("sequence", from_struct)]
+impl Node for ItemMacroOverrideKindNode {
+    fn user_item_kind(&self) -> &str {
+        "custom_sequence"
+    }
+}
+
+#[test]
+fn item_macro_sets_user_item_kind_when_not_overridden() {
+    let node = ItemMacroAutoKindNode::new("Auto");
+    assert_eq!(node.user_item_kind(), "sequence");
+}
+
+#[test]
+fn item_macro_keeps_manual_user_item_kind_override() {
+    let node = ItemMacroOverrideKindNode::new("Override");
+    assert_eq!(node.user_item_kind(), "custom_sequence");
+}
 
 #[test]
 fn absorb_edits_reports_node_type_mismatch() {
@@ -15,7 +43,7 @@ fn absorb_edits_reports_node_type_mismatch() {
     let mut engine = Engine::new(root);
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
 
-    ctx.add_child(NodeId(0), Manager::new("manager".to_string()), None);
+    ctx.add_child(NodeId(0), Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None), None);
 
     let result = engine.absorb_edits(&mut ctx);
     assert!(matches!(result, Err(EngineEditError::NodeTypeMismatch { operation: "AddNode", .. })));
@@ -136,14 +164,7 @@ fn parameter_handle_trigger_value_emits_even_when_unchanged() {
     let mut handle = crate::node::ParameterHandle::<ParamValue>::new(ParamValue::Trigger());
     handle.set_node_id(NodeId(42));
 
-    let mut ctx = ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick: 0,
-            micro: 0,
-            seq: 0,
-        },
-    );
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
     handle.set(&mut ctx, ParamValue::Trigger());
 
@@ -166,14 +187,7 @@ fn parameter_node_trigger_value_emits_even_when_unchanged() {
     let mut parameter = Parameter::new("trigger", ParamValue::Trigger(), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().id = NodeId(7);
 
-    let mut ctx = ProcessCtx::new(
-        ExecutionPhase::EngineTick,
-        EngineTime {
-            tick: 0,
-            micro: 0,
-            seq: 0,
-        },
-    );
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
     parameter.set(&mut ctx, ParamValue::Trigger());
 
@@ -417,7 +431,6 @@ impl FieldCallbackParamsNode {
 
 #[crate::node("dsl_params_node", from_struct)]
 impl Node for DslParamsNode {
-
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
         if param == self.feedback.id() {
             self.observed_feedback_old = Some(old_value);
@@ -627,35 +640,22 @@ fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
         panic!("expected DslParamsNode variant");
     };
 
-    assert!(
-        node.observed_feedback_new.is_some_and(|value| (value - 0.6).abs() < 1e-9),
-        "on_param_change should observe synced handle cache with new value",
-    );
-    assert!(
-        matches!(node.observed_feedback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9),
-        "on_param_change should still receive previous parameter value",
-    );
+    assert!(node.observed_feedback_new.is_some_and(|value| (value - 0.6).abs() < 1e-9), "on_param_change should observe synced handle cache with new value",);
+    assert!(matches!(node.observed_feedback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9), "on_param_change should still receive previous parameter value",);
 }
 
 #[test]
 fn params_macro_supports_default_named_and_closure_callbacks() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(
-        DslCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(),
-        None,
-    );
+    engine.add_node(DslCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("callback node should be attached under root");
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("callback node should be attached under root");
     let default_value = find_child_by_decl(&engine, owner, "default_value").expect("default_value parameter should exist");
     let named_value = find_child_by_decl(&engine, owner, "named_value").expect("named_value parameter should exist");
     let closure_value = find_child_by_decl(&engine, owner, "closure_value").expect("closure_value parameter should exist");
@@ -686,39 +686,23 @@ fn params_macro_supports_default_named_and_closure_callbacks() {
     assert_eq!(node.named_callback_calls, 1, "named callback should run once");
     assert_eq!(node.closure_callback_calls, 1, "closure callback should run once");
     assert_eq!(node.on_param_change_calls, 3, "callbacks should not replace on_param_change");
-    assert!(
-        matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.1).abs() < 1e-9),
-        "default callback should receive previous value",
-    );
-    assert!(
-        matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.2).abs() < 1e-9),
-        "named callback should receive previous value",
-    );
-    assert!(
-        matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.3).abs() < 1e-9),
-        "closure callback should receive previous value",
-    );
+    assert!(matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.1).abs() < 1e-9), "default callback should receive previous value",);
+    assert!(matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.2).abs() < 1e-9), "named callback should receive previous value",);
+    assert!(matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.3).abs() < 1e-9), "closure callback should receive previous value",);
 }
 
 #[test]
 fn field_params_support_default_named_and_closure_callbacks() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(
-        FieldCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(),
-        None,
-    );
+    engine.add_node(FieldCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("callback node should be attached under root");
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("callback node should be attached under root");
     let default_value = find_child_by_decl(&engine, owner, "default_value").expect("default_value parameter should exist");
     let named_value = find_child_by_decl(&engine, owner, "named_value").expect("named_value parameter should exist");
     let closure_value = find_child_by_decl(&engine, owner, "closure_value").expect("closure_value parameter should exist");
@@ -749,18 +733,9 @@ fn field_params_support_default_named_and_closure_callbacks() {
     assert_eq!(node.named_callback_calls, 1, "named callback should run once");
     assert_eq!(node.closure_callback_calls, 1, "closure callback should run once");
     assert_eq!(node.on_param_change_calls, 3, "callbacks should not replace on_param_change");
-    assert!(
-        matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.4).abs() < 1e-9),
-        "default callback should receive previous value",
-    );
-    assert!(
-        matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9),
-        "named callback should receive previous value",
-    );
-    assert!(
-        matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.6).abs() < 1e-9),
-        "closure callback should receive previous value",
-    );
+    assert!(matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.4).abs() < 1e-9), "default callback should receive previous value",);
+    assert!(matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9), "named callback should receive previous value",);
+    assert!(matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.6).abs() < 1e-9), "closure callback should receive previous value",);
 }
 
 #[test]
@@ -789,10 +764,7 @@ fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
         panic!("expected ManualInboxParamsNode variant");
     };
 
-    assert!(
-        node.observed_inbox_value.is_some_and(|value| (value - 0.6).abs() < 1e-9),
-        "custom on_inbox should observe already-preprocessed handle value",
-    );
+    assert!(node.observed_inbox_value.is_some_and(|value| (value - 0.6).abs() < 1e-9), "custom on_inbox should observe already-preprocessed handle value",);
 }
 
 #[test]
@@ -815,10 +787,7 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
 
     assert_eq!(node.init_calls, 1, "custom init override should remain active");
     assert_eq!(node.value.id(), value_param, "params preprocessing should still bind handles");
-    assert!(
-        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
-        "custom init should observe declared default value before app init runs",
-    );
+    assert!(node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9), "custom init should observe declared default value before app init runs",);
 }
 
 #[test]
@@ -841,10 +810,7 @@ fn struct_param_declarations_delegate_wiring_into_impl_node() {
 
     assert_eq!(node.init_calls, 1, "custom init override should run once");
     assert_eq!(node.value.id(), value_param, "struct-declared param handle should bind to runtime parameter child");
-    assert!(
-        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
-        "custom init should observe struct-declared default before app init runs",
-    );
+    assert!(node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9), "custom init should observe struct-declared default before app init runs",);
 }
 
 #[test]
@@ -868,24 +834,14 @@ fn struct_param_declarations_with_via_use_composed_node_data() {
     assert_eq!(node.base.node_data.id, owner, "via path should be the runtime node identity source");
     assert_eq!(node.value.id(), value_param, "struct-declared param handle should bind using composed node identity");
     assert_eq!(node.init_calls, 1, "custom init override should run once");
-    assert!(
-        node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9),
-        "custom init should observe struct-declared default before app init runs",
-    );
+    assert!(node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9), "custom init should observe struct-declared default before app init runs",);
 }
 
 #[test]
 fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(
-        ViaComposedRootNode::new(
-            "composed",
-            ViaComposedMidNode::new("mid", ViaComposedLeafNode::new("leaf")),
-        )
-        .into(),
-        None,
-    );
+    engine.add_node(ViaComposedRootNode::new("composed", ViaComposedMidNode::new("mid", ViaComposedLeafNode::new("leaf"))).into(), None);
 
     for _ in 0..8 {
         engine.apply_edits().expect("apply should succeed");
@@ -905,21 +861,14 @@ fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() 
     assert_eq!(node.root_value.id(), root_value, "root-level generated handle should bind");
     assert_eq!(node.mid.mid_value.id(), mid_value, "mid-level generated handle should bind via delegation");
     assert_eq!(node.mid.leaf.leaf_value.id(), leaf_value, "leaf-level generated handle should bind via recursive delegation");
-    assert_eq!(
-        decl_ids,
-        vec!["leaf_value".to_string(), "mid_value".to_string(), "root_value".to_string()],
-        "when using `via`, nested parameters should materialize before outer parameters",
-    );
+    assert_eq!(decl_ids, vec!["leaf_value".to_string(), "mid_value".to_string(), "root_value".to_string()], "when using `via`, nested parameters should materialize before outer parameters",);
 }
 
 #[test]
 fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(
-        ReuseFolderViaNode::new("reuse", ReuseFolderBaseNode::new("base")).into(),
-        None,
-    );
+    engine.add_node(ReuseFolderViaNode::new("reuse", ReuseFolderBaseNode::new("base")).into(), None);
 
     for _ in 0..8 {
         engine.apply_edits().expect("apply should succeed");
@@ -938,11 +887,7 @@ fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
 
     assert_eq!(output_decl_ids.iter().filter(|decl| decl.as_str() == "output/host").count(), 1);
     assert_eq!(output_decl_ids.iter().filter(|decl| decl.as_str() == "output/gain").count(), 1);
-    assert_eq!(
-        output_decl_ids,
-        vec!["output/host".to_string(), "output/gain".to_string()],
-        "reused folder children should preserve inner(via) items first and outer items at the end",
-    );
+    assert_eq!(output_decl_ids, vec!["output/host".to_string(), "output/gain".to_string()], "reused folder children should preserve inner(via) items first and outer items at the end",);
 
     let MacroTestNode::ReuseFolderViaNode(node) = engine.nodes.get(owner).expect("node should exist") else {
         panic!("expected ReuseFolderViaNode variant");
@@ -963,11 +908,7 @@ fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_eve
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("dsl node should be attached under root");
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dsl node should be attached under root");
     let feedback = find_child_by_decl(&engine, owner, "feedback").expect("feedback parameter should exist");
 
     let MacroTestNode::Parameter(feedback_param) = engine.nodes.get_mut(feedback).expect("feedback parameter should exist") else {
@@ -985,10 +926,7 @@ fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_eve
         panic!("expected DslParamsNode variant");
     };
 
-    assert!(
-        (*node.feedback.get() - 0.9).abs() < 1e-9,
-        "bound handle should refresh from runtime parameter value before node callbacks",
-    );
+    assert!((*node.feedback.get() - 0.9).abs() < 1e-9, "bound handle should refresh from runtime parameter value before node callbacks",);
 }
 
 #[test]
@@ -1059,6 +997,149 @@ fn apply_edits_rejects_cycle_move() {
 
     let result = engine.apply_edits();
     assert!(matches!(result, Err(EngineEditError::CycleDetected { operation: "MoveNode", .. })));
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct ContainerTestNode {
+    node_data: NodeData,
+    kind: &'static str,
+    container_rules: Option<UserContainerRules>,
+}
+
+impl ContainerTestNode {
+    fn regular(label: &str, kind: &'static str) -> Self {
+        Self {
+            node_data: NodeData::new(label.to_string()),
+            kind,
+            container_rules: None,
+        }
+    }
+
+    fn container(label: &str, kind: &'static str, accepts_item_kinds: &'static [&'static str]) -> Self {
+        Self {
+            node_data: NodeData::new(label.to_string()),
+            kind,
+            container_rules: Some(UserContainerRules::new(accepts_item_kinds)),
+        }
+    }
+}
+
+impl Node for ContainerTestNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        self.kind
+    }
+
+    fn user_item_kind(&self) -> &str {
+        self.kind
+    }
+
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        self.container_rules
+    }
+}
+
+#[test]
+fn add_user_item_sets_item_root_role_when_container_accepts_kind() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]), None);
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
+
+    engine.add_user_item(ContainerTestNode::regular("Sequence 1", "sequence"), Some(manager));
+    engine.apply_edits().expect("user item add should succeed");
+
+    let sequence = engine.nodes.get(manager).and_then(|node| node.node_data().first_child).expect("sequence should exist");
+    assert_eq!(engine.nodes.get(sequence).expect("sequence should exist").node_data().user_role, UserNodeRole::ItemRoot, "AddUserItem should classify inserted node as item root",);
+}
+
+#[test]
+fn add_user_item_rejects_kind_when_container_does_not_accept_it() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]), None);
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
+    engine.add_user_item(ContainerTestNode::regular("Layer 1", "layer"), Some(manager));
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::UserItemKindRejected { operation: "AddUserItem", .. })));
+}
+
+#[test]
+fn move_item_root_between_containers_requires_target_acceptance() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(ContainerTestNode::container("Sequences A", "sequence_manager", &["sequence"]), None);
+    engine.add_node(ContainerTestNode::container("Sequences B", "sequence_manager", &["layer"]), None);
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager_a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager_a should exist");
+    let manager_b = engine.nodes.get(manager_a).and_then(|node| node.node_data().next_sibling).expect("manager_b should exist");
+
+    engine.add_user_item(ContainerTestNode::regular("Sequence 1", "sequence"), Some(manager_a));
+    engine.apply_edits().expect("initial user item add should succeed");
+
+    let sequence = engine.nodes.get(manager_a).and_then(|node| node.node_data().first_child).expect("sequence should exist");
+    engine.edits.push(Edit::MoveNode {
+        node: sequence,
+        new_parent: manager_b,
+        new_prev_sibling: None,
+    });
+
+    let rejected = engine.apply_edits();
+    assert!(matches!(rejected, Err(EngineEditError::UserItemKindRejected { operation: "MoveNode", .. })));
+
+    engine.add_node(ContainerTestNode::container("Sequences C", "sequence_manager", &["sequence"]), None);
+    engine.apply_edits().expect("adding compatible target container should succeed");
+    let manager_c = engine.nodes.get(manager_b).and_then(|node| node.node_data().next_sibling).expect("manager_c should exist");
+
+    engine.edits.push(Edit::MoveNode {
+        node: sequence,
+        new_parent: manager_c,
+        new_prev_sibling: None,
+    });
+    engine.apply_edits().expect("moving item root to compatible container should succeed");
+
+    let sequence_data = engine.nodes.get(sequence).expect("sequence should exist after move").node_data();
+    assert_eq!(sequence_data.parent, Some(manager_c));
+    assert_eq!(sequence_data.user_role, UserNodeRole::ItemRoot);
+}
+
+#[test]
+fn move_item_root_outside_any_container_is_rejected() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]), None);
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
+    engine.add_user_item(ContainerTestNode::regular("Sequence 1", "sequence"), Some(manager));
+    engine.apply_edits().expect("initial user item add should succeed");
+
+    let sequence = engine.nodes.get(manager).and_then(|node| node.node_data().first_child).expect("sequence should exist");
+    engine.edits.push(Edit::MoveNode {
+        node: sequence,
+        new_parent: engine.root,
+        new_prev_sibling: Some(manager),
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::UserItemContainerRequired { operation: "MoveNode", .. })));
 }
 
 #[test]

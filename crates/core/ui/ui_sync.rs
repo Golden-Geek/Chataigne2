@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
-use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid};
+use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid, UserCreatableItem, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
 
 /// Current UI protocol version.
@@ -117,8 +117,39 @@ pub struct UiNodeDto {
     pub meta: UiNodeMetaDto,
     /// Node payload summary.
     pub data: UiNodeDataDto,
+    /// Runtime role for user curation semantics.
+    pub user_role: UserNodeRole,
+    /// Logical item kind used by container admission.
+    pub user_item_kind: String,
+    /// Accepted item kinds when this node acts as a container.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accepted_user_item_kinds: Vec<String>,
+    /// User-creatable item node types for this container instance.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub creatable_user_items: Vec<UiCreatableUserItemDto>,
     /// Direct children ids in visual order.
     pub children: Vec<NodeId>,
+}
+
+/// UI-facing descriptor of a user-creatable item type.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiCreatableUserItemDto {
+    /// Runtime node type identifier.
+    pub node_type: String,
+    /// Logical user-item kind.
+    pub item_kind: String,
+    /// Suggested default label.
+    pub label: String,
+}
+
+impl From<UserCreatableItem> for UiCreatableUserItemDto {
+    fn from(item: UserCreatableItem) -> Self {
+        Self {
+            node_type: item.node_type,
+            item_kind: item.item_kind,
+            label: item.label,
+        }
+    }
 }
 
 /// UI-facing node-type descriptor.
@@ -349,6 +380,16 @@ pub enum UiEditIntent {
         /// Target node id.
         node: NodeId,
     },
+    /// Creates a user item under `parent` from a node type id.
+    CreateUserItem {
+        /// Parent node id.
+        parent: NodeId,
+        /// Runtime node type identifier to instantiate.
+        node_type: String,
+        /// Optional explicit label for the new item.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
     /// Patch node metadata.
     PatchMeta {
         /// Target node id.
@@ -424,6 +465,15 @@ impl<T: Node> Engine<T> {
                 UiNodeDataDto::Node { node_type: node.get_type().to_string() }
             };
 
+            let mut creatable_user_items = Vec::new();
+            if node.user_container_rules().is_some() {
+                for item in node.user_creatable_items().into_iter() {
+                    if node.user_container_accepts_item(&item.node_type, &item.item_kind) {
+                        creatable_user_items.push(UiCreatableUserItemDto::from(item));
+                    }
+                }
+            }
+
             nodes.push(UiNodeDto {
                 node_id,
                 uuid: node_data.meta.uuid,
@@ -438,6 +488,10 @@ impl<T: Node> Engine<T> {
                     tags: node_data.meta.tags.clone(),
                 },
                 data,
+                user_role: node_data.user_role,
+                user_item_kind: node.user_item_kind().to_string(),
+                accepted_user_item_kinds: node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default(),
+                creatable_user_items,
                 children,
             });
         }
@@ -489,6 +543,43 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::RemoveNode { node } => {
                 self.edits.push(Edit::RemoveNode { node });
+                let result = self.apply_edits();
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::CreateUserItem { parent, node_type, label } => {
+                let Some(parent_node) = self.nodes.get(parent) else {
+                    let err = crate::engine::EngineEditError::ParentNotFound {
+                        edit_index: 0,
+                        operation: "CreateUserItem",
+                        parent,
+                    };
+                    return self.finish_ui_apply_now(before_len, Err(err));
+                };
+
+                let resolved_label = label.unwrap_or_else(|| {
+                    parent_node
+                        .user_creatable_items()
+                        .into_iter()
+                        .find(|candidate| candidate.node_type == node_type)
+                        .map(|candidate| candidate.label)
+                        .unwrap_or_else(|| node_type.clone())
+                });
+
+                let Some(node) = parent_node.create_user_item(&node_type, resolved_label) else {
+                    let err = crate::engine::EngineEditError::UserItemTypeUnavailable {
+                        edit_index: 0,
+                        operation: "CreateUserItem",
+                        parent,
+                        node_type,
+                    };
+                    return self.finish_ui_apply_now(before_len, Err(err));
+                };
+
+                self.edits.push(Edit::AddUserItem {
+                    parent,
+                    prev_sibling: None,
+                    node,
+                });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
@@ -648,5 +739,8 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::EditSessionAlreadyActive { .. } => "edit_session_already_active",
         crate::engine::EngineEditError::EditSessionNotActive { .. } => "edit_session_not_active",
         crate::engine::EngineEditError::EditSessionIdMismatch { .. } => "edit_session_id_mismatch",
+        crate::engine::EngineEditError::UserItemContainerRequired { .. } => "user_item_container_required",
+        crate::engine::EngineEditError::UserItemKindRejected { .. } => "user_item_kind_rejected",
+        crate::engine::EngineEditError::UserItemTypeUnavailable { .. } => "user_item_type_unavailable",
     }
 }

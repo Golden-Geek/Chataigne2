@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeUuid, PresentationHint, SemanticsHint};
+use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
 
 use super::{Engine, EngineEditError};
 
@@ -21,6 +21,10 @@ fn is_default_semantics_hint(value: &SemanticsHint) -> bool {
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {
     *value == PresentationHint::default()
+}
+
+fn is_default_user_node_role(value: &UserNodeRole) -> bool {
+    *value == UserNodeRole::Regular
 }
 
 /// Serialized project document containing one rooted node hierarchy.
@@ -41,6 +45,9 @@ pub struct ProjectNodeRecord {
     /// Runtime node type identifier (`Node::get_type()`).
     #[serde(rename = "type")]
     pub node_type: String,
+    /// User-facing curation role for this node.
+    #[serde(default, skip_serializing_if = "is_default_user_node_role")]
+    pub user_role: UserNodeRole,
     /// Persisted metadata fields.
     pub meta: ProjectNodeMeta,
     /// Node-specific payload.
@@ -295,7 +302,14 @@ impl<T: Node> Engine<T> {
             children.push(self.encode_node_record_with(child_id, encode_data)?);
         }
 
-        Ok(ProjectNodeRecord { uuid, node_type, meta, data, children })
+        Ok(ProjectNodeRecord {
+            uuid,
+            node_type,
+            user_role: node.node_data().user_role,
+            meta,
+            data,
+            children,
+        })
     }
 
     fn decode_node_record_with<F>(record: &ProjectNodeRecord, decode_node: &mut F) -> Result<T, ProjectPersistenceError>
@@ -312,6 +326,7 @@ impl<T: Node> Engine<T> {
         node_data.last_child = None;
         node_data.prev_sibling = None;
         node_data.next_sibling = None;
+        node_data.user_role = record.user_role;
         node_data.meta = meta;
 
         Ok(node)
