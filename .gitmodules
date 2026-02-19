@@ -1,3 +1,6 @@
 [submodule "submodules/golden_core"]
 	path = submodules/golden_core
 	url = https://github.com/Golden-Geek/golden_core
+[submodule "src-ui/src/lib/golden_ui"]
+	path = src-ui/src/lib/golden_ui
+	url = https://github.com/Golden-Geek/golden_ui

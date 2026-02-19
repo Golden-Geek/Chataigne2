@@ -8,7 +8,7 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			'$gc-ui': '../submodules/golden_core/crates/ui/src/lib'
+			'$gc-ui': '$lib/golden_ui'
 		}
 	}
 };
