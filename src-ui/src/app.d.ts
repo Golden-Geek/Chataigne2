@@ -8,6 +8,32 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	interface Window {
+		__TAURI__?: {
+			window: {
+				getCurrentWindow: () => {
+					close: () => Promise<void>;
+					destroy: () => Promise<void>;
+					minimize: () => Promise<void>;
+					toggleMaximize: () => Promise<void>;
+					isMaximized: () => Promise<boolean>;
+					onResized: (handler: () => void) => Promise<() => void>;
+				};
+			};
+		};
+		__TAURI_INTERNALS__?: {
+			invoke?: (
+				command: string,
+				args?: Record<string, unknown>,
+			) => Promise<unknown>;
+			metadata?: {
+				currentWindow?: {
+					label?: string;
+				};
+			};
+		};
+	}
 }
 
 export {};

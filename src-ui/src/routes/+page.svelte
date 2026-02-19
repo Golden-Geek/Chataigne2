@@ -1,96 +1,106 @@
 <script lang="ts">
-	import { onMount } from "svelte";
 	import MainComponent from "$lib/MainComponent.svelte";
-
-	type AppWindow = {
-		close: () => Promise<void>;
-		minimize: () => Promise<void>;
-		toggleMaximize: () => Promise<void>;
-		isMaximized: () => Promise<boolean>;
-		onResized: (handler: () => void) => Promise<() => void>;
-	};
+	import { onMount } from "svelte";
 
 	let isWindowMaximized = $state(false);
 	let hasTauriWindowApi = $state(false);
 
-	const getAppWindow = (): AppWindow | undefined =>
-		window.__TAURI__?.window.getCurrentWindow();
-
-	const refreshMaximizeState = async (): Promise<void> => {
-		const appWindow = getAppWindow();
-		if (!appWindow) {
-			isWindowMaximized = false;
-			return;
+	const invokeAppCommand = async (
+		command: string,
+		args?: Record<string, unknown>,
+	): Promise<unknown | undefined> => {
+		const invoke = window.__TAURI_INTERNALS__?.invoke;
+		if (!invoke) {
+			return undefined;
 		}
 
-		isWindowMaximized = await appWindow.isMaximized();
+		try {
+			return await invoke(command, args);
+		} catch (error) {
+			console.error(`[window-controls] ${command} failed.`, error);
+			return undefined;
+		}
+	};
+
+	const refreshMaximizeState = async (): Promise<void> => {
+		const maximized = await invokeAppCommand("window_is_maximized");
+		isWindowMaximized = Boolean(maximized);
 	};
 
 	const minimizeWindow = async (): Promise<void> => {
-		await getAppWindow()?.minimize();
+		const result = await invokeAppCommand("window_minimize");
+		if (result === undefined) {
+			console.error(
+				"[window-controls] Tauri window API unavailable (minimize).",
+			);
+		}
 	};
 
 	const toggleWindowMaximize = async (): Promise<void> => {
-		await getAppWindow()?.toggleMaximize();
+		const result = await invokeAppCommand("window_toggle_maximize");
+		if (result === undefined) {
+			console.error(
+				"[window-controls] Tauri window API unavailable (toggle maximize).",
+			);
+			return;
+		}
 		await refreshMaximizeState();
 	};
 
 	const closeWindow = async (): Promise<void> => {
-		await getAppWindow()?.close();
+		const result = await invokeAppCommand("window_close");
+		if (result === undefined) {
+			console.error(
+				"[window-controls] Tauri window API unavailable (close).",
+			);
+		}
 	};
 
 	onMount(() => {
-		const appWindow = getAppWindow();
-		if (!appWindow) {
-			hasTauriWindowApi = false;
+		hasTauriWindowApi = Boolean(window.__TAURI_INTERNALS__?.invoke);
+		if (!hasTauriWindowApi) {
 			return;
 		}
 
-		hasTauriWindowApi = true;
 		void refreshMaximizeState();
 
-		let unlistenResize: (() => void) | undefined;
-		void appWindow
-			.onResized(() => {
-				void refreshMaximizeState();
-			})
-			.then((unlisten) => {
-				unlistenResize = unlisten;
-			});
+		const onResize = () => {
+			void refreshMaximizeState();
+		};
+		window.addEventListener("resize", onResize);
 
 		return () => {
-			unlistenResize?.();
+			window.removeEventListener("resize", onResize);
 		};
 	});
 </script>
 
 <div class="gc-main">
-	<div class="gc-header" data-tauri-drag-region>
+	<div class="gc-header">
 		<div class="app-title">Chataigne 2.0.0</div>
 		<div class="spacer"></div>
-		<div class="app-buttons" data-no-drag>
-			<button
-				type="button"
-				class="minimize-app"
-				aria-label="Minimize app"
-				disabled={!hasTauriWindowApi}
-				onclick={minimizeWindow}>_</button
-			>
-			<button
-				type="button"
-				class="maximize-app"
-				aria-label={isWindowMaximized ? "Restore app" : "Maximize app"}
-				disabled={!hasTauriWindowApi}
-				onclick={toggleWindowMaximize}>{isWindowMaximized ? "[]" : "[ ]"}</button
-			>
-			<button
-				type="button"
-				class="close-app"
-				aria-label="Close app"
-				disabled={!hasTauriWindowApi}
-				onclick={closeWindow}>x</button
-			>
-		</div>
+		{#if hasTauriWindowApi}
+			<div class="app-buttons">
+				<button
+					type="button"
+					class="minimize-app"
+					aria-label="Minimize app"
+					onclick={() => minimizeWindow()}>➖</button
+				>
+				<button
+					type="button"
+					class="maximize-app"
+					aria-label="Maximize app"
+					onclick={() => toggleWindowMaximize()}>🟩</button
+				>
+				<button
+					type="button"
+					class="close-app"
+					aria-label="Close app"
+					onclick={() => closeWindow()}>🔴</button
+				>
+			</div>
+		{/if}
 	</div>
 	<div class="gc-content">
 		<MainComponent />

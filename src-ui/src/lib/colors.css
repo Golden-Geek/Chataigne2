@@ -1,8 +1,8 @@
 :root,
 .gc-colors-default {
 	--gc-color-background: #151515;
-	--gc-color-header: #151515;
-	--gc-color-footer: #151515;
+	--gc-color-header: #181818;
+	--gc-color-footer: #181818;
 
 	--gc-color-text: #bababa;
 	--gc-color-panel: #1f2021;

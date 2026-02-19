@@ -19,21 +19,6 @@ html {
 }
 
 
-.titlebar {
-    background-color: var(--gc-color-header);
-    -webkit-user-select: none;
-    user-select: none;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-
-    /* your “Mailspring-like” theme */
-    backdrop-filter: blur(18px);
-}
-
-
-
-
 .gc-main {
     display: flex;
     flex-direction: column;
@@ -42,7 +27,7 @@ html {
 }
 
 .gc-header {
-    min-block-size: 2rem;
+    min-block-size: 2.2rem;
     padding-inline: 0.75rem;
     display: flex;
     align-items: center;
@@ -54,6 +39,11 @@ html {
     -webkit-app-region: drag;
     position: relative;
     z-index: 2;
+
+    box-shadow: 0 .05rem .6rem rgba(0, 0, 0, .6);
+    border-bottom: solid .05rem rgba(255, 255, 255, 0.05);
+
+
 }
 
 .gc-header:active {
@@ -65,15 +55,10 @@ html {
     -webkit-app-region: no-drag;
 }
 
-.gc-header .spacer
-{
+.gc-header .spacer {
     flex: 1 1 auto;
 }
 
-.gc-header .app-buttons
-{
-
-}
 
 .gc-header .app-buttons button {
     background: transparent;
@@ -81,17 +66,23 @@ html {
     box-shadow: none;
     color: #555555;
     filter: grayscale(90%);
-    transition: filter 0.2s;
+    opacity: 0.5;
+    transition: filter 0.2s, opacity 0.2s;
 }
 
 .gc-header .app-buttons button:hover {
     filter: grayscale(0%);
     color: #ff5555;
+    opacity: 1;
 }
 
 .gc-footer {
     height: 2rem;
     background-color: var(--gc-color-footer);
+
+    box-shadow: 0 -.05rem .6rem rgba(0, 0, 0, .6);
+    border-top: solid .05rem rgba(255, 255, 255, 0.05);
+
 }
 
 .gc-content {
@@ -172,12 +163,18 @@ html {
         border: none;
     }
 
+    .dv-split-view-container .dv-view-container .dv-view {
+        overflow: visible !important;
+    }
+
     .dv-groupview {
-        overflow: hidden;
-        border-radius: var(--dv-border-radius);
-        background-color: var(--gc-color-panel);
         box-sizing: border-box;
+        border-radius: .6rem;
+        border: solid .05rem rgba(255, 255, 255, 0.05);
+        background-color: var(--gc-color-panel);
+        box-shadow: .05rem .05rem .6rem rgba(0, 0, 0, .6);
         padding: .25rem;
+        overflow: visible !important;
 
         .dv-content-container {
             background-color: var(--dv-group-view-background-color);
@@ -223,10 +220,9 @@ html {
 
     .gc-dv-tab-close {
         flex: 0 0 auto;
-        inline-size: 1.1rem;
-        block-size: 1.1rem;
         border: none;
-        border-radius: 0.25rem;
+        width: .7rem;
+        height: .7rem;
         background: url("assets/icons/close.png") center center no-repeat;
         background-size: contain;
         color: inherit;
