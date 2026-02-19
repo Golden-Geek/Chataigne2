@@ -16,7 +16,7 @@ import {
 	type RustUiEventBatch
 } from './http';
 
-const DEFAULT_WS_URL = 'ws://127.0.0.1:7010/api/ui/ws';
+const DEFAULT_WS_URL = 'ws://localhost:7010/api/ui/ws';
 const UI_PROTOCOL_VERSION = '0.1.0';
 const INTENT_TIMEOUT_MS = 4000;
 const RECONNECT_BASE_MS = 250;
