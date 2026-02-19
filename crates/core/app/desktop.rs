@@ -198,11 +198,11 @@ fn detect_or_default_frontend_url() -> String {
     for port in candidates {
         let connect_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port).to_string();
         if wait_for_ui_server(&connect_addr, Duration::from_millis(150)).is_ok() {
-            return format!("http://127.0.0.1:{port}");
+            return format!("http://localhost:{port}");
         }
     }
 
-    "http://127.0.0.1:5173".to_string()
+    "http://localhost:5173".to_string()
 }
 
 fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
@@ -221,9 +221,10 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
                 WebviewUrl::External(external_url.clone()),
             )
             .title("Chataigne 2")
-            // .decorations(false)
-            // .transparent(true)
-            // .shadow(true)
+            .decorations(false)
+            .transparent(true)
+            .shadow(true)
+            .accept_first_mouse(true)
             .inner_size(75.0 * 16.0, 50.0 * 16.0)
             .build()
             .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;

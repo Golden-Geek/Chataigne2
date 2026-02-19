@@ -31,7 +31,7 @@ pub struct UiServerConfig {
 impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
-            bind_addr: "127.0.0.1:7010".to_string(),
+            bind_addr: "localhost:7010".to_string(),
             tick_interval: Duration::from_millis(16),
         }
     }

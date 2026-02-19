@@ -13,8 +13,8 @@
 	}>();
 
 	const session = createWorkbenchSession({
-		wsUrl: props.wsUrl ?? 'ws://127.0.0.1:7010/api/ui/ws',
-		httpBaseUrl: props.httpBaseUrl ?? 'http://127.0.0.1:7010/api/ui',
+		wsUrl: props.wsUrl ?? 'ws://localhost:7010/api/ui/ws',
+		httpBaseUrl: props.httpBaseUrl ?? 'http://localhost:7010/api/ui',
 		pollIntervalMs: props.pollIntervalMs ?? 120,
 		bootstrapRetryMs: props.bootstrapRetryMs ?? 1000
 	});

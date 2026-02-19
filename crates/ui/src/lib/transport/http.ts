@@ -19,7 +19,7 @@ import type {
 } from '../types';
 import { wholeGraphScope } from '../types';
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:7010/api/ui';
+const DEFAULT_BASE_URL = 'http://localhost:7010/api/ui';
 const DEFAULT_POLL_INTERVAL_MS = 150;
 
 interface HttpClientOptions {
