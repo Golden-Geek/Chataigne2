@@ -205,6 +205,31 @@ fn detect_or_default_frontend_url() -> String {
     "http://localhost:5173".to_string()
 }
 
+#[tauri::command]
+fn window_minimize(window: tauri::Window) -> Result<(), String> {
+    window.minimize().map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn window_toggle_maximize(window: tauri::Window) -> Result<(), String> {
+    let is_maximized = window.is_maximized().map_err(|err| err.to_string())?;
+    if is_maximized {
+        window.unmaximize().map_err(|err| err.to_string())
+    } else {
+        window.maximize().map_err(|err| err.to_string())
+    }
+}
+
+#[tauri::command]
+fn window_close(window: tauri::Window) -> Result<(), String> {
+    window.close().map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn window_is_maximized(window: tauri::Window) -> Result<bool, String> {
+    window.is_maximized().map_err(|err| err.to_string())
+}
+
 fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| {
         Error::new(
@@ -230,6 +255,12 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
             .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            window_minimize,
+            window_toggle_maximize,
+            window_close,
+            window_is_maximized
+        ])
         .run(tauri::generate_context!("../../../../tauri.conf.json"))
         .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))
 }
