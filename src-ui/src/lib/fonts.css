@@ -1,0 +1,20 @@
+@font-face {
+	font-family: "DM Sans";
+	src: url("./assets/fonts/DMSans-VariableFont_opsz,wght.ttf")
+		format("truetype");
+	font-style: normal;
+	font-weight: 100 1000;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "DM Sans";
+	src: url("./assets/fonts/dmsans-italic.ttf") format("truetype");
+	font-style: italic;
+	font-weight: 100 1000;
+	font-display: swap;
+}
+
+:root {
+	--gc-font-sans: "DM Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+}

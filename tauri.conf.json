@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.goldengeek.chataigne2",
   "build": {
-    "devUrl": "http://127.0.0.1:7010",
+    "devUrl": "http://localhost:7010",
     "frontendDist": "."
   },
   "app": {
@@ -16,4 +16,5 @@
   "bundle": {
     "active": false
   }
+  
 }

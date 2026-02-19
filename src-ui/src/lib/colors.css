@@ -1,0 +1,32 @@
+:root,
+.gc-colors-default {
+	--gc-color-background: #151515;
+	--gc-color-header: #151515;
+	--gc-color-footer: #151515;
+
+	--gc-color-text: #bababa;
+	--gc-color-panel: #1f2021;
+
+    /* DOCKVIEW COLORS */
+	--gc-color-dock-surface: transparent;
+	--gc-color-dock-group-background: transparent;
+	--gc-color-dock-tabbar-background: transparent;
+	--gc-color-dock-tab-active-background: #c31388ac;
+	--gc-color-dock-tab-hidden-background: #162138;
+	--gc-color-dock-tab-inactive-background: #3a3a3a;
+	--gc-color-dock-tab-inactive-hidden-background: #13203a;
+	--gc-color-dock-tab-active-text: #edf3ff;
+	--gc-color-dock-tab-hidden-text: #becbec;
+	--gc-color-dock-tab-inactive-text: #848484;
+	--gc-color-dock-tab-inactive-hidden-text: #8798c1;
+	--gc-color-dock-tab-divider: #324768;
+	--gc-color-dock-separator: none;
+
+	--gc-color-dock-sash: rgba(255, 255, 255, 0.008);
+	--gc-color-dock-sash-active: #a21caa;
+	--gc-color-dock-drag-border: #61a4ff;
+	--gc-color-dock-drag-overlay: rgba(97, 164, 255, 0.2);
+	--gc-color-dock-icon-hover: rgba(97, 164, 255, 0.22);
+	--gc-color-dock-scrollbar: #5f77ac;
+	--gc-color-dock-shadow: rgba(5, 10, 19, 0.58);
+}
