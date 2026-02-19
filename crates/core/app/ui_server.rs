@@ -459,7 +459,15 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
     let request = match read_http_request(stream) {
         Ok(request) => request,
         Err(err) => {
-            write_json_error(stream, "400 Bad Request", &format!("invalid request: {err}"))?;
+            if is_client_disconnect_error(&err) {
+                return Ok(());
+            }
+
+            if let Err(write_err) = write_json_error(stream, "400 Bad Request", &format!("invalid request: {err}")) {
+                if !is_client_disconnect_error(&write_err) {
+                    return Err(write_err);
+                }
+            }
             return Ok(());
         }
     };
@@ -911,6 +919,12 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
     loop {
         let read = stream.read(&mut temp)?;
         if read == 0 {
+            if buffer.is_empty() {
+                return Err(Error::new(
+                    ErrorKind::UnexpectedEof,
+                    "peer disconnected before sending a request",
+                ));
+            }
             break;
         }
 
@@ -1016,4 +1030,15 @@ fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body
     }
     stream.flush()?;
     Ok(())
+}
+
+fn is_client_disconnect_error(err: &Error) -> bool {
+    matches!(
+        err.kind(),
+        ErrorKind::UnexpectedEof
+            | ErrorKind::ConnectionReset
+            | ErrorKind::ConnectionAborted
+            | ErrorKind::BrokenPipe
+            | ErrorKind::NotConnected
+    )
 }
