@@ -617,6 +617,10 @@ pub trait Node: Send + Any {
 
     /// Dispatches all events in the process context to typed handlers.
     fn dispatch_inbox(&mut self, ctx: &mut ProcessCtx) {
+        if ctx.has_structure_changed() {
+            self.on_structure_changed(ctx);
+        }
+
         for event in ctx.events.clone() {
             match event.kind {
                 EventKind::ParamChanged { param, old_value, .. } => {
@@ -655,6 +659,8 @@ pub trait Node: Send + Any {
 
     /// Called when a parameter has changed.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
+    /// Called once when any structural event is present in the current callback frame.
+    fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {}
     /// Called when a child is added.
     fn on_child_added(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {}
     /// Called when a child is added, including its declared slot id.

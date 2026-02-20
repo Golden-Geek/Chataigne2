@@ -745,6 +745,19 @@ impl<T: Node> Engine<T> {
         match scope {
             UiSubscriptionScope::WholeGraph => true,
             UiSubscriptionScope::Subtree { root, max_depth } => {
+                if matches!(
+                    event.kind,
+                    EventKind::ChildAdded { .. }
+                        | EventKind::ChildRemoved { .. }
+                        | EventKind::ChildReplaced { .. }
+                        | EventKind::ChildMoved { .. }
+                        | EventKind::ChildReordered { .. }
+                        | EventKind::NodeCreated { .. }
+                        | EventKind::NodeDeleted { .. }
+                ) {
+                    return true;
+                }
+
                 let candidate_nodes: Vec<NodeId> = match &event.kind {
                     EventKind::ParamChanged { param, .. } => vec![*param],
                     EventKind::ChildAdded { parent, child, .. } => vec![*parent, *child],

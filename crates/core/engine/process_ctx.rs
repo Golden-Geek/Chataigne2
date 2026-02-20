@@ -162,4 +162,25 @@ impl ProcessCtx {
         self.emit_custom_event(event);
         Ok(())
     }
+
+    /// Returns `true` when `param` changed in this callback frame.
+    pub fn has_param_changed(&self, param: NodeId) -> bool {
+        self.events.iter().any(|event| matches!(event.kind, crate::events::EventKind::ParamChanged { param: changed, .. } if changed == param))
+    }
+
+    /// Returns `true` when at least one structural event is present in this callback frame.
+    pub fn has_structure_changed(&self) -> bool {
+        self.events.iter().any(|event| {
+            matches!(
+                event.kind,
+                crate::events::EventKind::ChildAdded { .. }
+                    | crate::events::EventKind::ChildRemoved { .. }
+                    | crate::events::EventKind::ChildReplaced { .. }
+                    | crate::events::EventKind::ChildMoved { .. }
+                    | crate::events::EventKind::ChildReordered { .. }
+                    | crate::events::EventKind::NodeCreated { .. }
+                    | crate::events::EventKind::NodeDeleted { .. }
+            )
+        })
+    }
 }
