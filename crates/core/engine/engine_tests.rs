@@ -327,6 +327,7 @@ impl Node for ReuseFolderViaNode {}
     feedback: f64 = 0.5 [0.0..1.0] (
         label = "Feedback",
         description = "Delay feedback amount",
+        read_only = true,
         step = 0.1,
         step_base = 0.0,
         policy = "Reject",
@@ -685,6 +686,7 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     assert_eq!(feedback_param.constraints.step, Some(0.1));
     assert_eq!(feedback_param.constraints.step_base, Some(0.0));
     assert_eq!(feedback_param.constraints.policy, ParameterConstraintPolicy::Reject);
+    assert!(feedback_param.read_only);
 
     let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");

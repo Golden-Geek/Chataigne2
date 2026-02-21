@@ -208,6 +208,7 @@ struct ParamFieldArgs {
     decl_id: Option<LitStr>,
     label: Option<LitStr>,
     description: Option<LitStr>,
+    read_only: Option<Expr>,
     min: Option<Expr>,
     max: Option<Expr>,
     step: Option<Expr>,
@@ -257,6 +258,11 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `description`"));
                     }
                     out.description = Some(input.parse::<LitStr>()?);
+                } else if key == "read_only" || key == "readOnly" {
+                    if out.read_only.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `read_only`"));
+                    }
+                    out.read_only = Some(input.parse::<Expr>()?);
                 } else if key == "min" {
                     if out.min.is_some() {
                         return Err(Error::new(key.span(), "duplicate `min`"));
@@ -295,7 +301,7 @@ impl Parse for ParamFieldArgs {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, min, max, step, step_base, policy, enum_options, default_callback, callback)",
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, min, max, step, step_base, policy, enum_options, default_callback, callback)",
                     ));
                 }
             }
@@ -380,6 +386,7 @@ struct ParamsDslMetaOptions {
 struct ParamsDslParamOptions {
     label: Option<LitStr>,
     description: Option<LitStr>,
+    read_only: Option<Expr>,
     meta: ParamsDslMetaOptions,
     behaviour: Option<LitStr>,
     min: Option<Expr>,
@@ -567,6 +574,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `description` option"));
                 }
                 out.description = Some(input.parse::<LitStr>()?);
+            } else if key == "read_only" || key == "readOnly" {
+                if out.read_only.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `read_only` option"));
+                }
+                out.read_only = Some(input.parse::<Expr>()?);
             } else if key == "short_name" || key == "shortName" {
                 if out.meta.short_name.is_some() {
                     return Err(Error::new(key.span(), "duplicate `short_name` option"));
@@ -645,7 +657,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, default_callback, callback)",
+                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, default_callback, callback)",
                 ));
             }
         } else {
@@ -952,6 +964,7 @@ struct ParamsParamSpec {
     meta: ParamsDslMetaOptions,
     default: Option<Expr>,
     behaviour: Option<ParamEventBehaviourSpec>,
+    read_only: Option<Expr>,
     min: Option<Expr>,
     max: Option<Expr>,
     step: Option<Expr>,
@@ -1125,6 +1138,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     meta: param.options.meta.clone(),
                     default: resolved_default,
                     behaviour,
+                    read_only: param.options.read_only.clone(),
                     min: param.options.min.clone(),
                     max: param.options.max.clone(),
                     step: param.options.step.clone(),
@@ -1348,6 +1362,11 @@ fn expand_struct(
                     __param_node.constraints.min = Some((#expr) as f64);
                 }
             });
+            let set_read_only = args.read_only.map(|expr| {
+                quote! {
+                    __param_node.read_only = #expr;
+                }
+            });
             let set_max = args.max.map(|expr| {
                 quote! {
                     __param_node.constraints.max = Some((#expr) as f64);
@@ -1403,6 +1422,7 @@ fn expand_struct(
                         self.#field_ident.change_check().clone(),
                     );
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
+                    #set_read_only
                     #set_min
                     #set_max
                     #set_step
@@ -2121,6 +2141,11 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 __param_node.constraints.min = Some((#expr) as f64);
             }
         });
+        let set_read_only = param.read_only.as_ref().map(|expr| {
+            quote! {
+                __param_node.read_only = #expr;
+            }
+        });
 
         let set_max = param.max.as_ref().map(|expr| {
             quote! {
@@ -2169,6 +2194,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                     self.#field_ident.change_check().clone(),
                 );
                 __param_node.event_behaviour = self.#field_ident.event_behaviour();
+                #set_read_only
                 #set_min
                 #set_max
                 #set_step
