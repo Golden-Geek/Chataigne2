@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
+use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid, UserCreatableItem, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
 
@@ -212,6 +213,16 @@ pub struct UiHistoryState {
     pub active_edit_session: bool,
 }
 
+/// UI-facing logger state included in snapshots.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct UiLoggerState {
+    /// Maximum number of logger records retained server-side.
+    pub max_entries: usize,
+    /// Retained records in ascending record-id order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub records: Vec<LogRecord>,
+}
+
 /// Snapshot payload for initial sync.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiSnapshot {
@@ -227,6 +238,8 @@ pub struct UiSnapshot {
     pub schema: UiSchemaView,
     /// Current undo/redo state.
     pub history: UiHistoryState,
+    /// Current logger state.
+    pub logger: UiLoggerState,
 }
 
 /// UI-facing event kind.
@@ -419,6 +432,13 @@ pub enum UiEditIntent {
     },
     /// Request graph reevaluation.
     ReevaluateGraph,
+    /// Clears retained logger records.
+    ClearLogs,
+    /// Sets logger retention capacity.
+    SetLogMaxEntries {
+        /// Requested maximum number of retained records.
+        max_entries: usize,
+    },
     /// Undo the last history transaction.
     Undo,
     /// Redo the last undone history transaction.
@@ -528,6 +548,10 @@ impl<T: Node> Engine<T> {
             nodes,
             schema: UiSchemaView { node_types, enums: Vec::new() },
             history: self.ui_history_state(),
+            logger: UiLoggerState {
+                max_entries: crate::logger::max_entries(),
+                records: crate::logger::records(),
+            },
         }
     }
 
@@ -622,6 +646,34 @@ impl<T: Node> Engine<T> {
                 self.edits.push(Edit::ReevaluateGraph);
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::ClearLogs => {
+                crate::logger::clear();
+                self.push_ui_custom_event(crate::logger::UI_LOG_CLEARED_TOPIC, None, serde_json::json!({}));
+                UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
+                }
+            }
+            UiEditIntent::SetLogMaxEntries { max_entries } => {
+                let applied_max_entries = crate::logger::set_max_entries(max_entries);
+                self.push_ui_custom_event(
+                    crate::logger::UI_LOG_MAX_ENTRIES_TOPIC,
+                    None,
+                    serde_json::json!({ "max_entries": applied_max_entries }),
+                );
+                UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
+                }
             }
             UiEditIntent::Undo => match self.undo() {
                 Ok(_) => UiAck {

@@ -303,8 +303,10 @@ impl<T: Node> Engine<T> {
         // Allow newly attached nodes to request deterministic follow-up structure.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         if let Some(node) = self.nodes.get_mut(child_id) {
-            node.engine_on_attached(&mut init_ctx);
-            node.init(&mut init_ctx);
+            crate::logger::with_node_origin(child_id, || {
+                node.engine_on_attached(&mut init_ctx);
+                node.init(&mut init_ctx);
+            });
         }
         self.absorb_edits(&mut init_ctx)?;
 

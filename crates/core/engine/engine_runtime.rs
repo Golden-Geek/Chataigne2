@@ -338,6 +338,7 @@ impl<T: Node> Engine<T> {
         self.run_scheduled_updates(elapsed)?;
 
         self.run_stabilization_rounds()?;
+        self.sync_logger_ui_events();
         Ok(())
     }
 
@@ -478,7 +479,9 @@ impl<T: Node> Engine<T> {
             ctx.delta_time = delta_time;
             let mut did_update = false;
             if let Some(node) = self.nodes.get_mut(node_id) {
-                node.update(&mut ctx);
+                crate::logger::with_node_origin(node_id, || {
+                    node.update(&mut ctx);
+                });
                 did_update = true;
                 callback_count += 1;
                 if callback_count > self.runtime_limits.max_update_callbacks_per_tick {

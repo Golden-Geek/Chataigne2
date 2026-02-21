@@ -329,7 +329,8 @@ fn dispatch_ws_batches<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut Ha
     let mut pending = Vec::<(u64, WsServerMessage)>::new();
 
     let first_retained = {
-        let guard = lock_engine(engine);
+        let mut guard = lock_engine(engine);
+        guard.sync_logger_ui_events();
         let server_time = guard.time;
         let first_retained = guard.ui_event_log().first().map(|event| event.time);
 
@@ -508,7 +509,8 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             let payload: ReplayRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid replay payload: {err}")))?;
             eprintln!("[ui-http] replay scope={:?} from={:?}", payload.scope, payload.from);
 
-            let guard = lock_engine(&state.engine);
+            let mut guard = lock_engine(&state.engine);
+            guard.sync_logger_ui_events();
             let first_retained = guard.ui_event_log().first().map(|event| event.time);
             let batch = if let Some(from) = payload.from {
                 if from > guard.time {

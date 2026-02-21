@@ -40,6 +40,10 @@ pub mod edit;
 /// Processing-time context passed to node callbacks.
 pub mod process_ctx;
 
+#[path = "../engine/logger.rs"]
+/// Process-wide logger API and `log!` macro support.
+pub mod logger;
+
 #[path = "../app/mod.rs"]
 /// App-level runtime helpers.
 pub mod app;

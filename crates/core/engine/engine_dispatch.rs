@@ -83,10 +83,12 @@ impl<T: Node> Engine<T> {
             ctx.events = events;
 
             if let Some(node) = self.nodes.get_mut(node_id) {
-                node.engine_preprocess_inbox(&mut ctx);
-                let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
-                node.engine_sync_bound_param_handles(&mut resolve);
-                node.on_inbox(&mut ctx);
+                crate::logger::with_node_origin(node_id, || {
+                    node.engine_preprocess_inbox(&mut ctx);
+                    let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
+                    node.engine_sync_bound_param_handles(&mut resolve);
+                    node.on_inbox(&mut ctx);
+                });
                 self.absorb_edits(&mut ctx)?;
             }
         }

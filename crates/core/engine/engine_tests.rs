@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
+use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
@@ -1919,6 +1920,74 @@ fn ui_snapshot_projects_parameter_nodes_with_param_payload() {
         }
         UiNodeDataDto::Node { .. } => panic!("expected parameter payload for parameter node"),
     }
+}
+
+#[test]
+fn ui_snapshot_includes_logger_state() {
+    logger::clear();
+    crate::log!(tag = "tests", level = error; "snapshot logger payload");
+
+    let engine = Engine::new(Folder::new("root".to_string()));
+    let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+
+    assert!(snapshot.logger.max_entries >= 1);
+    assert_eq!(snapshot.logger.records.len(), 1);
+    assert_eq!(snapshot.logger.records[0].tag, "tests");
+    assert_eq!(snapshot.logger.records[0].message, "snapshot logger payload");
+
+    logger::clear();
+}
+
+#[test]
+fn ui_logger_intents_emit_custom_events() {
+    logger::clear();
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+
+    let set_ack = engine.apply_ui_intent(UiEditIntent::SetLogMaxEntries { max_entries: 3 });
+    assert!(set_ack.success);
+    assert_eq!(logger::max_entries(), 3);
+
+    crate::log!("entry");
+    assert_eq!(logger::records().len(), 1);
+
+    let clear_ack = engine.apply_ui_intent(UiEditIntent::ClearLogs);
+    assert!(clear_ack.success);
+    assert!(logger::records().is_empty());
+
+    let topics: Vec<String> = engine
+        .ui_event_log()
+        .iter()
+        .filter_map(|event| match &event.kind {
+            EventKind::Custom(custom) => Some(custom.topic.clone()),
+            _ => None,
+        })
+        .collect();
+
+    assert!(topics.iter().any(|topic| topic == UI_LOG_MAX_ENTRIES_TOPIC));
+    assert!(topics.iter().any(|topic| topic == UI_LOG_CLEARED_TOPIC));
+
+    logger::clear();
+}
+
+#[test]
+fn run_tick_flushes_pending_logger_records_into_ui_event_log() {
+    logger::clear();
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+
+    crate::log!(origin = engine.root, tag = "runtime"; "pending logger event");
+    assert!(engine.ui_event_log().is_empty(), "logger events should flush on runtime tick");
+
+    engine.run_tick(Duration::from_millis(16)).expect("run_tick should succeed");
+
+    let logged = engine.ui_event_log().iter().find(|event| {
+        matches!(
+            &event.kind,
+            EventKind::Custom(custom) if custom.topic == UI_LOG_RECORD_TOPIC
+        )
+    });
+    assert!(logged.is_some(), "run_tick should project pending logger records to ui event log");
+
+    logger::clear();
 }
 
 #[test]

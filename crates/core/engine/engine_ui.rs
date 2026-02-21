@@ -1,4 +1,4 @@
-use crate::events::Event;
+use crate::events::{CustomEvent, Event, EventKind};
 use crate::node::Node;
 
 use super::{Engine, EngineTime};
@@ -34,6 +34,28 @@ impl<T: Node> Engine<T> {
     /// Clears the UI replay buffer.
     pub fn clear_ui_event_log(&mut self) {
         self.ui_event_log.clear();
+    }
+
+    pub(crate) fn push_ui_custom_event(
+        &mut self,
+        topic: impl Into<String>,
+        origin: Option<crate::node::NodeId>,
+        payload: serde_json::Value,
+    ) {
+        let event = Event {
+            time: self.time,
+            kind: EventKind::Custom(CustomEvent::new(topic, origin, payload)),
+        };
+        self.push_ui_event_log(event);
+        self.time.seq = self.time.seq.saturating_add(1);
+    }
+
+    pub(crate) fn sync_logger_ui_events(&mut self) {
+        for record in crate::logger::drain_pending() {
+            if let Ok(payload) = serde_json::to_value(&record) {
+                self.push_ui_custom_event(crate::logger::UI_LOG_RECORD_TOPIC, record.origin, payload);
+            }
+        }
     }
 
     pub(crate) fn push_ui_event_log(&mut self, event: Event) {
