@@ -2,9 +2,10 @@ use golden_core::{
     color::Color,
     item,
     node,
-    node::{Node, NodeReference},
+    node::{Node, NodeReference,NodeId},
     parameter::{Enum, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
+    log
 };
 
 #[node]
@@ -78,7 +79,7 @@ impl Node for ModuleBase {
          trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range");
-        float_param: f64 = 0.75 [0.0..1.0] (label = "Float Parameter", description = "A floating-point parameter with range");
+        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter");
     }
@@ -109,12 +110,32 @@ impl OscModule {
     }
 }
 
-// #[update(10)]
+// #[update(50)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
-    fn update(&mut self, _ctx: &mut ProcessCtx) {
-        // self.float_param.set(ctx, (self.float_param.get() + 0.5) % 10.0);
-        // println!("OscModule update: float_param={}", self.float_param.get());
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        let val = (self.float_param.get() + 0.5) % 10.0;
+        self.float_param.set(ctx, val);
+        if val > 7.5 {
+            log!(level= error; "New value :",  self.float_param.get());
+
+        } else if val > 5.0 {
+            log!(level= warning; "New value :",  self.float_param.get());
+
+        } else {
+            log!("New value :",  self.float_param.get());
+        };
+    }
+
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
+        if node_id == self.float_param.id() {
+            if cfg!(debug_assertions) {
+                log!(
+                    "Param changed: old={old_value:?} new={}",
+                    self.float_param.get()
+                );
+            }
+        }
     }
 }
 
