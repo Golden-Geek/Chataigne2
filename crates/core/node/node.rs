@@ -20,6 +20,24 @@ pub struct NodeId(pub u64);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeUuid(pub Uuid);
 
+impl NodeUuid {
+    /// Returns the nil UUID value.
+    pub fn nil() -> Self {
+        Self(Uuid::nil())
+    }
+
+    /// Returns `true` when this UUID is nil.
+    pub fn is_nil(&self) -> bool {
+        self.0.is_nil()
+    }
+}
+
+impl Default for NodeUuid {
+    fn default() -> Self {
+        Self::nil()
+    }
+}
+
 /// Persistent reference to another node.
 ///
 /// The UUID is the source of truth and persists on disk.
@@ -37,6 +55,11 @@ impl NodeReference {
     /// Creates a reference from a persistent UUID.
     pub fn new(uuid: NodeUuid) -> Self {
         Self { uuid, cached_id: None }
+    }
+
+    /// Creates an empty reference with a nil UUID.
+    pub fn empty() -> Self {
+        Self::default()
     }
 
     /// Creates a reference with an explicit runtime cache.
@@ -62,6 +85,17 @@ impl NodeReference {
     /// Clears the cached runtime id.
     pub fn clear_cached_id(&mut self) {
         self.cached_id = None;
+    }
+
+    /// Returns `true` when this reference has no persistent target.
+    pub fn is_empty(&self) -> bool {
+        self.uuid.is_nil()
+    }
+}
+
+impl Default for NodeReference {
+    fn default() -> Self {
+        Self::new(NodeUuid::default())
     }
 }
 

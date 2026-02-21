@@ -1,7 +1,8 @@
 use crate::edit::Edit;
 use crate::events::EventKind;
-use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
+use crate::parameter::{Enum, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
+use crate::color::Color;
 
 use super::{DeclId, Node, NodeId, NodeReference, NodeUuid};
 
@@ -44,6 +45,16 @@ impl ParameterValueType for String {
     }
 }
 
+impl ParameterValueType for Enum {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Enum(value.into_inner())
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_enum().map(Enum::new)
+    }
+}
+
 impl ParameterValueType for bool {
     fn to_param_value(value: Self) -> ParamValue {
         ParamValue::Bool(value)
@@ -64,6 +75,16 @@ impl ParameterValueType for (f64, f64) {
     }
 }
 
+impl ParameterValueType for Vec2 {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Vec2(value.x, value.y)
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_vec2().map(|(x, y)| Vec2::new(x, y))
+    }
+}
+
 impl ParameterValueType for (f64, f64, f64) {
     fn to_param_value(value: Self) -> ParamValue {
         ParamValue::Vec3(value.0, value.1, value.2)
@@ -74,6 +95,16 @@ impl ParameterValueType for (f64, f64, f64) {
     }
 }
 
+impl ParameterValueType for Vec3 {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Vec3(value.x, value.y, value.z)
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_vec3().map(|(x, y, z)| Vec3::new(x, y, z))
+    }
+}
+
 impl ParameterValueType for (f64, f64, f64, f64) {
     fn to_param_value(value: Self) -> ParamValue {
         ParamValue::Color(value.0, value.1, value.2, value.3)
@@ -81,6 +112,16 @@ impl ParameterValueType for (f64, f64, f64, f64) {
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
         value.as_color()
+    }
+}
+
+impl ParameterValueType for Color {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::Color(value.r(), value.g(), value.b(), value.a())
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_color().map(|(r, g, b, a)| Color::new(r, g, b, a))
     }
 }
 

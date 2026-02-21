@@ -4,7 +4,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{Error, Expr, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
+use syn::spanned::Spanned;
+use syn::{Error, Expr, ExprArray, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -387,6 +388,7 @@ struct ParamsDslParamOptions {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    enum_default: Option<LitStr>,
     default_callback: bool,
     callback: Option<Expr>,
 }
@@ -630,6 +632,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_options` option"));
                 }
                 out.enum_options = Some(input.parse::<Expr>()?);
+            } else if key == "enum_default" || key == "enumDefault" {
+                if out.enum_default.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `enum_default` option"));
+                }
+                out.enum_default = Some(input.parse::<LitStr>()?);
             } else if key == "callback" {
                 if out.callback.is_some() {
                     return Err(Error::new(key.span(), "duplicate `callback` option"));
@@ -638,7 +645,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, default_callback, callback)",
+                    "unsupported params option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, default_callback, callback)",
                 ));
             }
         } else {
@@ -764,6 +771,144 @@ fn parse_param_range_group(group: &proc_macro2::Group) -> Result<Option<ParamsDs
     }
 
     Ok(Some(ParamsDslRange { min, max }))
+}
+
+#[derive(Clone)]
+struct SimpleEnumOptionSpec {
+    variant_id: LitStr,
+    label: LitStr,
+    is_default: bool,
+}
+
+#[derive(Clone)]
+struct SimpleEnumOptionsSpec {
+    options: Vec<SimpleEnumOptionSpec>,
+}
+
+fn parse_simple_enum_options_expr(expr: &Expr) -> Result<Option<SimpleEnumOptionsSpec>> {
+    let Expr::Array(ExprArray { elems, .. }) = expr else {
+        return Ok(None);
+    };
+
+    let mut options = Vec::<SimpleEnumOptionSpec>::new();
+    for elem in elems {
+        let Expr::Lit(ExprLit { lit: Lit::Str(raw_lit), .. }) = elem else {
+            return Ok(None);
+        };
+
+        let (variant_id, is_default) = parse_simple_enum_literal(&raw_lit)?;
+        let label = enum_label_from_variant_id(&variant_id);
+        options.push(SimpleEnumOptionSpec {
+            variant_id: LitStr::new(&variant_id, raw_lit.span()),
+            label: LitStr::new(&label, raw_lit.span()),
+            is_default,
+        });
+    }
+
+    Ok(Some(SimpleEnumOptionsSpec { options }))
+}
+
+fn parse_simple_enum_literal(raw_lit: &LitStr) -> Result<(String, bool)> {
+    let raw = raw_lit.value();
+    let trimmed = raw.trim();
+
+    let default_suffixes = ["(default)", "[default]"];
+    for suffix in default_suffixes {
+        if trimmed.len() > suffix.len() && trimmed.to_ascii_lowercase().ends_with(suffix) {
+            let base = trimmed[..trimmed.len() - suffix.len()].trim();
+            if base.is_empty() {
+                return Err(Error::new(raw_lit.span(), "enum option id cannot be empty"));
+            }
+            return Ok((base.to_string(), true));
+        }
+    }
+
+    if let Some(base) = trimmed.strip_suffix('*') {
+        let base = base.trim();
+        if base.is_empty() {
+            return Err(Error::new(raw_lit.span(), "enum option id cannot be empty"));
+        }
+        return Ok((base.to_string(), true));
+    }
+
+    if trimmed.is_empty() {
+        return Err(Error::new(raw_lit.span(), "enum option id cannot be empty"));
+    }
+
+    Ok((trimmed.to_string(), false))
+}
+
+fn enum_label_from_variant_id(variant_id: &str) -> String {
+    let mut words = Vec::<String>::new();
+    for chunk in variant_id.split(|c| c == '_' || c == '-' || c == ' ') {
+        let chunk = chunk.trim();
+        if chunk.is_empty() {
+            continue;
+        }
+        let mut chars = chunk.chars();
+        if let Some(first) = chars.next() {
+            let mut word = String::new();
+            word.push(first.to_ascii_uppercase());
+            word.extend(chars);
+            words.push(word);
+        }
+    }
+
+    if words.is_empty() {
+        variant_id.to_string()
+    } else {
+        words.join(" ")
+    }
+}
+
+fn build_simple_enum_options_expr(spec: &SimpleEnumOptionsSpec) -> Expr {
+    let entries = spec.options.iter().enumerate().map(|(index, option)| {
+        let variant_id = &option.variant_id;
+        let label = &option.label;
+        let ordering = index as i32;
+        quote! {
+            golden_core::parameter::ParameterEnumOption {
+                variant_id: ::std::string::String::from(#variant_id),
+                value: golden_core::parameter::ParamValue::Enum(::std::string::String::from(#variant_id)),
+                label: ::std::string::String::from(#label),
+                tags: ::std::vec::Vec::new(),
+                ordering: Some(#ordering),
+            }
+        }
+    });
+
+    parse_quote! {
+        vec![#(#entries),*]
+    }
+}
+
+fn infer_enum_default_variant_from_expr(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) => Some(lit.value()),
+        Expr::MethodCall(ExprMethodCall { receiver, method, .. }) => {
+            if method == "to_string" {
+                if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &**receiver {
+                    return Some(lit.value());
+                }
+            }
+            None
+        }
+        Expr::Call(ExprCall { func, args, .. }) => {
+            let Expr::Path(ExprPath { path, .. }) = &**func else {
+                return None;
+            };
+            let last = path.segments.last()?.ident.to_string();
+            if !(last == "new" || last == "from") {
+                return None;
+            }
+            let arg = args.first()?;
+            if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = arg {
+                return Some(lit.value());
+            }
+            None
+        }
+        _ => None,
+    }
 }
 
 #[derive(Default)]
@@ -895,6 +1040,80 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     (false, None) => None,
                 };
 
+                let mut resolved_default = param.default.clone();
+                let mut resolved_enum_options = param.options.enum_options.clone();
+                let enum_default_override = param.options.enum_default.as_ref().map(LitStr::value);
+
+                if let Some(enum_options_expr) = param.options.enum_options.as_ref() {
+                    if let Some(simple_spec) = parse_simple_enum_options_expr(enum_options_expr)? {
+                        if simple_spec.options.is_empty() {
+                            return Err(Error::new(enum_options_expr.span(), "enum option list cannot be empty"));
+                        }
+
+                        let mut seen_variants = std::collections::HashSet::<String>::new();
+                        let mut marked_default = None::<String>;
+                        for option in &simple_spec.options {
+                            let variant = option.variant_id.value();
+                            if !seen_variants.insert(variant.clone()) {
+                                return Err(Error::new(option.variant_id.span(), format!("duplicate enum option `{variant}`")));
+                            }
+                            if option.is_default {
+                                if marked_default.is_some() {
+                                    return Err(Error::new(option.variant_id.span(), "multiple enum options are marked as default; only one is allowed"));
+                                }
+                                marked_default = Some(variant);
+                            }
+                        }
+
+                        if let Some(override_variant) = &enum_default_override {
+                            if !seen_variants.contains(override_variant) {
+                                return Err(Error::new(
+                                    param.options.enum_default.as_ref().expect("enum_default present").span(),
+                                    format!("`enum_default = \"{override_variant}\"` is not present in enum_options"),
+                                ));
+                            }
+                        }
+
+                        if let Some(default_expr) = param.default.as_ref() {
+                            if let Some(default_variant) = infer_enum_default_variant_from_expr(default_expr) {
+                                if !seen_variants.contains(&default_variant) {
+                                    return Err(Error::new(
+                                        default_expr.span(),
+                                        format!("default enum value `{default_variant}` is not present in enum_options"),
+                                    ));
+                                }
+                            }
+                        }
+
+                        if param.default.is_some() && enum_default_override.is_some() {
+                            return Err(Error::new(
+                                param.options.enum_default.as_ref().expect("enum_default present").span(),
+                                "cannot combine an explicit enum default (`= ...`) with `enum_default`; choose one",
+                            ));
+                        }
+
+                        if param.default.is_none() {
+                            let selected_default = enum_default_override.clone().or(marked_default).unwrap_or_else(|| {
+                                simple_spec.options.first().expect("enum options are non-empty").variant_id.value()
+                            });
+                            let selected_default_lit = LitStr::new(&selected_default, param.field.span());
+                            resolved_default = Some(parse_quote!(#selected_default_lit));
+                        }
+
+                        resolved_enum_options = Some(build_simple_enum_options_expr(&simple_spec));
+                    } else if enum_default_override.is_some() {
+                        return Err(Error::new(
+                            enum_options_expr.span(),
+                            "`enum_default` currently requires simple string-list enum options like `enum_options = [\"off\", \"on\", \"auto\"]`",
+                        ));
+                    }
+                } else if enum_default_override.is_some() {
+                    return Err(Error::new(
+                        param.options.enum_default.as_ref().expect("enum_default present").span(),
+                        "`enum_default` requires `enum_options`",
+                    ));
+                }
+
                 let param_index = plan.params.len();
                 plan.params.push(ParamsParamSpec {
                     field: param.field.clone(),
@@ -904,13 +1123,13 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     label: label_lit,
                     description: param.options.description.clone(),
                     meta: param.options.meta.clone(),
-                    default: param.default.clone(),
+                    default: resolved_default,
                     behaviour,
                     min: param.options.min.clone(),
                     max: param.options.max.clone(),
                     step: param.options.step.clone(),
                     step_base: param.options.step_base.clone(),
-                    enum_options: param.options.enum_options.clone(),
+                    enum_options: resolved_enum_options,
                     constraint_policy,
                     callback,
                 });

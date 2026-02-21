@@ -5,6 +5,8 @@ use crate::{
     process_ctx::ProcessCtx,
 };
 
+pub use crate::color::Color;
+
 /// Runtime value variants used by parameter nodes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParamValue {
@@ -31,6 +33,103 @@ pub enum ParamValue {
 
     /// Reference to another node.
     Reference(NodeReference),
+}
+
+/// Strongly-typed 2D vector value for parameter handles and params DSL.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Vec2 {
+    /// X component.
+    pub x: f64,
+    /// Y component.
+    pub y: f64,
+}
+
+impl Vec2 {
+    /// Creates a new 2D vector.
+    pub fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<(f64, f64)> for Vec2 {
+    fn from(value: (f64, f64)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+
+impl From<Vec2> for (f64, f64) {
+    fn from(value: Vec2) -> Self {
+        (value.x, value.y)
+    }
+}
+
+/// Strongly-typed 3D vector value for parameter handles and params DSL.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Vec3 {
+    /// X component.
+    pub x: f64,
+    /// Y component.
+    pub y: f64,
+    /// Z component.
+    pub z: f64,
+}
+
+impl Vec3 {
+    /// Creates a new 3D vector.
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x, y, z }
+    }
+}
+
+impl From<(f64, f64, f64)> for Vec3 {
+    fn from(value: (f64, f64, f64)) -> Self {
+        Self::new(value.0, value.1, value.2)
+    }
+}
+
+impl From<Vec3> for (f64, f64, f64) {
+    fn from(value: Vec3) -> Self {
+        (value.x, value.y, value.z)
+    }
+}
+
+/// Strongly-typed enum variant wrapper for parameter handles and params DSL.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Enum(pub String);
+
+impl Enum {
+    /// Creates a new enum value from a variant id.
+    pub fn new(variant_id: impl Into<String>) -> Self {
+        Self(variant_id.into())
+    }
+
+    /// Returns the wrapped variant id.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes the wrapper and returns the inner variant id.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl From<String> for Enum {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for Enum {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<Enum> for String {
+    fn from(value: Enum) -> Self {
+        value.0
+    }
 }
 
 //implement into for ParamValue
@@ -79,6 +178,30 @@ impl From<(f64, f64, f64)> for ParamValue {
 impl From<(f64, f64, f64, f64)> for ParamValue {
     fn from(value: (f64, f64, f64, f64)) -> Self {
         ParamValue::Color(value.0, value.1, value.2, value.3)
+    }
+}
+
+impl From<Vec2> for ParamValue {
+    fn from(value: Vec2) -> Self {
+        ParamValue::Vec2(value.x, value.y)
+    }
+}
+
+impl From<Vec3> for ParamValue {
+    fn from(value: Vec3) -> Self {
+        ParamValue::Vec3(value.x, value.y, value.z)
+    }
+}
+
+impl From<Color> for ParamValue {
+    fn from(value: Color) -> Self {
+        ParamValue::Color(value.r(), value.g(), value.b(), value.a())
+    }
+}
+
+impl From<Enum> for ParamValue {
+    fn from(value: Enum) -> Self {
+        ParamValue::Enum(value.into_inner())
     }
 }
 

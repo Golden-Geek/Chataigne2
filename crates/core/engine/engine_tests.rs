@@ -344,6 +344,30 @@ struct DslParamsNode {
     observed_feedback_old: Option<ParamValue>,
 }
 
+#[crate::node("dsl_enum_defaults_node")]
+#[params(
+    mode_marked: crate::parameter::Enum (
+        label = "Mode Marked",
+        enum_options = ["off", "on", "auto (default)"],
+    );
+    mode_explicit: crate::parameter::Enum (
+        label = "Mode Explicit",
+        enum_options = ["off", "on", "auto"],
+        enum_default = "on",
+    );
+    mode_first: crate::parameter::Enum (
+        label = "Mode First",
+        enum_options = ["a", "b", "c"],
+    );
+)]
+struct DslEnumDefaultsNode {}
+
+#[crate::node("dsl_reference_default_node")]
+#[params(
+    target_ref: crate::node::NodeReference (label = "Target Reference");
+)]
+struct DslReferenceDefaultNode {}
+
 #[crate::node("dsl_meta_params_node")]
 #[params(
     folder(
@@ -479,6 +503,12 @@ impl Node for DslParamsNode {
     }
 }
 
+#[crate::node("dsl_enum_defaults_node", from_struct)]
+impl Node for DslEnumDefaultsNode {}
+
+#[crate::node("dsl_reference_default_node", from_struct)]
+impl Node for DslReferenceDefaultNode {}
+
 #[crate::node("dsl_meta_params_node", from_struct)]
 impl Node for DslMetaParamsNode {}
 
@@ -532,6 +562,8 @@ crate::define_node_enum!(
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
         DslParamsNode,
+        DslEnumDefaultsNode,
+        DslReferenceDefaultNode,
         DslMetaParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
@@ -656,6 +688,78 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");
     assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
+}
+
+#[test]
+fn params_macro_supports_simple_enum_option_lists_and_default_resolution() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslEnumDefaultsNode::new("enum-defaults").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("enum defaults node should be attached under root");
+    let mode_marked = find_child_by_decl(&engine, owner, "mode_marked").expect("mode_marked parameter should exist");
+    let mode_explicit = find_child_by_decl(&engine, owner, "mode_explicit").expect("mode_explicit parameter should exist");
+    let mode_first = find_child_by_decl(&engine, owner, "mode_first").expect("mode_first parameter should exist");
+
+    let MacroTestNode::DslEnumDefaultsNode(node) = engine.nodes.get(owner).expect("enum defaults node should exist") else {
+        panic!("expected DslEnumDefaultsNode variant");
+    };
+    assert!(node.mode_marked.is_bound(), "mode_marked handle should be bound");
+    assert!(node.mode_explicit.is_bound(), "mode_explicit handle should be bound");
+    assert!(node.mode_first.is_bound(), "mode_first handle should be bound");
+
+    let MacroTestNode::Parameter(marked_param) = engine.nodes.get(mode_marked).expect("mode_marked parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(marked_param.value, ParamValue::Enum("auto".to_string()));
+    assert_eq!(marked_param.constraints.enum_options.len(), 3);
+    assert_eq!(marked_param.constraints.enum_options[0].variant_id, "off");
+    assert_eq!(marked_param.constraints.enum_options[1].variant_id, "on");
+    assert_eq!(marked_param.constraints.enum_options[2].variant_id, "auto");
+
+    let MacroTestNode::Parameter(explicit_param) = engine.nodes.get(mode_explicit).expect("mode_explicit parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(explicit_param.value, ParamValue::Enum("on".to_string()));
+
+    let MacroTestNode::Parameter(first_param) = engine.nodes.get(mode_first).expect("mode_first parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(first_param.value, ParamValue::Enum("a".to_string()));
+}
+
+#[test]
+fn params_macro_allows_reference_without_explicit_default_value() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslReferenceDefaultNode::new("ref-default").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("reference default node should be attached under root");
+    let target_ref = find_child_by_decl(&engine, owner, "target_ref").expect("target_ref parameter should exist");
+
+    let MacroTestNode::DslReferenceDefaultNode(node) = engine.nodes.get(owner).expect("reference default node should exist") else {
+        panic!("expected DslReferenceDefaultNode variant");
+    };
+    assert!(node.target_ref.is_bound(), "target_ref handle should be bound");
+
+    let MacroTestNode::Parameter(reference_param) = engine.nodes.get(target_ref).expect("target_ref parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    let ParamValue::Reference(reference) = &reference_param.value else {
+        panic!("expected ParamValue::Reference");
+    };
+    assert!(reference.uuid().is_nil(), "reference default should use nil uuid");
+    assert_eq!(reference.cached_id(), None, "reference default should have no cached id");
 }
 
 #[test]
