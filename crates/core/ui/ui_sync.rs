@@ -64,6 +64,8 @@ pub struct UiNodeMetaDto {
 pub struct UiParamDto {
     /// Current value.
     pub value: ParamValue,
+    /// Declared default value.
+    pub default_value: ParamValue,
     /// Coalescing policy.
     pub event_behaviour: ParameterEventBehaviour,
     /// Read-only flag.
@@ -78,6 +80,7 @@ impl From<ParameterSnapshot> for UiParamDto {
     fn from(snapshot: ParameterSnapshot) -> Self {
         Self {
             value: snapshot.value,
+            default_value: snapshot.default_value,
             event_behaviour: snapshot.event_behaviour,
             read_only: snapshot.read_only,
             constraints: snapshot.constraints,

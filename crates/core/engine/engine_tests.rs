@@ -1915,6 +1915,7 @@ fn ui_snapshot_projects_parameter_nodes_with_param_payload() {
     match &snapshot.nodes[0].data {
         UiNodeDataDto::Parameter { param } => {
             assert_eq!(param.value, ParamValue::Float(0.5));
+            assert_eq!(param.default_value, ParamValue::Float(0.5));
         }
         UiNodeDataDto::Node { .. } => panic!("expected parameter payload for parameter node"),
     }

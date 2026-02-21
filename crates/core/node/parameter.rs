@@ -527,6 +527,8 @@ pub struct ParameterUiHints {
 pub struct ParameterSnapshot {
     /// Current value.
     pub value: ParamValue,
+    /// Declared default value.
+    pub default_value: ParamValue,
     /// Change-check policy.
     pub change_check: ParameterChangeCheck,
     /// Event coalescing policy.
@@ -565,6 +567,8 @@ pub struct Parameter {
     node_data: NodeData,
     /// Current parameter value.
     pub value: ParamValue,
+    /// Declared default value.
+    pub default_value: ParamValue,
     /// Change-detection policy for `set`.
     pub change_check: ParameterChangeCheck,
 
@@ -583,10 +587,12 @@ impl Parameter {
     pub fn new(label: &str, value: ParamValue, change_check: ParameterChangeCheck) -> Self {
         let mut node_data = NodeData::new(label.to_string());
         node_data.meta.can_be_disabled = false;
+        let default_value = value.clone();
 
         Self {
             node_data,
             value,
+            default_value,
             change_check,
             event_behaviour: ParameterEventBehaviour::Coalesce,
             read_only: false,
@@ -623,6 +629,7 @@ impl Parameter {
     pub fn snapshot(&self) -> ParameterSnapshot {
         ParameterSnapshot {
             value: self.value.clone(),
+            default_value: self.default_value.clone(),
             change_check: self.change_check.clone(),
             event_behaviour: self.event_behaviour,
             read_only: self.read_only,
