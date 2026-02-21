@@ -50,7 +50,7 @@ impl Node for ModuleManager {
 #[node]
 #[params(
     folder(infos, label = "Infos") {
-        connected: bool = false (label = "Connected", description = "Whether the module is currently connected");
+        connected: bool = true (label = "Connected", description = "Whether the module is currently connected", read_only = true);
     }
     folder(parameters, label = "Parameters") {}
     folder(values, label = "Values") {}
@@ -76,12 +76,12 @@ impl Node for ModuleBase {
     }
 
     folder(parameters, label = "Parameters", reuse = true) {
-         trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
+         trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()", read_only = true);
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range");
-        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
-        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
-        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter");
+        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range", read_only = true);
+        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter", read_only = true);
+        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = true);
     }
     folder(values, label = "Values", reuse = true) {
        
@@ -90,6 +90,7 @@ impl Node for ModuleBase {
         reference_param: NodeReference (label = "Reference Parameter", description = "A node reference parameter");
         enum_param: Enum (
             label = "Enum Parameter",
+            read_only = true,
             description = "An enum parameter with simple string-list options",
             enum_options = ["off", "on", "auto (default)", "Super long option label"],
         );
