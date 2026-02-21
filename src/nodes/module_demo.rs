@@ -1,4 +1,11 @@
-use golden_core::{item, node, node::Node, process_ctx::ProcessCtx, update};
+use golden_core::{
+    color::Color,
+    item,
+    node,
+    node::{Node, NodeReference},
+    parameter::{Enum, ParamValue, Vec2, Vec3},
+    process_ctx::ProcessCtx,
+};
 
 #[node]
 pub struct ModuleManager {
@@ -41,10 +48,10 @@ impl Node for ModuleManager {
 
 #[node]
 #[params(
-    folder(infos, label = "Infos") {
-        connected: bool = false (label = "Connected", description = "Whether the module is currently connected");
-    }
-    folder(parameters, label = "Parameters") {}
+    // folder(infos, label = "Infos") {
+    //     connected: bool = false (label = "Connected", description = "Whether the module is currently connected");
+    // }
+    // folder(parameters, label = "Parameters") {}
     folder(values, label = "Values") {}
 )]
 pub struct ModuleBase {}
@@ -65,8 +72,20 @@ impl Node for ModuleBase {
 #[node]
 #[params(
     folder(values, label = "Values", reuse = true) {
-    bool_param:bool = true (label = "Boolean Parameter", description = "A boolean parameter stored on a node using the #[param] attribute macro");
-    dummy_param: f64 = 2.2 [0.0..10.0] (label = "Dummy Param", description = "A parameter stored on a node using the #[param] attribute macro");
+        trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
+        bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
+        int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range");
+        float_param: f64 = 0.75 [0.0..1.0] (label = "Float Parameter", description = "A floating-point parameter with range");
+        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
+        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter");
+        vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
+        color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
+        reference_param: NodeReference (label = "Reference Parameter", description = "A node reference parameter");
+        enum_param: Enum (
+            label = "Enum Parameter",
+            description = "An enum parameter with simple string-list options",
+            enum_options = ["off", "on", "auto (default)", "Super long option label"],
+        );
     }
 )]
 pub struct OscModule {
@@ -87,9 +106,9 @@ impl OscModule {
 // #[update(10)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.dummy_param.set(ctx, (self.dummy_param.get() + 0.5) % 10.0);
-        // println!("OscModule update: dummy_param={}", self.dummy_param.get());
+    fn update(&mut self, _ctx: &mut ProcessCtx) {
+        // self.float_param.set(ctx, (self.float_param.get() + 0.5) % 10.0);
+        // println!("OscModule update: float_param={}", self.float_param.get());
     }
 }
 
