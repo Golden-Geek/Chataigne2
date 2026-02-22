@@ -5,6 +5,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use tauri::window::Color;
 use tauri::{Url, WebviewUrl};
 
 use super::{UiServerConfig, run_app_with_config};
@@ -241,7 +242,7 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
     // WebView2 currently has drag/drop issues with transparent frameless windows.
     // Keep transparency on non-Windows platforms, but disable it on Windows so
     // in-app DnD (Dockview tabs/panels) remains reliable.
-    let transparent_window = !cfg!(target_os = "windows");
+    // let transparent_window = cfg!(target_os = "windows");
 
     tauri::Builder::default()
         .setup(move |app| {
@@ -252,10 +253,11 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
             )
             .title("Chataigne 2")
             .decorations(false)
-            .transparent(transparent_window)
+            .transparent(false)
             .shadow(true)
             .accept_first_mouse(true)
-            .inner_size(75.0 * 16.0, 50.0 * 16.0);
+            .inner_size(75.0 * 16.0, 50.0 * 16.0)
+            .background_color(Color(20,20,20,255));
 
             if cfg!(target_os = "windows") {
                 window_builder = window_builder.disable_drag_drop_handler();
