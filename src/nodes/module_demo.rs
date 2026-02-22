@@ -1,11 +1,5 @@
 use golden_core::{
-    color::Color,
-    item,
-    node,
-    node::{Node, NodeReference,NodeId},
-    parameter::{Enum, ParamValue, Vec2, Vec3},
-    process_ctx::ProcessCtx,
-    log
+    color::Color, item, log, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
 };
 
 #[node]
@@ -79,7 +73,7 @@ impl Node for ModuleBase {
          trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()", read_only = true);
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range");
-        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range", read_only = true);
+        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter", read_only = true);
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = true);
     }
@@ -114,27 +108,45 @@ impl OscModule {
 // #[update(50)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        log!("Initializing OSC Module: ", self.node_data().meta.label);
+        // Surface warnings coming from generated parameter descendants on the module row.
+        self.set_child_warning_depth(ctx, 2);
+        self.float_param.set_warning_with(
+            ctx,
+            None,
+            format!("Can't bind port {}", self.float_param.get()),
+            Some("This is some additional info that can be shown in the UI when hovering the warning icon."),
+        );
+    }
+
     fn update(&mut self, ctx: &mut ProcessCtx) {
         let val = (self.float_param.get() + 0.5) % 10.0;
         self.float_param.set(ctx, val);
-        if val > 7.5 {
-            log!(level= error; "New value :",  self.float_param.get());
+        // if val > 7.5 {
+        //     log!(level= error; "New value :",  self.float_param.get());
 
-        } else if val > 5.0 {
-            log!(level= warning; "New value :",  self.float_param.get());
+        // } else if val > 5.0 {
+        //     log!(level= warning; "New value :",  self.float_param.get());
 
-        } else {
-            log!("New value :",  self.float_param.get());
-        };
+        // } else {
+        //     log!("New value :",  self.float_param.get());
+        // };
     }
 
-    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
         if node_id == self.float_param.id() {
-            if cfg!(debug_assertions) {
-                log!(
-                    "Param changed: old={old_value:?} new={}",
-                    self.float_param.get()
-                );
+            if self.float_param.get() > 7.5 {
+                self.float_param.set_warning(ctx, "Value is getting high!");
+            } else {
+                self.float_param.clear_warning(ctx, None);
+            }
+        } else if node_id == self.bool_param.id() {
+            if self.bool_param.get() {
+                self.bool_param.set_warning(ctx, "bool_param is true!");
+            } else {
+                self.bool_param.clear_warning(ctx, None);
             }
         }
     }

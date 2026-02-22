@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { onMount } from "svelte";
+	import {
+		readPanelPersistedState,
+		writePanelPersistedState
+	} from "$lib/golden_ui/dockview/panel-persistence";
 	import type { PanelProps, PanelState } from "$lib/golden_ui/dockview/panel-types";
 
 	const initialProps: PanelProps = $props();
@@ -11,8 +16,11 @@
 		params: initialProps.params
 	});
 	let command = $state("");
-	let lines = $state<string[]>([]);
+	let extraLines = $state<string[]>([]);
 	let publishedTitle = $state("");
+	let terminalLog = $state<HTMLElement | null>(null);
+	let logRestoreRaf = $state<number | null>(null);
+	let logPersistRaf = $state<number | null>(null);
 
 	const defaults = [
 		"[info] UI boot sequence initialized",
@@ -20,14 +28,59 @@
 		"[warn] Backend connection pending"
 	];
 
+	interface TerminalPersistedState {
+		logScrollTop?: number;
+	}
+
+	const normalizeLines = (value: unknown): string[] => {
+		if (!Array.isArray(value)) {
+			return [];
+		}
+		return value.filter((line): line is string => typeof line === "string");
+	};
+
+	const normalizeScrollTop = (value: unknown): number | undefined => {
+		if (typeof value !== "number" || !Number.isFinite(value)) {
+			return undefined;
+		}
+		return Math.max(0, value);
+	};
+
+	const restoreLogScroll = (params: PanelState["params"]): void => {
+		if (logRestoreRaf !== null) {
+			cancelAnimationFrame(logRestoreRaf);
+		}
+
+		const persistedState = readPanelPersistedState<TerminalPersistedState>(params);
+		const logScrollTop = normalizeScrollTop(persistedState.logScrollTop);
+		if (logScrollTop === undefined) {
+			logRestoreRaf = null;
+			return;
+		}
+
+		logRestoreRaf = requestAnimationFrame(() => {
+			logRestoreRaf = null;
+			if (!terminalLog) {
+				return;
+			}
+			terminalLog.scrollTop = logScrollTop;
+		});
+	};
+
 	const applyParams = (nextParams: Record<string, unknown>): void => {
-		const extraLines = (nextParams.lines as string[] | undefined) ?? [];
-		lines = [...defaults, ...extraLines];
+		extraLines = normalizeLines(nextParams.lines);
+		restoreLogScroll(nextParams);
 	};
 
 	applyParams(initialProps.params);
 
+	const lines = $derived([...defaults, ...extraLines]);
 	const dynamicTitle = $derived(`${panel.title} ${lines.length}`);
+
+	const setExtraLines = (nextLines: string[]): void => {
+		extraLines = nextLines;
+		panelApi.updateParams({ lines: nextLines });
+	};
 
 	const runCommand = (): void => {
 		const trimmed = command.trim();
@@ -35,8 +88,24 @@
 			return;
 		}
 
-		lines = [...lines, `> ${trimmed}`, `[ok] ${trimmed} finished`];
+		setExtraLines([...extraLines, `> ${trimmed}`, `[ok] ${trimmed} finished`]);
 		command = "";
+	};
+
+	const persistLogScroll = (): void => {
+		if (logPersistRaf !== null) {
+			return;
+		}
+
+		logPersistRaf = requestAnimationFrame(() => {
+			logPersistRaf = null;
+			if (!terminalLog) {
+				return;
+			}
+			writePanelPersistedState(panelApi, {
+				logScrollTop: terminalLog.scrollTop
+			});
+		});
 	};
 
 	$effect(() => {
@@ -52,6 +121,23 @@
 		panel = next;
 		applyParams(next.params);
 	}
+
+	$effect(() => {
+		lines.length;
+		restoreLogScroll(panel.params);
+	});
+
+	onMount(() => {
+		restoreLogScroll(panel.params);
+		return () => {
+			if (logRestoreRaf !== null) {
+				cancelAnimationFrame(logRestoreRaf);
+			}
+			if (logPersistRaf !== null) {
+				cancelAnimationFrame(logPersistRaf);
+			}
+		};
+	});
 </script>
 
 <section class="panel terminal">
@@ -74,7 +160,7 @@
 		<button type="button" onclick={runCommand}>Run</button>
 	</div>
 
-	<pre class="log" aria-label="Terminal output">
+	<pre class="log" bind:this={terminalLog} onscroll={persistLogScroll} aria-label="Terminal output">
 {#each lines as line}
 {line}
 {/each}

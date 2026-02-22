@@ -25,6 +25,7 @@ Backward compatibility is not a goal during this phase.
 - Leverage runes for reactive state management with a single source of truth; components subscribe and react to updates automatically.
 - Keep component logic minimal; let runes propagate changes throughout the component tree.
 - Only use $derived.by() when $derived() is not enough
+- You never use on: syntax for component events, always onclick, onfocus, etc.
 
 ## Decision Rules
 - If two approaches work, choose the one with the simpler and more defensible architecture.
