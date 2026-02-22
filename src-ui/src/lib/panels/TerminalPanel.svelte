@@ -6,14 +6,13 @@
 	} from "$lib/golden_ui/dockview/panel-persistence";
 	import type { PanelProps, PanelState } from "$lib/golden_ui/dockview/panel-types";
 
-	const initialProps: PanelProps = $props();
-	const panelApi = initialProps.panelApi;
+	let { panelApi, panelId, panelType, title, params }: PanelProps = $props();
 
 	let panel = $state<PanelState>({
-		panelId: initialProps.panelId,
-		panelType: initialProps.panelType,
-		title: initialProps.title,
-		params: initialProps.params
+		panelId: "",
+		panelType: "",
+		title: "",
+		params: {}
 	});
 	let command = $state("");
 	let extraLines = $state<string[]>([]);
@@ -72,7 +71,15 @@
 		restoreLogScroll(nextParams);
 	};
 
-	applyParams(initialProps.params);
+	$effect(() => {
+		panel = {
+			panelId,
+			panelType,
+			title,
+			params
+		};
+		applyParams(params);
+	});
 
 	const lines = $derived([...defaults, ...extraLines]);
 	const dynamicTitle = $derived(`${panel.title} ${lines.length}`);

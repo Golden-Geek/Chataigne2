@@ -1,6 +1,10 @@
 use golden_core::{
-    color::Color, item, log, node, update, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
+    color::Color, item, log, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
 };
+use uuid::uuid;
+
+pub const MODULE_MANAGER_UUID: golden_core::node::NodeUuid =
+	golden_core::node::NodeUuid(uuid!("3f0d7ac2-5c7a-4d8f-85e2-2c6e6cf3b451"));
 
 #[node]
 pub struct ModuleManager {
@@ -81,7 +85,14 @@ impl Node for ModuleBase {
        
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
         color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
-        reference_param: NodeReference (label = "Reference Parameter", description = "A node reference parameter");
+        reference_param: NodeReference (
+            label = "Reference Parameter",
+            description = "A node reference parameter",
+            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_default_search_filter = Some("values".to_string()),
+            reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+            reference_custom_filter_key = Some("module_values_parameters".to_string()),
+        );
         enum_param: Enum (
             label = "Enum Parameter",
             read_only = true,
@@ -147,6 +158,27 @@ impl Node for OscModule {
 }
 
 #[node]
+#[params(
+folder(values, label = "Values", reuse = true) {
+       
+        vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
+        color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
+        reference_param: NodeReference (
+            label = "Reference Parameter",
+            description = "A node reference parameter",
+            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_default_search_filter = Some("values".to_string()),
+            reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+            reference_custom_filter_key = Some("module_values_parameters".to_string()),
+        );
+        enum_param: Enum (
+            label = "Enum Parameter",
+            read_only = true,
+            description = "An enum parameter with simple string-list options",
+            enum_options = ["off", "on", "auto (default)", "Super long option label"],
+        );
+    }
+)]
 pub struct MidiModule {
     base: ModuleBase,
 }
@@ -166,6 +198,27 @@ impl MidiModule {
 impl Node for MidiModule {}
 
 #[node]
+#[params(
+folder(values, label = "Values", reuse = true) {
+       
+        vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
+        color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
+        reference_param: NodeReference (
+            label = "Reference Parameter",
+            description = "A node reference parameter",
+            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            // reference_default_search_filter = Some("values".to_string()),
+            reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+            reference_custom_filter_key = Some("module_values_parameters".to_string()),
+        );
+        enum_param: Enum (
+            label = "Enum Parameter",
+            read_only = true,
+            description = "An enum parameter with simple string-list options",
+            enum_options = ["off", "on", "auto (default)", "Super long option label"],
+        );
+    }
+)]
 pub struct DmxModule {
     base: ModuleBase,
 }
