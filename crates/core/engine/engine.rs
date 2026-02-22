@@ -9,6 +9,9 @@ use crate::node::{EventSubscription, *};
 use crate::process_ctx::ProcessCtx;
 use serde::{Deserialize, Serialize};
 
+/// Engine callback signature used to evaluate custom reference filters.
+pub type ReferenceFilterFn<T> = dyn Fn(&Engine<T>, NodeId, NodeId, NodeId) -> bool + Send + Sync;
+
 /// Edit-application entry point and queue-drain transaction orchestration.
 #[path = "engine_apply.rs"]
 mod engine_apply;
@@ -100,6 +103,8 @@ pub struct Engine<T: Node> {
     external_edits_rx: Receiver<Edit>,
     /// Runtime listener subscriptions keyed by subscriber node id.
     pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
+    /// App-registered reference filters keyed by `ReferenceConstraints.custom_filter_key`.
+    reference_filters: HashMap<String, Box<ReferenceFilterFn<T>>>,
     /// UI-facing append-only event log used for replay/subscription.
     ui_event_log: Vec<crate::events::Event>,
     /// Maximum number of events retained in `ui_event_log`.
@@ -140,6 +145,7 @@ impl<T: Node> Engine<T> {
             external_edits_tx,
             external_edits_rx,
             event_listeners: HashMap::new(),
+            reference_filters: HashMap::new(),
             ui_event_log: Vec::new(),
             ui_event_log_capacity: engine_ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
             undo_stack: Vec::new(),
@@ -276,6 +282,21 @@ impl<T: Node> Engine<T> {
     /// `apply_edits()` and runtime tick stabilization passes.
     pub fn external_edit_sender(&self) -> Sender<Edit> {
         self.external_edits_tx.clone()
+    }
+
+    /// Registers a custom reference filter callback under `key`.
+    ///
+    /// The callback receives `(engine, parameter_node_id, root_node_id, candidate_node_id)`.
+    pub fn register_reference_filter<F>(&mut self, key: impl Into<String>, filter: F)
+    where
+        F: Fn(&Engine<T>, NodeId, NodeId, NodeId) -> bool + Send + Sync + 'static,
+    {
+        self.reference_filters.insert(key.into(), Box::new(filter));
+    }
+
+    /// Removes a custom reference filter callback.
+    pub fn unregister_reference_filter(&mut self, key: &str) -> Option<Box<ReferenceFilterFn<T>>> {
+        self.reference_filters.remove(key)
     }
 
     /// Drains all externally queued edits into the engine edit queue.

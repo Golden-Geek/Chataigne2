@@ -396,6 +396,12 @@ struct ParamsDslParamOptions {
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
     enum_default: Option<LitStr>,
+    reference_root: Option<Expr>,
+    reference_target_kind: Option<Expr>,
+    reference_allowed_node_types: Option<Expr>,
+    reference_allowed_parameter_types: Option<Expr>,
+    reference_custom_filter_key: Option<Expr>,
+    reference_default_search_filter: Option<Expr>,
     default_callback: bool,
     callback: Option<Expr>,
 }
@@ -649,6 +655,36 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_default` option"));
                 }
                 out.enum_default = Some(input.parse::<LitStr>()?);
+            } else if key == "reference_root" || key == "referenceRoot" {
+                if out.reference_root.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_root` option"));
+                }
+                out.reference_root = Some(input.parse::<Expr>()?);
+            } else if key == "reference_target_kind" || key == "referenceTargetKind" {
+                if out.reference_target_kind.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_target_kind` option"));
+                }
+                out.reference_target_kind = Some(input.parse::<Expr>()?);
+            } else if key == "reference_allowed_node_types" || key == "referenceAllowedNodeTypes" {
+                if out.reference_allowed_node_types.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_allowed_node_types` option"));
+                }
+                out.reference_allowed_node_types = Some(input.parse::<Expr>()?);
+            } else if key == "reference_allowed_parameter_types" || key == "referenceAllowedParameterTypes" {
+                if out.reference_allowed_parameter_types.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_allowed_parameter_types` option"));
+                }
+                out.reference_allowed_parameter_types = Some(input.parse::<Expr>()?);
+            } else if key == "reference_custom_filter_key" || key == "referenceCustomFilterKey" {
+                if out.reference_custom_filter_key.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_custom_filter_key` option"));
+                }
+                out.reference_custom_filter_key = Some(input.parse::<Expr>()?);
+            } else if key == "reference_default_search_filter" || key == "referenceDefaultSearchFilter" {
+                if out.reference_default_search_filter.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `reference_default_search_filter` option"));
+                }
+                out.reference_default_search_filter = Some(input.parse::<Expr>()?);
             } else if key == "callback" {
                 if out.callback.is_some() {
                     return Err(Error::new(key.span(), "duplicate `callback` option"));
@@ -657,7 +693,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, default_callback, callback)",
+                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -971,6 +1007,12 @@ struct ParamsParamSpec {
     step_base: Option<Expr>,
     enum_options: Option<Expr>,
     constraint_policy: Option<ParamConstraintPolicySpec>,
+    reference_root: Option<Expr>,
+    reference_target_kind: Option<Expr>,
+    reference_allowed_node_types: Option<Expr>,
+    reference_allowed_parameter_types: Option<Expr>,
+    reference_custom_filter_key: Option<Expr>,
+    reference_default_search_filter: Option<Expr>,
     callback: Option<ParamCallbackSpec>,
 }
 
@@ -1145,6 +1187,12 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     step_base: param.options.step_base.clone(),
                     enum_options: resolved_enum_options,
                     constraint_policy,
+                    reference_root: param.options.reference_root.clone(),
+                    reference_target_kind: param.options.reference_target_kind.clone(),
+                    reference_allowed_node_types: param.options.reference_allowed_node_types.clone(),
+                    reference_allowed_parameter_types: param.options.reference_allowed_parameter_types.clone(),
+                    reference_custom_filter_key: param.options.reference_custom_filter_key.clone(),
+                    reference_default_search_filter: param.options.reference_default_search_filter.clone(),
                     callback,
                 });
                 plan.children_by_parent.entry(parent_key.clone()).or_default().params.push(param_index);
@@ -2181,6 +2229,42 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             None => None,
         };
 
+        let set_reference_root = param.reference_root.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.root = #expr;
+            }
+        });
+
+        let set_reference_target_kind = param.reference_target_kind.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.target_kind = #expr;
+            }
+        });
+
+        let set_reference_allowed_node_types = param.reference_allowed_node_types.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.allowed_node_types = #expr;
+            }
+        });
+
+        let set_reference_allowed_parameter_types = param.reference_allowed_parameter_types.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.allowed_parameter_types = #expr;
+            }
+        });
+
+        let set_reference_custom_filter_key = param.reference_custom_filter_key.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.custom_filter_key = #expr;
+            }
+        });
+
+        let set_reference_default_search_filter = param.reference_default_search_filter.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.default_search_filter = #expr;
+            }
+        });
+
         out.push(quote! {
             if !self.#field_ident.is_bound() {
                 let _: &golden_core::node::ParameterHandle<#ty> = &self.#field_ident;
@@ -2201,6 +2285,12 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 #set_step_base
                 #set_enum_options
                 #set_constraint_policy
+                #set_reference_root
+                #set_reference_target_kind
+                #set_reference_allowed_node_types
+                #set_reference_allowed_parameter_types
+                #set_reference_custom_filter_key
+                #set_reference_default_search_filter
                 golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                 #set_description

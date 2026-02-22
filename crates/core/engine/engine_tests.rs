@@ -6,7 +6,10 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour};
+use crate::parameter::{
+    ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, ReferenceConstraints,
+    ReferenceRoot, ReferenceTargetKind,
+};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
 
@@ -1492,6 +1495,7 @@ fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
         step_base: Some(0.0),
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1516,6 +1520,7 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
         step_base: Some(0.0),
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::Reject,
+        reference: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1554,6 +1559,7 @@ fn apply_set_param_rejects_values_outside_enum_constraints() {
             },
         ],
         policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1592,6 +1598,7 @@ fn apply_set_param_accepts_enum_variant_ids_with_legacy_string_enum_values() {
             },
         ],
         policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1725,6 +1732,100 @@ fn project_load_save_load_roundtrip_is_stable() {
         }
         other => panic!("expected loaded2 reference value, got {:?}", other),
     }
+}
+
+#[test]
+fn set_param_reference_recovers_target_from_relative_path_and_updates_hints() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("container", ParamValue::Int(1), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("container add should succeed");
+    let container = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("container should exist");
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.5), ParameterChangeCheck::None), Some(container));
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("target and reference add should succeed");
+
+    let target = find_child_by_label_parameter(&engine, container, "target").expect("target should exist");
+    let target_ref = find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::with_hints(
+            NodeUuid::nil(),
+            None,
+            vec!["container".to_string(), "target".to_string()],
+        )),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    let Some(reference) = engine.nodes.get(target_ref).and_then(|node| match &node.value {
+        ParamValue::Reference(reference) => Some(reference),
+        _ => None,
+    }) else {
+        panic!("target_ref value should be a reference");
+    };
+    assert_eq!(reference.cached_id(), Some(target));
+    assert_eq!(reference.uuid(), engine.nodes.get(target).expect("target should exist").node_data().meta.uuid);
+    assert_eq!(
+        reference.relative_path_from_root(),
+        &["container".to_string(), "target".to_string()]
+    );
+}
+
+#[test]
+fn set_param_reference_rejects_existing_target_that_violates_constraints() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Int(42), ParameterChangeCheck::None), Some(engine.root));
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("initial nodes should be added");
+
+    let target = find_child_by_label_parameter(&engine, engine.root, "target").expect("target should exist");
+    let target_ref = find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+    let target_uuid = engine.nodes.get(target).expect("target should exist").node_data().meta.uuid;
+
+    {
+        let param = engine.nodes.get_mut(target_ref).expect("target_ref parameter should exist");
+        param.constraints.reference = ReferenceConstraints {
+            root: ReferenceRoot::EngineRoot,
+            target_kind: ReferenceTargetKind::ParameterOnly,
+            allowed_node_types: Vec::new(),
+            allowed_parameter_types: vec!["float".to_string()],
+            custom_filter_key: None,
+            default_search_filter: None,
+        };
+    }
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    let result = engine.apply_edits();
+    assert!(
+        matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })),
+        "constraint violation should reject incompatible target"
+    );
+}
+
+fn find_child_by_label_parameter(engine: &Engine<Parameter>, parent: NodeId, label: &str) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+    while let Some(child_id) = child {
+        let matches = engine
+            .nodes
+            .get(child_id)
+            .is_some_and(|node| node.node_data().meta.label == label);
+        if matches {
+            return Some(child_id);
+        }
+        child = engine.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+    }
+    None
 }
 
 #[test]

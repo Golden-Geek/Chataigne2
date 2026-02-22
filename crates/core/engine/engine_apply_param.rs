@@ -9,6 +9,19 @@ impl<T: Node> Engine<T> {
     /// Applies a parameter value update and returns the captured before/after effect for history.
     pub(crate) fn apply_set_param(&mut self, edit_index: usize, node: NodeId, value: ParamValue) -> Result<SetParamEffect, EngineEditError> {
         const OP: &str = "SetParam";
+        let node_type_hint = self.nodes.get(node).map(|target| target.get_type().to_string()).unwrap_or_else(|| "unknown".to_string());
+        let value = if let ParamValue::Reference(reference) = value {
+            let normalized = self.normalize_reference_value_for_param(node, reference).map_err(|message| EngineEditError::ParamConstraintViolation {
+                edit_index,
+                node,
+                node_type: node_type_hint.clone(),
+                message,
+            })?;
+            ParamValue::Reference(normalized)
+        } else {
+            value
+        };
+
         let (old_value, new_value) = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
             let node_type = target.get_type().to_string();

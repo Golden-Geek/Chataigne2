@@ -42,19 +42,28 @@ impl Default for NodeUuid {
 ///
 /// The UUID is the source of truth and persists on disk.
 /// The cached runtime id is optional and never serialized.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NodeReference {
     /// Persistent target identity.
     pub uuid: NodeUuid,
     /// Best-effort runtime cache for faster lookups.
     #[serde(skip, default)]
     pub cached_id: Option<NodeId>,
+    /// Optional relative path from the resolved root to this target.
+    ///
+    /// Each segment is a child `decl_id` under the previous segment.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relative_path_from_root: Vec<String>,
 }
 
 impl NodeReference {
     /// Creates a reference from a persistent UUID.
     pub fn new(uuid: NodeUuid) -> Self {
-        Self { uuid, cached_id: None }
+        Self {
+            uuid,
+            cached_id: None,
+            relative_path_from_root: Vec::new(),
+        }
     }
 
     /// Creates an empty reference with a nil UUID.
@@ -64,7 +73,20 @@ impl NodeReference {
 
     /// Creates a reference with an explicit runtime cache.
     pub fn with_cached_id(uuid: NodeUuid, cached_id: Option<NodeId>) -> Self {
-        Self { uuid, cached_id }
+        Self {
+            uuid,
+            cached_id,
+            relative_path_from_root: Vec::new(),
+        }
+    }
+
+    /// Creates a reference with explicit runtime cache and relative root path.
+    pub fn with_hints(uuid: NodeUuid, cached_id: Option<NodeId>, relative_path_from_root: Vec<String>) -> Self {
+        Self {
+            uuid,
+            cached_id,
+            relative_path_from_root,
+        }
     }
 
     /// Returns the persistent target UUID.
@@ -85,6 +107,21 @@ impl NodeReference {
     /// Clears the cached runtime id.
     pub fn clear_cached_id(&mut self) {
         self.cached_id = None;
+    }
+
+    /// Returns the relative path from resolved root to target.
+    pub fn relative_path_from_root(&self) -> &[String] {
+        &self.relative_path_from_root
+    }
+
+    /// Replaces the relative path hint used for root-relative recovery.
+    pub fn set_relative_path_from_root(&mut self, relative_path_from_root: Vec<String>) {
+        self.relative_path_from_root = relative_path_from_root;
+    }
+
+    /// Clears the relative path hint used for root-relative recovery.
+    pub fn clear_relative_path_from_root(&mut self) {
+        self.relative_path_from_root.clear();
     }
 
     /// Returns `true` when this reference has no persistent target.

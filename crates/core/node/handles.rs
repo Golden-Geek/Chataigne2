@@ -131,7 +131,7 @@ impl ParameterValueType for NodeReference {
     }
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
-        if let ParamValue::Reference(reference) = value { Some(*reference) } else { None }
+        if let ParamValue::Reference(reference) = value { Some(reference.clone()) } else { None }
     }
 }
 

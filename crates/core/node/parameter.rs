@@ -378,6 +378,63 @@ pub enum ParameterConstraintPolicy {
     Reject,
 }
 
+/// Root scope used to validate and recover reference parameters.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ReferenceRoot {
+    /// Use engine root as reference root.
+    #[default]
+    EngineRoot,
+    /// Resolve an explicit root by persistent UUID.
+    Uuid(NodeUuid),
+    /// Resolve root from the parameter owner using a relative decl-id path.
+    RelativeToOwner {
+        /// Child decl-id path under the owner node (parameter parent).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        path: Vec<String>,
+    },
+}
+
+/// Target family accepted by a reference parameter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ReferenceTargetKind {
+    /// Any node type can be targeted.
+    #[default]
+    AnyNode,
+    /// Only parameter nodes can be targeted.
+    ParameterOnly,
+}
+
+/// Additional constraints specific to `ParamValue::Reference`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReferenceConstraints {
+    /// Root scope used by target validation and relative recovery.
+    #[serde(default)]
+    pub root: ReferenceRoot,
+    /// High-level target family.
+    #[serde(default)]
+    pub target_kind: ReferenceTargetKind,
+    /// Optional allowed runtime node types.
+    ///
+    /// Empty means all node types are accepted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_node_types: Vec<String>,
+    /// Optional allowed parameter value kinds (`int`, `float`, `str`, ...).
+    ///
+    /// Empty means all parameter kinds are accepted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_parameter_types: Vec<String>,
+    /// Optional app-defined runtime filter key looked up in the engine registry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_filter_key: Option<String>,
+    /// Optional UI default search filter suggested by the engine/app.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_search_filter: Option<String>,
+}
+
+fn is_default_reference_constraints(value: &ReferenceConstraints) -> bool {
+    *value == ReferenceConstraints::default()
+}
+
 /// Runtime data constraints for parameter values.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ParameterConstraints {
@@ -399,6 +456,9 @@ pub struct ParameterConstraints {
     /// Enforcement strategy for invalid incoming values.
     #[serde(default)]
     pub policy: ParameterConstraintPolicy,
+    /// Reference-specific filtering and recovery constraints.
+    #[serde(default, skip_serializing_if = "is_default_reference_constraints")]
+    pub reference: ReferenceConstraints,
 }
 
 impl ParameterConstraints {

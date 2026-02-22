@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::node::{Node, NodeId, NodeUuid};
+use crate::parameter::{ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
 
 use super::Engine;
 
@@ -57,5 +59,229 @@ impl<T: Node> Engine<T> {
         }
 
         cleared
+    }
+
+    pub(crate) fn normalize_reference_value_for_param(&self, param_node: NodeId, mut reference: crate::node::NodeReference) -> Result<crate::node::NodeReference, String> {
+        let constraints = self.reference_constraints_for_param(param_node);
+        let root = self.resolve_reference_root(param_node, &constraints).ok_or_else(|| "reference root could not be resolved".to_string())?;
+
+        let mut resolved = None;
+        let mut resolved_but_rejected = false;
+
+        if let Some(candidate) = reference.cached_id() {
+            if self.nodes.contains(candidate) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        if resolved.is_none() && !reference.uuid().is_nil() {
+            if let Some(candidate) = self.node_id_by_uuid(reference.uuid()) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        if resolved.is_none() && !reference.relative_path_from_root().is_empty() {
+            if let Some(candidate) = self.resolve_relative_decl_path(root, reference.relative_path_from_root()) {
+                if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
+                    resolved = Some(candidate);
+                } else {
+                    resolved_but_rejected = true;
+                }
+            }
+        }
+
+        let Some(target) = resolved else {
+            if resolved_but_rejected {
+                return Err("reference target violates constraints".to_string());
+            }
+            reference.clear_cached_id();
+            return Ok(reference);
+        };
+
+        reference.set_cached_id(Some(target));
+        if let Some(target_node) = self.nodes.get(target) {
+            reference.uuid = target_node.node_data().meta.uuid;
+        }
+        if let Some(path) = self.relative_decl_path_from_root(root, target) {
+            reference.set_relative_path_from_root(path);
+        }
+
+        Ok(reference)
+    }
+
+    pub(crate) fn reference_constraints_for_param(&self, param_node: NodeId) -> ReferenceConstraints {
+        self.nodes.get(param_node).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.constraints.reference).unwrap_or_default()
+    }
+
+    pub(crate) fn resolve_reference_root(&self, param_node: NodeId, constraints: &ReferenceConstraints) -> Option<NodeId> {
+        match &constraints.root {
+            ReferenceRoot::EngineRoot => Some(self.root),
+            ReferenceRoot::Uuid(uuid) => self.node_id_by_uuid(*uuid),
+            ReferenceRoot::RelativeToOwner { path } => {
+                let owner = self.nodes.get(param_node).and_then(|node| node.node_data().parent)?;
+                self.resolve_relative_decl_path(owner, path)
+            }
+        }
+    }
+
+    fn resolve_relative_decl_path(&self, root: NodeId, path: &[String]) -> Option<NodeId> {
+        let mut current = root;
+        for segment in path {
+            let mut child = self.nodes.get(current).and_then(|node| node.node_data().first_child);
+            let mut found = None;
+
+            while let Some(child_id) = child {
+                let matches = self
+                    .nodes
+                    .get(child_id)
+                    .is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
+                if matches {
+                    found = Some(child_id);
+                    break;
+                }
+                child = self.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+            }
+
+            current = found?;
+        }
+
+        Some(current)
+    }
+
+    fn relative_decl_path_from_root(&self, root: NodeId, target: NodeId) -> Option<Vec<String>> {
+        if root == target {
+            return Some(Vec::new());
+        }
+
+        let mut current = target;
+        let mut reversed = Vec::new();
+
+        loop {
+            if current == root {
+                reversed.reverse();
+                return Some(reversed);
+            }
+
+            let node = self.nodes.get(current)?;
+            let parent = node.node_data().parent?;
+            reversed.push(node.node_data().meta.decl_id.0.clone());
+            current = parent;
+        }
+    }
+
+    fn node_within_root(&self, node: NodeId, root: NodeId) -> bool {
+        let mut current = Some(node);
+        while let Some(id) = current {
+            if id == root {
+                return true;
+            }
+            current = self.nodes.get(id).and_then(|entry| entry.node_data().parent);
+        }
+        false
+    }
+
+    pub(crate) fn reference_candidate_allowed(
+        &self,
+        param_node: NodeId,
+        root: NodeId,
+        candidate: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Result<bool, String> {
+        if !self.nodes.contains(candidate) {
+            return Ok(false);
+        }
+
+        if !self.node_within_root(candidate, root) {
+            return Ok(false);
+        }
+
+        let Some(candidate_node) = self.nodes.get(candidate) else {
+            return Ok(false);
+        };
+        let candidate_type = candidate_node.get_type();
+        let is_parameter = candidate_node.engine_param_snapshot().is_some();
+
+        if matches!(constraints.target_kind, ReferenceTargetKind::ParameterOnly) && !is_parameter {
+            return Ok(false);
+        }
+
+        if !constraints.allowed_node_types.is_empty() && !constraints.allowed_node_types.iter().any(|allowed| allowed == candidate_type) {
+            return Ok(false);
+        }
+
+        if !constraints.allowed_parameter_types.is_empty() {
+            if !is_parameter {
+                return Ok(false);
+            }
+            if !constraints.allowed_parameter_types.iter().any(|allowed| allowed == candidate_type) {
+                return Ok(false);
+            }
+        }
+
+        if let Some(filter_key) = &constraints.custom_filter_key {
+            let Some(filter) = self.reference_filters.get(filter_key) else {
+                return Err(format!("custom reference filter '{filter_key}' is not registered"));
+            };
+            if !filter(self, param_node, root, candidate) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    pub(crate) fn reference_allowed_targets_for_param(&self, param_node: NodeId) -> Vec<NodeId> {
+        let constraints = self.reference_constraints_for_param(param_node);
+        let Some(root) = self.resolve_reference_root(param_node, &constraints) else {
+            return Vec::new();
+        };
+
+        let mut targets = Vec::new();
+        for candidate in self.nodes.keys() {
+            match self.reference_candidate_allowed(param_node, root, candidate, &constraints) {
+                Ok(true) => targets.push(candidate),
+                Ok(false) => {}
+                Err(_) => return Vec::new(),
+            }
+        }
+        targets.sort_by_key(|node_id| node_id.0);
+        targets
+    }
+
+    pub(crate) fn reference_visible_nodes_for_param(&self, param_node: NodeId) -> Vec<NodeId> {
+        let constraints = self.reference_constraints_for_param(param_node);
+        if constraints.custom_filter_key.is_none() {
+            return Vec::new();
+        }
+
+        let Some(root) = self.resolve_reference_root(param_node, &constraints) else {
+            return Vec::new();
+        };
+        let targets = self.reference_allowed_targets_for_param(param_node);
+        let mut visible: HashSet<NodeId> = HashSet::new();
+        visible.insert(root);
+
+        for target in targets {
+            let mut current = Some(target);
+            while let Some(node_id) = current {
+                visible.insert(node_id);
+                if node_id == root {
+                    break;
+                }
+                current = self.nodes.get(node_id).and_then(|entry| entry.node_data().parent);
+            }
+        }
+
+        let mut result: Vec<NodeId> = visible.into_iter().collect();
+        result.sort_by_key(|node_id| node_id.0);
+        result
     }
 }

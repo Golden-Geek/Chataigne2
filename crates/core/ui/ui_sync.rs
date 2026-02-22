@@ -82,6 +82,12 @@ pub struct UiParamDto {
     pub constraints: ParameterConstraints,
     /// Presentation and editing hints.
     pub ui_hints: ParameterUiHints,
+    /// Engine-computed selectable targets for reference parameters.
+    #[serde(default)]
+    pub reference_allowed_targets: Vec<NodeId>,
+    /// Engine-computed visible tree nodes for reference picker (targets + relevant ancestor paths).
+    #[serde(default)]
+    pub reference_visible_nodes: Vec<NodeId>,
 }
 
 impl From<ParameterSnapshot> for UiParamDto {
@@ -93,6 +99,8 @@ impl From<ParameterSnapshot> for UiParamDto {
             read_only: snapshot.read_only,
             constraints: snapshot.constraints,
             ui_hints: snapshot.ui_hints,
+            reference_allowed_targets: Vec::new(),
+            reference_visible_nodes: Vec::new(),
         }
     }
 }
@@ -509,7 +517,14 @@ impl<T: Node> Engine<T> {
             }
 
             let data = if let Some(param) = node.engine_param_snapshot() {
-                UiNodeDataDto::Parameter { param: UiParamDto::from(param) }
+                let mut dto = UiParamDto::from(param);
+                if matches!(dto.value, ParamValue::Reference(_))
+                    && dto.constraints.reference.custom_filter_key.is_some()
+                {
+                    dto.reference_allowed_targets = self.reference_allowed_targets_for_param(node_id);
+                    dto.reference_visible_nodes = self.reference_visible_nodes_for_param(node_id);
+                }
+                UiNodeDataDto::Parameter { param: dto }
             } else {
                 UiNodeDataDto::Node { node_type: node.get_type().to_string() }
             };
