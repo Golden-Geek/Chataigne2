@@ -105,20 +105,20 @@ impl OscModule {
     }
 }
 
-#[update(50)]
+// #[update(50)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
 
     fn init(&mut self, ctx: &mut ProcessCtx) {
         log!("Initializing OSC Module: ", self.node_data().meta.label);
-        // Surface warnings coming from generated parameter descendants on the module row.
+        // Surface warnings coming from generated parameter descendants on the modu le row.
         self.set_child_warning_depth(ctx, 2);
-        self.float_param.set_warning_with(
-            ctx,
-            None,
-            format!("Can't bind port {}", self.float_param.get()),
-            Some("This is some additional info that can be shown in the UI when hovering the warning icon."),
-        );
+        // self.float_param.set_warning_with(
+        //     ctx,
+        //     None,
+        //     format!("Can't bind port {}", self.float_param.get()),
+        //     Some("This is some additional info that can be shown in the UI when hovering the warning icon."),
+        // );
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
