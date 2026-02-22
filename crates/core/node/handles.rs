@@ -1,10 +1,10 @@
+use crate::color::Color;
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::parameter::{Enum, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
-use crate::color::Color;
 
-use super::{DeclId, Node, NodeId, NodeReference, NodeUuid};
+use super::{DeclId, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid};
 
 /// Typed conversion contract between Rust values and [`ParamValue`].
 pub trait ParameterValueType: Clone {
@@ -221,8 +221,14 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
     }
 
     /// Returns the locally cached value.
-    pub fn get(&self) -> &T {
+    pub fn get_ptr(&self) -> &T {
         &self.cached
+    }
+
+    /// Returns a clone of the locally cached value.
+    /// This is the main getter for value types, as it allows returning owned values for non-`Copy` types.
+    pub fn get(&self) -> T {
+        self.cached.clone()
     }
 
     /// Returns the current change-check policy.
@@ -270,6 +276,74 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
 
         self.cached = value;
     }
+
+    /// Sets or replaces the default warning on this parameter node.
+    ///
+    /// No-op when the handle is not bound yet.
+    pub fn set_warning(&self, ctx: &mut ProcessCtx, message: impl Into<String>) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.set_node_warning(self.node, message);
+    }
+
+    /// Sets or replaces one warning on this parameter node.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    /// No-op when the handle is not bound yet.
+    pub fn set_warning_with(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.set_node_warning_with(self.node, warning_id, message, detail);
+    }
+
+    /// Clears one warning by id on this parameter node.
+    ///
+    /// `warning_id = None` clears all warnings.
+    /// No-op when the handle is not bound yet.
+    pub fn clear_warning(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.clear_node_warning(self.node, warning_id);
+    }
+
+    /// Clears all warnings on this parameter node.
+    ///
+    /// No-op when the handle is not bound yet.
+    pub fn clear_warnings(&self, ctx: &mut ProcessCtx) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.clear_all_node_warnings(self.node);
+    }
+
+    /// Sets descendant warning surfacing depth on this parameter node.
+    ///
+    /// No-op when the handle is not bound yet.
+    pub fn set_child_warning_depth(&self, ctx: &mut ProcessCtx, max_depth: u32) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.set_node_child_warning_depth(self.node, max_depth);
+    }
+
+    /// Queues a metadata patch on this parameter node.
+    ///
+    /// No-op when the handle is not bound yet.
+    pub fn patch_meta(&self, ctx: &mut ProcessCtx, patch: NodeMetaPatch) {
+        if !self.is_bound() {
+            return;
+        }
+
+        ctx.patch_node_meta(self.node, patch);
+    }
 }
 
 /// Handle to an existing node id with structural edit helpers.
@@ -307,6 +381,40 @@ impl NodeHandle {
     /// Queues replacement of this node id by a boxed node value.
     pub fn replace_with_boxed(&self, ctx: &mut ProcessCtx, new_node: Box<dyn Node>) {
         ctx.replace_node_boxed(self.node, new_node);
+    }
+
+    /// Sets or replaces the default warning on this node.
+    pub fn set_warning(&self, ctx: &mut ProcessCtx, message: impl Into<String>) {
+        ctx.set_node_warning(self.node, message);
+    }
+
+    /// Sets or replaces one warning on this node.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    pub fn set_warning_with(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+        ctx.set_node_warning_with(self.node, warning_id, message, detail);
+    }
+
+    /// Clears one warning by id on this node.
+    ///
+    /// `warning_id = None` clears all warnings.
+    pub fn clear_warning(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>) {
+        ctx.clear_node_warning(self.node, warning_id);
+    }
+
+    /// Clears all warnings on this node.
+    pub fn clear_warnings(&self, ctx: &mut ProcessCtx) {
+        ctx.clear_all_node_warnings(self.node);
+    }
+
+    /// Sets descendant warning surfacing depth on this node.
+    pub fn set_child_warning_depth(&self, ctx: &mut ProcessCtx, max_depth: u32) {
+        ctx.set_node_child_warning_depth(self.node, max_depth);
+    }
+
+    /// Queues a metadata patch on this node.
+    pub fn patch_meta(&self, ctx: &mut ProcessCtx, patch: NodeMetaPatch) {
+        ctx.patch_node_meta(self.node, patch);
     }
 }
 
@@ -543,6 +651,89 @@ mod tests {
             Edit::RemoveNode { node } => assert_eq!(*node, NodeId(20)),
             _ => panic!("expected RemoveNode edit"),
         }
+    }
+
+    #[test]
+    fn node_handle_patch_meta_queues_patch_meta_edit() {
+        let handle = NodeHandle::new(NodeId(21));
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+
+        handle.patch_meta(
+            &mut ctx,
+            NodeMetaPatch {
+                label: Some("renamed".to_string()),
+                ..Default::default()
+            },
+        );
+
+        assert_eq!(ctx.edits.pending.len(), 1);
+        match &ctx.edits.pending[0].edit {
+            Edit::PatchMeta { node, patch } => {
+                assert_eq!(*node, NodeId(21));
+                assert_eq!(patch.label.as_deref(), Some("renamed"));
+            }
+            _ => panic!("expected PatchMeta edit"),
+        }
+    }
+
+    #[test]
+    fn parameter_handle_warning_helpers_queue_meta_edits() {
+        let mut handle = ParameterHandle::new(0.5f64);
+        handle.set_node_id(NodeId(50));
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+
+        handle.set_warning(&mut ctx, "default warning");
+        handle.set_warning_with(&mut ctx, Some("port"), "invalid port", Some("port must be in [1..65535]"));
+        handle.clear_warning(&mut ctx, Some("port"));
+        handle.clear_warnings(&mut ctx);
+        handle.set_child_warning_depth(&mut ctx, 2);
+
+        assert_eq!(ctx.edits.pending.len(), 5);
+        match &ctx.edits.pending[0].edit {
+            Edit::SetNodeWarning { node, warning } => {
+                assert_eq!(*node, NodeId(50));
+                assert_eq!(warning.id, "");
+                assert_eq!(warning.message, "default warning");
+                assert_eq!(warning.detail, None);
+            }
+            _ => panic!("expected SetNodeWarning edit"),
+        }
+        match &ctx.edits.pending[1].edit {
+            Edit::SetNodeWarning { warning, .. } => {
+                assert_eq!(warning.id, "port");
+                assert_eq!(warning.message, "invalid port");
+                assert_eq!(warning.detail.as_deref(), Some("port must be in [1..65535]"));
+            }
+            _ => panic!("expected SetNodeWarning edit"),
+        }
+        match &ctx.edits.pending[2].edit {
+            Edit::ClearNodeWarning { warning_id, .. } => {
+                assert_eq!(warning_id.as_deref(), Some("port"));
+            }
+            _ => panic!("expected ClearNodeWarning edit"),
+        }
+        match &ctx.edits.pending[3].edit {
+            Edit::ClearNodeWarning { warning_id, .. } => assert_eq!(*warning_id, None),
+            _ => panic!("expected ClearNodeWarning edit"),
+        }
+        match &ctx.edits.pending[4].edit {
+            Edit::SetNodeChildWarningDepth { max_depth, .. } => assert_eq!(*max_depth, 2),
+            _ => panic!("expected SetNodeChildWarningDepth edit"),
+        }
+    }
+
+    #[test]
+    fn unbound_parameter_handle_warning_helpers_skip_edits() {
+        let handle = ParameterHandle::new(0.5f64);
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+
+        handle.set_warning(&mut ctx, "default warning");
+        handle.set_warning_with(&mut ctx, Some("port"), "invalid port", Some("detail"));
+        handle.clear_warning(&mut ctx, Some("port"));
+        handle.clear_warnings(&mut ctx);
+        handle.set_child_warning_depth(&mut ctx, 2);
+
+        assert!(ctx.edits.pending.is_empty());
     }
 
     #[test]

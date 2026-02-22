@@ -196,6 +196,80 @@ impl<T: Node> Engine<T> {
         self.edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
     }
 
+    /// Sets or replaces the default warning on `node`.
+    pub fn set_node_warning(&mut self, node: NodeId, message: impl Into<String>) {
+        self.set_node_warning_with(node, None, message, None);
+    }
+
+    /// Sets or replaces one warning by id on `node`.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    pub fn set_node_warning_with(
+        &mut self,
+        node: NodeId,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<&str>,
+    ) {
+        let warning = NodeWarning {
+            id: warning_id.unwrap_or_default().to_string(),
+            message: message.into(),
+            detail: detail.map(str::to_string),
+        };
+
+        if let Some(existing_warning) = self
+            .nodes
+            .get(node)
+            .and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str())))
+        {
+            if existing_warning == &warning {
+                return;
+            }
+        }
+
+        self.edits.push(Edit::SetNodeWarning {
+            node,
+            warning,
+        });
+    }
+
+    /// Clears one warning by id on `node`.
+    ///
+    /// `warning_id = None` clears all warnings on `node`.
+    pub fn clear_node_warning(&mut self, node: NodeId, warning_id: Option<&str>) {
+        if let Some(entry) = self.nodes.get(node) {
+            let presentation = &entry.node_data().meta.presentation;
+            let has_target_warning = match warning_id {
+                Some(id) => presentation.warning(Some(id)).is_some(),
+                None => !presentation.warnings.is_empty(),
+            };
+            if !has_target_warning {
+                return;
+            }
+        }
+
+        self.edits.push(Edit::ClearNodeWarning {
+            node,
+            warning_id: warning_id.map(str::to_string),
+        });
+    }
+
+    /// Clears all warnings on `node`.
+    pub fn clear_all_node_warnings(&mut self, node: NodeId) {
+        self.clear_node_warning(node, None);
+    }
+
+    /// Sets child warning surfacing depth for `node`.
+    pub fn set_node_child_warning_depth(&mut self, node: NodeId, max_depth: u32) {
+        if let Some(entry) = self.nodes.get(node) {
+            if entry.node_data().meta.presentation.show_child_warnings_max_depth == max_depth {
+                return;
+            }
+        }
+
+        self.edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
+    }
+
     /// Returns a cloneable sender for queuing edits from external threads/tasks.
     ///
     /// Edits sent through this channel are merged into `self.edits` during
@@ -227,6 +301,7 @@ impl<T: Node> Engine<T> {
 
     fn absorb_edit_requests(&mut self, requests: Vec<EditRequest>) -> Result<(), EngineEditError> {
         let mut validated_edits = Vec::new();
+        let mut staged_presentations: HashMap<NodeId, PresentationHint> = HashMap::new();
 
         for (edit_index, request) in requests.into_iter().enumerate() {
             match request.edit {
@@ -268,6 +343,65 @@ impl<T: Node> Engine<T> {
                     };
 
                     validated_edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
+                }
+                Edit::SetNodeWarning { node, warning } => {
+                    let Some(current_presentation) = staged_presentations
+                        .get(&node)
+                        .cloned()
+                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
+                    else {
+                        validated_edits.push(Edit::SetNodeWarning { node, warning });
+                        continue;
+                    };
+
+                    let mut next_presentation = current_presentation.clone();
+                    next_presentation.set_warning(warning.clone());
+                    if next_presentation == current_presentation {
+                        continue;
+                    }
+
+                    staged_presentations.insert(node, next_presentation);
+                    validated_edits.push(Edit::SetNodeWarning { node, warning });
+                }
+                Edit::ClearNodeWarning { node, warning_id } => {
+                    let Some(current_presentation) = staged_presentations
+                        .get(&node)
+                        .cloned()
+                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
+                    else {
+                        validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
+                        continue;
+                    };
+
+                    let mut next_presentation = current_presentation.clone();
+                    let changed = match warning_id.as_deref() {
+                        Some(id) => next_presentation.clear_warning(Some(id)),
+                        None => next_presentation.clear_warnings(),
+                    };
+                    if !changed {
+                        continue;
+                    }
+
+                    staged_presentations.insert(node, next_presentation);
+                    validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
+                }
+                Edit::SetNodeChildWarningDepth { node, max_depth } => {
+                    let Some(current_presentation) = staged_presentations
+                        .get(&node)
+                        .cloned()
+                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
+                    else {
+                        validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
+                        continue;
+                    };
+
+                    let mut next_presentation = current_presentation.clone();
+                    if !next_presentation.set_child_warning_depth(max_depth) {
+                        continue;
+                    }
+
+                    staged_presentations.insert(node, next_presentation);
+                    validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
                 }
                 edit => validated_edits.push(edit),
             }

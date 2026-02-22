@@ -1,5 +1,5 @@
 use crate::events::CustomEvent;
-use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch};
+use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use serde::{Deserialize, Serialize};
 
@@ -82,6 +82,27 @@ pub enum Edit {
         node: NodeId,
         /// Patch payload.
         patch: NodeMetaPatch,
+    },
+    /// Sets or replaces one node warning by warning id.
+    SetNodeWarning {
+        /// Node receiving the warning.
+        node: NodeId,
+        /// Warning payload.
+        warning: NodeWarning,
+    },
+    /// Clears one node warning by warning id, or all warnings when id is omitted.
+    ClearNodeWarning {
+        /// Node whose warnings are updated.
+        node: NodeId,
+        /// Warning id to clear. `None` clears all warnings.
+        warning_id: Option<String>,
+    },
+    /// Sets how many descendant levels should be included when surfacing warnings.
+    SetNodeChildWarningDepth {
+        /// Node whose warning surfacing behavior is updated.
+        node: NodeId,
+        /// Maximum descendant depth shown by UI.
+        max_depth: u32,
     },
     /// Emit a custom event through the same edit pipeline.
     EmitCustomEvent {

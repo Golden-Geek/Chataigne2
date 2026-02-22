@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
-use crate::node::{EventSubscription, Node, NodeId};
+use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use serde::Serialize;
 
@@ -72,6 +72,52 @@ impl ProcessCtx {
     /// Queues a parameter update edit with an explicit coalescing strategy.
     pub fn set_param_with_behaviour(&mut self, node: NodeId, value: ParamValue, behaviour: ParameterEventBehaviour) {
         self.edits.push(Edit::SetParam { node, value, behaviour });
+    }
+
+
+  
+
+    /// Sets or replaces the default warning on `node`.
+    pub fn set_node_warning(&mut self, node: NodeId, message: impl Into<String>) {
+        self.set_node_warning_with(node, None, message, None);
+    }
+
+    /// Sets or replaces one warning by id on `node`.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    pub fn set_node_warning_with(&mut self, node: NodeId, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+
+        self.edits.push(Edit::SetNodeWarning {
+            node,
+            warning: NodeWarning {
+                id: warning_id.unwrap_or_default().to_string(),
+                message: message.into(),
+                detail: detail.map(str::to_string),
+            },
+        });
+    }
+
+    /// Clears one warning by id on `node`.
+    ///
+    /// `warning_id = None` clears all warnings on `node`.
+    pub fn clear_node_warning(&mut self, node: NodeId, warning_id: Option<&str>) {
+
+        self.edits.push(Edit::ClearNodeWarning { node, warning_id: warning_id.map(str::to_string) });
+    }
+
+    /// Clears all warnings on `node`.
+    pub fn clear_all_node_warnings(&mut self, node: NodeId) {
+        self.clear_node_warning(node, None);
+    }
+
+    /// Sets warning surfacing depth for descendant warnings on `node`.
+    pub fn set_node_child_warning_depth(&mut self, node: NodeId, max_depth: u32) {
+        self.edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
+    }
+
+    /// Queues a metadata patch for `node`.
+    pub fn patch_node_meta(&mut self, node: NodeId, patch: NodeMetaPatch) {
+        self.edits.push(Edit::PatchMeta { node, patch });
     }
 
     /// Queues insertion of a child node.

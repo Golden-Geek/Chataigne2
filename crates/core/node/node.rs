@@ -120,11 +120,143 @@ pub struct SemanticsHint {
     pub unit: Option<String>,
 }
 
+/// Warning message shown in UI for a node.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeWarning {
+    /// Warning identifier. Empty string is the default id.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub id: String,
+    /// Main warning message.
+    pub message: String,
+    /// Optional warning details.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+impl NodeWarning {
+    /// Creates a warning with the default empty id.
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            id: String::new(),
+            message: message.into(),
+            detail: None,
+        }
+    }
+
+    /// Sets or replaces the warning id.
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = id.into();
+        self
+    }
+
+    /// Sets warning detail text.
+    pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
+        self
+    }
+}
+
+impl Default for NodeWarning {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
+
 /// Presentation hints used for editor rendering.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PresentationHint {
     /// Preferred UI color.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Color>,
+    /// Warnings attached to this node, keyed by warning id.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<NodeWarning>,
+    /// If greater than zero, this node surfaces descendant warnings up to this depth.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub show_child_warnings_max_depth: u32,
+}
+
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
+}
+
+impl PresentationHint {
+    /// Sets or replaces a warning by id.
+    pub fn set_warning(&mut self, mut warning: NodeWarning) {
+        if warning.id.is_empty() {
+            warning.id = String::new();
+        }
+
+        if let Some(existing) = self.warnings.iter_mut().find(|existing| existing.id == warning.id) {
+            *existing = warning;
+            return;
+        }
+
+        self.warnings.push(warning);
+    }
+
+    /// Convenience wrapper for setting/replacing a warning by `warning_id`.
+    ///
+    /// `None` uses the default empty warning id.
+    pub fn set_warning_message(&mut self, warning_id: Option<&str>, message: impl Into<String>, detail: Option<String>) {
+        let warning = NodeWarning {
+            id: warning_id.unwrap_or_default().to_string(),
+            message: message.into(),
+            detail,
+        };
+        self.set_warning(warning);
+    }
+
+    /// Clears one warning by id.
+    ///
+    /// `None` clears the warning using the default empty id.
+    /// Returns `true` when a warning was removed.
+    pub fn clear_warning(&mut self, warning_id: Option<&str>) -> bool {
+        let warning_id = warning_id.unwrap_or_default();
+        let Some(index) = self.warnings.iter().position(|warning| warning.id == warning_id) else {
+            return false;
+        };
+
+        self.warnings.remove(index);
+        true
+    }
+
+    /// Clears all warnings attached to this node.
+    ///
+    /// Returns `true` when at least one warning was removed.
+    pub fn clear_warnings(&mut self) -> bool {
+        if self.warnings.is_empty() {
+            return false;
+        }
+
+        self.warnings.clear();
+        true
+    }
+
+    /// Returns `true` when this node has at least one warning.
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.is_empty()
+    }
+
+    /// Returns the warning associated with `warning_id`.
+    ///
+    /// `None` addresses the default empty warning id.
+    pub fn warning(&self, warning_id: Option<&str>) -> Option<&NodeWarning> {
+        let warning_id = warning_id.unwrap_or_default();
+        self.warnings.iter().find(|warning| warning.id == warning_id)
+    }
+
+    /// Sets the descendant warning visibility depth.
+    ///
+    /// Returns `true` when the value changed.
+    pub fn set_child_warning_depth(&mut self, max_depth: u32) -> bool {
+        if self.show_child_warnings_max_depth == max_depth {
+            return false;
+        }
+
+        self.show_child_warnings_max_depth = max_depth;
+        true
+    }
 }
 
 /// Classification for user-managed structure inside the runtime tree.
@@ -294,6 +426,32 @@ impl NodeMeta {
         self.enabled = enabled;
         self.can_be_disabled = can_be_disabled;
         self
+    }
+
+    /// Sets or replaces one warning by id.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    pub fn set_warning(&mut self, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+        self.presentation.set_warning_message(warning_id, message, detail.map(str::to_string));
+    }
+
+    /// Clears one warning by id.
+    ///
+    /// `warning_id = None` clears the default empty warning id.
+    pub fn clear_warning(&mut self, warning_id: Option<&str>) -> bool {
+        self.presentation.clear_warning(warning_id)
+    }
+
+    /// Clears all node warnings.
+    pub fn clear_warnings(&mut self) -> bool {
+        self.presentation.clear_warnings()
+    }
+
+    /// Sets how many child levels should be included when surfacing warnings.
+    ///
+    /// Returns `true` when the value changed.
+    pub fn set_child_warning_depth(&mut self, max_depth: u32) -> bool {
+        self.presentation.set_child_warning_depth(max_depth)
     }
 
     fn generate_short_name(label: &String) -> String {
@@ -647,6 +805,83 @@ pub trait Node: Send + Any {
         N: Node + 'static,
     {
         self.replace_child_boxed(ctx, old, Box::new(new_node));
+    }
+
+    /// Queues a metadata patch on this node.
+    fn patch_meta(&mut self, ctx: &mut ProcessCtx, patch: NodeMetaPatch) {
+        ctx.patch_node_meta(self.id(), patch);
+    }
+
+    /// Queues a metadata patch on any `target` node.
+    fn patch_meta_for_node(&mut self, ctx: &mut ProcessCtx, target: NodeId, patch: NodeMetaPatch) {
+        ctx.patch_node_meta(target, patch);
+    }
+
+    /// Sets or replaces the default warning on this node.
+    fn set_warning(&mut self, ctx: &mut ProcessCtx, message: &str) {
+        self.set_warning_with(ctx, None, message, None);
+    }
+
+    /// Sets or replaces a warning on this node.
+    ///
+    /// `warning_id = None` uses the default empty warning id.
+    fn set_warning_with(&mut self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: &str, detail: Option<&str>) {
+        ctx.set_node_warning_with(self.id(), warning_id, message, detail);
+    }
+
+    /// Sets or replaces the default warning on any `target` node.
+    ///
+    /// This is useful when a child node wants to surface problems on a parent.
+    fn set_warning_for_node(&mut self, ctx: &mut ProcessCtx, target: NodeId, message: &str) {
+        self.set_warning_for_node_with(ctx, target, None, message, None);
+    }
+
+    /// Sets or replaces a warning on any `target` node.
+    ///
+    /// This is useful when a child node wants to surface problems on a parent.
+    fn set_warning_for_node_with(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        target: NodeId,
+        warning_id: Option<&str>,
+        message: &str,
+        detail: Option<&str>,
+    ) {
+        ctx.set_node_warning_with(target, warning_id, message, detail);
+    }
+
+    /// Clears one warning from this node.
+    ///
+    /// `warning_id = None` clears the default empty warning id.
+    fn clear_warning(&mut self, ctx: &mut ProcessCtx, warning_id: Option<&str>) {
+        ctx.clear_node_warning(self.id(), warning_id);
+    }
+
+    /// Clears all warnings from this node.
+    fn clear_warnings(&mut self, ctx: &mut ProcessCtx) {
+        ctx.clear_all_node_warnings(self.id());
+    }
+
+    /// Clears one warning from any `target` node.
+    ///
+    /// `warning_id = None` clears the default empty warning id.
+    fn clear_warning_for_node(&mut self, ctx: &mut ProcessCtx, target: NodeId, warning_id: Option<&str>) {
+        ctx.clear_node_warning(target, warning_id);
+    }
+
+    /// Clears all warnings from any `target` node.
+    fn clear_warnings_for_node(&mut self, ctx: &mut ProcessCtx, target: NodeId) {
+        ctx.clear_all_node_warnings(target);
+    }
+
+    /// Sets child warning surfacing depth for this node.
+    fn set_child_warning_depth(&mut self, ctx: &mut ProcessCtx, max_depth: u32) {
+        ctx.set_node_child_warning_depth(self.id(), max_depth);
+    }
+
+    /// Sets child warning surfacing depth for any `target` node.
+    fn set_child_warning_depth_for_node(&mut self, ctx: &mut ProcessCtx, target: NodeId, max_depth: u32) {
+        ctx.set_node_child_warning_depth(target, max_depth);
     }
 
     /// Dispatches all events in the process context to typed handlers.

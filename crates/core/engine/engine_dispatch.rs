@@ -43,10 +43,18 @@ impl<T: Node> Engine<T> {
     /// The returned vector preserves first-seen node order while events remain in
     /// engine emission order for each node.
     pub fn precompute_inbox_dispatch(&self) -> Vec<(NodeId, Vec<Event>)> {
+        self.precompute_inbox_dispatch_since(0)
+    }
+
+    /// Precomputes per-node inbox payloads for events emitted at or after `start`.
+    ///
+    /// `start` is clamped to the current inbox length.
+    pub(crate) fn precompute_inbox_dispatch_since(&self, start: usize) -> Vec<(NodeId, Vec<Event>)> {
         let mut index_by_node: HashMap<NodeId, usize> = HashMap::new();
         let mut per_node_events: Vec<(NodeId, Vec<Event>)> = Vec::new();
 
-        for event in &self.inbox.events {
+        let start = start.min(self.inbox.events.len());
+        for event in self.inbox.events.iter().skip(start) {
             for recipient in self.route_event_recipients(event) {
                 let index = match index_by_node.get(&recipient).copied() {
                     Some(index) => index,
@@ -64,10 +72,24 @@ impl<T: Node> Engine<T> {
         per_node_events
     }
 
+    /// Runs only internal inbox preprocessing (no app-level `on_inbox`) for a precomputed batch.
+    pub(crate) fn preprocess_precomputed_inbox(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>) -> Result<(), EngineEditError> {
+        self.dispatch_precomputed_inbox_internal(phase, per_node_events, false)
+    }
+
     /// Dispatches a precomputed per-node inbox batch.
     ///
     /// Edits requested by node callbacks are absorbed into the engine queue.
     pub fn dispatch_precomputed_inbox(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>) -> Result<(), EngineEditError> {
+        self.dispatch_precomputed_inbox_internal(phase, per_node_events, true)
+    }
+
+    fn dispatch_precomputed_inbox_internal(
+        &mut self,
+        phase: ExecutionPhase,
+        per_node_events: Vec<(NodeId, Vec<Event>)>,
+        run_app_callbacks: bool,
+    ) -> Result<(), EngineEditError> {
         let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self
             .nodes
             .iter()
@@ -87,7 +109,9 @@ impl<T: Node> Engine<T> {
                     node.engine_preprocess_inbox(&mut ctx);
                     let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
                     node.engine_sync_bound_param_handles(&mut resolve);
-                    node.on_inbox(&mut ctx);
+                    if run_app_callbacks {
+                        node.on_inbox(&mut ctx);
+                    }
                 });
                 self.absorb_edits(&mut ctx)?;
             }

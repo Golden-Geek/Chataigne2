@@ -6,11 +6,15 @@ use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
-use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid, UserCreatableItem, UserNodeRole};
+use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
 
 /// Current UI protocol version.
 pub const UI_PROTOCOL_VERSION: &str = "0.1.0";
+
+fn is_default_presentation_hint(value: &PresentationHint) -> bool {
+    *value == PresentationHint::default()
+}
 
 /// Scope used by snapshot/event subscriptions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -58,6 +62,9 @@ pub struct UiNodeMetaDto {
     /// Optional tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// Presentation hints, including warnings.
+    #[serde(default, skip_serializing_if = "is_default_presentation_hint")]
+    pub presentation: PresentationHint,
 }
 
 /// UI-facing parameter payload.
@@ -528,6 +535,7 @@ impl<T: Node> Engine<T> {
                     can_be_disabled: node_data.meta.can_be_disabled,
                     description: node_data.meta.description.clone(),
                     tags: node_data.meta.tags.clone(),
+                    presentation: node_data.meta.presentation.clone(),
                 },
                 data,
                 user_role: node_data.user_role,
@@ -567,12 +575,7 @@ impl<T: Node> Engine<T> {
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         let before_len = self.ui_event_log().len();
         let intent_debug = format!("{intent:?}");
-        eprintln!(
-            "[gc-ui] intent recv: {intent_debug} | undo_len={} redo_len={} active_session={}",
-            self.undo_len(),
-            self.redo_len(),
-            self.has_active_edit_session()
-        );
+        eprintln!("[gc-ui] intent recv: {intent_debug} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 
         let ack = match intent {
             UiEditIntent::BeginEdit { client_edit_id, label } => {
@@ -602,22 +605,11 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::CreateUserItem { parent, node_type, label } => {
                 let Some(parent_node) = self.nodes.get(parent) else {
-                    let err = crate::engine::EngineEditError::ParentNotFound {
-                        edit_index: 0,
-                        operation: "CreateUserItem",
-                        parent,
-                    };
+                    let err = crate::engine::EngineEditError::ParentNotFound { edit_index: 0, operation: "CreateUserItem", parent };
                     return self.finish_ui_apply_now(before_len, Err(err));
                 };
 
-                let resolved_label = label.unwrap_or_else(|| {
-                    parent_node
-                        .user_creatable_items()
-                        .into_iter()
-                        .find(|candidate| candidate.node_type == node_type)
-                        .map(|candidate| candidate.label)
-                        .unwrap_or_else(|| node_type.clone())
-                });
+                let resolved_label = label.unwrap_or_else(|| parent_node.user_creatable_items().into_iter().find(|candidate| candidate.node_type == node_type).map(|candidate| candidate.label).unwrap_or_else(|| node_type.clone()));
 
                 let Some(node) = parent_node.create_user_item(&node_type, resolved_label) else {
                     let err = crate::engine::EngineEditError::UserItemTypeUnavailable {
@@ -629,11 +621,7 @@ impl<T: Node> Engine<T> {
                     return self.finish_ui_apply_now(before_len, Err(err));
                 };
 
-                self.edits.push(Edit::AddUserItem {
-                    parent,
-                    prev_sibling: None,
-                    node,
-                });
+                self.edits.push(Edit::AddUserItem { parent, prev_sibling: None, node });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
@@ -661,11 +649,7 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::SetLogMaxEntries { max_entries } => {
                 let applied_max_entries = crate::logger::set_max_entries(max_entries);
-                self.push_ui_custom_event(
-                    crate::logger::UI_LOG_MAX_ENTRIES_TOPIC,
-                    None,
-                    serde_json::json!({ "max_entries": applied_max_entries }),
-                );
+                self.push_ui_custom_event(crate::logger::UI_LOG_MAX_ENTRIES_TOPIC, None, serde_json::json!({ "max_entries": applied_max_entries }));
                 UiAck {
                     success: true,
                     status: UiAckStatus::Applied,
@@ -715,15 +699,7 @@ impl<T: Node> Engine<T> {
 
         eprintln!(
             "[gc-ui] intent ack: success={} status={:?} code={:?} earliest={:?} history={{undo_len:{}, redo_len:{}, can_undo:{}, can_redo:{}, active_session:{}}}",
-            ack.success,
-            ack.status,
-            ack.error_code,
-            ack.earliest_event_time,
-            ack.history.undo_len,
-            ack.history.redo_len,
-            ack.history.can_undo,
-            ack.history.can_redo,
-            ack.history.active_edit_session
+            ack.success, ack.status, ack.error_code, ack.earliest_event_time, ack.history.undo_len, ack.history.redo_len, ack.history.can_undo, ack.history.can_redo, ack.history.active_edit_session
         );
 
         ack
@@ -802,13 +778,7 @@ impl<T: Node> Engine<T> {
             UiSubscriptionScope::Subtree { root, max_depth } => {
                 if matches!(
                     event.kind,
-                    EventKind::ChildAdded { .. }
-                        | EventKind::ChildRemoved { .. }
-                        | EventKind::ChildReplaced { .. }
-                        | EventKind::ChildMoved { .. }
-                        | EventKind::ChildReordered { .. }
-                        | EventKind::NodeCreated { .. }
-                        | EventKind::NodeDeleted { .. }
+                    EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ChildReplaced { .. } | EventKind::ChildMoved { .. } | EventKind::ChildReordered { .. } | EventKind::NodeCreated { .. } | EventKind::NodeDeleted { .. }
                 ) {
                     return true;
                 }

@@ -107,6 +107,21 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_patch_meta(edit_index, node, patch)?;
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::SetNodeWarning { node, warning } => {
+                    let effect = self.apply_set_node_warning(edit_index, node, warning)?;
+                    let should_clear_redo = effect.is_some();
+                    (Ok(effect.map(Into::into)), should_clear_redo)
+                }
+                Edit::ClearNodeWarning { node, warning_id } => {
+                    let effect = self.apply_clear_node_warning(edit_index, node, warning_id)?;
+                    let should_clear_redo = effect.is_some();
+                    (Ok(effect.map(Into::into)), should_clear_redo)
+                }
+                Edit::SetNodeChildWarningDepth { node, max_depth } => {
+                    let effect = self.apply_set_node_child_warning_depth(edit_index, node, max_depth)?;
+                    let should_clear_redo = effect.is_some();
+                    (Ok(effect.map(Into::into)), should_clear_redo)
+                }
                 Edit::EmitCustomEvent { event } => {
                     self.emit_event(EventKind::Custom(event));
                     (Ok(None), true)

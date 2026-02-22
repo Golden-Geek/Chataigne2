@@ -64,6 +64,22 @@ fn absorb_edits_accepts_matching_node_type() {
 }
 
 #[test]
+fn absorb_edits_skips_noop_warning_edits() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let root = engine.root;
+    engine.set_node_warning(root, "stable warning");
+    engine.apply_edits().expect("initial warning should apply");
+
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, engine.time);
+    ctx.set_node_warning(root, "stable warning");
+    ctx.clear_node_warning(root, Some("missing"));
+    ctx.set_node_child_warning_depth(root, 0);
+
+    engine.absorb_edits(&mut ctx).expect("absorb warning edits should succeed");
+    assert!(engine.edits.pending.is_empty(), "no-op warning edits should be dropped during absorb");
+}
+
+#[test]
 fn external_edit_sender_sets_param_from_another_thread() {
     let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
@@ -386,6 +402,7 @@ struct DslReferenceDefaultNode {}
         },
         presentation = crate::node::PresentationHint {
             color: Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0)),
+            ..Default::default()
         },
     ) {
         gain: f64 = 0.5 (
@@ -401,6 +418,7 @@ struct DslReferenceDefaultNode {}
             },
             presentation = crate::node::PresentationHint {
                 color: Some(crate::color::Color::new(0.7, 0.8, 0.9, 1.0)),
+                ..Default::default()
             },
         );
     }
@@ -422,6 +440,20 @@ struct ManualInboxParamsNode {
 struct ParamsWithCustomInitNode {
     init_calls: usize,
     init_observed_value: Option<f64>,
+    init_observed_bound: bool,
+    init_observed_id: Option<NodeId>,
+}
+
+#[crate::node("nested_init_binding_node")]
+#[params(
+    folder(group, label = "Group") {
+        value: f64 = 0.5 [0.0..1.0] (label = "Value");
+    }
+)]
+struct NestedInitBindingNode {
+    init_calls: usize,
+    init_observed_bound: bool,
+    init_observed_id: Option<NodeId>,
 }
 
 #[crate::node("dsl_callback_params_node")]
@@ -532,6 +564,21 @@ impl Node for ParamsWithCustomInitNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.init_calls += 1;
         self.init_observed_value = Some(*self.value.get());
+        self.init_observed_bound = self.value.is_bound();
+        self.init_observed_id = Some(self.value.id());
+    }
+
+    fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
+        0
+    }
+}
+
+#[crate::node("nested_init_binding_node", from_struct)]
+impl Node for NestedInitBindingNode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.init_calls += 1;
+        self.init_observed_bound = self.value.is_bound();
+        self.init_observed_id = Some(self.value.id());
     }
 
     fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
@@ -569,6 +616,7 @@ crate::define_node_enum!(
         DslMetaParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
+        NestedInitBindingNode,
         DslCallbackParamsNode,
         FieldCallbackParamsNode,
     }
@@ -960,7 +1008,7 @@ fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
 fn params_macro_keeps_init_and_child_interest_overrides_available() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ParamsWithCustomInitNode::new("custom", 0, None).into(), None);
+    engine.add_node(ParamsWithCustomInitNode::new("custom", 0, None, false, None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -977,6 +1025,29 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
     assert_eq!(node.init_calls, 1, "custom init override should remain active");
     assert_eq!(node.value.id(), value_param, "params preprocessing should still bind handles");
     assert!(node.init_observed_value.is_some_and(|value| (value - 0.5).abs() < 1e-9), "custom init should observe declared default value before app init runs",);
+    assert!(node.init_observed_bound, "custom init should observe a bound declared handle");
+    assert_eq!(node.init_observed_id, Some(value_param), "custom init should observe the runtime parameter id");
+}
+
+#[test]
+fn nested_declared_params_are_bound_during_init() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(NestedInitBindingNode::new("nested", 0, false, None).into(), None);
+
+    engine.apply_edits().expect("single apply should materialize nested declarations before init");
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("nested node should be attached under root");
+    let group = find_child_by_decl(&engine, owner, "group").expect("group folder should exist");
+    let value_param = find_child_by_decl(&engine, group, "group/value").expect("nested parameter should exist");
+
+    let MacroTestNode::NestedInitBindingNode(node) = engine.nodes.get(owner).expect("nested node should exist") else {
+        panic!("expected NestedInitBindingNode variant");
+    };
+
+    assert_eq!(node.init_calls, 1, "init should run exactly once");
+    assert!(node.init_observed_bound, "nested declared parameter should already be bound during init");
+    assert_eq!(node.init_observed_id, Some(value_param), "init should observe the concrete nested parameter id");
 }
 
 #[test]
@@ -1860,11 +1931,7 @@ fn clear_history_drops_active_edit_session_state() {
     assert_eq!(engine.undo_len(), 1, "only post-clear edits should be undoable");
 
     assert!(engine.undo().expect("undo should succeed"));
-    assert_eq!(
-        engine.nodes.get(engine.root).expect("root parameter should exist").value,
-        ParamValue::Int(10),
-        "undo should restore to the runtime-baseline value, not pre-clear session history",
-    );
+    assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(10), "undo should restore to the runtime-baseline value, not pre-clear session history",);
 }
 
 #[test]
@@ -1887,6 +1954,72 @@ fn patch_meta_applies_patch_to_runtime_node_metadata() {
     assert_eq!(root_meta.label, "Renamed Root");
     assert!(!root_meta.enabled);
     assert_eq!(root_meta.description.as_deref(), Some("Updated from UI"));
+}
+
+#[test]
+fn engine_warning_helpers_replace_clear_and_clear_all() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+
+    engine.set_node_warning(engine.root, "default warning");
+    engine.set_node_warning_with(engine.root, Some("port"), "invalid port", Some("port must be in [1..65535]"));
+    engine.set_node_warning(engine.root, "default warning updated");
+    engine.apply_edits().expect("warning edits should apply");
+
+    let presentation = &engine.nodes.get(engine.root).expect("root should exist").node_data().meta.presentation;
+    assert_eq!(presentation.warnings.len(), 2, "same-id warnings should be replaced");
+    assert_eq!(presentation.warning(None).map(|warning| warning.message.as_str()), Some("default warning updated"));
+    assert_eq!(presentation.warning(Some("port")).and_then(|warning| warning.detail.as_deref()), Some("port must be in [1..65535]"));
+
+    engine.clear_node_warning(engine.root, Some("port"));
+    engine.apply_edits().expect("clear warning should apply");
+    let presentation = &engine.nodes.get(engine.root).expect("root should exist").node_data().meta.presentation;
+    assert!(presentation.warning(Some("port")).is_none(), "specific warning should be cleared");
+    assert!(presentation.warning(None).is_some(), "default warning should remain");
+
+    engine.clear_all_node_warnings(engine.root);
+    engine.apply_edits().expect("clear all warnings should apply");
+    let presentation = &engine.nodes.get(engine.root).expect("root should exist").node_data().meta.presentation;
+    assert!(presentation.warnings.is_empty(), "all warnings should be cleared");
+}
+
+#[test]
+fn engine_warning_helpers_set_child_warning_depth() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+
+    engine.set_node_child_warning_depth(engine.root, 3);
+    engine.apply_edits().expect("set child warning depth should apply");
+
+    let root_meta = &engine.nodes.get(engine.root).expect("root should exist").node_data().meta;
+    assert_eq!(root_meta.presentation.show_child_warnings_max_depth, 3);
+}
+
+#[test]
+fn engine_warning_noops_do_not_change_history_or_redo() {
+    let root = Parameter::new("root_param", ParamValue::Int(1), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+    let root_id = engine.root;
+
+    engine.set_node_warning(root_id, "stable warning");
+    engine.apply_edits().expect("initial warning should apply");
+
+    engine.edits.push(Edit::SetParam {
+        node: root_id,
+        value: ParamValue::Int(2),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("param edit should apply");
+    assert_eq!(engine.undo_len(), 2);
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.redo_len(), 1);
+
+    engine.set_node_warning(root_id, "stable warning");
+    engine.clear_node_warning(root_id, Some("missing"));
+    engine.set_node_child_warning_depth(root_id, 0);
+    engine.apply_edits().expect("no-op warning edits should apply as empty");
+
+    assert_eq!(engine.undo_len(), 1, "no-op warning edits must not add undo history");
+    assert_eq!(engine.redo_len(), 1, "no-op warning edits must not clear redo history");
 }
 
 #[test]

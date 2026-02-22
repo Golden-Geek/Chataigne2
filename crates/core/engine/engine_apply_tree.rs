@@ -265,6 +265,30 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    /// Applies queued structural side effects and preprocesses newly emitted events
+    /// until the add/bootstrap pipeline reaches a fixed point.
+    fn stabilize_added_node_structure(&mut self, mut event_cursor: usize) -> Result<(), EngineEditError> {
+        loop {
+            if !self.edits.pending.is_empty() {
+                self.apply_edits_without_history()?;
+            }
+
+            let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
+            event_cursor = self.inbox.events.len();
+
+            if precomputed.is_empty() {
+                if self.edits.pending.is_empty() {
+                    break;
+                }
+                continue;
+            }
+
+            self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
+        }
+
+        Ok(())
+    }
+
     fn apply_add_node_with_role(&mut self, edit_index: usize, operation: &'static str, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>, user_role: UserNodeRole, validate_as_user_item: bool) -> Result<AddNodeEffect, EngineEditError> {
         if !self.nodes.contains(parent) {
             return Err(EngineEditError::ParentNotFound { edit_index, operation, parent });
@@ -300,15 +324,25 @@ impl<T: Node> Engine<T> {
         self.emit_event(EventKind::NodeCreated { node: child_id });
         self.emit_event(EventKind::ChildAdded { parent, child: child_id, decl_id });
 
-        // Allow newly attached nodes to request deterministic follow-up structure.
+        // Allow newly attached nodes to request deterministic follow-up structure before app init.
+        let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        if let Some(node) = self.nodes.get_mut(child_id) {
+            crate::logger::with_node_origin(child_id, || {
+                node.engine_on_attached(&mut attach_ctx);
+            });
+        }
+        self.absorb_edits(&mut attach_ctx)?;
+        self.stabilize_added_node_structure(self.inbox.events.len())?;
+
+        // Run app init after declared/generated children are materialized and handles are bound.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         if let Some(node) = self.nodes.get_mut(child_id) {
             crate::logger::with_node_origin(child_id, || {
-                node.engine_on_attached(&mut init_ctx);
                 node.init(&mut init_ctx);
             });
         }
         self.absorb_edits(&mut init_ctx)?;
+        self.stabilize_added_node_structure(self.inbox.events.len())?;
 
         Ok(AddNodeEffect {
             node: child_id,
