@@ -303,11 +303,45 @@ impl<T: Node> Engine<T> {
 
     /// Rebuilds runtime scheduling from current node execution rules.
     pub fn resolve(&mut self) -> Result<(), EngineRuntimeError> {
+        let previously_scheduled_nodes: HashSet<NodeId> = self.runtime_schedule.bucket_by_node.keys().copied().collect();
         let rules = self.collect_execution_rules();
         let topo_order = self.topological_sort(&rules)?;
         self.runtime_schedule.rebuild(topo_order, &rules)?;
+        for node_id in self.runtime_schedule.bucket_by_node.keys().copied() {
+            if !previously_scheduled_nodes.contains(&node_id) {
+                self.last_update_elapsed_by_node.insert(node_id, self.runtime_elapsed);
+            }
+        }
         self.runtime_resolve_pending = false;
         Ok(())
+    }
+
+    /// Returns whether `node` is enabled.
+    ///
+    /// When `in_hierarchy` is `true`, all ancestors (including self) must be enabled.
+    pub fn is_enabled(&self, node: NodeId, in_hierarchy: bool) -> bool {
+        let Some(entry) = self.nodes.get(node) else {
+            return false;
+        };
+
+        if !in_hierarchy {
+            return entry.node_data().meta.enabled;
+        }
+
+        let mut cursor = Some(node);
+        while let Some(current) = cursor {
+            let Some(current_entry) = self.nodes.get(current) else {
+                return false;
+            };
+
+            if !current_entry.node_data().meta.enabled {
+                return false;
+            }
+
+            cursor = current_entry.node_data().parent;
+        }
+
+        true
     }
 
     /// Returns the current global topological order used by runtime updates.
@@ -386,7 +420,10 @@ impl<T: Node> Engine<T> {
     }
 
     fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
-        self.nodes.iter().map(|(node_id, node)| (node_id, node.execution_rule())).collect()
+        self.nodes
+            .iter()
+            .filter_map(|(node_id, node)| self.is_enabled(node_id, true).then_some((node_id, node.execution_rule())))
+            .collect()
     }
 
     fn topological_sort(&self, rules: &HashMap<NodeId, NodeExecutionRule>) -> Result<Vec<NodeId>, EngineRuntimeError> {
@@ -458,6 +495,10 @@ impl<T: Node> Engine<T> {
         }
 
         for node_id in due_nodes {
+            if !self.is_enabled(node_id, true) {
+                continue;
+            }
+
             let seen = seen_by_node.entry(node_id).or_default();
             *seen += 1;
 

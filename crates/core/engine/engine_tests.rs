@@ -2655,6 +2655,84 @@ fn reevaluate_graph_edit_marks_and_rebuilds_schedule() {
 }
 
 #[test]
+fn is_enabled_supports_local_and_hierarchy_checks() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("parent", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("parent add should succeed");
+    let parent = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("parent should exist");
+
+    engine.add_node(RuntimeNode::new("child", NodeExecutionRule::periodic(2)), Some(parent));
+    engine.apply_edits().expect("child add should succeed");
+    let child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child).expect("child should exist");
+
+    assert!(engine.is_enabled(child, false), "child should be locally enabled");
+    assert!(engine.is_enabled(child, true), "child should be hierarchy-enabled");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: parent,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("parent disable should succeed");
+
+    assert!(engine.is_enabled(child, false), "child local flag should remain enabled");
+    assert!(!engine.is_enabled(child, true), "child should be hierarchy-disabled by parent");
+}
+
+#[test]
+fn disabling_parent_removes_child_from_updates_until_reenabled() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("parent", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("parent add should succeed");
+    let parent = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("parent should exist");
+
+    engine.add_node(RuntimeNode::new("child", NodeExecutionRule::periodic(2)), Some(parent));
+    engine.apply_edits().expect("child add should succeed");
+    engine.resolve().expect("resolve should succeed");
+    let child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child).expect("child should exist");
+
+    engine.run_tick(Duration::from_millis(500)).expect("initial tick should succeed");
+    assert_eq!(engine.nodes.get(child).expect("child should exist").updates, 1, "child should update while enabled");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: parent,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("disable parent should succeed");
+    assert!(engine.is_resolve_pending(), "enable toggle should mark schedule dirty");
+
+    engine.run_tick(Duration::from_millis(1000)).expect("tick while disabled should succeed");
+    assert_eq!(engine.nodes.get(child).expect("child should exist").updates, 1, "child should not update while ancestor is disabled");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: parent,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(true),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("re-enable parent should succeed");
+    engine.run_tick(Duration::from_millis(500)).expect("tick after re-enable should succeed");
+
+    let child = engine.nodes.get(child).expect("child should exist");
+    assert_eq!(child.updates, 2, "child should resume updates after parent re-enable");
+    assert_eq!(
+        child.delta_times.last().copied(),
+        Some(Duration::from_millis(500)),
+        "first update after re-enable should start from re-enable time",
+    );
+}
+
+#[test]
 fn run_tick_respects_update_rate_buckets() {
     let root = RuntimeNode::new("root", NodeExecutionRule::passive());
     let mut engine = Engine::new(root);

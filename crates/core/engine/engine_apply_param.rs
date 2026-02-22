@@ -56,6 +56,10 @@ impl<T: Node> Engine<T> {
 
         eprintln!("[gc-engine] apply_patch_meta node={:?} label='{}' enabled={} -> '{}'/{}", node, old_meta.label, old_meta.enabled, new_meta.label, new_meta.enabled);
 
+        if old_meta.enabled != new_meta.enabled {
+            self.mark_schedule_dirty();
+        }
+
         self.emit_event(EventKind::MetaChanged { node, patch });
         Ok(PatchMetaEffect { node, old_meta, new_meta })
     }

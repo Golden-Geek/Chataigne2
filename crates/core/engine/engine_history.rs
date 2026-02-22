@@ -135,6 +135,18 @@ impl<T: Node> HistoryStep<T> {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
             }
             Self::PatchMeta(step) => {
+                let enabled_changed = {
+                    let current = engine
+                        .nodes
+                        .get(step.node)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: "UndoPatchMeta",
+                            node: step.node,
+                        })?;
+                    current.node_data().meta.enabled != step.old_meta.enabled
+                };
+
                 let target = engine
                     .nodes
                     .get_mut(step.node)
@@ -148,6 +160,10 @@ impl<T: Node> HistoryStep<T> {
                     node: step.node,
                     patch: meta_to_patch(&step.old_meta),
                 });
+
+                if enabled_changed {
+                    engine.mark_schedule_dirty();
+                }
             }
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
@@ -276,6 +292,18 @@ impl<T: Node> HistoryStep<T> {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
             }
             Self::PatchMeta(step) => {
+                let enabled_changed = {
+                    let current = engine
+                        .nodes
+                        .get(step.node)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: "RedoPatchMeta",
+                            node: step.node,
+                        })?;
+                    current.node_data().meta.enabled != step.new_meta.enabled
+                };
+
                 let target = engine
                     .nodes
                     .get_mut(step.node)
@@ -289,6 +317,10 @@ impl<T: Node> HistoryStep<T> {
                     node: step.node,
                     patch: meta_to_patch(&step.new_meta),
                 });
+
+                if enabled_changed {
+                    engine.mark_schedule_dirty();
+                }
             }
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";

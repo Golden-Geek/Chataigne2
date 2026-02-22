@@ -1417,7 +1417,7 @@ fn expand_struct(
                     let mut __param_node = golden_core::parameter::Parameter::new(
                         #label_lit,
                         <#param_value_ty as golden_core::node::ParameterValueType>::to_param_value(
-                            self.#field_ident.get().clone()
+                            self.#field_ident.get_ref().clone()
                         ),
                         self.#field_ident.change_check().clone(),
                     );
@@ -2189,7 +2189,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 let mut __param_node = golden_core::parameter::Parameter::new(
                     #label_lit,
                     <#ty as golden_core::node::ParameterValueType>::to_param_value(
-                        self.#field_ident.get().clone()
+                        self.#field_ident.get_ref().clone()
                     ),
                     self.#field_ident.change_check().clone(),
                 );
