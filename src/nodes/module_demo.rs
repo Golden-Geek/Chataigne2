@@ -1,5 +1,5 @@
 use golden_core::{
-    color::Color, item, log, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
+    color::Color, item, log, node, update, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
 };
 
 #[node]
@@ -105,7 +105,7 @@ impl OscModule {
     }
 }
 
-// #[update(50)]
+#[update(50)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
 
@@ -136,13 +136,7 @@ impl Node for OscModule {
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
-        if node_id == self.float_param.id() {
-            if self.float_param.get() > 7.5 {
-                self.float_param.set_warning(ctx, "Value is getting high!");
-            } else {
-                self.float_param.clear_warning(ctx, None);
-            }
-        } else if node_id == self.bool_param.id() {
+        if node_id == self.bool_param.id() {
             if self.bool_param.get() {
                 self.bool_param.set_warning(ctx, "bool_param is true!");
             } else {
