@@ -220,15 +220,9 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
         self.node = NodeId(0);
     }
 
-    /// Returns the locally cached value.
-    pub fn get_ptr(&self) -> &T {
+    /// Returns a shared reference to the locally cached value.
+    pub fn get_ref(&self) -> &T {
         &self.cached
-    }
-
-    /// Returns a clone of the locally cached value.
-    /// This is the main getter for value types, as it allows returning owned values for non-`Copy` types.
-    pub fn get(&self) -> T {
-        self.cached.clone()
     }
 
     /// Returns the current change-check policy.
@@ -343,6 +337,13 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
         }
 
         ctx.patch_node_meta(self.node, patch);
+    }
+}
+
+impl<T: ParameterValueType + PartialEq + Copy> ParameterHandle<T> {
+    /// Returns the locally cached value by copy.
+    pub fn get(&self) -> T {
+        self.cached
     }
 }
 
@@ -594,7 +595,7 @@ mod tests {
 
         handle.set(&mut ctx, 0.75);
 
-        assert_eq!(*handle.get(), 0.75);
+        assert_eq!(handle.get(), 0.75);
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
             Edit::SetParam { node, value, behaviour } => {
@@ -626,7 +627,7 @@ mod tests {
         handle.set_node_id(NodeId(12));
         let ok = handle.apply_runtime_value(&ParamValue::Int(3));
         assert!(ok);
-        assert_eq!(*handle.get(), 3.0);
+        assert_eq!(handle.get(), 3.0);
     }
 
     #[test]

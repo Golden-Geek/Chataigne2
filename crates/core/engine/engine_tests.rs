@@ -256,7 +256,7 @@ struct StructDeclaredParamsNode {
 impl Node for StructDeclaredParamsNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.init_calls += 1;
-        self.init_observed_value = Some(*self.value.get());
+        self.init_observed_value = Some(self.value.get());
     }
 
     fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
@@ -277,7 +277,7 @@ struct ViaStructDeclaredParamsNode {
 impl Node for ViaStructDeclaredParamsNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.init_calls += 1;
-        self.init_observed_value = Some(*self.value.get());
+        self.init_observed_value = Some(self.value.get());
     }
 
     fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
@@ -532,7 +532,7 @@ impl Node for DslParamsNode {
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
         if param == self.feedback.id() {
             self.observed_feedback_old = Some(old_value);
-            self.observed_feedback_new = Some(*self.feedback.get());
+            self.observed_feedback_new = Some(self.feedback.get());
         }
     }
 }
@@ -552,7 +552,7 @@ impl Node for ManualInboxParamsNode {
         for event in &ctx.events {
             if let EventKind::ParamChanged { param, .. } = &event.kind {
                 if *param == self.value.id() {
-                    self.observed_inbox_value = Some(*self.value.get());
+                    self.observed_inbox_value = Some(self.value.get());
                 }
             }
         }
@@ -563,7 +563,7 @@ impl Node for ManualInboxParamsNode {
 impl Node for ParamsWithCustomInitNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.init_calls += 1;
-        self.init_observed_value = Some(*self.value.get());
+        self.init_observed_value = Some(self.value.get());
         self.init_observed_bound = self.value.is_bound();
         self.init_observed_id = Some(self.value.id());
     }
@@ -1186,7 +1186,7 @@ fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_eve
         panic!("expected DslParamsNode variant");
     };
 
-    assert!((*node.feedback.get() - 0.9).abs() < 1e-9, "bound handle should refresh from runtime parameter value before node callbacks",);
+    assert!((node.feedback.get() - 0.9).abs() < 1e-9, "bound handle should refresh from runtime parameter value before node callbacks",);
 }
 
 #[test]
