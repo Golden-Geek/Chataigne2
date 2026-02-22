@@ -83,10 +83,10 @@ pub struct UiParamDto {
     /// Presentation and editing hints.
     pub ui_hints: ParameterUiHints,
     /// Engine-computed selectable targets for reference parameters.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_allowed_targets: Vec<NodeId>,
     /// Engine-computed visible tree nodes for reference picker (targets + relevant ancestor paths).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_visible_nodes: Vec<NodeId>,
 }
 
@@ -103,6 +103,17 @@ impl From<ParameterSnapshot> for UiParamDto {
             reference_visible_nodes: Vec::new(),
         }
     }
+}
+
+/// UI payload for on-demand reference picker target resolution.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct UiReferenceTargetsDto {
+    /// Selectable targets for the requested reference parameter.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_targets: Vec<NodeId>,
+    /// Visible picker nodes (targets + path ancestors).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub visible_nodes: Vec<NodeId>,
 }
 
 /// UI-facing node data summary.
@@ -517,14 +528,9 @@ impl<T: Node> Engine<T> {
             }
 
             let data = if let Some(param) = node.engine_param_snapshot() {
-                let mut dto = UiParamDto::from(param);
-                if matches!(dto.value, ParamValue::Reference(_))
-                    && dto.constraints.reference.custom_filter_key.is_some()
-                {
-                    dto.reference_allowed_targets = self.reference_allowed_targets_for_param(node_id);
-                    dto.reference_visible_nodes = self.reference_visible_nodes_for_param(node_id);
+                UiNodeDataDto::Parameter {
+                    param: UiParamDto::from(param),
                 }
-                UiNodeDataDto::Parameter { param: dto }
             } else {
                 UiNodeDataDto::Node { node_type: node.get_type().to_string() }
             };
@@ -584,6 +590,21 @@ impl<T: Node> Engine<T> {
         let to = events.last().map(|event| event.time);
 
         UiEventBatch { from, to, events }
+    }
+
+    /// Resolves custom-filter reference picker targets for one parameter node.
+    ///
+    /// Returns empty vectors when the parameter has no custom filter or cannot be resolved.
+    pub fn ui_reference_targets_for_param(&self, param_node: NodeId) -> UiReferenceTargetsDto {
+        let constraints = self.reference_constraints_for_param(param_node);
+        if constraints.custom_filter_key.is_none() {
+            return UiReferenceTargetsDto::default();
+        }
+
+        UiReferenceTargetsDto {
+            allowed_targets: self.reference_allowed_targets_for_param(param_node),
+            visible_nodes: self.reference_visible_nodes_for_param(param_node),
+        }
     }
 
     /// Applies one UI edit intent and returns an acknowledgement payload.

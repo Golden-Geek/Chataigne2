@@ -8,7 +8,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::{Engine, EngineTime};
-use crate::node::Node;
+use crate::node::{Node, NodeId};
 use crate::ui_sync::{UI_PROTOCOL_VERSION, UiAck, UiEditIntent, UiEventBatch, UiEventDto, UiEventKind, UiSubscriptionScope};
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +68,11 @@ struct ReplayRequest {
     scope: UiSubscriptionScope,
     #[serde(default)]
     from: Option<EngineTime>,
+}
+
+#[derive(Deserialize)]
+struct ReferenceTargetsRequest {
+    param: NodeId,
 }
 
 struct HttpRequest {
@@ -530,6 +535,17 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             drop(guard);
 
             write_json(stream, "200 OK", &batch)?;
+        }
+        ("POST", "/api/ui/reference-targets") => {
+            let payload: ReferenceTargetsRequest = serde_json::from_slice(&request.body)
+                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid reference-targets payload: {err}")))?;
+            eprintln!("[ui-http] reference-targets param={:?}", payload.param);
+
+            let guard = lock_engine(&state.engine);
+            let targets = guard.ui_reference_targets_for_param(payload.param);
+            drop(guard);
+
+            write_json(stream, "200 OK", &targets)?;
         }
         ("POST", "/api/ui/intent") => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
