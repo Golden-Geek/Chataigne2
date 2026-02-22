@@ -72,7 +72,7 @@ impl Node for ModuleBase {
     folder(parameters, label = "Parameters", reuse = true) {
          trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()", read_only = true);
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
-        int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range");
+        int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range", can_be_disabled = true, enabled = false);
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter", read_only = true);
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = true);
