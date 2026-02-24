@@ -235,11 +235,11 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
             let mut window_builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
                 .title("Chataigne 2")
                 .decorations(false)
-                // .transparent(true)
+                .transparent(true)
                 .shadow(true)
                 .accept_first_mouse(true)
-                .inner_size(75.0 * 16.0, 50.0 * 16.0)
-                .background_color(Color(20, 20, 20, 255));
+                .inner_size(75.0 * 16.0, 50.0 * 16.0);
+                // .background_color(Color(20, 20, 20, 255));
 
             if cfg!(target_os = "windows") {
                 window_builder = window_builder.disable_drag_drop_handler();
