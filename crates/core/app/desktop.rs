@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::window::Color;
-use tauri::{Url, WebviewUrl};
+use tauri::{Manager, Url, WebviewUrl};
 
 use super::{UiServerConfig, run_app_with_config};
 use crate::engine::Engine;
@@ -49,12 +49,7 @@ fn parse_launch_args() -> std::io::Result<LaunchArgs> {
             "--no-remote" => args.no_remote = true,
             "--help" | "-h" => args.show_help = true,
             other => {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
-                    format!(
-                        "unknown argument '{other}'. supported flags: --headless, --no-remote, --help"
-                    ),
-                ));
+                return Err(Error::new(ErrorKind::InvalidInput, format!("unknown argument '{other}'. supported flags: --headless, --no-remote, --help")));
             }
         }
     }
@@ -64,10 +59,7 @@ fn parse_launch_args() -> std::io::Result<LaunchArgs> {
 
 fn print_usage() {
     let executable = std::env::args().next().unwrap_or_else(|| "app".to_string());
-    let program_name = Path::new(&executable)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("app");
+    let program_name = Path::new(&executable).file_name().and_then(|name| name.to_str()).unwrap_or("app");
 
     println!("Usage: {program_name} [--headless] [--no-remote]");
     println!("  --headless   Run without launching the Tauri desktop window.");
@@ -82,10 +74,7 @@ fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs) ->
         }
     }
 
-    let frontend_url = std::env::var("GC_UI_FRONTEND_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(detect_or_default_frontend_url);
+    let frontend_url = std::env::var("GC_UI_FRONTEND_URL").ok().filter(|value| !value.trim().is_empty()).unwrap_or_else(detect_or_default_frontend_url);
 
     if args.no_remote {
         config.bind_addr = force_loopback_bind_addr(&config.bind_addr);
@@ -105,9 +94,7 @@ fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs) ->
     match startup_rx.recv_timeout(Duration::from_millis(250)) {
         Ok(result) => return result,
         Err(RecvTimeoutError::Disconnected) => {
-            return Err(Error::other(
-                "ui server thread exited before startup completed",
-            ));
+            return Err(Error::other("ui server thread exited before startup completed"));
         }
         Err(RecvTimeoutError::Timeout) => {}
     }
@@ -116,9 +103,7 @@ fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs) ->
 
     if let Some(connect_addr) = url_connect_addr(&frontend_url) {
         if let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
-            eprintln!(
-                "warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing and launching Tauri anyway"
-            );
+            eprintln!("warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing and launching Tauri anyway");
         }
     }
 
@@ -149,9 +134,7 @@ fn resolve_ui_endpoint(bind_addr: &str) -> UiEndpoint {
         return UiEndpoint { connect_addr };
     }
 
-    UiEndpoint {
-        connect_addr: bind_addr.to_string(),
-    }
+    UiEndpoint { connect_addr: bind_addr.to_string() }
 }
 
 fn wait_for_ui_server(connect_addr: &str, timeout: Duration) -> std::io::Result<()> {
@@ -170,13 +153,7 @@ fn wait_for_ui_server(connect_addr: &str, timeout: Duration) -> std::io::Result<
     }
 
     let details = last_error.map(|err| format!(": {err}")).unwrap_or_default();
-    Err(Error::new(
-        ErrorKind::TimedOut,
-        format!(
-            "ui server did not become reachable at {connect_addr} within {}ms{details}",
-            timeout.as_millis()
-        ),
-    ))
+    Err(Error::new(ErrorKind::TimedOut, format!("ui server did not become reachable at {connect_addr} within {}ms{details}", timeout.as_millis())))
 }
 
 fn url_connect_addr(url: &str) -> Option<String> {
@@ -185,11 +162,7 @@ fn url_connect_addr(url: &str) -> Option<String> {
 
     let port = parsed.port_or_known_default()?;
 
-    let host = if host.contains(':') {
-        format!("[{host}]")
-    } else {
-        host.to_string()
-    };
+    let host = if host.contains(':') { format!("[{host}]") } else { host.to_string() };
 
     Some(format!("{host}:{port}"))
 }
@@ -214,11 +187,7 @@ fn window_minimize(window: tauri::Window) -> Result<(), String> {
 #[tauri::command]
 fn window_toggle_maximize(window: tauri::Window) -> Result<(), String> {
     let is_maximized = window.is_maximized().map_err(|err| err.to_string())?;
-    if is_maximized {
-        window.unmaximize().map_err(|err| err.to_string())
-    } else {
-        window.maximize().map_err(|err| err.to_string())
-    }
+    if is_maximized { window.unmaximize().map_err(|err| err.to_string()) } else { window.maximize().map_err(|err| err.to_string()) }
 }
 
 #[tauri::command]
@@ -231,49 +200,62 @@ fn window_is_maximized(window: tauri::Window) -> Result<bool, String> {
     window.is_maximized().map_err(|err| err.to_string())
 }
 
+#[tauri::command]
+fn start_drag(window: tauri::Window) -> Result<(), String> {
+    println!("Start drag");
+    window.start_dragging().map_err(|err| err.to_string())
+}
+
 fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
-    let external_url: Url = ui_base_url.parse().map_err(|err| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!("invalid UI URL '{ui_base_url}': {err}"),
-        )
-    })?;
+    let external_url: Url = ui_base_url.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, format!("invalid UI URL '{ui_base_url}': {err}")))?;
 
     // WebView2 currently has drag/drop issues with transparent frameless windows.
     // Keep transparency on non-Windows platforms, but disable it on Windows so
     // in-app DnD (Dockview tabs/panels) remains reliable.
-    // let transparent_window = cfg!(target_os = "windows");
 
+    #[cfg(target_os = "linux") ]
+    {
+        unsafe {
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        }
+    }
+
+    let os = if cfg!(target_os = "windows") { "windows" }
+             else if cfg!(target_os = "linux") { "linux" }
+             else { "macos" };
+
+    // This is the "Tauri 2.0/1.x" way to inject script BEFORE the page loads
+    let init_script = format!(
+        "window.__PLATFORM__ = '{}'; document.documentElement.dataset.platform = '{}';", 
+        os, os
+    );
+    
     tauri::Builder::default()
         .setup(move |app| {
-            let mut window_builder = tauri::WebviewWindowBuilder::new(
-                app,
-                "main",
-                WebviewUrl::External(external_url.clone()),
-            )
-            .title("Chataigne 2")
-            .decorations(false)
-            .transparent(false)
-            .shadow(true)
-            .accept_first_mouse(true)
-            .inner_size(75.0 * 16.0, 50.0 * 16.0)
-            .background_color(Color(20,20,20,255));
+            let mut window_builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
+                .title("Chataigne 2")
+                .decorations(false)
+                // .transparent(true)
+                .shadow(true)
+                .accept_first_mouse(true)
+                .inner_size(75.0 * 16.0, 50.0 * 16.0)
+                .background_color(Color(20, 20, 20, 255));
 
             if cfg!(target_os = "windows") {
                 window_builder = window_builder.disable_drag_drop_handler();
             }
+            
 
-            window_builder
-            .build()
-            .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
+            
+
+            window_builder.build().map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
+
+           let window = app.get_webview_window("main").unwrap();
+
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            window_minimize,
-            window_toggle_maximize,
-            window_close,
-            window_is_maximized
-        ])
+        .invoke_handler(tauri::generate_handler![window_minimize, window_toggle_maximize, window_close, window_is_maximized, start_drag])
+        .append_invoke_initialization_script(&init_script)
         .run(tauri::generate_context!("../../../../tauri.conf.json"))
         .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))
 }
