@@ -213,44 +213,41 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
     // Keep transparency on non-Windows platforms, but disable it on Windows so
     // in-app DnD (Dockview tabs/panels) remains reliable.
 
-    #[cfg(target_os = "linux") ]
+    #[cfg(target_os = "linux")]
     {
         unsafe {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
     }
 
-    let os = if cfg!(target_os = "windows") { "windows" }
-             else if cfg!(target_os = "linux") { "linux" }
-             else { "macos" };
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        "macos"
+    };
 
     // This is the "Tauri 2.0/1.x" way to inject script BEFORE the page loads
-    let init_script = format!(
-        "window.__PLATFORM__ = '{}'; document.documentElement.dataset.platform = '{}';", 
-        os, os
-    );
-    
+    let init_script = format!("window.__PLATFORM__ = '{}'; document.documentElement.dataset.platform = '{}';", os, os);
+
     tauri::Builder::default()
         .setup(move |app| {
             let mut window_builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
                 .title("Chataigne 2")
                 .decorations(false)
-                .transparent(true)
                 .shadow(true)
                 .accept_first_mouse(true)
                 .inner_size(75.0 * 16.0, 50.0 * 16.0);
-                // .background_color(Color(20, 20, 20, 255));
 
             if cfg!(target_os = "windows") {
-                window_builder = window_builder.disable_drag_drop_handler();
+                window_builder = window_builder.disable_drag_drop_handler().background_color(Color(20, 20, 20, 255));
+            }else
+            {
+                window_builder = window_builder.transparent(true);
             }
-            
-
-            
 
             window_builder.build().map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
-
-           let window = app.get_webview_window("main").unwrap();
 
             Ok(())
         })
