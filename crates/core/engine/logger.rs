@@ -149,10 +149,7 @@ pub fn log_parts(level: LogLevel, tag: String, origin: Option<NodeId>, parts: Ve
 /// Pushes one logger message.
 pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message: String) -> LogRecord {
     let resolved_origin = origin.or_else(current_node_origin);
-    let timestamp_ms = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0);
+    let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_millis() as u64).unwrap_or(0);
 
     let mut state = lock_logger_state();
     let record = LogRecord {

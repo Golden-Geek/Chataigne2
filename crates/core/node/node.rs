@@ -42,10 +42,14 @@ impl Default for NodeUuid {
 ///
 /// The UUID is the source of truth and persists on disk.
 /// The cached runtime id is optional and never serialized.
+/// A cached display name is persisted to keep dangling references user-readable.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NodeReference {
     /// Persistent target identity.
     pub uuid: NodeUuid,
+    /// Cached user-facing target name used when the reference is currently unresolved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_name: Option<String>,
     /// Best-effort runtime cache for faster lookups.
     #[serde(skip, default)]
     pub cached_id: Option<NodeId>,
@@ -61,6 +65,7 @@ impl NodeReference {
     pub fn new(uuid: NodeUuid) -> Self {
         Self {
             uuid,
+            cached_name: None,
             cached_id: None,
             relative_path_from_root: Vec::new(),
         }
@@ -75,6 +80,7 @@ impl NodeReference {
     pub fn with_cached_id(uuid: NodeUuid, cached_id: Option<NodeId>) -> Self {
         Self {
             uuid,
+            cached_name: None,
             cached_id,
             relative_path_from_root: Vec::new(),
         }
@@ -84,6 +90,7 @@ impl NodeReference {
     pub fn with_hints(uuid: NodeUuid, cached_id: Option<NodeId>, relative_path_from_root: Vec<String>) -> Self {
         Self {
             uuid,
+            cached_name: None,
             cached_id,
             relative_path_from_root,
         }
@@ -107,6 +114,21 @@ impl NodeReference {
     /// Clears the cached runtime id.
     pub fn clear_cached_id(&mut self) {
         self.cached_id = None;
+    }
+
+    /// Returns the cached user-facing target name, when available.
+    pub fn cached_name(&self) -> Option<&str> {
+        self.cached_name.as_deref()
+    }
+
+    /// Replaces the cached user-facing target name.
+    pub fn set_cached_name(&mut self, cached_name: Option<String>) {
+        self.cached_name = cached_name.filter(|name| !name.trim().is_empty());
+    }
+
+    /// Clears the cached user-facing target name.
+    pub fn clear_cached_name(&mut self) {
+        self.cached_name = None;
     }
 
     /// Returns the relative path from resolved root to target.
@@ -947,14 +969,7 @@ pub trait Node: Send + Any {
     /// Sets or replaces a warning on any `target` node.
     ///
     /// This is useful when a child node wants to surface problems on a parent.
-    fn set_warning_for_node_with(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        target: NodeId,
-        warning_id: Option<&str>,
-        message: &str,
-        detail: Option<&str>,
-    ) {
+    fn set_warning_for_node_with(&mut self, ctx: &mut ProcessCtx, target: NodeId, warning_id: Option<&str>, message: &str, detail: Option<&str>) {
         ctx.set_node_warning_with(target, warning_id, message, detail);
     }
 

@@ -74,9 +74,6 @@ impl ProcessCtx {
         self.edits.push(Edit::SetParam { node, value, behaviour });
     }
 
-
-  
-
     /// Sets or replaces the default warning on `node`.
     pub fn set_node_warning(&mut self, node: NodeId, message: impl Into<String>) {
         self.set_node_warning_with(node, None, message, None);
@@ -86,7 +83,6 @@ impl ProcessCtx {
     ///
     /// `warning_id = None` uses the default empty warning id.
     pub fn set_node_warning_with(&mut self, node: NodeId, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
-
         self.edits.push(Edit::SetNodeWarning {
             node,
             warning: NodeWarning {
@@ -101,7 +97,6 @@ impl ProcessCtx {
     ///
     /// `warning_id = None` clears all warnings on `node`.
     pub fn clear_node_warning(&mut self, node: NodeId, warning_id: Option<&str>) {
-
         self.edits.push(Edit::ClearNodeWarning { node, warning_id: warning_id.map(str::to_string) });
     }
 

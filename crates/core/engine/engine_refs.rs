@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeUuid};
-use crate::parameter::{ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
+use crate::parameter::{ParamValue, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
 
 use super::Engine;
+
+pub(crate) const MISSING_REFERENCE_WARNING_ID: &str = "missing-reference";
 
 impl<T: Node> Engine<T> {
     /// Builds a runtime lookup map from persistent UUID to current node id.
@@ -21,17 +24,23 @@ impl<T: Node> Engine<T> {
     ///
     /// Returns how many cached entries were updated.
     pub fn resolve_reference_caches(&mut self) -> usize {
-        let uuid_map = self.uuid_to_node_id_map();
+        let uuid_map: HashMap<NodeUuid, (NodeId, String)> = self.nodes.iter().map(|(id, node)| (node.node_data().meta.uuid, (id, node.node_data().meta.label.clone()))).collect();
         let node_ids: Vec<NodeId> = self.nodes.keys().collect();
         let mut updated = 0usize;
 
         for node_id in node_ids {
             if let Some(node) = self.nodes.get_mut(node_id) {
                 node.engine_visit_references_mut(&mut |reference| {
-                    let resolved = uuid_map.get(&reference.uuid()).copied();
+                    let resolved = uuid_map.get(&reference.uuid()).map(|(id, _)| *id);
                     if reference.cached_id() != resolved {
                         updated += 1;
                         reference.set_cached_id(resolved);
+                    }
+                    if let Some((_, cached_name)) = uuid_map.get(&reference.uuid()) {
+                        if reference.cached_name() != Some(cached_name.as_str()) {
+                            updated += 1;
+                            reference.set_cached_name(Some(cached_name.clone()));
+                        }
                     }
                 });
             }
@@ -61,7 +70,75 @@ impl<T: Node> Engine<T> {
         cleared
     }
 
+    pub(crate) fn sync_missing_reference_warnings(&mut self) -> usize {
+        self.sync_missing_reference_warnings_impl(true)
+    }
+
+    pub(crate) fn sync_missing_reference_warnings_silent(&mut self) -> usize {
+        self.sync_missing_reference_warnings_impl(false)
+    }
+
+    fn sync_missing_reference_warnings_impl(&mut self, emit_events: bool) -> usize {
+        self.resolve_reference_caches();
+        let uuid_map = self.uuid_to_node_id_map();
+        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        let mut pending: Vec<(NodeId, crate::node::PresentationHint)> = Vec::new();
+
+        for node_id in node_ids {
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+            let Some(snapshot) = node.engine_param_snapshot() else {
+                continue;
+            };
+
+            let mut next_presentation = node.node_data().meta.presentation.clone();
+            match snapshot.value {
+                ParamValue::Reference(reference) if !reference.uuid().is_nil() && !uuid_map.contains_key(&reference.uuid()) => {
+                    let detail = reference.cached_name().map(|name| format!("Target '{name}' is missing")).unwrap_or_else(|| format!("Target UUID {} is missing", reference.uuid().0));
+                    next_presentation.set_warning(crate::node::NodeWarning {
+                        id: MISSING_REFERENCE_WARNING_ID.to_string(),
+                        message: "Missing reference".to_string(),
+                        detail: Some(detail),
+                    });
+                }
+                _ => {
+                    next_presentation.clear_warning(Some(MISSING_REFERENCE_WARNING_ID));
+                }
+            }
+
+            if next_presentation != node.node_data().meta.presentation {
+                pending.push((node_id, next_presentation));
+            }
+        }
+
+        for (node_id, presentation) in pending.iter() {
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().meta.presentation = presentation.clone();
+            }
+
+            if emit_events {
+                self.emit_event(EventKind::MetaChanged {
+                    node: *node_id,
+                    patch: crate::node::NodeMetaPatch {
+                        presentation: Some(presentation.clone()),
+                        ..Default::default()
+                    },
+                });
+            }
+        }
+
+        pending.len()
+    }
+
     pub(crate) fn normalize_reference_value_for_param(&self, param_node: NodeId, mut reference: crate::node::NodeReference) -> Result<crate::node::NodeReference, String> {
+        if reference.uuid().is_nil() && reference.relative_path_from_root().is_empty() {
+            reference.clear_cached_id();
+            reference.clear_relative_path_from_root();
+            reference.clear_cached_name();
+            return Ok(reference);
+        }
+
         let constraints = self.reference_constraints_for_param(param_node);
         let root = self.resolve_reference_root(param_node, &constraints).ok_or_else(|| "reference root could not be resolved".to_string())?;
 
@@ -109,6 +186,7 @@ impl<T: Node> Engine<T> {
         reference.set_cached_id(Some(target));
         if let Some(target_node) = self.nodes.get(target) {
             reference.uuid = target_node.node_data().meta.uuid;
+            reference.set_cached_name(Some(target_node.node_data().meta.label.clone()));
         }
         if let Some(path) = self.relative_decl_path_from_root(root, target) {
             reference.set_relative_path_from_root(path);
@@ -139,10 +217,7 @@ impl<T: Node> Engine<T> {
             let mut found = None;
 
             while let Some(child_id) = child {
-                let matches = self
-                    .nodes
-                    .get(child_id)
-                    .is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
+                let matches = self.nodes.get(child_id).is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
                 if matches {
                     found = Some(child_id);
                     break;
@@ -188,13 +263,7 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    pub(crate) fn reference_candidate_allowed(
-        &self,
-        param_node: NodeId,
-        root: NodeId,
-        candidate: NodeId,
-        constraints: &ReferenceConstraints,
-    ) -> Result<bool, String> {
+    pub(crate) fn reference_candidate_allowed(&self, param_node: NodeId, root: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Result<bool, String> {
         if !self.nodes.contains(candidate) {
             return Ok(false);
         }

@@ -111,9 +111,7 @@ impl ProjectNodeMeta {
     fn into_runtime(self, uuid: NodeUuid) -> NodeMeta {
         let mut user_permissions = self.user_permissions;
         // Backward compatibility for persisted projects that predate explicit permission fields.
-        if user_permissions == NodeUserPermissions::default()
-            && self.tags.iter().any(|tag| tag == "is_user_made")
-        {
+        if user_permissions == NodeUserPermissions::default() && self.tags.iter().any(|tag| tag == "is_user_made") {
             user_permissions = NodeUserPermissions::all();
         }
 
@@ -263,6 +261,7 @@ impl<T: Node> Engine<T> {
 
         // Rebuild runtime caches for UUID-based references after full tree reconstruction.
         engine.resolve_reference_caches();
+        engine.sync_missing_reference_warnings_silent();
 
         // Freshly loaded projects should start with no pending edits/history/events.
         engine.inbox.clear();

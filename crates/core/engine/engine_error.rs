@@ -214,12 +214,7 @@ impl fmt::Display for EngineEditError {
                 item_type,
                 item_kind,
             } => write!(f, "edit #{edit_index} ({operation}) rejected item type '{}' kind '{}' for container {:?} ('{}')", item_type, item_kind, container, container_type),
-            Self::UserItemTypeUnavailable {
-                edit_index,
-                operation,
-                parent,
-                node_type,
-            } => write!(f, "edit #{edit_index} ({operation}) cannot create item type '{}' under parent {:?}", node_type, parent),
+            Self::UserItemTypeUnavailable { edit_index, operation, parent, node_type } => write!(f, "edit #{edit_index} ({operation}) cannot create item type '{}' under parent {:?}", node_type, parent),
         }
     }
 }

@@ -36,6 +36,7 @@ impl<T: Node> Engine<T> {
 
         let mut transaction = HistoryTransaction::new();
         let mut redo_cleared = false;
+        let mut missing_reference_warning_dirty = false;
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
             let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request.edit {
@@ -78,32 +79,39 @@ impl<T: Node> Engine<T> {
                     }
                 }
                 Edit::SetParam { node, value, behaviour } => {
+                    missing_reference_warning_dirty = true;
                     let mut effect = self.apply_set_param(edit_index, node, value)?;
                     effect.behaviour = behaviour;
                     effect.tick = self.time.tick;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddUserItem { node, parent, prev_sibling } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::ReplaceNode { node, new_node } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_replace_node(edit_index, node, new_node)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::RemoveNode { node } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_remove_node(edit_index, node)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::MoveNode { node, new_parent, new_prev_sibling } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::PatchMeta { node, patch } => {
+                    missing_reference_warning_dirty = true;
                     let effect = self.apply_patch_meta(edit_index, node, patch)?;
                     (Ok(Some(effect.into())), true)
                 }
@@ -168,6 +176,9 @@ impl<T: Node> Engine<T> {
 
         if capture_history && !transaction.is_empty() {
             self.push_undo_transaction(transaction);
+        }
+        if missing_reference_warning_dirty {
+            self.sync_missing_reference_warnings();
         }
 
         Ok(())

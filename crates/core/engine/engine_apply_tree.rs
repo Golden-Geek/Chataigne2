@@ -228,32 +228,14 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    fn default_user_permissions_for_new_node(
-        &self,
-        node: &T,
-        parent: NodeId,
-        user_role: UserNodeRole,
-    ) -> NodeUserPermissions {
-        let mut permissions = if node
-            .node_data()
-            .meta
-            .tags
-            .iter()
-            .any(|tag| tag == "is_user_made" || tag == "name_changeable")
-        {
+    fn default_user_permissions_for_new_node(&self, node: &T, parent: NodeId, user_role: UserNodeRole) -> NodeUserPermissions {
+        let mut permissions = if node.node_data().meta.tags.iter().any(|tag| tag == "is_user_made" || tag == "name_changeable") {
             NodeUserPermissions::all()
         } else {
             let is_managed_item = user_role == UserNodeRole::ItemRoot;
-            let is_folder_under_manager =
-                node.get_type() == "folder"
-                    && self.nearest_container_ancestor(parent).is_some()
-                    && !self.has_item_root_ancestor(parent);
+            let is_folder_under_manager = node.get_type() == "folder" && self.nearest_container_ancestor(parent).is_some() && !self.has_item_root_ancestor(parent);
 
-            if is_managed_item || is_folder_under_manager {
-                NodeUserPermissions::all()
-            } else {
-                NodeUserPermissions::default()
-            }
+            if is_managed_item || is_folder_under_manager { NodeUserPermissions::all() } else { NodeUserPermissions::default() }
         };
 
         if node.is_declared_user_item() {
@@ -349,8 +331,7 @@ impl<T: Node> Engine<T> {
         }
 
         let mut node = self.coerce_node_for_engine(edit_index, operation, node)?;
-        let inferred_permissions =
-            self.default_user_permissions_for_new_node(&node, parent, user_role);
+        let inferred_permissions = self.default_user_permissions_for_new_node(&node, parent, user_role);
 
         if validate_as_user_item {
             let container = self.nearest_container_ancestor(parent).ok_or(EngineEditError::UserItemContainerRequired { edit_index, operation, parent })?;

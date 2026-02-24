@@ -51,16 +51,9 @@ impl<T: Node> GoldenApp<T> {
 }
 
 /// Boots an engine and starts the UI/API runtime with explicit server config.
-pub fn run_app_with_config<T: Node + 'static>(
-    mut engine: Engine<T>,
-    config: UiServerConfig,
-) -> std::io::Result<()> {
-    engine
-        .apply_edits()
-        .map_err(|err| Error::new(ErrorKind::Other, format!("initial apply_edits failed: {err}")))?;
-    engine
-        .resolve_if_needed()
-        .map_err(|err| Error::new(ErrorKind::Other, format!("initial resolve failed: {err}")))?;
+pub fn run_app_with_config<T: Node + 'static>(mut engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
+    engine.apply_edits().map_err(|err| Error::new(ErrorKind::Other, format!("initial apply_edits failed: {err}")))?;
+    engine.resolve_if_needed().map_err(|err| Error::new(ErrorKind::Other, format!("initial resolve failed: {err}")))?;
     engine.clear_history(); // keep runtime undo history strictly post-start
 
     let shared_engine = Arc::new(Mutex::new(engine));

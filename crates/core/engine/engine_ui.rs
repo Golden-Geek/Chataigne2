@@ -36,12 +36,7 @@ impl<T: Node> Engine<T> {
         self.ui_event_log.clear();
     }
 
-    pub(crate) fn push_ui_custom_event(
-        &mut self,
-        topic: impl Into<String>,
-        origin: Option<crate::node::NodeId>,
-        payload: serde_json::Value,
-    ) {
+    pub(crate) fn push_ui_custom_event(&mut self, topic: impl Into<String>, origin: Option<crate::node::NodeId>, payload: serde_json::Value) {
         let event = Event {
             time: self.time,
             kind: EventKind::Custom(CustomEvent::new(topic, origin, payload)),

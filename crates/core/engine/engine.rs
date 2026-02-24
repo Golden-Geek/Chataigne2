@@ -136,7 +136,7 @@ impl<T: Node> Engine<T> {
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
         let (external_edits_tx, external_edits_rx) = mpsc::channel();
 
-        Self {
+        let mut engine = Self {
             nodes,
             root,
             time: EngineTime { tick: 0, micro: 0, seq: 0 },
@@ -156,7 +156,9 @@ impl<T: Node> Engine<T> {
             runtime_limits: engine_runtime::RuntimeLimits::default(),
             runtime_elapsed: Duration::ZERO,
             last_update_elapsed_by_node,
-        }
+        };
+        engine.sync_missing_reference_warnings_silent();
+        engine
     }
 
     /// Queues insertion of a node under `parent` (or root when `None`).
@@ -210,33 +212,20 @@ impl<T: Node> Engine<T> {
     /// Sets or replaces one warning by id on `node`.
     ///
     /// `warning_id = None` uses the default empty warning id.
-    pub fn set_node_warning_with(
-        &mut self,
-        node: NodeId,
-        warning_id: Option<&str>,
-        message: impl Into<String>,
-        detail: Option<&str>,
-    ) {
+    pub fn set_node_warning_with(&mut self, node: NodeId, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
         let warning = NodeWarning {
             id: warning_id.unwrap_or_default().to_string(),
             message: message.into(),
             detail: detail.map(str::to_string),
         };
 
-        if let Some(existing_warning) = self
-            .nodes
-            .get(node)
-            .and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str())))
-        {
+        if let Some(existing_warning) = self.nodes.get(node).and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str()))) {
             if existing_warning == &warning {
                 return;
             }
         }
 
-        self.edits.push(Edit::SetNodeWarning {
-            node,
-            warning,
-        });
+        self.edits.push(Edit::SetNodeWarning { node, warning });
     }
 
     /// Clears one warning by id on `node`.
@@ -254,10 +243,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.edits.push(Edit::ClearNodeWarning {
-            node,
-            warning_id: warning_id.map(str::to_string),
-        });
+        self.edits.push(Edit::ClearNodeWarning { node, warning_id: warning_id.map(str::to_string) });
     }
 
     /// Clears all warnings on `node`.
@@ -366,11 +352,7 @@ impl<T: Node> Engine<T> {
                     validated_edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
                 }
                 Edit::SetNodeWarning { node, warning } => {
-                    let Some(current_presentation) = staged_presentations
-                        .get(&node)
-                        .cloned()
-                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
-                    else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
                         validated_edits.push(Edit::SetNodeWarning { node, warning });
                         continue;
                     };
@@ -385,11 +367,7 @@ impl<T: Node> Engine<T> {
                     validated_edits.push(Edit::SetNodeWarning { node, warning });
                 }
                 Edit::ClearNodeWarning { node, warning_id } => {
-                    let Some(current_presentation) = staged_presentations
-                        .get(&node)
-                        .cloned()
-                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
-                    else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
                         validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
                         continue;
                     };
@@ -407,11 +385,7 @@ impl<T: Node> Engine<T> {
                     validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
                 }
                 Edit::SetNodeChildWarningDepth { node, max_depth } => {
-                    let Some(current_presentation) = staged_presentations
-                        .get(&node)
-                        .cloned()
-                        .or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone()))
-                    else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
                         validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
                         continue;
                     };

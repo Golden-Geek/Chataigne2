@@ -170,16 +170,9 @@ enum WsIncomingFrame {
 }
 
 /// Runs the built-in UI server and runtime loop for a shared engine.
-pub fn run_ui_server<T: Node + 'static>(
-    engine: Arc<Mutex<Engine<T>>>,
-    config: UiServerConfig,
-) -> std::io::Result<()> {
+pub fn run_ui_server<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig) -> std::io::Result<()> {
     spawn_runtime_loop(engine.clone(), config.tick_interval);
-    let ws_hub = spawn_ws_hub(
-        engine.clone(),
-        config.tick_interval.max(WS_RETRY_INTERVAL),
-        make_server_session_id(),
-    );
+    let ws_hub = spawn_ws_hub(engine.clone(), config.tick_interval.max(WS_RETRY_INTERVAL), make_server_session_id());
 
     let listener = TcpListener::bind(&config.bind_addr)?;
     println!("UI API listening on http://{}", config.bind_addr);
@@ -232,22 +225,13 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
     });
 }
 
-fn spawn_ws_hub<T: Node + 'static>(
-    engine: Arc<Mutex<Engine<T>>>,
-    dispatch_interval: Duration,
-    session_id: String,
-) -> WsHubHandle {
+fn spawn_ws_hub<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, dispatch_interval: Duration, session_id: String) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
     thread::spawn(move || ws_hub_loop(engine, cmd_rx, dispatch_interval, session_id));
     WsHubHandle { cmd_tx }
 }
 
-fn ws_hub_loop<T: Node>(
-    engine: Arc<Mutex<Engine<T>>>,
-    cmd_rx: Receiver<WsHubCommand>,
-    dispatch_interval: Duration,
-    session_id: String,
-) {
+fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
 
@@ -266,13 +250,7 @@ fn ws_hub_loop<T: Node>(
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: Node>(
-    engine: &Arc<Mutex<Engine<T>>>,
-    clients: &mut HashMap<u64, WsClientState>,
-    origins: &mut HashMap<EngineTime, WsEventOrigin>,
-    command: WsHubCommand,
-    session_id: &str,
-) {
+fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut HashMap<u64, WsClientState>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
             clients.insert(client_id, WsClientState { outbound, subscriptions: HashMap::new() });
@@ -436,10 +414,7 @@ fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, mes
 }
 
 fn make_server_session_id() -> String {
-    let epoch_nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
+    let epoch_nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_nanos()).unwrap_or(0);
     format!("{}-{epoch_nanos}", std::process::id())
 }
 
@@ -537,8 +512,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             write_json(stream, "200 OK", &batch)?;
         }
         ("POST", "/api/ui/reference-targets") => {
-            let payload: ReferenceTargetsRequest = serde_json::from_slice(&request.body)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid reference-targets payload: {err}")))?;
+            let payload: ReferenceTargetsRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid reference-targets payload: {err}")))?;
             eprintln!("[ui-http] reference-targets param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);
@@ -938,10 +912,7 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
         let read = stream.read(&mut temp)?;
         if read == 0 {
             if buffer.is_empty() {
-                return Err(Error::new(
-                    ErrorKind::UnexpectedEof,
-                    "peer disconnected before sending a request",
-                ));
+                return Err(Error::new(ErrorKind::UnexpectedEof, "peer disconnected before sending a request"));
             }
             break;
         }
@@ -1051,12 +1022,5 @@ fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body
 }
 
 fn is_client_disconnect_error(err: &Error) -> bool {
-    matches!(
-        err.kind(),
-        ErrorKind::UnexpectedEof
-            | ErrorKind::ConnectionReset
-            | ErrorKind::ConnectionAborted
-            | ErrorKind::BrokenPipe
-            | ErrorKind::NotConnected
-    )
+    matches!(err.kind(), ErrorKind::UnexpectedEof | ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted | ErrorKind::BrokenPipe | ErrorKind::NotConnected)
 }

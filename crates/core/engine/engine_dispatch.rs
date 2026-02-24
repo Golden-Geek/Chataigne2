@@ -84,17 +84,8 @@ impl<T: Node> Engine<T> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, true)
     }
 
-    fn dispatch_precomputed_inbox_internal(
-        &mut self,
-        phase: ExecutionPhase,
-        per_node_events: Vec<(NodeId, Vec<Event>)>,
-        run_app_callbacks: bool,
-    ) -> Result<(), EngineEditError> {
-        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self
-            .nodes
-            .iter()
-            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
-            .collect();
+    fn dispatch_precomputed_inbox_internal(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>, run_app_callbacks: bool) -> Result<(), EngineEditError> {
+        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect();
 
         for (node_id, events) in per_node_events {
             if events.is_empty() {
@@ -194,11 +185,7 @@ impl<T: Node> Engine<T> {
                 break;
             };
             let next_depth = depth.saturating_add(1);
-            let parent_is_interested = self
-                .nodes
-                .get(parent)
-                .map(|parent| parent.child_event_interest_depth(event).max(parent.engine_child_event_interest_depth(event)) >= next_depth)
-                .unwrap_or(false);
+            let parent_is_interested = self.nodes.get(parent).map(|parent| parent.child_event_interest_depth(event).max(parent.engine_child_event_interest_depth(event)) >= next_depth).unwrap_or(false);
 
             if remaining_bubble == 0 && !parent_is_interested {
                 break;

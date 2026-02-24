@@ -474,7 +474,7 @@ macro_rules! define_node_enum {
             }
         }
 
-        
+
         $(
             impl From<$node_ty> for $enum_name {
                 fn from(node: $node_ty) -> Self {

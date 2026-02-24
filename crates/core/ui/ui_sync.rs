@@ -535,9 +535,7 @@ impl<T: Node> Engine<T> {
             }
 
             let data = if let Some(param) = node.engine_param_snapshot() {
-                UiNodeDataDto::Parameter {
-                    param: UiParamDto::from(param),
-                }
+                UiNodeDataDto::Parameter { param: UiParamDto::from(param) }
             } else {
                 UiNodeDataDto::Node { node_type: node.get_type().to_string() }
             };

@@ -6,10 +6,7 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
-use crate::parameter::{
-    ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, ReferenceConstraints,
-    ReferenceRoot, ReferenceTargetKind,
-};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
 
@@ -1690,6 +1687,7 @@ fn project_roundtrip_restores_reference_uuid_and_cached_runtime_id() {
         ParamValue::Reference(reference) => {
             assert_eq!(reference.uuid(), loaded_target_uuid);
             assert_eq!(reference.cached_id(), Some(loaded_target));
+            assert_eq!(reference.cached_name(), Some("target"));
         }
         other => panic!("expected reference value after load, got {:?}", other),
     }
@@ -1698,7 +1696,9 @@ fn project_roundtrip_restores_reference_uuid_and_cached_runtime_id() {
 #[test]
 fn project_roundtrip_keeps_dangling_reference_uuid_with_empty_cache() {
     let dangling_uuid = NodeUuid(Uuid::new_v4());
-    let root = Parameter::new("root", ParamValue::Reference(NodeReference::new(dangling_uuid)), ParameterChangeCheck::None);
+    let mut dangling_reference = NodeReference::new(dangling_uuid);
+    dangling_reference.set_cached_name(Some("missing_target".to_string()));
+    let root = Parameter::new("root", ParamValue::Reference(dangling_reference), ParameterChangeCheck::None);
     let engine = Engine::new(root);
 
     let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
@@ -1709,6 +1709,10 @@ fn project_roundtrip_keeps_dangling_reference_uuid_with_empty_cache() {
         ParamValue::Reference(reference) => {
             assert_eq!(reference.uuid(), dangling_uuid);
             assert_eq!(reference.cached_id(), None);
+            assert_eq!(reference.cached_name(), Some("missing_target"));
+            let warning = loaded_root.node_data().meta.presentation.warning(Some("missing-reference")).expect("dangling reference should surface missing-reference warning");
+            assert_eq!(warning.message, "Missing reference");
+            assert_eq!(warning.detail.as_deref(), Some("Target 'missing_target' is missing"));
         }
         other => panic!("expected dangling reference value, got {:?}", other),
     }
@@ -1755,8 +1759,57 @@ fn project_load_save_load_roundtrip_is_stable() {
         ParamValue::Reference(reference) => {
             assert_eq!(reference.uuid(), loaded2.nodes.get(loaded2_target).expect("loaded2 target should exist").node_data().meta.uuid);
             assert_eq!(reference.cached_id(), Some(loaded2_target));
+            assert_eq!(reference.cached_name(), Some("target"));
         }
         other => panic!("expected loaded2 reference value, got {:?}", other),
+    }
+}
+
+#[test]
+fn project_roundtrip_keeps_cached_reference_name_when_target_is_missing() {
+    let root = Parameter::new("root", ParamValue::Int(10), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None), None);
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))), ParameterChangeCheck::None), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let target = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("target child should exist");
+    let target_ref = engine.nodes.get(target).and_then(|node| node.node_data().next_sibling).expect("reference child should exist");
+    let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    engine.edits.push(Edit::RemoveNode { node: target });
+    engine.apply_edits().expect("target removal should succeed");
+
+    let json = engine.to_project_json_with(encode_parameter_node).expect("project serialization should succeed");
+    let loaded = Engine::<Parameter>::from_project_json_with(&json, decode_parameter_node).expect("project load should succeed");
+    let loaded_ref = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("loaded reference child should exist");
+
+    match &loaded.nodes.get(loaded_ref).expect("loaded reference node should exist").value {
+        ParamValue::Reference(reference) => {
+            assert_eq!(reference.uuid(), target_uuid);
+            assert_eq!(reference.cached_id(), None);
+            assert_eq!(reference.cached_name(), Some("target"));
+            let warning = loaded
+                .nodes
+                .get(loaded_ref)
+                .expect("loaded reference node should exist")
+                .node_data()
+                .meta
+                .presentation
+                .warning(Some("missing-reference"))
+                .expect("missing reference should surface warning");
+            assert_eq!(warning.message, "Missing reference");
+            assert_eq!(warning.detail.as_deref(), Some("Target 'target' is missing"));
+        }
+        other => panic!("expected reference value after load, got {:?}", other),
     }
 }
 
@@ -1778,11 +1831,7 @@ fn set_param_reference_recovers_target_from_relative_path_and_updates_hints() {
 
     engine.edits.push(Edit::SetParam {
         node: target_ref,
-        value: ParamValue::Reference(NodeReference::with_hints(
-            NodeUuid::nil(),
-            None,
-            vec!["container".to_string(), "target".to_string()],
-        )),
+        value: ParamValue::Reference(NodeReference::with_hints(NodeUuid::nil(), None, vec!["container".to_string(), "target".to_string()])),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
     engine.apply_edits().expect("reference set should succeed");
@@ -1795,9 +1844,143 @@ fn set_param_reference_recovers_target_from_relative_path_and_updates_hints() {
     };
     assert_eq!(reference.cached_id(), Some(target));
     assert_eq!(reference.uuid(), engine.nodes.get(target).expect("target should exist").node_data().meta.uuid);
-    assert_eq!(
-        reference.relative_path_from_root(),
-        &["container".to_string(), "target".to_string()]
+    assert_eq!(reference.cached_name(), Some("target"));
+    assert_eq!(reference.relative_path_from_root(), &["container".to_string(), "target".to_string()]);
+}
+
+#[test]
+fn set_param_reference_to_nil_uuid_clears_cached_hints() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.5), ParameterChangeCheck::None), Some(engine.root));
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("target and reference add should succeed");
+
+    let target = find_child_by_label_parameter(&engine, engine.root, "target").expect("target should exist");
+    let target_ref = find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+    let target_uuid = engine.nodes.get(target).expect("target should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    let mut clear_reference = NodeReference::new(NodeUuid::nil());
+    clear_reference.set_cached_id(Some(target));
+    clear_reference.set_cached_name(Some("target".to_string()));
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(clear_reference),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("clear reference should succeed");
+
+    let Some(reference) = engine.nodes.get(target_ref).and_then(|node| match &node.value {
+        ParamValue::Reference(reference) => Some(reference),
+        _ => None,
+    }) else {
+        panic!("target_ref value should be a reference");
+    };
+
+    assert!(reference.uuid().is_nil(), "cleared reference should use nil uuid");
+    assert_eq!(reference.cached_id(), None, "cleared reference should not keep runtime cache");
+    assert_eq!(reference.cached_name(), None, "cleared reference should not keep cached name");
+    assert!(reference.relative_path_from_root().is_empty(), "cleared reference should not keep relative path hints");
+}
+
+#[test]
+fn missing_reference_warning_tracks_reference_resolution_state() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.5), ParameterChangeCheck::None), Some(engine.root));
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("target and reference add should succeed");
+
+    let target = find_child_by_label_parameter(&engine, engine.root, "target").expect("target should exist");
+    let target_ref = find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+    let target_uuid = engine.nodes.get(target).expect("target should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    assert!(
+        engine.nodes.get(target_ref).expect("target_ref should exist").node_data().meta.presentation.warning(Some("missing-reference")).is_none(),
+        "resolved reference should not have missing-reference warning",
+    );
+
+    engine.edits.push(Edit::RemoveNode { node: target });
+    engine.apply_edits().expect("target removal should succeed");
+
+    let warning = engine
+        .nodes
+        .get(target_ref)
+        .expect("target_ref should exist")
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some("missing-reference"))
+        .expect("dangling reference should have missing-reference warning");
+    assert_eq!(warning.message, "Missing reference");
+    assert_eq!(warning.detail.as_deref(), Some("Target 'target' is missing"));
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(NodeUuid::nil())),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference clear should succeed");
+
+    assert!(
+        engine.nodes.get(target_ref).expect("target_ref should exist").node_data().meta.presentation.warning(Some("missing-reference")).is_none(),
+        "empty reference should clear missing-reference warning",
+    );
+}
+
+#[test]
+fn missing_reference_warning_updates_on_undo_redo() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.5), ParameterChangeCheck::None), Some(engine.root));
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
+    engine.apply_edits().expect("target and reference add should succeed");
+
+    let target = find_child_by_label_parameter(&engine, engine.root, "target").expect("target should exist");
+    let target_ref = find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+    let target_uuid = engine.nodes.get(target).expect("target should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    engine.edits.push(Edit::RemoveNode { node: target });
+    engine.apply_edits().expect("target removal should succeed");
+    assert!(
+        engine.nodes.get(target_ref).expect("target_ref should exist").node_data().meta.presentation.warning(Some("missing-reference")).is_some(),
+        "dangling reference should have missing-reference warning",
+    );
+
+    assert!(engine.undo().expect("undo should succeed"), "undo should restore removed target");
+    assert!(
+        engine.nodes.get(target_ref).expect("target_ref should exist").node_data().meta.presentation.warning(Some("missing-reference")).is_none(),
+        "restored target should clear missing-reference warning",
+    );
+
+    assert!(engine.redo().expect("redo should succeed"), "redo should remove target again");
+    assert!(
+        engine.nodes.get(target_ref).expect("target_ref should exist").node_data().meta.presentation.warning(Some("missing-reference")).is_some(),
+        "redo removal should restore missing-reference warning",
     );
 }
 
@@ -1833,19 +2016,13 @@ fn set_param_reference_rejects_existing_target_that_violates_constraints() {
     });
 
     let result = engine.apply_edits();
-    assert!(
-        matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })),
-        "constraint violation should reject incompatible target"
-    );
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })), "constraint violation should reject incompatible target");
 }
 
 fn find_child_by_label_parameter(engine: &Engine<Parameter>, parent: NodeId, label: &str) -> Option<NodeId> {
     let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
     while let Some(child_id) = child {
-        let matches = engine
-            .nodes
-            .get(child_id)
-            .is_some_and(|node| node.node_data().meta.label == label);
+        let matches = engine.nodes.get(child_id).is_some_and(|node| node.node_data().meta.label == label);
         if matches {
             return Some(child_id);
         }
@@ -2799,10 +2976,7 @@ fn is_enabled_supports_local_and_hierarchy_checks() {
 
     engine.edits.push(Edit::PatchMeta {
         node: parent,
-        patch: crate::node::NodeMetaPatch {
-            enabled: Some(false),
-            ..Default::default()
-        },
+        patch: crate::node::NodeMetaPatch { enabled: Some(false), ..Default::default() },
     });
     engine.apply_edits().expect("parent disable should succeed");
 
@@ -2829,10 +3003,7 @@ fn disabling_parent_removes_child_from_updates_until_reenabled() {
 
     engine.edits.push(Edit::PatchMeta {
         node: parent,
-        patch: crate::node::NodeMetaPatch {
-            enabled: Some(false),
-            ..Default::default()
-        },
+        patch: crate::node::NodeMetaPatch { enabled: Some(false), ..Default::default() },
     });
     engine.apply_edits().expect("disable parent should succeed");
     assert!(engine.is_resolve_pending(), "enable toggle should mark schedule dirty");
@@ -2842,21 +3013,14 @@ fn disabling_parent_removes_child_from_updates_until_reenabled() {
 
     engine.edits.push(Edit::PatchMeta {
         node: parent,
-        patch: crate::node::NodeMetaPatch {
-            enabled: Some(true),
-            ..Default::default()
-        },
+        patch: crate::node::NodeMetaPatch { enabled: Some(true), ..Default::default() },
     });
     engine.apply_edits().expect("re-enable parent should succeed");
     engine.run_tick(Duration::from_millis(500)).expect("tick after re-enable should succeed");
 
     let child = engine.nodes.get(child).expect("child should exist");
     assert_eq!(child.updates, 2, "child should resume updates after parent re-enable");
-    assert_eq!(
-        child.delta_times.last().copied(),
-        Some(Duration::from_millis(500)),
-        "first update after re-enable should start from re-enable time",
-    );
+    assert_eq!(child.delta_times.last().copied(), Some(Duration::from_millis(500)), "first update after re-enable should start from re-enable time",);
 }
 
 #[test]

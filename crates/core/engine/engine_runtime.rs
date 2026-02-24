@@ -420,10 +420,7 @@ impl<T: Node> Engine<T> {
     }
 
     fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
-        self.nodes
-            .iter()
-            .filter_map(|(node_id, node)| self.is_enabled(node_id, true).then_some((node_id, node.execution_rule())))
-            .collect()
+        self.nodes.iter().filter_map(|(node_id, node)| self.is_enabled(node_id, true).then_some((node_id, node.execution_rule()))).collect()
     }
 
     fn topological_sort(&self, rules: &HashMap<NodeId, NodeExecutionRule>) -> Result<Vec<NodeId>, EngineRuntimeError> {

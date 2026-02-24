@@ -242,8 +242,7 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
 
             if cfg!(target_os = "windows") {
                 window_builder = window_builder.disable_drag_drop_handler().background_color(Color(20, 20, 20, 255));
-            }else
-            {
+            } else {
                 window_builder = window_builder.transparent(true);
             }
 
