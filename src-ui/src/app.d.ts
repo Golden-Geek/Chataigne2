@@ -10,6 +10,7 @@ declare global {
 	}
 
 	interface Window {
+		
 		__TAURI__?: {
 			window: {
 				getCurrentWindow: () => {
@@ -33,6 +34,8 @@ declare global {
 				};
 			};
 		};
+
+		__PLATFORM__: 'windows' | 'linux' | 'macos' | 'unknown';
 	}
 }
 
