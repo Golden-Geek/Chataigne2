@@ -1,6 +1,10 @@
 <script lang="ts">
 	import TerminalPanel from "$lib/panels/TerminalPanel.svelte";
-	import { MainWindow, type UserPanelDefinitionMap } from "$lib/golden_ui";
+	import {
+		MainWindow,
+		WorkbenchOverlayHost,
+		type UserPanelDefinitionMap,
+	} from "$lib/golden_ui";
 	import { appIcons } from "$lib/assets/icons/node-icons.svelte";
 
 	const userPanels: UserPanelDefinitionMap = {
@@ -22,3 +26,4 @@
 </script>
 
 <MainWindow {userPanels} nodeIcons={appIcons} />
+<WorkbenchOverlayHost />

@@ -89,7 +89,7 @@ impl Node for ModuleBase {
             label = "Reference Parameter",
             description = "A node reference parameter",
             reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
-            reference_default_search_filter = Some("values".to_string()),
+            // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
         );
@@ -124,6 +124,8 @@ impl Node for OscModule {
         log!("Initializing OSC Module: ", self.node_data().meta.label);
         // Surface warnings coming from generated parameter descendants on the modu le row.
         self.set_child_warning_depth(ctx, 2);
+        // Enable typical user-edit permissions so the UI can offer context-menu actions
+        self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
         // self.float_param.set_warning_with(
         //     ctx,
         //     None,
@@ -195,7 +197,12 @@ impl MidiModule {
 }
 
 #[item("module", via = base, from_struct)]
-impl Node for MidiModule {}
+impl Node for MidiModule {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        // Allow UI actions (color, delete/duplicate, constraints)
+        self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
+    }
+}
 
 #[node]
 #[params(
@@ -235,4 +242,9 @@ impl DmxModule {
 }
 
 #[item("module", via = base, from_struct)]
-impl Node for DmxModule {}
+impl Node for DmxModule {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        // Allow UI actions (color, delete/duplicate, constraints)
+        self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
+    }
+}
