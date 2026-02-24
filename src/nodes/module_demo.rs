@@ -1,3 +1,5 @@
+use std::time::{ SystemTime, UNIX_EPOCH};
+
 use golden_core::{
     color::Color, item, log, update, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
 };
@@ -115,7 +117,7 @@ impl OscModule {
     }
 }
 
-// #[update(50)]
+#[update(50)]
 #[item("module", via = base, from_struct)]
 impl Node for OscModule {
 
@@ -134,8 +136,19 @@ impl Node for OscModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let val = (self.float_param.get() + 0.2) % 10.0;
-        self.float_param.set(ctx, val);
+        // let val = (self.float_param.get() + 0.2) % 10.0;
+        // self.float_param.set(ctx, val);
+
+        //get current time
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
+        let noise = (now *2.73).cos() * 0.5 + 0.5;
+
+        let tx = (now + noise).cos() ;
+        let ty = (now * 1.13+noise*0.32).cos() ;
+        let tz = (now * 0.72+noise*0.54).cos() ;
+        // println!("now: {}, noise: {}", now, noise);
+        self.vec2_param.set(ctx, Vec2::new(tx, ty));
+        self.vec3_param.set(ctx, Vec3::new(tx, ty, tz));
         // if val > 7.5 {
         //     log!(level= error; "New value :",  self.float_param.get());
 
