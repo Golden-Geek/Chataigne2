@@ -1,5 +1,5 @@
 use golden_core::{
-    color::Color, item, log, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
+    color::Color, item, log, update, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
 };
 use uuid::uuid;
 
@@ -74,12 +74,12 @@ impl Node for ModuleBase {
     }
 
     folder(parameters, label = "Parameters", reuse = true) {
-         trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()", read_only = true);
+         trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range", can_be_disabled = true, enabled = false);
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
-        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter", read_only = true);
-        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = true);
+        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
+        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
     }
     folder(values, label = "Values", reuse = true) {
        
@@ -95,7 +95,6 @@ impl Node for ModuleBase {
         );
         enum_param: Enum (
             label = "Enum Parameter",
-            read_only = true,
             description = "An enum parameter with simple string-list options",
             enum_options = ["off", "on", "auto (default)", "Super long option label"],
         );
@@ -135,7 +134,7 @@ impl Node for OscModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let val = (self.float_param.get() + 0.5) % 10.0;
+        let val = (self.float_param.get() + 0.2) % 10.0;
         self.float_param.set(ctx, val);
         // if val > 7.5 {
         //     log!(level= error; "New value :",  self.float_param.get());
@@ -151,7 +150,7 @@ impl Node for OscModule {
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
         if node_id == self.bool_param.id() {
             if self.bool_param.get() {
-                self.bool_param.set_warning(ctx, "bool_param is true!");
+                // self.bool_param.set_warning(ctx, "bool_param is true!");
             } else {
                 self.bool_param.clear_warning(ctx, None);
             }
