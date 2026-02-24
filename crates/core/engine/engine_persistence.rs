@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
+use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
 
 use super::{Engine, EngineEditError};
 
@@ -21,6 +21,10 @@ fn is_default_semantics_hint(value: &SemanticsHint) -> bool {
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {
     *value == PresentationHint::default()
+}
+
+fn is_default_node_user_permissions(value: &NodeUserPermissions) -> bool {
+    *value == NodeUserPermissions::default()
 }
 
 fn is_default_user_node_role(value: &UserNodeRole) -> bool {
@@ -77,6 +81,9 @@ pub struct ProjectNodeMeta {
     /// User tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// User-edit permissions.
+    #[serde(default, skip_serializing_if = "is_default_node_user_permissions")]
+    pub user_permissions: NodeUserPermissions,
     /// Semantic hints.
     #[serde(default, skip_serializing_if = "is_default_semantics_hint")]
     pub semantics: SemanticsHint,
@@ -95,12 +102,21 @@ impl ProjectNodeMeta {
             label: meta.label.clone(),
             description: meta.description.clone(),
             tags: meta.tags.clone(),
+            user_permissions: meta.user_permissions.clone(),
             semantics: meta.semantics.clone(),
             presentation: meta.presentation.clone(),
         }
     }
 
     fn into_runtime(self, uuid: NodeUuid) -> NodeMeta {
+        let mut user_permissions = self.user_permissions;
+        // Backward compatibility for persisted projects that predate explicit permission fields.
+        if user_permissions == NodeUserPermissions::default()
+            && self.tags.iter().any(|tag| tag == "is_user_made")
+        {
+            user_permissions = NodeUserPermissions::all();
+        }
+
         NodeMeta {
             uuid,
             decl_id: self.decl_id,
@@ -110,6 +126,7 @@ impl ProjectNodeMeta {
             label: self.label,
             description: self.description,
             tags: self.tags,
+            user_permissions,
             semantics: self.semantics,
             presentation: self.presentation,
         }

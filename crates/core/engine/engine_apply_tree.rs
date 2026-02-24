@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, UserNodeRole};
+use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::engine_history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -211,6 +211,60 @@ impl<T: Node> Engine<T> {
         None
     }
 
+    fn has_item_root_ancestor(&self, start: NodeId) -> bool {
+        let mut cursor = Some(start);
+        while let Some(node_id) = cursor {
+            let Some(node) = self.nodes.get(node_id) else {
+                return false;
+            };
+
+            if node.node_data().user_role == UserNodeRole::ItemRoot {
+                return true;
+            }
+
+            cursor = node.node_data().parent;
+        }
+
+        false
+    }
+
+    fn default_user_permissions_for_new_node(
+        &self,
+        node: &T,
+        parent: NodeId,
+        user_role: UserNodeRole,
+    ) -> NodeUserPermissions {
+        let mut permissions = if node
+            .node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == "is_user_made" || tag == "name_changeable")
+        {
+            NodeUserPermissions::all()
+        } else {
+            let is_managed_item = user_role == UserNodeRole::ItemRoot;
+            let is_folder_under_manager =
+                node.get_type() == "folder"
+                    && self.nearest_container_ancestor(parent).is_some()
+                    && !self.has_item_root_ancestor(parent);
+
+            if is_managed_item || is_folder_under_manager {
+                NodeUserPermissions::all()
+            } else {
+                NodeUserPermissions::default()
+            }
+        };
+
+        if node.is_declared_user_item() {
+            permissions.can_remove_and_duplicate = true;
+            permissions.can_edit_tags = true;
+            permissions.can_edit_color = true;
+        }
+
+        permissions
+    }
+
     fn ensure_item_kind_allowed(&self, edit_index: usize, operation: &'static str, container: NodeId, item_type: &str, item_kind: &str) -> Result<(), EngineEditError> {
         let container_node = self.nodes.get(container).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: container })?;
 
@@ -295,6 +349,8 @@ impl<T: Node> Engine<T> {
         }
 
         let mut node = self.coerce_node_for_engine(edit_index, operation, node)?;
+        let inferred_permissions =
+            self.default_user_permissions_for_new_node(&node, parent, user_role);
 
         if validate_as_user_item {
             let container = self.nearest_container_ancestor(parent).ok_or(EngineEditError::UserItemContainerRequired { edit_index, operation, parent })?;
@@ -309,6 +365,9 @@ impl<T: Node> Engine<T> {
             node_data.prev_sibling = None;
             node_data.next_sibling = None;
             node_data.user_role = user_role;
+            if node_data.meta.user_permissions == NodeUserPermissions::default() {
+                node_data.meta.user_permissions = inferred_permissions;
+            }
         }
 
         let child_id = self.nodes.insert(node);

@@ -6,7 +6,7 @@ use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
-use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
+use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
 
 /// Current UI protocol version.
@@ -14,6 +14,10 @@ pub const UI_PROTOCOL_VERSION: &str = "0.1.0";
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {
     *value == PresentationHint::default()
+}
+
+fn is_default_user_permissions(value: &NodeUserPermissions) -> bool {
+    *value == NodeUserPermissions::default()
 }
 
 /// Scope used by snapshot/event subscriptions.
@@ -56,6 +60,9 @@ pub struct UiNodeMetaDto {
     pub enabled: bool,
     /// Whether disable is allowed.
     pub can_be_disabled: bool,
+    /// User-edit permissions.
+    #[serde(default, skip_serializing_if = "is_default_user_permissions")]
+    pub user_permissions: NodeUserPermissions,
     /// Optional description.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -554,6 +561,7 @@ impl<T: Node> Engine<T> {
                     label: node_data.meta.label.clone(),
                     enabled: node_data.meta.enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
+                    user_permissions: node_data.meta.user_permissions.clone(),
                     description: node_data.meta.description.clone(),
                     tags: node_data.meta.tags.clone(),
                     presentation: node_data.meta.presentation.clone(),

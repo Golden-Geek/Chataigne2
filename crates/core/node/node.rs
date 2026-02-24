@@ -199,6 +199,10 @@ impl Default for NodeWarning {
     }
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 /// Presentation hints used for editor rendering.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PresentationHint {
@@ -293,6 +297,50 @@ impl PresentationHint {
 
         self.show_child_warnings_max_depth = max_depth;
         true
+    }
+}
+
+/// User-edit permissions for UI tooling and editor workflows.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NodeUserPermissions {
+    /// Whether the node label can be edited by users.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub can_edit_name: bool,
+    /// Whether the node can be removed or duplicated.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub can_remove_and_duplicate: bool,
+    /// Whether parameter constraints can be edited.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub can_edit_constraints: bool,
+    /// Whether metadata tags can be edited.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub can_edit_tags: bool,
+    /// Whether presentation color can be edited.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub can_edit_color: bool,
+}
+
+impl NodeUserPermissions {
+    /// Returns a permission set with every capability disabled.
+    pub const fn none() -> Self {
+        Self {
+            can_edit_name: false,
+            can_remove_and_duplicate: false,
+            can_edit_constraints: false,
+            can_edit_tags: false,
+            can_edit_color: false,
+        }
+    }
+
+    /// Returns a permission set with every capability enabled.
+    pub const fn all() -> Self {
+        Self {
+            can_edit_name: true,
+            can_remove_and_duplicate: true,
+            can_edit_constraints: true,
+            can_edit_tags: true,
+            can_edit_color: true,
+        }
     }
 }
 
@@ -409,6 +457,8 @@ pub struct NodeMeta {
     pub description: Option<String>,
     /// Arbitrary classification tags.
     pub tags: Vec<String>,
+    /// User-edit permissions for tooling and editor workflows.
+    pub user_permissions: NodeUserPermissions,
     /// Semantic hints.
     pub semantics: SemanticsHint,
     /// Presentation hints.
@@ -429,6 +479,7 @@ impl NodeMeta {
             label,
             description: None,
             tags: vec![],
+            user_permissions: NodeUserPermissions::default(),
             semantics: SemanticsHint::default(),
             presentation: PresentationHint::default(),
         }
@@ -443,6 +494,12 @@ impl NodeMeta {
     /// Replaces tags.
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
+        self
+    }
+
+    /// Replaces user-edit permissions.
+    pub fn with_user_permissions(mut self, user_permissions: NodeUserPermissions) -> Self {
+        self.user_permissions = user_permissions;
         self
     }
 
@@ -538,6 +595,9 @@ pub struct NodeMetaPatch {
     /// Optional tags replacement.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
+    /// Optional user-edit permissions replacement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_permissions: Option<NodeUserPermissions>,
     /// Optional semantic hints replacement.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub semantics: Option<SemanticsHint>,
@@ -566,6 +626,9 @@ impl NodeMetaPatch {
         }
         if let Some(tags) = &self.tags {
             meta.tags = tags.clone();
+        }
+        if let Some(user_permissions) = &self.user_permissions {
+            meta.user_permissions = user_permissions.clone();
         }
         if let Some(semantics) = &self.semantics {
             meta.semantics = semantics.clone();
@@ -625,6 +688,14 @@ pub trait Node: Send + Any {
     /// By default this matches [`Self::get_type`].
     fn user_item_kind(&self) -> &str {
         self.get_type()
+    }
+
+    /// Returns `true` when this node type is declared with `#[item(...)]`.
+    ///
+    /// This marker is used by creation-time metadata inference (for example, default
+    /// user permissions) and should not depend on runtime state.
+    fn is_declared_user_item(&self) -> bool {
+        false
     }
 
     /// Returns container admission rules when this node accepts user-curated items.

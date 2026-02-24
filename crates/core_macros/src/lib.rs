@@ -1685,6 +1685,13 @@ fn expand_struct(
             }
         }
     });
+    let generated_declared_user_item = item_kind.as_ref().map(|_| {
+        quote! {
+            fn is_declared_user_item(&self) -> bool {
+                true
+            }
+        }
+    });
 
     let generated_node_impl = if impl_node {
         quote! {
@@ -1702,6 +1709,7 @@ fn expand_struct(
                 }
 
                 #generated_user_item_kind
+                #generated_declared_user_item
 
                 fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
                     self.__golden_node_engine_child_event_interest_depth(event)
@@ -1897,6 +1905,14 @@ fn expand_impl(
             input.items.push(parse_quote! {
                 fn user_item_kind(&self) -> &str {
                     #item_kind
+                }
+            });
+        }
+
+        if !has_method(&input, "is_declared_user_item") {
+            input.items.push(parse_quote! {
+                fn is_declared_user_item(&self) -> bool {
+                    true
                 }
             });
         }

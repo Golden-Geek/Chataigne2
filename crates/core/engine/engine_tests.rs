@@ -42,6 +42,32 @@ fn item_macro_keeps_manual_user_item_kind_override() {
 }
 
 #[test]
+fn item_macro_marks_nodes_as_declared_user_items() {
+    let auto = ItemMacroAutoKindNode::new("Auto");
+    let override_kind = ItemMacroOverrideKindNode::new("Override");
+    assert!(auto.is_declared_user_item());
+    assert!(override_kind.is_declared_user_item());
+}
+
+#[test]
+fn add_node_infers_default_permissions_for_declared_item_nodes() {
+    let root = ItemMacroAutoKindNode::new("Root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(ItemMacroAutoKindNode::new("Child"), None);
+    engine.apply_edits().expect("declared item add should succeed");
+
+    let child = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("child should exist");
+    let permissions = &engine.nodes.get(child).expect("child should exist").node_data().meta.user_permissions;
+
+    assert!(!permissions.can_edit_name);
+    assert!(permissions.can_remove_and_duplicate);
+    assert!(!permissions.can_edit_constraints);
+    assert!(permissions.can_edit_tags);
+    assert!(permissions.can_edit_color);
+}
+
+#[test]
 fn absorb_edits_reports_node_type_mismatch() {
     let root = Folder::new("root".to_string());
     let mut engine = Engine::new(root);

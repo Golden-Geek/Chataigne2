@@ -257,6 +257,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn is_declared_user_item(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, is_declared_user_item; $($variant),*)
+            }
+
+            #[inline(always)]
             fn user_container_rules(&self) -> Option<$crate::node::UserContainerRules> {
                 $crate::__dispatch_node_enum!(self, user_container_rules; $($variant),*)
             }

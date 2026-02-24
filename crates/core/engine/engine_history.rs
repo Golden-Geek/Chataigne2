@@ -491,6 +491,7 @@ fn meta_to_patch(meta: &NodeMeta) -> NodeMetaPatch {
         label: Some(meta.label.clone()),
         description: Some(meta.description.clone()),
         tags: Some(meta.tags.clone()),
+        user_permissions: Some(meta.user_permissions.clone()),
         semantics: Some(meta.semantics.clone()),
         presentation: Some(meta.presentation.clone()),
     }
