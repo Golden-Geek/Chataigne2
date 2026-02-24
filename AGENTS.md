@@ -11,6 +11,7 @@ Backward compatibility is not a goal during this phase.
 - Prefer removing flawed or legacy patterns instead of layering temporary compatibility shims.
 - Challenge existing proposals when a cleaner or more robust approach exists.
 - Optimize for maintainability and correctness first, then ergonomics and speed.
+- When modifying behaviours and features, especially on nodes and other canonical elements, keep in mind that the app will have tens of thousands of them, so it has to be scalable.
 
 ## Rust Engineering Standards
 - Follow Rust best practices consistently (`idiomatic ownership`, `type-driven design`, `explicit error handling`, and `zero-cost abstractions`).
