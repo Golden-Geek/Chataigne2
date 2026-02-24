@@ -41,7 +41,7 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        eprintln!("[gc-engine] apply_set_param node={:?} old={:?} new={:?}", node, old_value, new_value);
+        // eprintln!("[gc-engine] apply_set_param node={:?} old={:?} new={:?}", node, old_value, new_value);
 
         self.emit_event(EventKind::ParamChanged {
             param: node,
