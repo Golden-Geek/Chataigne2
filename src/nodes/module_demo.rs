@@ -174,7 +174,7 @@ impl Node for OscModule {
                 log!(level= error; "New value :",  self.float_param.get());
 
             } else if val > 5.0 {
-                log!(level= warning; "New value :",  self.float_param.get());
+                log!(level= info; "New value :",  self.float_param.get());
 
             } else {
                 log!(level= success; "New value :",  self.float_param.get());
