@@ -1,7 +1,14 @@
-use std::{string, time::{ SystemTime, UNIX_EPOCH}};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use golden_core::{
-    color::Color, item, log, update, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
+    color::Color,
+    item,
+    log,
+    node,
+    update,
+    node::{Node, NodeId, NodeReference},
+    parameter::{Enum, File, ParamValue, Vec2, Vec3},
+    process_ctx::ProcessCtx,
 };
 use uuid::uuid;
 
@@ -63,7 +70,7 @@ impl ModuleBase {
     }
 }
 
-#[node(from_struct)]
+#[node(from_struct, scriptable)]
 impl Node for ModuleBase {
     fn user_item_kind(&self) -> &str {
         "module"
@@ -81,6 +88,12 @@ impl Node for ModuleBase {
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range", can_be_disabled = true, enabled = false);
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
+        file_param: File = "" (
+            label = "File Parameter",
+            description = "A file path parameter",
+            file_allowed_types = ["script"],
+            file_allowed_extensions = ["lua", "luau", "js", "mjs"],
+        );
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
         vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
     }
@@ -120,9 +133,8 @@ impl OscModule {
 }
 
 #[update(50)]
-#[item("module", via = base, from_struct)]
+#[item("module", via = base, from_struct, scriptable)]
 impl Node for OscModule {
-
     fn init(&mut self, ctx: &mut ProcessCtx) {
         log!("Initializing OSC Module: ", self.node_data().meta.label);
         // Surface warnings coming from generated parameter descendants on the modu le row.
@@ -138,8 +150,7 @@ impl Node for OscModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let val = (self.float_param.get() + 0.2) % 10.0;
-        // self.float_param.set(ctx, val);
+        // self.float_param.set(ctx, (self.float_param.get() + 0.2) % 10.0);
 
         //get current time
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
@@ -165,7 +176,7 @@ impl Node for OscModule {
             }
         }
 
-        if(node_id == self.float_param.id()) {
+        if node_id == self.float_param.id() {
             let val = self.float_param.get();
 
            self.string_param.set(ctx, format!("Value: {:.2}", val));
@@ -221,7 +232,7 @@ impl MidiModule {
     }
 }
 
-#[item("module", via = base, from_struct)]
+#[item("module", via = base, from_struct, scriptable)]
 impl Node for MidiModule {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         // Allow UI actions (color, delete/duplicate, constraints)
@@ -266,7 +277,7 @@ impl DmxModule {
     }
 }
 
-#[item("module", via = base, from_struct)]
+#[item("module", via = base, from_struct, scriptable)]
 impl Node for DmxModule {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         // Allow UI actions (color, delete/duplicate, constraints)
