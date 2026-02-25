@@ -1,13 +1,13 @@
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
-use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
 
 use super::engine_history::{PatchMetaEffect, SetParamEffect};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
     /// Applies a parameter value update and returns the captured before/after effect for history.
-    pub(crate) fn apply_set_param(&mut self, edit_index: usize, node: NodeId, value: ParamValue) -> Result<SetParamEffect, EngineEditError> {
+    pub(crate) fn apply_set_param(&mut self, edit_index: usize, node: NodeId, value: ParamValue) -> Result<Option<SetParamEffect>, EngineEditError> {
         const OP: &str = "SetParam";
         let node_type_hint = self.nodes.get(node).map(|target| target.get_type().to_string()).unwrap_or_else(|| "unknown".to_string());
         let value = if let ParamValue::Reference(reference) = value {
@@ -22,7 +22,7 @@ impl<T: Node> Engine<T> {
             value
         };
 
-        let (old_value, new_value) = {
+        let (old_value, new_value, change_check) = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
             let node_type = target.get_type().to_string();
             let prepared_value = target.engine_prepare_param_value(value).map_err(|message| EngineEditError::ParamConstraintViolation {
@@ -31,15 +31,35 @@ impl<T: Node> Engine<T> {
                 node_type: node_type.clone(),
                 message,
             })?;
+            let snapshot = target.engine_param_snapshot();
+            let change_check = snapshot.as_ref().map(|state| state.change_check.clone());
+
+            if !matches!(&prepared_value, ParamValue::Trigger())
+                && matches!(change_check, Some(ParameterChangeCheck::ValueChange))
+                && snapshot.as_ref().is_some_and(|state| state.value == prepared_value)
+            {
+                return Ok(None);
+            }
+
             let new_value = prepared_value.clone();
 
             match target.engine_set_param_value(prepared_value) {
-                Some(old) => (old, new_value),
+                Some(old) => (old, new_value, change_check),
                 None => {
                     return Err(EngineEditError::ParamEditTargetMismatch { edit_index, node, node_type });
                 }
             }
         };
+
+        let should_emit = match change_check {
+            Some(ParameterChangeCheck::None) => true,
+            Some(ParameterChangeCheck::ValueChange) => matches!(&new_value, ParamValue::Trigger()) || old_value != new_value,
+            None => true,
+        };
+
+        if !should_emit {
+            return Ok(None);
+        }
 
         // eprintln!("[gc-engine] apply_set_param node={:?} old={:?} new={:?}", node, old_value, new_value);
 
@@ -49,13 +69,13 @@ impl<T: Node> Engine<T> {
             new_value: new_value.clone(),
         });
 
-        Ok(SetParamEffect {
+        Ok(Some(SetParamEffect {
             node,
             old_value,
             new_value,
             behaviour: ParameterEventBehaviour::Append,
             tick: self.time.tick,
-        })
+        }))
     }
 
     /// Validates a node target for metadata changes and emits the corresponding meta-changed event.

@@ -79,11 +79,15 @@ impl<T: Node> Engine<T> {
                     }
                 }
                 Edit::SetParam { node, value, behaviour } => {
-                    missing_reference_warning_dirty = true;
-                    let mut effect = self.apply_set_param(edit_index, node, value)?;
-                    effect.behaviour = behaviour;
-                    effect.tick = self.time.tick;
-                    (Ok(Some(effect.into())), true)
+                    match self.apply_set_param(edit_index, node, value)? {
+                        Some(mut effect) => {
+                            missing_reference_warning_dirty = true;
+                            effect.behaviour = behaviour;
+                            effect.tick = self.time.tick;
+                            (Ok(Some(effect.into())), true)
+                        }
+                        None => (Ok(None), false),
+                    }
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {
                     missing_reference_warning_dirty = true;

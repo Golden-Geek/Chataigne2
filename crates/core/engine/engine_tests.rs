@@ -1517,6 +1517,50 @@ fn apply_edits_set_param_updates_parameter_node() {
 }
 
 #[test]
+fn apply_set_param_value_change_ignores_normalized_noop() {
+    let mut root = Parameter::new("root_param", ParamValue::Float(10.0), ParameterChangeCheck::ValueChange);
+    root.constraints = ParameterConstraints {
+        range: RangeConstraint::uniform(Some(0.0), Some(10.0)),
+        step: None,
+        step_base: None,
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Float(42.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set param should normalize to current value");
+
+    let node = engine.nodes.get(engine.root).expect("root parameter should exist");
+    assert_eq!(node.value, ParamValue::Float(10.0), "value should remain unchanged after clamping");
+    assert!(engine.inbox.events.is_empty(), "normalized no-op should not emit ParamChanged event");
+    assert_eq!(engine.undo_len(), 0, "normalized no-op should not create undo history");
+}
+
+#[test]
+fn parameter_set_normalizes_before_change_check() {
+    let mut parameter = Parameter::new("param", ParamValue::Float(10.0), ParameterChangeCheck::ValueChange);
+    parameter.constraints = ParameterConstraints {
+        range: RangeConstraint::uniform(Some(0.0), Some(10.0)),
+        step: None,
+        step_base: None,
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
+    };
+    let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+
+    parameter.set(&mut ctx, ParamValue::Float(99.0));
+
+    assert!(ctx.edits.pending.is_empty(), "normalized no-op should not enqueue SetParam edit");
+}
+
+#[test]
 fn parameter_set_coalesces_pending_set_param_edits_by_default() {
     let mut parameter = Parameter::new("param", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });

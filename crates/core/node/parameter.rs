@@ -815,10 +815,18 @@ impl Parameter {
 
     /// Requests a parameter update through the process context.
     pub fn set(&mut self, ctx: &mut ProcessCtx, new_value: ParamValue) {
-        let is_trigger = matches!(&new_value, ParamValue::Trigger());
-        let value_changed = self.value != new_value;
+        let normalized = match self.constraints.normalize(new_value) {
+            Ok(value) => value,
+            Err(message) => {
+                eprintln!("Attempted to set invalid value for parameter '{}': {message}", self.node_data().meta.label);
+                return;
+            }
+        };
+
+        let is_trigger = matches!(&normalized, ParamValue::Trigger());
+        let value_changed = self.value != normalized;
         if is_trigger || self.change_check == ParameterChangeCheck::None || value_changed {
-            ctx.set_param_with_behaviour(self.node_data().id, new_value.clone(), self.event_behaviour);
+            ctx.set_param_with_behaviour(self.node_data().id, normalized, self.event_behaviour);
         }
     }
 
