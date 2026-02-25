@@ -151,7 +151,7 @@ pub fn log_parts(level: LogLevel, tag: String, origin: Option<NodeId>, parts: Ve
     let mut message = String::new();
     for (index, part) in parts.into_iter().enumerate() {
         if index > 0 {
-            message.push(' ');
+            message.push('\n');
         }
         message.push_str(&part);
     }
