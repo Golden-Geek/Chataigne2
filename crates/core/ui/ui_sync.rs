@@ -8,6 +8,7 @@ use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
+use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
 pub const UI_PROTOCOL_VERSION: &str = "0.1.0";
@@ -621,6 +622,66 @@ impl<T: Node> Engine<T> {
             allowed_targets: self.reference_allowed_targets_for_param(param_node),
             visible_nodes: self.reference_visible_nodes_for_param(param_node),
         }
+    }
+
+    /// Returns script runtime state for `node` when it is a script node.
+    pub fn ui_script_state(&self, node: NodeId) -> Result<ScriptUiState, String> {
+        let Some(target) = self.nodes.get(node) else {
+            return Err(format!("node {} not found", node.0));
+        };
+
+        target
+            .engine_script_state()
+            .ok_or_else(|| format!("node {} does not expose script runtime state", node.0))
+    }
+
+    /// Replaces script configuration for `node`.
+    pub fn ui_set_script_config(
+        &mut self,
+        node: NodeId,
+        config: ScriptUiConfig,
+        force_reload: bool,
+    ) -> Result<(), String> {
+        {
+            let Some(target) = self.nodes.get_mut(node) else {
+                return Err(format!("node {} not found", node.0));
+            };
+
+            target.engine_set_script_config(ScriptNodeConfig::from(config), force_reload)?;
+        }
+
+        self.push_ui_custom_event(
+            "__transport.resync_required",
+            Some(node),
+            serde_json::json!({
+                "reason": "script_config_updated",
+                "node": node.0
+            }),
+        );
+
+        Ok(())
+    }
+
+    /// Requests runtime reload for script node `node`.
+    pub fn ui_reload_script(&mut self, node: NodeId) -> Result<(), String> {
+        {
+            let Some(target) = self.nodes.get_mut(node) else {
+                return Err(format!("node {} not found", node.0));
+            };
+
+            target.engine_request_script_reload()?;
+        }
+
+        self.push_ui_custom_event(
+            "__transport.resync_required",
+            Some(node),
+            serde_json::json!({
+                "reason": "script_reload_requested",
+                "node": node.0
+            }),
+        );
+
+        Ok(())
     }
 
     /// Applies one UI edit intent and returns an acknowledgement payload.

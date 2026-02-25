@@ -5,6 +5,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method(),
             Self::Parameter(node) => node.$method(),
+            Self::Script(node) => node.$method(),
             $(Self::$variant(node) => node.$method(),)*
         }
     };
@@ -12,6 +13,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1),
             Self::Parameter(node) => node.$method($arg1),
+            Self::Script(node) => node.$method($arg1),
             $(Self::$variant(node) => node.$method($arg1),)*
         }
     };
@@ -19,6 +21,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2),
             Self::Parameter(node) => node.$method($arg1, $arg2),
+            Self::Script(node) => node.$method($arg1, $arg2),
             $(Self::$variant(node) => node.$method($arg1, $arg2),)*
         }
     };
@@ -26,6 +29,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Script(node) => node.$method($arg1, $arg2, $arg3),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
         }
     };
@@ -33,6 +37,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
         }
     };
@@ -40,6 +45,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
         }
     };
@@ -220,6 +226,7 @@ macro_rules! define_user_item_factory_methods {
 /// Internal node variants are always included automatically:
 /// - `Folder($crate::node::Folder)`
 /// - `Parameter($crate::parameter::Parameter)`
+/// - `Script($crate::script::ScriptNode)`
 ///
 /// Shorthand form for app-specific nodes:
 /// `define_node_enum!(pub enum MyNodes { Oscillator, Envelope });`
@@ -232,6 +239,7 @@ macro_rules! define_node_enum {
         $vis enum $enum_name {
             Folder($crate::node::Folder),
             Parameter($crate::parameter::Parameter),
+            Script($crate::script::ScriptNode),
             $($variant($node_ty),)*
         }
 
@@ -264,6 +272,26 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn user_container_rules(&self) -> Option<$crate::node::UserContainerRules> {
                 $crate::__dispatch_node_enum!(self, user_container_rules; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn script_host_policy(&self) -> Option<$crate::script::ScriptHostPolicy> {
+                $crate::__dispatch_node_enum!(self, script_host_policy; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_script_state(&self) -> Option<$crate::script::ScriptUiState> {
+                $crate::__dispatch_node_enum!(self, engine_script_state; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_set_script_config(&mut self, config: $crate::script::ScriptNodeConfig, force_reload: bool) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_set_script_config, config, force_reload; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_request_script_reload(&mut self) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_request_script_reload; $($variant),*)
             }
 
             #[inline(always)]
@@ -452,6 +480,7 @@ macro_rules! define_node_enum {
 
                 $crate::__downcast_node_enum_variant!(any, Folder, $crate::node::Folder);
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
+                $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
 
                 $(
                     $crate::__downcast_node_enum_variant!(any, $variant, $node_ty);
@@ -471,6 +500,12 @@ macro_rules! define_node_enum {
         impl From<$crate::parameter::Parameter> for $enum_name {
             fn from(node: $crate::parameter::Parameter) -> Self {
                 Self::Parameter(node)
+            }
+        }
+
+        impl From<$crate::script::ScriptNode> for $enum_name {
+            fn from(node: $crate::script::ScriptNode) -> Self {
+                Self::Script(node)
             }
         }
 

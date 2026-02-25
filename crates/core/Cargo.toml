@@ -13,3 +13,6 @@ slotmap = "1.1.1"
 serde_json = "1"
 golden_core_macros = { path = "../core_macros" }
 tauri = "2"
+mlua = { version = "0.10", features = ["luau", "serialize", "send", "vendored"] }
+rquickjs = { version = "0.11", features = ["parallel"] }
+rfd = "0.15"

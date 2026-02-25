@@ -1526,6 +1526,7 @@ fn apply_set_param_value_change_ignores_normalized_noop() {
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1552,6 +1553,7 @@ fn parameter_set_normalizes_before_change_check() {
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
@@ -1609,6 +1611,7 @@ fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1633,6 +1636,7 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::Reject,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1656,6 +1660,7 @@ fn apply_set_param_clamps_vec2_components_when_constraints_use_clamp_adapt_polic
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1680,6 +1685,7 @@ fn apply_set_param_rejects_vec3_components_when_constraints_use_reject_policy() 
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::Reject,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1703,6 +1709,7 @@ fn apply_set_param_clamps_vec3_components_with_component_specific_bounds() {
         enum_options: Vec::new(),
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1742,6 +1749,7 @@ fn apply_set_param_rejects_values_outside_enum_constraints() {
         ],
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 
@@ -1780,6 +1788,7 @@ fn apply_set_param_accepts_enum_variant_ids_with_legacy_string_enum_values() {
         ],
         policy: ParameterConstraintPolicy::ClampAdapt,
         reference: Default::default(),
+        file: Default::default(),
     };
     let mut engine = Engine::new(root);
 

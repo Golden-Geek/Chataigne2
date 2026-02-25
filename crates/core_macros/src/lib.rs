@@ -31,6 +31,12 @@ struct NodeAttr {
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
+}
+
+enum ScriptableAttr {
+    Default,
+    Expr(Expr),
 }
 
 impl Parse for NodeAttr {
@@ -39,6 +45,7 @@ impl Parse for NodeAttr {
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
+        let mut scriptable = None;
 
         while !input.is_empty() {
             if input.peek(LitStr) {
@@ -64,16 +71,26 @@ impl Parse for NodeAttr {
                         return Err(Error::new(key.span(), "duplicate `from_struct` argument"));
                     }
                     from_struct = true;
+                } else if key == "scriptable" {
+                    if scriptable.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `scriptable` argument"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        scriptable = Some(ScriptableAttr::Expr(input.parse::<Expr>()?));
+                    } else {
+                        scriptable = Some(ScriptableAttr::Default);
+                    }
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, or `from_struct`",
+                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`",
                     ));
                 }
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, or `from_struct`",
+                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`",
                 ));
             }
 
@@ -92,6 +109,7 @@ impl Parse for NodeAttr {
             via,
             impl_node,
             from_struct,
+            scriptable,
         })
     }
 }
@@ -108,6 +126,7 @@ impl Parse for ItemAttr {
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
+        let mut scriptable = None;
 
         while !input.is_empty() {
             if input.peek(LitStr) {
@@ -149,16 +168,26 @@ impl Parse for ItemAttr {
                         return Err(Error::new(key.span(), "duplicate `from_struct` argument"));
                     }
                     from_struct = true;
+                } else if key == "scriptable" {
+                    if scriptable.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `scriptable` argument"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        scriptable = Some(ScriptableAttr::Expr(input.parse::<Expr>()?));
+                    } else {
+                        scriptable = Some(ScriptableAttr::Default);
+                    }
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`",
+                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`",
                     ));
                 }
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`",
                 ));
             }
 
@@ -183,6 +212,7 @@ impl Parse for ItemAttr {
                 via,
                 impl_node,
                 from_struct,
+                scriptable,
             },
         })
     }
@@ -215,6 +245,8 @@ struct ParamFieldArgs {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    file_allowed_types: Option<Expr>,
+    file_allowed_extensions: Option<Expr>,
     default_callback: bool,
     callback: Option<Expr>,
 }
@@ -293,6 +325,24 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `enum_options`"));
                     }
                     out.enum_options = Some(input.parse::<Expr>()?);
+                } else if key == "file_allowed_types"
+                    || key == "fileAllowedTypes"
+                    || key == "allowed_types"
+                    || key == "allowedTypes"
+                {
+                    if out.file_allowed_types.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `file_allowed_types`"));
+                    }
+                    out.file_allowed_types = Some(input.parse::<Expr>()?);
+                } else if key == "file_allowed_extensions"
+                    || key == "fileAllowedExtensions"
+                    || key == "allowed_extensions"
+                    || key == "allowedExtensions"
+                {
+                    if out.file_allowed_extensions.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `file_allowed_extensions`"));
+                    }
+                    out.file_allowed_extensions = Some(input.parse::<Expr>()?);
                 } else if key == "callback" {
                     if out.callback.is_some() {
                         return Err(Error::new(key.span(), "duplicate `callback`"));
@@ -301,7 +351,7 @@ impl Parse for ParamFieldArgs {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, min, max, step, step_base, policy, enum_options, default_callback, callback)",
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, default_callback, callback)",
                     ));
                 }
             }
@@ -396,6 +446,8 @@ struct ParamsDslParamOptions {
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
     enum_default: Option<LitStr>,
+    file_allowed_types: Option<Expr>,
+    file_allowed_extensions: Option<Expr>,
     reference_root: Option<Expr>,
     reference_target_kind: Option<Expr>,
     reference_allowed_node_types: Option<Expr>,
@@ -655,6 +707,24 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_default` option"));
                 }
                 out.enum_default = Some(input.parse::<LitStr>()?);
+            } else if key == "file_allowed_types"
+                || key == "fileAllowedTypes"
+                || key == "allowed_types"
+                || key == "allowedTypes"
+            {
+                if out.file_allowed_types.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `file_allowed_types` option"));
+                }
+                out.file_allowed_types = Some(input.parse::<Expr>()?);
+            } else if key == "file_allowed_extensions"
+                || key == "fileAllowedExtensions"
+                || key == "allowed_extensions"
+                || key == "allowedExtensions"
+            {
+                if out.file_allowed_extensions.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `file_allowed_extensions` option"));
+                }
+                out.file_allowed_extensions = Some(input.parse::<Expr>()?);
             } else if key == "reference_root" || key == "referenceRoot" {
                 if out.reference_root.is_some() {
                     return Err(Error::new(key.span(), "duplicate `reference_root` option"));
@@ -693,7 +763,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -930,6 +1000,71 @@ fn build_simple_enum_options_expr(spec: &SimpleEnumOptionsSpec) -> Expr {
     }
 }
 
+fn parse_simple_string_list_expr(expr: &Expr) -> Result<Option<Vec<LitStr>>> {
+    match expr {
+        Expr::Array(ExprArray { elems, .. }) => {
+            let mut values = Vec::new();
+            for elem in elems {
+                let lit = match elem {
+                    Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) => lit.clone(),
+                    Expr::Paren(paren) => {
+                        let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = &*paren.expr else {
+                            return Ok(None);
+                        };
+                        lit.clone()
+                    }
+                    _ => return Ok(None),
+                };
+                values.push(lit);
+            }
+            Ok(Some(values))
+        }
+        Expr::Paren(paren) => parse_simple_string_list_expr(&paren.expr),
+        _ => Ok(None),
+    }
+}
+
+fn build_file_allowed_types_assignment(expr: &Expr) -> Result<proc_macro2::TokenStream> {
+    if let Some(values) = parse_simple_string_list_expr(expr)? {
+        let mut parsed = Vec::<proc_macro2::TokenStream>::new();
+        for value in values {
+            let group = match value.value().trim().to_ascii_lowercase().as_str() {
+                "audio" => quote!(golden_core::parameter::FileTypeGroup::Audio),
+                "video" => quote!(golden_core::parameter::FileTypeGroup::Video),
+                "script" => quote!(golden_core::parameter::FileTypeGroup::Script),
+                other => {
+                    return Err(Error::new(
+                        value.span(),
+                        format!("unsupported file type group `{other}`; expected one of: \"audio\", \"video\", \"script\""),
+                    ));
+                }
+            };
+            parsed.push(group);
+        }
+
+        return Ok(quote! {
+            __param_node.constraints.file.allowed_types = vec![#(#parsed),*];
+        });
+    }
+
+    Ok(quote! {
+        __param_node.constraints.file.allowed_types = #expr;
+    })
+}
+
+fn build_file_allowed_extensions_assignment(expr: &Expr) -> Result<proc_macro2::TokenStream> {
+    if let Some(values) = parse_simple_string_list_expr(expr)? {
+        return Ok(quote! {
+            __param_node.constraints.file.allowed_extensions =
+                vec![#(::std::string::String::from(#values)),*];
+        });
+    }
+
+    Ok(quote! {
+        __param_node.constraints.file.allowed_extensions = #expr;
+    })
+}
+
 fn infer_enum_default_variant_from_expr(expr: &Expr) -> Option<String> {
     match expr {
         Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) => Some(lit.value()),
@@ -1007,6 +1142,8 @@ struct ParamsParamSpec {
     step_base: Option<Expr>,
     enum_options: Option<Expr>,
     constraint_policy: Option<ParamConstraintPolicySpec>,
+    file_allowed_types: Option<Expr>,
+    file_allowed_extensions: Option<Expr>,
     reference_root: Option<Expr>,
     reference_target_kind: Option<Expr>,
     reference_allowed_node_types: Option<Expr>,
@@ -1187,6 +1324,8 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     step_base: param.options.step_base.clone(),
                     enum_options: resolved_enum_options,
                     constraint_policy,
+                    file_allowed_types: param.options.file_allowed_types.clone(),
+                    file_allowed_extensions: param.options.file_allowed_extensions.clone(),
                     reference_root: param.options.reference_root.clone(),
                     reference_target_kind: param.options.reference_target_kind.clone(),
                     reference_allowed_node_types: param.options.reference_allowed_node_types.clone(),
@@ -1216,12 +1355,13 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
         via,
         impl_node,
         from_struct,
+        scriptable,
     } = parse_macro_input!(attr as NodeAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, None, input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, None, input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, None, input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, None, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -1236,13 +1376,14 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
                 via,
                 impl_node,
                 from_struct,
+                scriptable,
             },
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, Some(item_kind), input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, Some(item_kind), input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, Some(item_kind), input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, Some(item_kind), input).into(),
         other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -1295,6 +1436,7 @@ fn expand_struct(
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
     item_kind: Option<LitStr>,
     mut input: ItemStruct,
 ) -> proc_macro2::TokenStream {
@@ -1306,6 +1448,13 @@ fn expand_struct(
     }
     if item_kind.is_some() && !impl_node {
         return Error::new_spanned(input, "`#[item(...)]` on a struct requires `impl_node`, or apply `#[item(...)]` on `impl Node for ...`").to_compile_error();
+    }
+    if scriptable.is_some() && !impl_node {
+        return Error::new_spanned(
+            input,
+            "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`",
+        )
+        .to_compile_error();
     }
 
     let mut params_dsl = None::<ParamsDsl>;
@@ -1426,6 +1575,20 @@ fn expand_struct(
                     __param_node.constraints.enum_options = #expr;
                 }
             });
+            let set_file_allowed_types = match args.file_allowed_types.as_ref() {
+                Some(expr) => match build_file_allowed_types_assignment(expr) {
+                    Ok(tokens) => Some(tokens),
+                    Err(err) => return err.to_compile_error(),
+                },
+                None => None,
+            };
+            let set_file_allowed_extensions = match args.file_allowed_extensions.as_ref() {
+                Some(expr) => match build_file_allowed_extensions_assignment(expr) {
+                    Ok(tokens) => Some(tokens),
+                    Err(err) => return err.to_compile_error(),
+                },
+                None => None,
+            };
             let set_constraint_policy = if let Some(value) = args.policy {
                 match value.value().to_ascii_lowercase().as_str() {
                     "clampadapt" | "clamp_adapt" | "clamp-adapt" | "clamp" => Some(quote! {
@@ -1466,6 +1629,8 @@ fn expand_struct(
                     #set_step
                     #set_step_base
                     #set_enum_options
+                    #set_file_allowed_types
+                    #set_file_allowed_extensions
                     #set_constraint_policy
                     golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
@@ -1682,6 +1847,7 @@ fn expand_struct(
             }
         }
     });
+    let generated_script_host_policy = scriptable.as_ref().map(build_script_host_policy_method_tokens);
 
     let generated_node_impl = if impl_node {
         quote! {
@@ -1700,6 +1866,7 @@ fn expand_struct(
 
                 #generated_user_item_kind
                 #generated_declared_user_item
+                #generated_script_host_policy
 
                 fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
                     self.__golden_node_engine_child_event_interest_depth(event)
@@ -1814,6 +1981,7 @@ fn expand_impl(
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
     item_kind: Option<LitStr>,
     mut input: ItemImpl,
 ) -> proc_macro2::TokenStream {
@@ -1904,6 +2072,15 @@ fn expand_impl(
                 fn is_declared_user_item(&self) -> bool {
                     true
                 }
+            });
+        }
+    }
+
+    if let Some(scriptable_attr) = scriptable.as_ref() {
+        if !has_method(&input, "script_host_policy") {
+            let method = build_script_host_policy_method_tokens(scriptable_attr);
+            input.items.push(parse_quote! {
+                #method
             });
         }
     }
@@ -2215,6 +2392,22 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             }
         });
 
+        let set_file_allowed_types = match param.file_allowed_types.as_ref() {
+            Some(expr) => match build_file_allowed_types_assignment(expr) {
+                Ok(tokens) => Some(tokens),
+                Err(err) => return vec![err.to_compile_error()],
+            },
+            None => None,
+        };
+
+        let set_file_allowed_extensions = match param.file_allowed_extensions.as_ref() {
+            Some(expr) => match build_file_allowed_extensions_assignment(expr) {
+                Ok(tokens) => Some(tokens),
+                Err(err) => return vec![err.to_compile_error()],
+            },
+            None => None,
+        };
+
         let set_constraint_policy = match param.constraint_policy {
             Some(ParamConstraintPolicySpec::ClampAdapt) => Some(quote! {
                 __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::ClampAdapt;
@@ -2279,6 +2472,8 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 #set_step
                 #set_step_base
                 #set_enum_options
+                #set_file_allowed_types
+                #set_file_allowed_extensions
                 #set_constraint_policy
                 #set_reference_root
                 #set_reference_target_kind
@@ -2548,6 +2743,25 @@ fn to_snake_case(input: &str) -> String {
     }
 
     out
+}
+
+fn build_script_host_policy_method_tokens(scriptable: &ScriptableAttr) -> proc_macro2::TokenStream {
+    match scriptable {
+        ScriptableAttr::Default => {
+            quote! {
+                fn script_host_policy(&self) -> Option<golden_core::script::ScriptHostPolicy> {
+                    Some(golden_core::script::ScriptHostPolicy::default_scriptable())
+                }
+            }
+        }
+        ScriptableAttr::Expr(expr) => {
+            quote! {
+                fn script_host_policy(&self) -> Option<golden_core::script::ScriptHostPolicy> {
+                    golden_core::node::IntoScriptHostPolicyOption::into_script_host_policy_option(#expr)
+                }
+            }
+        }
+    }
 }
 
 fn has_method(item_impl: &ItemImpl, name: &str) -> bool {

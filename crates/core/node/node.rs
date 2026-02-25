@@ -6,6 +6,7 @@ use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::parameter::{ParamValue, ParameterSnapshot};
 use crate::process_ctx::ProcessCtx;
+use crate::script::{ScriptHostPolicy, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -695,6 +696,24 @@ impl EventSubscription {
     }
 }
 
+/// Conversion helper for macro-generated script-host policy methods.
+pub trait IntoScriptHostPolicyOption {
+    /// Converts a value into an optional script-host policy.
+    fn into_script_host_policy_option(self) -> Option<ScriptHostPolicy>;
+}
+
+impl IntoScriptHostPolicyOption for ScriptHostPolicy {
+    fn into_script_host_policy_option(self) -> Option<ScriptHostPolicy> {
+        Some(self)
+    }
+}
+
+impl IntoScriptHostPolicyOption for Option<ScriptHostPolicy> {
+    fn into_script_host_policy_option(self) -> Option<ScriptHostPolicy> {
+        self
+    }
+}
+
 /// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
     /// Returns immutable runtime node data.
@@ -725,6 +744,29 @@ pub trait Node: Send + Any {
     /// Nodes that are not containers return `None`.
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         None
+    }
+
+    /// Returns scripting host policy when this node supports hosting script nodes.
+    fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
+        None
+    }
+
+    /// Engine-internal hook used by UI tooling to expose script runtime state.
+    #[doc(hidden)]
+    fn engine_script_state(&self) -> Option<ScriptUiState> {
+        None
+    }
+
+    /// Engine-internal hook used by UI tooling to replace script configuration.
+    #[doc(hidden)]
+    fn engine_set_script_config(&mut self, _config: ScriptNodeConfig, _force_reload: bool) -> Result<(), String> {
+        Err(format!("node type '{}' does not support script configuration", self.get_type()))
+    }
+
+    /// Engine-internal hook used by UI tooling to request script runtime reload.
+    #[doc(hidden)]
+    fn engine_request_script_reload(&mut self) -> Result<(), String> {
+        Err(format!("node type '{}' does not support script reload", self.get_type()))
     }
 
     /// Returns `true` when this container currently accepts `item_type` / `item_kind`.

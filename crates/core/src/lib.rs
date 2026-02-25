@@ -52,6 +52,10 @@ pub mod app;
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
 
+#[path = "../script/script.rs"]
+/// Scripting schemas and runtime integrations.
+pub mod script;
+
 /// Attribute macros used to declare node types, item kinds, and runtime update rates.
 pub use golden_core_macros::{item, node, update};
 

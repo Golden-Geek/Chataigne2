@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::window::Color;
-use tauri::{Manager, Url, WebviewUrl};
+use tauri::{ Url, WebviewUrl};
 
 use super::{UiServerConfig, run_app_with_config};
 use crate::engine::Engine;
@@ -206,6 +206,27 @@ fn start_drag(window: tauri::Window) -> Result<(), String> {
     window.start_dragging().map_err(|err| err.to_string())
 }
 
+#[tauri::command]
+fn open_file_dialog(allowed_extensions: Option<Vec<String>>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new();
+
+    let normalized_extensions = allowed_extensions
+        .unwrap_or_default()
+        .into_iter()
+        .map(|value| value.trim().trim_start_matches('.').to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<String>>()
+        .into_iter()
+        .collect::<Vec<String>>();
+
+    if !normalized_extensions.is_empty() {
+        let extension_refs = normalized_extensions.iter().map(String::as_str).collect::<Vec<&str>>();
+        dialog = dialog.add_filter("Allowed files", &extension_refs);
+    }
+
+    Ok(dialog.pick_file().map(|path| path.to_string_lossy().to_string()))
+}
+
 fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, format!("invalid UI URL '{ui_base_url}': {err}")))?;
 
@@ -250,7 +271,14 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![window_minimize, window_toggle_maximize, window_close, window_is_maximized, start_drag])
+        .invoke_handler(tauri::generate_handler![
+            window_minimize,
+            window_toggle_maximize,
+            window_close,
+            window_is_maximized,
+            start_drag,
+            open_file_dialog
+        ])
         .append_invoke_initialization_script(&init_script)
         .run(tauri::generate_context!("../../../../tauri.conf.json"))
         .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))

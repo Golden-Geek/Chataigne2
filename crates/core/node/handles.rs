@@ -1,8 +1,9 @@
 use crate::color::Color;
 use crate::edit::Edit;
 use crate::events::EventKind;
-use crate::parameter::{Enum, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
+use crate::parameter::{Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
+use std::path::PathBuf;
 
 use super::{DeclId, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid};
 
@@ -42,6 +43,33 @@ impl ParameterValueType for String {
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
         value.as_str()
+    }
+}
+
+impl ParameterValueType for File {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::File(value.into_inner())
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        match value {
+            ParamValue::File(path) | ParamValue::Str(path) => Some(File::new(path.clone())),
+            _ => None,
+        }
+    }
+}
+
+impl ParameterValueType for PathBuf {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::File(value.to_string_lossy().to_string())
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        match value {
+            ParamValue::File(path) => Some(PathBuf::from(path)),
+            ParamValue::Str(path) => Some(PathBuf::from(path)),
+            _ => None,
+        }
     }
 }
 

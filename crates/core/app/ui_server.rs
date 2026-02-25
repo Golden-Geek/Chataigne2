@@ -9,6 +9,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
+use crate::script::ScriptUiConfig;
 use crate::ui_sync::{UI_PROTOCOL_VERSION, UiAck, UiEditIntent, UiEventBatch, UiEventDto, UiEventKind, UiSubscriptionScope};
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +74,24 @@ struct ReplayRequest {
 #[derive(Deserialize)]
 struct ReferenceTargetsRequest {
     param: NodeId,
+}
+
+#[derive(Deserialize)]
+struct ScriptStateRequest {
+    node: NodeId,
+}
+
+#[derive(Deserialize)]
+struct ScriptConfigRequest {
+    node: NodeId,
+    config: ScriptUiConfig,
+    #[serde(default)]
+    force_reload: bool,
+}
+
+#[derive(Deserialize)]
+struct ScriptReloadRequest {
+    node: NodeId,
 }
 
 struct HttpRequest {
@@ -520,6 +539,57 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             drop(guard);
 
             write_json(stream, "200 OK", &targets)?;
+        }
+        ("POST", "/api/ui/script-state") => {
+            let payload: ScriptStateRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-state payload: {err}")))?;
+            eprintln!("[ui-http] script-state node={:?}", payload.node);
+
+            let guard = lock_engine(&state.engine);
+            let state_result = guard.ui_script_state(payload.node);
+            drop(guard);
+
+            match state_result {
+                Ok(script_state) => {
+                    write_json(stream, "200 OK", &script_state)?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &err)?;
+                }
+            }
+        }
+        ("POST", "/api/ui/script-config") => {
+            let payload: ScriptConfigRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
+            eprintln!("[ui-http] script-config node={:?} force_reload={}", payload.node, payload.force_reload);
+
+            let mut guard = lock_engine(&state.engine);
+            let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
+            drop(guard);
+
+            match update_result {
+                Ok(()) => {
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &err)?;
+                }
+            }
+        }
+        ("POST", "/api/ui/script-reload") => {
+            let payload: ScriptReloadRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
+            eprintln!("[ui-http] script-reload node={:?}", payload.node);
+
+            let mut guard = lock_engine(&state.engine);
+            let reload_result = guard.ui_reload_script(payload.node);
+            drop(guard);
+
+            match reload_result {
+                Ok(()) => {
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &err)?;
+                }
+            }
         }
         ("POST", "/api/ui/intent") => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;

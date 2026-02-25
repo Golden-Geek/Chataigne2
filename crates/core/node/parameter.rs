@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 use crate::{
     node::{Node, NodeData, NodeReference, NodeUuid},
@@ -19,6 +20,8 @@ pub enum ParamValue {
     Float(f64),
     /// UTF-8 string value.
     Str(String),
+    /// File path value.
+    File(String),
     /// Enum variant identifier.
     Enum(String),
     /// Boolean value.
@@ -33,6 +36,62 @@ pub enum ParamValue {
 
     /// Reference to another node.
     Reference(NodeReference),
+}
+
+/// Strongly-typed file path wrapper for parameter handles and params DSL.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct File(pub String);
+
+impl File {
+    /// Creates a new file value from a path-like string.
+    pub fn new(path: impl Into<String>) -> Self {
+        Self(path.into())
+    }
+
+    /// Returns the wrapped path string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Returns this file value as a [`Path`].
+    pub fn as_path(&self) -> &Path {
+        Path::new(&self.0)
+    }
+
+    /// Consumes this wrapper and returns the inner path string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl From<String> for File {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for File {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<PathBuf> for File {
+    fn from(value: PathBuf) -> Self {
+        Self(value.to_string_lossy().to_string())
+    }
+}
+
+impl From<File> for String {
+    fn from(value: File) -> Self {
+        value.0
+    }
+}
+
+impl From<File> for PathBuf {
+    fn from(value: File) -> Self {
+        PathBuf::from(value.0)
+    }
 }
 
 /// Strongly-typed 2D vector value for parameter handles and params DSL.
@@ -157,6 +216,18 @@ impl From<&str> for ParamValue {
     }
 }
 
+impl From<File> for ParamValue {
+    fn from(value: File) -> Self {
+        ParamValue::File(value.into_inner())
+    }
+}
+
+impl From<std::path::PathBuf> for ParamValue {
+    fn from(value: std::path::PathBuf) -> Self {
+        ParamValue::File(value.to_string_lossy().to_string())
+    }
+}
+
 impl From<bool> for ParamValue {
     fn from(value: bool) -> Self {
         ParamValue::Bool(value)
@@ -246,7 +317,7 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(i.to_string()),
             ParamValue::Float(f) => Some(f.to_string()),
-            ParamValue::Str(s) | ParamValue::Enum(s) => Some(s.clone()),
+            ParamValue::Str(s) | ParamValue::File(s) | ParamValue::Enum(s) => Some(s.clone()),
             ParamValue::Bool(b) => Some(b.to_string()),
             _ => None,
         }
@@ -435,6 +506,99 @@ fn is_default_reference_constraints(value: &ReferenceConstraints) -> bool {
     *value == ReferenceConstraints::default()
 }
 
+/// Named groups of allowed file extensions for `ParamValue::File`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum FileTypeGroup {
+    /// Common audio formats.
+    #[default]
+    Audio,
+    /// Common video formats.
+    Video,
+    /// Script source formats.
+    Script,
+}
+
+impl FileTypeGroup {
+    /// Parses a group label used by runtime manifests and UI payloads.
+    pub fn from_label(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "audio" => Some(Self::Audio),
+            "video" => Some(Self::Video),
+            "script" => Some(Self::Script),
+            _ => None,
+        }
+    }
+
+    /// Returns true when `extension` belongs to this group.
+    pub fn matches_extension(self, extension: &str) -> bool {
+        let extension = extension.trim().to_ascii_lowercase();
+        match self {
+            Self::Audio => matches!(
+                extension.as_str(),
+                "wav" | "wave" | "aif" | "aiff" | "flac" | "mp3" | "ogg" | "opus" | "m4a" | "aac" | "wma"
+            ),
+            Self::Video => matches!(
+                extension.as_str(),
+                "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"
+            ),
+            Self::Script => matches!(extension.as_str(), "lua" | "luau" | "js" | "mjs" | "cjs"),
+        }
+    }
+}
+
+/// Additional constraints specific to `ParamValue::File`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct FileConstraints {
+    /// Optional extension groups accepted by this file parameter.
+    ///
+    /// Empty means all groups are accepted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_types: Vec<FileTypeGroup>,
+    /// Optional explicit extension allow-list (`wav`, `.mp3`, ...).
+    ///
+    /// Empty means all extensions are accepted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_extensions: Vec<String>,
+}
+
+impl FileConstraints {
+    /// Normalizes one extension label (`.WAV` -> `wav`).
+    pub fn normalize_extension_label(value: &str) -> Option<String> {
+        let trimmed = value.trim().trim_start_matches('.');
+        if trimmed.is_empty() {
+            return None;
+        }
+        Some(trimmed.to_ascii_lowercase())
+    }
+
+    fn normalized_allowed_extensions(&self) -> Vec<String> {
+        let mut normalized = Vec::new();
+        for ext in &self.allowed_extensions {
+            if let Some(ext) = Self::normalize_extension_label(ext) {
+                normalized.push(ext);
+            }
+        }
+        normalized
+    }
+
+    fn accepts_extension(&self, extension: &str) -> bool {
+        let extension = extension.to_ascii_lowercase();
+
+        let group_match = self.allowed_types.is_empty() || self.allowed_types.iter().any(|group| group.matches_extension(&extension));
+        if !group_match {
+            return false;
+        }
+
+        let allowed_extensions = self.normalized_allowed_extensions();
+        allowed_extensions.is_empty() || allowed_extensions.iter().any(|allowed| allowed == &extension)
+    }
+}
+
+fn is_default_file_constraints(value: &FileConstraints) -> bool {
+    *value == FileConstraints::default()
+}
+
 /// Numeric range constraints for scalar and vector-like parameter values.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -506,6 +670,9 @@ pub struct ParameterConstraints {
     /// Reference-specific filtering and recovery constraints.
     #[serde(default, skip_serializing_if = "is_default_reference_constraints")]
     pub reference: ReferenceConstraints,
+    /// File-specific extension constraints.
+    #[serde(default, skip_serializing_if = "is_default_file_constraints")]
+    pub file: FileConstraints,
 }
 
 impl ParameterConstraints {
@@ -516,6 +683,7 @@ impl ParameterConstraints {
             ParamValue::Float(value) => self.normalize_float(value)?,
             ParamValue::Vec2(x, y) => self.normalize_vec2(x, y)?,
             ParamValue::Vec3(x, y, z) => self.normalize_vec3(x, y, z)?,
+            ParamValue::File(path) => self.normalize_file(path)?,
             other => other,
         };
 
@@ -721,6 +889,37 @@ impl ParameterConstraints {
 
         Ok(value)
     }
+
+    fn normalize_file(&self, path: String) -> Result<ParamValue, String> {
+        if self.file.allowed_types.is_empty() && self.file.allowed_extensions.is_empty() {
+            return Ok(ParamValue::File(path));
+        }
+
+        let extension = Path::new(&path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .and_then(FileConstraints::normalize_extension_label)
+            .ok_or_else(|| "file extension is required by constraints".to_string())?;
+
+        if !self.file.accepts_extension(&extension) {
+            let allowed_types: Vec<&'static str> = self
+                .file
+                .allowed_types
+                .iter()
+                .map(|group| match group {
+                    FileTypeGroup::Audio => "audio",
+                    FileTypeGroup::Video => "video",
+                    FileTypeGroup::Script => "script",
+                })
+                .collect();
+            let allowed_extensions = self.file.normalized_allowed_extensions();
+            return Err(format!(
+                "file extension '.{extension}' is not allowed (allowed_types={allowed_types:?}, allowed_extensions={allowed_extensions:?})"
+            ));
+        }
+
+        Ok(ParamValue::File(path))
+    }
 }
 
 /// UI presentation hints for parameter editors.
@@ -874,6 +1073,7 @@ impl Node for Parameter {
             ParamValue::Int(_) => "int",
             ParamValue::Float(_) => "float",
             ParamValue::Str(_) => "str",
+            ParamValue::File(_) => "file",
             ParamValue::Enum(_) => "enum",
             ParamValue::Bool(_) => "bool",
             ParamValue::Vec2(_, _) => "vec2",
@@ -900,5 +1100,42 @@ impl Node for Parameter {
         if let ParamValue::Reference(reference) = &mut self.value {
             visit(reference);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_constraints_accept_matching_extension() {
+        let constraints = ParameterConstraints {
+            file: FileConstraints {
+                allowed_types: vec![FileTypeGroup::Audio],
+                allowed_extensions: vec![".WAV".to_string()],
+            },
+            ..Default::default()
+        };
+
+        let normalized = constraints
+            .normalize(ParamValue::File("C:/tmp/kick.wav".to_string()))
+            .expect("wav should pass file constraints");
+        assert_eq!(normalized, ParamValue::File("C:/tmp/kick.wav".to_string()));
+    }
+
+    #[test]
+    fn file_constraints_reject_non_matching_extension() {
+        let constraints = ParameterConstraints {
+            file: FileConstraints {
+                allowed_types: vec![FileTypeGroup::Audio],
+                allowed_extensions: vec!["wav".to_string(), "flac".to_string()],
+            },
+            ..Default::default()
+        };
+
+        let error = constraints
+            .normalize(ParamValue::File("C:/tmp/clip.mp4".to_string()))
+            .expect_err("mp4 should fail audio constraints");
+        assert!(error.contains("not allowed"));
     }
 }
