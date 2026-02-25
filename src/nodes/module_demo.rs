@@ -1,4 +1,4 @@
-use std::time::{ SystemTime, UNIX_EPOCH};
+use std::{string, time::{ SystemTime, UNIX_EPOCH}};
 
 use golden_core::{
     color::Color, item, log, update, node, node::{Node, NodeId, NodeReference}, parameter::{Enum, ParamValue, Vec2, Vec3}, process_ctx::ProcessCtx
@@ -82,7 +82,7 @@ impl Node for ModuleBase {
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
-        vec2_range_param: Vec2 = (0.5, 0.25) [(0.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
+        vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
     }
     folder(values, label = "Values", reuse = true) {
        
@@ -138,7 +138,7 @@ impl Node for OscModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        // let val = (self.float_param.get() + 0.2) % 10.0;
+        let val = (self.float_param.get() + 0.2) % 10.0;
         // self.float_param.set(ctx, val);
 
         //get current time
@@ -152,15 +152,8 @@ impl Node for OscModule {
         self.vec2_param.set(ctx, Vec2::new(tx, ty));
         self.vec2_range_param.set(ctx, Vec2::new(tx, ty));
         self.vec3_param.set(ctx, Vec3::new(tx, ty, tz));
-        // if val > 7.5 {
-        //     log!(level= error; "New value :",  self.float_param.get());
 
-        // } else if val > 5.0 {
-        //     log!(level= warning; "New value :",  self.float_param.get());
-
-        // } else {
-        //     log!("New value :",  self.float_param.get());
-        // };
+        
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
@@ -168,8 +161,25 @@ impl Node for OscModule {
             if self.bool_param.get() {
                 // self.bool_param.set_warning(ctx, "bool_param is true!");
             } else {
-                self.bool_param.clear_warning(ctx, None);
+                // self.bool_param.clear_warning(ctx, None);
             }
+        }
+
+        if(node_id == self.float_param.id()) {
+            let val = self.float_param.get();
+
+           self.string_param.set(ctx, format!("Value: {:.2}", val));
+           if self.bool_param.get() {
+            if val > 7.5 {
+                log!(level= error; "New value :",  self.float_param.get());
+
+            } else if val > 5.0 {
+                log!(level= warning; "New value :",  self.float_param.get());
+
+            } else {
+                log!(level= success; "New value :",  self.float_param.get());
+            };
+        };
         }
     }
 }
