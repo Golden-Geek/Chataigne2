@@ -107,6 +107,8 @@ pub struct Engine<T: Node> {
     reference_filters: HashMap<String, Box<ReferenceFilterFn<T>>>,
     /// UI-facing append-only event log used for replay/subscription.
     ui_event_log: Vec<crate::events::Event>,
+    /// Start index of retained events inside `ui_event_log`.
+    ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
     /// Applied edit transactions available for undo.
@@ -147,6 +149,7 @@ impl<T: Node> Engine<T> {
             event_listeners: HashMap::new(),
             reference_filters: HashMap::new(),
             ui_event_log: Vec::new(),
+            ui_event_log_start: 0,
             ui_event_log_capacity: engine_ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),

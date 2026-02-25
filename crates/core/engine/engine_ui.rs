@@ -5,11 +5,12 @@ use super::{Engine, EngineTime};
 
 /// Default retention size for the UI replay event log.
 pub const DEFAULT_UI_EVENT_LOG_CAPACITY: usize = 8192;
+const UI_EVENT_LOG_COMPACT_THRESHOLD: usize = 4096;
 
 impl<T: Node> Engine<T> {
     /// Returns the retained UI event replay buffer.
     pub fn ui_event_log(&self) -> &[Event] {
-        &self.ui_event_log
+        &self.ui_event_log[self.ui_event_log_start..]
     }
 
     /// Returns the current UI replay buffer capacity.
@@ -23,17 +24,24 @@ impl<T: Node> Engine<T> {
         self.trim_ui_event_log();
     }
 
+    pub(crate) fn ui_event_log_start_index(&self, after: Option<EngineTime>) -> usize {
+        let retained = self.ui_event_log();
+        match after {
+            Some(after_time) => retained.partition_point(|event| event.time <= after_time),
+            None => 0,
+        }
+    }
+
     /// Returns cloned events newer than `after`.
     pub fn ui_events_since(&self, after: Option<EngineTime>) -> Vec<Event> {
-        match after {
-            Some(after_time) => self.ui_event_log.iter().filter(|event| event.time > after_time).cloned().collect(),
-            None => self.ui_event_log.clone(),
-        }
+        let start_index = self.ui_event_log_start_index(after);
+        self.ui_event_log()[start_index..].to_vec()
     }
 
     /// Clears the UI replay buffer.
     pub fn clear_ui_event_log(&mut self) {
         self.ui_event_log.clear();
+        self.ui_event_log_start = 0;
     }
 
     pub(crate) fn push_ui_custom_event(&mut self, topic: impl Into<String>, origin: Option<crate::node::NodeId>, payload: serde_json::Value) {
@@ -59,9 +67,19 @@ impl<T: Node> Engine<T> {
     }
 
     fn trim_ui_event_log(&mut self) {
-        if self.ui_event_log.len() > self.ui_event_log_capacity {
-            let overflow = self.ui_event_log.len() - self.ui_event_log_capacity;
-            self.ui_event_log.drain(0..overflow);
+        let retained_len = self.ui_event_log.len().saturating_sub(self.ui_event_log_start);
+        if retained_len > self.ui_event_log_capacity {
+            let overflow = retained_len - self.ui_event_log_capacity;
+            self.ui_event_log_start = self.ui_event_log_start.saturating_add(overflow);
+        }
+
+        if self.ui_event_log_start == 0 {
+            return;
+        }
+
+        if self.ui_event_log_start >= UI_EVENT_LOG_COMPACT_THRESHOLD || self.ui_event_log_start * 2 >= self.ui_event_log.len() {
+            self.ui_event_log.drain(0..self.ui_event_log_start);
+            self.ui_event_log_start = 0;
         }
     }
 }

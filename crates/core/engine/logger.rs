@@ -15,12 +15,18 @@ pub const UI_LOG_MAX_ENTRIES_TOPIC: &str = "__logger.max_entries";
 
 const DEFAULT_LOG_MAX_ENTRIES: usize = 1024;
 
+fn is_default_repeat_count(value: &u32) -> bool {
+    *value <= 1
+}
+
 /// Severity level for a logger record.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     /// Informational message.
     Info,
+    /// Success message.
+    Success,
     /// Warning message.
     Warning,
     /// Error message.
@@ -40,9 +46,16 @@ pub struct LogRecord {
     pub tag: String,
     /// Final rendered message.
     pub message: String,
+    /// Number of consecutive identical messages represented by this record.
+    #[serde(default = "default_repeat_count", skip_serializing_if = "is_default_repeat_count")]
+    pub repeat_count: u32,
     /// Optional node origin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<NodeId>,
+}
+
+fn default_repeat_count() -> u32 {
+    1
 }
 
 #[derive(Default)]
@@ -152,12 +165,33 @@ pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message
     let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_millis() as u64).unwrap_or(0);
 
     let mut state = lock_logger_state();
+    if let Some(last) = state.retained.back_mut() {
+        if last.level == level && last.tag == tag && last.message == message && last.origin == resolved_origin {
+            last.timestamp_ms = timestamp_ms;
+            last.repeat_count = last.repeat_count.saturating_add(1);
+            let updated = last.clone();
+
+            if let Some(pending_tail) = state.pending.back_mut() {
+                if pending_tail.id == updated.id {
+                    *pending_tail = updated.clone();
+                } else {
+                    state.pending.push_back(updated.clone());
+                }
+            } else {
+                state.pending.push_back(updated.clone());
+            }
+
+            return updated;
+        }
+    }
+
     let record = LogRecord {
         id: state.next_id,
         timestamp_ms,
         level,
         tag,
         message,
+        repeat_count: 1,
         origin: resolved_origin,
     };
     state.next_id = state.next_id.saturating_add(1);
@@ -180,6 +214,9 @@ fn lock_logger_state() -> std::sync::MutexGuard<'static, LoggerState> {
 macro_rules! __golden_log_level {
     (info) => {
         $crate::logger::LogLevel::Info
+    };
+    (success) => {
+        $crate::logger::LogLevel::Success
     };
     (warning) => {
         $crate::logger::LogLevel::Warning
@@ -305,11 +342,59 @@ mod tests {
     }
 
     #[test]
+    fn logger_accepts_success_options() {
+        clear();
+        let record = crate::log!(tag = "ui", level = success; "payload");
+        assert_eq!(record.level, LogLevel::Success);
+        assert_eq!(record.tag, "ui");
+    }
+
+    #[test]
     fn logger_uses_thread_local_origin_when_not_explicit() {
         clear();
         let origin = NodeId(12);
 
         let record = with_node_origin(origin, || crate::log!("from node"));
         assert_eq!(record.origin, Some(origin));
+    }
+
+    #[test]
+    fn logger_collapses_consecutive_duplicates_into_one_record() {
+        clear();
+        set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
+
+        let first = crate::log!(tag = "perf", level = info; "duplicate");
+        let second = crate::log!(tag = "perf", level = info; "duplicate");
+
+        assert_eq!(first.id, second.id);
+        assert_eq!(second.repeat_count, 2);
+        assert_eq!(records().len(), 1);
+
+        let pending = drain_pending();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].repeat_count, 2);
+
+        clear();
+        set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
+    }
+
+    #[test]
+    fn logger_max_entries_counts_collapsed_runs() {
+        clear();
+        set_max_entries(2);
+
+        for _ in 0..64 {
+            crate::log!(tag = "same", level = warning; "same");
+        }
+        crate::log!(tag = "next", level = warning; "next");
+        crate::log!(tag = "last", level = warning; "last");
+
+        let retained = records();
+        assert_eq!(retained.len(), 2);
+        assert_eq!(retained[0].tag, "next");
+        assert_eq!(retained[1].tag, "last");
+
+        clear();
+        set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
     }
 }

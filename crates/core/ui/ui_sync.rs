@@ -592,7 +592,17 @@ impl<T: Node> Engine<T> {
 
     /// Returns a scoped UI event replay batch starting strictly after `from`.
     pub fn ui_event_batch(&self, from: Option<EngineTime>, scope: UiSubscriptionScope) -> UiEventBatch {
-        let events: Vec<UiEventDto> = self.ui_events_since(from).into_iter().filter(|event| self.event_matches_scope(&scope, event)).map(UiEventDto::from).collect();
+        let start_index = self.ui_event_log_start_index(from);
+        let mut events = Vec::<UiEventDto>::new();
+        let source_events = &self.ui_event_log()[start_index..];
+        events.reserve(source_events.len());
+
+        for event in source_events {
+            if self.event_matches_scope(&scope, event) {
+                events.push(UiEventDto::from(event.clone()));
+            }
+        }
+
         let to = events.last().map(|event| event.time);
 
         UiEventBatch { from, to, events }
@@ -616,8 +626,7 @@ impl<T: Node> Engine<T> {
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         let before_len = self.ui_event_log().len();
-        let intent_debug = format!("{intent:?}");
-        eprintln!("[gc-ui] intent recv: {intent_debug} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
+        // eprintln!("[gc-ui] intent recv: {intent:?} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 
         let ack = match intent {
             UiEditIntent::BeginEdit { client_edit_id, label } => {
@@ -739,10 +748,10 @@ impl<T: Node> Engine<T> {
             },
         };
 
-        eprintln!(
-            "[gc-ui] intent ack: success={} status={:?} code={:?} earliest={:?} history={{undo_len:{}, redo_len:{}, can_undo:{}, can_redo:{}, active_session:{}}}",
-            ack.success, ack.status, ack.error_code, ack.earliest_event_time, ack.history.undo_len, ack.history.redo_len, ack.history.can_undo, ack.history.can_redo, ack.history.active_edit_session
-        );
+        // eprintln!(
+        //     "[gc-ui] intent ack: success={} status={:?} code={:?} earliest={:?} history={{undo_len:{}, redo_len:{}, can_undo:{}, can_redo:{}, active_session:{}}}",
+        //     ack.success, ack.status, ack.error_code, ack.earliest_event_time, ack.history.undo_len, ack.history.redo_len, ack.history.can_undo, ack.history.can_redo, ack.history.active_edit_session
+        // );
 
         ack
     }

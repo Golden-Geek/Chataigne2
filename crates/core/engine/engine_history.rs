@@ -754,7 +754,7 @@ impl<T: Node> Engine<T> {
             return;
         }
 
-        eprintln!("[gc-history] push undo tx: steps={} undo_before={} redo_current={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
+        // eprintln!("[gc-history] push undo tx: steps={} undo_before={} redo_current={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
 
         if let Some(previous) = self.undo_stack.last_mut() {
             transaction.absorb_coalesced_set_params(previous);
@@ -762,7 +762,7 @@ impl<T: Node> Engine<T> {
 
         if !transaction.is_empty() {
             self.undo_stack.push(transaction);
-            eprintln!("[gc-history] push undo tx done: undo_after={} redo_current={}", self.undo_stack.len(), self.redo_stack.len());
+            // eprintln!("[gc-history] push undo tx done: undo_after={} redo_current={}", self.undo_stack.len(), self.redo_stack.len());
         }
     }
 
@@ -791,30 +791,30 @@ impl<T: Node> Engine<T> {
     /// Reverts the last applied edit transaction.
     pub fn undo(&mut self) -> Result<bool, EngineEditError> {
         let Some(mut transaction) = self.undo_stack.pop() else {
-            eprintln!("[gc-history] undo: no-op (undo_len=0, redo_len={})", self.redo_stack.len());
+            // eprintln!("[gc-history] undo: no-op (undo_len=0, redo_len={})", self.redo_stack.len());
             return Ok(false);
         };
 
-        eprintln!("[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
+        // eprintln!("[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.undo(self)?;
         self.sync_missing_reference_warnings();
         self.redo_stack.push(transaction);
-        eprintln!("[gc-history] undo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
+        // eprintln!("[gc-history] undo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)
     }
 
     /// Reapplies the last undone edit transaction.
     pub fn redo(&mut self) -> Result<bool, EngineEditError> {
         let Some(mut transaction) = self.redo_stack.pop() else {
-            eprintln!("[gc-history] redo: no-op (undo_len={}, redo_len=0)", self.undo_stack.len());
+            // eprintln!("[gc-history] redo: no-op (undo_len={}, redo_len=0)", self.undo_stack.len());
             return Ok(false);
         };
 
-        eprintln!("[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
+        // eprintln!("[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.redo(self)?;
         self.sync_missing_reference_warnings();
         self.undo_stack.push(transaction);
-        eprintln!("[gc-history] redo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
+        // eprintln!("[gc-history] redo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)
     }
 
