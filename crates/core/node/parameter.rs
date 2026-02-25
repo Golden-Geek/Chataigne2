@@ -435,19 +435,66 @@ fn is_default_reference_constraints(value: &ReferenceConstraints) -> bool {
     *value == ReferenceConstraints::default()
 }
 
+/// Numeric range constraints for scalar and vector-like parameter values.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RangeConstraint {
+    /// One min/max pair applied uniformly.
+    Uniform {
+        /// Optional minimum bound.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        min: Option<f64>,
+        /// Optional maximum bound.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max: Option<f64>,
+    },
+    /// Component-wise bounds for vector-like values.
+    Components {
+        /// Optional per-component minimum bounds.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        min: Option<Vec<f64>>,
+        /// Optional per-component maximum bounds.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max: Option<Vec<f64>>,
+    },
+}
+
+impl RangeConstraint {
+    /// Builds a uniform range constraint when at least one bound is provided.
+    pub fn uniform(min: Option<f64>, max: Option<f64>) -> Option<Self> {
+        if min.is_none() && max.is_none() {
+            None
+        } else {
+            Some(Self::Uniform { min, max })
+        }
+    }
+
+    /// Builds a component-wise range constraint when at least one bound list is provided.
+    pub fn components(min: Option<Vec<f64>>, max: Option<Vec<f64>>) -> Option<Self> {
+        let min = min.filter(|values| !values.is_empty());
+        let max = max.filter(|values| !values.is_empty());
+        if min.is_none() && max.is_none() {
+            None
+        } else {
+            Some(Self::Components { min, max })
+        }
+    }
+}
+
 /// Runtime data constraints for parameter values.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ParameterConstraints {
-    /// Optional numeric minimum.
+    /// Optional numeric range constraints.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min: Option<f64>,
-    /// Optional numeric maximum.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max: Option<f64>,
+    pub range: Option<RangeConstraint>,
     /// Optional numeric step increment.
+    ///
+    /// Applies to scalar numeric values and each component of vector values.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
     /// Optional base used for step snapping/validation.
+    ///
+    /// Applies to scalar numeric values and each component of vector values.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_base: Option<f64>,
     /// Optional enum-domain constraints.
@@ -464,15 +511,11 @@ pub struct ParameterConstraints {
 impl ParameterConstraints {
     /// Normalizes or validates an incoming value according to constraint policy.
     pub fn normalize(&self, incoming: ParamValue) -> Result<ParamValue, String> {
-        if let (Some(min), Some(max)) = (self.min, self.max) {
-            if min > max {
-                return Err(format!("invalid constraints: min {min} is greater than max {max}"));
-            }
-        }
-
         let mut normalized = match incoming {
             ParamValue::Int(value) => self.normalize_int(value)?,
             ParamValue::Float(value) => self.normalize_float(value)?,
+            ParamValue::Vec2(x, y) => self.normalize_vec2(x, y)?,
+            ParamValue::Vec3(x, y, z) => self.normalize_vec3(x, y, z)?,
             other => other,
         };
 
@@ -518,8 +561,117 @@ impl ParameterConstraints {
         Ok(ParamValue::Float(self.normalize_numeric(value)?))
     }
 
-    fn normalize_numeric(&self, mut value: f64) -> Result<f64, String> {
-        if let Some(min) = self.min {
+    fn normalize_vec2(&self, x: f64, y: f64) -> Result<ParamValue, String> {
+        let bounds = self.vector_component_bounds(2, "vec2")?;
+        let x = self
+            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
+            .map_err(|message| format!("vec2.x: {message}"))?;
+        let y = self
+            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
+            .map_err(|message| format!("vec2.y: {message}"))?;
+        Ok(ParamValue::Vec2(x, y))
+    }
+
+    fn normalize_vec3(&self, x: f64, y: f64, z: f64) -> Result<ParamValue, String> {
+        let bounds = self.vector_component_bounds(3, "vec3")?;
+        let x = self
+            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
+            .map_err(|message| format!("vec3.x: {message}"))?;
+        let y = self
+            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
+            .map_err(|message| format!("vec3.y: {message}"))?;
+        let z = self
+            .normalize_numeric_with_bounds(z, bounds[2].0, bounds[2].1)
+            .map_err(|message| format!("vec3.z: {message}"))?;
+        Ok(ParamValue::Vec3(x, y, z))
+    }
+
+    fn normalize_numeric(&self, value: f64) -> Result<f64, String> {
+        let (min, max) = self.scalar_bounds()?;
+        self.normalize_numeric_with_bounds(value, min, max)
+    }
+
+    fn scalar_bounds(&self) -> Result<(Option<f64>, Option<f64>), String> {
+        match &self.range {
+            None => Ok((None, None)),
+            Some(RangeConstraint::Uniform { min, max }) => {
+                if let (Some(min), Some(max)) = (*min, *max) {
+                    if min > max {
+                        return Err(format!("invalid range: min {min} is greater than max {max}"));
+                    }
+                }
+                Ok((*min, *max))
+            }
+            Some(RangeConstraint::Components { .. }) => {
+                Err("component range constraints cannot be applied to scalar values".to_string())
+            }
+        }
+    }
+
+    fn vector_component_bounds(
+        &self,
+        dimensions: usize,
+        value_kind: &str,
+    ) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
+        match &self.range {
+            None => Ok(vec![(None, None); dimensions]),
+            Some(RangeConstraint::Uniform { min, max }) => {
+                if let (Some(min), Some(max)) = (*min, *max) {
+                    if min > max {
+                        return Err(format!("invalid range: min {min} is greater than max {max}"));
+                    }
+                }
+                Ok(vec![(*min, *max); dimensions])
+            }
+            Some(RangeConstraint::Components { min, max }) => {
+                if let Some(min_values) = min {
+                    if min_values.len() != dimensions {
+                        return Err(format!(
+                            "invalid range: min has {} components but {} expects {}",
+                            min_values.len(),
+                            value_kind,
+                            dimensions
+                        ));
+                    }
+                }
+
+                if let Some(max_values) = max {
+                    if max_values.len() != dimensions {
+                        return Err(format!(
+                            "invalid range: max has {} components but {} expects {}",
+                            max_values.len(),
+                            value_kind,
+                            dimensions
+                        ));
+                    }
+                }
+
+                let mut out = Vec::with_capacity(dimensions);
+                for index in 0..dimensions {
+                    let min_value = min.as_ref().and_then(|values| values.get(index)).copied();
+                    let max_value = max.as_ref().and_then(|values| values.get(index)).copied();
+                    if let (Some(min_value), Some(max_value)) = (min_value, max_value) {
+                        if min_value > max_value {
+                            return Err(format!(
+                                "invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"
+                            ));
+                        }
+                    }
+                    out.push((min_value, max_value));
+                }
+                Ok(out)
+            }
+        }
+    }
+
+    fn normalize_numeric_with_bounds(&self, mut value: f64, min: Option<f64>, max: Option<f64>) -> Result<f64, String> {
+        if let (Some(min), Some(max)) = (min, max) {
+            if min > max {
+                return Err(format!("invalid constraints: min {min} is greater than max {max}"));
+            }
+        }
+
+        if let Some(min) = min {
             if value < min {
                 match self.policy {
                     ParameterConstraintPolicy::ClampAdapt => value = min,
@@ -528,7 +680,7 @@ impl ParameterConstraints {
             }
         }
 
-        if let Some(max) = self.max {
+        if let Some(max) = max {
             if value > max {
                 match self.policy {
                     ParameterConstraintPolicy::ClampAdapt => value = max,
@@ -542,7 +694,7 @@ impl ParameterConstraints {
                 return Err(format!("invalid step {step}: expected positive value"));
             }
 
-            let base = self.step_base.or(self.min).unwrap_or(0.0);
+            let base = self.step_base.or(min).unwrap_or(0.0);
             let scaled = (value - base) / step;
             let nearest = scaled.round();
 
@@ -559,10 +711,10 @@ impl ParameterConstraints {
         }
 
         if self.policy == ParameterConstraintPolicy::ClampAdapt {
-            if let Some(min) = self.min {
+            if let Some(min) = min {
                 value = value.max(min);
             }
-            if let Some(max) = self.max {
+            if let Some(max) = max {
                 value = value.min(max);
             }
         }

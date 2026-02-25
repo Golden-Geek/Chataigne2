@@ -6,7 +6,7 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
 
@@ -388,6 +388,13 @@ struct DslParamsNode {
     observed_feedback_old: Option<ParamValue>,
 }
 
+#[crate::node("dsl_vector_bounds_node")]
+#[params(
+    vec2_bounds: crate::parameter::Vec2 = (0.2, 0.5) [(-1.0, 0.0)..(1.0, 2.0)] (label = "Vec2 Bounds");
+    vec3_bounds: crate::parameter::Vec3 = (0.2, 0.5, 12.0) [(-1.0, 0.0, 10.0)..(1.0, 2.0, 20.0)] (label = "Vec3 Bounds");
+)]
+struct DslVectorBoundsNode {}
+
 #[crate::node("dsl_enum_defaults_node")]
 #[params(
     mode_marked: crate::parameter::Enum (
@@ -563,6 +570,9 @@ impl Node for DslParamsNode {
     }
 }
 
+#[crate::node("dsl_vector_bounds_node", from_struct)]
+impl Node for DslVectorBoundsNode {}
+
 #[crate::node("dsl_enum_defaults_node", from_struct)]
 impl Node for DslEnumDefaultsNode {}
 
@@ -637,6 +647,7 @@ crate::define_node_enum!(
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
         DslParamsNode,
+        DslVectorBoundsNode,
         DslEnumDefaultsNode,
         DslReferenceDefaultNode,
         DslMetaParamsNode,
@@ -677,8 +688,10 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     let MacroTestNode::Parameter(decay_param_node) = engine.nodes.get(decay_param).expect("decay parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(decay_param_node.constraints.min, Some(0.0));
-    assert_eq!(decay_param_node.constraints.max, Some(1.0));
+    assert_eq!(
+        decay_param_node.constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(1.0))
+    );
     assert_eq!(decay_param_node.constraints.step, Some(0.05));
     assert_eq!(decay_param_node.constraints.step_base, Some(0.0));
     assert_eq!(decay_param_node.constraints.policy, ParameterConstraintPolicy::ClampAdapt);
@@ -755,8 +768,10 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let MacroTestNode::Parameter(feedback_param) = engine.nodes.get(feedback).expect("feedback parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(feedback_param.constraints.min, Some(0.0));
-    assert_eq!(feedback_param.constraints.max, Some(1.0));
+    assert_eq!(
+        feedback_param.constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(1.0))
+    );
     assert_eq!(feedback_param.constraints.step, Some(0.1));
     assert_eq!(feedback_param.constraints.step_base, Some(0.0));
     assert_eq!(feedback_param.constraints.policy, ParameterConstraintPolicy::Reject);
@@ -765,6 +780,38 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let host_meta = engine.nodes.get(host).expect("host node should exist").node_data().meta.clone();
     assert_eq!(host_meta.label, "Host");
     assert_eq!(host_meta.description.as_deref(), Some("OSC destination host"));
+}
+
+#[test]
+fn params_macro_supports_component_min_max_for_vector_parameters() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslVectorBoundsNode::new("vector-bounds").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("vector bounds node should be attached under root");
+    let vec2_bounds = find_child_by_decl(&engine, owner, "vec2_bounds").expect("vec2_bounds parameter should exist");
+    let vec3_bounds = find_child_by_decl(&engine, owner, "vec3_bounds").expect("vec3_bounds parameter should exist");
+
+    let MacroTestNode::Parameter(vec2_param) = engine.nodes.get(vec2_bounds).expect("vec2_bounds parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(
+        vec2_param.constraints.range,
+        RangeConstraint::components(Some(vec![-1.0, 0.0]), Some(vec![1.0, 2.0]))
+    );
+
+    let MacroTestNode::Parameter(vec3_param) = engine.nodes.get(vec3_bounds).expect("vec3_bounds parameter should exist") else {
+        panic!("expected Parameter variant");
+    };
+    assert_eq!(
+        vec3_param.constraints.range,
+        RangeConstraint::components(Some(vec![-1.0, 0.0, 10.0]), Some(vec![1.0, 2.0, 20.0]))
+    );
 }
 
 #[test]
@@ -1512,8 +1559,7 @@ fn parameter_set_append_behaviour_keeps_all_pending_set_param_edits() {
 fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
-        min: Some(0.0),
-        max: Some(1.0),
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: Some(0.25),
         step_base: Some(0.0),
         enum_options: Vec::new(),
@@ -1537,8 +1583,7 @@ fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
 fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
-        min: Some(0.0),
-        max: Some(1.0),
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: Some(0.5),
         step_base: Some(0.0),
         enum_options: Vec::new(),
@@ -1558,11 +1603,81 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
 }
 
 #[test]
+fn apply_set_param_clamps_vec2_components_when_constraints_use_clamp_adapt_policy() {
+    let mut root = Parameter::new("root_param", ParamValue::Vec2(0.0, 0.0), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
+        step: Some(0.25),
+        step_base: Some(0.0),
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Vec2(-0.2, 1.13),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set vec2 param should clamp and adapt each component");
+
+    let value = engine.nodes.get(engine.root).expect("root parameter should exist").value.clone();
+    assert_eq!(value, ParamValue::Vec2(0.0, 1.0), "each vec2 component should be normalized");
+}
+
+#[test]
+fn apply_set_param_rejects_vec3_components_when_constraints_use_reject_policy() {
+    let mut root = Parameter::new("root_param", ParamValue::Vec3(0.0, 0.0, 0.0), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
+        step: None,
+        step_base: None,
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::Reject,
+        reference: Default::default(),
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Vec3(0.2, 1.3, 0.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+}
+
+#[test]
+fn apply_set_param_clamps_vec3_components_with_component_specific_bounds() {
+    let mut root = Parameter::new("root_param", ParamValue::Vec3(0.0, 0.0, 0.0), ParameterChangeCheck::None);
+    root.constraints = ParameterConstraints {
+        range: RangeConstraint::components(Some(vec![0.0, -1.0, 5.0]), Some(vec![1.0, 2.0, 6.0])),
+        step: None,
+        step_base: None,
+        enum_options: Vec::new(),
+        policy: ParameterConstraintPolicy::ClampAdapt,
+        reference: Default::default(),
+    };
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Vec3(-3.0, 3.0, 4.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("set vec3 param should clamp using component-specific bounds");
+
+    let value = engine.nodes.get(engine.root).expect("root parameter should exist").value.clone();
+    assert_eq!(value, ParamValue::Vec3(0.0, 2.0, 5.0), "vec3 bounds should apply per component");
+}
+
+#[test]
 fn apply_set_param_rejects_values_outside_enum_constraints() {
     let mut root = Parameter::new("mode", ParamValue::Enum("a".to_string()), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
-        min: None,
-        max: None,
+        range: None,
         step: None,
         step_base: None,
         enum_options: vec![
@@ -1600,8 +1715,7 @@ fn apply_set_param_rejects_values_outside_enum_constraints() {
 fn apply_set_param_accepts_enum_variant_ids_with_legacy_string_enum_values() {
     let mut root = Parameter::new("mode", ParamValue::Str("legacy_a".to_string()), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
-        min: None,
-        max: None,
+        range: None,
         step: None,
         step_base: None,
         enum_options: vec![

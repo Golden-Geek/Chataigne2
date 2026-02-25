@@ -1405,19 +1405,10 @@ fn expand_struct(
                         Some(::std::string::String::from(#description_lit));
                 }
             });
-            let set_min = args.min.map(|expr| {
-                quote! {
-                    __param_node.constraints.min = Some((#expr) as f64);
-                }
-            });
+            let set_range = build_range_constraint_assignment(args.min.as_ref(), args.max.as_ref(), &param_value_ty);
             let set_read_only = args.read_only.map(|expr| {
                 quote! {
                     __param_node.read_only = #expr;
-                }
-            });
-            let set_max = args.max.map(|expr| {
-                quote! {
-                    __param_node.constraints.max = Some((#expr) as f64);
                 }
             });
             let set_step = args.step.map(|expr| {
@@ -1471,8 +1462,7 @@ fn expand_struct(
                     );
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
                     #set_read_only
-                    #set_min
-                    #set_max
+                    #set_range
                     #set_step
                     #set_step_base
                     #set_enum_options
@@ -2200,20 +2190,10 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             None => None,
         };
 
-        let set_min = param.min.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.min = Some((#expr) as f64);
-            }
-        });
+        let set_range = build_range_constraint_assignment(param.min.as_ref(), param.max.as_ref(), ty);
         let set_read_only = param.read_only.as_ref().map(|expr| {
             quote! {
                 __param_node.read_only = #expr;
-            }
-        });
-
-        let set_max = param.max.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.max = Some((#expr) as f64);
             }
         });
 
@@ -2295,8 +2275,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 );
                 __param_node.event_behaviour = self.#field_ident.event_behaviour();
                 #set_read_only
-                #set_min
-                #set_max
+                #set_range
                 #set_step
                 #set_step_base
                 #set_enum_options
@@ -2350,6 +2329,131 @@ fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallba
                 }
             }
         }
+    }
+}
+
+fn build_range_constraint_assignment(
+    min_expr: Option<&Expr>,
+    max_expr: Option<&Expr>,
+    ty: &Type,
+) -> Option<proc_macro2::TokenStream> {
+    if min_expr.is_none() && max_expr.is_none() {
+        return None;
+    }
+
+    let vector_arity = vector_param_arity(ty);
+    let min_components = min_expr.and_then(extract_vector_components);
+    let max_components = max_expr.and_then(extract_vector_components);
+    let has_component_shape = min_components.is_some() || max_components.is_some();
+
+    if vector_arity.is_none() && has_component_shape {
+        let source_expr = min_expr.or(max_expr)?;
+        return Some(
+            Error::new_spanned(source_expr, "tuple/array range bounds are only supported for Vec2/Vec3 parameter types")
+                .to_compile_error(),
+        );
+    }
+
+    if let Some(arity) = vector_arity {
+        if has_component_shape {
+            if min_expr.is_some() && min_components.is_none() {
+                return Some(
+                    Error::new_spanned(
+                        min_expr.expect("min expression should exist"),
+                        format!(
+                            "mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"
+                        ),
+                    )
+                    .to_compile_error(),
+                );
+            }
+
+            if max_expr.is_some() && max_components.is_none() {
+                return Some(
+                    Error::new_spanned(
+                        max_expr.expect("max expression should exist"),
+                        format!(
+                            "mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"
+                        ),
+                    )
+                    .to_compile_error(),
+                );
+            }
+
+            if let Some(values) = &min_components {
+                if values.len() != arity {
+                    return Some(Error::new_spanned(min_expr.expect("min expression should exist"), format!("expected {arity} values for Vec{arity} min bound")).to_compile_error());
+                }
+            }
+
+            if let Some(values) = &max_components {
+                if values.len() != arity {
+                    return Some(Error::new_spanned(max_expr.expect("max expression should exist"), format!("expected {arity} values for Vec{arity} max bound")).to_compile_error());
+                }
+            }
+
+            let min_tokens = if let Some(values) = min_components {
+                quote! { Some(vec![#((#values) as f64),*]) }
+            } else {
+                quote! { None }
+            };
+
+            let max_tokens = if let Some(values) = max_components {
+                quote! { Some(vec![#((#values) as f64),*]) }
+            } else {
+                quote! { None }
+            };
+
+            return Some(quote! {
+                __param_node.constraints.range =
+                    golden_core::parameter::RangeConstraint::components(#min_tokens, #max_tokens);
+            });
+        }
+    }
+
+    let min_tokens = if let Some(expr) = min_expr {
+        quote! { Some((#expr) as f64) }
+    } else {
+        quote! { None }
+    };
+
+    let max_tokens = if let Some(expr) = max_expr {
+        quote! { Some((#expr) as f64) }
+    } else {
+        quote! { None }
+    };
+
+    Some(quote! {
+        __param_node.constraints.range =
+            golden_core::parameter::RangeConstraint::uniform(#min_tokens, #max_tokens);
+    })
+}
+
+fn vector_param_arity(ty: &Type) -> Option<usize> {
+    match ty {
+        Type::Path(path) => {
+            let ident = path.path.segments.last()?.ident.to_string();
+            match ident.as_str() {
+                "Vec2" => Some(2),
+                "Vec3" => Some(3),
+                _ => None,
+            }
+        }
+        Type::Tuple(tuple) => match tuple.elems.len() {
+            2 => Some(2),
+            3 => Some(3),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn extract_vector_components(expr: &Expr) -> Option<Vec<Expr>> {
+    match expr {
+        Expr::Tuple(tuple) => Some(tuple.elems.iter().cloned().collect()),
+        Expr::Array(array) => Some(array.elems.iter().cloned().collect()),
+        Expr::Paren(inner) => extract_vector_components(&inner.expr),
+        _ => None,
     }
 }
 
