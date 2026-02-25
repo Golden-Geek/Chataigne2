@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "supercommitMessage",
+      "type": "promptString",
+      "description": "Commit message for submodules and main repo"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Supercommit: full commit (submodules + main)",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\tools\\supercommit.ps1",
+        "${input:supercommitMessage}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }
+  ]
+}

@@ -82,10 +82,12 @@ impl Node for ModuleBase {
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
         string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
+        vec2_range_param: Vec2 = (0.5, 0.25) [(0.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
     }
     folder(values, label = "Values", reuse = true) {
        
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
+        vec3_range_param: Vec3 = (0.1, 0.2, 0.3) [(0.0, -1.0, 0.2)..(1.0, 2.0, 0.8)] (label = "Vec3 Range Parameter", description = "A 3D vector parameter with component ranges");
         color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
         reference_param: NodeReference (
             label = "Reference Parameter",
@@ -148,6 +150,7 @@ impl Node for OscModule {
         let tz = (now * 0.72+noise*0.54).cos() ;
         // println!("now: {}, noise: {}", now, noise);
         self.vec2_param.set(ctx, Vec2::new(tx, ty));
+        self.vec2_range_param.set(ctx, Vec2::new(tx, ty));
         self.vec3_param.set(ctx, Vec3::new(tx, ty, tz));
         // if val > 7.5 {
         //     log!(level= error; "New value :",  self.float_param.get());
