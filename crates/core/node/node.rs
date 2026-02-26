@@ -796,7 +796,10 @@ pub trait Node: Send + Any {
     /// Containers that do not support creation return `None`.
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            return Some(Box::new(ScriptNode::new(label, ScriptNodeConfig::default())));
+            return Some(Box::new(ScriptNode::new(
+                label,
+                ScriptNodeConfig::for_host_node_type(self.get_type()),
+            )));
         }
         None
     }

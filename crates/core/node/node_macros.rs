@@ -209,7 +209,7 @@ macro_rules! define_user_item_factory_methods {
             if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
                 return Some(Box::new($crate::script::ScriptNode::new(
                     label,
-                    $crate::script::ScriptNodeConfig::default(),
+                    $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
                 )));
             }
 

@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
@@ -47,8 +47,6 @@ pub enum ScriptCapability {
     EventSubscribe,
     /// Emit custom events.
     EventEmit,
-    /// Emit declarative UI contributions.
-    UiContribute,
 }
 
 /// Ordered set wrapper for script capabilities.
@@ -83,54 +81,25 @@ impl ScriptCapabilitySet {
     }
 }
 
-/// Scope root used for script-relative path resolution.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ScriptRootMode {
-    /// Use engine root as script scope root.
-    EngineRoot,
-    /// Use script host node as scope root.
-    HostNode,
-    /// Use a decl-id child path under the host node.
-    RelativeDeclPath(Vec<String>),
-}
-
-impl Default for ScriptRootMode {
-    fn default() -> Self {
-        Self::HostNode
-    }
-}
-
 /// Script-host policy for one node type.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptHostPolicy {
     /// Whether script hosting is enabled for this node.
     pub enabled: bool,
-    /// Maximum number of script child nodes allowed under this host.
-    pub max_scripts: u16,
-    /// Root mode used to resolve local selectors.
-    #[serde(default)]
-    pub script_root_mode: ScriptRootMode,
     /// Capabilities granted to scripts hosted by this node.
     #[serde(default)]
     pub capabilities: ScriptCapabilitySet,
     /// Whether graph structure edits are allowed from scripts.
     #[serde(default)]
     pub allow_structural_mutation: bool,
-    /// Whether UI contributions are allowed from scripts.
-    #[serde(default)]
-    pub allow_ui_contributions: bool,
 }
 
 impl Default for ScriptHostPolicy {
     fn default() -> Self {
         Self {
             enabled: false,
-            max_scripts: 0,
-            script_root_mode: ScriptRootMode::HostNode,
             capabilities: ScriptCapabilitySet::none(),
             allow_structural_mutation: false,
-            allow_ui_contributions: false,
         }
     }
 }
@@ -140,8 +109,6 @@ impl ScriptHostPolicy {
     pub fn default_scriptable() -> Self {
         Self {
             enabled: true,
-            max_scripts: 4,
-            script_root_mode: ScriptRootMode::HostNode,
             capabilities: ScriptCapabilitySet::from_iter([
                 ScriptCapability::ParamRead,
                 ScriptCapability::ParamWrite,
@@ -149,9 +116,11 @@ impl ScriptHostPolicy {
                 ScriptCapability::NodePatchMeta,
                 ScriptCapability::EventSubscribe,
                 ScriptCapability::EventEmit,
+                ScriptCapability::NodeAdd,
+                ScriptCapability::NodeRemove,
+                ScriptCapability::NodeMove,
             ]),
             allow_structural_mutation: false,
-            allow_ui_contributions: false,
         }
     }
 }
@@ -171,8 +140,6 @@ pub struct ScriptBudgets {
     pub max_emitted_edits_per_tick: u32,
     /// Maximum custom events that may be emitted in one tick.
     pub max_emitted_events_per_tick: u32,
-    /// Maximum UI payload bytes per tick.
-    pub max_ui_payload_bytes_per_tick: usize,
 }
 
 impl Default for ScriptBudgets {
@@ -184,7 +151,6 @@ impl Default for ScriptBudgets {
             max_host_calls_per_callback: 1_024,
             max_emitted_edits_per_tick: 512,
             max_emitted_events_per_tick: 512,
-            max_ui_payload_bytes_per_tick: 64 * 1024,
         }
     }
 }
@@ -225,6 +191,10 @@ impl ScriptSource {
             }
         }
     }
+
+    fn is_file_backed(&self) -> bool {
+        matches!(self, Self::ProjectFile(_))
+    }
 }
 
 /// Runtime engine used by one script instance.
@@ -248,6 +218,181 @@ impl ScriptRuntimeKind {
     }
 }
 
+const SCRIPT_TEMPLATE_DIR: &str = "script/templates";
+const SCRIPT_TEMPLATE_INCLUDE_PREFIX: &str = "{{include:";
+const SCRIPT_TEMPLATE_INCLUDE_SUFFIX: &str = "}}";
+const SCRIPT_TEMPLATE_EXTENSIONS: [&str; 5] = ["lua", "luau", "js", "mjs", "cjs"];
+const SCRIPT_TEMPLATE_DEFAULT_SOURCE: &str = include_str!("templates/default.lua");
+const SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ: u32 = 60;
+const SCRIPT_FILE_RELOAD_POLL_HZ: u32 = 30;
+
+struct ScriptTemplateResolved {
+    source: String,
+    runtime_hint: Option<ScriptRuntimeKind>,
+}
+
+fn script_template_root_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join(SCRIPT_TEMPLATE_DIR)
+}
+
+fn normalized_template_key(value: &str) -> Option<String> {
+    let mut output = String::new();
+    let mut previous_was_separator = false;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            output.push(ch.to_ascii_lowercase());
+            previous_was_separator = false;
+            continue;
+        }
+
+        if !previous_was_separator {
+            output.push('_');
+            previous_was_separator = true;
+        }
+    }
+
+    let output = output.trim_matches('_').to_string();
+    if output.is_empty() { None } else { Some(output) }
+}
+
+fn template_candidate_basenames(host_node_type: &str) -> Vec<String> {
+    let mut basenames = Vec::new();
+    let raw = host_node_type.trim().to_ascii_lowercase();
+    if !raw.is_empty() {
+        basenames.push(raw);
+    }
+    if let Some(normalized) = normalized_template_key(host_node_type) {
+        if !basenames.iter().any(|candidate| candidate == &normalized) {
+            basenames.push(normalized);
+        }
+    }
+    basenames.push("default".to_string());
+    basenames
+}
+
+fn normalize_include_path(path: &str) -> Result<PathBuf, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("template include path is empty".to_string());
+    }
+
+    let source = Path::new(trimmed);
+    if source.is_absolute() {
+        return Err(format!("template include path '{trimmed}' must be relative"));
+    }
+
+    let mut normalized = PathBuf::new();
+    for component in source.components() {
+        match component {
+            Component::Normal(segment) => normalized.push(segment),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(format!("template include path '{trimmed}' escapes template directory"));
+            }
+        }
+    }
+
+    if normalized.as_os_str().is_empty() {
+        return Err(format!("template include path '{trimmed}' resolved to empty path"));
+    }
+
+    Ok(normalized)
+}
+
+fn include_stack_contains(stack: &[String], key: &str) -> bool {
+    stack.iter().any(|item| item == key)
+}
+
+fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec<String>) -> Result<String, String> {
+    let mut output = String::with_capacity(source.len());
+    let mut cursor = source;
+
+    while let Some(start_index) = cursor.find(SCRIPT_TEMPLATE_INCLUDE_PREFIX) {
+        output.push_str(&cursor[..start_index]);
+        let after_prefix = &cursor[start_index + SCRIPT_TEMPLATE_INCLUDE_PREFIX.len()..];
+        let Some(end_index) = after_prefix.find(SCRIPT_TEMPLATE_INCLUDE_SUFFIX) else {
+            return Err("template include directive is missing closing '}}'".to_string());
+        };
+
+        let include_path = &after_prefix[..end_index];
+        let include_relative_path = normalize_include_path(include_path)?;
+        let include_key = include_relative_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+        if include_stack_contains(include_stack, &include_key) {
+            let cycle = include_stack
+                .iter()
+                .cloned()
+                .chain(std::iter::once(include_key.clone()))
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            return Err(format!("template include cycle detected: {cycle}"));
+        }
+
+        let include_path = root_dir.join(&include_relative_path);
+        let include_source = std::fs::read_to_string(&include_path)
+            .map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
+        include_stack.push(include_key);
+        let expanded = expand_template_source(&include_source, root_dir, include_stack);
+        include_stack.pop();
+        output.push_str(&expanded?);
+        cursor = &after_prefix[end_index + SCRIPT_TEMPLATE_INCLUDE_SUFFIX.len()..];
+    }
+
+    output.push_str(cursor);
+    Ok(output)
+}
+
+fn read_template_from_path(path: &Path, root_dir: &Path) -> Result<String, String> {
+    let source = std::fs::read_to_string(path).map_err(|err| format!("failed to read script template '{}': {err}", path.display()))?;
+    let mut stack = Vec::new();
+    let relative = path
+        .strip_prefix(root_dir)
+        .map(|path| path.to_string_lossy().replace('\\', "/").to_ascii_lowercase())
+        .unwrap_or_else(|_| path.to_string_lossy().replace('\\', "/").to_ascii_lowercase());
+    stack.push(relative);
+    expand_template_source(&source, root_dir, &mut stack)
+}
+
+fn default_embedded_template() -> String {
+    let root_dir = script_template_root_dir();
+    let mut stack = vec!["default.lua".to_string()];
+    expand_template_source(SCRIPT_TEMPLATE_DEFAULT_SOURCE, &root_dir, &mut stack).unwrap_or_else(|_| SCRIPT_TEMPLATE_DEFAULT_SOURCE.to_string())
+}
+
+fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
+    let root_dir = script_template_root_dir();
+    for basename in template_candidate_basenames(host_node_type) {
+        for extension in SCRIPT_TEMPLATE_EXTENSIONS {
+            let path = root_dir.join(format!("{basename}.{extension}"));
+            if !path.is_file() {
+                continue;
+            }
+
+            match read_template_from_path(&path, &root_dir) {
+                Ok(source) => {
+                    let runtime_hint = match ScriptRuntimeKind::from_path(&path) {
+                        Some(ScriptRuntimeKind::QuickJs) => Some(ScriptRuntimeKind::QuickJs),
+                        _ => None,
+                    };
+                    return ScriptTemplateResolved { source, runtime_hint };
+                }
+                Err(error) => {
+                    let _ = logger::log_message(
+                        logger::LogLevel::Warning,
+                        "script".to_string(),
+                        None,
+                        format!("failed to load script template '{}': {error}", path.display()),
+                    );
+                }
+            }
+        }
+    }
+
+    ScriptTemplateResolved {
+        source: default_embedded_template(),
+        runtime_hint: None,
+    }
+}
+
 /// Runtime script node configuration.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptNodeConfig {
@@ -256,19 +401,22 @@ pub struct ScriptNodeConfig {
     /// Optional explicit runtime hint used when source extension does not select one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_hint: Option<ScriptRuntimeKind>,
-    /// Whether runtime file changes should trigger reload.
-    pub auto_reload: bool,
-    /// Whether script execution is enabled.
-    pub enabled: bool,
-    /// Optional requested update rate override.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub requested_update_rate_hz: Option<u32>,
     /// Optional project root used by `ScriptSource::ProjectFile`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_root: Option<PathBuf>,
 }
 
 impl ScriptNodeConfig {
+    /// Creates default script config for a host node type using script templates.
+    pub fn for_host_node_type(host_node_type: &str) -> Self {
+        let template = resolve_template_for_host(host_node_type);
+        Self {
+            source: ScriptSource::Inline(template.source),
+            runtime_hint: template.runtime_hint,
+            project_root: None,
+        }
+    }
+
     fn detect_runtime_kind(&self) -> Result<ScriptRuntimeKind, ScriptRuntimeError> {
         if let Some(path) = self.source.resolve_path(self.project_root.as_deref()) {
             if let Some(kind) = ScriptRuntimeKind::from_path(&path) {
@@ -291,14 +439,7 @@ impl ScriptNodeConfig {
 
 impl Default for ScriptNodeConfig {
     fn default() -> Self {
-        Self {
-            source: ScriptSource::Inline("return { api_version = 1 }".to_string()),
-            runtime_hint: Some(ScriptRuntimeKind::Luau),
-            auto_reload: true,
-            enabled: true,
-            requested_update_rate_hz: Some(60),
-            project_root: None,
-        }
+        Self::for_host_node_type("default")
     }
 }
 
@@ -344,13 +485,6 @@ pub struct ScriptUiConfig {
     /// Optional runtime hint used when source extension does not select one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_hint: Option<ScriptRuntimeKind>,
-    /// Whether runtime file changes should trigger reload.
-    pub auto_reload: bool,
-    /// Whether script execution is enabled.
-    pub enabled: bool,
-    /// Optional requested update-rate override.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub requested_update_rate_hz: Option<u32>,
     /// Optional project root used by file-backed sources.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_root: Option<String>,
@@ -361,9 +495,6 @@ impl From<&ScriptNodeConfig> for ScriptUiConfig {
         Self {
             source: ScriptUiSource::from(&value.source),
             runtime_hint: value.runtime_hint,
-            auto_reload: value.auto_reload,
-            enabled: value.enabled,
-            requested_update_rate_hz: value.requested_update_rate_hz,
             project_root: value.project_root.as_ref().map(|path| path.to_string_lossy().to_string()),
         }
     }
@@ -374,9 +505,6 @@ impl From<ScriptUiConfig> for ScriptNodeConfig {
         Self {
             source: value.source.into(),
             runtime_hint: value.runtime_hint,
-            auto_reload: value.auto_reload,
-            enabled: value.enabled,
-            requested_update_rate_hz: value.requested_update_rate_hz,
             project_root: value.project_root.map(PathBuf::from),
         }
     }
@@ -450,7 +578,7 @@ impl ScriptValueType {
 
 /// Script selector for target nodes.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ScriptNodeSelector {
     /// Select by runtime node id.
     NodeId(NodeId),
@@ -517,45 +645,6 @@ pub struct ScriptParameterSpec {
     pub ui_hints: ParameterUiHints,
 }
 
-/// Script menu contribution descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ScriptMenuContribution {
-    /// Stable menu entry id.
-    pub id: String,
-    /// Display label.
-    pub label: String,
-}
-
-/// Script panel contribution descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ScriptPanelContribution {
-    /// Stable panel id.
-    pub id: String,
-    /// Display title.
-    pub title: String,
-}
-
-/// Script draw contribution descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ScriptDrawContribution {
-    /// Stable drawing channel id.
-    pub id: String,
-}
-
-/// Declarative UI contribution schema.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ScriptUiSpec {
-    /// Menu contributions.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub menus: Vec<ScriptMenuContribution>,
-    /// Panel contributions.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub panels: Vec<ScriptPanelContribution>,
-    /// Draw-channel contributions.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub drawings: Vec<ScriptDrawContribution>,
-}
-
 /// Parsed script manifest.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ScriptManifest {
@@ -573,9 +662,6 @@ pub struct ScriptManifest {
     /// Exported functions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exports: Vec<ScriptExportSpec>,
-    /// UI contribution descriptors.
-    #[serde(default)]
-    pub ui: ScriptUiSpec,
     /// Requested runtime capabilities.
     #[serde(default)]
     pub requested_capabilities: ScriptCapabilitySet,
@@ -589,7 +675,6 @@ impl Default for ScriptManifest {
             parameters: Vec::new(),
             subscriptions: Vec::new(),
             exports: Vec::new(),
-            ui: ScriptUiSpec::default(),
             requested_capabilities: ScriptCapabilitySet::none(),
         }
     }
@@ -783,6 +868,8 @@ pub trait ScriptRuntime: Send {
     fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
     /// Calls `on_destroy` if declared.
     fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
+    /// Returns `true` when `on_update` is declared by the script.
+    fn has_on_update(&self) -> bool;
 }
 
 #[derive(Default)]
@@ -972,7 +1059,6 @@ impl LuauRuntime {
             parameters,
             subscriptions,
             exports,
-            ui: ScriptUiSpec::default(),
             requested_capabilities,
         })
     }
@@ -1123,6 +1209,10 @@ impl ScriptRuntime for LuauRuntime {
         let flush_result = self.flush_host_ops(host);
         flush_result?;
         result
+    }
+
+    fn has_on_update(&self) -> bool {
+        self.entrypoints.on_update.is_some()
     }
 }
 
@@ -1552,6 +1642,10 @@ impl ScriptRuntime for QuickJsRuntime {
         flush_result?;
         result
     }
+
+    fn has_on_update(&self) -> bool {
+        self.entrypoints.on_update
+    }
 }
 
 fn parse_capability_set(table: Option<Table>) -> Result<ScriptCapabilitySet, ScriptRuntimeError> {
@@ -1572,7 +1666,6 @@ fn parse_capability_set(table: Option<Table>) -> Result<ScriptCapabilitySet, Scr
             "nodemove" | "node_move" | "node-move" => ScriptCapability::NodeMove,
             "eventsubscribe" | "event_subscribe" | "event-subscribe" => ScriptCapability::EventSubscribe,
             "eventemit" | "event_emit" | "event-emit" => ScriptCapability::EventEmit,
-            "uicontribute" | "ui_contribute" | "ui-contribute" => ScriptCapability::UiContribute,
             other => return Err(ScriptRuntimeError::InvalidManifest(format!("unknown capability '{other}'"))),
         };
         capabilities.push(capability);
@@ -1759,7 +1852,6 @@ fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> R
         parameters,
         subscriptions,
         exports,
-        ui: ScriptUiSpec::default(),
         requested_capabilities,
     })
 }
@@ -1788,7 +1880,6 @@ fn parse_capability_set_json(value: Option<&JsonValue>) -> Result<ScriptCapabili
             "nodemove" | "node_move" | "node-move" => ScriptCapability::NodeMove,
             "eventsubscribe" | "event_subscribe" | "event-subscribe" => ScriptCapability::EventSubscribe,
             "eventemit" | "event_emit" | "event-emit" => ScriptCapability::EventEmit,
-            "uicontribute" | "ui_contribute" | "ui-contribute" => ScriptCapability::UiContribute,
             other => return Err(ScriptRuntimeError::InvalidManifest(format!("unknown capability '{other}'"))),
         };
         capabilities.push(capability);
@@ -2265,6 +2356,8 @@ pub struct ScriptNode {
     manifest: Option<ScriptManifest>,
     source_stamp: Option<ScriptSourceStamp>,
     effective_update_rate_hz: Option<u32>,
+    runtime_subscriptions: Vec<crate::node::EventSubscription>,
+    reload_requested: bool,
 }
 
 impl ScriptNode {
@@ -2279,6 +2372,8 @@ impl ScriptNode {
             manifest: None,
             source_stamp: None,
             effective_update_rate_hz: None,
+            runtime_subscriptions: Vec::new(),
+            reload_requested: false,
         }
     }
 
@@ -2331,10 +2426,82 @@ impl ScriptNode {
     }
 
     fn invalidate_runtime_state(&mut self) {
-        self.runtime = None;
-        self.manifest = None;
+        self.reload_requested = true;
         self.source_stamp = None;
         self.effective_update_rate_hz = None;
+    }
+
+    fn clear_runtime_subscriptions(&mut self, ctx: &mut ProcessCtx) {
+        let owner = self.id();
+        for subscription in self.runtime_subscriptions.drain(..) {
+            ctx.remove_event_listener_subtree(owner, subscription.node, subscription.max_depth);
+        }
+    }
+
+    fn resolve_subscription_target(&self, selector: &ScriptNodeSelector) -> Result<NodeId, String> {
+        match selector {
+            ScriptNodeSelector::NodeId(node) => Ok(*node),
+            ScriptNodeSelector::HostPath(path)
+            | ScriptNodeSelector::RootPath(path)
+            | ScriptNodeSelector::Path(path) => {
+                if path.trim().is_empty() || path.trim() == "." {
+                    self.node_data.parent.ok_or_else(|| "script node is detached and has no host parent".to_string())
+                } else {
+                    Err(format!(
+                        "selector path '{}' is not resolved yet for runtime subscriptions; use '@host' for now",
+                        path
+                    ))
+                }
+            }
+        }
+    }
+
+    fn desired_runtime_subscriptions(&self, manifest: &ScriptManifest) -> Vec<crate::node::EventSubscription> {
+        let mut subscriptions = HashSet::new();
+        for spec in &manifest.subscriptions {
+            match self.resolve_subscription_target(&spec.node) {
+                Ok(target) => {
+                    subscriptions.insert(crate::node::EventSubscription::subtree(target, spec.max_depth));
+                }
+                Err(reason) => {
+                    let _ = logger::log_message(
+                        logger::LogLevel::Warning,
+                        "script".to_string(),
+                        Some(self.id()),
+                        format!("ignored script subscription: {reason}"),
+                    );
+                }
+            }
+        }
+        subscriptions.into_iter().collect()
+    }
+
+    fn sync_runtime_subscriptions(&mut self, ctx: &mut ProcessCtx, manifest: &ScriptManifest) {
+        let owner = self.id();
+        let desired = self.desired_runtime_subscriptions(manifest);
+        let desired_set = desired.iter().copied().collect::<HashSet<_>>();
+        let current_set = self.runtime_subscriptions.iter().copied().collect::<HashSet<_>>();
+
+        for removed in current_set.difference(&desired_set) {
+            ctx.remove_event_listener_subtree(owner, removed.node, removed.max_depth);
+        }
+        for added in desired_set.difference(&current_set) {
+            ctx.add_event_listener_subtree(owner, added.node, added.max_depth);
+        }
+
+        self.runtime_subscriptions = desired;
+    }
+
+    fn teardown_runtime(&mut self, ctx: &mut ProcessCtx) {
+        self.clear_runtime_subscriptions(ctx);
+
+        let owner = self.id();
+        if let Some(mut active) = self.runtime.take() {
+            let mut host = NodeScriptHostBridge::new(owner, ctx);
+            if let Err(error) = active.runtime.call_on_destroy(&mut host) {
+                self.handle_runtime_error(ctx, &error);
+            }
+        }
     }
 
     fn source_file_modified(&self) -> Option<SystemTime> {
@@ -2369,34 +2536,37 @@ impl ScriptNode {
     }
 
     fn load_or_reload_internal(&mut self, ctx: &mut ProcessCtx, force_reload: bool) -> Result<(), ScriptRuntimeError> {
-        if !self.config.enabled {
+        if !self.node_data.meta.enabled {
+            self.teardown_runtime(ctx);
+            self.reload_requested = false;
+            self.manifest = None;
+            self.source_stamp = None;
+            self.effective_update_rate_hz = None;
             return Ok(());
         }
 
-        if self.runtime.is_some() && !force_reload {
+        if self.runtime.is_some() && !force_reload && !self.reload_requested {
             return Ok(());
         }
 
         let script_source = self.config.source.load_text(self.config.project_root.as_deref())?;
         let runtime_kind = self.config.detect_runtime_kind()?;
         let source_stamp = self.source_stamp_from_text(&script_source);
+        self.teardown_runtime(ctx);
 
-        let has_matching_runtime = self.runtime.as_ref().is_some_and(|active| active.kind == runtime_kind);
-        let mut runtime = if has_matching_runtime {
-            self.runtime.take().expect("runtime presence just checked").runtime
-        } else {
-            create_runtime(runtime_kind, self.budgets)?
-        };
-
-        let manifest = if has_matching_runtime { runtime.reload(&script_source)? } else { runtime.load(&script_source)? };
+        let mut runtime = create_runtime(runtime_kind, self.budgets)?;
+        let manifest = runtime.load(&script_source)?;
+        self.sync_runtime_subscriptions(ctx, &manifest);
 
         let mut host = NodeScriptHostBridge::new(self.id(), ctx);
         runtime.call_on_init(&mut host)?;
 
-        self.effective_update_rate_hz = manifest.update_rate_hz.or(self.config.requested_update_rate_hz);
+        self.effective_update_rate_hz = manifest.update_rate_hz;
         self.manifest = Some(manifest);
         self.runtime = Some(ActiveRuntime { kind: runtime_kind, runtime });
         self.source_stamp = Some(source_stamp);
+        self.reload_requested = false;
+        ctx.reevaluate_graph();
         ctx.clear_node_warning(self.id(), Some("script"));
         Ok(())
     }
@@ -2440,23 +2610,22 @@ impl Node for ScriptNode {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        if !self.config.enabled {
+        if !self.node_data.meta.enabled {
+            self.teardown_runtime(ctx);
             return;
         }
 
-        if self.config.auto_reload {
-            match self.has_source_changed() {
-                Ok(true) => {
-                    if let Err(error) = self.load_or_reload_internal(ctx, true) {
-                        self.handle_runtime_error(ctx, &error);
-                        return;
-                    }
-                }
-                Ok(false) => {}
-                Err(error) => {
+        match self.has_source_changed() {
+            Ok(true) => {
+                if let Err(error) = self.load_or_reload_internal(ctx, true) {
                     self.handle_runtime_error(ctx, &error);
                     return;
                 }
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_runtime_error(ctx, &error);
+                return;
             }
         }
 
@@ -2481,7 +2650,7 @@ impl Node for ScriptNode {
     }
 
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
-        if !self.config.enabled {
+        if !self.node_data.meta.enabled {
             return;
         }
         let events = ctx.events.clone();
@@ -2506,27 +2675,33 @@ impl Node for ScriptNode {
     }
 
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
-        let owner = self.id();
-        let mut runtime_error = None;
-        let Some(runtime) = self.runtime.as_mut() else {
-            return;
-        };
-        let mut host = NodeScriptHostBridge::new(owner, ctx);
-        if let Err(error) = runtime.runtime.call_on_destroy(&mut host) {
-            runtime_error = Some(error);
-        }
-        if let Some(error) = runtime_error {
-            self.handle_runtime_error(ctx, &error);
-        }
+        self.teardown_runtime(ctx);
+        self.manifest = None;
+        self.source_stamp = None;
+        self.effective_update_rate_hz = None;
+        self.reload_requested = false;
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        if !self.config.enabled {
+        if !self.node_data.meta.enabled {
             return NodeExecutionRule::passive();
         }
 
-        match self.effective_update_rate_hz.or(self.config.requested_update_rate_hz) {
+        if self.reload_requested || self.runtime.is_none() {
+            return NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ);
+        }
+
+        let has_on_update = self.runtime.as_ref().is_some_and(|active| active.runtime.has_on_update());
+        if !has_on_update {
+            if self.config.source.is_file_backed() {
+                return NodeExecutionRule::periodic(SCRIPT_FILE_RELOAD_POLL_HZ);
+            }
+            return NodeExecutionRule::passive();
+        }
+
+        match self.effective_update_rate_hz {
             Some(rate_hz) if rate_hz > 0 => NodeExecutionRule::periodic(rate_hz),
+            None => NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ),
             _ => NodeExecutionRule::passive(),
         }
     }
@@ -2535,6 +2710,12 @@ impl Node for ScriptNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+    use std::sync::Arc;
+
+    use crate::edit::Edit;
+    use crate::engine::EngineTime;
+    use crate::process_ctx::ExecutionPhase;
 
     struct TestHostBridge {
         logs: Vec<(ScriptLogLevel, String)>,
@@ -2566,6 +2747,63 @@ mod tests {
         fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String> {
             self.emitted.push((topic.to_string(), payload));
             Ok(())
+        }
+    }
+
+    struct MockRuntime {
+        has_on_update: bool,
+        destroy_counter: Arc<AtomicUsize>,
+    }
+
+    impl MockRuntime {
+        fn new(has_on_update: bool, destroy_counter: Arc<AtomicUsize>) -> Self {
+            Self {
+                has_on_update,
+                destroy_counter,
+            }
+        }
+    }
+
+    impl ScriptRuntime for MockRuntime {
+        fn load(&mut self, _source: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+            Ok(ScriptManifest::default())
+        }
+
+        fn reload(&mut self, _source: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+            Ok(ScriptManifest::default())
+        }
+
+        fn manifest(&self) -> Option<&ScriptManifest> {
+            None
+        }
+
+        fn export_names(&self) -> Vec<String> {
+            Vec::new()
+        }
+
+        fn call_export(&mut self, _export_name: &str, _args: &[ScriptValue], _host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError> {
+            Ok(ScriptValue::Nil)
+        }
+
+        fn call_on_init(&mut self, _host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+            Ok(())
+        }
+
+        fn call_on_update(&mut self, _host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+            Ok(())
+        }
+
+        fn call_on_event(&mut self, _event: &ScriptEvent, _host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+            Ok(())
+        }
+
+        fn call_on_destroy(&mut self, _host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+            self.destroy_counter.fetch_add(1, AtomicOrdering::SeqCst);
+            Ok(())
+        }
+
+        fn has_on_update(&self) -> bool {
+            self.has_on_update
         }
     }
 
@@ -2633,5 +2871,172 @@ return {
         assert_eq!(host.logs[0].0, ScriptLogLevel::Info);
         assert_eq!(host.emitted.len(), 1);
         assert_eq!(host.emitted[0].0, "script.test");
+    }
+
+    #[test]
+    fn default_template_includes_snippets() {
+        let config = ScriptNodeConfig::for_host_node_type("default");
+        let source = match config.source {
+            ScriptSource::Inline(source) => source,
+            ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
+        };
+        assert!(source.contains("api_version = 1"));
+        assert!(source.contains("gain = {"), "template source:\n{source}");
+        assert!(source.contains("on_update = function(ctx, delta)"));
+        assert_eq!(config.runtime_hint, None);
+    }
+
+    #[test]
+    fn host_specific_template_is_selected() {
+        let config = ScriptNodeConfig::for_host_node_type("module");
+        let source = match config.source {
+            ScriptSource::Inline(source) => source,
+            ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
+        };
+        assert!(source.contains("module-scoped script initialized"));
+        assert_eq!(config.runtime_hint, None);
+    }
+
+    #[test]
+    fn script_node_selector_serializes_with_tagged_content_shape() {
+        let selector = ScriptNodeSelector::HostPath("child/path".to_string());
+        let encoded = serde_json::to_string(&selector).expect("selector should serialize");
+        assert_eq!(encoded, r#"{"kind":"hostPath","value":"child/path"}"#);
+    }
+
+    #[test]
+    fn host_subscription_resolves_to_parent_listener() {
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
+        script.node_data.parent = Some(NodeId(42));
+        let mut manifest = ScriptManifest::default();
+        manifest.subscriptions = vec![ScriptSubscriptionSpec {
+            node: ScriptNodeSelector::HostPath(String::new()),
+            max_depth: 2,
+        }];
+
+        let subscriptions = script.desired_runtime_subscriptions(&manifest);
+        assert_eq!(subscriptions.len(), 1);
+        assert_eq!(subscriptions[0], crate::node::EventSubscription::subtree(NodeId(42), 2));
+    }
+
+    #[test]
+    fn sync_runtime_subscriptions_queues_engine_listener_edits() {
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
+        script.node_data.id = NodeId(99);
+        script.node_data.parent = Some(NodeId(42));
+        let mut manifest = ScriptManifest::default();
+        manifest.subscriptions = vec![ScriptSubscriptionSpec {
+            node: ScriptNodeSelector::HostPath(String::new()),
+            max_depth: 2,
+        }];
+
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
+        script.sync_runtime_subscriptions(&mut ctx, &manifest);
+
+        assert!(ctx.edits.pending.iter().any(|request| matches!(
+            &request.edit,
+            crate::edit::Edit::AddEventListener { subscriber, subscription }
+                if *subscriber == NodeId(99) && *subscription == crate::node::EventSubscription::subtree(NodeId(42), 2)
+        )));
+    }
+
+    #[test]
+    fn inline_script_without_on_update_is_passive_after_load() {
+        let destroy_counter = Arc::new(AtomicUsize::new(0));
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
+        script.runtime = Some(ActiveRuntime {
+            kind: ScriptRuntimeKind::Luau,
+            runtime: Box::new(MockRuntime::new(false, destroy_counter)),
+        });
+        script.reload_requested = false;
+        script.effective_update_rate_hz = Some(60);
+        script.config.source = ScriptSource::Inline("return { api_version = 1 }".to_string());
+        script.node_data.meta.enabled = true;
+
+        let rule = script.execution_rule();
+        assert_eq!(rule.update_rate, None);
+    }
+
+    #[test]
+    fn file_backed_script_without_on_update_still_polls_for_reload() {
+        let destroy_counter = Arc::new(AtomicUsize::new(0));
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
+        script.runtime = Some(ActiveRuntime {
+            kind: ScriptRuntimeKind::Luau,
+            runtime: Box::new(MockRuntime::new(false, destroy_counter)),
+        });
+        script.reload_requested = false;
+        script.effective_update_rate_hz = Some(60);
+        script.config.source = ScriptSource::ProjectFile("scripts/example.lua".to_string());
+        script.node_data.meta.enabled = true;
+
+        let rule = script.execution_rule();
+        assert_eq!(rule.update_rate, Some(SCRIPT_FILE_RELOAD_POLL_HZ));
+    }
+
+    #[test]
+    fn request_reload_keeps_runtime_until_teardown() {
+        let destroy_counter = Arc::new(AtomicUsize::new(0));
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
+        script.runtime = Some(ActiveRuntime {
+            kind: ScriptRuntimeKind::Luau,
+            runtime: Box::new(MockRuntime::new(true, Arc::clone(&destroy_counter))),
+        });
+        script.request_reload();
+        assert!(script.runtime.is_some(), "runtime should stay alive until teardown");
+
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
+        script.destroy(&mut ctx);
+        assert_eq!(destroy_counter.load(AtomicOrdering::SeqCst), 1);
+    }
+
+    #[test]
+    fn manifest_update_rate_applies_to_execution_rule_and_queues_reeval() {
+        let source = r#"
+return {
+  api_version = 1,
+  update_rate_hz = 12,
+  on_update = function(ctx, delta)
+    local _ = ctx
+    local _ = delta
+  end
+}
+"#;
+        let mut script = ScriptNode::new(
+            "Script",
+            ScriptNodeConfig {
+                source: ScriptSource::Inline(source.to_string()),
+                runtime_hint: Some(ScriptRuntimeKind::Luau),
+                project_root: None,
+            },
+        );
+
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
+
+        script.init(&mut ctx);
+        let rule = script.execution_rule();
+        assert_eq!(rule.update_rate, Some(12));
+        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::ReevaluateGraph)));
     }
 }
