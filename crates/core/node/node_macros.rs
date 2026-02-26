@@ -171,6 +171,10 @@ macro_rules! define_user_item_factory_methods {
         ];
     ) => {
         fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+            if item_type == "script" && item_kind == "script" {
+                return self.script_host_policy().is_some_and(|policy| policy.enabled);
+            }
+
             if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
                 return false;
             }
@@ -188,6 +192,11 @@ macro_rules! define_user_item_factory_methods {
 
         fn user_creatable_items(&self) -> Vec<$crate::node::UserCreatableItem> {
             let mut items = Vec::new();
+
+            if self.script_host_policy().is_some_and(|policy| policy.enabled) {
+                items.push($crate::node::UserCreatableItem::new("script", "script", "Script"));
+            }
+
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
                     items.push($crate::node::UserCreatableItem::new($node_type, $item_kind, $label));
@@ -197,6 +206,13 @@ macro_rules! define_user_item_factory_methods {
         }
 
         fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn $crate::node::Node>> {
+            if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
+                return Some(Box::new($crate::script::ScriptNode::new(
+                    label,
+                    $crate::script::ScriptNodeConfig::default(),
+                )));
+            }
+
             match node_type {
                 $(
                     $node_type => {

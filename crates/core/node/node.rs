@@ -6,7 +6,7 @@ use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::parameter::{ParamValue, ParameterSnapshot};
 use crate::process_ctx::ProcessCtx;
-use crate::script::{ScriptHostPolicy, ScriptNodeConfig, ScriptUiState};
+use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -773,6 +773,9 @@ pub trait Node: Send + Any {
     ///
     /// The default implementation checks [`Self::user_container_rules`].
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        if item_type == "script" && item_kind == "script" {
+            return self.script_host_policy().is_some_and(|policy| policy.enabled);
+        }
         let _ = item_type;
         self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind))
     }
@@ -781,14 +784,20 @@ pub trait Node: Send + Any {
     ///
     /// Nodes that do not create items return an empty list.
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        Vec::new()
+        if self.script_host_policy().is_some_and(|policy| policy.enabled) {
+            vec![UserCreatableItem::new("script", "script", "Script")]
+        } else {
+            Vec::new()
+        }
     }
 
     /// Creates one user item for `node_type` with `label` when supported.
     ///
     /// Containers that do not support creation return `None`.
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
-        let _ = (node_type, label);
+        if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
+            return Some(Box::new(ScriptNode::new(label, ScriptNodeConfig::default())));
+        }
         None
     }
 

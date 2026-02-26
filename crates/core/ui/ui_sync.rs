@@ -542,12 +542,18 @@ impl<T: Node> Engine<T> {
             };
 
             let mut creatable_user_items = Vec::new();
-            if node.user_container_rules().is_some() {
-                for item in node.user_creatable_items().into_iter() {
-                    if node.user_container_accepts_item(&item.node_type, &item.item_kind) {
-                        creatable_user_items.push(UiCreatableUserItemDto::from(item));
-                    }
+            for item in node.user_creatable_items().into_iter() {
+                if node.user_container_accepts_item(&item.node_type, &item.item_kind) {
+                    creatable_user_items.push(UiCreatableUserItemDto::from(item));
                 }
+            }
+
+            let mut accepted_user_item_kinds: Vec<String> = node
+                .user_container_rules()
+                .map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect())
+                .unwrap_or_default();
+            if node.script_host_policy().is_some_and(|policy| policy.enabled) && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
+                accepted_user_item_kinds.push("script".to_string());
             }
 
             nodes.push(UiNodeDto {
@@ -568,7 +574,7 @@ impl<T: Node> Engine<T> {
                 data,
                 user_role: node_data.user_role,
                 user_item_kind: node.user_item_kind().to_string(),
-                accepted_user_item_kinds: node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default(),
+                accepted_user_item_kinds,
                 creatable_user_items,
                 children,
             });

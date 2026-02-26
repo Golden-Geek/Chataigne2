@@ -203,12 +203,26 @@ impl<T: Node> Engine<T> {
         let mut cursor = Some(start);
         while let Some(node_id) = cursor {
             let node = self.nodes.get(node_id)?;
-            if node.user_container_rules().is_some() {
+            if node.user_container_rules().is_some()
+                || node.script_host_policy().is_some_and(|policy| policy.enabled)
+            {
                 return Some(node_id);
             }
             cursor = node.node_data().parent;
         }
         None
+    }
+
+    fn direct_child_count_by_type(&self, parent: NodeId, node_type: &str) -> usize {
+        let mut count = 0usize;
+        let mut child = self.nodes.get(parent).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            if self.nodes.get(child_id).is_some_and(|node| node.get_type() == node_type) {
+                count += 1;
+            }
+            child = self.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+        }
+        count
     }
 
     fn has_item_root_ancestor(&self, start: NodeId) -> bool {
@@ -251,6 +265,28 @@ impl<T: Node> Engine<T> {
         let container_node = self.nodes.get(container).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node: container })?;
 
         let container_type = container_node.get_type().to_string();
+        if item_type == "script" && item_kind == "script" {
+            let Some(policy) = container_node.script_host_policy().filter(|policy| policy.enabled) else {
+                return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: container });
+            };
+
+            if policy.max_scripts > 0 {
+                let script_children = self.direct_child_count_by_type(container, "script");
+                if script_children >= policy.max_scripts as usize {
+                    return Err(EngineEditError::UserItemKindRejected {
+                        edit_index,
+                        operation,
+                        container,
+                        container_type,
+                        item_type: item_type.to_string(),
+                        item_kind: item_kind.to_string(),
+                    });
+                }
+            }
+
+            return Ok(());
+        }
+
         let Some(_) = container_node.user_container_rules() else {
             return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: container });
         };
