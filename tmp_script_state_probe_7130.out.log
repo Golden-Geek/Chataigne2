@@ -1,0 +1,13 @@
+Folder init Module Folder
+Folder init Infos
+Folder init Parameters
+Folder init Values
+[gc-engine] apply_patch_meta node=NodeId(4294967300) label='OSC Module' enabled=true -> 'OSC Module'/true
+Folder init Infos
+Folder init Parameters
+Folder init Values
+Folder init Infos
+Folder init Parameters
+Folder init Values
+UI API listening on http://127.0.0.1:7130
+warning: frontend UI at http://localhost:5173 was not reachable yet (ui server did not become reachable at localhost:5173 within 5000ms: No connection could be made because the target machine actively refused it. (os error 10061)); continuing and launching Tauri anyway
