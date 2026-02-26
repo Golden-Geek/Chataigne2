@@ -146,7 +146,7 @@ impl Default for ScriptBudgets {
     fn default() -> Self {
         Self {
             max_instructions_per_callback: 200_000,
-            max_wall_time_us_per_callback: 5_000,
+            max_wall_time_us_per_callback: 50_000,
             max_memory_bytes: 16 * 1024 * 1024,
             max_host_calls_per_callback: 1_024,
             max_emitted_edits_per_tick: 512,
