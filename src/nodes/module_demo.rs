@@ -92,7 +92,7 @@ impl Node for ModuleBase {
             label = "File Parameter",
             description = "A file path parameter",
             file_allowed_types = ["script"],
-            file_allowed_extensions = ["lua", "luau", "js", "mjs"],
+            file_allowed_extensions = ["js", "mjs", "cjs"],
         );
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
         vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
@@ -132,7 +132,7 @@ impl OscModule {
     }
 }
 
-#[update(50)]
+// #[update(50)]
 #[item("module", via = base, from_struct, scriptable)]
 impl Node for OscModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
