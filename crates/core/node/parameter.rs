@@ -542,7 +542,7 @@ impl FileTypeGroup {
                 extension.as_str(),
                 "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"
             ),
-            Self::Script => matches!(extension.as_str(), "lua" | "luau" | "js" | "mjs" | "cjs"),
+            Self::Script => matches!(extension.as_str(), "js" | "mjs" | "cjs"),
         }
     }
 }

@@ -1,11 +1,10 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashSet};
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
-use mlua::{Function, Lua, LuaSerdeExt, RegistryKey, Table, Value};
 use rquickjs::function::{Func as QuickJsFunc, MutFn as QuickJsMutFn};
 use rquickjs::{
     Array as QuickJsArray, Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError,
@@ -128,7 +127,7 @@ impl ScriptHostPolicy {
 /// Hard safety guardrails applied per script instance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptBudgets {
-    /// Maximum Lua instructions target for one callback.
+    /// Maximum VM instruction target for one callback.
     pub max_instructions_per_callback: u64,
     /// Maximum callback wall time in microseconds.
     pub max_wall_time_us_per_callback: u64,
@@ -167,26 +166,19 @@ pub enum ScriptSource {
 
 impl ScriptSource {
     /// Resolves this source to an on-disk path when file-backed.
-    pub fn resolve_path(&self, project_root: Option<&Path>) -> Option<PathBuf> {
+    pub fn resolve_path(&self) -> Option<PathBuf> {
         match self {
             Self::Inline(_) => None,
-            Self::ProjectFile(path) => {
-                let mut resolved = PathBuf::new();
-                if let Some(root) = project_root {
-                    resolved.push(root);
-                }
-                resolved.push(path);
-                Some(resolved)
-            }
+            Self::ProjectFile(path) => Some(PathBuf::from(path)),
         }
     }
 
-    /// Loads source text using `project_root` when needed.
-    pub fn load_text(&self, project_root: Option<&Path>) -> Result<String, ScriptRuntimeError> {
+    /// Loads source text from configured source.
+    pub fn load_text(&self) -> Result<String, ScriptRuntimeError> {
         match self {
             Self::Inline(text) => Ok(text.clone()),
             Self::ProjectFile(path) => {
-                let resolved = self.resolve_path(project_root).unwrap_or_else(|| PathBuf::from(path));
+                let resolved = self.resolve_path().unwrap_or_else(|| PathBuf::from(path));
                 std::fs::read_to_string(&resolved).map_err(|err| ScriptRuntimeError::Io(format!("failed to read script file '{}': {err}", resolved.display())))
             }
         }
@@ -197,38 +189,16 @@ impl ScriptSource {
     }
 }
 
-/// Runtime engine used by one script instance.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ScriptRuntimeKind {
-    /// Luau VM backend (`.lua`, `.luau`).
-    Luau,
-    /// QuickJS VM backend (`.js`, `.mjs`, `.cjs`).
-    QuickJs,
-}
-
-impl ScriptRuntimeKind {
-    fn from_path(path: &Path) -> Option<Self> {
-        let ext = path.extension()?.to_str()?.trim().to_ascii_lowercase();
-        match ext.as_str() {
-            "lua" | "luau" => Some(Self::Luau),
-            "js" | "mjs" | "cjs" => Some(Self::QuickJs),
-            _ => None,
-        }
-    }
-}
-
 const SCRIPT_TEMPLATE_DIR: &str = "script/templates";
 const SCRIPT_TEMPLATE_INCLUDE_PREFIX: &str = "{{include:";
 const SCRIPT_TEMPLATE_INCLUDE_SUFFIX: &str = "}}";
-const SCRIPT_TEMPLATE_EXTENSIONS: [&str; 5] = ["lua", "luau", "js", "mjs", "cjs"];
-const SCRIPT_TEMPLATE_DEFAULT_SOURCE: &str = include_str!("templates/default.lua");
+const SCRIPT_TEMPLATE_EXTENSIONS: [&str; 3] = ["js", "mjs", "cjs"];
+const SCRIPT_TEMPLATE_DEFAULT_SOURCE: &str = include_str!("templates/default.js");
 const SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ: u32 = 60;
 const SCRIPT_FILE_RELOAD_POLL_HZ: u32 = 30;
 
 struct ScriptTemplateResolved {
     source: String,
-    runtime_hint: Option<ScriptRuntimeKind>,
 }
 
 fn script_template_root_dir() -> PathBuf {
@@ -354,7 +324,7 @@ fn read_template_from_path(path: &Path, root_dir: &Path) -> Result<String, Strin
 
 fn default_embedded_template() -> String {
     let root_dir = script_template_root_dir();
-    let mut stack = vec!["default.lua".to_string()];
+    let mut stack = vec!["default.js".to_string()];
     expand_template_source(SCRIPT_TEMPLATE_DEFAULT_SOURCE, &root_dir, &mut stack).unwrap_or_else(|_| SCRIPT_TEMPLATE_DEFAULT_SOURCE.to_string())
 }
 
@@ -369,11 +339,7 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
 
             match read_template_from_path(&path, &root_dir) {
                 Ok(source) => {
-                    let runtime_hint = match ScriptRuntimeKind::from_path(&path) {
-                        Some(ScriptRuntimeKind::QuickJs) => Some(ScriptRuntimeKind::QuickJs),
-                        _ => None,
-                    };
-                    return ScriptTemplateResolved { source, runtime_hint };
+                    return ScriptTemplateResolved { source };
                 }
                 Err(error) => {
                     let _ = logger::log_message(
@@ -389,7 +355,6 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
 
     ScriptTemplateResolved {
         source: default_embedded_template(),
-        runtime_hint: None,
     }
 }
 
@@ -398,42 +363,34 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
 pub struct ScriptNodeConfig {
     /// Script source.
     pub source: ScriptSource,
-    /// Optional explicit runtime hint used when source extension does not select one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime_hint: Option<ScriptRuntimeKind>,
-    /// Optional project root used by `ScriptSource::ProjectFile`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project_root: Option<PathBuf>,
 }
 
 impl ScriptNodeConfig {
     /// Creates default script config for a host node type using script templates.
     pub fn for_host_node_type(host_node_type: &str) -> Self {
         let template = resolve_template_for_host(host_node_type);
-        Self {
-            source: ScriptSource::Inline(template.source),
-            runtime_hint: template.runtime_hint,
-            project_root: None,
-        }
+        Self { source: ScriptSource::Inline(template.source) }
     }
 
-    fn detect_runtime_kind(&self) -> Result<ScriptRuntimeKind, ScriptRuntimeError> {
-        if let Some(path) = self.source.resolve_path(self.project_root.as_deref()) {
-            if let Some(kind) = ScriptRuntimeKind::from_path(&path) {
-                return Ok(kind);
-            }
+    fn validate_source_kind(&self) -> Result<(), ScriptRuntimeError> {
+        let Some(path) = self.source.resolve_path() else {
+            return Ok(());
+        };
+
+        let ext = path
+            .extension()
+            .and_then(|raw| raw.to_str())
+            .map(|raw| raw.trim().to_ascii_lowercase());
+        if matches!(ext.as_deref(), Some("js" | "mjs" | "cjs")) {
+            return Ok(());
         }
 
-        if let Some(kind) = self.runtime_hint {
-            return Ok(kind);
-        }
-
-        match self.source {
-            ScriptSource::Inline(_) => Ok(ScriptRuntimeKind::Luau),
-            ScriptSource::ProjectFile(ref path) => Err(ScriptRuntimeError::InvalidManifest(format!(
-                "unable to infer runtime kind from script file '{path}', set runtime_hint explicitly"
-            ))),
-        }
+        let ScriptSource::ProjectFile(raw_path) = &self.source else {
+            return Ok(());
+        };
+        Err(ScriptRuntimeError::InvalidManifest(format!(
+            "unsupported script file '{raw_path}', expected one of: .js, .mjs, .cjs"
+        )))
     }
 }
 
@@ -477,36 +434,22 @@ impl From<ScriptUiSource> for ScriptSource {
     }
 }
 
-/// UI payload for script runtime configuration.
+/// UI payload for script source configuration.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptUiConfig {
     /// Script source selector.
     pub source: ScriptUiSource,
-    /// Optional runtime hint used when source extension does not select one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime_hint: Option<ScriptRuntimeKind>,
-    /// Optional project root used by file-backed sources.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project_root: Option<String>,
 }
 
 impl From<&ScriptNodeConfig> for ScriptUiConfig {
     fn from(value: &ScriptNodeConfig) -> Self {
-        Self {
-            source: ScriptUiSource::from(&value.source),
-            runtime_hint: value.runtime_hint,
-            project_root: value.project_root.as_ref().map(|path| path.to_string_lossy().to_string()),
-        }
+        Self { source: ScriptUiSource::from(&value.source) }
     }
 }
 
 impl From<ScriptUiConfig> for ScriptNodeConfig {
     fn from(value: ScriptUiConfig) -> Self {
-        Self {
-            source: value.source.into(),
-            runtime_hint: value.runtime_hint,
-            project_root: value.project_root.map(PathBuf::from),
-        }
+        Self { source: value.source.into() }
     }
 }
 
@@ -515,9 +458,6 @@ impl From<ScriptUiConfig> for ScriptNodeConfig {
 pub struct ScriptUiState {
     /// Current script configuration.
     pub config: ScriptUiConfig,
-    /// Currently active runtime kind when loaded.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime_kind: Option<ScriptRuntimeKind>,
     /// Effective update-rate used by scheduler.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effective_update_rate_hz: Option<u32>,
@@ -806,8 +746,6 @@ impl ScriptHostBridge for NoopScriptHostBridge {
 pub enum ScriptRuntimeError {
     /// Source loading failure.
     Io(String),
-    /// Lua runtime error.
-    Lua(String),
     /// QuickJS runtime error.
     QuickJs(String),
     /// Invalid script manifest.
@@ -824,7 +762,6 @@ impl fmt::Display for ScriptRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(message) => write!(f, "{message}"),
-            Self::Lua(message) => write!(f, "luau runtime error: {message}"),
             Self::QuickJs(message) => write!(f, "quickjs runtime error: {message}"),
             Self::InvalidManifest(message) => write!(f, "invalid script manifest: {message}"),
             Self::MissingExport(name) => write!(f, "missing script export '{name}'"),
@@ -835,12 +772,6 @@ impl fmt::Display for ScriptRuntimeError {
 }
 
 impl std::error::Error for ScriptRuntimeError {}
-
-impl From<mlua::Error> for ScriptRuntimeError {
-    fn from(value: mlua::Error) -> Self {
-        Self::Lua(value.to_string())
-    }
-}
 
 impl From<QuickJsError> for ScriptRuntimeError {
     fn from(value: QuickJsError) -> Self {
@@ -872,348 +803,9 @@ pub trait ScriptRuntime: Send {
     fn has_on_update(&self) -> bool;
 }
 
-#[derive(Default)]
-struct LuauEntrypoints {
-    on_init: Option<RegistryKey>,
-    on_update: Option<RegistryKey>,
-    on_event: Option<RegistryKey>,
-    on_destroy: Option<RegistryKey>,
-    exports: BTreeMap<String, RegistryKey>,
-}
-
 enum ScriptHostOp {
     Log { level: ScriptLogLevel, message: String },
     EmitCustom { topic: String, payload: JsonValue },
-}
-
-/// Luau-backed script runtime.
-pub struct LuauRuntime {
-    lua: Lua,
-    budgets: ScriptBudgets,
-    entrypoints: LuauEntrypoints,
-    manifest: Option<ScriptManifest>,
-    host_ops: Arc<Mutex<Vec<ScriptHostOp>>>,
-    host_call_counter: Arc<AtomicU32>,
-}
-
-impl LuauRuntime {
-    /// Creates a new Luau runtime with budget guardrails.
-    pub fn new(budgets: ScriptBudgets) -> Result<Self, ScriptRuntimeError> {
-        let lua = Lua::new();
-        let host_ops = Arc::new(Mutex::new(Vec::new()));
-        let host_call_counter = Arc::new(AtomicU32::new(0));
-
-        let mut runtime = Self {
-            lua,
-            budgets,
-            entrypoints: LuauEntrypoints::default(),
-            manifest: None,
-            host_ops,
-            host_call_counter,
-        };
-        runtime.install_host_api()?;
-        Ok(runtime)
-    }
-
-    fn install_host_api(&mut self) -> Result<(), ScriptRuntimeError> {
-        let gc_table = self.lua.create_table()?;
-        let max_host_calls = self.budgets.max_host_calls_per_callback.max(1);
-
-        let host_ops = Arc::clone(&self.host_ops);
-        let host_call_counter = Arc::clone(&self.host_call_counter);
-        let log_fn = self.lua.create_function(move |_, (level_label, message): (String, String)| {
-            let call_count = host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
-            if call_count > max_host_calls {
-                return Err(mlua::Error::runtime("script host-call budget exceeded in current callback"));
-            }
-
-            let level = ScriptLogLevel::from_manifest_label(&level_label).ok_or_else(|| mlua::Error::runtime(format!("invalid log level '{level_label}'")))?;
-            let mut guard = host_ops.lock().map_err(|_| mlua::Error::runtime("script host-op queue lock poisoned"))?;
-            guard.push(ScriptHostOp::Log { level, message });
-            Ok(())
-        })?;
-        gc_table.set("log", log_fn)?;
-
-        let host_ops = Arc::clone(&self.host_ops);
-        let host_call_counter = Arc::clone(&self.host_call_counter);
-        let emit_fn = self.lua.create_function(move |lua, (topic, payload): (String, Value)| {
-            let call_count = host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
-            if call_count > max_host_calls {
-                return Err(mlua::Error::runtime("script host-call budget exceeded in current callback"));
-            }
-
-            let payload = lua.from_value::<JsonValue>(payload).unwrap_or(JsonValue::Null);
-            let mut guard = host_ops.lock().map_err(|_| mlua::Error::runtime("script host-op queue lock poisoned"))?;
-            guard.push(ScriptHostOp::EmitCustom { topic, payload });
-            Ok(())
-        })?;
-        gc_table.set("emit", emit_fn)?;
-
-        self.lua.globals().set("gc", gc_table)?;
-        Ok(())
-    }
-
-    fn reset_host_callback_state(&self) -> Result<(), ScriptRuntimeError> {
-        self.host_call_counter.store(0, Ordering::Relaxed);
-        let mut guard = self.host_ops.lock().map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
-        guard.clear();
-        Ok(())
-    }
-
-    fn flush_host_ops(&self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let mut drained = Vec::new();
-        {
-            let mut guard = self.host_ops.lock().map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
-            std::mem::swap(&mut drained, &mut *guard);
-        }
-
-        for op in drained {
-            match op {
-                ScriptHostOp::Log { level, message } => {
-                    host.log(level, &message);
-                }
-                ScriptHostOp::EmitCustom { topic, payload } => {
-                    host.emit_custom(&topic, payload).map_err(ScriptRuntimeError::Host)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn to_lua_value(&self, value: &ScriptValue) -> Result<Value, ScriptRuntimeError> {
-        Ok(match value {
-            ScriptValue::Nil => Value::Nil,
-            ScriptValue::Bool(value) => Value::Boolean(*value),
-            ScriptValue::Int(value) => Value::Integer(i32::try_from(*value).map_err(|_| ScriptRuntimeError::InvalidManifest(format!("integer value {value} is outside luau i32 range")))?),
-            ScriptValue::Float(value) => Value::Number(*value),
-            ScriptValue::Str(value) => Value::String(self.lua.create_string(value)?),
-            ScriptValue::Json(value) => self.lua.to_value(value)?,
-        })
-    }
-
-    fn from_lua_value(&self, value: Value) -> Result<ScriptValue, ScriptRuntimeError> {
-        let script_value = match value {
-            Value::Nil => ScriptValue::Nil,
-            Value::Boolean(value) => ScriptValue::Bool(value),
-            Value::Integer(value) => ScriptValue::Int(value.into()),
-            Value::Number(value) => ScriptValue::Float(value),
-            Value::String(value) => ScriptValue::Str(value.to_str()?.to_string()),
-            other => {
-                let json = self.lua.from_value::<JsonValue>(other)?;
-                ScriptValue::Json(json)
-            }
-        };
-        Ok(script_value)
-    }
-
-    fn build_callback_ctx(&self, host: &dyn ScriptHostBridge) -> Result<Table, ScriptRuntimeError> {
-        let ctx = self.lua.create_table()?;
-        let gc: Table = self.lua.globals().get("gc")?;
-        let log_fn: Function = gc.get("log")?;
-        let emit_fn: Function = gc.get("emit")?;
-        ctx.set("log", log_fn)?;
-        ctx.set("emit", emit_fn)?;
-        ctx.set("time_seconds", host.time_seconds())?;
-        ctx.set("delta_seconds", host.delta_seconds())?;
-        if let Some(owner) = host.owner_node() {
-            ctx.set("owner_node_id", owner.0 as i64)?;
-        }
-        Ok(ctx)
-    }
-
-    fn callback_timed<T, F>(&self, phase_label: &str, callback: F) -> Result<T, ScriptRuntimeError>
-    where
-        F: FnOnce() -> Result<T, ScriptRuntimeError>,
-    {
-        let started_at = Instant::now();
-        let output = callback()?;
-        let elapsed = started_at.elapsed();
-        let elapsed_limit = Duration::from_micros(self.budgets.max_wall_time_us_per_callback.max(1));
-        if elapsed > elapsed_limit {
-            return Err(ScriptRuntimeError::BudgetViolation(format!("{phase_label} callback exceeded wall-time budget: {:?} > {:?}", elapsed, elapsed_limit)));
-        }
-        Ok(output)
-    }
-
-    fn callback_function(&self, key: &RegistryKey) -> Result<Function, ScriptRuntimeError> {
-        let function = self.lua.registry_value::<Function>(key)?;
-        Ok(function)
-    }
-
-    fn parse_manifest(&self, root: &Table, export_names: Vec<String>) -> Result<ScriptManifest, ScriptRuntimeError> {
-        let api_version = root.get::<Option<u32>>("api_version")?.unwrap_or(1);
-        if api_version == 0 {
-            return Err(ScriptRuntimeError::InvalidManifest("api_version must be >= 1".to_string()));
-        }
-
-        let update_rate_hz = root.get::<Option<u32>>("update_rate_hz")?;
-        let requested_capabilities = parse_capability_set(root.get::<Option<Table>>("capabilities")?)?;
-        let parameters = parse_parameter_specs(root.get::<Option<Table>>("parameters")?)?;
-        let subscriptions = parse_subscription_specs(root.get::<Option<Table>>("subscriptions")?)?;
-
-        let exports = export_names.into_iter().map(|name| ScriptExportSpec { name, signature: ScriptFnSignature::default() }).collect();
-
-        Ok(ScriptManifest {
-            api_version,
-            update_rate_hz,
-            parameters,
-            subscriptions,
-            exports,
-            requested_capabilities,
-        })
-    }
-}
-
-impl ScriptRuntime for LuauRuntime {
-    fn load(&mut self, source: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
-        self.entrypoints = LuauEntrypoints::default();
-        self.manifest = None;
-
-        let root_value = self.lua.load(source).eval::<Value>()?;
-        let root_table = match root_value {
-            Value::Table(table) => table,
-            _ => return Err(ScriptRuntimeError::InvalidManifest("script must return a manifest table".to_string())),
-        };
-
-        if let Some(callback) = root_table.get::<Option<Function>>("on_init")? {
-            self.entrypoints.on_init = Some(self.lua.create_registry_value(callback)?);
-        }
-        if let Some(callback) = root_table.get::<Option<Function>>("on_update")? {
-            self.entrypoints.on_update = Some(self.lua.create_registry_value(callback)?);
-        }
-        if let Some(callback) = root_table.get::<Option<Function>>("on_event")? {
-            self.entrypoints.on_event = Some(self.lua.create_registry_value(callback)?);
-        }
-        if let Some(callback) = root_table.get::<Option<Function>>("on_destroy")? {
-            self.entrypoints.on_destroy = Some(self.lua.create_registry_value(callback)?);
-        }
-
-        let mut export_names = Vec::new();
-        if let Some(exports_table) = root_table.get::<Option<Table>>("exports")? {
-            for pair in exports_table.pairs::<String, Function>() {
-                let (name, callback) = pair?;
-                let registry_key = self.lua.create_registry_value(callback)?;
-                self.entrypoints.exports.insert(name.clone(), registry_key);
-                export_names.push(name);
-            }
-        }
-        export_names.sort();
-
-        let manifest = self.parse_manifest(&root_table, export_names)?;
-        self.manifest = Some(manifest.clone());
-        Ok(manifest)
-    }
-
-    fn reload(&mut self, source: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
-        let budgets = self.budgets;
-        *self = Self::new(budgets)?;
-        self.load(source)
-    }
-
-    fn manifest(&self) -> Option<&ScriptManifest> {
-        self.manifest.as_ref()
-    }
-
-    fn export_names(&self) -> Vec<String> {
-        let mut names = self.entrypoints.exports.keys().cloned().collect::<Vec<_>>();
-        names.sort();
-        names
-    }
-
-    fn call_export(&mut self, export_name: &str, args: &[ScriptValue], host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError> {
-        let Some(key) = self.entrypoints.exports.get(export_name) else {
-            return Err(ScriptRuntimeError::MissingExport(export_name.to_string()));
-        };
-
-        self.reset_host_callback_state()?;
-        let result = self.callback_timed("export", || {
-            let callback = self.callback_function(key)?;
-            let ctx = self.build_callback_ctx(host)?;
-            let args_table = self.lua.create_table()?;
-            for (index, argument) in args.iter().enumerate() {
-                args_table.set((index + 1) as i64, self.to_lua_value(argument)?)?;
-            }
-            let return_value = callback.call::<Value>((ctx, args_table))?;
-            self.from_lua_value(return_value)
-        });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
-    }
-
-    fn call_on_init(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let Some(key) = &self.entrypoints.on_init else {
-            return Ok(());
-        };
-
-        self.reset_host_callback_state()?;
-        let result = self.callback_timed("on_init", || {
-            let callback = self.callback_function(key)?;
-            let ctx = self.build_callback_ctx(host)?;
-            callback.call::<()>((ctx,))?;
-            Ok(())
-        });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
-    }
-
-    fn call_on_update(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let Some(key) = &self.entrypoints.on_update else {
-            return Ok(());
-        };
-
-        self.reset_host_callback_state()?;
-        let delta_seconds = host.delta_seconds();
-        let result = self.callback_timed("on_update", || {
-            let callback = self.callback_function(key)?;
-            let ctx = self.build_callback_ctx(host)?;
-            callback.call::<()>((ctx, delta_seconds))?;
-            Ok(())
-        });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
-    }
-
-    fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let Some(key) = &self.entrypoints.on_event else {
-            return Ok(());
-        };
-
-        self.reset_host_callback_state()?;
-        let result = self.callback_timed("on_event", || {
-            let callback = self.callback_function(key)?;
-            let ctx = self.build_callback_ctx(host)?;
-            let event_payload = self.lua.to_value(event)?;
-            callback.call::<()>((ctx, event_payload))?;
-            Ok(())
-        });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
-    }
-
-    fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let Some(key) = &self.entrypoints.on_destroy else {
-            return Ok(());
-        };
-
-        self.reset_host_callback_state()?;
-        let result = self.callback_timed("on_destroy", || {
-            let callback = self.callback_function(key)?;
-            let ctx = self.build_callback_ctx(host)?;
-            callback.call::<()>((ctx,))?;
-            Ok(())
-        });
-        let flush_result = self.flush_host_ops(host);
-        flush_result?;
-        result
-    }
-
-    fn has_on_update(&self) -> bool {
-        self.entrypoints.on_update.is_some()
-    }
 }
 
 #[derive(Default)]
@@ -1648,188 +1240,6 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 }
 
-fn parse_capability_set(table: Option<Table>) -> Result<ScriptCapabilitySet, ScriptRuntimeError> {
-    let Some(table) = table else {
-        return Ok(ScriptCapabilitySet::none());
-    };
-
-    let mut capabilities = Vec::new();
-    for item in table.sequence_values::<String>() {
-        let name = item?;
-        let capability = match name.trim().to_ascii_lowercase().as_str() {
-            "paramread" | "param_read" | "param-read" => ScriptCapability::ParamRead,
-            "paramwrite" | "param_write" | "param-write" => ScriptCapability::ParamWrite,
-            "noderead" | "node_read" | "node-read" => ScriptCapability::NodeRead,
-            "nodepatchmeta" | "node_patch_meta" | "node-patch-meta" => ScriptCapability::NodePatchMeta,
-            "nodeadd" | "node_add" | "node-add" => ScriptCapability::NodeAdd,
-            "noderemove" | "node_remove" | "node-remove" => ScriptCapability::NodeRemove,
-            "nodemove" | "node_move" | "node-move" => ScriptCapability::NodeMove,
-            "eventsubscribe" | "event_subscribe" | "event-subscribe" => ScriptCapability::EventSubscribe,
-            "eventemit" | "event_emit" | "event-emit" => ScriptCapability::EventEmit,
-            other => return Err(ScriptRuntimeError::InvalidManifest(format!("unknown capability '{other}'"))),
-        };
-        capabilities.push(capability);
-    }
-    Ok(ScriptCapabilitySet::from_iter(capabilities))
-}
-
-fn parse_subscription_specs(table: Option<Table>) -> Result<Vec<ScriptSubscriptionSpec>, ScriptRuntimeError> {
-    let Some(table) = table else {
-        return Ok(Vec::new());
-    };
-
-    let mut specs = Vec::new();
-    for entry in table.sequence_values::<Table>() {
-        let entry = entry?;
-        let selector_raw = entry.get::<String>("node")?;
-        let max_depth = entry.get::<Option<u32>>("max_depth")?.unwrap_or(0);
-        let selector = if selector_raw == "@host" {
-            ScriptNodeSelector::HostPath(String::new())
-        } else if selector_raw == "@root" {
-            ScriptNodeSelector::RootPath(String::new())
-        } else if let Some(path) = selector_raw.strip_prefix("@host/") {
-            ScriptNodeSelector::HostPath(path.to_string())
-        } else if let Some(path) = selector_raw.strip_prefix("@root/") {
-            ScriptNodeSelector::RootPath(path.to_string())
-        } else {
-            ScriptNodeSelector::Path(selector_raw)
-        };
-        specs.push(ScriptSubscriptionSpec { node: selector, max_depth });
-    }
-
-    Ok(specs)
-}
-
-fn parse_parameter_specs(table: Option<Table>) -> Result<Vec<ScriptParameterSpec>, ScriptRuntimeError> {
-    let Some(table) = table else {
-        return Ok(Vec::new());
-    };
-
-    let mut specs = Vec::new();
-    for pair in table.pairs::<String, Table>() {
-        let (name, entry) = pair?;
-        let value_type_label = entry.get::<Option<String>>("type")?.unwrap_or_else(|| "float".to_string());
-        let value_type = ScriptValueType::from_manifest_label(&value_type_label).ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported type '{value_type_label}'")))?;
-
-        let default_value = match entry.get::<Option<Value>>("default")? {
-            Some(raw) => parameter_default_from_lua_value(value_type, raw)?,
-            None => default_param_value(value_type),
-        };
-
-        let mut constraints = ParameterConstraints::default();
-        if let Some(step) = entry.get::<Option<f64>>("step")? {
-            constraints.step = Some(step);
-        }
-        if let Some(step_base) = entry.get::<Option<f64>>("step_base")? {
-            constraints.step_base = Some(step_base);
-        }
-        if let Some(policy_label) = entry.get::<Option<String>>("policy")? {
-            constraints.policy = match policy_label.trim().to_ascii_lowercase().as_str() {
-                "clampadapt" | "clamp_adapt" | "clamp-adapt" => ParameterConstraintPolicy::ClampAdapt,
-                "reject" => ParameterConstraintPolicy::Reject,
-                _ => return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported policy '{}'", policy_label))),
-            };
-        }
-
-        let min = entry.get::<Option<Value>>("min")?;
-        let max = entry.get::<Option<Value>>("max")?;
-        constraints.range = parse_range_constraint(value_type, min, max)?;
-
-        if let Some(enum_options) = entry.get::<Option<Table>>("enum_options")? {
-            let mut options = Vec::new();
-            for option in enum_options.sequence_values::<String>() {
-                let variant_id = option?;
-                options.push(ParameterEnumOption {
-                    variant_id: variant_id.clone(),
-                    value: ParamValue::Enum(variant_id.clone()),
-                    label: variant_id,
-                    tags: Vec::new(),
-                    ordering: None,
-                });
-            }
-            constraints.enum_options = options;
-        }
-        constraints.file = parse_file_constraints_lua(&entry, &name)?;
-
-        let ui_hints = ParameterUiHints {
-            widget: entry.get::<Option<String>>("widget")?,
-            unit: entry.get::<Option<String>>("unit")?,
-        };
-
-        let decl_id = entry.get::<Option<String>>("decl_id")?.unwrap_or_else(|| name.clone());
-
-        specs.push(ScriptParameterSpec {
-            name: name.clone(),
-            decl_id: DeclId(decl_id),
-            label: entry.get::<Option<String>>("label")?,
-            value_type,
-            default_value,
-            read_only: entry.get::<Option<bool>>("read_only")?.unwrap_or(false),
-            constraints,
-            ui_hints,
-        });
-    }
-
-    specs.sort_by(|left, right| left.name.cmp(&right.name));
-    Ok(specs)
-}
-
-fn parse_file_constraints_lua(entry: &Table, param_name: &str) -> Result<FileConstraints, ScriptRuntimeError> {
-    let mut constraints = FileConstraints::default();
-
-    if let Some(allowed_types) = entry.get::<Option<Table>>("allowed_types")? {
-        let mut parsed = Vec::new();
-        for value in allowed_types.sequence_values::<String>() {
-            let value = value?;
-            let Some(group) = FileTypeGroup::from_label(&value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' has unknown file group '{value}' in allowed_types"
-                )));
-            };
-            parsed.push(group);
-        }
-        constraints.allowed_types = parsed;
-    }
-
-    if let Some(allowed_extensions) = entry.get::<Option<Table>>("allowed_extensions")? {
-        let mut parsed = Vec::new();
-        for value in allowed_extensions.sequence_values::<String>() {
-            let value = value?;
-            let Some(ext) = FileConstraints::normalize_extension_label(&value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' has invalid extension '{value}' in allowed_extensions"
-                )));
-            };
-            parsed.push(ext);
-        }
-        constraints.allowed_extensions = parsed;
-    }
-
-    Ok(constraints)
-}
-
-fn parse_range_constraint(value_type: ScriptValueType, min: Option<Value>, max: Option<Value>) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
-    match value_type {
-        ScriptValueType::Int
-        | ScriptValueType::Float
-        | ScriptValueType::Enum
-        | ScriptValueType::Bool
-        | ScriptValueType::Str
-        | ScriptValueType::File
-        | ScriptValueType::Trigger
-        | ScriptValueType::Reference => {
-            let min = min.as_ref().and_then(value_as_f64);
-            let max = max.as_ref().and_then(value_as_f64);
-            Ok(RangeConstraint::uniform(min, max))
-        }
-        ScriptValueType::Vec2 | ScriptValueType::Vec3 | ScriptValueType::Color => {
-            let min = min.as_ref().and_then(value_as_f64_vec);
-            let max = max.as_ref().and_then(value_as_f64_vec);
-            Ok(RangeConstraint::components(min, max))
-        }
-    }
-}
-
 fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> Result<ScriptManifest, ScriptRuntimeError> {
     let Some(root) = payload.as_object() else {
         return Err(ScriptRuntimeError::InvalidManifest("manifest JSON root must be an object".to_string()));
@@ -2187,26 +1597,6 @@ fn json_as_f64_vec(value: &JsonValue) -> Option<Vec<f64>> {
     Some(out)
 }
 
-fn value_as_f64(value: &Value) -> Option<f64> {
-    match value {
-        Value::Integer(value) => Some(*value as f64),
-        Value::Number(value) => Some(*value),
-        _ => None,
-    }
-}
-
-fn value_as_f64_vec(value: &Value) -> Option<Vec<f64>> {
-    let Value::Table(table) = value else {
-        return None;
-    };
-    let mut out = Vec::new();
-    for item in table.sequence_values::<Value>() {
-        let item = item.ok()?;
-        out.push(value_as_f64(&item)?);
-    }
-    Some(out)
-}
-
 fn default_param_value(value_type: ScriptValueType) -> ParamValue {
     match value_type {
         ScriptValueType::Trigger => ParamValue::Trigger(),
@@ -2221,67 +1611,6 @@ fn default_param_value(value_type: ScriptValueType) -> ParamValue {
         ScriptValueType::Color => ParamValue::Color(0.0, 0.0, 0.0, 1.0),
         ScriptValueType::Reference => ParamValue::Reference(crate::node::NodeReference::empty()),
     }
-}
-
-fn parameter_default_from_lua_value(value_type: ScriptValueType, value: Value) -> Result<ParamValue, ScriptRuntimeError> {
-    let parsed = match value_type {
-        ScriptValueType::Trigger => ParamValue::Trigger(),
-        ScriptValueType::Int => match value {
-            Value::Integer(value) => ParamValue::Int(value as i32),
-            Value::Number(value) => ParamValue::Int(value as i32),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected numeric default for int parameter".to_string())),
-        },
-        ScriptValueType::Float => match value {
-            Value::Integer(value) => ParamValue::Float(value as f64),
-            Value::Number(value) => ParamValue::Float(value),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected numeric default for float parameter".to_string())),
-        },
-        ScriptValueType::Str => match value {
-            Value::String(value) => ParamValue::Str(value.to_str()?.to_string()),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected string default for str parameter".to_string())),
-        },
-        ScriptValueType::File => match value {
-            Value::String(value) => ParamValue::File(value.to_str()?.to_string()),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected string default for file parameter".to_string())),
-        },
-        ScriptValueType::Enum => match value {
-            Value::String(value) => ParamValue::Enum(value.to_str()?.to_string()),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected string default for enum parameter".to_string())),
-        },
-        ScriptValueType::Bool => match value {
-            Value::Boolean(value) => ParamValue::Bool(value),
-            _ => return Err(ScriptRuntimeError::InvalidManifest("expected boolean default for bool parameter".to_string())),
-        },
-        ScriptValueType::Vec2 => {
-            let Value::Table(values) = value else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [x,y] table default for vec2 parameter".to_string()));
-            };
-            let x = values.get::<f64>(1)?;
-            let y = values.get::<f64>(2)?;
-            ParamValue::Vec2(x, y)
-        }
-        ScriptValueType::Vec3 => {
-            let Value::Table(values) = value else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [x,y,z] table default for vec3 parameter".to_string()));
-            };
-            let x = values.get::<f64>(1)?;
-            let y = values.get::<f64>(2)?;
-            let z = values.get::<f64>(3)?;
-            ParamValue::Vec3(x, y, z)
-        }
-        ScriptValueType::Color => {
-            let Value::Table(values) = value else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [r,g,b,a] table default for color parameter".to_string()));
-            };
-            let r = values.get::<f64>(1)?;
-            let g = values.get::<f64>(2)?;
-            let b = values.get::<f64>(3)?;
-            let a = values.get::<Option<f64>>(4)?.unwrap_or(1.0);
-            ParamValue::Color(r, g, b, a)
-        }
-        ScriptValueType::Reference => ParamValue::Reference(crate::node::NodeReference::empty()),
-    };
-    Ok(parsed)
 }
 
 struct NodeScriptHostBridge<'a> {
@@ -2334,18 +1663,14 @@ struct ScriptSourceStamp {
 }
 
 struct ActiveRuntime {
-    kind: ScriptRuntimeKind,
     runtime: Box<dyn ScriptRuntime>,
 }
 
-fn create_runtime(kind: ScriptRuntimeKind, budgets: ScriptBudgets) -> Result<Box<dyn ScriptRuntime>, ScriptRuntimeError> {
-    match kind {
-        ScriptRuntimeKind::Luau => Ok(Box::new(LuauRuntime::new(budgets)?)),
-        ScriptRuntimeKind::QuickJs => Ok(Box::new(QuickJsRuntime::new(budgets)?)),
-    }
+fn create_runtime(budgets: ScriptBudgets) -> Result<Box<dyn ScriptRuntime>, ScriptRuntimeError> {
+    Ok(Box::new(QuickJsRuntime::new(budgets)?))
 }
 
-/// Built-in runtime-agnostic script node.
+/// Built-in QuickJS script node.
 pub struct ScriptNode {
     node_data: NodeData,
     /// Script runtime configuration.
@@ -2387,16 +1712,10 @@ impl ScriptNode {
         self.runtime.as_ref().map(|runtime| runtime.runtime.export_names()).unwrap_or_default()
     }
 
-    /// Returns active runtime kind when loaded.
-    pub fn runtime_kind(&self) -> Option<ScriptRuntimeKind> {
-        self.runtime.as_ref().map(|runtime| runtime.kind)
-    }
-
     /// Returns UI-facing script state.
     pub fn ui_state(&self) -> ScriptUiState {
         ScriptUiState {
             config: ScriptUiConfig::from(&self.config),
-            runtime_kind: self.runtime_kind(),
             effective_update_rate_hz: self.effective_update_rate_hz,
             export_names: self.export_names(),
             manifest: self.manifest.clone(),
@@ -2410,7 +1729,7 @@ impl ScriptNode {
             self.config = config;
         }
 
-        if config_changed || force_reload {
+        if force_reload {
             self.invalidate_runtime_state();
         }
     }
@@ -2505,7 +1824,7 @@ impl ScriptNode {
     }
 
     fn source_file_modified(&self) -> Option<SystemTime> {
-        let path = self.config.source.resolve_path(self.config.project_root.as_deref())?;
+        let path = self.config.source.resolve_path()?;
         std::fs::metadata(path).ok().and_then(|metadata| metadata.modified().ok())
     }
 
@@ -2529,7 +1848,7 @@ impl ScriptNode {
                     return Ok(false);
                 }
 
-                let script_source = self.config.source.load_text(self.config.project_root.as_deref())?;
+                let script_source = self.config.source.load_text()?;
                 Ok(hash_source_text(&script_source) != last_stamp.source_hash)
             }
         }
@@ -2549,12 +1868,12 @@ impl ScriptNode {
             return Ok(());
         }
 
-        let script_source = self.config.source.load_text(self.config.project_root.as_deref())?;
-        let runtime_kind = self.config.detect_runtime_kind()?;
+        let script_source = self.config.source.load_text()?;
+        self.config.validate_source_kind()?;
         let source_stamp = self.source_stamp_from_text(&script_source);
         self.teardown_runtime(ctx);
 
-        let mut runtime = create_runtime(runtime_kind, self.budgets)?;
+        let mut runtime = create_runtime(self.budgets)?;
         let manifest = runtime.load(&script_source)?;
         self.sync_runtime_subscriptions(ctx, &manifest);
 
@@ -2563,7 +1882,7 @@ impl ScriptNode {
 
         self.effective_update_rate_hz = manifest.update_rate_hz;
         self.manifest = Some(manifest);
-        self.runtime = Some(ActiveRuntime { kind: runtime_kind, runtime });
+        self.runtime = Some(ActiveRuntime { runtime });
         self.source_stamp = Some(source_stamp);
         self.reload_requested = false;
         ctx.reevaluate_graph();
@@ -2808,39 +2127,6 @@ mod tests {
     }
 
     #[test]
-    fn luau_runtime_loads_manifest_and_exports() {
-        let source = r#"
-return {
-  api_version = 1,
-  update_rate_hz = 60,
-  exports = {
-    ping = function(ctx, args)
-      ctx.log("info", "ping called")
-      ctx.emit("script.test", { value = args[1] })
-      return args[1]
-    end
-  }
-}
-"#;
-
-        let mut runtime = LuauRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load(source).expect("manifest should parse");
-        assert_eq!(manifest.api_version, 1);
-        assert_eq!(manifest.update_rate_hz, Some(60));
-        assert_eq!(runtime.export_names(), vec!["ping".to_string()]);
-
-        let mut host = TestHostBridge::new();
-        let output = runtime
-            .call_export("ping", &[ScriptValue::Int(7)], &mut host)
-            .expect("export should run");
-        assert_eq!(output, ScriptValue::Int(7));
-        assert_eq!(host.logs.len(), 1);
-        assert_eq!(host.logs[0].0, ScriptLogLevel::Info);
-        assert_eq!(host.emitted.len(), 1);
-        assert_eq!(host.emitted[0].0, "script.test");
-    }
-
-    #[test]
     fn quickjs_runtime_loads_manifest_and_exports() {
         let source = r#"
 return {
@@ -2880,10 +2166,9 @@ return {
             ScriptSource::Inline(source) => source,
             ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
         };
-        assert!(source.contains("api_version = 1"));
-        assert!(source.contains("gain = {"), "template source:\n{source}");
-        assert!(source.contains("on_update = function(ctx, delta)"));
-        assert_eq!(config.runtime_hint, None);
+        assert!(source.contains("api_version: 1"));
+        assert!(source.contains("gain: {"), "template source:\n{source}");
+        assert!(source.contains("on_update: function(ctx, delta)"));
     }
 
     #[test]
@@ -2894,7 +2179,6 @@ return {
             ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
         };
         assert!(source.contains("module-scoped script initialized"));
-        assert_eq!(config.runtime_hint, None);
     }
 
     #[test]
@@ -2952,12 +2236,11 @@ return {
         let destroy_counter = Arc::new(AtomicUsize::new(0));
         let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
         script.runtime = Some(ActiveRuntime {
-            kind: ScriptRuntimeKind::Luau,
             runtime: Box::new(MockRuntime::new(false, destroy_counter)),
         });
         script.reload_requested = false;
         script.effective_update_rate_hz = Some(60);
-        script.config.source = ScriptSource::Inline("return { api_version = 1 }".to_string());
+        script.config.source = ScriptSource::Inline("return { api_version: 1 };".to_string());
         script.node_data.meta.enabled = true;
 
         let rule = script.execution_rule();
@@ -2969,12 +2252,11 @@ return {
         let destroy_counter = Arc::new(AtomicUsize::new(0));
         let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
         script.runtime = Some(ActiveRuntime {
-            kind: ScriptRuntimeKind::Luau,
             runtime: Box::new(MockRuntime::new(false, destroy_counter)),
         });
         script.reload_requested = false;
         script.effective_update_rate_hz = Some(60);
-        script.config.source = ScriptSource::ProjectFile("scripts/example.lua".to_string());
+        script.config.source = ScriptSource::ProjectFile("scripts/example.js".to_string());
         script.node_data.meta.enabled = true;
 
         let rule = script.execution_rule();
@@ -2986,7 +2268,6 @@ return {
         let destroy_counter = Arc::new(AtomicUsize::new(0));
         let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
         script.runtime = Some(ActiveRuntime {
-            kind: ScriptRuntimeKind::Luau,
             runtime: Box::new(MockRuntime::new(true, Arc::clone(&destroy_counter))),
         });
         script.request_reload();
@@ -3008,20 +2289,18 @@ return {
     fn manifest_update_rate_applies_to_execution_rule_and_queues_reeval() {
         let source = r#"
 return {
-  api_version = 1,
-  update_rate_hz = 12,
-  on_update = function(ctx, delta)
-    local _ = ctx
-    local _ = delta
-  end
-}
+  api_version: 1,
+  update_rate_hz: 12,
+  on_update: function(ctx, delta) {
+    void ctx;
+    void delta;
+  }
+};
 "#;
         let mut script = ScriptNode::new(
             "Script",
             ScriptNodeConfig {
                 source: ScriptSource::Inline(source.to_string()),
-                runtime_hint: Some(ScriptRuntimeKind::Luau),
-                project_root: None,
             },
         );
 

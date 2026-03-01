@@ -2,6 +2,7 @@ use crate::edit::EditOrigin;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMeta, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::script::ScriptNodeConfig;
 
 use super::{Engine, EngineEditError};
 
@@ -117,6 +118,8 @@ pub(crate) enum HistoryStep<T: Node> {
     SetParam(SetParamHistory),
     /// Node metadata patch history.
     PatchMeta(PatchMetaHistory),
+    /// Script configuration update history.
+    SetScriptConfig(SetScriptConfigHistory),
     /// Child insertion history.
     AddNode(AddNodeHistory<T>),
     /// Node/subtree removal history.
@@ -155,6 +158,14 @@ impl<T: Node> HistoryStep<T> {
                 if enabled_changed {
                     engine.mark_schedule_dirty();
                 }
+            }
+            Self::SetScriptConfig(step) => {
+                engine.apply_script_config_for_history(
+                    "UndoSetScriptConfig",
+                    step.node,
+                    step.old_config.clone(),
+                    step.force_reload,
+                )?;
             }
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
@@ -304,6 +315,14 @@ impl<T: Node> HistoryStep<T> {
                     engine.mark_schedule_dirty();
                 }
             }
+            Self::SetScriptConfig(step) => {
+                engine.apply_script_config_for_history(
+                    "RedoSetScriptConfig",
+                    step.node,
+                    step.new_config.clone(),
+                    step.force_reload,
+                )?;
+            }
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";
 
@@ -430,7 +449,7 @@ impl<T: Node> HistoryStep<T> {
     /// Releases detached node payloads owned by this step, if any.
     fn dispose(&mut self, engine: &mut Engine<T>) {
         match self {
-            Self::SetParam(_) | Self::PatchMeta(_) | Self::MoveNode(_) => {}
+            Self::SetParam(_) | Self::PatchMeta(_) | Self::SetScriptConfig(_) | Self::MoveNode(_) => {}
             Self::AddNode(step) => {
                 if let Some(node) = step.detached_node.take() {
                     purge_detached_node(engine, step.node, node);
@@ -501,6 +520,18 @@ pub(crate) struct PatchMetaEffect {
     pub(crate) old_meta: NodeMeta,
     /// Metadata after patch.
     pub(crate) new_meta: NodeMeta,
+}
+
+/// Captured effect for a successful `SetScriptConfig` edit.
+pub(crate) struct SetScriptConfigEffect {
+    /// Edited script node id.
+    pub(crate) node: NodeId,
+    /// Configuration before edit.
+    pub(crate) old_config: ScriptNodeConfig,
+    /// Configuration after edit.
+    pub(crate) new_config: ScriptNodeConfig,
+    /// Reload policy requested by this edit.
+    pub(crate) force_reload: bool,
 }
 
 /// Captured effect for a successful `AddNode` edit.
@@ -587,6 +618,18 @@ pub(crate) struct PatchMetaHistory {
     new_meta: NodeMeta,
 }
 
+/// Undo/redo payload for script-config edits.
+pub(crate) struct SetScriptConfigHistory {
+    /// Edited script node id.
+    node: NodeId,
+    /// Configuration before edit.
+    old_config: ScriptNodeConfig,
+    /// Configuration after edit.
+    new_config: ScriptNodeConfig,
+    /// Reload policy requested by this edit.
+    force_reload: bool,
+}
+
 /// Undo/redo payload for add-node edits.
 pub(crate) struct AddNodeHistory<T: Node> {
     /// Inserted node id.
@@ -671,6 +714,17 @@ impl<T: Node> From<PatchMetaEffect> for HistoryStep<T> {
             node: effect.node,
             old_meta: effect.old_meta,
             new_meta: effect.new_meta,
+        })
+    }
+}
+
+impl<T: Node> From<SetScriptConfigEffect> for HistoryStep<T> {
+    fn from(effect: SetScriptConfigEffect) -> Self {
+        Self::SetScriptConfig(SetScriptConfigHistory {
+            node: effect.node,
+            old_config: effect.old_config,
+            new_config: effect.new_config,
+            force_reload: effect.force_reload,
         })
     }
 }

@@ -1,6 +1,6 @@
-# Scripting Schema (Multi-runtime)
+# Scripting Schema (QuickJS)
 
-Status: Draft v0.2
+Status: Draft v0.3
 Applies to: `golden_core` runtime and UI sync layers
 Purpose: Canonical reference for script integration design and implementation
 
@@ -42,8 +42,6 @@ Notes:
 ```rust
 pub struct ScriptNodeConfig {
     pub source: ScriptSource,
-    pub runtime_hint: Option<ScriptRuntimeKind>,
-    pub project_root: Option<PathBuf>,
 }
 
 pub enum ScriptSource {
@@ -55,11 +53,10 @@ pub enum ScriptSource {
 Runtime behavior:
 
 1. Runtime is auto-detected from file extension for file-backed scripts.
-2. `runtime_hint` is optional and only needed when extension cannot select runtime.
-3. Inline scripts default to Luau when no hint is provided.
-4. Script update rate is declared by manifest `update_rate_hz`.
-5. Auto-reload is always enabled.
-6. Script execution enable/disable uses `node.meta.enabled` (no script-level enabled flag).
+2. Inline scripts always run on QuickJS.
+3. Script update rate is declared by manifest `update_rate_hz`.
+4. Auto-reload is always enabled.
+5. Script execution enable/disable uses `node.meta.enabled` (no script-level enabled flag).
 
 ## 5. Template System
 
@@ -69,13 +66,13 @@ Script creation uses template files under:
 
 Template selection order when creating a script under host node type `X`:
 
-1. `templates/x.{lua|luau|js|mjs|cjs}`
-2. `templates/<normalized_x>.{lua|luau|js|mjs|cjs}`
-3. `templates/default.{lua|luau|js|mjs|cjs}`
+1. `templates/x.{js|mjs|cjs}`
+2. `templates/<normalized_x>.{js|mjs|cjs}`
+3. `templates/default.{js|mjs|cjs}`
 
 Include injection syntax:
 
-`{{include:relative/path.lua}}`
+`{{include:relative/path.js}}`
 
 Rules:
 
@@ -87,20 +84,20 @@ Default script nodes are initialized with inline source generated from the selec
 
 ## 6. Manifest Schema
 
-Scripts return a manifest table/object at load time.
+Scripts return a manifest object at load time.
 
-```lua
+```js
 return {
-  api_version = 1,
-  update_rate_hz = 60,
-  parameters = { ... },
-  subscriptions = { ... },
-  exports = { ... },
-  on_init = function(ctx) end,
-  on_update = function(ctx, dt) end,
-  on_event = function(ctx, ev) end,
-  on_destroy = function(ctx) end
-}
+  api_version: 1,
+  update_rate_hz: 60,
+  parameters: { ... },
+  subscriptions: [ ... ],
+  exports: { ... },
+  on_init: function(ctx) {},
+  on_update: function(ctx, dt) {},
+  on_event: function(ctx, ev) {},
+  on_destroy: function(ctx) {}
+};
 ```
 
 Host-side parsed schema:
@@ -163,8 +160,7 @@ Budget violations abort the callback and surface node warnings/logs.
 Persisted script fields:
 
 1. `source`
-2. `runtime_hint`
-3. standard node metadata and generated parameter children
+2. standard node metadata and generated parameter children
 
 Runtime VM state and live counters are runtime-only and never persisted.
 

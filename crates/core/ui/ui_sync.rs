@@ -648,24 +648,12 @@ impl<T: Node> Engine<T> {
         config: ScriptUiConfig,
         force_reload: bool,
     ) -> Result<(), String> {
-        {
-            let Some(target) = self.nodes.get_mut(node) else {
-                return Err(format!("node {} not found", node.0));
-            };
-
-            target.engine_set_script_config(ScriptNodeConfig::from(config), force_reload)?;
-        }
-
-        self.push_ui_custom_event(
-            "__transport.resync_required",
-            Some(node),
-            serde_json::json!({
-                "reason": "script_config_updated",
-                "node": node.0
-            }),
-        );
-
-        Ok(())
+        self.edits.push(Edit::SetScriptConfig {
+            node,
+            config: ScriptNodeConfig::from(config),
+            force_reload,
+        });
+        self.apply_edits().map_err(|err| err.to_string())
     }
 
     /// Requests runtime reload for script node `node`.
@@ -943,6 +931,7 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::NodeTypeMismatch { .. } => "node_type_mismatch",
         crate::engine::EngineEditError::ParamEditTargetMismatch { .. } => "param_edit_target_mismatch",
         crate::engine::EngineEditError::ParamConstraintViolation { .. } => "param_constraint_violation",
+        crate::engine::EngineEditError::ScriptConfigRejected { .. } => "script_config_rejected",
         crate::engine::EngineEditError::NodeNotFound { .. } => "node_not_found",
         crate::engine::EngineEditError::ParentNotFound { .. } => "parent_not_found",
         crate::engine::EngineEditError::SiblingNotFound { .. } => "sibling_not_found",

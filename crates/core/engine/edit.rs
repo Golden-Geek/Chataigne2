@@ -1,6 +1,7 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
 
 /// Origin of an edit session boundary.
@@ -82,6 +83,15 @@ pub enum Edit {
         node: NodeId,
         /// Patch payload.
         patch: NodeMetaPatch,
+    },
+    /// Replace script configuration on a script-capable node.
+    SetScriptConfig {
+        /// Target node id.
+        node: NodeId,
+        /// New script configuration payload.
+        config: ScriptNodeConfig,
+        /// Force runtime reload even when config content is unchanged.
+        force_reload: bool,
     },
     /// Sets or replaces one node warning by warning id.
     SetNodeWarning {

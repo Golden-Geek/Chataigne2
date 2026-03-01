@@ -1,0 +1,17 @@
+// Golden Core script template.
+//
+// Callback context (`ctx`) fields:
+//   ctx.time_seconds   : engine wall-clock in seconds
+//   ctx.delta_seconds  : delta for current update callback
+//   ctx.owner_node_id  : node id hosting this script
+//
+// Callback context methods:
+//   ctx.log(level, message)
+//     level: "info" | "success" | "warning" | "error"
+//   ctx.emit(topic, payloadObject)
+//
+// Event object passed to on_event:
+//   event.kind   : "paramChanged", "childAdded", "childRemoved", "metaChanged", "custom", ...
+//   event.origin : origin node id (or null)
+//   event.payload: raw event payload object
+const GC_TEMPLATE = "default";

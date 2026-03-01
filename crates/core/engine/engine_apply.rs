@@ -119,6 +119,20 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_patch_meta(edit_index, node, patch)?;
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::SetScriptConfig {
+                    node,
+                    config,
+                    force_reload,
+                } => {
+                    let effect = self.apply_set_script_config(
+                        edit_index,
+                        node,
+                        config,
+                        force_reload,
+                    )?;
+                    let should_clear_redo = effect.is_some();
+                    (Ok(effect.map(Into::into)), should_clear_redo)
+                }
                 Edit::SetNodeWarning { node, warning } => {
                     let effect = self.apply_set_node_warning(edit_index, node, warning)?;
                     let should_clear_redo = effect.is_some();
@@ -154,7 +168,7 @@ impl<T: Node> Engine<T> {
 
             match outcome {
                 Ok(step) => {
-                    if should_clear_redo && !redo_cleared {
+                    if capture_history && should_clear_redo && !redo_cleared {
                         self.clear_redo_history();
                         redo_cleared = true;
                     }

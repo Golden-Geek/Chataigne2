@@ -1,8 +1,9 @@
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
+use crate::script::ScriptNodeConfig;
 
-use super::engine_history::{PatchMetaEffect, SetParamEffect};
+use super::engine_history::{PatchMetaEffect, SetParamEffect, SetScriptConfigEffect};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
@@ -95,6 +96,100 @@ impl<T: Node> Engine<T> {
 
         self.emit_event(EventKind::MetaChanged { node, patch });
         Ok(PatchMetaEffect { node, old_meta, new_meta })
+    }
+
+    fn apply_script_config_inner(
+        &mut self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+        config: ScriptNodeConfig,
+        force_reload: bool,
+    ) -> Result<(), EngineEditError> {
+        let target = self
+            .nodes
+            .get_mut(node)
+            .ok_or(EngineEditError::NodeNotFound {
+                edit_index,
+                operation,
+                node,
+            })?;
+        let node_type = target.get_type().to_string();
+        target.engine_set_script_config(config, force_reload).map_err(|message| {
+            EngineEditError::ScriptConfigRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            }
+        })?;
+
+        if force_reload {
+            self.mark_schedule_dirty();
+            self.push_ui_custom_event(
+                "__transport.resync_required",
+                Some(node),
+                serde_json::json!({
+                    "reason": "script_config_updated",
+                    "node": node.0
+                }),
+            );
+        }
+        Ok(())
+    }
+
+    /// Applies a script-config update and returns captured before/after payload for history.
+    pub(crate) fn apply_set_script_config(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        config: ScriptNodeConfig,
+        force_reload: bool,
+    ) -> Result<Option<SetScriptConfigEffect>, EngineEditError> {
+        const OP: &str = "SetScriptConfig";
+
+        let old_config = {
+            let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+                edit_index,
+                operation: OP,
+                node,
+            })?;
+            let node_type = target.get_type().to_string();
+            let Some(state) = target.engine_script_state() else {
+                return Err(EngineEditError::ScriptConfigRejected {
+                    edit_index,
+                    operation: OP,
+                    node,
+                    node_type,
+                    message: "node does not expose script configuration".to_string(),
+                });
+            };
+            ScriptNodeConfig::from(state.config)
+        };
+
+        if old_config == config && !force_reload {
+            return Ok(None);
+        }
+
+        let new_config = config.clone();
+        self.apply_script_config_inner(edit_index, OP, node, config, force_reload)?;
+        Ok(Some(SetScriptConfigEffect {
+            node,
+            old_config,
+            new_config,
+            force_reload,
+        }))
+    }
+
+    pub(crate) fn apply_script_config_for_history(
+        &mut self,
+        operation: &'static str,
+        node: NodeId,
+        config: ScriptNodeConfig,
+        force_reload: bool,
+    ) -> Result<(), EngineEditError> {
+        self.apply_script_config_inner(0, operation, node, config, force_reload)
     }
 
     /// Sets/replaces one warning by id and emits `MetaChanged` when runtime metadata changed.

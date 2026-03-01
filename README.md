@@ -3,4 +3,4 @@ Golden Core crates, foundation for all Golden Software
 
 ## Design docs
 
-1. Scripting schema (Luau-first): `crates/core/docs/scripting_schema.md`
+1. Scripting schema (QuickJS-only): `crates/core/docs/scripting_schema.md`

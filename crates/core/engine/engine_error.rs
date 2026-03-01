@@ -37,6 +37,19 @@ pub enum EngineEditError {
         /// Human-readable constraint failure message.
         message: String,
     },
+    /// A `SetScriptConfig` edit was rejected by the target node.
+    ScriptConfigRejected {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Target node id.
+        node: NodeId,
+        /// Runtime type name of the target node.
+        node_type: String,
+        /// Human-readable rejection message.
+        message: String,
+    },
     /// A node id referenced by an edit was not found.
     NodeNotFound {
         /// Index of the edit in the drained queue.
@@ -185,6 +198,17 @@ impl fmt::Display for EngineEditError {
                 write!(f, "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node", node)
             }
             Self::ParamConstraintViolation { edit_index, node, node_type, message } => write!(f, "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}", node),
+            Self::ScriptConfigRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
             Self::NodeNotFound { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
             Self::ParentNotFound { edit_index, operation, parent } => write!(f, "edit #{edit_index} ({operation}) references missing parent {:?}", parent),
             Self::SiblingNotFound { edit_index, operation, sibling } => write!(f, "edit #{edit_index} ({operation}) references missing sibling {:?}", sibling),

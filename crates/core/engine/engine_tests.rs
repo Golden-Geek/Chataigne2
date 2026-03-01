@@ -8,6 +8,7 @@ use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG
 use crate::node::{EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserNodeRole};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
+use crate::script::{ScriptHostPolicy, ScriptUiConfig, ScriptUiSource};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
 
 #[crate::node]
@@ -636,6 +637,37 @@ impl Node for FieldCallbackParamsNode {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct UiScriptHostNode {
+    node_data: NodeData,
+}
+
+impl UiScriptHostNode {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            node_data: NodeData::new(label.into()),
+        }
+    }
+}
+
+impl Node for UiScriptHostNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        "ui_script_host"
+    }
+
+    fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
+        Some(ScriptHostPolicy::default_scriptable())
+    }
+}
+
 crate::define_node_enum!(
     enum MacroTestNode {
         AutoDeclaredNode,
@@ -656,6 +688,7 @@ crate::define_node_enum!(
         NestedInitBindingNode,
         DslCallbackParamsNode,
         FieldCallbackParamsNode,
+        UiScriptHostNode,
     }
 );
 
@@ -2611,6 +2644,170 @@ fn ui_set_param_ack_applies_immediately() {
 }
 
 #[test]
+fn ui_create_user_item_undo_redo_restores_same_node_id() {
+    let root: MacroTestNode = UiScriptHostNode::new("root").into();
+    let mut engine = Engine::new(root);
+    let parent = engine.root;
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent,
+        node_type: "script".to_string(),
+        label: Some("Script".to_string()),
+    });
+    assert!(create_ack.success, "create user item intent should succeed");
+    assert_eq!(create_ack.status, UiAckStatus::Applied);
+
+    let script = engine
+        .nodes
+        .get(parent)
+        .and_then(|root| root.node_data().first_child)
+        .expect("script node should be attached under root");
+    assert_eq!(
+        engine
+            .nodes
+            .get(script)
+            .expect("script node should exist")
+            .get_type(),
+        "script"
+    );
+
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(undo_ack.success, "undo intent should succeed");
+    assert!(
+        engine
+            .nodes
+            .get(parent)
+            .and_then(|root| root.node_data().first_child)
+            .is_none(),
+        "undo should remove the created script node"
+    );
+    assert!(
+        engine.nodes.get(script).is_none(),
+        "undone script node should be detached from live storage"
+    );
+
+    let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
+    assert!(redo_ack.success, "redo intent should succeed");
+    assert_eq!(
+        engine
+            .nodes
+            .get(parent)
+            .and_then(|root| root.node_data().first_child),
+        Some(script),
+        "redo should restore the same script node id under root"
+    );
+}
+
+#[test]
+fn ui_create_user_item_redo_survives_non_history_runtime_edits() {
+    let root: MacroTestNode = UiScriptHostNode::new("root").into();
+    let mut engine = Engine::new(root);
+    let parent = engine.root;
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent,
+        node_type: "script".to_string(),
+        label: Some("Script".to_string()),
+    });
+    assert!(create_ack.success, "create user item intent should succeed");
+
+    let script = engine
+        .nodes
+        .get(parent)
+        .and_then(|root| root.node_data().first_child)
+        .expect("script node should be attached under root");
+
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(undo_ack.success, "undo intent should succeed");
+    assert_eq!(engine.redo_len(), 1, "undo should expose one redo transaction");
+
+    // Simulate runtime/internal flushes that do not participate in user history.
+    engine.edits.push(Edit::ReevaluateGraph);
+    engine
+        .apply_edits_without_history()
+        .expect("runtime edit flush should succeed");
+
+    assert_eq!(
+        engine.redo_len(),
+        1,
+        "non-history runtime edits must not invalidate user redo"
+    );
+
+    let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
+    assert!(redo_ack.success, "redo intent should succeed");
+    assert_eq!(
+        engine
+            .nodes
+            .get(parent)
+            .and_then(|root| root.node_data().first_child),
+        Some(script),
+        "redo should restore the previously undone user-created item"
+    );
+}
+
+#[test]
+fn ui_set_script_config_changes_are_undoable() {
+    let root: MacroTestNode = UiScriptHostNode::new("root").into();
+    let mut engine = Engine::new(root);
+    let parent = engine.root;
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent,
+        node_type: "script".to_string(),
+        label: Some("Script".to_string()),
+    });
+    assert!(create_ack.success, "create user item intent should succeed");
+
+    let script = engine
+        .nodes
+        .get(parent)
+        .and_then(|root| root.node_data().first_child)
+        .expect("script node should exist");
+    let baseline_config = engine
+        .ui_script_state(script)
+        .expect("script state should be available")
+        .config;
+
+    let next_config = ScriptUiConfig {
+        source: ScriptUiSource::Inline {
+            text: "return { api_version: 1, exports: {} };".to_string(),
+        },
+    };
+
+    engine
+        .ui_set_script_config(script, next_config.clone(), false)
+        .expect("script config update should succeed");
+    assert_eq!(
+        engine
+            .ui_script_state(script)
+            .expect("script state should be available after update")
+            .config,
+        next_config
+    );
+
+    assert!(
+        engine.undo().expect("undo should succeed"),
+        "script config update should produce an undo step"
+    );
+    assert_eq!(
+        engine
+            .ui_script_state(script)
+            .expect("script state should be available after undo")
+            .config,
+        baseline_config
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine
+            .ui_script_state(script)
+            .expect("script state should be available after redo")
+            .config,
+        next_config
+    );
+}
+
+#[test]
 fn undo_redo_add_node_restores_same_node_id() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
     engine.add_node(Folder::new("child".to_string()), None);
@@ -2711,6 +2908,30 @@ fn applying_new_edits_after_undo_clears_redo_stack() {
 
     assert_eq!(engine.redo_len(), 0, "new edits should invalidate redo history");
     assert!(!engine.redo().expect("redo query should succeed"));
+}
+
+#[test]
+fn applying_edits_without_history_after_undo_keeps_redo_stack() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("first".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let first = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("first child should exist");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(engine.redo_len(), 1, "undo should expose one redo transaction");
+
+    // Runtime/no-history edits must not invalidate user redo history.
+    engine.edits.push(Edit::ReevaluateGraph);
+    engine.apply_edits_without_history().expect("runtime edit flush should succeed");
+
+    assert_eq!(engine.redo_len(), 1, "non-history edits should preserve redo history");
+    assert!(engine.redo().expect("redo should succeed after runtime edits"));
+    assert_eq!(
+        engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child),
+        Some(first),
+        "redo should still restore the undone node"
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
