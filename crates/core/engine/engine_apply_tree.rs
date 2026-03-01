@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole};
@@ -203,9 +204,7 @@ impl<T: Node> Engine<T> {
         let mut cursor = Some(start);
         while let Some(node_id) = cursor {
             let node = self.nodes.get(node_id)?;
-            if node.user_container_rules().is_some()
-                || node.script_host_policy().is_some_and(|policy| policy.enabled)
-            {
+            if node.user_container_rules().is_some() || node.script_host_policy().is_some_and(|policy| policy.enabled) {
                 return Some(node_id);
             }
             cursor = node.node_data().parent;
@@ -373,9 +372,13 @@ impl<T: Node> Engine<T> {
 
         self.emit_event(EventKind::NodeCreated { node: child_id });
         self.emit_event(EventKind::ChildAdded { parent, child: child_id, decl_id });
+        let child_tree_snapshot = self.nodes.get(child_id).is_some_and(|node| node.get_type() == "script").then(|| self.build_process_tree_snapshot());
 
         // Allow newly attached nodes to request deterministic follow-up structure before app init.
         let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        if let Some(child_tree_snapshot) = &child_tree_snapshot {
+            attach_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
+        }
         if let Some(node) = self.nodes.get_mut(child_id) {
             crate::logger::with_node_origin(child_id, || {
                 node.engine_on_attached(&mut attach_ctx);
@@ -386,6 +389,9 @@ impl<T: Node> Engine<T> {
 
         // Run app init after declared/generated children are materialized and handles are bound.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        if let Some(child_tree_snapshot) = &child_tree_snapshot {
+            init_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
+        }
         if let Some(node) = self.nodes.get_mut(child_id) {
             crate::logger::with_node_origin(child_id, || {
                 node.init(&mut init_ctx);

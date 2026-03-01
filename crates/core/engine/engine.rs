@@ -1,12 +1,13 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
 
 use crate::edit::{Edit, EditQueue, EditRequest};
 use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
-use crate::process_ctx::ProcessCtx;
+use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
 
 /// Engine callback signature used to evaluate custom reference filters.
@@ -410,5 +411,42 @@ impl<T: Node> Engine<T> {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
+        let mut nodes = HashMap::with_capacity(self.nodes.iter().count());
+        for (node_id, node) in self.nodes.iter() {
+            let node_data = node.node_data();
+            let descriptor = node.engine_script_descriptor();
+            let parameter_snapshot = node.engine_param_snapshot();
+            nodes.insert(
+                node_id,
+                ProcessTreeNodeSnapshot {
+                    id: node_id,
+                    parent: node_data.parent,
+                    first_child: node_data.first_child,
+                    next_sibling: node_data.next_sibling,
+                    node_type: node.get_type().to_string(),
+                    decl_id: node_data.meta.decl_id.0.clone(),
+                    short_name: node_data.meta.short_name.clone(),
+                    label: node_data.meta.label.clone(),
+                    enabled: node_data.meta.enabled,
+                    child_count: 0,
+                    param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
+                    param_constraints: parameter_snapshot.as_ref().map(|snapshot| snapshot.constraints.clone()),
+                    script_properties: descriptor.properties,
+                    script_methods: descriptor.methods,
+                },
+            );
+        }
+
+        let parent_ids: Vec<NodeId> = nodes.values().filter_map(|node| node.parent).collect();
+        for parent_id in parent_ids {
+            if let Some(parent) = nodes.get_mut(&parent_id) {
+                parent.child_count = parent.child_count.saturating_add(1);
+            }
+        }
+
+        Arc::new(ProcessTreeSnapshot::new(self.root, nodes))
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::events::Event;
 use crate::node::{EventPropagation, EventSubscription, Node, NodeId};
@@ -86,6 +87,8 @@ impl<T: Node> Engine<T> {
 
     fn dispatch_precomputed_inbox_internal(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>, run_app_callbacks: bool) -> Result<(), EngineEditError> {
         let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect();
+        let needs_tree_snapshot = per_node_events.iter().any(|(node_id, _)| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
+        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
 
         for (node_id, events) in per_node_events {
             if events.is_empty() {
@@ -94,6 +97,11 @@ impl<T: Node> Engine<T> {
 
             let mut ctx = ProcessCtx::new(phase, self.time);
             ctx.events = events;
+            if let Some(tree_snapshot) = &tree_snapshot {
+                if self.nodes.get(node_id).is_some_and(|node| node.get_type() == "script") {
+                    ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+                }
+            }
 
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {

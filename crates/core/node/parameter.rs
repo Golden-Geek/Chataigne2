@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -36,6 +38,30 @@ pub enum ParamValue {
 
     /// Reference to another node.
     Reference(NodeReference),
+}
+
+impl fmt::Display for ParamValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Trigger() => write!(f, "trigger"),
+            Self::Int(value) => write!(f, "{value}"),
+            Self::Float(value) => write!(f, "{value}"),
+            Self::Str(value) => write!(f, "\"{value}\""),
+            Self::File(path) => write!(f, "file:{path}"),
+            Self::Enum(variant) => write!(f, "enum:{variant}"),
+            Self::Bool(value) => write!(f, "{value}"),
+            Self::Vec2(x, y) => write!(f, "[{x}, {y}]"),
+            Self::Vec3(x, y, z) => write!(f, "[{x}, {y}, {z}]"),
+            Self::Color(r, g, b, a) => write!(f, "[{r}, {g}, {b}, {a}]"),
+            Self::Reference(reference) => {
+                if let Some(name) = reference.cached_name() {
+                    write!(f, "ref:{name} ({})", reference.uuid().0)
+                } else {
+                    write!(f, "ref:{}", reference.uuid().0)
+                }
+            }
+        }
+    }
 }
 
 /// Strongly-typed file path wrapper for parameter handles and params DSL.
@@ -400,6 +426,73 @@ impl ParamValue {
             _ => None,
         }
     }
+
+    /// Decodes one script JSON value into a runtime [`ParamValue`].
+    pub fn from_script_json(value: &JsonValue) -> Result<Self, String> {
+        if let Ok(decoded) = serde_json::from_value::<ParamValue>(value.clone()) {
+            return Ok(decoded);
+        }
+
+        match value {
+            JsonValue::Null => Ok(ParamValue::Trigger()),
+            JsonValue::Bool(value) => Ok(ParamValue::Bool(*value)),
+            JsonValue::Number(number) => {
+                if let Some(value) = number.as_i64() {
+                    if let Ok(value) = i32::try_from(value) {
+                        return Ok(ParamValue::Int(value));
+                    }
+                }
+                if let Some(value) = number.as_f64() {
+                    return Ok(ParamValue::Float(value));
+                }
+                Err("numeric value cannot be represented as int/float".to_string())
+            }
+            JsonValue::String(value) => Ok(ParamValue::Str(value.clone())),
+            JsonValue::Array(values) => {
+                if values.len() == 2 {
+                    let x = values[0].as_f64().ok_or_else(|| "vec2 value expects numeric components".to_string())?;
+                    let y = values[1].as_f64().ok_or_else(|| "vec2 value expects numeric components".to_string())?;
+                    return Ok(ParamValue::Vec2(x, y));
+                }
+                if values.len() == 3 {
+                    let x = values[0].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    let y = values[1].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    let z = values[2].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    return Ok(ParamValue::Vec3(x, y, z));
+                }
+                if values.len() == 4 {
+                    let r = values[0].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let g = values[1].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let b = values[2].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let a = values[3].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
+                    return Ok(ParamValue::Color(r, g, b, a));
+                }
+                Err("array value must contain 2, 3, or 4 numeric components".to_string())
+            }
+            JsonValue::Object(_) => Err("object value cannot be coerced to ParamValue".to_string()),
+        }
+    }
+
+    /// Encodes this runtime value into script-facing JSON.
+    pub fn to_script_json(&self) -> JsonValue {
+        match self {
+            ParamValue::Trigger() => JsonValue::Null,
+            ParamValue::Int(value) => serde_json::json!(value),
+            ParamValue::Float(value) => serde_json::json!(value),
+            ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => serde_json::json!(value),
+            ParamValue::Bool(value) => serde_json::json!(value),
+            ParamValue::Vec2(x, y) => serde_json::json!([x, y]),
+            ParamValue::Vec3(x, y, z) => serde_json::json!([x, y, z]),
+            ParamValue::Color(r, g, b, a) => serde_json::json!([r, g, b, a]),
+            ParamValue::Reference(reference) => serde_json::json!({
+                "kind": "reference",
+                "uuid": reference.uuid().0.to_string(),
+                "cachedId": reference.cached_id().map(|node| node.0),
+                "cachedName": reference.cached_name(),
+                "relativePathFromRoot": reference.relative_path_from_root(),
+            }),
+        }
+    }
 }
 
 /// Strategy used to decide whether a `set` call should enqueue an edit.
@@ -534,14 +627,8 @@ impl FileTypeGroup {
     pub fn matches_extension(self, extension: &str) -> bool {
         let extension = extension.trim().to_ascii_lowercase();
         match self {
-            Self::Audio => matches!(
-                extension.as_str(),
-                "wav" | "wave" | "aif" | "aiff" | "flac" | "mp3" | "ogg" | "opus" | "m4a" | "aac" | "wma"
-            ),
-            Self::Video => matches!(
-                extension.as_str(),
-                "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"
-            ),
+            Self::Audio => matches!(extension.as_str(), "wav" | "wave" | "aif" | "aiff" | "flac" | "mp3" | "ogg" | "opus" | "m4a" | "aac" | "wma"),
+            Self::Video => matches!(extension.as_str(), "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"),
             Self::Script => matches!(extension.as_str(), "js" | "mjs" | "cjs"),
         }
     }
@@ -626,22 +713,14 @@ pub enum RangeConstraint {
 impl RangeConstraint {
     /// Builds a uniform range constraint when at least one bound is provided.
     pub fn uniform(min: Option<f64>, max: Option<f64>) -> Option<Self> {
-        if min.is_none() && max.is_none() {
-            None
-        } else {
-            Some(Self::Uniform { min, max })
-        }
+        if min.is_none() && max.is_none() { None } else { Some(Self::Uniform { min, max }) }
     }
 
     /// Builds a component-wise range constraint when at least one bound list is provided.
     pub fn components(min: Option<Vec<f64>>, max: Option<Vec<f64>>) -> Option<Self> {
         let min = min.filter(|values| !values.is_empty());
         let max = max.filter(|values| !values.is_empty());
-        if min.is_none() && max.is_none() {
-            None
-        } else {
-            Some(Self::Components { min, max })
-        }
+        if min.is_none() && max.is_none() { None } else { Some(Self::Components { min, max }) }
     }
 }
 
@@ -673,6 +752,42 @@ pub struct ParameterConstraints {
     /// File-specific extension constraints.
     #[serde(default, skip_serializing_if = "is_default_file_constraints")]
     pub file: FileConstraints,
+}
+
+impl fmt::Display for ParameterConstraints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sections = Vec::new();
+
+        if let Some(range) = &self.range {
+            match range {
+                RangeConstraint::Uniform { min, max } => {
+                    let min_text = min.map(|value| value.to_string()).unwrap_or_else(|| "-inf".to_string());
+                    let max_text = max.map(|value| value.to_string()).unwrap_or_else(|| "+inf".to_string());
+                    sections.push(format!("range={min_text}..{max_text}"));
+                }
+                RangeConstraint::Components { min, max } => {
+                    let min_text = min.as_ref().map(|values| values.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(",")).map(|value| format!("[{value}]")).unwrap_or_else(|| "[]".to_string());
+                    let max_text = max.as_ref().map(|values| values.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(",")).map(|value| format!("[{value}]")).unwrap_or_else(|| "[]".to_string());
+                    sections.push(format!("components={min_text}..{max_text}"));
+                }
+            }
+        }
+
+        if let Some(step) = self.step {
+            sections.push(format!("step={step}"));
+        }
+        if let Some(step_base) = self.step_base {
+            sections.push(format!("stepBase={step_base}"));
+        }
+        if !self.enum_options.is_empty() {
+            sections.push(format!("enumOptions={}", self.enum_options.len()));
+        }
+        if !self.file.allowed_types.is_empty() || !self.file.allowed_extensions.is_empty() {
+            sections.push("fileConstraints".to_string());
+        }
+
+        if sections.is_empty() { write!(f, "no constraints") } else { write!(f, "{}", sections.join(", ")) }
+    }
 }
 
 impl ParameterConstraints {
@@ -731,26 +846,16 @@ impl ParameterConstraints {
 
     fn normalize_vec2(&self, x: f64, y: f64) -> Result<ParamValue, String> {
         let bounds = self.vector_component_bounds(2, "vec2")?;
-        let x = self
-            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
-            .map_err(|message| format!("vec2.x: {message}"))?;
-        let y = self
-            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
-            .map_err(|message| format!("vec2.y: {message}"))?;
+        let x = self.normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1).map_err(|message| format!("vec2.x: {message}"))?;
+        let y = self.normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1).map_err(|message| format!("vec2.y: {message}"))?;
         Ok(ParamValue::Vec2(x, y))
     }
 
     fn normalize_vec3(&self, x: f64, y: f64, z: f64) -> Result<ParamValue, String> {
         let bounds = self.vector_component_bounds(3, "vec3")?;
-        let x = self
-            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
-            .map_err(|message| format!("vec3.x: {message}"))?;
-        let y = self
-            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
-            .map_err(|message| format!("vec3.y: {message}"))?;
-        let z = self
-            .normalize_numeric_with_bounds(z, bounds[2].0, bounds[2].1)
-            .map_err(|message| format!("vec3.z: {message}"))?;
+        let x = self.normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1).map_err(|message| format!("vec3.x: {message}"))?;
+        let y = self.normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1).map_err(|message| format!("vec3.y: {message}"))?;
+        let z = self.normalize_numeric_with_bounds(z, bounds[2].0, bounds[2].1).map_err(|message| format!("vec3.z: {message}"))?;
         Ok(ParamValue::Vec3(x, y, z))
     }
 
@@ -770,17 +875,11 @@ impl ParameterConstraints {
                 }
                 Ok((*min, *max))
             }
-            Some(RangeConstraint::Components { .. }) => {
-                Err("component range constraints cannot be applied to scalar values".to_string())
-            }
+            Some(RangeConstraint::Components { .. }) => Err("component range constraints cannot be applied to scalar values".to_string()),
         }
     }
 
-    fn vector_component_bounds(
-        &self,
-        dimensions: usize,
-        value_kind: &str,
-    ) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
+    fn vector_component_bounds(&self, dimensions: usize, value_kind: &str) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
         match &self.range {
             None => Ok(vec![(None, None); dimensions]),
             Some(RangeConstraint::Uniform { min, max }) => {
@@ -794,23 +893,13 @@ impl ParameterConstraints {
             Some(RangeConstraint::Components { min, max }) => {
                 if let Some(min_values) = min {
                     if min_values.len() != dimensions {
-                        return Err(format!(
-                            "invalid range: min has {} components but {} expects {}",
-                            min_values.len(),
-                            value_kind,
-                            dimensions
-                        ));
+                        return Err(format!("invalid range: min has {} components but {} expects {}", min_values.len(), value_kind, dimensions));
                     }
                 }
 
                 if let Some(max_values) = max {
                     if max_values.len() != dimensions {
-                        return Err(format!(
-                            "invalid range: max has {} components but {} expects {}",
-                            max_values.len(),
-                            value_kind,
-                            dimensions
-                        ));
+                        return Err(format!("invalid range: max has {} components but {} expects {}", max_values.len(), value_kind, dimensions));
                     }
                 }
 
@@ -820,9 +909,7 @@ impl ParameterConstraints {
                     let max_value = max.as_ref().and_then(|values| values.get(index)).copied();
                     if let (Some(min_value), Some(max_value)) = (min_value, max_value) {
                         if min_value > max_value {
-                            return Err(format!(
-                                "invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"
-                            ));
+                            return Err(format!("invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"));
                         }
                     }
                     out.push((min_value, max_value));
@@ -913,9 +1000,7 @@ impl ParameterConstraints {
                 })
                 .collect();
             let allowed_extensions = self.file.normalized_allowed_extensions();
-            return Err(format!(
-                "file extension '.{extension}' is not allowed (allowed_types={allowed_types:?}, allowed_extensions={allowed_extensions:?})"
-            ));
+            return Err(format!("file extension '.{extension}' is not allowed (allowed_types={allowed_types:?}, allowed_extensions={allowed_extensions:?})"));
         }
 
         Ok(ParamValue::File(path))
@@ -1096,6 +1181,37 @@ impl Node for Parameter {
         Some(self.snapshot())
     }
 
+    fn engine_script_descriptor(&self) -> crate::node::NodeScriptDescriptor {
+        let mut descriptor = crate::node::core_node_script_descriptor(&self.node_data, self.get_type());
+        descriptor.properties.insert("value".to_string(), self.value.clone());
+        descriptor
+    }
+
+    fn engine_set_script_property(&mut self, ctx: &mut ProcessCtx, property: &str, value: ParamValue) -> Result<bool, String> {
+        match property {
+            "value" => {
+                let normalized = self.constraints.normalize(value)?;
+                ctx.set_param_with_behaviour(self.id(), normalized, ParameterEventBehaviour::Coalesce);
+                Ok(true)
+            }
+            "name" | "label" => {
+                let Some(label) = value.as_str() else {
+                    return Err(format!("property '{property}' expects a string value"));
+                };
+                ctx.patch_node_meta(self.id(), crate::node::NodeMetaPatch { label: Some(label), ..Default::default() });
+                Ok(true)
+            }
+            "enabled" => {
+                let Some(enabled) = value.as_bool() else {
+                    return Err("property 'enabled' expects a boolean value".to_string());
+                };
+                ctx.patch_node_meta(self.id(), crate::node::NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
     fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut NodeReference)) {
         if let ParamValue::Reference(reference) = &mut self.value {
             visit(reference);
@@ -1117,9 +1233,7 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = constraints
-            .normalize(ParamValue::File("C:/tmp/kick.wav".to_string()))
-            .expect("wav should pass file constraints");
+        let normalized = constraints.normalize(ParamValue::File("C:/tmp/kick.wav".to_string())).expect("wav should pass file constraints");
         assert_eq!(normalized, ParamValue::File("C:/tmp/kick.wav".to_string()));
     }
 
@@ -1133,9 +1247,7 @@ mod tests {
             ..Default::default()
         };
 
-        let error = constraints
-            .normalize(ParamValue::File("C:/tmp/clip.mp4".to_string()))
-            .expect_err("mp4 should fail audio constraints");
+        let error = constraints.normalize(ParamValue::File("C:/tmp/clip.mp4".to_string())).expect_err("mp4 should fail audio constraints");
         assert!(error.contains("not allowed"));
     }
 }

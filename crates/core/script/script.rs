@@ -5,25 +5,19 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
-use rquickjs::function::{Args as QuickJsArgs, Func as QuickJsFunc, MutFn as QuickJsMutFn};
 use rquickjs::context::EvalOptions as QuickJsEvalOptions;
-use rquickjs::{
-    Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError,
-    Function as QuickJsFunction, IntoJs as _, Object as QuickJsObject,
-    Runtime as QuickJsRuntimeHandle, Value as QuickJsValue,
-};
+use rquickjs::function::{Args as QuickJsArgs, Func as QuickJsFunc, MutFn as QuickJsMutFn};
+use rquickjs::{Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError, Function as QuickJsFunction, IntoJs as _, Object as QuickJsObject, Runtime as QuickJsRuntimeHandle, Value as QuickJsValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
+use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::logger;
 use crate::node::{DeclId, Node, NodeData, NodeId};
-use crate::parameter::{
-    FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints,
-    ParameterEnumOption, ParameterUiHints, RangeConstraint,
-};
-use crate::process_ctx::ProcessCtx;
+use crate::parameter::{FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterUiHints, RangeConstraint};
+use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 
 /// Script-host policy for one node type.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,18 +211,12 @@ fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec
         let include_relative_path = normalize_include_path(include_path)?;
         let include_key = include_relative_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
         if include_stack_contains(include_stack, &include_key) {
-            let cycle = include_stack
-                .iter()
-                .cloned()
-                .chain(std::iter::once(include_key.clone()))
-                .collect::<Vec<_>>()
-                .join(" -> ");
+            let cycle = include_stack.iter().cloned().chain(std::iter::once(include_key.clone())).collect::<Vec<_>>().join(" -> ");
             return Err(format!("template include cycle detected: {cycle}"));
         }
 
         let include_path = root_dir.join(&include_relative_path);
-        let include_source = std::fs::read_to_string(&include_path)
-            .map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
+        let include_source = std::fs::read_to_string(&include_path).map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
         include_stack.push(include_key);
         let expanded = expand_template_source(&include_source, root_dir, include_stack);
         include_stack.pop();
@@ -271,20 +259,13 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
                     return ScriptTemplateResolved { source };
                 }
                 Err(error) => {
-                    let _ = logger::log_message(
-                        logger::LogLevel::Warning,
-                        "script".to_string(),
-                        None,
-                        format!("failed to load script template '{}': {error}", path.display()),
-                    );
+                    let _ = logger::log_message(logger::LogLevel::Warning, "script".to_string(), None, format!("failed to load script template '{}': {error}", path.display()));
                 }
             }
         }
     }
 
-    ScriptTemplateResolved {
-        source: default_embedded_template(),
-    }
+    ScriptTemplateResolved { source: default_embedded_template() }
 }
 
 /// Runtime script node configuration.
@@ -306,10 +287,7 @@ impl ScriptNodeConfig {
             return Ok(());
         };
 
-        let ext = path
-            .extension()
-            .and_then(|raw| raw.to_str())
-            .map(|raw| raw.trim().to_ascii_lowercase());
+        let ext = path.extension().and_then(|raw| raw.to_str()).map(|raw| raw.trim().to_ascii_lowercase());
         if matches!(ext.as_deref(), Some("js" | "mjs" | "cjs")) {
             return Ok(());
         }
@@ -317,9 +295,7 @@ impl ScriptNodeConfig {
         let ScriptSource::ProjectFile(raw_path) = &self.source else {
             return Ok(());
         };
-        Err(ScriptRuntimeError::InvalidManifest(format!(
-            "unsupported script file '{raw_path}', expected one of: .js, .mjs, .cjs"
-        )))
+        Err(ScriptRuntimeError::InvalidManifest(format!("unsupported script file '{raw_path}', expected one of: .js, .mjs, .cjs")))
     }
 }
 
@@ -606,26 +582,34 @@ pub struct ScriptEvent {
     /// Optional event origin node id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<NodeId>,
+    /// Previous parameter value for `paramChanged` events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub old_value: Option<ParamValue>,
     /// Event payload.
     pub payload: JsonValue,
 }
 
 impl From<&Event> for ScriptEvent {
     fn from(event: &Event) -> Self {
-        let (kind, origin) = match &event.kind {
-            EventKind::ParamChanged { param, .. } => ("paramChanged".to_string(), Some(*param)),
-            EventKind::ChildAdded { child, .. } => ("childAdded".to_string(), Some(*child)),
-            EventKind::ChildRemoved { parent, .. } => ("childRemoved".to_string(), Some(*parent)),
-            EventKind::ChildReplaced { new, .. } => ("childReplaced".to_string(), Some(*new)),
-            EventKind::ChildMoved { child, .. } => ("childMoved".to_string(), Some(*child)),
-            EventKind::ChildReordered { child, .. } => ("childReordered".to_string(), Some(*child)),
-            EventKind::NodeCreated { node } => ("nodeCreated".to_string(), Some(*node)),
-            EventKind::NodeDeleted { .. } => ("nodeDeleted".to_string(), None),
-            EventKind::MetaChanged { node, .. } => ("metaChanged".to_string(), Some(*node)),
-            EventKind::Custom(custom) => ("custom".to_string(), custom.origin),
+        let (kind, origin, old_value) = match &event.kind {
+            EventKind::ParamChanged { param, old_value, .. } => ("paramChanged".to_string(), Some(*param), Some(old_value.clone())),
+            EventKind::ChildAdded { child, .. } => ("childAdded".to_string(), Some(*child), None),
+            EventKind::ChildRemoved { parent, .. } => ("childRemoved".to_string(), Some(*parent), None),
+            EventKind::ChildReplaced { new, .. } => ("childReplaced".to_string(), Some(*new), None),
+            EventKind::ChildMoved { child, .. } => ("childMoved".to_string(), Some(*child), None),
+            EventKind::ChildReordered { child, .. } => ("childReordered".to_string(), Some(*child), None),
+            EventKind::NodeCreated { node } => ("nodeCreated".to_string(), Some(*node), None),
+            EventKind::NodeDeleted { .. } => ("nodeDeleted".to_string(), None, None),
+            EventKind::MetaChanged { node, .. } => ("metaChanged".to_string(), Some(*node), None),
+            EventKind::Custom(custom) => ("custom".to_string(), custom.origin, None),
         };
         let payload = serde_json::to_value(&event.kind).unwrap_or(JsonValue::Null);
-        Self { kind, origin, payload }
+        Self {
+            kind,
+            origin,
+            old_value,
+            payload,
+        }
     }
 }
 
@@ -634,6 +618,14 @@ pub trait ScriptHostBridge {
     /// Owning node id when available.
     fn owner_node(&self) -> Option<NodeId> {
         None
+    }
+
+    /// Script node id when available.
+    ///
+    /// Defaults to [`Self::owner_node`] for host implementations that do not distinguish
+    /// between script container and local host target.
+    fn script_node(&self) -> Option<NodeId> {
+        self.owner_node()
     }
 
     /// Current script wall time in seconds.
@@ -651,6 +643,36 @@ pub trait ScriptHostBridge {
 
     /// Emit one custom engine event.
     fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String>;
+
+    /// Returns a read-only tree snapshot for the current callback.
+    fn tree_snapshot(&self) -> Option<Arc<ProcessTreeSnapshot>> {
+        None
+    }
+
+    /// Queues one script-exposed property write on `node`.
+    fn set_node_script_property(&mut self, _node: NodeId, _property: String, _value: ParamValue) -> Result<(), String> {
+        Err("node script-property mutation is unavailable for this script host".to_string())
+    }
+
+    /// Queues one script-exposed method call on `node`.
+    fn call_node_script_method(&mut self, _node: NodeId, _method: String, _args: Vec<ParamValue>) -> Result<(), String> {
+        Err("node script-method invocation is unavailable for this script host".to_string())
+    }
+
+    /// Sets or updates one runtime listener configuration for this script.
+    fn set_event_listener(&mut self, _target: NodeId, _level: u32) -> Result<(), String> {
+        Err("runtime event listeners are unavailable for this script host".to_string())
+    }
+
+    /// Removes one runtime listener configuration for this script.
+    fn remove_event_listener(&mut self, _target: NodeId) -> Result<(), String> {
+        Err("runtime event listeners are unavailable for this script host".to_string())
+    }
+
+    /// Removes all runtime listener configurations for this script.
+    fn clear_event_listeners(&mut self) -> Result<(), String> {
+        Err("runtime event listeners are unavailable for this script host".to_string())
+    }
 }
 
 /// Default host bridge used when no engine context is available.
@@ -662,6 +684,18 @@ impl ScriptHostBridge for NoopScriptHostBridge {
     }
 
     fn emit_custom(&mut self, _topic: &str, _payload: JsonValue) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn set_event_listener(&mut self, _target: NodeId, _level: u32) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn remove_event_listener(&mut self, _target: NodeId) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn clear_event_listeners(&mut self) -> Result<(), String> {
         Ok(())
     }
 }
@@ -707,9 +741,9 @@ impl From<QuickJsError> for ScriptRuntimeError {
 /// Runtime trait contract for embeddable scripting engines.
 pub trait ScriptRuntime: Send {
     /// Loads script source and returns parsed manifest.
-    fn load(&mut self, source: &str, source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError>;
+    fn load(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError>;
     /// Reloads script source and returns parsed manifest.
-    fn reload(&mut self, source: &str, source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError>;
+    fn reload(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError>;
     /// Returns current manifest when loaded.
     fn manifest(&self) -> Option<&ScriptManifest>;
     /// Returns exported function names.
@@ -731,6 +765,18 @@ pub trait ScriptRuntime: Send {
 enum ScriptHostOp {
     Log { level: ScriptLogLevel, message: String },
     EmitCustom { topic: String, payload: JsonValue },
+    SetNodeScriptProperty { node: NodeId, property: String, value: ParamValue },
+    CallNodeScriptMethod { node: NodeId, method: String, args: Vec<ParamValue> },
+    SetEventListener { target: NodeId, level: u32 },
+    RemoveEventListener { target: NodeId },
+    ClearEventListeners,
+}
+
+#[derive(Default)]
+struct QuickJsTreeBridgeState {
+    snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    host: Option<NodeId>,
+    script: Option<NodeId>,
 }
 
 #[derive(Default)]
@@ -752,6 +798,7 @@ pub struct QuickJsRuntime {
     manifest: Option<ScriptManifest>,
     host_ops: Arc<Mutex<Vec<ScriptHostOp>>>,
     host_call_counter: Arc<AtomicU32>,
+    tree_bridge_state: Arc<Mutex<QuickJsTreeBridgeState>>,
 }
 
 impl QuickJsRuntime {
@@ -762,6 +809,7 @@ impl QuickJsRuntime {
         let context = QuickJsContext::full(&runtime)?;
         let host_ops = Arc::new(Mutex::new(Vec::new()));
         let host_call_counter = Arc::new(AtomicU32::new(0));
+        let tree_bridge_state = Arc::new(Mutex::new(QuickJsTreeBridgeState::default()));
 
         let mut runtime = Self {
             _runtime: runtime,
@@ -771,6 +819,7 @@ impl QuickJsRuntime {
             manifest: None,
             host_ops,
             host_call_counter,
+            tree_bridge_state,
         };
         runtime.install_host_api()?;
         Ok(runtime)
@@ -780,61 +829,388 @@ impl QuickJsRuntime {
         let max_host_calls = self.budgets.max_host_calls_per_callback.max(1);
         let shared_host_ops = Arc::clone(&self.host_ops);
         let shared_host_call_counter = Arc::clone(&self.host_call_counter);
+        let shared_tree_bridge_state = Arc::clone(&self.tree_bridge_state);
         self.context.with(|ctx| -> Result<(), QuickJsError> {
             let gc_table = QuickJsObject::new(ctx.clone())?;
 
             let log_host_ops = Arc::clone(&shared_host_ops);
             let log_host_call_counter = Arc::clone(&shared_host_call_counter);
-            let log_fn = QuickJsFunc::from(QuickJsMutFn::from(
-                move |level_label: String, message: String| -> Result<(), QuickJsError> {
-                    let call_count = log_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
-                    if call_count > max_host_calls {
-                        return Err(QuickJsError::new_from_js_message(
-                            "script",
-                            "host",
-                            "script host-call budget exceeded in current callback",
-                        ));
-                    }
+            let log_fn = QuickJsFunc::from(QuickJsMutFn::from(move |level_label: String, message: String| -> Result<(), QuickJsError> {
+                let call_count = log_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
 
-                    let level = ScriptLogLevel::from_manifest_label(&level_label).ok_or_else(|| {
-                        QuickJsError::new_from_js_message(
-                            "string",
-                            "scriptLogLevel",
-                            format!("invalid log level '{level_label}'"),
-                        )
-                    })?;
-                    let mut guard = log_host_ops.lock().map_err(|_| {
-                        QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned")
-                    })?;
-                    guard.push(ScriptHostOp::Log { level, message });
-                    Ok(())
-                },
-            ));
+                let level = ScriptLogLevel::from_manifest_label(&level_label).ok_or_else(|| QuickJsError::new_from_js_message("string", "scriptLogLevel", format!("invalid log level '{level_label}'")))?;
+                let mut guard = log_host_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                guard.push(ScriptHostOp::Log { level, message });
+                Ok(())
+            }));
             gc_table.set("log", log_fn)?;
 
             let emit_host_ops = Arc::clone(&shared_host_ops);
             let emit_host_call_counter = Arc::clone(&shared_host_call_counter);
-            let emit_raw_fn = QuickJsFunc::from(QuickJsMutFn::from(
-                move |topic: String, payload_json: Option<String>| -> Result<(), QuickJsError> {
-                    let call_count = emit_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
-                    if call_count > max_host_calls {
-                        return Err(QuickJsError::new_from_js_message(
-                            "script",
-                            "host",
-                            "script host-call budget exceeded in current callback",
-                        ));
+            let emit_raw_fn = QuickJsFunc::from(QuickJsMutFn::from(move |topic: String, payload_json: Option<String>| -> Result<(), QuickJsError> {
+                let call_count = emit_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+
+                let payload_json = serde_json::from_str::<JsonValue>(payload_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
+
+                let mut guard = emit_host_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                guard.push(ScriptHostOp::EmitCustom { topic, payload: payload_json });
+                Ok(())
+            }));
+            gc_table.set("__emit_raw", emit_raw_fn)?;
+
+            let tree_root_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_root_call_counter = Arc::clone(&shared_host_call_counter);
+            let tree_root_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<Option<u64>, QuickJsError> {
+                let call_count = tree_root_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let state = tree_root_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                Ok(state.snapshot.as_ref().map(|snapshot| snapshot.root().0))
+            }));
+            gc_table.set("__tree_root_id", tree_root_fn)?;
+
+            let tree_host_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_host_call_counter = Arc::clone(&shared_host_call_counter);
+            let tree_host_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<Option<u64>, QuickJsError> {
+                let call_count = tree_host_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let state = tree_host_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                Ok(state.host.map(|node| node.0))
+            }));
+            gc_table.set("__tree_host_id", tree_host_fn)?;
+
+            let tree_script_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_script_call_counter = Arc::clone(&shared_host_call_counter);
+            let tree_script_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<Option<u64>, QuickJsError> {
+                let call_count = tree_script_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let state = tree_script_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                Ok(state.script.map(|node| node.0))
+            }));
+            gc_table.set("__tree_script_id", tree_script_fn)?;
+
+            let tree_get_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_get_call_counter = Arc::clone(&shared_host_call_counter);
+            let tree_get_fn = QuickJsFunc::from(QuickJsMutFn::from(move |node_id_raw: i64, key: String| -> Result<Option<String>, QuickJsError> {
+                let call_count = tree_get_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+
+                let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
+                let state = tree_get_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                let Some(snapshot) = state.snapshot.as_ref() else {
+                    return Ok(None);
+                };
+
+                let node_id = NodeId(node_id);
+                let Some(node) = snapshot.node(node_id) else {
+                    return Ok(None);
+                };
+                let trimmed_key = key.trim();
+                if trimmed_key.is_empty() {
+                    return Ok(None);
+                }
+
+                let metadata = match trimmed_key {
+                    "$id" => Some(serde_json::json!({ "kind": "value", "value": node.id.0 })),
+                    "$type" => Some(serde_json::json!({ "kind": "value", "value": node.node_type.clone() })),
+                    "$name" => Some(serde_json::json!({ "kind": "value", "value": node.label.clone() })),
+                    "$declId" => Some(serde_json::json!({ "kind": "value", "value": node.decl_id.clone() })),
+                    "$shortName" => Some(serde_json::json!({ "kind": "value", "value": node.short_name.clone() })),
+                    "$enabled" => Some(serde_json::json!({ "kind": "value", "value": node.enabled })),
+                    "$isParameter" => Some(serde_json::json!({ "kind": "value", "value": node.is_parameter() })),
+                    _ => None,
+                };
+                if let Some(metadata) = metadata {
+                    return Ok(Some(metadata.to_string()));
+                }
+
+                if let Some(value) = node.script_property(trimmed_key) {
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": QuickJsRuntime::param_value_to_tree_json(value) }).to_string()));
+                }
+
+                if node.has_script_method(trimmed_key) {
+                    return Ok(Some(serde_json::json!({ "kind": "method" }).to_string()));
+                }
+
+                let Some(child_id) = snapshot.find_child(node_id, trimmed_key) else {
+                    return Ok(None);
+                };
+                let Some(child) = snapshot.node(child_id) else {
+                    return Ok(None);
+                };
+
+                if let Some(value) = child.param_value.as_ref() {
+                    let encoded = QuickJsRuntime::param_value_to_tree_json(value);
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": encoded }).to_string()));
+                }
+
+                Ok(Some(
+                    serde_json::json!({
+                        "kind": "node",
+                        "id": child_id.0
+                    })
+                    .to_string(),
+                ))
+            }));
+            gc_table.set("__tree_get_raw", tree_get_fn)?;
+
+            let tree_set_property_ops = Arc::clone(&shared_host_ops);
+            let tree_set_property_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_set_property_call_counter = Arc::clone(&shared_host_call_counter);
+            let tree_set_property_fn = QuickJsFunc::from(QuickJsMutFn::from(move |node_id_raw: i64, property: String, value_json: Option<String>| -> Result<bool, QuickJsError> {
+                let call_count = tree_set_property_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
+                let property = property.trim();
+                if property.is_empty() {
+                    return Ok(false);
+                }
+                let value_payload = serde_json::from_str::<JsonValue>(value_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
+                let value = QuickJsRuntime::param_value_from_json(&value_payload).map_err(|message| QuickJsError::new_from_js_message("script", "paramValue", message))?;
+
+                let mut target_node = NodeId(node_id);
+                let mut target_property = property.to_string();
+                let state = tree_set_property_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                if let Some(snapshot) = state.snapshot.as_ref() {
+                    if let Some(node_snapshot) = snapshot.node(NodeId(node_id)) {
+                        if node_snapshot.script_property(property).is_none() {
+                            if let Some(child_id) = snapshot.find_child(NodeId(node_id), property) {
+                                if snapshot.node(child_id).is_some_and(|child| child.is_parameter()) {
+                                    target_node = child_id;
+                                    target_property = "value".to_string();
+                                }
+                            }
+                        }
+                    }
+                }
+                drop(state);
+
+                let mut guard = tree_set_property_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                guard.push(ScriptHostOp::SetNodeScriptProperty { node: target_node, property: target_property, value });
+                Ok(true)
+            }));
+            gc_table.set("__tree_set_property_raw", tree_set_property_fn)?;
+
+            let tree_call_method_ops = Arc::clone(&shared_host_ops);
+            let tree_call_method_state = Arc::clone(&shared_tree_bridge_state);
+            let tree_call_method_counter = Arc::clone(&shared_host_call_counter);
+            let tree_call_method_fn = QuickJsFunc::from(QuickJsMutFn::from(move |node_id_raw: i64, method: String, args_json: Option<String>| -> Result<Option<String>, QuickJsError> {
+                let call_count = tree_call_method_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let node_id = u64::try_from(node_id_raw).map_err(|_| QuickJsError::new_from_js_message("number", "nodeId", "node id must be a non-negative integer"))?;
+                let method = method.trim();
+                if method.is_empty() {
+                    return Ok(None);
+                }
+
+                let args_payload = serde_json::from_str::<JsonValue>(args_json.as_deref().unwrap_or("[]")).unwrap_or(JsonValue::Null);
+                let args_values = match args_payload {
+                    JsonValue::Null => Vec::new(),
+                    JsonValue::Array(values) => values,
+                    _ => return Err(QuickJsError::new_from_js_message("script", "args", "script node method arguments must be a JSON array")),
+                };
+
+                if method == "getProperties" {
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    let Some(snapshot) = state.snapshot.as_ref() else {
+                        return Ok(None);
+                    };
+                    let Some(node) = snapshot.node(NodeId(node_id)) else {
+                        return Ok(None);
+                    };
+
+                    let mut output = serde_json::Map::new();
+                    output.insert("id".to_string(), serde_json::json!(node.id.0));
+                    output.insert("type".to_string(), serde_json::json!(node.node_type.clone()));
+                    output.insert("name".to_string(), serde_json::json!(node.label.clone()));
+                    output.insert("label".to_string(), serde_json::json!(node.label.clone()));
+                    output.insert("declId".to_string(), serde_json::json!(node.decl_id.clone()));
+                    output.insert("shortName".to_string(), serde_json::json!(node.short_name.clone()));
+                    output.insert("enabled".to_string(), serde_json::json!(node.enabled));
+                    output.insert("isParameter".to_string(), serde_json::json!(node.is_parameter()));
+                    output.insert("childCount".to_string(), serde_json::json!(node.child_count));
+                    if let Some(value) = node.param_value.as_ref() {
+                        output.insert("value".to_string(), QuickJsRuntime::param_value_to_tree_json(value));
+                    }
+                    if let Some(constraints) = node.param_constraints.as_ref() {
+                        output.insert("constraints".to_string(), serde_json::to_value(constraints).unwrap_or(JsonValue::Null));
+                    }
+                    for (key, value) in &node.script_properties {
+                        output.insert(key.clone(), QuickJsRuntime::param_value_to_tree_json(value));
                     }
 
-                    let payload_json = serde_json::from_str::<JsonValue>(payload_json.as_deref().unwrap_or("null")).unwrap_or(JsonValue::Null);
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": JsonValue::Object(output) }).to_string()));
+                }
 
-                    let mut guard = emit_host_ops.lock().map_err(|_| {
-                        QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned")
-                    })?;
-                    guard.push(ScriptHostOp::EmitCustom { topic, payload: payload_json });
-                    Ok(())
-                },
-            ));
-            gc_table.set("__emit_raw", emit_raw_fn)?;
+                if method == "getChildren" {
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    let Some(snapshot) = state.snapshot.as_ref() else {
+                        return Ok(None);
+                    };
+                    let child_ids = snapshot.child_ids(NodeId(node_id));
+                    let ids = child_ids.iter().map(|id| id.0).collect::<Vec<_>>();
+                    return Ok(Some(serde_json::json!({ "kind": "nodes", "ids": ids }).to_string()));
+                }
+
+                if method == "getChild" {
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    let Some(snapshot) = state.snapshot.as_ref() else {
+                        return Ok(None);
+                    };
+                    let Some(selector) = args_values.first() else {
+                        return Ok(Some(serde_json::json!({ "kind": "void" }).to_string()));
+                    };
+
+                    let resolved = if let Some(index) = selector.as_i64() {
+                        usize::try_from(index).ok().and_then(|index| snapshot.child_at(NodeId(node_id), index))
+                    } else if let Some(key) = selector.as_str() {
+                        let key = key.trim();
+                        if key.is_empty() { None } else { snapshot.find_child(NodeId(node_id), key) }
+                    } else {
+                        None
+                    };
+
+                    if let Some(child) = resolved {
+                        return Ok(Some(serde_json::json!({ "kind": "node", "id": child.0 }).to_string()));
+                    }
+                    return Ok(Some(serde_json::json!({ "kind": "void" }).to_string()));
+                }
+
+                if method == "toString" {
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    let Some(snapshot) = state.snapshot.as_ref() else {
+                        return Ok(None);
+                    };
+                    let Some(node) = snapshot.node(NodeId(node_id)) else {
+                        return Ok(None);
+                    };
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": node.to_string() }).to_string()));
+                }
+
+                if method == "listen" {
+                    let level = if let Some(config) = args_values.first() {
+                        if let Some(level) = config.as_u64() {
+                            u32::try_from(level).map_err(|_| QuickJsError::new_from_js_message("number", "level", "listener level is too large"))?
+                        } else if let Some(level) = config.as_i64() {
+                            if level < 0 {
+                                return Err(QuickJsError::new_from_js_message("number", "level", "listener level must be >= 0"));
+                            }
+                            u32::try_from(level).map_err(|_| QuickJsError::new_from_js_message("number", "level", "listener level is too large"))?
+                        } else if let Some(object) = config.as_object() {
+                            if let Some(level) = object.get("level").and_then(JsonValue::as_u64) {
+                                u32::try_from(level).map_err(|_| QuickJsError::new_from_js_message("number", "level", "listener level is too large"))?
+                            } else if let Some(level) = object.get("maxDepth").and_then(JsonValue::as_u64) {
+                                u32::try_from(level).map_err(|_| QuickJsError::new_from_js_message("number", "maxDepth", "listener level is too large"))?
+                            } else {
+                                1
+                            }
+                        } else {
+                            1
+                        }
+                    } else {
+                        1
+                    };
+
+                    let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                    guard.push(ScriptHostOp::SetEventListener { target: NodeId(node_id), level });
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": true }).to_string()));
+                }
+
+                if method == "unlisten" {
+                    let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                    guard.push(ScriptHostOp::RemoveEventListener { target: NodeId(node_id) });
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": true }).to_string()));
+                }
+
+                let mut predicted_result = None;
+                if method == "addParameter" {
+                    if let Some(key) = args_values.first().and_then(JsonValue::as_str) {
+                        let key = key.trim();
+                        if !key.is_empty() {
+                            let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                            if let Some(snapshot) = state.snapshot.as_ref() {
+                                if let Some(existing) = snapshot.find_child(NodeId(node_id), key) {
+                                    predicted_result = Some(serde_json::json!({ "kind": "node", "id": existing.0 }));
+                                } else {
+                                    predicted_result = Some(serde_json::json!({ "kind": "selector", "parent": node_id, "key": key }));
+                                }
+                            }
+                        }
+                    }
+                } else if method == "addFolder" {
+                    let key = args_values.first().and_then(JsonValue::as_str).map(str::trim).filter(|value| !value.is_empty()).unwrap_or("Folder");
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    if let Some(snapshot) = state.snapshot.as_ref() {
+                        if let Some(existing) = snapshot.find_child(NodeId(node_id), key) {
+                            predicted_result = Some(serde_json::json!({ "kind": "node", "id": existing.0 }));
+                        } else {
+                            predicted_result = Some(serde_json::json!({ "kind": "selector", "parent": node_id, "key": key }));
+                        }
+                    }
+                } else if method == "addNode" {
+                    let node_type = args_values.first().and_then(JsonValue::as_str).map(str::trim).filter(|value| !value.is_empty()).unwrap_or("folder");
+                    let normalized_node_type = node_type.to_ascii_lowercase();
+                    let default_label = match normalized_node_type.as_str() {
+                        "parameter" | "param" => "parameter".to_string(),
+                        "folder" | "" => "Folder".to_string(),
+                        _ => node_type.to_string(),
+                    };
+                    let key = args_values.get(1).and_then(JsonValue::as_str).map(str::trim).filter(|value| !value.is_empty()).map(ToString::to_string).unwrap_or(default_label);
+                    let state = tree_call_method_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                    if let Some(snapshot) = state.snapshot.as_ref() {
+                        if let Some(existing) = snapshot.find_child(NodeId(node_id), key.as_str()) {
+                            predicted_result = Some(serde_json::json!({ "kind": "node", "id": existing.0 }));
+                        } else {
+                            predicted_result = Some(serde_json::json!({ "kind": "selector", "parent": node_id, "key": key }));
+                        }
+                    }
+                }
+
+                let args = QuickJsRuntime::method_args_from_json(method, args_values).map_err(|message| QuickJsError::new_from_js_message("script", "paramValue", message))?;
+
+                let mut guard = tree_call_method_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                guard.push(ScriptHostOp::CallNodeScriptMethod {
+                    node: NodeId(node_id),
+                    method: method.to_string(),
+                    args,
+                });
+                if let Some(predicted_result) = predicted_result {
+                    return Ok(Some(predicted_result.to_string()));
+                }
+                Ok(Some(serde_json::json!({ "kind": "value", "value": true }).to_string()))
+            }));
+            gc_table.set("__tree_call_method_raw", tree_call_method_fn)?;
+
+            let clear_listeners_ops = Arc::clone(&shared_host_ops);
+            let clear_listeners_counter = Arc::clone(&shared_host_call_counter);
+            let clear_listeners_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<bool, QuickJsError> {
+                let call_count = clear_listeners_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+
+                let mut guard = clear_listeners_ops.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script host-op queue lock poisoned"))?;
+                guard.push(ScriptHostOp::ClearEventListeners);
+                Ok(true)
+            }));
+            gc_table.set("__listeners_clear_raw", clear_listeners_fn)?;
 
             ctx.globals().set("gc", gc_table)?;
             ctx.eval::<(), _>(
@@ -843,10 +1219,377 @@ globalThis.gc.emit = (topic, payload) => globalThis.gc.__emit_raw(
   topic,
   JSON.stringify(payload === undefined ? null : payload)
 );
-globalThis.log = (message) => globalThis.gc.log("info", String(message ?? ""));
-globalThis.success = (message) => globalThis.gc.log("success", String(message ?? ""));
-globalThis.warn = (message) => globalThis.gc.log("warning", String(message ?? ""));
-globalThis.error = (message) => globalThis.gc.log("error", String(message ?? ""));
+
+const __gcParseTreeMethodResult = (raw) => {
+  if (!raw || typeof raw !== "string") {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const __gcInvokeTreeMethod = (nodeId, method, args) => {
+  const raw = globalThis.gc.__tree_call_method_raw(
+    Number(nodeId),
+    String(method ?? ""),
+    JSON.stringify(Array.isArray(args) ? args : [])
+  );
+  return __gcParseTreeMethodResult(raw);
+};
+
+const __gcResolveNodeId = (value) => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === "object") {
+    const rawNodeId = Number(value.__nodeId);
+    if (Number.isFinite(rawNodeId)) {
+      return Math.floor(rawNodeId);
+    }
+
+    if (typeof value.id === "function") {
+      const byFunction = Number(value.id());
+      if (Number.isFinite(byFunction)) {
+        return Math.floor(byFunction);
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const __gcScriptNodeProxyCache = new Map();
+const __gcScriptNodeSelectorCache = new Map();
+const __gcTreeResultToJsValue = (parsed) => {
+  if (!parsed || typeof parsed !== "object") {
+    return undefined;
+  }
+
+  if (parsed.kind === "node") {
+    return __gcScriptNodeHandle(parsed.id);
+  }
+
+  if (parsed.kind === "selector") {
+    return __gcScriptNodeSelector(parsed.parent, parsed.key);
+  }
+
+  if (parsed.kind === "nodes" && Array.isArray(parsed.ids)) {
+    return parsed.ids
+      .map((id) => __gcScriptNodeHandle(id))
+      .filter((entry) => entry !== undefined);
+  }
+
+  if (parsed.kind === "value") {
+    return parsed.value;
+  }
+
+  return undefined;
+};
+
+const __gcScriptNodeHandle = (nodeId) => {
+  const numericId = Number(nodeId);
+  if (!Number.isFinite(numericId)) {
+    return undefined;
+  }
+  const cached = __gcScriptNodeProxyCache.get(numericId);
+  if (cached) {
+    return cached;
+  }
+
+  const target = {
+    __nodeId: numericId,
+    id() {
+      return numericId;
+    },
+    is(other) {
+      const otherId = __gcResolveNodeId(other);
+      return Number.isFinite(otherId) && otherId === numericId;
+    },
+    [Symbol.toPrimitive](hint) {
+      if (hint === "string") {
+        const parsed = __gcInvokeTreeMethod(numericId, "toString", []);
+        if (parsed && parsed.kind === "value") {
+          return String(parsed.value ?? "");
+        }
+        return `[Node ${numericId}]`;
+      }
+      return numericId;
+    },
+  };
+
+  const proxy = new Proxy(target, {
+    get(innerTarget, prop) {
+      if (typeof prop !== "string") {
+        return innerTarget[prop];
+      }
+      if (prop in innerTarget) {
+        const member = innerTarget[prop];
+        return typeof member === "function" ? member.bind(innerTarget) : member;
+      }
+
+      const resolvedRaw = globalThis.gc.__tree_get_raw(numericId, prop);
+      if (!resolvedRaw || typeof resolvedRaw !== "string") {
+        return undefined;
+      }
+
+      let resolved = null;
+      try {
+        resolved = JSON.parse(resolvedRaw);
+      } catch {
+        return undefined;
+      }
+
+      if (!resolved || typeof resolved !== "object") {
+        return undefined;
+      }
+
+      if (resolved.kind === "node") {
+        return __gcScriptNodeHandle(resolved.id);
+      }
+
+      if (resolved.kind === "value") {
+        return resolved.value;
+      }
+
+      if (resolved.kind === "method") {
+        return (...args) => {
+          const parsed = __gcInvokeTreeMethod(numericId, prop, args);
+          if (!parsed) {
+            return undefined;
+          }
+          return __gcTreeResultToJsValue(parsed);
+        };
+      }
+
+      return undefined;
+    },
+    set(innerTarget, prop, value) {
+      if (typeof prop !== "string") {
+        innerTarget[prop] = value;
+        return true;
+      }
+      if (prop in innerTarget) {
+        innerTarget[prop] = value;
+        return true;
+      }
+      return globalThis.gc.__tree_set_property_raw(
+        numericId,
+        prop,
+        JSON.stringify(value === undefined ? null : value)
+      );
+    },
+  });
+
+  __gcScriptNodeProxyCache.set(numericId, proxy);
+  return proxy;
+};
+
+const __gcScriptNodeSelector = (parentNodeId, childKey) => {
+  const numericParentId = Number(parentNodeId);
+  const selectorKey = String(childKey ?? "").trim();
+  if (!Number.isFinite(numericParentId) || selectorKey.length === 0) {
+    return undefined;
+  }
+
+  const cacheKey = `${Math.floor(numericParentId)}:${selectorKey}`;
+  const cached = __gcScriptNodeSelectorCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const target = {
+    __selectorParentId: Math.floor(numericParentId),
+    __selectorKey: selectorKey,
+    id() {
+      const parsed = __gcInvokeTreeMethod(
+        this.__selectorParentId,
+        "getChild",
+        [this.__selectorKey]
+      );
+      return parsed && parsed.kind === "node"
+        ? Number(parsed.id)
+        : undefined;
+    },
+    is(other) {
+      const selfId = __gcResolveNodeId(this);
+      const otherId = __gcResolveNodeId(other);
+      return Number.isFinite(selfId) && Number.isFinite(otherId) && selfId === otherId;
+    },
+    [Symbol.toPrimitive](hint) {
+      const resolvedId = __gcResolveNodeId(this);
+      if (hint === "string") {
+        if (Number.isFinite(resolvedId)) {
+          const resolved = __gcScriptNodeHandle(resolvedId);
+          if (resolved !== undefined) {
+            return String(resolved);
+          }
+        }
+        return `[${this.__selectorKey} (pending)]`;
+      }
+      return Number.isFinite(resolvedId) ? resolvedId : NaN;
+    },
+  };
+
+  const proxy = new Proxy(target, {
+    get(innerTarget, prop) {
+      if (typeof prop !== "string") {
+        return innerTarget[prop];
+      }
+      if (prop in innerTarget) {
+        const member = innerTarget[prop];
+        return typeof member === "function" ? member.bind(innerTarget) : member;
+      }
+
+      const resolvedId = innerTarget.id();
+      if (!Number.isFinite(resolvedId)) {
+        return undefined;
+      }
+      const resolved = __gcScriptNodeHandle(resolvedId);
+      return resolved === undefined ? undefined : resolved[prop];
+    },
+    set(innerTarget, prop, value) {
+      if (typeof prop !== "string") {
+        innerTarget[prop] = value;
+        return true;
+      }
+      if (prop in innerTarget) {
+        innerTarget[prop] = value;
+        return true;
+      }
+
+      const resolvedId = innerTarget.id();
+      if (!Number.isFinite(resolvedId)) {
+        return false;
+      }
+      return globalThis.gc.__tree_set_property_raw(
+        resolvedId,
+        prop,
+        JSON.stringify(value === undefined ? null : value)
+      );
+    },
+  });
+
+  __gcScriptNodeSelectorCache.set(cacheKey, proxy);
+  return proxy;
+};
+
+const __gcScriptEventNodeHandle = (nodeId) => {
+  const numericId = Number(nodeId);
+  if (!Number.isFinite(numericId)) {
+    return undefined;
+  }
+  const normalizedId = Math.floor(numericId);
+  for (const selector of __gcScriptNodeSelectorCache.values()) {
+    if (!selector || typeof selector.id !== "function") {
+      continue;
+    }
+    try {
+      const selectorId = Number(selector.id());
+      if (Number.isFinite(selectorId) && Math.floor(selectorId) === normalizedId) {
+        return selector;
+      }
+    } catch {}
+  }
+  return __gcScriptNodeHandle(normalizedId);
+};
+
+globalThis.gc.__nodeHandle = __gcScriptNodeHandle;
+globalThis.gc.__eventNodeHandle = __gcScriptEventNodeHandle;
+globalThis.__gcInvokeTreeMethod = __gcInvokeTreeMethod;
+globalThis.__gcTreeResultToJsValue = __gcTreeResultToJsValue;
+globalThis.__gcScriptNodeSelector = __gcScriptNodeSelector;
+globalThis.__gcResolveNodeId = __gcResolveNodeId;
+
+globalThis.gc.tree = {
+  root() {
+    const rootId = globalThis.gc.__tree_root_id();
+    if (rootId === null || rootId === undefined) {
+      return undefined;
+    }
+    return __gcScriptNodeHandle(rootId);
+  },
+  host() {
+    const hostId = globalThis.gc.__tree_host_id();
+    if (hostId === null || hostId === undefined) {
+      return undefined;
+    }
+    return __gcScriptNodeHandle(hostId);
+  },
+};
+
+globalThis.tree = globalThis.gc.tree;
+Object.defineProperty(globalThis, "root", {
+  configurable: true,
+  enumerable: false,
+  get() {
+    return globalThis.gc.tree.root();
+  },
+});
+Object.defineProperty(globalThis, "local", {
+  configurable: true,
+  enumerable: false,
+  get() {
+    return globalThis.gc.tree.host();
+  },
+});
+globalThis.listen = (node, config = {}) => {
+  const targetId = __gcResolveNodeId(node);
+  if (!Number.isFinite(targetId)) {
+    return false;
+  }
+  const parsed = __gcInvokeTreeMethod(targetId, "listen", [config]);
+  return parsed && parsed.kind === "value" ? Boolean(parsed.value) : false;
+};
+globalThis.unlisten = (node) => {
+  const targetId = __gcResolveNodeId(node);
+  if (!Number.isFinite(targetId)) {
+    return false;
+  }
+  const parsed = __gcInvokeTreeMethod(targetId, "unlisten", []);
+  return parsed && parsed.kind === "value" ? Boolean(parsed.value) : false;
+};
+globalThis.clearListeners = () => globalThis.gc.__listeners_clear_raw() === true;
+const __gcFormatLogArg = (value) => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (typeof value === "object" && value !== null) {
+    try {
+      const text = String(value);
+      if (text !== "[object Object]") {
+        return text;
+      }
+    } catch {}
+    try {
+      const encoded = JSON.stringify(value);
+      if (typeof encoded === "string") {
+        return encoded;
+      }
+    } catch {}
+  }
+  return String(value);
+};
+const __gcFormatLogArgs = (args) =>
+  Array.isArray(args) && args.length > 0
+    ? args.map((value) => __gcFormatLogArg(value)).join(" ")
+    : "";
+globalThis.log = (...args) => globalThis.gc.log("info", __gcFormatLogArgs(args));
+globalThis.success = (...args) => globalThis.gc.log("success", __gcFormatLogArgs(args));
+globalThis.warn = (...args) => globalThis.gc.log("warning", __gcFormatLogArgs(args));
+globalThis.error = (...args) => globalThis.gc.log("error", __gcFormatLogArgs(args));
 globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
 "#,
             )?;
@@ -859,6 +1602,18 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         self.host_call_counter.store(0, Ordering::Relaxed);
         let mut guard = self.host_ops.lock().map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
         guard.clear();
+        let mut tree_guard = self.tree_bridge_state.lock().map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
+        tree_guard.snapshot = None;
+        tree_guard.host = None;
+        tree_guard.script = None;
+        Ok(())
+    }
+
+    fn sync_tree_bridge_state(&self, host: &dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+        let mut tree_guard = self.tree_bridge_state.lock().map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
+        tree_guard.snapshot = host.tree_snapshot();
+        tree_guard.host = host.owner_node();
+        tree_guard.script = host.script_node();
         Ok(())
     }
 
@@ -877,6 +1632,21 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
                 ScriptHostOp::EmitCustom { topic, payload } => {
                     host.emit_custom(&topic, payload).map_err(ScriptRuntimeError::Host)?;
                 }
+                ScriptHostOp::SetNodeScriptProperty { node, property, value } => {
+                    host.set_node_script_property(node, property, value).map_err(ScriptRuntimeError::Host)?;
+                }
+                ScriptHostOp::CallNodeScriptMethod { node, method, args } => {
+                    host.call_node_script_method(node, method, args).map_err(ScriptRuntimeError::Host)?;
+                }
+                ScriptHostOp::SetEventListener { target, level } => {
+                    host.set_event_listener(target, level).map_err(ScriptRuntimeError::Host)?;
+                }
+                ScriptHostOp::RemoveEventListener { target } => {
+                    host.remove_event_listener(target).map_err(ScriptRuntimeError::Host)?;
+                }
+                ScriptHostOp::ClearEventListeners => {
+                    host.clear_event_listeners().map_err(ScriptRuntimeError::Host)?;
+                }
             }
         }
         Ok(())
@@ -891,12 +1661,62 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let elapsed = started_at.elapsed();
         let elapsed_limit = Duration::from_micros(self.budgets.max_wall_time_us_per_callback.max(1));
         if elapsed > elapsed_limit {
-            return Err(ScriptRuntimeError::BudgetViolation(format!(
-                "{phase_label} callback exceeded wall-time budget: {:?} > {:?}",
-                elapsed, elapsed_limit
-            )));
+            return Err(ScriptRuntimeError::BudgetViolation(format!("{phase_label} callback exceeded wall-time budget: {:?} > {:?}", elapsed, elapsed_limit)));
         }
         Ok(output)
+    }
+
+    fn param_value_from_json(value: &JsonValue) -> Result<ParamValue, String> {
+        ParamValue::from_script_json(value)
+    }
+
+    fn param_value_from_parameter_spec_json(spec: &JsonValue) -> Result<ParamValue, String> {
+        let Some(spec) = spec.as_object() else {
+            return Self::param_value_from_json(spec);
+        };
+
+        let type_label = spec.get("type").and_then(JsonValue::as_str).unwrap_or("float");
+        let value_type = ScriptValueType::from_manifest_label(type_label).ok_or_else(|| format!("unsupported parameter type '{type_label}'"))?;
+        match spec.get("default") {
+            Some(raw_default) => parameter_default_from_json_value(value_type, raw_default).map_err(|error| error.to_string()),
+            None => Ok(default_param_value(value_type)),
+        }
+    }
+
+    fn method_args_from_json(method: &str, args_values: Vec<JsonValue>) -> Result<Vec<ParamValue>, String> {
+        if method == "addParameter" {
+            let mut args = Vec::with_capacity(args_values.len());
+            if let Some(value) = args_values.first() {
+                args.push(Self::param_value_from_json(value)?);
+            }
+            if let Some(value) = args_values.get(1) {
+                let converted = if value.is_object() { Self::param_value_from_parameter_spec_json(value)? } else { Self::param_value_from_json(value)? };
+                args.push(converted);
+            }
+            for value in args_values.iter().skip(2) {
+                args.push(Self::param_value_from_json(value)?);
+            }
+            return Ok(args);
+        }
+
+        if method == "addNode" {
+            let mut args = Vec::with_capacity(args_values.len());
+            for (index, value) in args_values.iter().enumerate() {
+                let converted = if index == 2 && value.is_object() { Self::param_value_from_parameter_spec_json(value)? } else { Self::param_value_from_json(value)? };
+                args.push(converted);
+            }
+            return Ok(args);
+        }
+
+        let mut args = Vec::with_capacity(args_values.len());
+        for value in args_values {
+            args.push(Self::param_value_from_json(&value)?);
+        }
+        Ok(args)
+    }
+
+    fn param_value_to_tree_json(value: &ParamValue) -> JsonValue {
+        value.to_script_json()
     }
 
     fn is_js_identifier_start(ch: char) -> bool {
@@ -931,11 +1751,7 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let mut exported_names: Vec<String> = Vec::new();
 
         for segment in source.split_inclusive('\n') {
-            let (line, line_break) = if let Some(stripped) = segment.strip_suffix('\n') {
-                (stripped, "\n")
-            } else {
-                (segment, "")
-            };
+            let (line, line_break) = if let Some(stripped) = segment.strip_suffix('\n') { (stripped, "\n") } else { (segment, "") };
 
             let trimmed = line.trim_start();
             let indent_len = line.len().saturating_sub(trimmed.len());
@@ -1062,8 +1878,7 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let Some(payload_text) = ctx.json_stringify(&value)?.and_then(|raw| raw.to_string().ok()) else {
             return Ok(ScriptValue::Nil);
         };
-        let payload = serde_json::from_str::<JsonValue>(&payload_text)
-            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse JSON return value: {err}")))?;
+        let payload = serde_json::from_str::<JsonValue>(&payload_text).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse JSON return value: {err}")))?;
         Ok(ScriptValue::Json(payload))
     }
 
@@ -1164,9 +1979,13 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
 }
 
 impl ScriptRuntime for QuickJsRuntime {
-    fn load(&mut self, source: &str, source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+    fn load(&mut self, source: &str, source_name: &str, mut host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
         self.entrypoints = QuickJsEntrypoints::default();
         self.manifest = None;
+        self.reset_host_callback_state()?;
+        if let Some(host_ref) = host.as_deref() {
+            self.sync_tree_bridge_state(host_ref)?;
+        }
 
         let bootstrap = r#"
 globalThis.__gc_script_exports = {};
@@ -1176,6 +1995,95 @@ globalThis.__gc_script_manifest = {
   parameters: {},
   subscriptions: [],
   exports: globalThis.__gc_script_exports,
+};
+const __gcResolveParameterDefault = (spec) => {
+  const normalized = spec && typeof spec === "object" && !Array.isArray(spec) ? spec : {};
+  if (Object.prototype.hasOwnProperty.call(normalized, "default")) {
+    return normalized.default;
+  }
+  const typeLabel = String(normalized.type ?? "float").trim().toLowerCase();
+  switch (typeLabel) {
+    case "trigger":
+      return null;
+    case "int":
+      return 0;
+    case "float":
+      return 0.0;
+    case "str":
+    case "string":
+    case "file":
+    case "path":
+    case "enum":
+      return "";
+    case "bool":
+    case "boolean":
+      return false;
+    case "vec2":
+      return [0.0, 0.0];
+    case "vec3":
+      return [0.0, 0.0, 0.0];
+    case "color":
+      return [0.0, 0.0, 0.0, 1.0];
+    default:
+      return 0.0;
+  }
+};
+const __gcInvokeScriptMethod = (method, args) => {
+  const gc = globalThis.gc;
+  if (!gc || typeof gc !== "object") {
+    return undefined;
+  }
+  if (typeof gc.__tree_script_id !== "function") {
+    return undefined;
+  }
+  const scriptId = gc.__tree_script_id();
+  if (scriptId === null || scriptId === undefined) {
+    return undefined;
+  }
+
+  if (typeof globalThis.__gcInvokeTreeMethod === "function") {
+    return globalThis.__gcInvokeTreeMethod(scriptId, method, args);
+  }
+
+  if (typeof gc.__tree_call_method_raw !== "function") {
+    return undefined;
+  }
+  const raw = gc.__tree_call_method_raw(
+    Number(scriptId),
+    String(method ?? ""),
+    JSON.stringify(Array.isArray(args) ? args : [])
+  );
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+};
+const __gcScriptMethodResultToJsValue = (parsed) => {
+  if (!parsed || typeof parsed !== "object") {
+    return undefined;
+  }
+  if (typeof globalThis.__gcTreeResultToJsValue === "function") {
+    return globalThis.__gcTreeResultToJsValue(parsed);
+  }
+  if (parsed.kind === "value") {
+    return parsed.value;
+  }
+  return undefined;
+};
+const __gcInvokeScriptMethodAsJsValue = (method, args) => __gcScriptMethodResultToJsValue(__gcInvokeScriptMethod(method, args));
+const __gcScriptMethodSucceeded = (parsed) => {
+  if (!parsed || typeof parsed !== "object") {
+    return false;
+  }
+  if (parsed.kind === "value") {
+    return Boolean(parsed.value);
+  }
+  return true;
 };
 globalThis.script = {
   setApiVersion(value) {
@@ -1199,42 +2107,54 @@ globalThis.script = {
     globalThis.__gc_script_manifest.updateRateHz = rounded > 0 ? rounded : null;
     return globalThis.__gc_script_manifest.updateRateHz;
   },
-  listen(node, maxDepth = 0) {
-    const selector = typeof node === "string" ? node : String(node ?? "@host");
-    const depth = Number.isFinite(Number(maxDepth)) && Number(maxDepth) >= 0 ? Math.floor(Number(maxDepth)) : 0;
-    globalThis.__gc_script_manifest.subscriptions.push({ node: selector, maxDepth: depth });
-    return { node: selector, maxDepth: depth };
+  listen(node, config = {}) {
+    return globalThis.listen(node, config);
   },
-  unlisten(node, maxDepth = 0) {
-    const selector = typeof node === "string" ? node : String(node ?? "@host");
-    const depth = Number.isFinite(Number(maxDepth)) && Number(maxDepth) >= 0 ? Math.floor(Number(maxDepth)) : 0;
-    const list = globalThis.__gc_script_manifest.subscriptions;
-    for (let index = list.length - 1; index >= 0; index -= 1) {
-      const item = list[index];
-      if (item && item.node === selector && Number(item.maxDepth ?? item.max_depth ?? 0) === depth) {
-        list.splice(index, 1);
-        return true;
-      }
-    }
-    return false;
+  unlisten(node) {
+    return globalThis.unlisten(node);
   },
   clearListeners() {
-    globalThis.__gc_script_manifest.subscriptions = [];
+    return globalThis.clearListeners();
   },
   addParameter(name, spec = {}) {
     const key = String(name ?? "").trim();
     if (key.length === 0) {
-      return false;
+      return undefined;
     }
-    globalThis.__gc_script_manifest.parameters[key] = spec ?? {};
-    return true;
+    const normalizedSpec = spec && typeof spec === "object" && !Array.isArray(spec) ? spec : {};
+    globalThis.__gc_script_manifest.parameters[key] = normalizedSpec;
+    const defaultValue = __gcResolveParameterDefault(normalizedSpec);
+    return __gcInvokeScriptMethodAsJsValue("addParameter", [key, defaultValue]);
+  },
+  addNode(nodeType = "folder", name, spec) {
+    const typeLabel = String(nodeType ?? "").trim();
+    const args = [typeLabel.length > 0 ? typeLabel : "folder"];
+    if (name !== undefined) {
+      args.push(name);
+    }
+    if (spec !== undefined) {
+      if (args.length === 1) {
+        args.push("");
+      }
+      args.push(spec);
+    }
+    return __gcInvokeScriptMethodAsJsValue("addNode", args);
+  },
+  addFolder(name = "Folder") {
+    const key = String(name ?? "").trim();
+    return __gcInvokeScriptMethodAsJsValue("addFolder", [key.length > 0 ? key : "Folder"]);
   },
   removeParameter(name) {
     const key = String(name ?? "").trim();
     if (key.length === 0) {
       return false;
     }
-    return delete globalThis.__gc_script_manifest.parameters[key];
+    const removed = delete globalThis.__gc_script_manifest.parameters[key];
+    const applied = __gcInvokeScriptMethod("removeParameter", [key]);
+    if (applied !== undefined) {
+      return __gcScriptMethodSucceeded(applied);
+    }
+    return removed;
   },
 };
 if (globalThis.gc && typeof globalThis.gc === "object") {
@@ -1257,15 +2177,9 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 let globals = ctx.globals();
                 let root_value: QuickJsValue = globals.get("__gc_script_manifest")?;
                 if root_value.is_null() || root_value.is_undefined() || !root_value.is_object() {
-                    return Err(QuickJsError::new_from_js_message(
-                        "value",
-                        "object",
-                        "script manifest state must be an object",
-                    ));
+                    return Err(QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"));
                 }
-                let _root = root_value.into_object().ok_or_else(|| {
-                    QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object")
-                })?;
+                let _root = root_value.into_object().ok_or_else(|| QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object"))?;
 
                 let init = Self::first_function_name(&globals, &["init"])?;
                 let update = Self::first_function_name(&globals, &["update"])?;
@@ -1281,34 +2195,19 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                 exports.dedup();
 
                 let manifest_json = ctx
-                    .eval::<Option<String>, _>(
-                        "JSON.stringify(globalThis.__gc_script_manifest ?? {}, (key, value) => typeof value === 'function' ? undefined : value)",
-                    )?
-                    .ok_or_else(|| {
-                        QuickJsError::new_from_js_message(
-                            "object",
-                            "string",
-                            "failed to stringify script manifest",
-                        )
-                    })?;
+                    .eval::<Option<String>, _>("JSON.stringify(globalThis.__gc_script_manifest ?? {}, (key, value) => typeof value === 'function' ? undefined : value)")?
+                    .ok_or_else(|| QuickJsError::new_from_js_message("object", "string", "failed to stringify script manifest"))?;
 
-                Ok((
-                    QuickJsEntrypoints {
-                        init,
-                        update,
-                        event,
-                        param_changed,
-                        destroy,
-                        exports,
-                    },
-                    manifest_json,
-                ))
+                Ok((QuickJsEntrypoints { init, update, event, param_changed, destroy, exports }, manifest_json))
             })();
             result.map_err(|error| Self::quickjs_error_with_context(&ctx, "script load", error))
         })?;
 
-        let manifest_payload = serde_json::from_str::<JsonValue>(&manifest_json)
-            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))?;
+        if let Some(host_ref) = host.as_deref_mut() {
+            self.flush_host_ops(host_ref)?;
+        }
+
+        let manifest_payload = serde_json::from_str::<JsonValue>(&manifest_json).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))?;
         let manifest = parse_manifest_from_json(&manifest_payload, entrypoints.exports.clone())?;
 
         self.entrypoints = entrypoints;
@@ -1316,10 +2215,10 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         Ok(manifest)
     }
 
-    fn reload(&mut self, source: &str, source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+    fn reload(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
         let budgets = self.budgets;
         *self = Self::new(budgets)?;
-        self.load(source, source_name)
+        self.load(source, source_name, host)
     }
 
     fn manifest(&self) -> Option<&ScriptManifest> {
@@ -1336,12 +2235,12 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         }
 
         self.reset_host_callback_state()?;
+        self.sync_tree_bridge_state(host)?;
         let result = self.callback_timed("export", || {
             self.context.with(|ctx| -> Result<ScriptValue, ScriptRuntimeError> {
                 let result = (|| -> Result<ScriptValue, ScriptRuntimeError> {
                     let globals = ctx.globals();
-                    let callback = Self::lookup_export_callback(&globals, export_name)?
-                        .ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
+                    let callback = Self::lookup_export_callback(&globals, export_name)?.ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
 
                     let mut call_args = QuickJsArgs::new(ctx.clone(), args.len());
                     for argument in args {
@@ -1364,6 +2263,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         };
 
         self.reset_host_callback_state()?;
+        self.sync_tree_bridge_state(host)?;
         let result = self.callback_timed("on_init", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
@@ -1387,6 +2287,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         };
 
         self.reset_host_callback_state()?;
+        self.sync_tree_bridge_state(host)?;
         let delta_seconds = host.delta_seconds();
         let result = self.callback_timed("on_update", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
@@ -1407,18 +2308,14 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
 
     fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
         let event_callback_name = self.entrypoints.event.clone();
-        let param_changed_callback_name = if event.kind == "paramChanged" {
-            self.entrypoints.param_changed.clone()
-        } else {
-            None
-        };
+        let param_changed_callback_name = if event.kind == "paramChanged" { self.entrypoints.param_changed.clone() } else { None };
         if event_callback_name.is_none() && param_changed_callback_name.is_none() {
             return Ok(());
         }
 
         self.reset_host_callback_state()?;
-        let event_payload = serde_json::to_string(event)
-            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode event payload: {err}")))?;
+        self.sync_tree_bridge_state(host)?;
+        let event_payload = serde_json::to_string(event).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode event payload: {err}")))?;
         let result = self.callback_timed("on_event", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
@@ -1426,8 +2323,29 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
 
                     if let Some(callback_name) = param_changed_callback_name.as_deref() {
                         if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
+                            let param_value = if let Some(param_node) = event.origin {
+                                if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
+                                    let factory = if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
+                                        Some(factory)
+                                    } else {
+                                        gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
+                                    };
+                                    if let Some(factory) = factory {
+                                        factory.call::<_, QuickJsValue>((param_node.0 as f64,))?
+                                    } else {
+                                        ctx.json_parse("null")?
+                                    }
+                                } else {
+                                    ctx.json_parse("null")?
+                                }
+                            } else {
+                                ctx.json_parse("null")?
+                            };
+                            let old_value_payload = event.old_value.as_ref().map(Self::param_value_to_tree_json).unwrap_or(JsonValue::Null);
+                            let old_value_json = serde_json::to_string(&old_value_payload).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode oldValue payload: {err}")))?;
+                            let old_value_value = ctx.json_parse(old_value_json.as_str())?;
                             let event_value = ctx.json_parse(event_payload.as_str())?;
-                            callback.call::<_, ()>((event_value,))?;
+                            callback.call::<_, ()>((param_value, old_value_value, event_value))?;
                         }
                     }
 
@@ -1453,6 +2371,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         };
 
         self.reset_host_callback_state()?;
+        self.sync_tree_bridge_state(host)?;
         let result = self.callback_timed("on_destroy", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
@@ -1480,18 +2399,12 @@ fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> R
         return Err(ScriptRuntimeError::InvalidManifest("manifest JSON root must be an object".to_string()));
     };
 
-    let api_version = json_object_get(root, &["apiVersion"])
-        .and_then(JsonValue::as_u64)
-        .unwrap_or(1) as u32;
+    let api_version = json_object_get(root, &["apiVersion"]).and_then(JsonValue::as_u64).unwrap_or(1) as u32;
     if api_version == 0 {
-        return Err(ScriptRuntimeError::InvalidManifest(
-            "apiVersion must be >= 1".to_string(),
-        ));
+        return Err(ScriptRuntimeError::InvalidManifest("apiVersion must be >= 1".to_string()));
     }
 
-    let update_rate_hz = json_object_get(root, &["updateRateHz"])
-        .and_then(JsonValue::as_u64)
-        .map(|value| value as u32);
+    let update_rate_hz = json_object_get(root, &["updateRateHz"]).and_then(JsonValue::as_u64).map(|value| value as u32);
     let parameters = parse_parameter_specs_json(json_object_get(root, &["parameters"]))?;
     let subscriptions = parse_subscription_specs_json(json_object_get(root, &["subscriptions"]))?;
     let exports = export_names.into_iter().map(|name| ScriptExportSpec { name, signature: ScriptFnSignature::default() }).collect();
@@ -1529,13 +2442,8 @@ fn parse_subscription_specs_json(value: Option<&JsonValue>) -> Result<Vec<Script
             return Err(ScriptRuntimeError::InvalidManifest("subscription entry must be an object".to_string()));
         };
 
-        let selector_raw = entry
-            .get("node")
-            .and_then(JsonValue::as_str)
-            .ok_or_else(|| ScriptRuntimeError::InvalidManifest("subscription entry must define string field 'node'".to_string()))?;
-        let max_depth = json_object_get(entry, &["maxDepth"])
-            .and_then(JsonValue::as_u64)
-            .unwrap_or(0) as u32;
+        let selector_raw = entry.get("node").and_then(JsonValue::as_str).ok_or_else(|| ScriptRuntimeError::InvalidManifest("subscription entry must define string field 'node'".to_string()))?;
+        let max_depth = json_object_get(entry, &["maxDepth"]).and_then(JsonValue::as_u64).unwrap_or(0) as u32;
         let selector = if selector_raw == "@host" {
             ScriptNodeSelector::HostPath(String::new())
         } else if selector_raw == "@root" {
@@ -1570,8 +2478,7 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
         };
 
         let value_type_label = entry.get("type").and_then(JsonValue::as_str).unwrap_or("float");
-        let value_type = ScriptValueType::from_manifest_label(value_type_label)
-            .ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported type '{value_type_label}'")))?;
+        let value_type = ScriptValueType::from_manifest_label(value_type_label).ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported type '{value_type_label}'")))?;
 
         let default_value = match entry.get("default") {
             Some(raw) => parameter_default_from_json_value(value_type, raw)?,
@@ -1599,9 +2506,7 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
             let mut mapped = Vec::new();
             for option in options {
                 let Some(variant_id) = option.as_str() else {
-                    return Err(ScriptRuntimeError::InvalidManifest(format!(
-                        "parameter '{name}' enum_options entries must be strings"
-                    )));
+                    return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' enum_options entries must be strings")));
                 };
                 mapped.push(ParameterEnumOption {
                     variant_id: variant_id.to_string(),
@@ -1622,9 +2527,7 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
 
         let decl_id = json_object_get(entry, &["declId"]).and_then(JsonValue::as_str).unwrap_or(name);
         let label = entry.get("label").and_then(JsonValue::as_str).map(ToString::to_string);
-        let read_only = json_object_get(entry, &["readOnly"])
-            .and_then(JsonValue::as_bool)
-            .unwrap_or(false);
+        let read_only = json_object_get(entry, &["readOnly"]).and_then(JsonValue::as_bool).unwrap_or(false);
 
         specs.push(ScriptParameterSpec {
             name: name.to_string(),
@@ -1642,29 +2545,20 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
     Ok(specs)
 }
 
-fn parse_file_constraints_json(
-    entry: &serde_json::Map<String, JsonValue>,
-    param_name: &str,
-) -> Result<FileConstraints, ScriptRuntimeError> {
+fn parse_file_constraints_json(entry: &serde_json::Map<String, JsonValue>, param_name: &str) -> Result<FileConstraints, ScriptRuntimeError> {
     let mut constraints = FileConstraints::default();
 
     if let Some(allowed_types) = json_object_get(entry, &["allowedTypes"]) {
         let Some(values) = allowed_types.as_array() else {
-            return Err(ScriptRuntimeError::InvalidManifest(format!(
-                "parameter '{param_name}' allowed_types must be an array"
-            )));
+            return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_types must be an array")));
         };
         let mut parsed = Vec::new();
         for value in values {
             let Some(value) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' allowed_types entries must be strings"
-                )));
+                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_types entries must be strings")));
             };
             let Some(group) = FileTypeGroup::from_label(value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' has unknown file group '{value}' in allowed_types"
-                )));
+                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' has unknown file group '{value}' in allowed_types")));
             };
             parsed.push(group);
         }
@@ -1673,21 +2567,15 @@ fn parse_file_constraints_json(
 
     if let Some(allowed_extensions) = json_object_get(entry, &["allowedExtensions"]) {
         let Some(values) = allowed_extensions.as_array() else {
-            return Err(ScriptRuntimeError::InvalidManifest(format!(
-                "parameter '{param_name}' allowed_extensions must be an array"
-            )));
+            return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_extensions must be an array")));
         };
         let mut parsed = Vec::new();
         for value in values {
             let Some(value) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' allowed_extensions entries must be strings"
-                )));
+                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_extensions entries must be strings")));
             };
             let Some(extension) = FileConstraints::normalize_extension_label(value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!(
-                    "parameter '{param_name}' has invalid extension '{value}' in allowed_extensions"
-                )));
+                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' has invalid extension '{value}' in allowed_extensions")));
             };
             parsed.push(extension);
         }
@@ -1697,20 +2585,9 @@ fn parse_file_constraints_json(
     Ok(constraints)
 }
 
-fn parse_range_constraint_json(
-    value_type: ScriptValueType,
-    min: Option<&JsonValue>,
-    max: Option<&JsonValue>,
-) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
+fn parse_range_constraint_json(value_type: ScriptValueType, min: Option<&JsonValue>, max: Option<&JsonValue>) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
     match value_type {
-        ScriptValueType::Int
-        | ScriptValueType::Float
-        | ScriptValueType::Enum
-        | ScriptValueType::Bool
-        | ScriptValueType::Str
-        | ScriptValueType::File
-        | ScriptValueType::Trigger
-        | ScriptValueType::Reference => {
+        ScriptValueType::Int | ScriptValueType::Float | ScriptValueType::Enum | ScriptValueType::Bool | ScriptValueType::Str | ScriptValueType::File | ScriptValueType::Trigger | ScriptValueType::Reference => {
             let min = min.and_then(json_as_f64);
             let max = max.and_then(json_as_f64);
             Ok(RangeConstraint::uniform(min, max))
@@ -1769,7 +2646,10 @@ fn parameter_default_from_json_value(value_type: ScriptValueType, value: &JsonVa
             if raw.len() != 2 {
                 return Err(ScriptRuntimeError::InvalidManifest("vec2 default must have exactly 2 components".to_string()));
             }
-            ParamValue::Vec2(json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[0] must be numeric".to_string()))?, json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[1] must be numeric".to_string()))?)
+            ParamValue::Vec2(
+                json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[0] must be numeric".to_string()))?,
+                json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[1] must be numeric".to_string()))?,
+            )
         }
         ScriptValueType::Vec3 => {
             let Some(raw) = value.as_array() else {
@@ -1789,9 +2669,7 @@ fn parameter_default_from_json_value(value_type: ScriptValueType, value: &JsonVa
                 return Err(ScriptRuntimeError::InvalidManifest("expected [r,g,b,a] array default for color parameter".to_string()));
             };
             if raw.len() < 3 || raw.len() > 4 {
-                return Err(ScriptRuntimeError::InvalidManifest(
-                    "color default must have 3 or 4 components".to_string(),
-                ));
+                return Err(ScriptRuntimeError::InvalidManifest("color default must have 3 or 4 components".to_string()));
             }
             let r = json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[0] must be numeric".to_string()))?;
             let g = json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[1] must be numeric".to_string()))?;
@@ -1834,19 +2712,38 @@ fn default_param_value(value_type: ScriptValueType) -> ParamValue {
 }
 
 struct NodeScriptHostBridge<'a> {
-    owner: NodeId,
+    script_node: NodeId,
+    host_node: Option<NodeId>,
+    runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
+    load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
     ctx: &'a mut ProcessCtx,
 }
 
 impl<'a> NodeScriptHostBridge<'a> {
-    fn new(owner: NodeId, ctx: &'a mut ProcessCtx) -> Self {
-        Self { owner, ctx }
+    fn new(
+        script_node: NodeId,
+        host_node: Option<NodeId>,
+        runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
+        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
+        ctx: &'a mut ProcessCtx,
+    ) -> Self {
+        Self {
+            script_node,
+            host_node,
+            runtime_subscriptions,
+            load_declared_children,
+            ctx,
+        }
     }
 }
 
 impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     fn owner_node(&self) -> Option<NodeId> {
-        Some(self.owner)
+        self.host_node
+    }
+
+    fn script_node(&self) -> Option<NodeId> {
+        Some(self.script_node)
     }
 
     fn time_seconds(&self) -> f64 {
@@ -1858,11 +2755,66 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn log(&mut self, level: ScriptLogLevel, message: &str) {
-        let _ = logger::log_message(level.to_logger_level(), "script".to_string(), Some(self.owner), message.to_string());
+        let _ = logger::log_message(level.to_logger_level(), "script".to_string(), Some(self.script_node), message.to_string());
     }
 
     fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String> {
-        self.ctx.emit_custom_event(CustomEvent::new(topic, Some(self.owner), payload));
+        self.ctx.emit_custom_event(CustomEvent::new(topic, Some(self.script_node), payload));
+        Ok(())
+    }
+
+    fn tree_snapshot(&self) -> Option<Arc<ProcessTreeSnapshot>> {
+        self.ctx.tree_snapshot_arc()
+    }
+
+    fn set_node_script_property(&mut self, node: NodeId, property: String, value: ParamValue) -> Result<(), String> {
+        self.ctx.set_node_script_property(node, property, value);
+        Ok(())
+    }
+
+    fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
+        if let Some(load_declared_children) = self.load_declared_children.as_deref_mut() {
+            if let Some(managed_child) = managed_child_from_script_call(node, method.as_str(), args.as_slice()) {
+                load_declared_children.insert(managed_child);
+            }
+        }
+
+        self.ctx.call_node_script_method(node, method, args);
+        Ok(())
+    }
+
+    fn set_event_listener(&mut self, target: NodeId, level: u32) -> Result<(), String> {
+        let previous_levels = self.runtime_subscriptions.iter().filter(|entry| entry.node == target).map(|entry| entry.max_depth).collect::<Vec<_>>();
+
+        if previous_levels.len() == 1 && previous_levels[0] == level {
+            return Ok(());
+        }
+
+        for previous in previous_levels {
+            self.ctx.remove_event_listener_subtree(self.script_node, target, previous);
+        }
+        self.runtime_subscriptions.retain(|entry| entry.node != target);
+
+        self.ctx.add_event_listener_subtree(self.script_node, target, level);
+        self.runtime_subscriptions.push(crate::node::EventSubscription::subtree(target, level));
+        Ok(())
+    }
+
+    fn remove_event_listener(&mut self, target: NodeId) -> Result<(), String> {
+        let previous_levels = self.runtime_subscriptions.iter().filter(|entry| entry.node == target).map(|entry| entry.max_depth).collect::<Vec<_>>();
+
+        for previous in previous_levels {
+            self.ctx.remove_event_listener_subtree(self.script_node, target, previous);
+        }
+        self.runtime_subscriptions.retain(|entry| entry.node != target);
+        Ok(())
+    }
+
+    fn clear_event_listeners(&mut self) -> Result<(), String> {
+        let script_node = self.script_node;
+        for subscription in self.runtime_subscriptions.drain(..) {
+            self.ctx.remove_event_listener_subtree(script_node, subscription.node, subscription.max_depth);
+        }
         Ok(())
     }
 }
@@ -1886,6 +2838,41 @@ struct ActiveRuntime {
     runtime: Box<dyn ScriptRuntime>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct ManagedLoadChild {
+    parent: NodeId,
+    key: String,
+}
+
+fn managed_child_key_matches(snapshot: &ProcessTreeNodeSnapshot, key: &str) -> bool {
+    let key = key.trim();
+    if key.is_empty() {
+        return false;
+    }
+
+    snapshot.decl_id.eq_ignore_ascii_case(key) || snapshot.short_name.eq_ignore_ascii_case(key) || snapshot.label.eq_ignore_ascii_case(key)
+}
+
+fn managed_child_from_script_call(parent: NodeId, method: &str, args: &[ParamValue]) -> Option<ManagedLoadChild> {
+    let key = match method {
+        "addParameter" => args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "parameter".to_string()),
+        "addFolder" => args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "Folder".to_string()),
+        "addNode" => {
+            let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
+            let normalized_node_type = node_type.trim().to_ascii_lowercase();
+            let default_label = match normalized_node_type.as_str() {
+                "parameter" | "param" => "parameter".to_string(),
+                "folder" | "" => "Folder".to_string(),
+                _ => node_type.clone(),
+            };
+            args.get(1).and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or(default_label)
+        }
+        _ => return None,
+    };
+
+    Some(ManagedLoadChild { parent, key })
+}
+
 fn create_runtime(budgets: ScriptBudgets) -> Result<Box<dyn ScriptRuntime>, ScriptRuntimeError> {
     Ok(Box::new(QuickJsRuntime::new(budgets)?))
 }
@@ -1902,6 +2889,7 @@ pub struct ScriptNode {
     source_stamp: Option<ScriptSourceStamp>,
     effective_update_rate_hz: Option<u32>,
     runtime_subscriptions: Vec<crate::node::EventSubscription>,
+    managed_load_children: HashSet<ManagedLoadChild>,
     reload_requested: bool,
 }
 
@@ -1918,6 +2906,7 @@ impl ScriptNode {
             source_stamp: None,
             effective_update_rate_hz: None,
             runtime_subscriptions: Vec::new(),
+            managed_load_children: HashSet::new(),
             reload_requested: false,
         }
     }
@@ -1977,70 +2966,49 @@ impl ScriptNode {
         }
     }
 
-    fn resolve_subscription_target(&self, selector: &ScriptNodeSelector) -> Result<NodeId, String> {
-        match selector {
-            ScriptNodeSelector::NodeId(node) => Ok(*node),
-            ScriptNodeSelector::HostPath(path)
-            | ScriptNodeSelector::RootPath(path)
-            | ScriptNodeSelector::Path(path) => {
-                if path.trim().is_empty() || path.trim() == "." {
-                    self.node_data.parent.ok_or_else(|| "script node is detached and has no host parent".to_string())
-                } else {
-                    Err(format!(
-                        "selector path '{}' is not resolved yet for runtime subscriptions; use '@host' for now",
-                        path
-                    ))
+    fn reconcile_load_declared_children(&mut self, ctx: &mut ProcessCtx, declared: &HashSet<ManagedLoadChild>) {
+        let stale_entries = self.managed_load_children.difference(declared).cloned().collect::<Vec<_>>();
+        if stale_entries.is_empty() {
+            self.managed_load_children = declared.clone();
+            return;
+        }
+
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            let mut stale_child_nodes = HashSet::new();
+            for stale in &stale_entries {
+                let mut child = snapshot.node(stale.parent).and_then(|node| node.first_child);
+                while let Some(child_id) = child {
+                    let Some(child_snapshot) = snapshot.node(child_id) else {
+                        break;
+                    };
+
+                    if managed_child_key_matches(child_snapshot, stale.key.as_str()) {
+                        stale_child_nodes.insert(child_id);
+                    }
+
+                    child = child_snapshot.next_sibling;
                 }
             }
-        }
-    }
 
-    fn desired_runtime_subscriptions(&self, manifest: &ScriptManifest) -> Vec<crate::node::EventSubscription> {
-        let mut subscriptions = HashSet::new();
-        for spec in &manifest.subscriptions {
-            match self.resolve_subscription_target(&spec.node) {
-                Ok(target) => {
-                    subscriptions.insert(crate::node::EventSubscription::subtree(target, spec.max_depth));
-                }
-                Err(reason) => {
-                    let _ = logger::log_message(
-                        logger::LogLevel::Warning,
-                        "script".to_string(),
-                        Some(self.id()),
-                        format!("ignored script subscription: {reason}"),
-                    );
-                }
+            for child_id in stale_child_nodes {
+                ctx.edits.push(Edit::RemoveNode { node: child_id });
             }
         }
-        subscriptions.into_iter().collect()
-    }
 
-    fn sync_runtime_subscriptions(&mut self, ctx: &mut ProcessCtx, manifest: &ScriptManifest) {
-        let owner = self.id();
-        let desired = self.desired_runtime_subscriptions(manifest);
-        let desired_set = desired.iter().copied().collect::<HashSet<_>>();
-        let current_set = self.runtime_subscriptions.iter().copied().collect::<HashSet<_>>();
-
-        for removed in current_set.difference(&desired_set) {
-            ctx.remove_event_listener_subtree(owner, removed.node, removed.max_depth);
-        }
-        for added in desired_set.difference(&current_set) {
-            ctx.add_event_listener_subtree(owner, added.node, added.max_depth);
-        }
-
-        self.runtime_subscriptions = desired;
+        self.managed_load_children = declared.clone();
     }
 
     fn teardown_runtime(&mut self, ctx: &mut ProcessCtx) {
-        self.clear_runtime_subscriptions(ctx);
-
-        let owner = self.id();
+        let script_node = self.id();
+        let host_node = self.node_data.parent;
         if let Some(mut active) = self.runtime.take() {
-            let mut host = NodeScriptHostBridge::new(owner, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = active.runtime.call_on_destroy(&mut host) {
                 self.handle_runtime_error(ctx, &error);
             }
         }
+
+        self.clear_runtime_subscriptions(ctx);
     }
 
     fn source_file_modified(&self) -> Option<SystemTime> {
@@ -2095,11 +3063,18 @@ impl ScriptNode {
 
         let mut runtime = create_runtime(self.budgets)?;
         let source_name = self.config.source.runtime_source_name();
-        let manifest = runtime.load(&script_source, &source_name)?;
-        self.sync_runtime_subscriptions(ctx, &manifest);
-
-        let mut host = NodeScriptHostBridge::new(self.id(), ctx);
-        runtime.call_on_init(&mut host)?;
+        let script_node = self.id();
+        let host_node = self.node_data.parent;
+        let mut declared_load_children = HashSet::new();
+        let manifest = {
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            runtime.load(&script_source, &source_name, Some(&mut host))?
+        };
+        {
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            runtime.call_on_init(&mut host)?;
+        }
+        self.reconcile_load_declared_children(ctx, &declared_load_children);
 
         self.effective_update_rate_hz = manifest.update_rate_hz;
         self.manifest = Some(manifest);
@@ -2176,10 +3151,11 @@ impl Node for ScriptNode {
             }
         }
 
-        let owner = self.id();
+        let script_node = self.id();
+        let host_node = self.node_data.parent;
         let mut runtime_error = None;
         if let Some(runtime) = self.runtime.as_mut() {
-            let mut host = NodeScriptHostBridge::new(owner, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = runtime.runtime.call_on_update(&mut host) {
                 runtime_error = Some(error);
             }
@@ -2194,7 +3170,8 @@ impl Node for ScriptNode {
             return;
         }
         let events = ctx.events.clone();
-        let owner = self.id();
+        let script_node = self.id();
+        let host_node = self.node_data.parent;
         let mut runtime_error = None;
 
         let Some(runtime) = self.runtime.as_mut() else {
@@ -2203,7 +3180,7 @@ impl Node for ScriptNode {
 
         for event in &events {
             let script_event = ScriptEvent::from(event);
-            let mut host = NodeScriptHostBridge::new(owner, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = runtime.runtime.call_on_event(&script_event, &mut host) {
                 runtime_error = Some(error);
                 break;
@@ -2250,28 +3227,68 @@ impl Node for ScriptNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+    use std::collections::HashMap;
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
     use crate::edit::Edit;
     use crate::engine::EngineTime;
-    use crate::process_ctx::ExecutionPhase;
+    use crate::process_ctx::{ExecutionPhase, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 
     struct TestHostBridge {
+        owner: Option<NodeId>,
+        script_node: Option<NodeId>,
         logs: Vec<(ScriptLogLevel, String)>,
         emitted: Vec<(String, JsonValue)>,
+        tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+        set_property_calls: Vec<(NodeId, String, ParamValue)>,
+        call_method_calls: Vec<(NodeId, String, Vec<ParamValue>)>,
+        set_listener_calls: Vec<(NodeId, u32)>,
+        remove_listener_calls: Vec<NodeId>,
+        clear_listener_calls: usize,
     }
 
     impl TestHostBridge {
         fn new() -> Self {
             Self {
+                owner: None,
+                script_node: None,
                 logs: Vec::new(),
                 emitted: Vec::new(),
+                tree_snapshot: None,
+                set_property_calls: Vec::new(),
+                call_method_calls: Vec::new(),
+                set_listener_calls: Vec::new(),
+                remove_listener_calls: Vec::new(),
+                clear_listener_calls: 0,
             }
+        }
+
+        fn with_tree_snapshot(mut self, snapshot: Arc<ProcessTreeSnapshot>) -> Self {
+            self.tree_snapshot = Some(snapshot);
+            self
+        }
+
+        fn with_owner(mut self, owner: NodeId) -> Self {
+            self.owner = Some(owner);
+            self
+        }
+
+        fn with_script_node(mut self, script_node: NodeId) -> Self {
+            self.script_node = Some(script_node);
+            self
         }
     }
 
     impl ScriptHostBridge for TestHostBridge {
+        fn owner_node(&self) -> Option<NodeId> {
+            self.owner
+        }
+
+        fn script_node(&self) -> Option<NodeId> {
+            self.script_node.or(self.owner)
+        }
+
         fn time_seconds(&self) -> f64 {
             12.0
         }
@@ -2288,6 +3305,35 @@ mod tests {
             self.emitted.push((topic.to_string(), payload));
             Ok(())
         }
+
+        fn tree_snapshot(&self) -> Option<Arc<ProcessTreeSnapshot>> {
+            self.tree_snapshot.clone()
+        }
+
+        fn set_node_script_property(&mut self, node: NodeId, property: String, value: ParamValue) -> Result<(), String> {
+            self.set_property_calls.push((node, property, value));
+            Ok(())
+        }
+
+        fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
+            self.call_method_calls.push((node, method, args));
+            Ok(())
+        }
+
+        fn set_event_listener(&mut self, target: NodeId, level: u32) -> Result<(), String> {
+            self.set_listener_calls.push((target, level));
+            Ok(())
+        }
+
+        fn remove_event_listener(&mut self, target: NodeId) -> Result<(), String> {
+            self.remove_listener_calls.push(target);
+            Ok(())
+        }
+
+        fn clear_event_listeners(&mut self) -> Result<(), String> {
+            self.clear_listener_calls = self.clear_listener_calls.saturating_add(1);
+            Ok(())
+        }
     }
 
     struct MockRuntime {
@@ -2297,19 +3343,16 @@ mod tests {
 
     impl MockRuntime {
         fn new(has_on_update: bool, destroy_counter: Arc<AtomicUsize>) -> Self {
-            Self {
-                has_on_update,
-                destroy_counter,
-            }
+            Self { has_on_update, destroy_counter }
         }
     }
 
     impl ScriptRuntime for MockRuntime {
-        fn load(&mut self, _source: &str, _source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+        fn load(&mut self, _source: &str, _source_name: &str, _host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
             Ok(ScriptManifest::default())
         }
 
-        fn reload(&mut self, _source: &str, _source_name: &str) -> Result<ScriptManifest, ScriptRuntimeError> {
+        fn reload(&mut self, _source: &str, _source_name: &str, _host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
             Ok(ScriptManifest::default())
         }
 
@@ -2347,6 +3390,230 @@ mod tests {
         }
     }
 
+    fn tree_snapshot_for_script_tests() -> Arc<ProcessTreeSnapshot> {
+        let root = NodeId(100);
+        let host = NodeId(101);
+        let gain = NodeId(102);
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            root,
+            ProcessTreeNodeSnapshot {
+                id: root,
+                parent: None,
+                first_child: Some(host),
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "root".to_string(),
+                short_name: "root".to_string(),
+                label: "Root".to_string(),
+                enabled: true,
+                child_count: 1,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: vec![
+                    "setName".to_string(),
+                    "setEnabled".to_string(),
+                    "setDescription".to_string(),
+                    "setReadOnly".to_string(),
+                    "addNode".to_string(),
+                    "removeNode".to_string(),
+                    "addParameter".to_string(),
+                    "removeParameter".to_string(),
+                    "addFolder".to_string(),
+                    "setParam".to_string(),
+                    "listen".to_string(),
+                    "unlisten".to_string(),
+                    "getProperties".to_string(),
+                    "getChildren".to_string(),
+                    "getChild".to_string(),
+                    "toString".to_string(),
+                ],
+            },
+        );
+        nodes.insert(
+            host,
+            ProcessTreeNodeSnapshot {
+                id: host,
+                parent: Some(root),
+                first_child: Some(gain),
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "host".to_string(),
+                short_name: "host".to_string(),
+                label: "Host".to_string(),
+                enabled: true,
+                child_count: 1,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: vec![
+                    "setName".to_string(),
+                    "setEnabled".to_string(),
+                    "setDescription".to_string(),
+                    "setReadOnly".to_string(),
+                    "addNode".to_string(),
+                    "removeNode".to_string(),
+                    "addParameter".to_string(),
+                    "removeParameter".to_string(),
+                    "addFolder".to_string(),
+                    "setParam".to_string(),
+                    "listen".to_string(),
+                    "unlisten".to_string(),
+                    "getProperties".to_string(),
+                    "getChildren".to_string(),
+                    "getChild".to_string(),
+                    "toString".to_string(),
+                ],
+            },
+        );
+        nodes.insert(
+            gain,
+            ProcessTreeNodeSnapshot {
+                id: gain,
+                parent: Some(host),
+                first_child: None,
+                next_sibling: None,
+                node_type: "float".to_string(),
+                decl_id: "gain".to_string(),
+                short_name: "gain".to_string(),
+                label: "Gain".to_string(),
+                enabled: true,
+                child_count: 0,
+                param_value: Some(ParamValue::Float(0.5)),
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: vec![
+                    "setName".to_string(),
+                    "setEnabled".to_string(),
+                    "setDescription".to_string(),
+                    "setReadOnly".to_string(),
+                    "addNode".to_string(),
+                    "removeNode".to_string(),
+                    "addParameter".to_string(),
+                    "removeParameter".to_string(),
+                    "addFolder".to_string(),
+                    "setParam".to_string(),
+                    "listen".to_string(),
+                    "unlisten".to_string(),
+                    "getProperties".to_string(),
+                    "getChildren".to_string(),
+                    "getChild".to_string(),
+                    "toString".to_string(),
+                ],
+            },
+        );
+
+        Arc::new(ProcessTreeSnapshot::new(root, nodes))
+    }
+
+    fn tree_snapshot_with_depth_for_script_tests() -> Arc<ProcessTreeSnapshot> {
+        let root = NodeId(100);
+        let host = NodeId(101);
+        let gain = NodeId(102);
+        let depth = NodeId(103);
+
+        let standard_methods = vec![
+            "setName".to_string(),
+            "setEnabled".to_string(),
+            "setDescription".to_string(),
+            "setReadOnly".to_string(),
+            "addNode".to_string(),
+            "removeNode".to_string(),
+            "addParameter".to_string(),
+            "removeParameter".to_string(),
+            "addFolder".to_string(),
+            "setParam".to_string(),
+            "listen".to_string(),
+            "unlisten".to_string(),
+            "getProperties".to_string(),
+            "getChildren".to_string(),
+            "getChild".to_string(),
+            "toString".to_string(),
+        ];
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            root,
+            ProcessTreeNodeSnapshot {
+                id: root,
+                parent: None,
+                first_child: Some(host),
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "root".to_string(),
+                short_name: "root".to_string(),
+                label: "Root".to_string(),
+                enabled: true,
+                child_count: 1,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: standard_methods.clone(),
+            },
+        );
+        nodes.insert(
+            host,
+            ProcessTreeNodeSnapshot {
+                id: host,
+                parent: Some(root),
+                first_child: Some(gain),
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "host".to_string(),
+                short_name: "host".to_string(),
+                label: "Host".to_string(),
+                enabled: true,
+                child_count: 2,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: standard_methods.clone(),
+            },
+        );
+        nodes.insert(
+            gain,
+            ProcessTreeNodeSnapshot {
+                id: gain,
+                parent: Some(host),
+                first_child: None,
+                next_sibling: Some(depth),
+                node_type: "float".to_string(),
+                decl_id: "gain".to_string(),
+                short_name: "gain".to_string(),
+                label: "Gain".to_string(),
+                enabled: true,
+                child_count: 0,
+                param_value: Some(ParamValue::Float(0.5)),
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: standard_methods.clone(),
+            },
+        );
+        nodes.insert(
+            depth,
+            ProcessTreeNodeSnapshot {
+                id: depth,
+                parent: Some(host),
+                first_child: None,
+                next_sibling: None,
+                node_type: "float".to_string(),
+                decl_id: "depth".to_string(),
+                short_name: "depth".to_string(),
+                label: "Depth".to_string(),
+                enabled: true,
+                child_count: 0,
+                param_value: Some(ParamValue::Float(0.25)),
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: standard_methods,
+            },
+        );
+
+        Arc::new(ProcessTreeSnapshot::new(root, nodes))
+    }
+
     #[test]
     fn quickjs_runtime_loads_manifest_and_exports() {
         let source = r#"
@@ -2360,15 +3627,13 @@ export function ping(value) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load(source, "quickjs_runtime_loads_manifest_and_exports.js").expect("manifest should parse");
+        let manifest = runtime.load(source, "quickjs_runtime_loads_manifest_and_exports.js", None).expect("manifest should parse");
         assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.update_rate_hz, Some(30));
         assert_eq!(runtime.export_names(), vec!["ping".to_string()]);
 
         let mut host = TestHostBridge::new();
-        let output = runtime
-            .call_export("ping", &[ScriptValue::Int(7)], &mut host)
-            .expect("export should run");
+        let output = runtime.call_export("ping", &[ScriptValue::Int(7)], &mut host).expect("export should run");
         assert_eq!(output, ScriptValue::Int(7));
         assert_eq!(host.logs.len(), 1);
         assert_eq!(host.logs[0].0, ScriptLogLevel::Info);
@@ -2379,7 +3644,7 @@ export function ping(value) {
     #[test]
     fn quickjs_runtime_accepts_empty_script() {
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load("", "empty_script.js").expect("empty script should parse");
+        let manifest = runtime.load("", "empty_script.js", None).expect("empty script should parse");
         assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.update_rate_hz, None);
         assert!(manifest.parameters.is_empty());
@@ -2393,43 +3658,419 @@ export function ping(value) {
 script.setApiVersion(2);
 script.setUpdateRateHz(24);
 script.addParameter("gain", { type: "float", default: 0.5, readOnly: true });
-script.listen("@host", 2);
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load(source, "manifest_methods_test.js").expect("manifest should parse");
+        let manifest = runtime.load(source, "manifest_methods_test.js", None).expect("manifest should parse");
         assert_eq!(manifest.api_version, 2);
         assert_eq!(manifest.update_rate_hz, Some(24));
         assert_eq!(manifest.parameters.len(), 1);
         assert_eq!(manifest.parameters[0].name, "gain");
         assert!(manifest.parameters[0].read_only);
-        assert_eq!(manifest.subscriptions.len(), 1);
-        assert_eq!(manifest.subscriptions[0], ScriptSubscriptionSpec { node: ScriptNodeSelector::HostPath(String::new()), max_depth: 2 });
+        assert!(manifest.subscriptions.is_empty());
     }
 
     #[test]
     fn quickjs_runtime_invokes_param_changed_hook() {
         let source = r#"
-function paramChanged(event) {
-  log(String(event.kind));
+let trackedParam;
+function init() {
+  trackedParam = script.addParameter("gain", { type: "float", default: 0.5 });
+}
+function paramChanged(param, oldValue) {
+  log("changed", param.is(trackedParam), oldValue);
 }
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime
-            .load(source, "param_changed_callback_test.js")
-            .expect("script should parse");
+        runtime.load(source, "param_changed_callback_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
 
         let event = ScriptEvent {
             kind: "paramChanged".to_string(),
-            origin: None,
+            origin: Some(NodeId(102)),
+            old_value: Some(ParamValue::Float(0.25)),
             payload: JsonValue::Null,
         };
-        let mut host = TestHostBridge::new();
-        runtime
-            .call_on_event(&event, &mut host)
-            .expect("paramChanged callback should execute");
-        assert_eq!(host.logs.len(), 1);
+        runtime.call_on_event(&event, &mut host).expect("paramChanged callback should execute");
+        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "changed true 0.25"));
+        assert_eq!(
+            host.call_method_calls,
+            vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)])]
+        );
+    }
+
+    #[test]
+    fn quickjs_runtime_tree_proxy_queues_tree_mutations() {
+        let source = r#"
+function update() {
+  const host = tree.host();
+  if (!host) {
+    return;
+  }
+
+  host.name = "Renamed Host";
+  host.enabled = false;
+  host.addFolder("Utilities");
+  host.addParameter("depth", 0.25);
+  host.gain = host.gain + 0.25;
+  host.removeParameter("gain");
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "tree_proxy_mutations_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_update(&mut host).expect("update callback should execute");
+
+        assert_eq!(
+            host.set_property_calls,
+            vec![
+                (NodeId(101), "name".to_string(), ParamValue::Str("Renamed Host".to_string())),
+                (NodeId(101), "enabled".to_string(), ParamValue::Bool(false)),
+                (NodeId(102), "value".to_string(), ParamValue::Float(0.75)),
+            ],
+        );
+        assert_eq!(
+            host.call_method_calls,
+            vec![
+                (NodeId(101), "addFolder".to_string(), vec![ParamValue::Str("Utilities".to_string())]),
+                (NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]),
+                (NodeId(101), "removeParameter".to_string(), vec![ParamValue::Str("gain".to_string())]),
+            ],
+        );
+    }
+
+    #[test]
+    fn quickjs_runtime_listen_helpers_emit_listener_ops() {
+        let source = r#"
+function init() {
+  listen(local);
+  local.listen({ level: 2 });
+  listen(root, { level: 3 });
+  unlisten(root);
+  clearListeners();
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "runtime_listen_helpers_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
+
+        assert_eq!(host.set_listener_calls, vec![(NodeId(101), 1), (NodeId(101), 2), (NodeId(100), 3)],);
+        assert_eq!(host.remove_listener_calls, vec![NodeId(100)]);
+        assert_eq!(host.clear_listener_calls, 1);
+    }
+
+    #[test]
+    fn quickjs_runtime_tree_proxy_add_parameter_accepts_spec_object() {
+        let source = r#"
+function update() {
+  const host = tree.host();
+  if (!host) {
+    return;
+  }
+  host.addParameter("depth", { type: "float", default: 0.25 });
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "tree_proxy_add_parameter_spec_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_update(&mut host).expect("update callback should execute");
+
+        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)],)],);
+    }
+
+    #[test]
+    fn quickjs_runtime_script_add_parameter_mutates_host_tree() {
+        let source = r#"
+function update() {
+  const depth = script.addParameter("depth", { type: "float", default: 0.25 });
+  log("paramHandle", typeof depth === "object", typeof depth.is === "function");
+  script.removeParameter("gain");
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "script_add_parameter_runtime_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_update(&mut host).expect("update callback should execute");
+
+        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "paramHandle true true"));
+        assert_eq!(host.set_property_calls, Vec::<(NodeId, String, ParamValue)>::new());
+        assert_eq!(
+            host.call_method_calls,
+            vec![
+                (NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]),
+                (NodeId(101), "removeParameter".to_string(), vec![ParamValue::Str("gain".to_string())]),
+            ],
+        );
+    }
+
+    #[test]
+    fn quickjs_runtime_script_add_node_returns_node_like_handle() {
+        let source = r#"
+function update() {
+  const created = script.addNode("folder", "Utilities");
+  log("nodeHandle", typeof created === "object", typeof created.is === "function");
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "script_add_node_runtime_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_update(&mut host).expect("update callback should execute");
+
+        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "nodeHandle true true"));
+        assert_eq!(
+            host.call_method_calls,
+            vec![(NodeId(101), "addNode".to_string(), vec![ParamValue::Str("folder".to_string()), ParamValue::Str("Utilities".to_string())])]
+        );
+    }
+
+    #[test]
+    fn quickjs_runtime_param_handle_supports_equality_and_is_with_selector() {
+        let source = r#"
+let trackedParam;
+function init() {
+  trackedParam = script.addParameter("depth", { type: "float", default: 0.25 });
+}
+function paramChanged(param, oldValue) {
+  log("eq", param == trackedParam, param.is(trackedParam), oldValue);
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "param_selector_identity_test.js", None).expect("script should parse");
+
+        let initial_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(initial_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
+
+        host.tree_snapshot = Some(tree_snapshot_with_depth_for_script_tests());
+        let event = ScriptEvent {
+            kind: "paramChanged".to_string(),
+            origin: Some(NodeId(103)),
+            old_value: Some(ParamValue::Float(0.0)),
+            payload: JsonValue::Null,
+        };
+        runtime.call_on_event(&event, &mut host).expect("paramChanged callback should execute");
+
+        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "eq true true 0"));
+    }
+
+    #[test]
+    fn quickjs_runtime_top_level_add_parameter_mutates_host_tree_on_load() {
+        let source = r#"
+script.addParameter("gain", { type: "float", default: 0.5 });
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_script_node(NodeId(201)).with_tree_snapshot(tree_snapshot);
+        runtime.load(source, "script_top_level_add_parameter_runtime_test.js", Some(&mut host)).expect("script should parse");
+
+        assert_eq!(host.set_property_calls, Vec::<(NodeId, String, ParamValue)>::new());
+        assert_eq!(host.call_method_calls, vec![(NodeId(201), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)],)],);
+    }
+
+    #[test]
+    fn script_node_reconcile_load_declared_children_removes_stale_managed_children_generic() {
+        let source = r#"
+script.setApiVersion(1);
+"#;
+
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
+        script.node_data_mut().id = NodeId(101);
+        script.node_data_mut().parent = Some(NodeId(100));
+        script.managed_load_children.insert(ManagedLoadChild {
+            parent: NodeId(101),
+            key: "gain".to_string(),
+        });
+        script.managed_load_children.insert(ManagedLoadChild {
+            parent: NodeId(101),
+            key: "utilities".to_string(),
+        });
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            NodeId(100),
+            ProcessTreeNodeSnapshot {
+                id: NodeId(100),
+                parent: None,
+                first_child: Some(NodeId(101)),
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "root".to_string(),
+                short_name: "root".to_string(),
+                label: "Root".to_string(),
+                enabled: true,
+                child_count: 1,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: Vec::new(),
+            },
+        );
+        nodes.insert(
+            NodeId(101),
+            ProcessTreeNodeSnapshot {
+                id: NodeId(101),
+                parent: Some(NodeId(100)),
+                first_child: Some(NodeId(102)),
+                next_sibling: None,
+                node_type: "script".to_string(),
+                decl_id: "script".to_string(),
+                short_name: "script".to_string(),
+                label: "Script".to_string(),
+                enabled: true,
+                child_count: 2,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: Vec::new(),
+            },
+        );
+        nodes.insert(
+            NodeId(102),
+            ProcessTreeNodeSnapshot {
+                id: NodeId(102),
+                parent: Some(NodeId(101)),
+                first_child: None,
+                next_sibling: Some(NodeId(103)),
+                node_type: "float".to_string(),
+                decl_id: "gain".to_string(),
+                short_name: "gain".to_string(),
+                label: "Gain".to_string(),
+                enabled: true,
+                child_count: 0,
+                param_value: Some(ParamValue::Float(1.0)),
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: Vec::new(),
+            },
+        );
+        nodes.insert(
+            NodeId(103),
+            ProcessTreeNodeSnapshot {
+                id: NodeId(103),
+                parent: Some(NodeId(101)),
+                first_child: None,
+                next_sibling: None,
+                node_type: "folder".to_string(),
+                decl_id: "utilities".to_string(),
+                short_name: "utilities".to_string(),
+                label: "Utilities".to_string(),
+                enabled: true,
+                child_count: 0,
+                param_value: None,
+                param_constraints: None,
+                script_properties: HashMap::new(),
+                script_methods: Vec::new(),
+            },
+        );
+
+        let snapshot = Arc::new(ProcessTreeSnapshot::new(NodeId(100), nodes));
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        ctx.set_tree_snapshot(snapshot);
+
+        script.init(&mut ctx);
+
+        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(102))));
+        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(103))));
+    }
+
+    #[test]
+    fn quickjs_runtime_exposes_root_and_local_globals() {
+        let source = r#"
+function init() {
+  log(String(root !== undefined));
+  log(String(local !== undefined));
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "tree_globals_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
+
+        assert_eq!(host.logs.len(), 2);
+        assert_eq!(host.logs[0], (ScriptLogLevel::Info, "true".to_string()));
+        assert_eq!(host.logs[1], (ScriptLogLevel::Info, "true".to_string()));
+    }
+
+    #[test]
+    fn quickjs_runtime_local_targets_host_parent_and_script_methods_target_script_node() {
+        let source = r#"
+function init() {
+  if (local) {
+    local.setName("Parent Host");
+  }
+  script.addParameter("gain", { type: "float", default: 0.5 });
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "local_parent_and_script_node_target_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_script_node(NodeId(201)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
+
+        assert_eq!(
+            host.call_method_calls,
+            vec![
+                (NodeId(101), "setName".to_string(), vec![ParamValue::Str("Parent Host".to_string())]),
+                (NodeId(201), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)]),
+            ],
+        );
+    }
+
+    #[test]
+    fn quickjs_runtime_node_proxy_human_readable_logging_and_child_queries() {
+        let source = r#"
+function init() {
+  log(local);
+  const children = local.getChildren();
+  log(String(children.length));
+  const gainByIndex = local.getChild(0);
+  const gainByDecl = local.getChild("gain");
+  const gainByName = local.getChild("Gain");
+  log(String(gainByIndex === gainByDecl && gainByDecl === gainByName));
+  log(gainByDecl);
+  log(JSON.stringify(local.getProperties()));
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "tree_proxy_human_readable_test.js", None).expect("script should parse");
+
+        let tree_snapshot = tree_snapshot_for_script_tests();
+        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        runtime.call_on_init(&mut host).expect("init callback should execute");
+
+        assert!(host.logs.iter().any(|(_, message)| message == "[Host (<folder>), 1 child]"));
+        assert!(host.logs.iter().any(|(_, message)| message == "1"));
+        assert!(host.logs.iter().any(|(_, message)| message == "true"));
+        assert!(host.logs.iter().any(|(_, message)| message.starts_with("[Gain <float> 0.5 (")));
+        assert!(host.logs.iter().any(|(_, message)| message.contains("\"childCount\":1")));
     }
 
     #[test]
@@ -2442,9 +4083,7 @@ function update(delta) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let error = runtime
-            .load(source, "parse_error_test.js")
-            .expect_err("invalid script should fail to parse");
+        let error = runtime.load(source, "parse_error_test.js", None).expect_err("invalid script should fail to parse");
         let ScriptRuntimeError::QuickJs(message) = error else {
             panic!("expected quickjs error");
         };
@@ -2464,14 +4103,10 @@ function update(delta) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime
-            .load(source, "callback_error_test.js")
-            .expect("manifest should parse");
+        runtime.load(source, "callback_error_test.js", None).expect("manifest should parse");
 
         let mut host = TestHostBridge::new();
-        let error = runtime
-            .call_on_update(&mut host)
-            .expect_err("on_update should surface thrown exception");
+        let error = runtime.call_on_update(&mut host).expect_err("on_update should surface thrown exception");
         let ScriptRuntimeError::QuickJs(message) = error else {
             panic!("expected quickjs error");
         };
@@ -2510,45 +4145,51 @@ function update(delta) {
     }
 
     #[test]
-    fn host_subscription_resolves_to_parent_listener() {
-        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
-        script.node_data.parent = Some(NodeId(42));
-        let mut manifest = ScriptManifest::default();
-        manifest.subscriptions = vec![ScriptSubscriptionSpec {
-            node: ScriptNodeSelector::HostPath(String::new()),
-            max_depth: 2,
-        }];
+    fn script_node_runtime_listeners_update_and_clear_on_destroy() {
+        let source = r#"
+function init() {
+  listen(local, { level: 2 });
+  listen(root, { level: 1 });
+  local.listen({ level: 4 });
+}
+"#;
 
-        let subscriptions = script.desired_runtime_subscriptions(&manifest);
-        assert_eq!(subscriptions.len(), 1);
-        assert_eq!(subscriptions[0], crate::node::EventSubscription::subtree(NodeId(42), 2));
-    }
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
+        script.node_data.id = NodeId(201);
+        script.node_data.parent = Some(NodeId(101));
 
-    #[test]
-    fn sync_runtime_subscriptions_queues_engine_listener_edits() {
-        let mut script = ScriptNode::new("Script", ScriptNodeConfig::default());
-        script.node_data.id = NodeId(99);
-        script.node_data.parent = Some(NodeId(42));
-        let mut manifest = ScriptManifest::default();
-        manifest.subscriptions = vec![ScriptSubscriptionSpec {
-            node: ScriptNodeSelector::HostPath(String::new()),
-            max_depth: 2,
-        }];
+        let snapshot = tree_snapshot_for_script_tests();
+        let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        init_ctx.set_tree_snapshot(snapshot);
+        script.init(&mut init_ctx);
 
-        let mut ctx = ProcessCtx::new(
-            ExecutionPhase::EngineTick,
-            EngineTime {
-                tick: 0,
-                micro: 0,
-                seq: 0,
-            },
-        );
-        script.sync_runtime_subscriptions(&mut ctx, &manifest);
-
-        assert!(ctx.edits.pending.iter().any(|request| matches!(
+        assert!(script.runtime_subscriptions.contains(&crate::node::EventSubscription::subtree(NodeId(101), 4)));
+        assert!(script.runtime_subscriptions.contains(&crate::node::EventSubscription::subtree(NodeId(100), 1)));
+        assert_eq!(script.runtime_subscriptions.len(), 2);
+        assert!(init_ctx.edits.pending.iter().any(|request| matches!(
             &request.edit,
             crate::edit::Edit::AddEventListener { subscriber, subscription }
-                if *subscriber == NodeId(99) && *subscription == crate::node::EventSubscription::subtree(NodeId(42), 2)
+                if *subscriber == NodeId(201) && *subscription == crate::node::EventSubscription::subtree(NodeId(101), 2)
+        )));
+        assert!(init_ctx.edits.pending.iter().any(|request| matches!(
+            &request.edit,
+            crate::edit::Edit::RemoveEventListener { subscriber, subscription }
+                if *subscriber == NodeId(201) && *subscription == crate::node::EventSubscription::subtree(NodeId(101), 2)
+        )));
+
+        let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 1, micro: 0, seq: 1 });
+        script.destroy(&mut destroy_ctx);
+
+        assert!(script.runtime_subscriptions.is_empty());
+        assert!(destroy_ctx.edits.pending.iter().any(|request| matches!(
+            &request.edit,
+            crate::edit::Edit::RemoveEventListener { subscriber, subscription }
+                if *subscriber == NodeId(201) && *subscription == crate::node::EventSubscription::subtree(NodeId(101), 4)
+        )));
+        assert!(destroy_ctx.edits.pending.iter().any(|request| matches!(
+            &request.edit,
+            crate::edit::Edit::RemoveEventListener { subscriber, subscription }
+                if *subscriber == NodeId(201) && *subscription == crate::node::EventSubscription::subtree(NodeId(100), 1)
         )));
     }
 
@@ -2594,14 +4235,7 @@ function update(delta) {
         script.request_reload();
         assert!(script.runtime.is_some(), "runtime should stay alive until teardown");
 
-        let mut ctx = ProcessCtx::new(
-            ExecutionPhase::EngineTick,
-            EngineTime {
-                tick: 0,
-                micro: 0,
-                seq: 0,
-            },
-        );
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
         script.destroy(&mut ctx);
         assert_eq!(destroy_counter.load(AtomicOrdering::SeqCst), 1);
     }
@@ -2614,21 +4248,9 @@ function update(delta) {
   void delta;
 }
 "#;
-        let mut script = ScriptNode::new(
-            "Script",
-            ScriptNodeConfig {
-                source: ScriptSource::Inline(source.to_string()),
-            },
-        );
+        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
 
-        let mut ctx = ProcessCtx::new(
-            ExecutionPhase::EngineTick,
-            EngineTime {
-                tick: 0,
-                micro: 0,
-                seq: 0,
-            },
-        );
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
 
         script.init(&mut ctx);
         let rule = script.execution_rule();

@@ -1,5 +1,7 @@
-// @host listens from the host node.
-// max_depth = 0 -> host only
-// max_depth = 1 -> host + direct children
-// max_depth = 2 -> include grandchildren (useful when params are under folders)
-script.listen("@host", 2);
+// Listen from the local host node.
+// level = 0 -> host only
+// level = 1 -> host + direct children (default)
+// level = 2 -> include grandchildren (useful when params are under folders)
+if (local) {
+  local.listen({ level: 2 });
+}

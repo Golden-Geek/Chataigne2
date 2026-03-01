@@ -38,6 +38,24 @@ pub enum Edit {
         /// Coalescing strategy requested by the parameter/node API.
         behaviour: ParameterEventBehaviour,
     },
+    /// Sets one script-exposed property on a node.
+    SetNodeScriptProperty {
+        /// Target node id.
+        node: NodeId,
+        /// Property key as seen from scripts.
+        property: String,
+        /// Incoming script value converted to `ParamValue`.
+        value: ParamValue,
+    },
+    /// Invokes one script-exposed method on a node.
+    CallNodeScriptMethod {
+        /// Target node id.
+        node: NodeId,
+        /// Method name as seen from scripts.
+        method: String,
+        /// Method arguments converted to `ParamValue`.
+        args: Vec<ParamValue>,
+    },
     /// Insert a node under `parent`, optionally after a sibling.
     AddNode {
         /// Node instance to insert.

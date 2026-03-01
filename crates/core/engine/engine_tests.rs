@@ -644,9 +644,7 @@ struct UiScriptHostNode {
 
 impl UiScriptHostNode {
     fn new(label: impl Into<String>) -> Self {
-        Self {
-            node_data: NodeData::new(label.into()),
-        }
+        Self { node_data: NodeData::new(label.into()) }
     }
 }
 
@@ -721,10 +719,7 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     let MacroTestNode::Parameter(decay_param_node) = engine.nodes.get(decay_param).expect("decay parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(
-        decay_param_node.constraints.range,
-        RangeConstraint::uniform(Some(0.0), Some(1.0))
-    );
+    assert_eq!(decay_param_node.constraints.range, RangeConstraint::uniform(Some(0.0), Some(1.0)));
     assert_eq!(decay_param_node.constraints.step, Some(0.05));
     assert_eq!(decay_param_node.constraints.step_base, Some(0.0));
     assert_eq!(decay_param_node.constraints.policy, ParameterConstraintPolicy::ClampAdapt);
@@ -801,10 +796,7 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
     let MacroTestNode::Parameter(feedback_param) = engine.nodes.get(feedback).expect("feedback parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(
-        feedback_param.constraints.range,
-        RangeConstraint::uniform(Some(0.0), Some(1.0))
-    );
+    assert_eq!(feedback_param.constraints.range, RangeConstraint::uniform(Some(0.0), Some(1.0)));
     assert_eq!(feedback_param.constraints.step, Some(0.1));
     assert_eq!(feedback_param.constraints.step_base, Some(0.0));
     assert_eq!(feedback_param.constraints.policy, ParameterConstraintPolicy::Reject);
@@ -833,18 +825,12 @@ fn params_macro_supports_component_min_max_for_vector_parameters() {
     let MacroTestNode::Parameter(vec2_param) = engine.nodes.get(vec2_bounds).expect("vec2_bounds parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(
-        vec2_param.constraints.range,
-        RangeConstraint::components(Some(vec![-1.0, 0.0]), Some(vec![1.0, 2.0]))
-    );
+    assert_eq!(vec2_param.constraints.range, RangeConstraint::components(Some(vec![-1.0, 0.0]), Some(vec![1.0, 2.0])));
 
     let MacroTestNode::Parameter(vec3_param) = engine.nodes.get(vec3_bounds).expect("vec3_bounds parameter should exist") else {
         panic!("expected Parameter variant");
     };
-    assert_eq!(
-        vec3_param.constraints.range,
-        RangeConstraint::components(Some(vec![-1.0, 0.0, 10.0]), Some(vec![1.0, 2.0, 20.0]))
-    );
+    assert_eq!(vec3_param.constraints.range, RangeConstraint::components(Some(vec![-1.0, 0.0, 10.0]), Some(vec![1.0, 2.0, 20.0])));
 }
 
 #[test]
@@ -2657,45 +2643,17 @@ fn ui_create_user_item_undo_redo_restores_same_node_id() {
     assert!(create_ack.success, "create user item intent should succeed");
     assert_eq!(create_ack.status, UiAckStatus::Applied);
 
-    let script = engine
-        .nodes
-        .get(parent)
-        .and_then(|root| root.node_data().first_child)
-        .expect("script node should be attached under root");
-    assert_eq!(
-        engine
-            .nodes
-            .get(script)
-            .expect("script node should exist")
-            .get_type(),
-        "script"
-    );
+    let script = engine.nodes.get(parent).and_then(|root| root.node_data().first_child).expect("script node should be attached under root");
+    assert_eq!(engine.nodes.get(script).expect("script node should exist").get_type(), "script");
 
     let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
     assert!(undo_ack.success, "undo intent should succeed");
-    assert!(
-        engine
-            .nodes
-            .get(parent)
-            .and_then(|root| root.node_data().first_child)
-            .is_none(),
-        "undo should remove the created script node"
-    );
-    assert!(
-        engine.nodes.get(script).is_none(),
-        "undone script node should be detached from live storage"
-    );
+    assert!(engine.nodes.get(parent).and_then(|root| root.node_data().first_child).is_none(), "undo should remove the created script node");
+    assert!(engine.nodes.get(script).is_none(), "undone script node should be detached from live storage");
 
     let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
     assert!(redo_ack.success, "redo intent should succeed");
-    assert_eq!(
-        engine
-            .nodes
-            .get(parent)
-            .and_then(|root| root.node_data().first_child),
-        Some(script),
-        "redo should restore the same script node id under root"
-    );
+    assert_eq!(engine.nodes.get(parent).and_then(|root| root.node_data().first_child), Some(script), "redo should restore the same script node id under root");
 }
 
 #[test]
@@ -2711,11 +2669,7 @@ fn ui_create_user_item_redo_survives_non_history_runtime_edits() {
     });
     assert!(create_ack.success, "create user item intent should succeed");
 
-    let script = engine
-        .nodes
-        .get(parent)
-        .and_then(|root| root.node_data().first_child)
-        .expect("script node should be attached under root");
+    let script = engine.nodes.get(parent).and_then(|root| root.node_data().first_child).expect("script node should be attached under root");
 
     let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
     assert!(undo_ack.success, "undo intent should succeed");
@@ -2723,26 +2677,13 @@ fn ui_create_user_item_redo_survives_non_history_runtime_edits() {
 
     // Simulate runtime/internal flushes that do not participate in user history.
     engine.edits.push(Edit::ReevaluateGraph);
-    engine
-        .apply_edits_without_history()
-        .expect("runtime edit flush should succeed");
+    engine.apply_edits_without_history().expect("runtime edit flush should succeed");
 
-    assert_eq!(
-        engine.redo_len(),
-        1,
-        "non-history runtime edits must not invalidate user redo"
-    );
+    assert_eq!(engine.redo_len(), 1, "non-history runtime edits must not invalidate user redo");
 
     let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
     assert!(redo_ack.success, "redo intent should succeed");
-    assert_eq!(
-        engine
-            .nodes
-            .get(parent)
-            .and_then(|root| root.node_data().first_child),
-        Some(script),
-        "redo should restore the previously undone user-created item"
-    );
+    assert_eq!(engine.nodes.get(parent).and_then(|root| root.node_data().first_child), Some(script), "redo should restore the previously undone user-created item");
 }
 
 #[test]
@@ -2758,53 +2699,21 @@ fn ui_set_script_config_changes_are_undoable() {
     });
     assert!(create_ack.success, "create user item intent should succeed");
 
-    let script = engine
-        .nodes
-        .get(parent)
-        .and_then(|root| root.node_data().first_child)
-        .expect("script node should exist");
-    let baseline_config = engine
-        .ui_script_state(script)
-        .expect("script state should be available")
-        .config;
+    let script = engine.nodes.get(parent).and_then(|root| root.node_data().first_child).expect("script node should exist");
+    let baseline_config = engine.ui_script_state(script).expect("script state should be available").config;
 
     let next_config = ScriptUiConfig {
-        source: ScriptUiSource::Inline {
-            text: "script.setApiVersion(1);".to_string(),
-        },
+        source: ScriptUiSource::Inline { text: "script.setApiVersion(1);".to_string() },
     };
 
-    engine
-        .ui_set_script_config(script, next_config.clone(), false)
-        .expect("script config update should succeed");
-    assert_eq!(
-        engine
-            .ui_script_state(script)
-            .expect("script state should be available after update")
-            .config,
-        next_config
-    );
+    engine.ui_set_script_config(script, next_config.clone(), false).expect("script config update should succeed");
+    assert_eq!(engine.ui_script_state(script).expect("script state should be available after update").config, next_config);
 
-    assert!(
-        engine.undo().expect("undo should succeed"),
-        "script config update should produce an undo step"
-    );
-    assert_eq!(
-        engine
-            .ui_script_state(script)
-            .expect("script state should be available after undo")
-            .config,
-        baseline_config
-    );
+    assert!(engine.undo().expect("undo should succeed"), "script config update should produce an undo step");
+    assert_eq!(engine.ui_script_state(script).expect("script state should be available after undo").config, baseline_config);
 
     assert!(engine.redo().expect("redo should succeed"));
-    assert_eq!(
-        engine
-            .ui_script_state(script)
-            .expect("script state should be available after redo")
-            .config,
-        next_config
-    );
+    assert_eq!(engine.ui_script_state(script).expect("script state should be available after redo").config, next_config);
 }
 
 #[test]
@@ -2927,11 +2836,7 @@ fn applying_edits_without_history_after_undo_keeps_redo_stack() {
 
     assert_eq!(engine.redo_len(), 1, "non-history edits should preserve redo history");
     assert!(engine.redo().expect("redo should succeed after runtime edits"));
-    assert_eq!(
-        engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child),
-        Some(first),
-        "redo should still restore the undone node"
-    );
+    assert_eq!(engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child), Some(first), "redo should still restore the undone node");
 }
 
 #[derive(Clone, Debug, PartialEq)]

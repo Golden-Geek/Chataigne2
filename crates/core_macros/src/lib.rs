@@ -82,16 +82,10 @@ impl Parse for NodeAttr {
                         scriptable = Some(ScriptableAttr::Default);
                     }
                 } else {
-                    return Err(Error::new(
-                        key.span(),
-                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`",
-                    ));
+                    return Err(Error::new(key.span(), "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`"));
                 }
             } else {
-                return Err(Error::new(
-                    input.span(),
-                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`",
-                ));
+                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`"));
             }
 
             if input.is_empty() {
@@ -104,13 +98,7 @@ impl Parse for NodeAttr {
             }
         }
 
-        Ok(Self {
-            type_name,
-            via,
-            impl_node,
-            from_struct,
-            scriptable,
-        })
+        Ok(Self { type_name, via, impl_node, from_struct, scriptable })
     }
 }
 
@@ -207,13 +195,7 @@ impl Parse for ItemAttr {
 
         Ok(Self {
             item_kind,
-            node: NodeAttr {
-                type_name,
-                via,
-                impl_node,
-                from_struct,
-                scriptable,
-            },
+            node: NodeAttr { type_name, via, impl_node, from_struct, scriptable },
         })
     }
 }
@@ -325,20 +307,12 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `enum_options`"));
                     }
                     out.enum_options = Some(input.parse::<Expr>()?);
-                } else if key == "file_allowed_types"
-                    || key == "fileAllowedTypes"
-                    || key == "allowed_types"
-                    || key == "allowedTypes"
-                {
+                } else if key == "file_allowed_types" || key == "fileAllowedTypes" || key == "allowed_types" || key == "allowedTypes" {
                     if out.file_allowed_types.is_some() {
                         return Err(Error::new(key.span(), "duplicate `file_allowed_types`"));
                     }
                     out.file_allowed_types = Some(input.parse::<Expr>()?);
-                } else if key == "file_allowed_extensions"
-                    || key == "fileAllowedExtensions"
-                    || key == "allowed_extensions"
-                    || key == "allowedExtensions"
-                {
+                } else if key == "file_allowed_extensions" || key == "fileAllowedExtensions" || key == "allowed_extensions" || key == "allowedExtensions" {
                     if out.file_allowed_extensions.is_some() {
                         return Err(Error::new(key.span(), "duplicate `file_allowed_extensions`"));
                     }
@@ -560,10 +534,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                     content.parse::<Token![=]>()?;
                     folder_meta.presentation = Some(content.parse::<Expr>()?);
                 } else {
-                    return Err(Error::new(
-                        key.span(),
-                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
-                    ));
+                    return Err(Error::new(key.span(), "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)"));
                 }
             }
 
@@ -707,20 +678,12 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_default` option"));
                 }
                 out.enum_default = Some(input.parse::<LitStr>()?);
-            } else if key == "file_allowed_types"
-                || key == "fileAllowedTypes"
-                || key == "allowed_types"
-                || key == "allowedTypes"
-            {
+            } else if key == "file_allowed_types" || key == "fileAllowedTypes" || key == "allowed_types" || key == "allowedTypes" {
                 if out.file_allowed_types.is_some() {
                     return Err(Error::new(key.span(), "duplicate `file_allowed_types` option"));
                 }
                 out.file_allowed_types = Some(input.parse::<Expr>()?);
-            } else if key == "file_allowed_extensions"
-                || key == "fileAllowedExtensions"
-                || key == "allowed_extensions"
-                || key == "allowedExtensions"
-            {
+            } else if key == "file_allowed_extensions" || key == "fileAllowedExtensions" || key == "allowed_extensions" || key == "allowedExtensions" {
                 if out.file_allowed_extensions.is_some() {
                     return Err(Error::new(key.span(), "duplicate `file_allowed_extensions` option"));
                 }
@@ -972,11 +935,7 @@ fn enum_label_from_variant_id(variant_id: &str) -> String {
         }
     }
 
-    if words.is_empty() {
-        variant_id.to_string()
-    } else {
-        words.join(" ")
-    }
+    if words.is_empty() { variant_id.to_string() } else { words.join(" ") }
 }
 
 fn build_simple_enum_options_expr(spec: &SimpleEnumOptionsSpec) -> Expr {
@@ -1033,10 +992,7 @@ fn build_file_allowed_types_assignment(expr: &Expr) -> Result<proc_macro2::Token
                 "video" => quote!(golden_core::parameter::FileTypeGroup::Video),
                 "script" => quote!(golden_core::parameter::FileTypeGroup::Script),
                 other => {
-                    return Err(Error::new(
-                        value.span(),
-                        format!("unsupported file type group `{other}`; expected one of: \"audio\", \"video\", \"script\""),
-                    ));
+                    return Err(Error::new(value.span(), format!("unsupported file type group `{other}`; expected one of: \"audio\", \"video\", \"script\"")));
                 }
             };
             parsed.push(group);
@@ -1259,51 +1215,34 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
 
                         if let Some(override_variant) = &enum_default_override {
                             if !seen_variants.contains(override_variant) {
-                                return Err(Error::new(
-                                    param.options.enum_default.as_ref().expect("enum_default present").span(),
-                                    format!("`enum_default = \"{override_variant}\"` is not present in enum_options"),
-                                ));
+                                return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), format!("`enum_default = \"{override_variant}\"` is not present in enum_options")));
                             }
                         }
 
                         if let Some(default_expr) = param.default.as_ref() {
                             if let Some(default_variant) = infer_enum_default_variant_from_expr(default_expr) {
                                 if !seen_variants.contains(&default_variant) {
-                                    return Err(Error::new(
-                                        default_expr.span(),
-                                        format!("default enum value `{default_variant}` is not present in enum_options"),
-                                    ));
+                                    return Err(Error::new(default_expr.span(), format!("default enum value `{default_variant}` is not present in enum_options")));
                                 }
                             }
                         }
 
                         if param.default.is_some() && enum_default_override.is_some() {
-                            return Err(Error::new(
-                                param.options.enum_default.as_ref().expect("enum_default present").span(),
-                                "cannot combine an explicit enum default (`= ...`) with `enum_default`; choose one",
-                            ));
+                            return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), "cannot combine an explicit enum default (`= ...`) with `enum_default`; choose one"));
                         }
 
                         if param.default.is_none() {
-                            let selected_default = enum_default_override.clone().or(marked_default).unwrap_or_else(|| {
-                                simple_spec.options.first().expect("enum options are non-empty").variant_id.value()
-                            });
+                            let selected_default = enum_default_override.clone().or(marked_default).unwrap_or_else(|| simple_spec.options.first().expect("enum options are non-empty").variant_id.value());
                             let selected_default_lit = LitStr::new(&selected_default, param.field.span());
                             resolved_default = Some(parse_quote!(#selected_default_lit));
                         }
 
                         resolved_enum_options = Some(build_simple_enum_options_expr(&simple_spec));
                     } else if enum_default_override.is_some() {
-                        return Err(Error::new(
-                            enum_options_expr.span(),
-                            "`enum_default` currently requires simple string-list enum options like `enum_options = [\"off\", \"on\", \"auto\"]`",
-                        ));
+                        return Err(Error::new(enum_options_expr.span(), "`enum_default` currently requires simple string-list enum options like `enum_options = [\"off\", \"on\", \"auto\"]`"));
                     }
                 } else if enum_default_override.is_some() {
-                    return Err(Error::new(
-                        param.options.enum_default.as_ref().expect("enum_default present").span(),
-                        "`enum_default` requires `enum_options`",
-                    ));
+                    return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), "`enum_default` requires `enum_options`"));
                 }
 
                 let param_index = plan.params.len();
@@ -1350,13 +1289,7 @@ fn join_decl_path(path: &[String]) -> String {
 
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let NodeAttr {
-        type_name,
-        via,
-        impl_node,
-        from_struct,
-        scriptable,
-    } = parse_macro_input!(attr as NodeAttr);
+    let NodeAttr { type_name, via, impl_node, from_struct, scriptable } = parse_macro_input!(attr as NodeAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
@@ -1370,14 +1303,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ItemAttr {
         item_kind,
-        node:
-            NodeAttr {
-                type_name,
-                via,
-                impl_node,
-                from_struct,
-                scriptable,
-            },
+        node: NodeAttr { type_name, via, impl_node, from_struct, scriptable },
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
@@ -1431,15 +1357,7 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    item_kind: Option<LitStr>,
-    mut input: ItemStruct,
-) -> proc_macro2::TokenStream {
+fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, item_kind: Option<LitStr>, mut input: ItemStruct) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
@@ -1450,11 +1368,7 @@ fn expand_struct(
         return Error::new_spanned(input, "`#[item(...)]` on a struct requires `impl_node`, or apply `#[item(...)]` on `impl Node for ...`").to_compile_error();
     }
     if scriptable.is_some() && !impl_node {
-        return Error::new_spanned(
-            input,
-            "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`",
-        )
-        .to_compile_error();
+        return Error::new_spanned(input, "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
     }
 
     let mut params_dsl = None::<ParamsDsl>;
@@ -1527,11 +1441,7 @@ fn expand_struct(
 
         if let Some(param_attr) = param_attr {
             if params_plan.is_some() {
-                return Error::new_spanned(
-                    param_attr,
-                    "cannot combine field-level #[param(...)] with struct-level #[params(...)]; choose one parameter declaration style",
-                )
-                .to_compile_error();
+                return Error::new_spanned(param_attr, "cannot combine field-level #[param(...)] with struct-level #[params(...)]; choose one parameter declaration style").to_compile_error();
             }
             let args = match param_attr.parse_args::<ParamFieldArgs>() {
                 Ok(args) => args,
@@ -1604,11 +1514,7 @@ fn expand_struct(
             } else {
                 None
             };
-            let callback = if args.default_callback {
-                Some(ParamCallbackSpec::Default)
-            } else {
-                args.callback.map(ParamCallbackSpec::Custom)
-            };
+            let callback = if args.default_callback { Some(ParamCallbackSpec::Default) } else { args.callback.map(ParamCallbackSpec::Custom) };
 
             ctor_inits.push(quote! {
                 #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
@@ -1720,11 +1626,7 @@ fn expand_struct(
         ctor_inits.push(quote! { #field_ident });
     }
 
-    let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() {
-        0u32
-    } else {
-        1u32
-    };
+    let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() { 0u32 } else { 1u32 };
 
     if let Some(plan) = &params_plan {
         for param in &plan.params {
@@ -1976,15 +1878,7 @@ fn expand_struct(
     }
 }
 
-fn expand_impl(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    item_kind: Option<LitStr>,
-    mut input: ItemImpl,
-) -> proc_macro2::TokenStream {
+fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, item_kind: Option<LitStr>, mut input: ItemImpl) -> proc_macro2::TokenStream {
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -2016,11 +1910,7 @@ fn expand_impl(
     for item in input.items.drain(..) {
         match item {
             ImplItem::Macro(macro_item) if is_params_macro(&macro_item) => {
-                return Error::new_spanned(
-                    macro_item,
-                    "`params! { ... }` on `impl Node` has been removed; use `#[params(...)]` on the struct and `#[node(..., from_struct)]` on the impl",
-                )
-                .to_compile_error();
+                return Error::new_spanned(macro_item, "`params! { ... }` on `impl Node` has been removed; use `#[params(...)]` on the struct and `#[node(..., from_struct)]` on the impl").to_compile_error();
             }
             other => kept_items.push(other),
         }
@@ -2101,18 +1991,9 @@ fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
 }
 
 fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&DelegatePath>) -> Result<()> {
-    for method_name in [
-        "engine_child_event_interest_depth",
-        "engine_sync_param_handle_cache",
-        "engine_on_attached",
-        "engine_sync_bound_param_handles",
-        "engine_preprocess_inbox",
-    ] {
+    for method_name in ["engine_child_event_interest_depth", "engine_sync_param_handle_cache", "engine_on_attached", "engine_sync_bound_param_handles", "engine_preprocess_inbox"] {
         if has_method(input, method_name) {
-            return Err(Error::new_spanned(
-                &*input,
-                format!("`from_struct` generates `{method_name}`; remove the manual method or `from_struct`"),
-            ));
+            return Err(Error::new_spanned(&*input, format!("`from_struct` generates `{method_name}`; remove the manual method or `from_struct`")));
         }
     }
 
@@ -2527,11 +2408,7 @@ fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallba
     }
 }
 
-fn build_range_constraint_assignment(
-    min_expr: Option<&Expr>,
-    max_expr: Option<&Expr>,
-    ty: &Type,
-) -> Option<proc_macro2::TokenStream> {
+fn build_range_constraint_assignment(min_expr: Option<&Expr>, max_expr: Option<&Expr>, ty: &Type) -> Option<proc_macro2::TokenStream> {
     if min_expr.is_none() && max_expr.is_none() {
         return None;
     }
@@ -2543,10 +2420,7 @@ fn build_range_constraint_assignment(
 
     if vector_arity.is_none() && has_component_shape {
         let source_expr = min_expr.or(max_expr)?;
-        return Some(
-            Error::new_spanned(source_expr, "tuple/array range bounds are only supported for Vec2/Vec3 parameter types")
-                .to_compile_error(),
-        );
+        return Some(Error::new_spanned(source_expr, "tuple/array range bounds are only supported for Vec2/Vec3 parameter types").to_compile_error());
     }
 
     if let Some(arity) = vector_arity {
@@ -2555,9 +2429,7 @@ fn build_range_constraint_assignment(
                 return Some(
                     Error::new_spanned(
                         min_expr.expect("min expression should exist"),
-                        format!(
-                            "mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"
-                        ),
+                        format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
                     )
                     .to_compile_error(),
                 );
@@ -2567,9 +2439,7 @@ fn build_range_constraint_assignment(
                 return Some(
                     Error::new_spanned(
                         max_expr.expect("max expression should exist"),
-                        format!(
-                            "mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"
-                        ),
+                        format!("mixed scalar and component bounds are not supported for Vec{arity}; use scalar min/max or tuple/array min/max consistently"),
                     )
                     .to_compile_error(),
                 );

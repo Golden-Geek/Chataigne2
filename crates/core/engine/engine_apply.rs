@@ -78,16 +78,22 @@ impl<T: Node> Engine<T> {
                         (Err(EngineEditError::EditSessionNotActive { edit_index, requested_client_edit_id: client_edit_id }), false)
                     }
                 }
-                Edit::SetParam { node, value, behaviour } => {
-                    match self.apply_set_param(edit_index, node, value)? {
-                        Some(mut effect) => {
-                            missing_reference_warning_dirty = true;
-                            effect.behaviour = behaviour;
-                            effect.tick = self.time.tick;
-                            (Ok(Some(effect.into())), true)
-                        }
-                        None => (Ok(None), false),
+                Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
+                    Some(mut effect) => {
+                        missing_reference_warning_dirty = true;
+                        effect.behaviour = behaviour;
+                        effect.tick = self.time.tick;
+                        (Ok(Some(effect.into())), true)
                     }
+                    None => (Ok(None), false),
+                },
+                Edit::SetNodeScriptProperty { node, property, value } => {
+                    self.apply_set_node_script_property(edit_index, node, property, value)?;
+                    (Ok(None), true)
+                }
+                Edit::CallNodeScriptMethod { node, method, args } => {
+                    self.apply_call_node_script_method(edit_index, node, method, args)?;
+                    (Ok(None), true)
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {
                     missing_reference_warning_dirty = true;
@@ -119,17 +125,8 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_patch_meta(edit_index, node, patch)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::SetScriptConfig {
-                    node,
-                    config,
-                    force_reload,
-                } => {
-                    let effect = self.apply_set_script_config(
-                        edit_index,
-                        node,
-                        config,
-                        force_reload,
-                    )?;
+                Edit::SetScriptConfig { node, config, force_reload } => {
+                    let effect = self.apply_set_script_config(edit_index, node, config, force_reload)?;
                     let should_clear_redo = effect.is_some();
                     (Ok(effect.map(Into::into)), should_clear_redo)
                 }

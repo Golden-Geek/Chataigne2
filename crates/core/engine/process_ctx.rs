@@ -1,11 +1,175 @@
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
-use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use serde::Serialize;
+
+/// Read-only node record available during callback execution.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProcessTreeNodeSnapshot {
+    /// Runtime node id.
+    pub id: NodeId,
+    /// Parent node id.
+    pub parent: Option<NodeId>,
+    /// First child in sibling chain.
+    pub first_child: Option<NodeId>,
+    /// Next sibling in parent chain.
+    pub next_sibling: Option<NodeId>,
+    /// Declared node type identifier.
+    pub node_type: String,
+    /// Node `decl_id` label used by path selectors.
+    pub decl_id: String,
+    /// Generated short name.
+    pub short_name: String,
+    /// User-visible label.
+    pub label: String,
+    /// Node enabled flag.
+    pub enabled: bool,
+    /// Number of direct children.
+    pub child_count: usize,
+    /// Current parameter value when this node is a parameter.
+    pub param_value: Option<ParamValue>,
+    /// Current parameter constraints when this node is a parameter.
+    pub param_constraints: Option<ParameterConstraints>,
+    /// Additional script-facing properties exposed by this node instance.
+    pub script_properties: HashMap<String, ParamValue>,
+    /// Additional script-facing methods exposed by this node instance.
+    pub script_methods: Vec<String>,
+}
+
+impl ProcessTreeNodeSnapshot {
+    /// Returns `true` when this snapshot represents a parameter node.
+    pub fn is_parameter(&self) -> bool {
+        self.param_value.is_some()
+    }
+
+    fn matches_child_key(&self, key: &str) -> bool {
+        self.decl_id == key || self.short_name == key || self.label == key
+    }
+
+    /// Returns one script-facing property value by key.
+    pub fn script_property(&self, key: &str) -> Option<&ParamValue> {
+        self.script_properties.get(key)
+    }
+
+    /// Returns `true` when this node exposes `method` as a script-callable entrypoint.
+    pub fn has_script_method(&self, method: &str) -> bool {
+        self.script_methods.iter().any(|candidate| candidate == method)
+    }
+}
+
+impl fmt::Display for ProcessTreeNodeSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(value) = &self.param_value {
+            let constraints_text = self.param_constraints.as_ref().map(ToString::to_string).unwrap_or_else(|| "no constraints".to_string());
+            return write!(f, "[{} <{}> {} ({})]", self.label, self.node_type, value, constraints_text);
+        }
+
+        if self.child_count == 0 {
+            return write!(f, "[{} (<{}>)]", self.label, self.node_type);
+        }
+
+        let children_text = if self.child_count == 1 { "1 child".to_string() } else { format!("{} children", self.child_count) };
+        write!(f, "[{} (<{}>), {}]", self.label, self.node_type, children_text)
+    }
+}
+
+/// Shared read-only tree snapshot for one processing pass.
+#[derive(Clone, Debug)]
+pub struct ProcessTreeSnapshot {
+    root: NodeId,
+    nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>,
+}
+
+impl ProcessTreeSnapshot {
+    /// Creates a new immutable tree snapshot.
+    pub fn new(root: NodeId, nodes: HashMap<NodeId, ProcessTreeNodeSnapshot>) -> Self {
+        Self { root, nodes }
+    }
+
+    /// Returns the snapshot root node id.
+    pub fn root(&self) -> NodeId {
+        self.root
+    }
+
+    /// Returns one node snapshot by id.
+    pub fn node(&self, node: NodeId) -> Option<&ProcessTreeNodeSnapshot> {
+        self.nodes.get(&node)
+    }
+
+    /// Returns the first child that matches `key` under `parent`.
+    ///
+    /// Child keys are matched against `decl_id`, `short_name`, then `label`.
+    pub fn find_child(&self, parent: NodeId, key: &str) -> Option<NodeId> {
+        let mut child = self.node(parent)?.first_child;
+        while let Some(child_id) = child {
+            let child_snapshot = self.node(child_id)?;
+            if child_snapshot.matches_child_key(key) {
+                return Some(child_id);
+            }
+            child = child_snapshot.next_sibling;
+        }
+        None
+    }
+
+    /// Returns all direct child node ids for `parent` in sibling order.
+    pub fn child_ids(&self, parent: NodeId) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        let mut child = self.node(parent).and_then(|node| node.first_child);
+        while let Some(child_id) = child {
+            children.push(child_id);
+            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
+        }
+        children
+    }
+
+    /// Returns one direct child by zero-based sibling index.
+    pub fn child_at(&self, parent: NodeId, index: usize) -> Option<NodeId> {
+        let mut current = 0usize;
+        let mut child = self.node(parent)?.first_child;
+        while let Some(child_id) = child {
+            if current == index {
+                return Some(child_id);
+            }
+            current = current.saturating_add(1);
+            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
+        }
+        None
+    }
+
+    /// Resolves a slash-separated child path from `start`.
+    ///
+    /// Supported segments:
+    /// - `.` keeps current node.
+    /// - empty segments are ignored.
+    ///
+    /// Parent traversal (`..`) is intentionally not supported.
+    pub fn resolve_path_from(&self, start: NodeId, path: &str) -> Option<NodeId> {
+        if path.trim().is_empty() || path.trim() == "." {
+            return Some(start);
+        }
+
+        let mut current = start;
+        for segment in path.split('/') {
+            let segment = segment.trim();
+            if segment.is_empty() || segment == "." {
+                continue;
+            }
+            if segment == ".." {
+                return None;
+            }
+            current = self.find_child(current, segment)?;
+        }
+
+        Some(current)
+    }
+}
 
 /// Runtime phase of the current processing pass.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +204,8 @@ pub struct ProcessCtx {
     ///
     /// This value is meaningful in `Node::update`.
     pub delta_time: Duration,
+    /// Optional read-only tree snapshot shared for this callback pass.
+    tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
 }
 
 impl ProcessCtx {
@@ -51,7 +217,28 @@ impl ProcessCtx {
             edits: EditQueue::new(),
             time,
             delta_time: Duration::ZERO,
+            tree_snapshot: None,
         }
+    }
+
+    /// Attaches a read-only tree snapshot to this context.
+    pub fn set_tree_snapshot(&mut self, snapshot: Arc<ProcessTreeSnapshot>) {
+        self.tree_snapshot = Some(snapshot);
+    }
+
+    /// Clears any attached tree snapshot.
+    pub fn clear_tree_snapshot(&mut self) {
+        self.tree_snapshot = None;
+    }
+
+    /// Returns the attached tree snapshot when available.
+    pub fn tree_snapshot(&self) -> Option<&ProcessTreeSnapshot> {
+        self.tree_snapshot.as_deref()
+    }
+
+    /// Returns a cloned shared tree snapshot handle when available.
+    pub fn tree_snapshot_arc(&self) -> Option<Arc<ProcessTreeSnapshot>> {
+        self.tree_snapshot.clone()
     }
 
     /// Queues a parameter update edit.
@@ -72,6 +259,16 @@ impl ProcessCtx {
     /// Queues a parameter update edit with an explicit coalescing strategy.
     pub fn set_param_with_behaviour(&mut self, node: NodeId, value: ParamValue, behaviour: ParameterEventBehaviour) {
         self.edits.push(Edit::SetParam { node, value, behaviour });
+    }
+
+    /// Queues one script-property update on `node`.
+    pub fn set_node_script_property(&mut self, node: NodeId, property: impl Into<String>, value: ParamValue) {
+        self.edits.push(Edit::SetNodeScriptProperty { node, property: property.into(), value });
+    }
+
+    /// Queues one script-method invocation on `node`.
+    pub fn call_node_script_method(&mut self, node: NodeId, method: impl Into<String>, args: Vec<ParamValue>) {
+        self.edits.push(Edit::CallNodeScriptMethod { node, method: method.into(), args });
     }
 
     /// Sets or replaces the default warning on `node`.

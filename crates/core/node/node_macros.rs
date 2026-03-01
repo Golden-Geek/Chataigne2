@@ -346,6 +346,31 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_script_descriptor(&self) -> $crate::node::NodeScriptDescriptor {
+                $crate::__dispatch_node_enum!(self, engine_script_descriptor; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_set_script_property(
+                &mut self,
+                ctx: &mut $crate::process_ctx::ProcessCtx,
+                property: &str,
+                value: $crate::parameter::ParamValue,
+            ) -> Result<bool, String> {
+                $crate::__dispatch_node_enum!(self, engine_set_script_property, ctx, property, value; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_call_script_method(
+                &mut self,
+                ctx: &mut $crate::process_ctx::ProcessCtx,
+                method: &str,
+                args: &[$crate::parameter::ParamValue],
+            ) -> Result<bool, String> {
+                $crate::__dispatch_node_enum!(self, engine_call_script_method, ctx, method, args; $($variant),*)
+            }
+
+            #[inline(always)]
             fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut $crate::node::NodeReference)) {
                 $crate::__dispatch_node_enum!(self, engine_visit_references_mut, visit; $($variant),*)
             }

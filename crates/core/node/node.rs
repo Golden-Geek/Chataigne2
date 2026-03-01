@@ -1,11 +1,12 @@
 use std::any::Any;
+use std::collections::HashMap;
 
 use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, ParameterSnapshot};
-use crate::process_ctx::ProcessCtx;
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterSnapshot};
+use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -242,6 +243,75 @@ pub struct PresentationHint {
 
 fn is_zero_u32(value: &u32) -> bool {
     *value == 0
+}
+
+fn parameter_node_type_from_value(value: &ParamValue) -> &'static str {
+    match value {
+        ParamValue::Trigger() => "trigger",
+        ParamValue::Int(_) => "int",
+        ParamValue::Float(_) => "float",
+        ParamValue::Str(_) => "str",
+        ParamValue::File(_) => "file",
+        ParamValue::Enum(_) => "enum",
+        ParamValue::Bool(_) => "bool",
+        ParamValue::Vec2(_, _) => "vec2",
+        ParamValue::Vec3(_, _, _) => "vec3",
+        ParamValue::Color(_, _, _, _) => "color",
+        ParamValue::Reference(_) => "reference",
+    }
+}
+
+struct ScriptChildLookup {
+    primary: Option<NodeId>,
+    primary_matches_type: bool,
+    duplicates: Vec<NodeId>,
+}
+
+fn script_child_matches_key(node: &ProcessTreeNodeSnapshot, key: &str) -> bool {
+    let key = key.trim();
+    if key.is_empty() {
+        return false;
+    }
+
+    node.decl_id.eq_ignore_ascii_case(key) || node.short_name.eq_ignore_ascii_case(key) || node.label.eq_ignore_ascii_case(key)
+}
+
+fn lookup_script_child_by_key_and_type(ctx: &ProcessCtx, parent: NodeId, key: &str, expected_node_type: &str) -> ScriptChildLookup {
+    let mut matches = Vec::new();
+    let mut same_type_matches = Vec::new();
+
+    if let Some(snapshot) = ctx.tree_snapshot() {
+        let mut child = snapshot.node(parent).and_then(|node| node.first_child);
+        while let Some(child_id) = child {
+            let Some(child_snapshot) = snapshot.node(child_id) else {
+                break;
+            };
+
+            if script_child_matches_key(child_snapshot, key) {
+                matches.push(child_id);
+                if child_snapshot.node_type.eq_ignore_ascii_case(expected_node_type) {
+                    same_type_matches.push(child_id);
+                }
+            }
+
+            child = child_snapshot.next_sibling;
+        }
+    }
+
+    let (primary, primary_matches_type) = if let Some(node) = same_type_matches.first().copied() {
+        (Some(node), true)
+    } else if let Some(node) = matches.first().copied() {
+        (Some(node), false)
+    } else {
+        (None, false)
+    };
+
+    let duplicates = matches.into_iter().filter(|candidate| Some(*candidate) != primary).collect::<Vec<_>>();
+    ScriptChildLookup {
+        primary,
+        primary_matches_type,
+        duplicates,
+    }
 }
 
 impl PresentationHint {
@@ -629,6 +699,55 @@ pub struct NodeMetaPatch {
     pub presentation: Option<PresentationHint>,
 }
 
+/// Script-facing property/method metadata provided by one node instance.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct NodeScriptDescriptor {
+    /// Script-readable properties exposed on the node object.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub properties: HashMap<String, ParamValue>,
+    /// Script-callable method names exposed on the node object.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub methods: Vec<String>,
+}
+
+fn push_unique_script_method(methods: &mut Vec<String>, method: &str) {
+    if methods.iter().any(|candidate| candidate == method) {
+        return;
+    }
+    methods.push(method.to_string());
+}
+
+pub(crate) fn core_node_script_descriptor(node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
+    let mut descriptor = NodeScriptDescriptor::default();
+    descriptor.properties.insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
+    descriptor.properties.insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
+    descriptor.properties.insert("type".to_string(), ParamValue::Str(node_type.to_string()));
+    descriptor.properties.insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
+
+    for method in [
+        "setName",
+        "setEnabled",
+        "setDescription",
+        "setReadOnly",
+        "addNode",
+        "removeNode",
+        "addParameter",
+        "removeParameter",
+        "addFolder",
+        "setParam",
+        "listen",
+        "unlisten",
+        "getProperties",
+        "getChildren",
+        "getChild",
+        "toString",
+    ] {
+        push_unique_script_method(&mut descriptor.methods, method);
+    }
+
+    descriptor
+}
+
 impl NodeMetaPatch {
     /// Applies this patch to runtime metadata.
     pub fn apply_to(&self, meta: &mut NodeMeta) {
@@ -784,11 +903,7 @@ pub trait Node: Send + Any {
     ///
     /// Nodes that do not create items return an empty list.
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            vec![UserCreatableItem::new("script", "script", "Script")]
-        } else {
-            Vec::new()
-        }
+        if self.script_host_policy().is_some_and(|policy| policy.enabled) { vec![UserCreatableItem::new("script", "script", "Script")] } else { Vec::new() }
     }
 
     /// Creates one user item for `node_type` with `label` when supported.
@@ -796,10 +911,7 @@ pub trait Node: Send + Any {
     /// Containers that do not support creation return `None`.
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            return Some(Box::new(ScriptNode::new(
-                label,
-                ScriptNodeConfig::for_host_node_type(self.get_type()),
-            )));
+            return Some(Box::new(ScriptNode::new(label, ScriptNodeConfig::for_host_node_type(self.get_type()))));
         }
         None
     }
@@ -823,6 +935,337 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_param_snapshot(&self) -> Option<ParameterSnapshot> {
         None
+    }
+
+    /// Engine-internal hook used to expose script-facing properties and methods.
+    #[doc(hidden)]
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        core_node_script_descriptor(self.node_data(), self.get_type())
+    }
+
+    /// Engine-internal hook used to handle script property writes.
+    ///
+    /// Returns `Ok(true)` when the property was handled by this node.
+    #[doc(hidden)]
+    fn engine_set_script_property(&mut self, ctx: &mut ProcessCtx, property: &str, value: ParamValue) -> Result<bool, String> {
+        match property {
+            "name" | "label" => {
+                let Some(label) = value.as_str() else {
+                    return Err(format!("property '{property}' expects a string value"));
+                };
+                ctx.patch_node_meta(self.id(), NodeMetaPatch { label: Some(label), ..Default::default() });
+                Ok(true)
+            }
+            "enabled" => {
+                let Some(enabled) = value.as_bool() else {
+                    return Err("property 'enabled' expects a boolean value".to_string());
+                };
+                ctx.patch_node_meta(self.id(), NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Engine-internal hook used to invoke script-exposed node methods.
+    ///
+    /// Returns `Ok(true)` when the method was handled by this node.
+    #[doc(hidden)]
+    fn engine_call_script_method(&mut self, ctx: &mut ProcessCtx, method: &str, args: &[ParamValue]) -> Result<bool, String> {
+        match method {
+            "setName" => {
+                let Some(label) = args.first().and_then(ParamValue::as_str) else {
+                    return Err("method 'setName' expects one string argument".to_string());
+                };
+                ctx.patch_node_meta(self.id(), NodeMetaPatch { label: Some(label), ..Default::default() });
+                Ok(true)
+            }
+            "setEnabled" => {
+                let Some(enabled) = args.first().and_then(ParamValue::as_bool) else {
+                    return Err("method 'setEnabled' expects one boolean argument".to_string());
+                };
+                ctx.patch_node_meta(self.id(), NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                Ok(true)
+            }
+            "setDescription" => {
+                let Some(description) = args.first().and_then(ParamValue::as_str) else {
+                    return Err("method 'setDescription' expects one string argument".to_string());
+                };
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        description: Some(Some(description.to_string())),
+                        ..Default::default()
+                    },
+                );
+                Ok(true)
+            }
+
+            "setReadOnly" => {
+                let Some(read_only) = args.first().and_then(ParamValue::as_bool) else {
+                    return Err("method 'setReadOnly' expects one boolean argument".to_string());
+                };
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        user_permissions: Some(NodeUserPermissions {
+                            can_edit_name: !read_only,
+                            can_remove_and_duplicate: !read_only,
+                            can_edit_constraints: !read_only,
+                            can_edit_tags: !read_only,
+                            can_edit_color: !read_only,
+                        }),
+                        ..Default::default()
+                    },
+                );
+                Ok(true)
+            }
+
+            "removeNode" => {
+                ctx.edits.push(Edit::RemoveNode { node: self.id() });
+                Ok(true)
+            }
+            "addFolder" => {
+                let label = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "Folder".to_string());
+                let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), "folder");
+                for duplicate in lookup.duplicates {
+                    ctx.edits.push(Edit::RemoveNode { node: duplicate });
+                }
+
+                if let Some(existing_node) = lookup.primary {
+                    if lookup.primary_matches_type {
+                        if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                            if existing_label != label {
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label),
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+                        }
+                        return Ok(true);
+                    }
+
+                    ctx.replace_node_boxed(existing_node, Box::new(Folder::new(label)));
+                    return Ok(true);
+                }
+
+                ctx.add_child_boxed(self.id(), Box::new(Folder::new(label)), None);
+                Ok(true)
+            }
+            "addParameter" => {
+                let parameter_id = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "parameter".to_string());
+                let default_value = args.get(1).cloned().unwrap_or(ParamValue::Float(0.0));
+                let expected_type = parameter_node_type_from_value(&default_value);
+
+                let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), parameter_id.as_str(), expected_type);
+                for duplicate in lookup.duplicates {
+                    ctx.edits.push(Edit::RemoveNode { node: duplicate });
+                }
+
+                if let Some(existing_node) = lookup.primary {
+                    let existing_snapshot = ctx
+                        .tree_snapshot()
+                        .and_then(|snapshot| snapshot.node(existing_node))
+                        .map(|snapshot| (snapshot.is_parameter(), snapshot.node_type.clone(), snapshot.label.clone(), snapshot.param_value.clone()));
+
+                    if let Some((is_parameter, node_type, label, param_value)) = existing_snapshot {
+                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type) {
+                            if label != parameter_id {
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(parameter_id.clone()),
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+                            if param_value.as_ref() != Some(&default_value) {
+                                ctx.set_param(existing_node, default_value);
+                            }
+                            return Ok(true);
+                        }
+                    }
+
+                    let mut parameter = Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                    parameter.node_data_mut().meta.decl_id = DeclId(parameter_id);
+                    ctx.replace_node_boxed(existing_node, Box::new(parameter));
+                    return Ok(true);
+                }
+
+                let mut parameter = Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                parameter.node_data_mut().meta.decl_id = DeclId(parameter_id);
+                ctx.add_child_boxed(self.id(), Box::new(parameter), None);
+                Ok(true)
+            }
+            "removeParameter" => {
+                let Some(key) = args.first().and_then(ParamValue::as_str) else {
+                    return Err("method 'removeParameter' expects one string argument".to_string());
+                };
+                let key = key.trim();
+                if key.is_empty() {
+                    return Err("method 'removeParameter' expects a non-empty parameter key".to_string());
+                }
+                let Some(snapshot) = ctx.tree_snapshot() else {
+                    return Err("method 'removeParameter' is unavailable without tree snapshot".to_string());
+                };
+                let Some(param_node) = snapshot.find_child(self.id(), key) else {
+                    return Err(format!("parameter '{key}' was not found"));
+                };
+                let Some(param_snapshot) = snapshot.node(param_node) else {
+                    return Err(format!("parameter '{key}' was not found"));
+                };
+                if !param_snapshot.is_parameter() {
+                    return Err(format!("child '{key}' is not a parameter"));
+                }
+                ctx.edits.push(Edit::RemoveNode { node: param_node });
+                Ok(true)
+            }
+            "setParam" => {
+                let Some(key) = args.first().and_then(ParamValue::as_str) else {
+                    return Err("method 'setParam' expects (name, value) arguments".to_string());
+                };
+                let value = args.get(1).cloned().ok_or_else(|| "method 'setParam' expects (name, value) arguments".to_string())?;
+                let key = key.trim();
+                if key.is_empty() {
+                    return Err("method 'setParam' expects a non-empty parameter key".to_string());
+                }
+                let Some(snapshot) = ctx.tree_snapshot() else {
+                    return Err("method 'setParam' is unavailable without tree snapshot".to_string());
+                };
+                let Some(param_node) = snapshot.find_child(self.id(), key) else {
+                    return Err(format!("parameter '{key}' was not found"));
+                };
+                let Some(param_snapshot) = snapshot.node(param_node) else {
+                    return Err(format!("parameter '{key}' was not found"));
+                };
+                if !param_snapshot.is_parameter() {
+                    return Err(format!("child '{key}' is not a parameter"));
+                }
+                ctx.set_param(param_node, value);
+                Ok(true)
+            }
+            "addNode" => {
+                let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
+                let normalized_node_type = node_type.trim().to_ascii_lowercase();
+
+                let default_label = match normalized_node_type.as_str() {
+                    "parameter" | "param" => "parameter".to_string(),
+                    "folder" | "" => "Folder".to_string(),
+                    _ => node_type.clone(),
+                };
+                let label = args.get(1).and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or(default_label);
+
+                if normalized_node_type.is_empty() || normalized_node_type == "folder" {
+                    let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), "folder");
+                    for duplicate in lookup.duplicates {
+                        ctx.edits.push(Edit::RemoveNode { node: duplicate });
+                    }
+
+                    if let Some(existing_node) = lookup.primary {
+                        if lookup.primary_matches_type {
+                            if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                                if existing_label != label {
+                                    ctx.patch_node_meta(
+                                        existing_node,
+                                        NodeMetaPatch {
+                                            label: Some(label),
+                                            ..Default::default()
+                                        },
+                                    );
+                                }
+                            }
+                            return Ok(true);
+                        }
+
+                        ctx.replace_node_boxed(existing_node, Box::new(Folder::new(label)));
+                        return Ok(true);
+                    }
+
+                    ctx.add_child_boxed(self.id(), Box::new(Folder::new(label)), None);
+                    return Ok(true);
+                }
+
+                if normalized_node_type == "parameter" || normalized_node_type == "param" {
+                    let default_value = args.get(2).cloned().unwrap_or(ParamValue::Float(0.0));
+                    let expected_type = parameter_node_type_from_value(&default_value);
+                    let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), expected_type);
+                    for duplicate in lookup.duplicates {
+                        ctx.edits.push(Edit::RemoveNode { node: duplicate });
+                    }
+
+                    if let Some(existing_node) = lookup.primary {
+                        let existing_snapshot = ctx
+                            .tree_snapshot()
+                            .and_then(|snapshot| snapshot.node(existing_node))
+                            .map(|snapshot| (snapshot.is_parameter(), snapshot.label.clone(), snapshot.param_value.clone()));
+
+                        if let Some((is_parameter, existing_label, param_value)) = existing_snapshot {
+                            if is_parameter && lookup.primary_matches_type {
+                                if existing_label != label {
+                                    ctx.patch_node_meta(
+                                        existing_node,
+                                        NodeMetaPatch {
+                                            label: Some(label.clone()),
+                                            ..Default::default()
+                                        },
+                                    );
+                                }
+                                if param_value.as_ref() != Some(&default_value) {
+                                    ctx.set_param(existing_node, default_value);
+                                }
+                                return Ok(true);
+                            }
+                        }
+
+                        let mut parameter = Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                        parameter.node_data_mut().meta.decl_id = DeclId(label.clone());
+                        ctx.replace_node_boxed(existing_node, Box::new(parameter));
+                        return Ok(true);
+                    }
+
+                    let mut parameter = Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                    parameter.node_data_mut().meta.decl_id = DeclId(label.clone());
+                    ctx.add_child_boxed(self.id(), Box::new(parameter), None);
+                    return Ok(true);
+                }
+
+                let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), node_type.as_str());
+                for duplicate in lookup.duplicates {
+                    ctx.edits.push(Edit::RemoveNode { node: duplicate });
+                }
+
+                if let Some(existing_node) = lookup.primary {
+                    if lookup.primary_matches_type {
+                        if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                            if existing_label != label {
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label),
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+                        }
+                        return Ok(true);
+                    }
+
+                    if let Some(node) = self.create_user_item(node_type.as_str(), label) {
+                        ctx.replace_node_boxed(existing_node, node);
+                        return Ok(true);
+                    }
+                } else if let Some(node) = self.create_user_item(node_type.as_str(), label) {
+                    ctx.add_user_item_boxed(self.id(), node, None);
+                    return Ok(true);
+                }
+
+                Err(format!("method 'addNode' cannot create node type '{node_type}' under '{}'", self.get_type()))
+            }
+            _ => Ok(false),
+        }
     }
 
     /// Engine-internal hook used to traverse mutable node references.

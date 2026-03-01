@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -477,6 +478,8 @@ impl<T: Node> Engine<T> {
 
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let due_nodes = self.runtime_schedule.collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        let needs_tree_snapshot = due_nodes.iter().any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
+        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
         let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
@@ -515,6 +518,11 @@ impl<T: Node> Engine<T> {
 
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.delta_time = delta_time;
+            if let Some(tree_snapshot) = &tree_snapshot {
+                if self.nodes.get(node_id).is_some_and(|node| node.get_type() == "script") {
+                    ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+                }
+            }
             let mut did_update = false;
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {

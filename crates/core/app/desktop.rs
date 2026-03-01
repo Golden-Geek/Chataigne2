@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::window::Color;
-use tauri::{ Url, WebviewUrl};
+use tauri::{Url, WebviewUrl};
 
 use super::{UiServerConfig, run_app_with_config};
 use crate::engine::Engine;
@@ -271,14 +271,7 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            window_minimize,
-            window_toggle_maximize,
-            window_close,
-            window_is_maximized,
-            start_drag,
-            open_file_dialog
-        ])
+        .invoke_handler(tauri::generate_handler![window_minimize, window_toggle_maximize, window_close, window_is_maximized, start_drag, open_file_dialog])
         .append_invoke_initialization_script(&init_script)
         .run(tauri::generate_context!("../../../../tauri.conf.json"))
         .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))

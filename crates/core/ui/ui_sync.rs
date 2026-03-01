@@ -548,10 +548,7 @@ impl<T: Node> Engine<T> {
                 }
             }
 
-            let mut accepted_user_item_kinds: Vec<String> = node
-                .user_container_rules()
-                .map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect())
-                .unwrap_or_default();
+            let mut accepted_user_item_kinds: Vec<String> = node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default();
             if node.script_host_policy().is_some_and(|policy| policy.enabled) && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
                 accepted_user_item_kinds.push("script".to_string());
             }
@@ -636,18 +633,11 @@ impl<T: Node> Engine<T> {
             return Err(format!("node {} not found", node.0));
         };
 
-        target
-            .engine_script_state()
-            .ok_or_else(|| format!("node {} does not expose script runtime state", node.0))
+        target.engine_script_state().ok_or_else(|| format!("node {} does not expose script runtime state", node.0))
     }
 
     /// Replaces script configuration for `node`.
-    pub fn ui_set_script_config(
-        &mut self,
-        node: NodeId,
-        config: ScriptUiConfig,
-        force_reload: bool,
-    ) -> Result<(), String> {
+    pub fn ui_set_script_config(&mut self, node: NodeId, config: ScriptUiConfig, force_reload: bool) -> Result<(), String> {
         self.edits.push(Edit::SetScriptConfig {
             node,
             config: ScriptNodeConfig::from(config),
@@ -932,6 +922,8 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::ParamEditTargetMismatch { .. } => "param_edit_target_mismatch",
         crate::engine::EngineEditError::ParamConstraintViolation { .. } => "param_constraint_violation",
         crate::engine::EngineEditError::ScriptConfigRejected { .. } => "script_config_rejected",
+        crate::engine::EngineEditError::ScriptPropertyRejected { .. } => "script_property_rejected",
+        crate::engine::EngineEditError::ScriptMethodRejected { .. } => "script_method_rejected",
         crate::engine::EngineEditError::NodeNotFound { .. } => "node_not_found",
         crate::engine::EngineEditError::ParentNotFound { .. } => "parent_not_found",
         crate::engine::EngineEditError::SiblingNotFound { .. } => "sibling_not_found",

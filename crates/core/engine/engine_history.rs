@@ -160,12 +160,7 @@ impl<T: Node> HistoryStep<T> {
                 }
             }
             Self::SetScriptConfig(step) => {
-                engine.apply_script_config_for_history(
-                    "UndoSetScriptConfig",
-                    step.node,
-                    step.old_config.clone(),
-                    step.force_reload,
-                )?;
+                engine.apply_script_config_for_history("UndoSetScriptConfig", step.node, step.old_config.clone(), step.force_reload)?;
             }
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
@@ -316,12 +311,7 @@ impl<T: Node> HistoryStep<T> {
                 }
             }
             Self::SetScriptConfig(step) => {
-                engine.apply_script_config_for_history(
-                    "RedoSetScriptConfig",
-                    step.node,
-                    step.new_config.clone(),
-                    step.force_reload,
-                )?;
+                engine.apply_script_config_for_history("RedoSetScriptConfig", step.node, step.new_config.clone(), step.force_reload)?;
             }
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";
