@@ -2770,7 +2770,7 @@ fn ui_set_script_config_changes_are_undoable() {
 
     let next_config = ScriptUiConfig {
         source: ScriptUiSource::Inline {
-            text: "return { api_version: 1, exports: {} };".to_string(),
+            text: "script.setApiVersion(1);".to_string(),
         },
     };
 

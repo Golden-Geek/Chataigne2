@@ -1,14 +1,14 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
-use rquickjs::function::{Func as QuickJsFunc, MutFn as QuickJsMutFn};
+use rquickjs::function::{Args as QuickJsArgs, Func as QuickJsFunc, MutFn as QuickJsMutFn};
 use rquickjs::context::EvalOptions as QuickJsEvalOptions;
 use rquickjs::{
-    Array as QuickJsArray, Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError,
+    Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError,
     Function as QuickJsFunction, IntoJs as _, Object as QuickJsObject,
     Runtime as QuickJsRuntimeHandle, Value as QuickJsValue,
 };
@@ -25,103 +25,23 @@ use crate::parameter::{
 };
 use crate::process_ctx::ProcessCtx;
 
-/// Script runtime capability flags.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ScriptCapability {
-    /// Read one parameter value.
-    ParamRead,
-    /// Set one parameter value.
-    ParamWrite,
-    /// Read node metadata.
-    NodeRead,
-    /// Patch node metadata.
-    NodePatchMeta,
-    /// Add node under an allowed container.
-    NodeAdd,
-    /// Remove an allowed node.
-    NodeRemove,
-    /// Move an allowed node.
-    NodeMove,
-    /// Register event subscriptions.
-    EventSubscribe,
-    /// Emit custom events.
-    EventEmit,
-}
-
-/// Ordered set wrapper for script capabilities.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ScriptCapabilitySet {
-    /// Enabled capabilities.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub values: Vec<ScriptCapability>,
-}
-
-impl ScriptCapabilitySet {
-    /// Creates an empty capability set.
-    pub fn none() -> Self {
-        Self { values: Vec::new() }
-    }
-
-    /// Creates a capability set from an iterator.
-    pub fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = ScriptCapability>,
-    {
-        let mut ordered = BTreeSet::new();
-        for value in iter {
-            ordered.insert(value);
-        }
-        Self { values: ordered.into_iter().collect() }
-    }
-
-    /// Returns `true` when the set contains `capability`.
-    pub fn contains(&self, capability: ScriptCapability) -> bool {
-        self.values.binary_search(&capability).is_ok()
-    }
-}
-
 /// Script-host policy for one node type.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScriptHostPolicy {
     /// Whether script hosting is enabled for this node.
     pub enabled: bool,
-    /// Capabilities granted to scripts hosted by this node.
-    #[serde(default)]
-    pub capabilities: ScriptCapabilitySet,
-    /// Whether graph structure edits are allowed from scripts.
-    #[serde(default)]
-    pub allow_structural_mutation: bool,
 }
 
 impl Default for ScriptHostPolicy {
     fn default() -> Self {
-        Self {
-            enabled: false,
-            capabilities: ScriptCapabilitySet::none(),
-            allow_structural_mutation: false,
-        }
+        Self { enabled: false }
     }
 }
 
 impl ScriptHostPolicy {
     /// Default policy used by `#[node(scriptable)]` and `#[item(..., scriptable)]`.
     pub fn default_scriptable() -> Self {
-        Self {
-            enabled: true,
-            capabilities: ScriptCapabilitySet::from_iter([
-                ScriptCapability::ParamRead,
-                ScriptCapability::ParamWrite,
-                ScriptCapability::NodeRead,
-                ScriptCapability::NodePatchMeta,
-                ScriptCapability::EventSubscribe,
-                ScriptCapability::EventEmit,
-                ScriptCapability::NodeAdd,
-                ScriptCapability::NodeRemove,
-                ScriptCapability::NodeMove,
-            ]),
-            allow_structural_mutation: false,
-        }
+        Self { enabled: true }
     }
 }
 
@@ -611,9 +531,6 @@ pub struct ScriptManifest {
     /// Exported functions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exports: Vec<ScriptExportSpec>,
-    /// Requested runtime capabilities.
-    #[serde(default)]
-    pub requested_capabilities: ScriptCapabilitySet,
 }
 
 impl Default for ScriptManifest {
@@ -624,7 +541,6 @@ impl Default for ScriptManifest {
             parameters: Vec::new(),
             subscriptions: Vec::new(),
             exports: Vec::new(),
-            requested_capabilities: ScriptCapabilitySet::none(),
         }
     }
 }
@@ -800,15 +716,15 @@ pub trait ScriptRuntime: Send {
     fn export_names(&self) -> Vec<String>;
     /// Calls one exported function.
     fn call_export(&mut self, export_name: &str, args: &[ScriptValue], host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError>;
-    /// Calls `on_init` if declared.
+    /// Calls `init` if declared.
     fn call_on_init(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
-    /// Calls `on_update` if declared.
+    /// Calls `update` if declared.
     fn call_on_update(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
-    /// Calls `on_event` if declared.
+    /// Calls `event`/`paramChanged` if declared.
     fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
-    /// Calls `on_destroy` if declared.
+    /// Calls `destroy` if declared.
     fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
-    /// Returns `true` when `on_update` is declared by the script.
+    /// Returns `true` when an update hook is declared by the script.
     fn has_on_update(&self) -> bool;
 }
 
@@ -819,10 +735,11 @@ enum ScriptHostOp {
 
 #[derive(Default)]
 struct QuickJsEntrypoints {
-    on_init: bool,
-    on_update: bool,
-    on_event: bool,
-    on_destroy: bool,
+    init: Option<String>,
+    update: Option<String>,
+    event: Option<String>,
+    param_changed: Option<String>,
+    destroy: Option<String>,
     exports: Vec<String>,
 }
 
@@ -921,7 +838,17 @@ impl QuickJsRuntime {
 
             ctx.globals().set("gc", gc_table)?;
             ctx.eval::<(), _>(
-                "globalThis.gc.emit = (topic, payload) => globalThis.gc.__emit_raw(topic, JSON.stringify(payload === undefined ? null : payload));",
+                r#"
+globalThis.gc.emit = (topic, payload) => globalThis.gc.__emit_raw(
+  topic,
+  JSON.stringify(payload === undefined ? null : payload)
+);
+globalThis.log = (message) => globalThis.gc.log("info", String(message ?? ""));
+globalThis.success = (message) => globalThis.gc.log("success", String(message ?? ""));
+globalThis.warn = (message) => globalThis.gc.log("warning", String(message ?? ""));
+globalThis.error = (message) => globalThis.gc.log("error", String(message ?? ""));
+globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
+"#,
             )?;
             Ok(())
         })?;
@@ -972,19 +899,121 @@ impl QuickJsRuntime {
         Ok(output)
     }
 
-    fn build_callback_ctx<'js>(&self, ctx: &QuickJsCtx<'js>, host: &dyn ScriptHostBridge) -> Result<QuickJsObject<'js>, ScriptRuntimeError> {
-        let callback_ctx = QuickJsObject::new(ctx.clone())?;
-        let gc_table: QuickJsObject = ctx.globals().get("gc")?;
-        let log_fn: QuickJsFunction = gc_table.get("log")?;
-        let emit_fn: QuickJsFunction = gc_table.get("emit")?;
-        callback_ctx.set("log", log_fn)?;
-        callback_ctx.set("emit", emit_fn)?;
-        callback_ctx.set("time_seconds", host.time_seconds())?;
-        callback_ctx.set("delta_seconds", host.delta_seconds())?;
-        if let Some(owner) = host.owner_node() {
-            callback_ctx.set("owner_node_id", owner.0 as i64)?;
+    fn is_js_identifier_start(ch: char) -> bool {
+        ch == '_' || ch == '$' || ch.is_ascii_alphabetic()
+    }
+
+    fn is_js_identifier_continue(ch: char) -> bool {
+        Self::is_js_identifier_start(ch) || ch.is_ascii_digit()
+    }
+
+    fn parse_exported_function_name(declaration: &str) -> Option<&str> {
+        let trimmed = declaration.trim_start();
+        let mut chars = trimmed.char_indices();
+        let (_, first) = chars.next()?;
+        if !Self::is_js_identifier_start(first) {
+            return None;
         }
-        Ok(callback_ctx)
+
+        let mut end = first.len_utf8();
+        for (index, ch) in chars {
+            if Self::is_js_identifier_continue(ch) {
+                end = index + ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        Some(&trimmed[..end])
+    }
+
+    fn preprocess_source_for_exported_functions(source: &str) -> String {
+        let mut transformed = String::new();
+        let mut exported_names: Vec<String> = Vec::new();
+
+        for segment in source.split_inclusive('\n') {
+            let (line, line_break) = if let Some(stripped) = segment.strip_suffix('\n') {
+                (stripped, "\n")
+            } else {
+                (segment, "")
+            };
+
+            let trimmed = line.trim_start();
+            let indent_len = line.len().saturating_sub(trimmed.len());
+            let indent = &line[..indent_len];
+
+            if let Some(rest) = trimmed.strip_prefix("export function ") {
+                if let Some(name) = Self::parse_exported_function_name(rest) {
+                    if !exported_names.iter().any(|existing| existing == name) {
+                        exported_names.push(name.to_string());
+                    }
+                    transformed.push_str(indent);
+                    transformed.push_str("function ");
+                    transformed.push_str(rest);
+                    transformed.push_str(line_break);
+                    continue;
+                }
+            }
+
+            if let Some(rest) = trimmed.strip_prefix("export async function ") {
+                if let Some(name) = Self::parse_exported_function_name(rest) {
+                    if !exported_names.iter().any(|existing| existing == name) {
+                        exported_names.push(name.to_string());
+                    }
+                    transformed.push_str(indent);
+                    transformed.push_str("async function ");
+                    transformed.push_str(rest);
+                    transformed.push_str(line_break);
+                    continue;
+                }
+            }
+
+            transformed.push_str(segment);
+        }
+
+        if !exported_names.is_empty() {
+            transformed.push_str("\n");
+            transformed.push_str("// Auto-registered exported functions.\n");
+            for name in exported_names {
+                transformed.push_str("globalThis.__gc_script_exports[\"");
+                transformed.push_str(&name);
+                transformed.push_str("\"] = ");
+                transformed.push_str(&name);
+                transformed.push_str(";\n");
+            }
+        }
+
+        transformed
+    }
+
+    fn first_function_name<'js>(object: &QuickJsObject<'js>, candidates: &[&str]) -> Result<Option<String>, QuickJsError> {
+        for candidate in candidates {
+            if object.get::<_, Option<QuickJsFunction>>(*candidate)?.is_some() {
+                return Ok(Some((*candidate).to_string()));
+            }
+        }
+        Ok(None)
+    }
+
+    fn collect_export_names<'js>(object: &QuickJsObject<'js>) -> Result<Vec<String>, QuickJsError> {
+        let mut exports = Vec::new();
+        for key in object.keys::<String>() {
+            let key = key?;
+            if object.get::<_, Option<QuickJsFunction>>(key.as_str())?.is_some() {
+                exports.push(key);
+            }
+        }
+        exports.sort();
+        exports.dedup();
+        Ok(exports)
+    }
+
+    fn lookup_export_callback<'js>(globals: &QuickJsObject<'js>, export_name: &str) -> Result<Option<QuickJsFunction<'js>>, QuickJsError> {
+        if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
+            if let Some(callback) = export_table.get::<_, Option<QuickJsFunction>>(export_name)? {
+                return Ok(Some(callback));
+            }
+        }
+        Ok(None)
     }
 
     fn to_quickjs_value<'js>(&self, ctx: &QuickJsCtx<'js>, value: &ScriptValue) -> Result<QuickJsValue<'js>, ScriptRuntimeError> {
@@ -1139,14 +1168,91 @@ impl ScriptRuntime for QuickJsRuntime {
         self.entrypoints = QuickJsEntrypoints::default();
         self.manifest = None;
 
-        // Keep user source on original line numbers by avoiding an inserted leading newline.
-        let wrapped = format!("globalThis.__gc_script_manifest = (() => {{{source}\n}})();");
+        let bootstrap = r#"
+globalThis.__gc_script_exports = {};
+globalThis.__gc_script_manifest = {
+  apiVersion: 1,
+  updateRateHz: null,
+  parameters: {},
+  subscriptions: [],
+  exports: globalThis.__gc_script_exports,
+};
+globalThis.script = {
+  setApiVersion(value) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric >= 1) {
+      globalThis.__gc_script_manifest.apiVersion = Math.floor(numeric);
+    }
+    return globalThis.__gc_script_manifest.apiVersion;
+  },
+  setUpdateRateHz(value) {
+    if (value === null || value === undefined) {
+      globalThis.__gc_script_manifest.updateRateHz = null;
+      return null;
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      globalThis.__gc_script_manifest.updateRateHz = null;
+      return null;
+    }
+    const rounded = Math.floor(numeric);
+    globalThis.__gc_script_manifest.updateRateHz = rounded > 0 ? rounded : null;
+    return globalThis.__gc_script_manifest.updateRateHz;
+  },
+  listen(node, maxDepth = 0) {
+    const selector = typeof node === "string" ? node : String(node ?? "@host");
+    const depth = Number.isFinite(Number(maxDepth)) && Number(maxDepth) >= 0 ? Math.floor(Number(maxDepth)) : 0;
+    globalThis.__gc_script_manifest.subscriptions.push({ node: selector, maxDepth: depth });
+    return { node: selector, maxDepth: depth };
+  },
+  unlisten(node, maxDepth = 0) {
+    const selector = typeof node === "string" ? node : String(node ?? "@host");
+    const depth = Number.isFinite(Number(maxDepth)) && Number(maxDepth) >= 0 ? Math.floor(Number(maxDepth)) : 0;
+    const list = globalThis.__gc_script_manifest.subscriptions;
+    for (let index = list.length - 1; index >= 0; index -= 1) {
+      const item = list[index];
+      if (item && item.node === selector && Number(item.maxDepth ?? item.max_depth ?? 0) === depth) {
+        list.splice(index, 1);
+        return true;
+      }
+    }
+    return false;
+  },
+  clearListeners() {
+    globalThis.__gc_script_manifest.subscriptions = [];
+  },
+  addParameter(name, spec = {}) {
+    const key = String(name ?? "").trim();
+    if (key.length === 0) {
+      return false;
+    }
+    globalThis.__gc_script_manifest.parameters[key] = spec ?? {};
+    return true;
+  },
+  removeParameter(name) {
+    const key = String(name ?? "").trim();
+    if (key.length === 0) {
+      return false;
+    }
+    return delete globalThis.__gc_script_manifest.parameters[key];
+  },
+};
+if (globalThis.gc && typeof globalThis.gc === "object") {
+  globalThis.gc.script = globalThis.script;
+}
+"#;
+
         let source_name = source_name.to_string();
+        let preprocessed_source = Self::preprocess_source_for_exported_functions(source);
         let (entrypoints, manifest_json) = self.context.with(|ctx| -> Result<(QuickJsEntrypoints, String), ScriptRuntimeError> {
             let result = (|| -> Result<(QuickJsEntrypoints, String), QuickJsError> {
+                let mut bootstrap_options = QuickJsEvalOptions::default();
+                bootstrap_options.filename = Some(format!("{source_name}#bootstrap"));
+                ctx.eval_with_options::<(), _>(bootstrap, bootstrap_options)?;
+
                 let mut eval_options = QuickJsEvalOptions::default();
-                eval_options.filename = Some(source_name);
-                ctx.eval_with_options::<(), _>(wrapped.as_str(), eval_options)?;
+                eval_options.filename = Some(source_name.clone());
+                ctx.eval_with_options::<(), _>(preprocessed_source.as_str(), eval_options)?;
 
                 let globals = ctx.globals();
                 let root_value: QuickJsValue = globals.get("__gc_script_manifest")?;
@@ -1154,32 +1260,29 @@ impl ScriptRuntime for QuickJsRuntime {
                     return Err(QuickJsError::new_from_js_message(
                         "value",
                         "object",
-                        "script must return a manifest object",
+                        "script manifest state must be an object",
                     ));
                 }
-                let root = root_value.into_object().ok_or_else(|| {
-                    QuickJsError::new_from_js_message("value", "object", "script must return a manifest object")
+                let _root = root_value.into_object().ok_or_else(|| {
+                    QuickJsError::new_from_js_message("value", "object", "script manifest state must be an object")
                 })?;
 
-                let on_init = root.get::<_, Option<QuickJsFunction>>("on_init")?.is_some();
-                let on_update = root.get::<_, Option<QuickJsFunction>>("on_update")?.is_some();
-                let on_event = root.get::<_, Option<QuickJsFunction>>("on_event")?.is_some();
-                let on_destroy = root.get::<_, Option<QuickJsFunction>>("on_destroy")?.is_some();
+                let init = Self::first_function_name(&globals, &["init"])?;
+                let update = Self::first_function_name(&globals, &["update"])?;
+                let event = Self::first_function_name(&globals, &["event"])?;
+                let param_changed = Self::first_function_name(&globals, &["paramChanged"])?;
+                let destroy = Self::first_function_name(&globals, &["destroy"])?;
 
                 let mut exports = Vec::new();
-                if let Some(export_table) = root.get::<_, Option<QuickJsObject>>("exports")? {
-                    for key in export_table.keys::<String>() {
-                        let key = key?;
-                        if export_table.get::<_, Option<QuickJsFunction>>(key.as_str())?.is_some() {
-                            exports.push(key);
-                        }
-                    }
+                if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
+                    exports.extend(Self::collect_export_names(&export_table)?);
                 }
                 exports.sort();
+                exports.dedup();
 
                 let manifest_json = ctx
                     .eval::<Option<String>, _>(
-                        "JSON.stringify(globalThis.__gc_script_manifest, (key, value) => typeof value === 'function' ? undefined : value)",
+                        "JSON.stringify(globalThis.__gc_script_manifest ?? {}, (key, value) => typeof value === 'function' ? undefined : value)",
                     )?
                     .ok_or_else(|| {
                         QuickJsError::new_from_js_message(
@@ -1191,10 +1294,11 @@ impl ScriptRuntime for QuickJsRuntime {
 
                 Ok((
                     QuickJsEntrypoints {
-                        on_init,
-                        on_update,
-                        on_event,
-                        on_destroy,
+                        init,
+                        update,
+                        event,
+                        param_changed,
+                        destroy,
                         exports,
                     },
                     manifest_json,
@@ -1235,22 +1339,15 @@ impl ScriptRuntime for QuickJsRuntime {
         let result = self.callback_timed("export", || {
             self.context.with(|ctx| -> Result<ScriptValue, ScriptRuntimeError> {
                 let result = (|| -> Result<ScriptValue, ScriptRuntimeError> {
-                    let callback_ctx = self.build_callback_ctx(&ctx, host)?;
-
                     let globals = ctx.globals();
-                    let root: QuickJsObject = globals.get("__gc_script_manifest")?;
-                    let exports = root
-                        .get::<_, Option<QuickJsObject>>("exports")?
-                        .ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
-                    let callback = exports
-                        .get::<_, Option<QuickJsFunction>>(export_name)?
+                    let callback = Self::lookup_export_callback(&globals, export_name)?
                         .ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
 
-                    let args_table = QuickJsArray::new(ctx.clone())?;
-                    for (index, argument) in args.iter().enumerate() {
-                        args_table.set(index, self.to_quickjs_value(&ctx, argument)?)?;
+                    let mut call_args = QuickJsArgs::new(ctx.clone(), args.len());
+                    for argument in args {
+                        call_args.push_arg(self.to_quickjs_value(&ctx, argument)?)?;
                     }
-                    let return_value = callback.call::<_, QuickJsValue>((callback_ctx, args_table))?;
+                    let return_value = callback.call_arg::<QuickJsValue>(call_args)?;
                     self.from_quickjs_value(&ctx, return_value)
                 })();
                 result.map_err(|error| Self::enrich_runtime_error_with_context(&ctx, "export callback", error))
@@ -1262,18 +1359,17 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 
     fn call_on_init(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        if !self.entrypoints.on_init {
+        let Some(callback_name) = self.entrypoints.init.clone() else {
             return Ok(());
-        }
+        };
 
         self.reset_host_callback_state()?;
         let result = self.callback_timed("on_init", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
-                    let callback_ctx = self.build_callback_ctx(&ctx, host)?;
-                    let root: QuickJsObject = ctx.globals().get("__gc_script_manifest")?;
-                    if let Some(callback) = root.get::<_, Option<QuickJsFunction>>("on_init")? {
-                        callback.call::<_, ()>((callback_ctx,))?;
+                    let globals = ctx.globals();
+                    if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name.as_str())? {
+                        callback.call::<_, ()>(())?;
                     }
                     Ok(())
                 })();
@@ -1286,19 +1382,18 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 
     fn call_on_update(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        if !self.entrypoints.on_update {
+        let Some(callback_name) = self.entrypoints.update.clone() else {
             return Ok(());
-        }
+        };
 
         self.reset_host_callback_state()?;
         let delta_seconds = host.delta_seconds();
         let result = self.callback_timed("on_update", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
-                    let callback_ctx = self.build_callback_ctx(&ctx, host)?;
-                    let root: QuickJsObject = ctx.globals().get("__gc_script_manifest")?;
-                    if let Some(callback) = root.get::<_, Option<QuickJsFunction>>("on_update")? {
-                        callback.call::<_, ()>((callback_ctx, delta_seconds))?;
+                    let globals = ctx.globals();
+                    if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name.as_str())? {
+                        callback.call::<_, ()>((delta_seconds,))?;
                     }
                     Ok(())
                 })();
@@ -1311,7 +1406,13 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 
     fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        if !self.entrypoints.on_event {
+        let event_callback_name = self.entrypoints.event.clone();
+        let param_changed_callback_name = if event.kind == "paramChanged" {
+            self.entrypoints.param_changed.clone()
+        } else {
+            None
+        };
+        if event_callback_name.is_none() && param_changed_callback_name.is_none() {
             return Ok(());
         }
 
@@ -1321,11 +1422,20 @@ impl ScriptRuntime for QuickJsRuntime {
         let result = self.callback_timed("on_event", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
-                    let callback_ctx = self.build_callback_ctx(&ctx, host)?;
-                    let event_value = ctx.json_parse(event_payload.as_str())?;
-                    let root: QuickJsObject = ctx.globals().get("__gc_script_manifest")?;
-                    if let Some(callback) = root.get::<_, Option<QuickJsFunction>>("on_event")? {
-                        callback.call::<_, ()>((callback_ctx, event_value))?;
+                    let globals = ctx.globals();
+
+                    if let Some(callback_name) = param_changed_callback_name.as_deref() {
+                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
+                            let event_value = ctx.json_parse(event_payload.as_str())?;
+                            callback.call::<_, ()>((event_value,))?;
+                        }
+                    }
+
+                    if let Some(callback_name) = event_callback_name.as_deref() {
+                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
+                            let event_value = ctx.json_parse(event_payload.as_str())?;
+                            callback.call::<_, ()>((event_value,))?;
+                        }
                     }
                     Ok(())
                 })();
@@ -1338,18 +1448,17 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 
     fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        if !self.entrypoints.on_destroy {
+        let Some(callback_name) = self.entrypoints.destroy.clone() else {
             return Ok(());
-        }
+        };
 
         self.reset_host_callback_state()?;
         let result = self.callback_timed("on_destroy", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
-                    let callback_ctx = self.build_callback_ctx(&ctx, host)?;
-                    let root: QuickJsObject = ctx.globals().get("__gc_script_manifest")?;
-                    if let Some(callback) = root.get::<_, Option<QuickJsFunction>>("on_destroy")? {
-                        callback.call::<_, ()>((callback_ctx,))?;
+                    let globals = ctx.globals();
+                    if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name.as_str())? {
+                        callback.call::<_, ()>(())?;
                     }
                     Ok(())
                 })();
@@ -1362,7 +1471,7 @@ impl ScriptRuntime for QuickJsRuntime {
     }
 
     fn has_on_update(&self) -> bool {
-        self.entrypoints.on_update
+        self.entrypoints.update.is_some()
     }
 }
 
@@ -1371,15 +1480,20 @@ fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> R
         return Err(ScriptRuntimeError::InvalidManifest("manifest JSON root must be an object".to_string()));
     };
 
-    let api_version = root.get("api_version").and_then(JsonValue::as_u64).unwrap_or(1) as u32;
+    let api_version = json_object_get(root, &["apiVersion"])
+        .and_then(JsonValue::as_u64)
+        .unwrap_or(1) as u32;
     if api_version == 0 {
-        return Err(ScriptRuntimeError::InvalidManifest("api_version must be >= 1".to_string()));
+        return Err(ScriptRuntimeError::InvalidManifest(
+            "apiVersion must be >= 1".to_string(),
+        ));
     }
 
-    let update_rate_hz = root.get("update_rate_hz").and_then(JsonValue::as_u64).map(|value| value as u32);
-    let requested_capabilities = parse_capability_set_json(root.get("capabilities"))?;
-    let parameters = parse_parameter_specs_json(root.get("parameters"))?;
-    let subscriptions = parse_subscription_specs_json(root.get("subscriptions"))?;
+    let update_rate_hz = json_object_get(root, &["updateRateHz"])
+        .and_then(JsonValue::as_u64)
+        .map(|value| value as u32);
+    let parameters = parse_parameter_specs_json(json_object_get(root, &["parameters"]))?;
+    let subscriptions = parse_subscription_specs_json(json_object_get(root, &["subscriptions"]))?;
     let exports = export_names.into_iter().map(|name| ScriptExportSpec { name, signature: ScriptFnSignature::default() }).collect();
 
     Ok(ScriptManifest {
@@ -1388,40 +1502,16 @@ fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> R
         parameters,
         subscriptions,
         exports,
-        requested_capabilities,
     })
 }
 
-fn parse_capability_set_json(value: Option<&JsonValue>) -> Result<ScriptCapabilitySet, ScriptRuntimeError> {
-    let Some(value) = value else {
-        return Ok(ScriptCapabilitySet::none());
-    };
-
-    let Some(items) = value.as_array() else {
-        return Err(ScriptRuntimeError::InvalidManifest("capabilities must be an array of strings".to_string()));
-    };
-
-    let mut capabilities = Vec::new();
-    for item in items {
-        let Some(name) = item.as_str() else {
-            return Err(ScriptRuntimeError::InvalidManifest("capabilities entries must be strings".to_string()));
-        };
-        let capability = match name.trim().to_ascii_lowercase().as_str() {
-            "paramread" | "param_read" | "param-read" => ScriptCapability::ParamRead,
-            "paramwrite" | "param_write" | "param-write" => ScriptCapability::ParamWrite,
-            "noderead" | "node_read" | "node-read" => ScriptCapability::NodeRead,
-            "nodepatchmeta" | "node_patch_meta" | "node-patch-meta" => ScriptCapability::NodePatchMeta,
-            "nodeadd" | "node_add" | "node-add" => ScriptCapability::NodeAdd,
-            "noderemove" | "node_remove" | "node-remove" => ScriptCapability::NodeRemove,
-            "nodemove" | "node_move" | "node-move" => ScriptCapability::NodeMove,
-            "eventsubscribe" | "event_subscribe" | "event-subscribe" => ScriptCapability::EventSubscribe,
-            "eventemit" | "event_emit" | "event-emit" => ScriptCapability::EventEmit,
-            other => return Err(ScriptRuntimeError::InvalidManifest(format!("unknown capability '{other}'"))),
-        };
-        capabilities.push(capability);
+fn json_object_get<'a>(object: &'a serde_json::Map<String, JsonValue>, keys: &[&str]) -> Option<&'a JsonValue> {
+    for key in keys {
+        if let Some(value) = object.get(*key) {
+            return Some(value);
+        }
     }
-
-    Ok(ScriptCapabilitySet::from_iter(capabilities))
+    None
 }
 
 fn parse_subscription_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptSubscriptionSpec>, ScriptRuntimeError> {
@@ -1443,7 +1533,9 @@ fn parse_subscription_specs_json(value: Option<&JsonValue>) -> Result<Vec<Script
             .get("node")
             .and_then(JsonValue::as_str)
             .ok_or_else(|| ScriptRuntimeError::InvalidManifest("subscription entry must define string field 'node'".to_string()))?;
-        let max_depth = entry.get("max_depth").and_then(JsonValue::as_u64).unwrap_or(0) as u32;
+        let max_depth = json_object_get(entry, &["maxDepth"])
+            .and_then(JsonValue::as_u64)
+            .unwrap_or(0) as u32;
         let selector = if selector_raw == "@host" {
             ScriptNodeSelector::HostPath(String::new())
         } else if selector_raw == "@root" {
@@ -1487,8 +1579,8 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
         };
 
         let mut constraints = ParameterConstraints::default();
-        constraints.step = entry.get("step").and_then(JsonValue::as_f64);
-        constraints.step_base = entry.get("step_base").and_then(JsonValue::as_f64);
+        constraints.step = json_object_get(entry, &["step"]).and_then(JsonValue::as_f64);
+        constraints.step_base = json_object_get(entry, &["stepBase"]).and_then(JsonValue::as_f64);
         if let Some(policy_label) = entry.get("policy").and_then(JsonValue::as_str) {
             constraints.policy = match policy_label.trim().to_ascii_lowercase().as_str() {
                 "clampadapt" | "clamp_adapt" | "clamp-adapt" => ParameterConstraintPolicy::ClampAdapt,
@@ -1499,7 +1591,7 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
 
         constraints.range = parse_range_constraint_json(value_type, entry.get("min"), entry.get("max"))?;
 
-        if let Some(enum_options) = entry.get("enum_options") {
+        if let Some(enum_options) = json_object_get(entry, &["enumOptions"]) {
             let Some(options) = enum_options.as_array() else {
                 return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' enum_options must be an array")));
             };
@@ -1528,9 +1620,11 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
             unit: entry.get("unit").and_then(JsonValue::as_str).map(ToString::to_string),
         };
 
-        let decl_id = entry.get("decl_id").and_then(JsonValue::as_str).unwrap_or(name);
+        let decl_id = json_object_get(entry, &["declId"]).and_then(JsonValue::as_str).unwrap_or(name);
         let label = entry.get("label").and_then(JsonValue::as_str).map(ToString::to_string);
-        let read_only = entry.get("read_only").and_then(JsonValue::as_bool).unwrap_or(false);
+        let read_only = json_object_get(entry, &["readOnly"])
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
 
         specs.push(ScriptParameterSpec {
             name: name.to_string(),
@@ -1554,7 +1648,7 @@ fn parse_file_constraints_json(
 ) -> Result<FileConstraints, ScriptRuntimeError> {
     let mut constraints = FileConstraints::default();
 
-    if let Some(allowed_types) = entry.get("allowed_types") {
+    if let Some(allowed_types) = json_object_get(entry, &["allowedTypes"]) {
         let Some(values) = allowed_types.as_array() else {
             return Err(ScriptRuntimeError::InvalidManifest(format!(
                 "parameter '{param_name}' allowed_types must be an array"
@@ -1577,7 +1671,7 @@ fn parse_file_constraints_json(
         constraints.allowed_types = parsed;
     }
 
-    if let Some(allowed_extensions) = entry.get("allowed_extensions") {
+    if let Some(allowed_extensions) = json_object_get(entry, &["allowedExtensions"]) {
         let Some(values) = allowed_extensions.as_array() else {
             return Err(ScriptRuntimeError::InvalidManifest(format!(
                 "parameter '{param_name}' allowed_extensions must be an array"
@@ -2256,17 +2350,13 @@ mod tests {
     #[test]
     fn quickjs_runtime_loads_manifest_and_exports() {
         let source = r#"
-return {
-  api_version: 1,
-  update_rate_hz: 30,
-  exports: {
-    ping: function(ctx, args) {
-      ctx.log("info", "ping called");
-      ctx.emit("script.test", { value: args[0] });
-      return args[0];
-    }
-  }
-};
+script.setApiVersion(1);
+script.setUpdateRateHz(30);
+export function ping(value) {
+  log("ping called");
+  emit("script.test", { value });
+  return value;
+}
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
@@ -2287,16 +2377,68 @@ return {
     }
 
     #[test]
+    fn quickjs_runtime_accepts_empty_script() {
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        let manifest = runtime.load("", "empty_script.js").expect("empty script should parse");
+        assert_eq!(manifest.api_version, 1);
+        assert_eq!(manifest.update_rate_hz, None);
+        assert!(manifest.parameters.is_empty());
+        assert!(manifest.subscriptions.is_empty());
+        assert!(runtime.export_names().is_empty());
+    }
+
+    #[test]
+    fn quickjs_runtime_script_methods_build_manifest() {
+        let source = r#"
+script.setApiVersion(2);
+script.setUpdateRateHz(24);
+script.addParameter("gain", { type: "float", default: 0.5, readOnly: true });
+script.listen("@host", 2);
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        let manifest = runtime.load(source, "manifest_methods_test.js").expect("manifest should parse");
+        assert_eq!(manifest.api_version, 2);
+        assert_eq!(manifest.update_rate_hz, Some(24));
+        assert_eq!(manifest.parameters.len(), 1);
+        assert_eq!(manifest.parameters[0].name, "gain");
+        assert!(manifest.parameters[0].read_only);
+        assert_eq!(manifest.subscriptions.len(), 1);
+        assert_eq!(manifest.subscriptions[0], ScriptSubscriptionSpec { node: ScriptNodeSelector::HostPath(String::new()), max_depth: 2 });
+    }
+
+    #[test]
+    fn quickjs_runtime_invokes_param_changed_hook() {
+        let source = r#"
+function paramChanged(event) {
+  log(String(event.kind));
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime
+            .load(source, "param_changed_callback_test.js")
+            .expect("script should parse");
+
+        let event = ScriptEvent {
+            kind: "paramChanged".to_string(),
+            origin: None,
+            payload: JsonValue::Null,
+        };
+        let mut host = TestHostBridge::new();
+        runtime
+            .call_on_event(&event, &mut host)
+            .expect("paramChanged callback should execute");
+        assert_eq!(host.logs.len(), 1);
+    }
+
+    #[test]
     fn quickjs_runtime_reports_parse_error_with_source_location() {
         let source = r#"
-return {
-  api_version: 1,
-  on_update: function(ctx, delta) {
-    void ctx;
-    void delta;
-    const broken = ;
-  }
-};
+function update(delta) {
+  void delta;
+  const broken = ;
+}
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
@@ -2314,14 +2456,11 @@ return {
     #[test]
     fn quickjs_runtime_reports_callback_error_with_stack() {
         let source = r#"
-return {
-  api_version: 1,
-  on_update: function(ctx, delta) {
-    void ctx;
-    void delta;
-    throw new Error("boom");
-  }
-};
+script.setUpdateRateHz(60);
+function update(delta) {
+  void delta;
+  throw new Error("boom");
+}
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
@@ -2348,9 +2487,9 @@ return {
             ScriptSource::Inline(source) => source,
             ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
         };
-        assert!(source.contains("api_version: 1"));
-        assert!(source.contains("gain: {"), "template source:\n{source}");
-        assert!(source.contains("on_update: function(ctx, delta)"));
+        assert!(source.contains("script.setApiVersion(1);"), "template source:\n{source}");
+        assert!(source.contains("script.addParameter(\"gain\""), "template source:\n{source}");
+        assert!(source.contains("function update(delta)"), "template source:\n{source}");
     }
 
     #[test]
@@ -2422,7 +2561,7 @@ return {
         });
         script.reload_requested = false;
         script.effective_update_rate_hz = Some(60);
-        script.config.source = ScriptSource::Inline("return { api_version: 1 };".to_string());
+        script.config.source = ScriptSource::Inline(String::new());
         script.node_data.meta.enabled = true;
 
         let rule = script.execution_rule();
@@ -2470,14 +2609,10 @@ return {
     #[test]
     fn manifest_update_rate_applies_to_execution_rule_and_queues_reeval() {
         let source = r#"
-return {
-  api_version: 1,
-  update_rate_hz: 12,
-  on_update: function(ctx, delta) {
-    void ctx;
-    void delta;
-  }
-};
+script.setUpdateRateHz(12);
+function update(delta) {
+  void delta;
+}
 "#;
         let mut script = ScriptNode::new(
             "Script",

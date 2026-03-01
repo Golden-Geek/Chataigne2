@@ -1,1 +1,1 @@
-update_rate_hz: 60,
+script.setUpdateRateHz(60);

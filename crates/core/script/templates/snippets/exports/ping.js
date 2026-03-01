@@ -1,4 +1,4 @@
-ping: function(ctx, args) {
-  ctx.log("info", "ping");
-  return args[0];
-},
+export function ping(value) {
+  log("ping");
+  return value;
+}

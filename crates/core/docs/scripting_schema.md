@@ -1,6 +1,6 @@
 # Scripting Schema (QuickJS)
 
-Status: Draft v0.3
+Status: Draft v0.5
 Applies to: `golden_core` runtime and UI sync layers
 Purpose: Canonical reference for script integration design and implementation
 
@@ -26,8 +26,6 @@ Purpose: Canonical reference for script integration design and implementation
 ```rust
 pub struct ScriptHostPolicy {
     pub enabled: bool,
-    pub capabilities: ScriptCapabilitySet,
-    pub allow_structural_mutation: bool,
 }
 ```
 
@@ -54,7 +52,7 @@ Runtime behavior:
 
 1. Runtime is auto-detected from file extension for file-backed scripts.
 2. Inline scripts always run on QuickJS.
-3. Script update rate is declared by manifest `update_rate_hz`.
+3. Script update rate is configured via `script.setUpdateRateHz(...)` (materialized as `update_rate_hz` in runtime state).
 4. Auto-reload is always enabled.
 5. Script execution enable/disable uses `node.meta.enabled` (no script-level enabled flag).
 
@@ -84,21 +82,43 @@ Default script nodes are initialized with inline source generated from the selec
 
 ## 6. Manifest Schema
 
-Scripts return a manifest object at load time.
+Scripts are plain top-level JavaScript programs.
+No `return { ... }` manifest object is required.
+An empty script is valid.
 
 ```js
-return {
-  api_version: 1,
-  update_rate_hz: 60,
-  parameters: { ... },
-  subscriptions: [ ... ],
-  exports: { ... },
-  on_init: function(ctx) {},
-  on_update: function(ctx, dt) {},
-  on_event: function(ctx, ev) {},
-  on_destroy: function(ctx) {}
-};
+script.setApiVersion(1);
+script.setUpdateRateHz(60);
+script.addParameter("gain", { type: "float", default: 1.0 });
+script.listen("@host", 2);
+export function ping(value) { return value; }
+
+function init() {}
+function update(dt) {}
+function event(ev) {}
+function paramChanged(ev) {}
+function destroy() {}
 ```
+
+Hook functions are optional. Runtime detects and invokes only the hooks that exist.
+
+Runtime method surface:
+
+1. `script.setApiVersion(number)`
+2. `script.setUpdateRateHz(number | null)`
+3. `script.listen(nodeSelector, maxDepth)`
+4. `script.unlisten(nodeSelector, maxDepth)`
+5. `script.clearListeners()`
+6. `script.addParameter(name, spec)`
+7. `script.removeParameter(name)`
+
+Global host helpers:
+
+1. `log(message)` (info level)
+2. `success(message)`
+3. `warn(message)`
+4. `error(message)`
+5. `emit(topic, payload)`
 
 Host-side parsed schema:
 
@@ -109,11 +129,10 @@ pub struct ScriptManifest {
     pub parameters: Vec<ScriptParameterSpec>,
     pub subscriptions: Vec<ScriptSubscriptionSpec>,
     pub exports: Vec<ScriptExportSpec>,
-    pub requested_capabilities: ScriptCapabilitySet,
 }
 ```
 
-No UI contribution schema is part of this manifest.
+No UI contribution schema is part of this runtime manifest snapshot.
 
 ## 7. Parameter Definition
 
@@ -137,7 +156,7 @@ Supported selectors include path forms and anchors like `@host` and `@root`.
 
 ## 9. Host API
 
-Scripts use capability-gated host functions through callback context.
+Scripts use global host helper functions (`log`, `success`, `warn`, `error`, `emit`).
 All mutations enqueue edits and never mutate engine state directly.
 
 ## 10. Safety
