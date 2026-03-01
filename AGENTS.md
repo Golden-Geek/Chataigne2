@@ -7,7 +7,7 @@ The priority is to build a clean, correct, and efficient long-term foundation.
 Backward compatibility is not a goal during this phase.
 
 ## Development Stance
-- Breaking changes are allowed when they improve architecture, clarity, safety, or performance.
+- You can break API, this is a design and building stage, nobody uses this so let's make it the best it can, clean and robust.
 - Prefer removing flawed or legacy patterns instead of layering temporary compatibility shims.
 - Challenge existing proposals when a cleaner or more robust approach exists.
 - Optimize for maintainability and correctness first, then ergonomics and speed.
@@ -40,3 +40,4 @@ Backward compatibility is not a goal during this phase.
 - Code should be production-oriented even during rapid iteration.
 - Every change should leave the codebase cleaner than it was before.
 - Temporary hacks are acceptable only when explicitly scoped and scheduled for removal.
+- Never keep things for "API-compatibility"
