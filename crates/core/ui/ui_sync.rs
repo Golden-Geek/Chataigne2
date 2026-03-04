@@ -8,10 +8,7 @@ use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
-use crate::parameter::{
-    ParamValue, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot,
-    ParameterUiHints,
-};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter};
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
@@ -133,7 +130,7 @@ pub struct UiReferenceTargetsDto {
     pub visible_nodes: Vec<NodeId>,
 }
 
-/// UI-facing control candidate for proxy/binding pickers.
+/// UI-facing control candidate for link target pickers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UiParamCandidateDto {
     /// Candidate parameter node id.
@@ -167,12 +164,9 @@ pub struct UiParamControlInfoDto {
     /// Token suggestions for text/expression editors.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub token_suggestions: Vec<UiTokenSuggestionDto>,
-    /// Candidate proxy targets.
+    /// Candidate link targets.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub proxy_candidates: Vec<UiParamCandidateDto>,
-    /// Candidate binding targets.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub binding_candidates: Vec<UiParamCandidateDto>,
+    pub link_candidates: Vec<UiParamCandidateDto>,
 }
 
 /// UI-facing node data summary.
@@ -752,14 +746,10 @@ impl<T: Node> Engine<T> {
                 token_set.insert(format!("{}.$uuid", candidate.symbol));
             }
         }
-        let mut token_suggestions = token_set
-            .into_iter()
-            .map(|token| UiTokenSuggestionDto { token })
-            .collect::<Vec<_>>();
+        let mut token_suggestions = token_set.into_iter().map(|token| UiTokenSuggestionDto { token }).collect::<Vec<_>>();
         token_suggestions.sort_by(|left, right| left.token.cmp(&right.token));
 
-        let mut proxy_candidates = Vec::<UiParamCandidateDto>::new();
-        let mut binding_candidates = Vec::<UiParamCandidateDto>::new();
+        let mut link_candidates = Vec::<UiParamCandidateDto>::new();
         for (candidate_id, candidate_node) in self.nodes.iter() {
             if candidate_id == param_node {
                 continue;
@@ -768,25 +758,19 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let compatible = param_types_compatible(&candidate_snapshot.value, &snapshot.value);
-            let candidate = UiParamCandidateDto {
-                param: candidate_id,
-                compatible,
-            };
-            proxy_candidates.push(candidate.clone());
-            binding_candidates.push(candidate);
+            let candidate = UiParamCandidateDto { param: candidate_id, compatible };
+            link_candidates.push(candidate);
         }
-        proxy_candidates.sort_by_key(|candidate| candidate.param.0);
-        binding_candidates.sort_by_key(|candidate| candidate.param.0);
+        link_candidates.sort_by_key(|candidate| candidate.param.0);
 
         Ok(UiParamControlInfoDto {
             param: param_node,
             active_mode: snapshot.control.mode,
-            available_modes: available_control_modes_for_value(&snapshot.value),
+            available_modes: available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled),
             diagnostics: snapshot.control.diagnostics,
             context_candidates,
             token_suggestions,
-            proxy_candidates,
-            binding_candidates,
+            link_candidates,
         })
     }
 
@@ -857,11 +841,7 @@ impl<T: Node> Engine<T> {
                     if changed {
                         self.evaluate_parameter_controls();
                     }
-                    let result = if self.edits.pending.is_empty() {
-                        Ok(())
-                    } else {
-                        self.apply_edits_without_history()
-                    };
+                    let result = if self.edits.pending.is_empty() { Ok(()) } else { self.apply_edits_without_history() };
                     self.finish_ui_apply_now(before_len, result)
                 }
                 Err(message) => UiAck {
@@ -1189,18 +1169,6 @@ impl<T: Node> Engine<T> {
 
         false
     }
-}
-
-fn available_control_modes_for_value(_value: &ParamValue) -> Vec<ParameterControlMode> {
-    vec![
-        ParameterControlMode::Manual,
-        ParameterControlMode::ContextLink,
-        ParameterControlMode::TemplateText,
-        ParameterControlMode::Expression,
-        ParameterControlMode::Proxy,
-        ParameterControlMode::Binding,
-        ParameterControlMode::Animation,
-    ]
 }
 
 fn param_types_compatible(source: &ParamValue, target: &ParamValue) -> bool {

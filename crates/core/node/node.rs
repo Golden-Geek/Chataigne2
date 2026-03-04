@@ -5,14 +5,16 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot, ReferenceTargetKind};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 mod handles;
+mod parameter_animation_control_node;
 pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
+pub use parameter_animation_control_node::ParameterAnimationControlNode;
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -324,11 +326,7 @@ fn lookup_script_child_by_key_and_type(ctx: &ProcessCtx, parent: NodeId, key: &s
     };
 
     let duplicates = matches.into_iter().filter(|candidate| Some(*candidate) != primary).collect::<Vec<_>>();
-    ScriptChildLookup {
-        primary,
-        primary_matches_type,
-        duplicates,
-    }
+    ScriptChildLookup { primary, primary_matches_type, duplicates }
 }
 
 impl PresentationHint {
@@ -516,22 +514,35 @@ pub const USER_CONTEXT_ITEM_KIND: &str = "user_context";
 pub const USER_CONTEXT_DEFAULT_LABEL: &str = "Context";
 /// Built-in folder node type id.
 pub const FOLDER_NODE_TYPE: &str = "folder";
+/// Built-in item kind used for parameter control helper nodes.
+pub const PARAMETER_CONTROL_ITEM_KIND: &str = "parameter_control";
+/// Built-in node type id for link control nodes attached to parameters.
+pub const PARAMETER_LINK_CONTROL_NODE_TYPE: &str = "parameter_link_control";
+/// Built-in node type id for animation control nodes attached to parameters.
+pub const PARAMETER_ANIMATION_CONTROL_NODE_TYPE: &str = "parameter_animation_control";
+/// Built-in `decl_id` for parameter link control nodes.
+pub const PARAMETER_LINK_CONTROL_DECL_ID: &str = "link_control";
+/// Built-in `decl_id` for parameter animation control nodes.
+pub const PARAMETER_ANIMATION_CONTROL_DECL_ID: &str = "animation_control";
+/// Built-in child `decl_id` for the linked target reference parameter.
+pub const PARAMETER_LINK_TARGET_DECL_ID: &str = "target";
+/// Built-in child `decl_id` for the link two-way toggle parameter.
+pub const PARAMETER_LINK_TWO_WAY_DECL_ID: &str = "two_way";
+/// Built-in child `decl_id` for animation waveform selector.
+pub const PARAMETER_ANIMATION_WAVEFORM_DECL_ID: &str = "waveform";
+/// Built-in child `decl_id` for animation frequency parameter.
+pub const PARAMETER_ANIMATION_FREQUENCY_DECL_ID: &str = "frequency_hz";
+/// Built-in child `decl_id` for animation amplitude parameter.
+pub const PARAMETER_ANIMATION_AMPLITUDE_DECL_ID: &str = "amplitude";
+/// Built-in child `decl_id` for animation offset parameter.
+pub const PARAMETER_ANIMATION_OFFSET_DECL_ID: &str = "offset";
+/// Built-in child `decl_id` for animation phase parameter.
+pub const PARAMETER_ANIMATION_PHASE_DECL_ID: &str = "phase";
+/// Built-in child `decl_id` for animation node local update rate in hertz.
+pub const PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID: &str = "update_rate_hz";
 /// All built-in parameter node type ids.
 pub const PARAMETER_NODE_TYPES: [&str; 11] = ["trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
-const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 12] = [
-    FOLDER_NODE_TYPE,
-    "trigger",
-    "int",
-    "float",
-    "str",
-    "file",
-    "enum",
-    "bool",
-    "vec2",
-    "vec3",
-    "color",
-    "reference",
-];
+const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 12] = [FOLDER_NODE_TYPE, "trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
 
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -1146,13 +1157,7 @@ pub trait Node: Send + Any {
                     if lookup.primary_matches_type {
                         if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
                             if existing_label != label {
-                                ctx.patch_node_meta(
-                                    existing_node,
-                                    NodeMetaPatch {
-                                        label: Some(label),
-                                        ..Default::default()
-                                    },
-                                );
+                                ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
                             }
                         }
                         return Ok(true);
@@ -1260,11 +1265,7 @@ pub trait Node: Send + Any {
             "addNode" => {
                 let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
                 let normalized_node_type = node_type.trim().to_ascii_lowercase();
-                let resolved_node_type = if normalized_node_type == "context" {
-                    USER_CONTEXT_NODE_TYPE
-                } else {
-                    node_type.as_str()
-                };
+                let resolved_node_type = if normalized_node_type == "context" { USER_CONTEXT_NODE_TYPE } else { node_type.as_str() };
 
                 let default_label = match normalized_node_type.as_str() {
                     "parameter" | "param" => "parameter".to_string(),
@@ -1284,13 +1285,7 @@ pub trait Node: Send + Any {
                         if lookup.primary_matches_type {
                             if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
                                 if existing_label != label {
-                                    ctx.patch_node_meta(
-                                        existing_node,
-                                        NodeMetaPatch {
-                                            label: Some(label),
-                                            ..Default::default()
-                                        },
-                                    );
+                                    ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
                                 }
                             }
                             return Ok(true);
@@ -1313,21 +1308,12 @@ pub trait Node: Send + Any {
                     }
 
                     if let Some(existing_node) = lookup.primary {
-                        let existing_snapshot = ctx
-                            .tree_snapshot()
-                            .and_then(|snapshot| snapshot.node(existing_node))
-                            .map(|snapshot| (snapshot.is_parameter(), snapshot.label.clone(), snapshot.param_value.clone()));
+                        let existing_snapshot = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| (snapshot.is_parameter(), snapshot.label.clone(), snapshot.param_value.clone()));
 
                         if let Some((is_parameter, existing_label, param_value)) = existing_snapshot {
                             if is_parameter && lookup.primary_matches_type {
                                 if existing_label != label {
-                                    ctx.patch_node_meta(
-                                        existing_node,
-                                        NodeMetaPatch {
-                                            label: Some(label.clone()),
-                                            ..Default::default()
-                                        },
-                                    );
+                                    ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label.clone()), ..Default::default() });
                                 }
                                 if param_value.as_ref() != Some(&default_value) {
                                     ctx.set_param(existing_node, default_value);
@@ -1357,13 +1343,7 @@ pub trait Node: Send + Any {
                     if lookup.primary_matches_type {
                         if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
                             if existing_label != label {
-                                ctx.patch_node_meta(
-                                    existing_node,
-                                    NodeMetaPatch {
-                                        label: Some(label),
-                                        ..Default::default()
-                                    },
-                                );
+                                ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
                             }
                         }
                         return Ok(true);
@@ -1668,14 +1648,7 @@ pub trait Node: Send + Any {
     /// Called when a parameter has changed.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
     /// Called when a parameter control state has changed.
-    fn on_param_control_changed(
-        &mut self,
-        _ctx: &mut ProcessCtx,
-        _param: NodeId,
-        _old_state: ParameterControlState,
-        _new_state: ParameterControlState,
-    ) {
-    }
+    fn on_param_control_changed(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_state: ParameterControlState, _new_state: ParameterControlState) {}
     /// Called once when any structural event is present in the current callback frame.
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {}
     /// Called when a child is added.
@@ -1854,6 +1827,72 @@ impl Node for UserContextNode {
 
         let default_value = default_parameter_value_for_node_type(node_type.as_str())?;
         Some(Box::new(Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange)))
+    }
+
+    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
+        EventPropagation::PassOn
+    }
+}
+
+fn parameter_child_exists(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
+    ctx.tree_snapshot().and_then(|snapshot| snapshot.find_child(parent, decl_id)).is_some()
+}
+
+fn make_link_target_parameter() -> Parameter {
+    let mut target = Parameter::new("Target", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::ValueChange);
+    target.node_data_mut().meta.decl_id = DeclId(PARAMETER_LINK_TARGET_DECL_ID.to_string());
+    target.node_data_mut().meta.can_be_disabled = false;
+    target.control_modes_enabled = false;
+    target.constraints.reference.target_kind = ReferenceTargetKind::ParameterOnly;
+    target
+}
+
+fn make_link_two_way_parameter() -> Parameter {
+    let mut two_way = Parameter::new("Two-Way", ParamValue::Bool(false), ParameterChangeCheck::ValueChange);
+    two_way.node_data_mut().meta.decl_id = DeclId(PARAMETER_LINK_TWO_WAY_DECL_ID.to_string());
+    two_way.node_data_mut().meta.can_be_disabled = false;
+    two_way
+}
+
+/// Internal control node attached to one parameter for link behavior.
+pub struct ParameterLinkControlNode {
+    node_data: NodeData,
+}
+
+impl ParameterLinkControlNode {
+    /// Creates a new link-control node.
+    pub fn new(label: impl Into<String>) -> Self {
+        let mut node_data = NodeData::new(label.into());
+        node_data.meta.can_be_disabled = false;
+        node_data.meta.decl_id = DeclId(PARAMETER_LINK_CONTROL_DECL_ID.to_string());
+        Self { node_data }
+    }
+}
+
+impl Node for ParameterLinkControlNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        PARAMETER_LINK_CONTROL_NODE_TYPE
+    }
+
+    fn user_item_kind(&self) -> &str {
+        PARAMETER_CONTROL_ITEM_KIND
+    }
+
+    fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_LINK_TARGET_DECL_ID) {
+            ctx.add_child_boxed(self.id(), Box::new(make_link_target_parameter()), None);
+        }
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_LINK_TWO_WAY_DECL_ID) {
+            ctx.add_child_boxed(self.id(), Box::new(make_link_two_way_parameter()), None);
+        }
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {

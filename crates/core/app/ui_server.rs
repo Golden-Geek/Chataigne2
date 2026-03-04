@@ -558,8 +558,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             write_json(stream, "200 OK", &targets)?;
         }
         ("POST", "/api/ui/context-candidates") => {
-            let payload: ContextCandidatesRequest =
-                serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid context-candidates payload: {err}")))?;
+            let payload: ContextCandidatesRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid context-candidates payload: {err}")))?;
             eprintln!("[ui-http] context-candidates param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);
@@ -569,8 +568,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             write_json(stream, "200 OK", &candidates)?;
         }
         ("POST", "/api/ui/param-control-info") => {
-            let payload: ParamControlInfoRequest =
-                serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid param-control-info payload: {err}")))?;
+            let payload: ParamControlInfoRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid param-control-info payload: {err}")))?;
             eprintln!("[ui-http] param-control-info param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);

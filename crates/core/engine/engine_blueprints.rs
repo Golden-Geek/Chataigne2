@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::blueprints::{BlueprintDecl, BlueprintId, BlueprintInstanceMeta, BlueprintRegistry};
 use crate::edit::Edit;
-use crate::node::{DeclId, Node, NodeId, UserCreatableItem, FOLDER_NODE_TYPE, USER_CONTEXT_ITEM_KIND};
+use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, USER_CONTEXT_ITEM_KIND, UserCreatableItem};
 
 use super::engine_history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -57,20 +57,10 @@ impl<T: Node> Engine<T> {
     /// Queues creation of one catalog item for `parent`.
     ///
     /// Supports both built-in container-created types and blueprint dynamic types.
-    pub fn queue_catalog_create(
-        &mut self,
-        parent: NodeId,
-        node_type: impl Into<String>,
-        label: Option<String>,
-        prev_sibling: Option<NodeId>,
-    ) -> Result<(), EngineEditError> {
+    pub fn queue_catalog_create(&mut self, parent: NodeId, node_type: impl Into<String>, label: Option<String>, prev_sibling: Option<NodeId>) -> Result<(), EngineEditError> {
         let node_type = node_type.into();
         if !self.nodes.contains(parent) {
-            return Err(EngineEditError::ParentNotFound {
-                edit_index: 0,
-                operation: "CreateCatalogItem",
-                parent,
-            });
+            return Err(EngineEditError::ParentNotFound { edit_index: 0, operation: "CreateCatalogItem", parent });
         }
         let Some(factory_node_id) = self.catalog_factory_node(parent) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
@@ -108,14 +98,7 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let resolved_label = label.unwrap_or_else(|| {
-            factory_node
-                .user_creatable_items()
-                .into_iter()
-                .find(|candidate| candidate.node_type == node_type)
-                .map(|candidate| candidate.label)
-                .unwrap_or_else(|| node_type.clone())
-        });
+        let resolved_label = label.unwrap_or_else(|| factory_node.user_creatable_items().into_iter().find(|candidate| candidate.node_type == node_type).map(|candidate| candidate.label).unwrap_or_else(|| node_type.clone()));
 
         let Some(node) = factory_node.create_user_item(node_type.as_str(), resolved_label) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
@@ -130,14 +113,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    pub(crate) fn apply_create_blueprint_instance(
-        &mut self,
-        edit_index: usize,
-        blueprint_id: String,
-        parent: NodeId,
-        prev_sibling: Option<NodeId>,
-        label: Option<String>,
-    ) -> Result<AddNodeEffect, EngineEditError> {
+    pub(crate) fn apply_create_blueprint_instance(&mut self, edit_index: usize, blueprint_id: String, parent: NodeId, prev_sibling: Option<NodeId>, label: Option<String>) -> Result<AddNodeEffect, EngineEditError> {
         const OPERATION: &str = "CreateBlueprintInstance";
 
         let blueprint_id = BlueprintId::new(blueprint_id);
@@ -160,17 +136,11 @@ impl<T: Node> Engine<T> {
 
         let effect = self.apply_add_user_item(edit_index, Box::new(node), parent, prev_sibling)?;
         let decl_index = self.collect_blueprint_decl_index(effect.node, edit_index, OPERATION)?;
-        self.blueprints
-            .register_instance(effect.node, BlueprintInstanceMeta::new(blueprint_id, blueprint_version, decl_index));
+        self.blueprints.register_instance(effect.node, BlueprintInstanceMeta::new(blueprint_id, blueprint_version, decl_index));
         Ok(effect)
     }
 
-    fn collect_blueprint_decl_index(
-        &self,
-        root: NodeId,
-        edit_index: usize,
-        operation: &'static str,
-    ) -> Result<HashMap<DeclId, NodeId>, EngineEditError> {
+    fn collect_blueprint_decl_index(&self, root: NodeId, edit_index: usize, operation: &'static str) -> Result<HashMap<DeclId, NodeId>, EngineEditError> {
         let subtree = self.collect_subtree(edit_index, operation, root)?;
         let mut decl_index = HashMap::with_capacity(subtree.len());
         for node_id in subtree {
@@ -197,9 +167,7 @@ impl<T: Node> Engine<T> {
             return container_node.user_context_host_policy().is_some_and(|policy| policy.enabled);
         }
 
-        container_node
-            .user_container_rules()
-            .is_some_and(|rules| rules.accepts(item_kind))
+        container_node.user_container_rules().is_some_and(|rules| rules.accepts(item_kind))
     }
 
     fn catalog_factory_node(&self, parent: NodeId) -> Option<NodeId> {

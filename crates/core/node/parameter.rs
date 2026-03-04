@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{Node, NodeData, NodeReference, NodeUuid},
+    node::{Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, PARAMETER_LINK_CONTROL_NODE_TYPE, ParameterAnimationControlNode, ParameterLinkControlNode, UserContainerRules},
     process_ctx::ProcessCtx,
 };
 
@@ -528,12 +528,42 @@ pub enum ParameterControlMode {
     TemplateText,
     /// Parameter value is computed from an expression.
     Expression,
-    /// Parameter reads from another compatible parameter.
-    Proxy,
-    /// Parameter synchronizes bidirectionally with another compatible parameter.
-    Binding,
+    /// Parameter reads/synchronizes through a linked compatible parameter.
+    Link,
     /// Parameter is driven by a local animation function.
     Animation,
+}
+
+/// Returns whether one control mode is valid for a parameter value kind.
+pub fn control_mode_supported_for_value(mode: ParameterControlMode, value: &ParamValue) -> bool {
+    match mode {
+        ParameterControlMode::TemplateText => matches!(value, ParamValue::Str(_)),
+        _ => true,
+    }
+}
+
+/// Returns the supported control modes for one parameter value kind.
+pub fn available_control_modes_for_value(value: &ParamValue) -> Vec<ParameterControlMode> {
+    [
+        ParameterControlMode::Manual,
+        ParameterControlMode::ContextLink,
+        ParameterControlMode::TemplateText,
+        ParameterControlMode::Expression,
+        ParameterControlMode::Link,
+        ParameterControlMode::Animation,
+    ]
+    .into_iter()
+    .filter(|mode| control_mode_supported_for_value(*mode, value))
+    .collect()
+}
+
+/// Returns the supported control modes for one parameter, accounting for local policy.
+pub fn available_control_modes_for_parameter(value: &ParamValue, control_modes_enabled: bool) -> Vec<ParameterControlMode> {
+    if !control_modes_enabled {
+        return vec![ParameterControlMode::Manual];
+    }
+
+    available_control_modes_for_value(value)
 }
 
 /// Animation waveform used by [`AnimationControlSpec`].
@@ -612,21 +642,10 @@ pub enum ParameterControlSpec {
         /// Raw expression source.
         expression: String,
     },
-    /// One-way proxy target.
-    Proxy {
-        /// Referenced parameter target.
-        target: NodeReference,
-    },
-    /// Two-way binding target.
-    Binding {
-        /// Referenced parameter target.
-        target: NodeReference,
-    },
-    /// Local animation driver.
-    Animation {
-        /// Animation configuration.
-        animation: AnimationControlSpec,
-    },
+    /// Linked parameter mode driven by an internal control node.
+    Link,
+    /// Local animation mode driven by an internal control node.
+    Animation,
 }
 
 impl Default for ParameterControlSpec {
@@ -696,16 +715,16 @@ impl ParameterControlState {
 
     /// Creates a state with explicit `mode` and `spec`.
     pub fn new(mode: ParameterControlMode, spec: ParameterControlSpec) -> Self {
-        Self {
-            mode,
-            spec,
-            diagnostics: Vec::new(),
-        }
+        Self { mode, spec, diagnostics: Vec::new() }
     }
 }
 
 fn is_default_parameter_control_state(value: &ParameterControlState) -> bool {
     *value == ParameterControlState::default()
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 /// Data-level enum option descriptor used by validation and UI rendering.
@@ -1231,6 +1250,13 @@ pub struct ParameterSnapshot {
     /// Parameter control-plane state.
     #[serde(default, skip_serializing_if = "is_default_parameter_control_state")]
     pub control: ParameterControlState,
+    /// Whether control modes other than `manual` are available for this parameter.
+    #[serde(default = "default_control_modes_enabled", skip_serializing_if = "is_true")]
+    pub control_modes_enabled: bool,
+}
+
+fn default_control_modes_enabled() -> bool {
+    true
 }
 
 /// Built-in node type that stores a [`ParamValue`].
@@ -1274,6 +1300,8 @@ pub struct Parameter {
     pub ui_hints: ParameterUiHints,
     /// Control mode state for this parameter.
     pub control: ParameterControlState,
+    /// Whether control modes other than `manual` are available for this parameter.
+    pub control_modes_enabled: bool,
 }
 
 impl Parameter {
@@ -1293,6 +1321,7 @@ impl Parameter {
             constraints: ParameterConstraints::default(),
             ui_hints: ParameterUiHints::default(),
             control: ParameterControlState::default(),
+            control_modes_enabled: true,
         }
     }
 
@@ -1339,6 +1368,35 @@ impl Parameter {
             constraints: self.constraints.clone(),
             ui_hints: self.ui_hints.clone(),
             control: self.control.clone(),
+            control_modes_enabled: self.control_modes_enabled,
+        }
+    }
+
+    fn coerce_for_current_value_kind(&self, incoming: ParamValue) -> Result<ParamValue, String> {
+        match &self.value {
+            ParamValue::Trigger() => {
+                if matches!(incoming, ParamValue::Trigger()) {
+                    Ok(ParamValue::Trigger())
+                } else {
+                    Err("trigger parameter only accepts trigger values".to_string())
+                }
+            }
+            ParamValue::Int(_) => incoming.as_int().map(ParamValue::Int).ok_or_else(|| "parameter expects an int-compatible value".to_string()),
+            ParamValue::Float(_) => incoming.as_float().map(ParamValue::Float).ok_or_else(|| "parameter expects a float-compatible value".to_string()),
+            ParamValue::Str(_) => incoming.as_str().map(ParamValue::Str).ok_or_else(|| "parameter expects a string-compatible value".to_string()),
+            ParamValue::File(_) => incoming.as_str().map(ParamValue::File).ok_or_else(|| "parameter expects a file-compatible value".to_string()),
+            ParamValue::Enum(_) => incoming.as_enum().map(ParamValue::Enum).ok_or_else(|| "parameter expects an enum-compatible value".to_string()),
+            ParamValue::Bool(_) => incoming.as_bool().map(ParamValue::Bool).ok_or_else(|| "parameter expects a bool-compatible value".to_string()),
+            ParamValue::Vec2(_, _) => incoming.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)).ok_or_else(|| "parameter expects a vec2-compatible value".to_string()),
+            ParamValue::Vec3(_, _, _) => incoming.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)).ok_or_else(|| "parameter expects a vec3-compatible value".to_string()),
+            ParamValue::Color(_, _, _, _) => incoming.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)).ok_or_else(|| "parameter expects a color-compatible value".to_string()),
+            ParamValue::Reference(_) => {
+                if let ParamValue::Reference(reference) = incoming {
+                    Ok(ParamValue::Reference(reference))
+                } else {
+                    Err("parameter expects a reference value".to_string())
+                }
+            }
         }
     }
 }
@@ -1368,13 +1426,26 @@ impl Node for Parameter {
         }
     }
 
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[PARAMETER_CONTROL_ITEM_KIND]))
+    }
+
+    fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
+        match node_type {
+            PARAMETER_LINK_CONTROL_NODE_TYPE => Some(Box::new(ParameterLinkControlNode::new(label))),
+            PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Some(Box::new(ParameterAnimationControlNode::new(label))),
+            _ => None,
+        }
+    }
+
     fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
         let old = std::mem::replace(&mut self.value, value);
         Some(old)
     }
 
     fn engine_prepare_param_value(&self, value: ParamValue) -> Result<ParamValue, String> {
-        self.constraints.normalize(value)
+        let coerced = self.coerce_for_current_value_kind(value)?;
+        self.constraints.normalize(coerced)
     }
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
@@ -1458,5 +1529,20 @@ mod tests {
 
         let error = constraints.normalize(ParamValue::File("C:/tmp/clip.mp4".to_string())).expect_err("mp4 should fail audio constraints");
         assert!(error.contains("not allowed"));
+    }
+
+    #[test]
+    fn template_text_mode_is_only_supported_for_string_parameters() {
+        let string_value = ParamValue::Str("demo".to_string());
+        let int_value = ParamValue::Int(42);
+
+        assert!(control_mode_supported_for_value(ParameterControlMode::TemplateText, &string_value));
+        assert!(!control_mode_supported_for_value(ParameterControlMode::TemplateText, &int_value));
+
+        let string_modes = available_control_modes_for_value(&string_value);
+        assert!(string_modes.contains(&ParameterControlMode::TemplateText));
+
+        let int_modes = available_control_modes_for_value(&int_value);
+        assert!(!int_modes.contains(&ParameterControlMode::TemplateText));
     }
 }

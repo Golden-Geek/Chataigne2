@@ -605,12 +605,7 @@ impl From<&Event> for ScriptEvent {
             EventKind::Custom(custom) => ("custom".to_string(), custom.origin, None),
         };
         let payload = serde_json::to_value(&event.kind).unwrap_or(JsonValue::Null);
-        Self {
-            kind,
-            origin,
-            old_value,
-            payload,
-        }
+        Self { kind, origin, old_value, payload }
     }
 }
 
@@ -2331,11 +2326,7 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                                     } else {
                                         gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
                                     };
-                                    if let Some(factory) = factory {
-                                        factory.call::<_, QuickJsValue>((param_node.0 as f64,))?
-                                    } else {
-                                        ctx.json_parse("null")?
-                                    }
+                                    if let Some(factory) = factory { factory.call::<_, QuickJsValue>((param_node.0 as f64,))? } else { ctx.json_parse("null")? }
                                 } else {
                                     ctx.json_parse("null")?
                                 }
@@ -2721,13 +2712,7 @@ struct NodeScriptHostBridge<'a> {
 }
 
 impl<'a> NodeScriptHostBridge<'a> {
-    fn new(
-        script_node: NodeId,
-        host_node: Option<NodeId>,
-        runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
-        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
-        ctx: &'a mut ProcessCtx,
-    ) -> Self {
+    fn new(script_node: NodeId, host_node: Option<NodeId>, runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>, load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>, ctx: &'a mut ProcessCtx) -> Self {
         Self {
             script_node,
             host_node,
@@ -3698,10 +3683,7 @@ function paramChanged(param, oldValue) {
         };
         runtime.call_on_event(&event, &mut host).expect("paramChanged callback should execute");
         assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "changed true 0.25"));
-        assert_eq!(
-            host.call_method_calls,
-            vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)])]
-        );
+        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)])]);
     }
 
     #[test]
@@ -3838,10 +3820,7 @@ function update() {
         runtime.call_on_update(&mut host).expect("update callback should execute");
 
         assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "nodeHandle true true"));
-        assert_eq!(
-            host.call_method_calls,
-            vec![(NodeId(101), "addNode".to_string(), vec![ParamValue::Str("folder".to_string()), ParamValue::Str("Utilities".to_string())])]
-        );
+        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addNode".to_string(), vec![ParamValue::Str("folder".to_string()), ParamValue::Str("Utilities".to_string())])]);
     }
 
     #[test]
@@ -3899,14 +3878,8 @@ script.setApiVersion(1);
         let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
         script.node_data_mut().id = NodeId(101);
         script.node_data_mut().parent = Some(NodeId(100));
-        script.managed_load_children.insert(ManagedLoadChild {
-            parent: NodeId(101),
-            key: "gain".to_string(),
-        });
-        script.managed_load_children.insert(ManagedLoadChild {
-            parent: NodeId(101),
-            key: "utilities".to_string(),
-        });
+        script.managed_load_children.insert(ManagedLoadChild { parent: NodeId(101), key: "gain".to_string() });
+        script.managed_load_children.insert(ManagedLoadChild { parent: NodeId(101), key: "utilities".to_string() });
 
         let mut nodes = HashMap::new();
         nodes.insert(

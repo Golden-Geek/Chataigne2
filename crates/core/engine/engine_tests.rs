@@ -8,13 +8,11 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
-    EventPropagation, EventSubscription, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, UserContainerRules, UserContextNode, UserNodeRole,
-    FOLDER_NODE_TYPE, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE,
+    EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
 };
 use crate::parameter::{
-    AnimationControlSpec, AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints,
-    ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints,
-    ReferenceRoot, ReferenceTargetKind,
+    ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind,
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::{ScriptHostPolicy, ScriptUiConfig, ScriptUiSource};
@@ -765,7 +763,7 @@ fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     assert!(!node.value.is_pending_create(), "potential slot should not be pending by default");
 }
 
-fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+fn find_child_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
     let mut child = engine.nodes.get(parent)?.node_data().first_child;
     while let Some(id) = child {
         let node = engine.nodes.get(id)?;
@@ -775,6 +773,40 @@ fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &
         child = node.node_data().next_sibling;
     }
     None
+}
+
+fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+    find_child_by_decl_any(engine, parent, decl_id)
+}
+
+fn find_child_by_type(engine: &Engine<MacroTestNode>, parent: NodeId, node_type: &str) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    while let Some(id) = child {
+        let node = engine.nodes.get(id)?;
+        if node.get_type() == node_type {
+            return Some(id);
+        }
+        child = node.node_data().next_sibling;
+    }
+    None
+}
+
+fn configure_link_control(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, two_way: bool) {
+    let link_node = find_child_by_type(engine, param, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
+    let target_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+    let two_way_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TWO_WAY_DECL_ID).expect("link two-way parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: target_param,
+        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: two_way_param,
+        value: ParamValue::Bool(two_way),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("link control parameter updates should apply");
 }
 
 fn child_decl_ids(engine: &Engine<MacroTestNode>, parent: NodeId) -> Vec<String> {
@@ -1471,18 +1503,10 @@ fn catalog_creatable_items_include_registered_blueprints() {
 
     let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
 
-    engine.register_blueprint(BlueprintDecl::new(
-        BlueprintId::new("sequence_bp"),
-        "Sequence Blueprint",
-        "sequence",
-        |label| ContainerTestNode::regular(label.as_str(), "sequence"),
-    ));
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", |label| ContainerTestNode::regular(label.as_str(), "sequence")));
 
     let creatable = engine.catalog_creatable_items(manager);
-    assert!(
-        creatable.iter().any(|item| item.node_type == "blueprint::sequence_bp" && item.item_kind == "sequence"),
-        "registered blueprint should be listed in catalog creatable items"
-    );
+    assert!(creatable.iter().any(|item| item.node_type == "blueprint::sequence_bp" && item.item_kind == "sequence"), "registered blueprint should be listed in catalog creatable items");
 }
 
 #[test]
@@ -1495,38 +1519,18 @@ fn queue_catalog_create_instantiates_blueprint_and_tracks_instance_meta() {
 
     let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
 
-    engine.register_blueprint(
-        BlueprintDecl::new(
-            BlueprintId::new("sequence_bp"),
-            "Sequence Blueprint",
-            "sequence",
-            |label| ContainerTestNode::regular(label.as_str(), "sequence"),
-        )
-        .with_version(3),
-    );
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", |label| ContainerTestNode::regular(label.as_str(), "sequence")).with_version(3));
 
-    engine
-        .queue_catalog_create(manager, "blueprint::sequence_bp", None, None)
-        .expect("queueing blueprint creation should succeed");
+    engine.queue_catalog_create(manager, "blueprint::sequence_bp", None, None).expect("queueing blueprint creation should succeed");
     engine.apply_edits().expect("blueprint creation should apply");
 
     let sequence = engine.nodes.get(manager).and_then(|node| node.node_data().first_child).expect("sequence instance should exist");
     let sequence_node = engine.nodes.get(sequence).expect("sequence instance should exist");
     assert_eq!(sequence_node.node_data().meta.label, "Sequence Blueprint");
     assert_eq!(sequence_node.node_data().user_role, UserNodeRole::ItemRoot);
-    assert!(
-        sequence_node
-            .node_data()
-            .meta
-            .tags
-            .iter()
-            .any(|tag| tag == "blueprint:sequence_bp"),
-        "instance root should be tagged with source blueprint id"
-    );
+    assert!(sequence_node.node_data().meta.tags.iter().any(|tag| tag == "blueprint:sequence_bp"), "instance root should be tagged with source blueprint id");
 
-    let instance_meta = engine
-        .blueprint_instance_meta(sequence)
-        .expect("blueprint instance metadata should be registered");
+    let instance_meta = engine.blueprint_instance_meta(sequence).expect("blueprint instance metadata should be registered");
     assert_eq!(instance_meta.blueprint_id, BlueprintId::new("sequence_bp"));
     assert_eq!(instance_meta.blueprint_version, 3);
 }
@@ -1537,16 +1541,9 @@ fn contextualizable_nodes_expose_user_context_items_in_catalog() {
     let mut engine = Engine::new(root);
 
     let creatable = engine.catalog_creatable_items(engine.root);
-    assert!(
-        creatable
-            .iter()
-            .any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == "user_context"),
-        "contextualizable host should expose user_context in the unified catalog"
-    );
+    assert!(creatable.iter().any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == "user_context"), "contextualizable host should expose user_context in the unified catalog");
 
-    engine
-        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
-        .expect("queueing user_context creation should succeed");
+    engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
     engine.apply_edits().expect("user_context creation should apply");
 
     let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope should exist");
@@ -1561,51 +1558,23 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
     let root: MacroTestNode = UiContextHostNode::new("root").into();
     let mut engine = Engine::new(root);
 
-    engine
-        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
-        .expect("queueing user_context creation should succeed");
+    engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
     engine.apply_edits().expect("user_context creation should apply");
 
-    let scope = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("scope should exist");
+    let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope should exist");
 
     let creatable = engine.catalog_creatable_items(scope);
-    assert!(
-        creatable
-            .iter()
-            .any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
-        "context scope should expose folder creation"
-    );
+    assert!(creatable.iter().any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE), "context scope should expose folder creation");
     for parameter_type in PARAMETER_NODE_TYPES {
-        assert!(
-            creatable
-                .iter()
-                .any(|item| item.node_type == parameter_type && item.item_kind == parameter_type),
-            "context scope should expose '{parameter_type}' parameter creation"
-        );
+        assert!(creatable.iter().any(|item| item.node_type == parameter_type && item.item_kind == parameter_type), "context scope should expose '{parameter_type}' parameter creation");
     }
 
-    engine
-        .queue_catalog_create(scope, FOLDER_NODE_TYPE, Some("Inner".to_string()), None)
-        .expect("queueing folder creation should succeed");
-    engine
-        .queue_catalog_create(scope, "float", Some("Tempo".to_string()), None)
-        .expect("queueing float parameter creation should succeed");
+    engine.queue_catalog_create(scope, FOLDER_NODE_TYPE, Some("Inner".to_string()), None).expect("queueing folder creation should succeed");
+    engine.queue_catalog_create(scope, "float", Some("Tempo".to_string()), None).expect("queueing float parameter creation should succeed");
     engine.apply_edits().expect("context child creation should apply");
 
-    let first_child = engine
-        .nodes
-        .get(scope)
-        .and_then(|node| node.node_data().first_child)
-        .expect("context scope should have children");
-    let second_child = engine
-        .nodes
-        .get(first_child)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("context scope should have a second child");
+    let first_child = engine.nodes.get(scope).and_then(|node| node.node_data().first_child).expect("context scope should have children");
+    let second_child = engine.nodes.get(first_child).and_then(|node| node.node_data().next_sibling).expect("context scope should have a second child");
 
     let first_type = engine.nodes.get(first_child).expect("first child should exist").get_type().to_string();
     let second_type = engine.nodes.get(second_child).expect("second child should exist").get_type().to_string();
@@ -1614,36 +1583,19 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
 
     let inner_folder = if first_type == FOLDER_NODE_TYPE { first_child } else { second_child };
     let inner_creatable = engine.catalog_creatable_items(inner_folder);
-    assert!(
-        inner_creatable
-            .iter()
-            .any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
-        "folder created in scope should expose folder creation recursively"
-    );
+    assert!(inner_creatable.iter().any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE), "folder created in scope should expose folder creation recursively");
     for parameter_type in PARAMETER_NODE_TYPES {
         assert!(
-            inner_creatable
-                .iter()
-                .any(|item| item.node_type == parameter_type && item.item_kind == parameter_type),
+            inner_creatable.iter().any(|item| item.node_type == parameter_type && item.item_kind == parameter_type),
             "folder created in scope should expose '{parameter_type}' parameter creation recursively"
         );
     }
 
-    engine
-        .queue_catalog_create(inner_folder, "bool", Some("Enabled".to_string()), None)
-        .expect("queueing bool parameter creation inside inner folder should succeed");
+    engine.queue_catalog_create(inner_folder, "bool", Some("Enabled".to_string()), None).expect("queueing bool parameter creation inside inner folder should succeed");
     engine.apply_edits().expect("inner folder child creation should apply");
 
-    let inner_child = engine
-        .nodes
-        .get(inner_folder)
-        .and_then(|node| node.node_data().first_child)
-        .expect("inner folder should have one child");
-    assert_eq!(
-        engine.nodes.get(inner_child).expect("inner child should exist").get_type(),
-        "bool",
-        "inner folder should create requested child type through inherited catalog factory"
-    );
+    let inner_child = engine.nodes.get(inner_folder).and_then(|node| node.node_data().first_child).expect("inner folder should have one child");
+    assert_eq!(engine.nodes.get(inner_child).expect("inner child should exist").get_type(), "bool", "inner folder should create requested child type through inherited catalog factory");
 }
 
 #[test]
@@ -1652,14 +1604,9 @@ fn via_nodes_inherit_script_host_policy_from_base() {
     let mut engine = Engine::new(root);
 
     let creatable = engine.catalog_creatable_items(engine.root);
-    assert!(
-        creatable.iter().any(|item| item.node_type == "script" && item.item_kind == "script"),
-        "via-hosted node should expose script item creation when base is scriptable"
-    );
+    assert!(creatable.iter().any(|item| item.node_type == "script" && item.item_kind == "script"), "via-hosted node should expose script item creation when base is scriptable");
 
-    engine
-        .queue_catalog_create(engine.root, "script", Some("Script".to_string()), None)
-        .expect("queueing script creation should succeed");
+    engine.queue_catalog_create(engine.root, "script", Some("Script".to_string()), None).expect("queueing script creation should succeed");
     engine.apply_edits().expect("script creation should apply");
 
     let script = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("script should exist");
@@ -1673,9 +1620,7 @@ fn via_nodes_inherit_context_host_policy_from_base() {
 
     let creatable = engine.catalog_creatable_items(engine.root);
     assert!(
-        creatable
-            .iter()
-            .any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == "user_context"),
+        creatable.iter().any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == "user_context"),
         "via-hosted node should expose user_context item creation when base is contextualizable"
     );
 }
@@ -1687,36 +1632,18 @@ fn user_context_resolution_tracks_lexical_scope_and_reparenting() {
 
     engine.add_node(UserContextNode::new("Scope").into(), None);
     engine.apply_edits().expect("scope context add should succeed");
-    let scope = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("scope context should exist");
+    let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope context should exist");
 
-    engine.add_node(
-        Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(),
-        Some(scope),
-    );
+    engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(scope));
     engine.apply_edits().expect("tempo parameter add should succeed");
-    let tempo = engine
-        .nodes
-        .get(scope)
-        .and_then(|node| node.node_data().first_child)
-        .expect("tempo parameter should exist");
+    let tempo = engine.nodes.get(scope).and_then(|node| node.node_data().first_child).expect("tempo parameter should exist");
 
     engine.add_node(Folder::new("Consumer".to_string()).into(), Some(scope));
     engine.apply_edits().expect("consumer folder add should succeed");
-    let consumer = engine
-        .nodes
-        .get(tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("consumer folder should exist");
+    let consumer = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("consumer folder should exist");
 
     let resolved = engine.resolve_user_context_symbol(consumer, "tempo", Some(UserContextValueType::Float));
-    assert!(
-        matches!(resolved, UserContextLookup::Resolved(resolved) if resolved.entry_param == tempo && resolved.lexical_depth == 1),
-        "consumer should resolve nearest scope entry"
-    );
+    assert!(matches!(resolved, UserContextLookup::Resolved(resolved) if resolved.entry_param == tempo && resolved.lexical_depth == 1), "consumer should resolve nearest scope entry");
 
     let mismatch = engine.resolve_user_context_symbol(consumer, "tempo", Some(UserContextValueType::Int));
     assert!(
@@ -1742,48 +1669,19 @@ fn ui_context_candidates_report_shadowing_and_compatibility() {
 
     engine.add_node(UserContextNode::new("Outer").into(), None);
     engine.apply_edits().expect("outer context add should succeed");
-    let outer = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("outer context should exist");
+    let outer = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("outer context should exist");
 
-    engine.add_node(
-        Parameter::new("tempo", ParamValue::Float(128.0), ParameterChangeCheck::ValueChange).into(),
-        Some(outer),
-    );
+    engine.add_node(Parameter::new("tempo", ParamValue::Float(128.0), ParameterChangeCheck::ValueChange).into(), Some(outer));
     engine.add_node(UserContextNode::new("Inner").into(), Some(outer));
     engine.apply_edits().expect("outer context children add should succeed");
-    let outer_tempo = engine
-        .nodes
-        .get(outer)
-        .and_then(|node| node.node_data().first_child)
-        .expect("outer tempo should exist");
-    let inner = engine
-        .nodes
-        .get(outer_tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("inner context should exist");
+    let outer_tempo = engine.nodes.get(outer).and_then(|node| node.node_data().first_child).expect("outer tempo should exist");
+    let inner = engine.nodes.get(outer_tempo).and_then(|node| node.node_data().next_sibling).expect("inner context should exist");
 
-    engine.add_node(
-        Parameter::new("tempo", ParamValue::Int(1), ParameterChangeCheck::ValueChange).into(),
-        Some(inner),
-    );
-    engine.add_node(
-        Parameter::new("consumer", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
-        Some(inner),
-    );
+    engine.add_node(Parameter::new("tempo", ParamValue::Int(1), ParameterChangeCheck::ValueChange).into(), Some(inner));
+    engine.add_node(Parameter::new("consumer", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(inner));
     engine.apply_edits().expect("inner children add should succeed");
-    let inner_tempo = engine
-        .nodes
-        .get(inner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("inner tempo should exist");
-    let consumer_param = engine
-        .nodes
-        .get(inner_tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("consumer parameter should exist");
+    let inner_tempo = engine.nodes.get(inner).and_then(|node| node.node_data().first_child).expect("inner tempo should exist");
+    let consumer_param = engine.nodes.get(inner_tempo).and_then(|node| node.node_data().next_sibling).expect("consumer parameter should exist");
 
     let dto = engine.ui_context_candidates_for_param(consumer_param);
     assert_eq!(dto.expected, Some(UserContextValueType::Float));
@@ -3010,28 +2908,16 @@ fn ui_intents_manage_user_context_scope_and_entries() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("tempo add should succeed");
-    let tempo = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("tempo should exist");
+    let tempo = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("tempo should exist");
 
     let ensure_ack = engine.apply_ui_intent(UiEditIntent::EnsureUserContextScope { owner });
     assert!(ensure_ack.success);
 
-    let upsert_ack = engine.apply_ui_intent(UiEditIntent::UpsertUserContextEntry {
-        owner,
-        symbol: "tempo".to_string(),
-        param: tempo,
-    });
+    let upsert_ack = engine.apply_ui_intent(UiEditIntent::UpsertUserContextEntry { owner, symbol: "tempo".to_string(), param: tempo });
     assert!(upsert_ack.success);
 
     let contexts = engine.ui_user_contexts();
@@ -3041,10 +2927,7 @@ fn ui_intents_manage_user_context_scope_and_entries() {
     assert_eq!(contexts.scopes[0].entries[0].symbol, "tempo");
     assert_eq!(contexts.scopes[0].entries[0].param, tempo);
 
-    let remove_entry_ack = engine.apply_ui_intent(UiEditIntent::RemoveUserContextEntry {
-        owner,
-        symbol: "tempo".to_string(),
-    });
+    let remove_entry_ack = engine.apply_ui_intent(UiEditIntent::RemoveUserContextEntry { owner, symbol: "tempo".to_string() });
     assert!(remove_entry_ack.success);
     assert_eq!(engine.ui_user_contexts().scopes[0].entries.len(), 0);
 
@@ -3071,11 +2954,7 @@ fn ui_snapshot_includes_user_context_scopes() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("tempo add should succeed");
@@ -3094,46 +2973,22 @@ fn control_mode_context_link_updates_value_from_user_context() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("gain", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("parameter add should succeed");
 
-    let tempo = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("tempo should exist");
-    let gain = engine
-        .nodes
-        .get(tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("gain should exist");
+    let tempo = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("tempo should exist");
+    let gain = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("gain should exist");
 
     engine
-        .set_param_control_state(
-            gain,
-            ParameterControlState::new(
-                ParameterControlMode::ContextLink,
-                ParameterControlSpec::ContextLink {
-                    symbol: "tempo".to_string(),
-                },
-            ),
-        )
+        .set_param_control_state(gain, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }))
         .expect("context-link state should be accepted");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
 
-    let gain_snapshot = engine
-        .nodes
-        .get(gain)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("gain parameter snapshot should exist");
+    let gain_snapshot = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain parameter snapshot should exist");
     assert_eq!(gain_snapshot.value, ParamValue::Float(120.0));
     assert!(gain_snapshot.control.diagnostics.is_empty());
 }
@@ -3147,68 +3002,36 @@ fn control_mode_template_text_resolves_context_tokens_and_node_metadata() {
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("initial add should succeed");
 
-    let track = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("track should exist");
-    let owner = engine
-        .nodes
-        .get(track)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("owner should exist");
-    let track_uuid = engine
-        .nodes
-        .get(track)
-        .expect("track node should exist")
-        .node_data()
-        .meta
-        .uuid;
+    let track = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("track should exist");
+    let owner = engine.nodes.get(track).and_then(|node| node.node_data().next_sibling).expect("owner should exist");
+    let track_uuid = engine.nodes.get(track).expect("track node should exist").node_data().meta.uuid;
 
-    engine.add_node(
-        Parameter::new(
-            "sequence",
-            ParamValue::Reference(NodeReference::new(track_uuid)),
-            ParameterChangeCheck::ValueChange,
-        )
-        .into(),
-        Some(owner),
-    );
+    engine.add_node(Parameter::new("sequence", ParamValue::Reference(NodeReference::new(track_uuid)), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("title", ParamValue::Str(String::new()), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("context parameters should be added");
 
-    let sequence = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("sequence should exist");
-    let title = engine
-        .nodes
-        .get(sequence)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("title should exist");
+    let sequence = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("sequence should exist");
+    let title = engine.nodes.get(sequence).and_then(|node| node.node_data().next_sibling).expect("title should exist");
 
     engine
-        .set_param_control_state(
-            title,
-            ParameterControlState::new(
-                ParameterControlMode::TemplateText,
-                ParameterControlSpec::TemplateText {
-                    template: "Seq {sequence.$name}".to_string(),
-                },
-            ),
-        )
+        .set_param_control_state(title, ParameterControlState::new(ParameterControlMode::TemplateText, ParameterControlSpec::TemplateText { template: "Seq {sequence.$name}".to_string() }))
         .expect("template-text state should be accepted");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
 
-    let title_snapshot = engine
-        .nodes
-        .get(title)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("title parameter snapshot should exist");
+    let title_snapshot = engine.nodes.get(title).and_then(|node| node.engine_param_snapshot()).expect("title parameter snapshot should exist");
     assert_eq!(title_snapshot.value, ParamValue::Str("Seq Track A".to_string()));
     assert!(title_snapshot.control.diagnostics.is_empty());
+}
+
+#[test]
+fn control_mode_template_text_is_rejected_for_non_string_parameter() {
+    let root = Parameter::new("gain", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
+    let mut engine = Engine::new(root);
+
+    let result = engine.set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::TemplateText, ParameterControlSpec::TemplateText { template: "x {tempo}".to_string() }));
+
+    assert!(result.is_err(), "template-text should be rejected for non-string parameters");
 }
 
 #[test]
@@ -3218,51 +3041,23 @@ fn control_mode_expression_reads_context_symbols() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("a", ParamValue::Float(2.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("b", ParamValue::Float(3.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("context parameters should be added");
 
-    let a = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("a should exist");
-    let b = engine
-        .nodes
-        .get(a)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("b should exist");
-    let result = engine
-        .nodes
-        .get(b)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("result should exist");
+    let a = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
+    let result = engine.nodes.get(b).and_then(|node| node.node_data().next_sibling).expect("result should exist");
 
     engine
-        .set_param_control_state(
-            result,
-            ParameterControlState::new(
-                ParameterControlMode::Expression,
-                ParameterControlSpec::Expression {
-                    expression: "a * 2 + b".to_string(),
-                },
-            ),
-        )
+        .set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression { expression: "a * 2 + b".to_string() }))
         .expect("expression state should be accepted");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
-    let result_snapshot = engine
-        .nodes
-        .get(result)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("result snapshot should exist");
+    let result_snapshot = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).expect("result snapshot should exist");
     assert_eq!(result_snapshot.value, ParamValue::Float(7.0));
 
     engine.edits.push(Edit::SetParam {
@@ -3273,16 +3068,12 @@ fn control_mode_expression_reads_context_symbols() {
     engine.apply_edits().expect("manual parameter update should apply");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should reevaluate expression");
-    let result_snapshot = engine
-        .nodes
-        .get(result)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("result snapshot should exist");
+    let result_snapshot = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).expect("result snapshot should exist");
     assert_eq!(result_snapshot.value, ParamValue::Float(13.0));
 }
 
 #[test]
-fn control_mode_proxy_detects_cycles() {
+fn control_mode_link_one_way_detects_cycles() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3290,53 +3081,28 @@ fn control_mode_proxy_detects_cycles() {
     engine.add_node(Parameter::new("b", ParamValue::Float(2.0), ParameterChangeCheck::ValueChange).into(), None);
     engine.apply_edits().expect("parameter add should succeed");
 
-    let a = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("a should exist");
-    let b = engine
-        .nodes
-        .get(a)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("b should exist");
+    let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
 
     let a_uuid = engine.nodes.get(a).expect("a node should exist").node_data().meta.uuid;
     let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
 
-    engine
-        .set_param_control_state(
-            a,
-            ParameterControlState::new(
-                ParameterControlMode::Proxy,
-                ParameterControlSpec::Proxy {
-                    target: NodeReference::new(b_uuid),
-                },
-            ),
-        )
-        .expect("proxy state for a should be accepted");
-    engine
-        .set_param_control_state(
-            b,
-            ParameterControlState::new(
-                ParameterControlMode::Proxy,
-                ParameterControlSpec::Proxy {
-                    target: NodeReference::new(a_uuid),
-                },
-            ),
-        )
-        .expect("proxy state for b should be accepted");
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
+    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for b should be accepted");
+
+    configure_link_control(&mut engine, a, b_uuid, false);
+    configure_link_control(&mut engine, b, a_uuid, false);
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
 
     let a_snapshot = engine.nodes.get(a).and_then(|node| node.engine_param_snapshot()).expect("a snapshot should exist");
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
-    assert!(a_snapshot.control.diagnostics.iter().any(|diag| diag.code == "proxy_cycle"));
-    assert!(b_snapshot.control.diagnostics.iter().any(|diag| diag.code == "proxy_cycle"));
+    assert!(a_snapshot.control.diagnostics.iter().any(|diag| diag.code == "link_cycle"));
+    assert!(b_snapshot.control.diagnostics.iter().any(|diag| diag.code == "link_cycle"));
 }
 
 #[test]
-fn control_mode_binding_syncs_bidirectionally_with_latest_writer() {
+fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3344,44 +3110,19 @@ fn control_mode_binding_syncs_bidirectionally_with_latest_writer() {
     engine.add_node(Parameter::new("b", ParamValue::Float(9.0), ParameterChangeCheck::ValueChange).into(), None);
     engine.apply_edits().expect("parameter add should succeed");
 
-    let a = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("a should exist");
-    let b = engine
-        .nodes
-        .get(a)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("b should exist");
+    let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
 
     let a_uuid = engine.nodes.get(a).expect("a node should exist").node_data().meta.uuid;
     let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
 
-    engine
-        .set_param_control_state(
-            a,
-            ParameterControlState::new(
-                ParameterControlMode::Binding,
-                ParameterControlSpec::Binding {
-                    target: NodeReference::new(b_uuid),
-                },
-            ),
-        )
-        .expect("binding state for a should be accepted");
-    engine
-        .set_param_control_state(
-            b,
-            ParameterControlState::new(
-                ParameterControlMode::Binding,
-                ParameterControlSpec::Binding {
-                    target: NodeReference::new(a_uuid),
-                },
-            ),
-        )
-        .expect("binding state for b should be accepted");
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
+    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for b should be accepted");
 
-    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate binding");
+    configure_link_control(&mut engine, a, b_uuid, true);
+    configure_link_control(&mut engine, b, a_uuid, true);
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link");
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
     assert_eq!(b_snapshot.value, ParamValue::Float(1.0));
 
@@ -3400,39 +3141,170 @@ fn control_mode_binding_syncs_bidirectionally_with_latest_writer() {
 }
 
 #[test]
+fn link_target_reference_parameter_is_manual_only() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("a", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("b", ParamValue::Float(2.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
+
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
+
+    let link_node = find_child_by_type(&engine, a, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
+    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+
+    let info = engine.ui_param_control_info(target_param).expect("control info query should succeed");
+    assert_eq!(info.available_modes, vec![ParameterControlMode::Manual]);
+
+    let err = engine.set_param_control_state(target_param, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }));
+    assert!(err.is_err(), "manual-only link target parameter should reject non-manual modes");
+}
+
+#[test]
+fn animation_control_parameters_keep_control_modes_enabled() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let osc = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("osc should exist");
+
+    engine.set_param_control_state(osc, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation)).expect("animation state should be accepted");
+
+    let animation_node = find_child_by_type(&engine, osc, PARAMETER_ANIMATION_CONTROL_NODE_TYPE).expect("animation control node should exist");
+    let amplitude_param = find_child_by_decl(&engine, animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).expect("amplitude parameter should exist");
+
+    let info = engine.ui_param_control_info(amplitude_param).expect("control info query should succeed");
+    assert!(info.available_modes.contains(&ParameterControlMode::Link), "animation control parameters should allow non-manual control modes",);
+}
+
+#[test]
+fn animation_control_node_rejects_user_created_children() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let osc = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("osc should exist");
+
+    engine.set_param_control_state(osc, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation)).expect("animation state should be accepted");
+
+    let animation_node = find_child_by_type(&engine, osc, PARAMETER_ANIMATION_CONTROL_NODE_TYPE).expect("animation control node should exist");
+    let animation = engine.nodes.get(animation_node).expect("animation control node should exist");
+
+    assert!(animation.user_container_rules().is_none());
+    assert!(animation.user_creatable_items().is_empty());
+    assert!(animation.create_user_item("float", "Extra".to_string()).is_none());
+}
+
+#[test]
 fn control_mode_animation_drives_parameter_value() {
-    let root = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
     let mut engine = Engine::new(root);
 
     engine
-        .set_param_control_state(
-            engine.root,
-            ParameterControlState::new(
-                ParameterControlMode::Animation,
-                ParameterControlSpec::Animation {
-                    animation: AnimationControlSpec {
-                        waveform: AnimationWaveform::Sine,
-                        frequency_hz: 1.0,
-                        amplitude: 2.0,
-                        offset: 1.0,
-                        phase: 0.0,
-                    },
-                },
-            ),
-        )
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
         .expect("animation state should be accepted");
 
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    assert_eq!(engine.nodes.get(animation_node).expect("animation control node should exist").get_type(), PARAMETER_ANIMATION_CONTROL_NODE_TYPE);
+
+    let waveform = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_WAVEFORM_DECL_ID).expect("waveform parameter should exist");
+    let frequency = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_FREQUENCY_DECL_ID).expect("frequency parameter should exist");
+    let amplitude = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).expect("amplitude parameter should exist");
+    let offset = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_OFFSET_DECL_ID).expect("offset parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: waveform,
+        value: ParamValue::Enum("sine".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: frequency,
+        value: ParamValue::Float(1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: amplitude,
+        value: ParamValue::Float(2.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: offset,
+        value: ParamValue::Float(1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("animation control parameter updates should apply");
+
     engine.run_tick(Duration::from_millis(250)).expect("tick should evaluate animation");
-    let snapshot = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("root snapshot should exist");
+    let snapshot = engine.nodes.get(engine.root).and_then(|node| node.engine_param_snapshot()).expect("root snapshot should exist");
 
     let ParamValue::Float(value) = snapshot.value else {
         panic!("expected float value from animation");
     };
     assert!((value - 3.0).abs() < 1e-6, "expected sine peak at t=0.25s, got {value}");
+}
+
+#[test]
+fn animation_control_update_rate_changes_schedule_frequency() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+
+    let waveform = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_WAVEFORM_DECL_ID).expect("waveform parameter should exist");
+    let frequency = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_FREQUENCY_DECL_ID).expect("frequency parameter should exist");
+    let amplitude = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).expect("amplitude parameter should exist");
+    let offset = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_OFFSET_DECL_ID).expect("offset parameter should exist");
+    let update_rate = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID).expect("update-rate parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: waveform,
+        value: ParamValue::Enum("square".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: frequency,
+        value: ParamValue::Float(1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: amplitude,
+        value: ParamValue::Float(1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: offset,
+        value: ParamValue::Float(0.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: update_rate,
+        value: ParamValue::Int(2),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("animation control parameter updates should apply");
+
+    engine.run_tick(Duration::from_millis(100)).expect("tick should process runtime updates");
+    let first = engine.nodes.get(engine.root).and_then(|node| node.engine_param_snapshot()).expect("root snapshot should exist");
+    assert_eq!(first.value, ParamValue::Float(0.0), "2 Hz update-rate should not schedule an update after 100ms",);
+
+    engine.run_tick(Duration::from_millis(500)).expect("tick should process runtime updates");
+    let second = engine.nodes.get(engine.root).and_then(|node| node.engine_param_snapshot()).expect("root snapshot should exist");
+
+    let ParamValue::Float(value) = second.value else {
+        panic!("expected float value from animation");
+    };
+    assert!(value.abs() > 1e-9, "2 Hz update-rate should schedule an update by 600ms total elapsed",);
 }
 
 #[test]
@@ -3442,33 +3314,21 @@ fn ui_param_control_info_exposes_candidates_and_tokens() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("gain", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("parameter add should succeed");
 
-    let tempo = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("tempo should exist");
-    let gain = engine
-        .nodes
-        .get(tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("gain should exist");
+    let tempo = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("tempo should exist");
+    let gain = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("gain should exist");
 
     let info = engine.ui_param_control_info(gain).expect("control info query should succeed");
     assert_eq!(info.param, gain);
     assert!(info.context_candidates.iter().any(|candidate| candidate.symbol == "tempo"));
     assert!(info.token_suggestions.iter().any(|token| token.token == "$name"));
     assert!(info.token_suggestions.iter().any(|token| token.token == "tempo"));
-    assert!(info.proxy_candidates.iter().any(|candidate| candidate.param == tempo && candidate.compatible));
+    assert!(info.link_candidates.iter().any(|candidate| candidate.param == tempo && candidate.compatible));
 }
 
 #[test]
@@ -3478,35 +3338,18 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
 
     engine.add_node(UserContextNode::new("Owner").into(), None);
     engine.apply_edits().expect("owner context add should succeed");
-    let owner = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|node| node.node_data().first_child)
-        .expect("owner should exist");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.add_node(Parameter::new("gain", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
     engine.apply_edits().expect("parameter add should succeed");
 
-    let tempo = engine
-        .nodes
-        .get(owner)
-        .and_then(|node| node.node_data().first_child)
-        .expect("tempo should exist");
-    let gain = engine
-        .nodes
-        .get(tempo)
-        .and_then(|node| node.node_data().next_sibling)
-        .expect("gain should exist");
+    let tempo = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("tempo should exist");
+    let gain = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("gain should exist");
 
     let ack = engine.apply_ui_intent(UiEditIntent::SetParamControlState {
         node: gain,
-        state: ParameterControlState::new(
-            ParameterControlMode::ContextLink,
-            ParameterControlSpec::ContextLink {
-                symbol: "tempo".to_string(),
-            },
-        ),
+        state: ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }),
     });
     assert!(ack.success);
     assert_eq!(ack.status, UiAckStatus::Applied);
@@ -3520,11 +3363,7 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
     );
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
-    let gain_snapshot = engine
-        .nodes
-        .get(gain)
-        .and_then(|node| node.engine_param_snapshot())
-        .expect("gain snapshot should exist");
+    let gain_snapshot = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain snapshot should exist");
     assert_eq!(gain_snapshot.value, ParamValue::Float(120.0));
 }
 

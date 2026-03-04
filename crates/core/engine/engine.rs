@@ -22,6 +22,15 @@ mod engine_apply_param;
 /// Tree mutation, attachment, and topology validation helpers.
 #[path = "engine_apply_tree.rs"]
 mod engine_apply_tree;
+/// Unified node-type catalog and blueprint-backed dynamic type helpers.
+#[path = "engine_blueprints.rs"]
+mod engine_blueprints;
+/// UserContext and DynamicContext integration helpers.
+#[path = "engine_contexts.rs"]
+mod engine_contexts;
+/// Parameter control-plane runtime evaluation helpers.
+#[path = "engine_controls.rs"]
+mod engine_controls;
 /// Event bubbling and inbox dispatch orchestration.
 #[path = "engine_dispatch.rs"]
 mod engine_dispatch;
@@ -40,15 +49,6 @@ mod engine_refs;
 /// Runtime resolve/scheduling and ticking orchestration.
 #[path = "engine_runtime.rs"]
 mod engine_runtime;
-/// Unified node-type catalog and blueprint-backed dynamic type helpers.
-#[path = "engine_blueprints.rs"]
-mod engine_blueprints;
-/// UserContext and DynamicContext integration helpers.
-#[path = "engine_contexts.rs"]
-mod engine_contexts;
-/// Parameter control-plane runtime evaluation helpers.
-#[path = "engine_controls.rs"]
-mod engine_controls;
 #[cfg(test)]
 #[path = "engine_tests.rs"]
 mod engine_tests;

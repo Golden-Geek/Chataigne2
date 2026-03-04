@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use crate::contexts::{
-    UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup, UserContextValueType,
-};
+use crate::contexts::{UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup, UserContextValueType};
 use crate::node::{Node, NodeId, USER_CONTEXT_NODE_TYPE};
 
 use super::Engine;
@@ -14,12 +12,7 @@ impl<T: Node> Engine<T> {
             return Err(format!("context scope owner {:?} was not found", owner));
         };
         if owner_node.get_type() != USER_CONTEXT_NODE_TYPE {
-            return Err(format!(
-                "context scope owner {:?} must be a '{}' node (found '{}')",
-                owner,
-                USER_CONTEXT_NODE_TYPE,
-                owner_node.get_type()
-            ));
+            return Err(format!("context scope owner {:?} must be a '{}' node (found '{}')", owner, USER_CONTEXT_NODE_TYPE, owner_node.get_type()));
         }
 
         Ok(self.user_contexts.ensure_scope(owner))
@@ -38,19 +31,11 @@ impl<T: Node> Engine<T> {
             return Err(format!("context scope owner {:?} was not found", owner));
         };
         if owner_node.get_type() != USER_CONTEXT_NODE_TYPE {
-            return Err(format!(
-                "context scope owner {:?} must be a '{}' node (found '{}')",
-                owner,
-                USER_CONTEXT_NODE_TYPE,
-                owner_node.get_type()
-            ));
+            return Err(format!("context scope owner {:?} must be a '{}' node (found '{}')", owner, USER_CONTEXT_NODE_TYPE, owner_node.get_type()));
         }
 
         if !self.is_descendant_or_same(param, owner) {
-            return Err(format!(
-                "context entry param {:?} must be under owner {:?} subtree",
-                param, owner
-            ));
+            return Err(format!("context entry param {:?} must be under owner {:?} subtree", param, owner));
         }
 
         let value_type = self.infer_user_context_value_type_for_param(param)?;
@@ -63,44 +48,25 @@ impl<T: Node> Engine<T> {
     }
 
     /// Resolves one symbol lexically from `consumer`.
-    pub fn resolve_user_context_symbol(
-        &mut self,
-        consumer: NodeId,
-        symbol: &str,
-        expected: Option<UserContextValueType>,
-    ) -> UserContextLookup {
+    pub fn resolve_user_context_symbol(&mut self, consumer: NodeId, symbol: &str, expected: Option<UserContextValueType>) -> UserContextLookup {
         if !self.nodes.contains(consumer) {
-            return UserContextLookup::Missing {
-                symbol: symbol.trim().to_string(),
-            };
+            return UserContextLookup::Missing { symbol: symbol.trim().to_string() };
         }
 
-        self.user_contexts.resolve_symbol(consumer, symbol, expected, |node| {
-            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
-        })
+        self.user_contexts.resolve_symbol(consumer, symbol, expected, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent))
     }
 
     /// Returns lexical context candidates for one parameter node.
     pub fn ui_context_candidates_for_param(&self, param: NodeId) -> UiUserContextCandidatesDto {
         let expected = self.expected_user_context_type_for_param(param);
         if !self.nodes.contains(param) {
-            return UiUserContextCandidatesDto {
-                param,
-                expected,
-                candidates: Vec::new(),
-            };
+            return UiUserContextCandidatesDto { param, expected, candidates: Vec::new() };
         }
 
-        let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| {
-            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
-        });
+        let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
         candidates.retain(|candidate| candidate.entry_param != param);
 
-        UiUserContextCandidatesDto {
-            param,
-            expected,
-            candidates,
-        }
+        UiUserContextCandidatesDto { param, expected, candidates }
     }
 
     /// Returns all current `UserContext` scopes for UI editors.
@@ -126,11 +92,7 @@ impl<T: Node> Engine<T> {
                 .collect::<Vec<_>>();
             entries.sort_by(|left, right| left.symbol.cmp(&right.symbol).then_with(|| left.param.0.cmp(&right.param.0)));
 
-            scopes.push(UiUserContextScopeDto {
-                owner,
-                generation: scope.generation,
-                entries,
-            });
+            scopes.push(UiUserContextScopeDto { owner, generation: scope.generation, entries });
         }
 
         UiUserContextsDto { scopes }
@@ -143,11 +105,7 @@ impl<T: Node> Engine<T> {
     pub(crate) fn rebuild_user_context_registry_from_nodes(&mut self) {
         let mut rebuilt = crate::contexts::UserContextRegistry::new();
 
-        let mut scope_nodes = self
-            .nodes
-            .iter()
-            .filter_map(|(node_id, node)| (node.get_type() == USER_CONTEXT_NODE_TYPE).then_some(node_id))
-            .collect::<Vec<_>>();
+        let mut scope_nodes = self.nodes.iter().filter_map(|(node_id, node)| (node.get_type() == USER_CONTEXT_NODE_TYPE).then_some(node_id)).collect::<Vec<_>>();
         scope_nodes.sort_by_key(|node_id| node_id.0);
 
         for scope_owner in scope_nodes {
@@ -183,11 +141,7 @@ impl<T: Node> Engine<T> {
             return Err(format!("context entry param {:?} was not found", param));
         };
         let Some(snapshot) = node.engine_param_snapshot() else {
-            return Err(format!(
-                "context entry param {:?} is not a parameter node (type='{}')",
-                param,
-                node.get_type()
-            ));
+            return Err(format!("context entry param {:?} is not a parameter node (type='{}')", param, node.get_type()));
         };
         Ok(UserContextValueType::from_param_value(&snapshot.value))
     }

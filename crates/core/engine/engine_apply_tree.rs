@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE};
+use crate::node::{Node, NodeId, NodeUserPermissions, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::engine_history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -204,10 +204,7 @@ impl<T: Node> Engine<T> {
         let mut cursor = Some(start);
         while let Some(node_id) = cursor {
             let node = self.nodes.get(node_id)?;
-            if node.user_container_rules().is_some()
-                || node.script_host_policy().is_some_and(|policy| policy.enabled)
-                || node.user_context_host_policy().is_some_and(|policy| policy.enabled)
-            {
+            if node.user_container_rules().is_some() || node.script_host_policy().is_some_and(|policy| policy.enabled) || node.user_context_host_policy().is_some_and(|policy| policy.enabled) {
                 return Some(node_id);
             }
             cursor = node.node_data().parent;

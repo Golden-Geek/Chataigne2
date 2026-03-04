@@ -83,9 +83,7 @@ impl<T: Node> Engine<T> {
                 Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
                     Some(mut effect) => {
                         missing_reference_warning_dirty = true;
-                        if UserContextValueType::from_param_value(&effect.old_value) != UserContextValueType::from_param_value(&effect.new_value)
-                            && self.node_within_user_context_scope(effect.node)
-                        {
+                        if UserContextValueType::from_param_value(&effect.old_value) != UserContextValueType::from_param_value(&effect.new_value) && self.node_within_user_context_scope(effect.node) {
                             user_context_graph_dirty = true;
                         }
                         effect.behaviour = behaviour;
@@ -114,12 +112,7 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::CreateBlueprintInstance {
-                    blueprint_id,
-                    parent,
-                    prev_sibling,
-                    label,
-                } => {
+                Edit::CreateBlueprintInstance { blueprint_id, parent, prev_sibling, label } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_create_blueprint_instance(edit_index, blueprint_id, parent, prev_sibling, label)?;

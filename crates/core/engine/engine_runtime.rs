@@ -6,6 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::edit::Edit;
+use crate::events::EventKind;
 use crate::node::{Node, NodeId};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
@@ -369,6 +370,14 @@ impl<T: Node> Engine<T> {
             self.apply_edits_without_history()?;
             self.resolve_if_needed()?;
         }
+        if !self.inbox.events.is_empty() {
+            let precomputed = self.precompute_inbox_dispatch();
+            self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
+            if !self.edits.pending.is_empty() {
+                self.apply_edits_without_history()?;
+                self.resolve_if_needed()?;
+            }
+        }
 
         self.run_control_pass()?;
         self.run_scheduled_updates(elapsed)?;
@@ -481,6 +490,7 @@ impl<T: Node> Engine<T> {
         let due_nodes = self.runtime_schedule.collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
         let needs_tree_snapshot = due_nodes.iter().any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
         let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let mut parameter_values = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect::<HashMap<_, _>>();
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
         let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
@@ -525,8 +535,11 @@ impl<T: Node> Engine<T> {
                 }
             }
             let mut did_update = false;
+            let events_before_update = self.inbox.events.len();
             if let Some(node) = self.nodes.get_mut(node_id) {
+                let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
                 crate::logger::with_node_origin(node_id, || {
+                    node.engine_sync_bound_param_handles(&mut resolve);
                     node.update(&mut ctx);
                 });
                 did_update = true;
@@ -540,6 +553,11 @@ impl<T: Node> Engine<T> {
                 }
             }
             self.absorb_edits(&mut ctx)?;
+            for event in self.inbox.events.iter().skip(events_before_update) {
+                if let EventKind::ParamChanged { param, new_value, .. } = &event.kind {
+                    parameter_values.insert(*param, new_value.clone());
+                }
+            }
 
             if did_update {
                 let last = self.last_update_elapsed_by_node.entry(node_id).or_insert(Duration::ZERO);

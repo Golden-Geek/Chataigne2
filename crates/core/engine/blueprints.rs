@@ -115,12 +115,7 @@ impl<T: Node> fmt::Debug for BlueprintDecl<T> {
 
 impl<T: Node> BlueprintDecl<T> {
     /// Creates a new blueprint declaration.
-    pub fn new(
-        id: BlueprintId,
-        label: impl Into<String>,
-        item_kind: impl Into<String>,
-        instantiate: impl Fn(String) -> T + Send + Sync + 'static,
-    ) -> Self {
+    pub fn new(id: BlueprintId, label: impl Into<String>, item_kind: impl Into<String>, instantiate: impl Fn(String) -> T + Send + Sync + 'static) -> Self {
         Self {
             id,
             label: label.into(),
@@ -214,11 +209,7 @@ impl<T: Node> BlueprintRegistry<T> {
 
     /// Returns declarations exposed as user-creatable catalog items.
     pub fn creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = self
-            .blueprints
-            .values()
-            .map(|decl| UserCreatableItem::new(decl.type_id(), decl.item_kind.clone(), decl.label.clone()))
-            .collect::<Vec<_>>();
+        let mut items = self.blueprints.values().map(|decl| UserCreatableItem::new(decl.type_id(), decl.item_kind.clone(), decl.label.clone())).collect::<Vec<_>>();
         items.sort_by(|left, right| left.node_type.cmp(&right.node_type));
         items
     }
