@@ -746,13 +746,7 @@ impl<T: Node> Engine<T> {
         let mut candidates = allowed_targets
             .iter()
             .map(|target| {
-                if let Some(compatibility) =
-                    self.reference_candidate_compatibility_for_expected_values(
-                        *target,
-                        expected_parameter_values.as_slice(),
-                        &constraints,
-                    )
-                {
+                if let Some(compatibility) = self.reference_candidate_compatibility_for_expected_values(*target, expected_parameter_values.as_slice(), &constraints) {
                     UiReferenceTargetCandidateDto {
                         target: *target,
                         direct: compatibility.direct,
@@ -782,8 +776,7 @@ impl<T: Node> Engine<T> {
         };
 
         let context_candidates = self.ui_context_candidates_for_param(param_node).candidates;
-        let mut available_modes =
-            available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled);
+        let mut available_modes = available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled);
         if context_candidates.is_empty() {
             available_modes.retain(|mode| *mode != ParameterControlMode::TemplateText);
         }

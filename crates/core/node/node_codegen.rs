@@ -238,7 +238,11 @@ fn strip_for_scanning(source: &str) -> String {
             i += 1;
         }
 
-        if i < bytes.len() && bytes[i] == b'"' { Some((hashes, i + 1 - at)) } else { None }
+        if i < bytes.len() && bytes[i] == b'"' {
+            Some((hashes, i + 1 - at))
+        } else {
+            None
+        }
     }
 
     let bytes = source.as_bytes();

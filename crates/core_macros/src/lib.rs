@@ -99,16 +99,10 @@ impl Parse for NodeAttr {
                         contextualizable = Some(ContextualizableAttr::Default);
                     }
                 } else {
-                    return Err(Error::new(
-                        key.span(),
-                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
-                    ));
+                    return Err(Error::new(key.span(), "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`"));
                 }
             } else {
-                return Err(Error::new(
-                    input.span(),
-                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
-                ));
+                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`"));
             }
 
             if input.is_empty() {
@@ -757,16 +751,9 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `reference_allowed_parameter_types` option"));
                 }
                 out.reference_allowed_parameter_types = Some(input.parse::<Expr>()?);
-            } else if key == "reference_allow_projections"
-                || key == "referenceAllowProjections"
-                || key == "reference_allow_projection"
-                || key == "referenceAllowProjection"
-            {
+            } else if key == "reference_allow_projections" || key == "referenceAllowProjections" || key == "reference_allow_projection" || key == "referenceAllowProjection" {
                 if out.reference_allow_projections.is_some() {
-                    return Err(Error::new(
-                        key.span(),
-                        "duplicate `reference_allow_projections` option",
-                    ));
+                    return Err(Error::new(key.span(), "duplicate `reference_allow_projections` option"));
                 }
                 out.reference_allow_projections = Some(input.parse::<Expr>()?);
             } else if key == "reference_custom_filter_key" || key == "referenceCustomFilterKey" {
@@ -1434,16 +1421,7 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    contextualizable: Option<ContextualizableAttr>,
-    item_kind: Option<LitStr>,
-    mut input: ItemStruct,
-) -> proc_macro2::TokenStream {
+fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, contextualizable: Option<ContextualizableAttr>, item_kind: Option<LitStr>, mut input: ItemStruct) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
@@ -1969,16 +1947,7 @@ fn expand_struct(
     }
 }
 
-fn expand_impl(
-    type_name: Option<LitStr>,
-    via: Option<DelegatePath>,
-    impl_node: bool,
-    from_struct: bool,
-    scriptable: Option<ScriptableAttr>,
-    contextualizable: Option<ContextualizableAttr>,
-    item_kind: Option<LitStr>,
-    mut input: ItemImpl,
-) -> proc_macro2::TokenStream {
+fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, contextualizable: Option<ContextualizableAttr>, item_kind: Option<LitStr>, mut input: ItemImpl) -> proc_macro2::TokenStream {
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -2446,12 +2415,11 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             }
         });
 
-        let set_reference_allow_projections =
-            param.reference_allow_projections.as_ref().map(|expr| {
-                quote! {
-                    __param_node.constraints.reference.allow_projections = #expr;
-                }
-            });
+        let set_reference_allow_projections = param.reference_allow_projections.as_ref().map(|expr| {
+            quote! {
+                __param_node.constraints.reference.allow_projections = #expr;
+            }
+        });
 
         let set_reference_custom_filter_key = param.reference_custom_filter_key.as_ref().map(|expr| {
             quote! {

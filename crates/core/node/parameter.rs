@@ -174,39 +174,6 @@ impl ParamValueProjection {
         }
     }
 
-    /// Human-friendly label.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::FloatToVec2X0 => "Float -> Vec2 (v,0)",
-            Self::FloatToVec20Y => "Float -> Vec2 (0,v)",
-            Self::FloatToVec2XX => "Float -> Vec2 (v,v)",
-            Self::FloatToVec3X00 => "Float -> Vec3 (v,0,0)",
-            Self::FloatToVec30Y0 => "Float -> Vec3 (0,v,0)",
-            Self::FloatToVec300Z => "Float -> Vec3 (0,0,v)",
-            Self::FloatToVec3XXX => "Float -> Vec3 (v,v,v)",
-            Self::Vec2X => "Vec2 X",
-            Self::Vec2Y => "Vec2 Y",
-            Self::Vec2ToVec3XY0 => "Vec2 -> Vec3 (X,Y,0)",
-            Self::Vec2ToVec3X0Y => "Vec2 -> Vec3 (X,0,Y)",
-            Self::Vec2ToColorHs => "Vec2 -> Color (Hue,Sat)",
-            Self::Vec3X => "Vec3 X",
-            Self::Vec3Y => "Vec3 Y",
-            Self::Vec3Z => "Vec3 Z",
-            Self::Vec3ToVec2XY => "Vec3 -> Vec2 (X,Y)",
-            Self::Vec3ToVec2XZ => "Vec3 -> Vec2 (X,Z)",
-            Self::Vec3ToVec2YZ => "Vec3 -> Vec2 (Y,Z)",
-            Self::Vec3ToColorRgb => "Vec3 -> Color (RGB)",
-            Self::Vec3ToColorHsv => "Vec3 -> Color (HSV)",
-            Self::ColorR => "Color R",
-            Self::ColorG => "Color G",
-            Self::ColorB => "Color B",
-            Self::ColorA => "Color A",
-            Self::ColorToVec3Rgb => "Color -> Vec3 (RGB)",
-            Self::ColorToVec3Hsv => "Color -> Vec3 (HSV)",
-            Self::ColorToVec2Hs => "Color -> Vec2 (Hue,Sat)",
-        }
-    }
-
     /// Parses one projection id.
     pub fn from_variant_id(value: &str) -> Option<Self> {
         match value.trim() {
@@ -367,6 +334,30 @@ pub fn project_param_value(source: &ParamValue, projection: ParamValueProjection
     Some(projected)
 }
 
+fn project_param_value_for_target(source: &ParamValue, target: &ParamValue, projection: ParamValueProjection) -> Option<ParamValue> {
+    let projected = match (source, target, projection) {
+        (ParamValue::Float(value), ParamValue::Vec2(_, y), ParamValueProjection::FloatToVec2X0) => ParamValue::Vec2(*value, *y),
+        (ParamValue::Float(value), ParamValue::Vec2(x, _), ParamValueProjection::FloatToVec20Y) => ParamValue::Vec2(*x, *value),
+        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::FloatToVec3X00) => ParamValue::Vec3(*value, *y, *z),
+        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::FloatToVec30Y0) => ParamValue::Vec3(*x, *value, *z),
+        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::FloatToVec300Z) => ParamValue::Vec3(*x, *y, *value),
+        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec2ToVec3XY0) => ParamValue::Vec3(*x, *y, *z),
+        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec2ToVec3X0Y) => ParamValue::Vec3(*x, *y, *z),
+        (ParamValue::Vec2(h, s), ParamValue::Color(target_r, target_g, target_b, target_a), ParamValueProjection::Vec2ToColorHs) => {
+            let (_, _, value) = rgb_to_hsv(*target_r, *target_g, *target_b);
+            let (r, g, b) = hsv_to_rgb(*h, *s, value);
+            ParamValue::Color(r, g, b, *target_a)
+        }
+        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::Vec3ToColorRgb) => ParamValue::Color(*r, *g, *b, *target_a),
+        (ParamValue::Vec3(h, s, v), ParamValue::Color(_, _, _, target_a), ParamValueProjection::Vec3ToColorHsv) => {
+            let (r, g, b) = hsv_to_rgb(*h, *s, *v);
+            ParamValue::Color(r, g, b, *target_a)
+        }
+        _ => return project_param_value(source, projection),
+    };
+    Some(projected)
+}
+
 fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) -> Option<ParamValue> {
     match target {
         ParamValue::Trigger() => {
@@ -396,7 +387,7 @@ fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) 
 ///
 /// When `projection` is provided, it is applied before coercion.
 pub fn coerce_param_value_for_target(source: &ParamValue, target: &ParamValue, projection: Option<ParamValueProjection>) -> Option<ParamValue> {
-    let projected = if let Some(projection) = projection { project_param_value(source, projection)? } else { source.clone() };
+    let projected = if let Some(projection) = projection { project_param_value_for_target(source, target, projection)? } else { source.clone() };
 
     coerce_param_value_for_target_kind(&projected, target)
 }
@@ -1155,10 +1146,7 @@ pub struct ReferenceConstraints {
     /// Whether projection-based compatibility is accepted for typed references.
     ///
     /// When `false`, only direct type compatibility is accepted.
-    #[serde(
-        default = "reference_constraints_default_true",
-        skip_serializing_if = "is_reference_constraints_true"
-    )]
+    #[serde(default = "reference_constraints_default_true", skip_serializing_if = "is_reference_constraints_true")]
     pub allow_projections: bool,
     /// Optional app-defined runtime filter key looked up in the engine registry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1997,5 +1985,31 @@ mod tests {
         assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2X0));
         assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec20Y));
         assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2XX));
+    }
+
+    #[test]
+    fn projected_expansions_preserve_target_components() {
+        assert_eq!(coerce_param_value_for_target(&ParamValue::Float(2.5), &ParamValue::Vec2(9.0, 8.0), Some(ParamValueProjection::FloatToVec20Y),), Some(ParamValue::Vec2(9.0, 2.5)));
+
+        assert_eq!(coerce_param_value_for_target(&ParamValue::Float(2.5), &ParamValue::Vec3(9.0, 8.0, 7.0), Some(ParamValueProjection::FloatToVec3X00),), Some(ParamValue::Vec3(2.5, 8.0, 7.0)));
+
+        assert_eq!(coerce_param_value_for_target(&ParamValue::Vec2(4.0, 5.0), &ParamValue::Vec3(9.0, 8.0, 7.0), Some(ParamValueProjection::Vec2ToVec3X0Y),), Some(ParamValue::Vec3(4.0, 8.0, 5.0)));
+    }
+
+    #[test]
+    fn projected_color_expansions_preserve_existing_channels() {
+        assert_eq!(
+            coerce_param_value_for_target(&ParamValue::Vec3(0.1, 0.2, 0.3), &ParamValue::Color(0.0, 0.0, 0.0, 0.7), Some(ParamValueProjection::Vec3ToColorRgb),),
+            Some(ParamValue::Color(0.1, 0.2, 0.3, 0.7))
+        );
+
+        let converted = coerce_param_value_for_target(&ParamValue::Vec2(0.0, 1.0), &ParamValue::Color(0.2, 0.4, 0.6, 0.25), Some(ParamValueProjection::Vec2ToColorHs)).expect("vec2 hs projection should convert against color target");
+        let ParamValue::Color(r, g, b, a) = converted else {
+            panic!("expected color result");
+        };
+        approx_eq(r, 0.6);
+        approx_eq(g, 0.0);
+        approx_eq(b, 0.0);
+        approx_eq(a, 0.25);
     }
 }

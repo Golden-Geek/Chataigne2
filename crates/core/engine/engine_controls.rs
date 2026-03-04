@@ -161,9 +161,7 @@ impl<T: Node> Engine<T> {
         if !available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled).contains(&state.mode) {
             return Err(format!("control mode '{:?}' is not supported for parameter type '{}'", state.mode, node.get_type()));
         }
-        if matches!(state.mode, ParameterControlMode::TemplateText)
-            && self.ui_context_candidates_for_param(param).candidates.is_empty()
-        {
+        if matches!(state.mode, ParameterControlMode::TemplateText) && self.ui_context_candidates_for_param(param).candidates.is_empty() {
             return Err("control mode 'templateText' requires at least one visible context entry".to_string());
         }
 

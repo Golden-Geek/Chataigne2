@@ -326,20 +326,12 @@ impl<T: Node> Engine<T> {
         compatibility
     }
 
-    pub(crate) fn reference_candidate_compatibility_for_expected_values(
-        &self,
-        candidate: NodeId,
-        expected_parameter_values: &[ParamValue],
-        constraints: &ReferenceConstraints,
-    ) -> Option<ParamValueCompatibility> {
+    pub(crate) fn reference_candidate_compatibility_for_expected_values(&self, candidate: NodeId, expected_parameter_values: &[ParamValue], constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
         if expected_parameter_values.is_empty() {
             return None;
         }
         let candidate_snapshot = self.nodes.get(candidate)?.engine_param_snapshot()?;
-        Some(self.apply_projection_policy(
-            self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values),
-            constraints,
-        ))
+        Some(self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values), constraints))
     }
 
     pub(crate) fn reference_candidate_compatibility_for_param(&self, param_node: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
@@ -378,13 +370,7 @@ impl<T: Node> Engine<T> {
             let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
                 return Ok(false);
             };
-            let compatibility = self.apply_projection_policy(
-                self.compatibility_for_expected_values(
-                    &candidate_snapshot.value,
-                    expected_parameter_values.as_slice(),
-                ),
-                constraints,
-            );
+            let compatibility = self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values.as_slice()), constraints);
             if !compatibility.is_compatible() {
                 return Ok(false);
             }
