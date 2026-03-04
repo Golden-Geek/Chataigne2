@@ -1599,6 +1599,36 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
 }
 
 #[test]
+fn user_context_nodes_expose_blueprints_in_catalog() {
+    let root: MacroTestNode = UiContextHostNode::new("root").into();
+    let mut engine = Engine::new(root);
+
+    engine.register_blueprint(BlueprintDecl::new(
+        BlueprintId::new("ctx_scope_bp"),
+        "Context Scope Blueprint",
+        "sequence",
+        |label| UiContextHostNode::new(label).into(),
+    ));
+
+    engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
+    engine.apply_edits().expect("user_context creation should apply");
+    let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope should exist");
+
+    let creatable = engine.catalog_creatable_items(scope);
+    assert!(
+        creatable.iter().any(|item| item.node_type == "blueprint::ctx_scope_bp" && item.item_kind == "sequence"),
+        "context scope should expose registered blueprint catalog items"
+    );
+
+    engine.queue_catalog_create(scope, "blueprint::ctx_scope_bp", None, None).expect("queueing blueprint creation in context should succeed");
+    engine.apply_edits().expect("blueprint creation in context should apply");
+
+    let instance = engine.nodes.get(scope).and_then(|node| node.node_data().first_child).expect("context scope should contain blueprint instance");
+    let instance_node = engine.nodes.get(instance).expect("blueprint instance should exist");
+    assert_eq!(instance_node.node_data().user_role, UserNodeRole::ItemRoot);
+}
+
+#[test]
 fn via_nodes_inherit_script_host_policy_from_base() {
     let root: MacroTestNode = ViaScriptHostNode::new("root", UiScriptHostNode::new("base")).into();
     let mut engine = Engine::new(root);
@@ -1630,17 +1660,19 @@ fn user_context_resolution_tracks_lexical_scope_and_reparenting() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
-    engine.add_node(UserContextNode::new("Scope").into(), None);
+    engine.add_node(Folder::new("Owner".to_string()).into(), None);
+    engine.apply_edits().expect("owner add should succeed");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
+
+    engine.add_node(UserContextNode::new("Scope").into(), Some(owner));
     engine.apply_edits().expect("scope context add should succeed");
-    let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope context should exist");
+    let scope = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("scope context should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(scope));
-    engine.apply_edits().expect("tempo parameter add should succeed");
+    engine.add_node(Folder::new("Consumer".to_string()).into(), Some(owner));
+    engine.apply_edits().expect("owner children add should succeed");
     let tempo = engine.nodes.get(scope).and_then(|node| node.node_data().first_child).expect("tempo parameter should exist");
-
-    engine.add_node(Folder::new("Consumer".to_string()).into(), Some(scope));
-    engine.apply_edits().expect("consumer folder add should succeed");
-    let consumer = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("consumer folder should exist");
+    let consumer = engine.nodes.get(scope).and_then(|node| node.node_data().next_sibling).expect("consumer folder should exist");
 
     let resolved = engine.resolve_user_context_symbol(consumer, "tempo", Some(UserContextValueType::Float));
     assert!(matches!(resolved, UserContextLookup::Resolved(resolved) if resolved.entry_param == tempo && resolved.lexical_depth == 1), "consumer should resolve nearest scope entry");
@@ -1663,13 +1695,56 @@ fn user_context_resolution_tracks_lexical_scope_and_reparenting() {
 }
 
 #[test]
+fn context_owned_by_child_is_not_visible_to_parent_ancestor() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Folder::new("Node A".to_string()).into(), None);
+    engine.apply_edits().expect("node A add should succeed");
+    let node_a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("node A should exist");
+
+    engine.add_node(Folder::new("Node B".to_string()).into(), Some(node_a));
+    engine.apply_edits().expect("node B add should succeed");
+    let node_b = engine.nodes.get(node_a).and_then(|node| node.node_data().first_child).expect("node B should exist");
+
+    engine.add_node(UserContextNode::new("Scope").into(), Some(node_b));
+    engine.apply_edits().expect("scope add should succeed");
+    let scope = engine.nodes.get(node_b).and_then(|node| node.node_data().first_child).expect("scope should exist");
+
+    engine.add_node(Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), Some(scope));
+    engine.add_node(Parameter::new("gain_b", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(node_b));
+    engine.add_node(Parameter::new("gain_a", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(node_a));
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let tempo = engine.nodes.get(scope).and_then(|node| node.node_data().first_child).expect("tempo should exist");
+    let gain_b = engine.nodes.get(scope).and_then(|node| node.node_data().next_sibling).expect("gain_b should exist");
+    let gain_a = engine.nodes.get(node_b).and_then(|node| node.node_data().next_sibling).expect("gain_a should exist");
+
+    let resolved_for_owner = engine.resolve_user_context_symbol(gain_b, "tempo", Some(UserContextValueType::Float));
+    assert!(
+        matches!(resolved_for_owner, UserContextLookup::Resolved(resolved) if resolved.entry_param == tempo),
+        "context owner subtree should resolve symbols from its direct child context node"
+    );
+
+    let missing_for_ancestor = engine.resolve_user_context_symbol(gain_a, "tempo", Some(UserContextValueType::Float));
+    assert!(
+        matches!(missing_for_ancestor, UserContextLookup::Missing { .. }),
+        "ancestor nodes should not resolve symbols from descendant-owned contexts"
+    );
+}
+
+#[test]
 fn ui_context_candidates_report_shadowing_and_compatibility() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
-    engine.add_node(UserContextNode::new("Outer").into(), None);
+    engine.add_node(Folder::new("Owner".to_string()).into(), None);
+    engine.apply_edits().expect("owner add should succeed");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
+
+    engine.add_node(UserContextNode::new("Outer").into(), Some(owner));
     engine.apply_edits().expect("outer context add should succeed");
-    let outer = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("outer context should exist");
+    let outer = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("outer context should exist");
 
     engine.add_node(Parameter::new("tempo", ParamValue::Float(128.0), ParameterChangeCheck::ValueChange).into(), Some(outer));
     engine.add_node(UserContextNode::new("Inner").into(), Some(outer));
@@ -1689,15 +1764,15 @@ fn ui_context_candidates_report_shadowing_and_compatibility() {
 
     let nearest = &dto.candidates[0];
     assert_eq!(nearest.symbol, "tempo");
-    assert_eq!(nearest.scope_owner, inner);
-    assert_eq!(nearest.lexical_depth, 1);
+    assert_eq!(nearest.scope_owner, outer);
+    assert_eq!(nearest.lexical_depth, 2);
     assert!(!nearest.shadowed);
     assert!(!nearest.compatible, "inner Int value should be incompatible with Float target");
 
     let shadowed = &dto.candidates[1];
     assert_eq!(shadowed.symbol, "tempo");
-    assert_eq!(shadowed.scope_owner, outer);
-    assert_eq!(shadowed.lexical_depth, 2);
+    assert_eq!(shadowed.scope_owner, owner);
+    assert_eq!(shadowed.lexical_depth, 3);
     assert!(shadowed.shadowed, "outer symbol should be marked shadowed");
     assert!(shadowed.compatible, "outer Float value should be compatible with Float target");
 }
@@ -2922,7 +2997,7 @@ fn ui_intents_manage_user_context_scope_and_entries() {
 
     let contexts = engine.ui_user_contexts();
     assert_eq!(contexts.scopes.len(), 1);
-    assert_eq!(contexts.scopes[0].owner, owner);
+    assert_eq!(contexts.scopes[0].owner, engine.root);
     assert_eq!(contexts.scopes[0].entries.len(), 1);
     assert_eq!(contexts.scopes[0].entries[0].symbol, "tempo");
     assert_eq!(contexts.scopes[0].entries[0].param, tempo);
@@ -2961,7 +3036,7 @@ fn ui_snapshot_includes_user_context_scopes() {
 
     let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
     assert_eq!(snapshot.user_contexts.scopes.len(), 1);
-    assert_eq!(snapshot.user_contexts.scopes[0].owner, owner);
+    assert_eq!(snapshot.user_contexts.scopes[0].owner, engine.root);
     assert_eq!(snapshot.user_contexts.scopes[0].entries.len(), 1);
     assert_eq!(snapshot.user_contexts.scopes[0].entries[0].symbol, "tempo");
 }
@@ -3138,6 +3213,39 @@ fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
     assert_eq!(a_snapshot.value, ParamValue::Float(5.0));
     assert_eq!(b_snapshot.value, ParamValue::Float(5.0));
+}
+
+#[test]
+fn control_mode_link_two_way_single_side_syncs_referenced_parameter() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("a", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("b", ParamValue::Float(9.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
+
+    let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
+
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
+    configure_link_control(&mut engine, a, b_uuid, true);
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link");
+    let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
+    assert_eq!(b_snapshot.value, ParamValue::Float(1.0));
+
+    engine.edits.push(Edit::SetParam {
+        node: b,
+        value: ParamValue::Float(7.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("manual b write should apply");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should propagate latest writer");
+
+    let a_snapshot = engine.nodes.get(a).and_then(|node| node.engine_param_snapshot()).expect("a snapshot should exist");
+    assert_eq!(a_snapshot.value, ParamValue::Float(7.0));
 }
 
 #[test]

@@ -542,7 +542,21 @@ pub const PARAMETER_ANIMATION_PHASE_DECL_ID: &str = "phase";
 pub const PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID: &str = "update_rate_hz";
 /// All built-in parameter node type ids.
 pub const PARAMETER_NODE_TYPES: [&str; 11] = ["trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
-const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 12] = [FOLDER_NODE_TYPE, "trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
+const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 13] = [
+    FOLDER_NODE_TYPE,
+    "trigger",
+    "int",
+    "float",
+    "str",
+    "file",
+    "enum",
+    "bool",
+    "vec2",
+    "vec3",
+    "color",
+    "reference",
+    "*",
+];
 
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

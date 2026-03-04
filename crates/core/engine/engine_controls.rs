@@ -369,7 +369,6 @@ impl<T: Node> Engine<T> {
             return BindingEvaluation { pending_writes: Vec::new(), diagnostics_by_param };
         }
 
-        let binding_set = two_way_links.keys().copied().collect::<HashSet<_>>();
         let mut pairs = HashSet::<(NodeId, NodeId)>::new();
 
         for (param, target_param) in two_way_links {
@@ -390,18 +389,6 @@ impl<T: Node> Engine<T> {
 
             if target_param == param {
                 diagnostics.push(ParameterControlDiagnostic::new("link_cycle", "two-way link target cannot reference the same parameter"));
-                diagnostics_by_param.insert(param, diagnostics);
-                continue;
-            }
-
-            if !binding_set.contains(&target_param) {
-                diagnostics.push(ParameterControlDiagnostic::new("link_target_not_two_way", "two-way link target is not configured as two-way"));
-                diagnostics_by_param.insert(param, diagnostics);
-                continue;
-            }
-
-            if two_way_links.get(&target_param).copied() != Some(param) {
-                diagnostics.push(ParameterControlDiagnostic::new("link_target_not_reciprocal", "two-way link target does not link back to this parameter"));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             }

@@ -8,43 +8,42 @@ use super::Engine;
 impl<T: Node> Engine<T> {
     /// Ensures one `UserContext` scope exists for `owner`.
     pub fn ensure_user_context_scope(&mut self, owner: NodeId) -> Result<bool, String> {
-        let Some(owner_node) = self.nodes.get(owner) else {
-            return Err(format!("context scope owner {:?} was not found", owner));
-        };
-        if owner_node.get_type() != USER_CONTEXT_NODE_TYPE {
-            return Err(format!("context scope owner {:?} must be a '{}' node (found '{}')", owner, USER_CONTEXT_NODE_TYPE, owner_node.get_type()));
-        }
-
-        Ok(self.user_contexts.ensure_scope(owner))
+        let scope_owner = self.resolve_user_context_scope_owner(owner)?;
+        Ok(self.user_contexts.ensure_scope(scope_owner))
     }
 
     /// Removes one `UserContext` scope by owner node id.
     pub fn remove_user_context_scope(&mut self, owner: NodeId) -> bool {
-        self.user_contexts.remove_scope(owner)
+        let scope_owner = match self.resolve_user_context_scope_owner(owner) {
+            Ok(scope_owner) => scope_owner,
+            Err(_) => return false,
+        };
+        self.user_contexts.remove_scope(scope_owner)
     }
 
     /// Adds or replaces one entry in a `UserContext` scope.
     ///
-    /// `param` must be a parameter node inside `owner` subtree.
+    /// `param` must be a parameter node inside a direct `UserContextNode` child scope of `owner`.
     pub fn upsert_user_context_entry(&mut self, owner: NodeId, symbol: impl Into<String>, param: NodeId) -> Result<bool, String> {
-        let Some(owner_node) = self.nodes.get(owner) else {
-            return Err(format!("context scope owner {:?} was not found", owner));
-        };
-        if owner_node.get_type() != USER_CONTEXT_NODE_TYPE {
-            return Err(format!("context scope owner {:?} must be a '{}' node (found '{}')", owner, USER_CONTEXT_NODE_TYPE, owner_node.get_type()));
-        }
-
-        if !self.is_descendant_or_same(param, owner) {
-            return Err(format!("context entry param {:?} must be under owner {:?} subtree", param, owner));
+        let scope_owner = self.resolve_user_context_scope_owner(owner)?;
+        if !self.param_within_user_context_owner_scope(param, scope_owner) {
+            return Err(format!(
+                "context entry param {:?} must be under a direct '{}' child scope of owner {:?}",
+                param, USER_CONTEXT_NODE_TYPE, scope_owner
+            ));
         }
 
         let value_type = self.infer_user_context_value_type_for_param(param)?;
-        self.user_contexts.upsert_entry(owner, symbol, param, value_type)
+        self.user_contexts.upsert_entry(scope_owner, symbol, param, value_type)
     }
 
     /// Removes one entry from a `UserContext` scope.
     pub fn remove_user_context_entry(&mut self, owner: NodeId, symbol: &str) -> bool {
-        self.user_contexts.remove_entry(owner, symbol)
+        let scope_owner = match self.resolve_user_context_scope_owner(owner) {
+            Ok(scope_owner) => scope_owner,
+            Err(_) => return false,
+        };
+        self.user_contexts.remove_entry(scope_owner, symbol)
     }
 
     /// Resolves one symbol lexically from `consumer`.
@@ -108,9 +107,10 @@ impl<T: Node> Engine<T> {
         let mut scope_nodes = self.nodes.iter().filter_map(|(node_id, node)| (node.get_type() == USER_CONTEXT_NODE_TYPE).then_some(node_id)).collect::<Vec<_>>();
         scope_nodes.sort_by_key(|node_id| node_id.0);
 
-        for scope_owner in scope_nodes {
+        for scope_node in scope_nodes {
+            let scope_owner = self.user_context_scope_owner_for_scope_node(scope_node);
             let _ = rebuilt.ensure_scope(scope_owner);
-            self.collect_user_context_scope_entries(scope_owner, &mut rebuilt);
+            self.collect_user_context_scope_entries(scope_node, scope_owner, &mut rebuilt);
         }
 
         self.user_contexts = rebuilt;
@@ -146,21 +146,49 @@ impl<T: Node> Engine<T> {
         Ok(UserContextValueType::from_param_value(&snapshot.value))
     }
 
-    fn is_descendant_or_same(&self, node: NodeId, ancestor: NodeId) -> bool {
-        let mut cursor = Some(node);
-        while let Some(current) = cursor {
-            if current == ancestor {
-                return true;
+    fn resolve_user_context_scope_owner(&self, owner: NodeId) -> Result<NodeId, String> {
+        let Some(owner_node) = self.nodes.get(owner) else {
+            return Err(format!("context scope owner {:?} was not found", owner));
+        };
+        if owner_node.get_type() == USER_CONTEXT_NODE_TYPE {
+            let scope_owner = self.user_context_scope_owner_for_scope_node(owner);
+            if scope_owner == owner {
+                return Err(format!("context scope node {:?} has no direct parent owner", owner));
             }
-            cursor = self.nodes.get(current).and_then(|entry| entry.node_data().parent);
+            return Ok(scope_owner);
         }
+
+        Ok(owner)
+    }
+
+    fn user_context_scope_owner_for_scope_node(&self, scope_node: NodeId) -> NodeId {
+        self.nodes
+            .get(scope_node)
+            .and_then(|entry| entry.node_data().parent)
+            .unwrap_or(scope_node)
+    }
+
+    fn param_within_user_context_owner_scope(&self, param: NodeId, scope_owner: NodeId) -> bool {
+        let mut cursor = Some(param);
+        while let Some(current) = cursor {
+            let Some(node) = self.nodes.get(current) else {
+                return false;
+            };
+
+            if node.get_type() == USER_CONTEXT_NODE_TYPE {
+                return self.user_context_scope_owner_for_scope_node(current) == scope_owner;
+            }
+
+            cursor = node.node_data().parent;
+        }
+
         false
     }
 
-    fn collect_user_context_scope_entries(&self, scope_owner: NodeId, registry: &mut crate::contexts::UserContextRegistry) {
+    fn collect_user_context_scope_entries(&self, scope_node: NodeId, scope_owner: NodeId, registry: &mut crate::contexts::UserContextRegistry) {
         let mut seen_symbols = HashSet::<String>::new();
         let mut stack = Vec::<NodeId>::new();
-        self.push_children_reverse(scope_owner, &mut stack);
+        self.push_children_reverse(scope_node, &mut stack);
 
         while let Some(node_id) = stack.pop() {
             let Some(node) = self.nodes.get(node_id) else {
