@@ -383,6 +383,7 @@ impl<T: Node> Engine<T> {
 
         // Allow newly attached nodes to request deterministic follow-up structure before app init.
         let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        attach_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(child_tree_snapshot) = &child_tree_snapshot {
             attach_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
         }
@@ -396,6 +397,7 @@ impl<T: Node> Engine<T> {
 
         // Run app init after declared/generated children are materialized and handles are bound.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        init_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(child_tree_snapshot) = &child_tree_snapshot {
             init_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
         }

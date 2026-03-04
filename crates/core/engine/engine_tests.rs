@@ -9,7 +9,8 @@ use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
     EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES,
+    USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot,
@@ -815,6 +816,19 @@ fn configure_link_control_with_projection(engine: &mut Engine<MacroTestNode>, pa
         behaviour: ParameterEventBehaviour::Coalesce,
     });
     engine.apply_edits().expect("link control parameter updates should apply");
+}
+
+fn configure_expression_control_source(engine: &mut Engine<MacroTestNode>, param: NodeId, expression: &str) -> NodeId {
+    let expression_node = find_child_by_type(engine, param, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE).expect("expression control node should exist");
+    let source_param = find_child_by_decl(engine, expression_node, PARAMETER_EXPRESSION_SOURCE_DECL_ID).expect("expression source parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: source_param,
+        value: ParamValue::Str(expression.to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("expression source update should apply");
+    source_param
 }
 
 fn child_decl_ids(engine: &Engine<MacroTestNode>, parent: NodeId) -> Vec<String> {
@@ -3135,9 +3149,8 @@ fn control_mode_expression_reads_context_symbols() {
     let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
     let result = engine.nodes.get(b).and_then(|node| node.node_data().next_sibling).expect("result should exist");
 
-    engine
-        .set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression { expression: "a * 2 + b".to_string() }))
-        .expect("expression state should be accepted");
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "a * 2 + b");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
     let result_snapshot = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).expect("result snapshot should exist");
@@ -3153,6 +3166,123 @@ fn control_mode_expression_reads_context_symbols() {
     engine.run_tick(Duration::from_millis(1)).expect("tick should reevaluate expression");
     let result_snapshot = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).expect("result snapshot should exist");
     assert_eq!(result_snapshot.value, ParamValue::Float(13.0));
+}
+
+#[test]
+fn control_mode_expression_tracks_dependency_listeners() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(UserContextNode::new("Owner").into(), None);
+    engine.apply_edits().expect("owner context add should succeed");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
+
+    engine.add_node(Parameter::new("a", ParamValue::Float(2.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.add_node(Parameter::new("b", ParamValue::Float(3.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.add_node(Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.apply_edits().expect("context parameters should be added");
+
+    let a = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
+    let result = engine.nodes.get(b).and_then(|node| node.node_data().next_sibling).expect("result should exist");
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    let source_param = configure_expression_control_source(&mut engine, result, "a + b");
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate expression");
+
+    let listeners = engine.event_listeners.get(&result).expect("expression target should register listeners");
+    assert!(listeners.contains(&EventSubscription::node(a)), "expression should listen to symbol 'a'");
+    assert!(listeners.contains(&EventSubscription::node(b)), "expression should listen to symbol 'b'");
+    assert!(listeners.contains(&EventSubscription::node(source_param)), "expression should listen to its source parameter");
+}
+
+#[test]
+fn control_mode_expression_updates_and_cleans_listeners() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(UserContextNode::new("Owner").into(), None);
+    engine.apply_edits().expect("owner context add should succeed");
+    let owner = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("owner should exist");
+
+    engine.add_node(Parameter::new("a", ParamValue::Float(2.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.add_node(Parameter::new("b", ParamValue::Float(3.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.add_node(Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), Some(owner));
+    engine.apply_edits().expect("context parameters should be added");
+
+    let a = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
+    let result = engine.nodes.get(b).and_then(|node| node.node_data().next_sibling).expect("result should exist");
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    let source_param = configure_expression_control_source(&mut engine, result, "a + b");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate expression");
+
+    let listeners = engine.event_listeners.get(&result).expect("expression target should register listeners");
+    assert!(listeners.contains(&EventSubscription::node(a)));
+    assert!(listeners.contains(&EventSubscription::node(b)));
+    assert!(listeners.contains(&EventSubscription::node(source_param)));
+
+    configure_expression_control_source(&mut engine, result, "b");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should rebind expression listeners");
+
+    let listeners = engine.event_listeners.get(&result).expect("expression target should keep listeners after rebind");
+    assert!(!listeners.contains(&EventSubscription::node(a)), "old dependency listener should be removed");
+    assert!(listeners.contains(&EventSubscription::node(b)), "new dependency listener should be kept");
+    assert!(listeners.contains(&EventSubscription::node(source_param)), "source listener should stay bound");
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Manual, ParameterControlSpec::Manual)).expect("manual mode should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should clear expression listeners when mode exits");
+
+    assert!(
+        engine
+            .event_listeners
+            .get(&result)
+            .is_none_or(|subscriptions| subscriptions.is_empty()),
+        "expression listeners should be removed after leaving expression mode",
+    );
+}
+
+#[test]
+fn control_mode_expression_time_runs_continuously() {
+    let root: MacroTestNode = Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+    let result = engine.root;
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "time()");
+
+    engine.run_tick(Duration::from_millis(100)).expect("first tick should evaluate expression");
+    let first = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_float()).expect("result should stay numeric");
+
+    engine.run_tick(Duration::from_millis(200)).expect("second tick should evaluate expression");
+    let second = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_float()).expect("result should stay numeric");
+
+    assert!(second > first, "time() expression should advance across ticks");
+}
+
+#[test]
+fn control_mode_expression_delta_time_runs_continuously() {
+    let root: MacroTestNode = Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+    let result = engine.root;
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "deltaTime");
+
+    engine.run_tick(Duration::from_millis(100)).expect("first tick should evaluate expression");
+    let first = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_float()).expect("result should stay numeric");
+
+    engine.run_tick(Duration::from_millis(50)).expect("second tick should evaluate expression");
+    let second = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_float()).expect("result should stay numeric");
+
+    engine.run_tick(Duration::from_millis(25)).expect("third tick should evaluate expression");
+    let third = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_float()).expect("result should stay numeric");
+
+    assert!(first.abs() < 1e-9, "initial deltaTime should start from zero");
+    assert!((second - 0.05).abs() < 1e-9, "deltaTime should match per-tick elapsed seconds");
+    assert!((third - 0.025).abs() < 1e-9, "deltaTime should keep updating each tick");
 }
 
 #[test]

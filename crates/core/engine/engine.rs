@@ -95,6 +95,15 @@ pub struct EngineTime {
     pub seq: u32,
 }
 
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ExpressionControlRuntime {
+    pub source_param: Option<NodeId>,
+    pub dependencies: HashSet<NodeId>,
+    pub subscriptions: HashSet<NodeId>,
+    pub continuous: bool,
+    pub last_eval_elapsed: Duration,
+}
+
 /// Node engine storing graph state, pending edits, and emitted events.
 pub struct Engine<T: Node> {
     /// Backing node store indexed by stable node ids.
@@ -145,6 +154,8 @@ pub struct Engine<T: Node> {
     param_change_counter: u64,
     /// Last change counter observed for each parameter node.
     param_last_change_counter: HashMap<NodeId, u64>,
+    /// Runtime state for expression-controlled parameters.
+    expression_runtime: HashMap<NodeId, ExpressionControlRuntime>,
 }
 
 impl<T: Node> Engine<T> {
@@ -181,6 +192,7 @@ impl<T: Node> Engine<T> {
             last_update_elapsed_by_node,
             param_change_counter: 0,
             param_last_change_counter: HashMap::new(),
+            expression_runtime: HashMap::new(),
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();

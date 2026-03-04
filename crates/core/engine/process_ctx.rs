@@ -204,6 +204,8 @@ pub struct ProcessCtx {
     ///
     /// This value is meaningful in `Node::update`.
     pub delta_time: Duration,
+    /// Total runtime elapsed since engine start.
+    pub runtime_elapsed: Duration,
     /// Optional read-only tree snapshot shared for this callback pass.
     tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
 }
@@ -217,6 +219,7 @@ impl ProcessCtx {
             edits: EditQueue::new(),
             time,
             delta_time: Duration::ZERO,
+            runtime_elapsed: Duration::ZERO,
             tree_snapshot: None,
         }
     }

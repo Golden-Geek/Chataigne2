@@ -269,6 +269,7 @@ impl<T: Node> Engine<T> {
         engine.edits.pending.clear();
         engine.clear_history();
         engine.event_listeners.clear();
+        engine.expression_runtime.clear();
         engine.time = super::EngineTime { tick: 0, micro: 0, seq: 0 };
 
         Ok(engine)

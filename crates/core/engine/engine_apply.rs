@@ -242,6 +242,7 @@ impl<T: Node> Engine<T> {
                 self.purge_event_listeners_for_node(*node);
                 self.last_update_elapsed_by_node.remove(node);
                 self.param_last_change_counter.remove(node);
+                self.expression_runtime.remove(node);
             }
             _ => {}
         }

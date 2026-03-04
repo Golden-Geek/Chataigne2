@@ -773,6 +773,8 @@ struct QuickJsTreeBridgeState {
     snapshot: Option<Arc<ProcessTreeSnapshot>>,
     host: Option<NodeId>,
     script: Option<NodeId>,
+    time_seconds: f64,
+    delta_seconds: f64,
 }
 
 #[derive(Default)]
@@ -859,6 +861,30 @@ impl QuickJsRuntime {
                 Ok(())
             }));
             gc_table.set("__emit_raw", emit_raw_fn)?;
+
+            let time_state = Arc::clone(&shared_tree_bridge_state);
+            let time_call_counter = Arc::clone(&shared_host_call_counter);
+            let time_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<f64, QuickJsError> {
+                let call_count = time_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let state = time_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                Ok(state.time_seconds)
+            }));
+            gc_table.set("__time_seconds_raw", time_fn)?;
+
+            let delta_state = Arc::clone(&shared_tree_bridge_state);
+            let delta_call_counter = Arc::clone(&shared_host_call_counter);
+            let delta_fn = QuickJsFunc::from(QuickJsMutFn::from(move || -> Result<f64, QuickJsError> {
+                let call_count = delta_call_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                if call_count > max_host_calls {
+                    return Err(QuickJsError::new_from_js_message("script", "host", "script host-call budget exceeded in current callback"));
+                }
+                let state = delta_state.lock().map_err(|_| QuickJsError::new_from_js_message("script", "host", "script tree bridge lock poisoned"))?;
+                Ok(state.delta_seconds)
+            }));
+            gc_table.set("__delta_seconds_raw", delta_fn)?;
 
             let tree_root_state = Arc::clone(&shared_tree_bridge_state);
             let tree_root_call_counter = Arc::clone(&shared_host_call_counter);
@@ -1555,6 +1581,14 @@ globalThis.unlisten = (node) => {
   return parsed && parsed.kind === "value" ? Boolean(parsed.value) : false;
 };
 globalThis.clearListeners = () => globalThis.gc.__listeners_clear_raw() === true;
+globalThis.time = () => Number(globalThis.gc.__time_seconds_raw());
+Object.defineProperty(globalThis, "deltaTime", {
+  configurable: true,
+  enumerable: false,
+  get() {
+    return Number(globalThis.gc.__delta_seconds_raw());
+  },
+});
 const __gcFormatLogArg = (value) => {
   if (typeof value === "string") {
     return value;
@@ -1602,6 +1636,8 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         tree_guard.snapshot = None;
         tree_guard.host = None;
         tree_guard.script = None;
+        tree_guard.time_seconds = 0.0;
+        tree_guard.delta_seconds = 0.0;
         Ok(())
     }
 
@@ -1610,6 +1646,8 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         tree_guard.snapshot = host.tree_snapshot();
         tree_guard.host = host.owner_node();
         tree_guard.script = host.script_node();
+        tree_guard.time_seconds = host.time_seconds();
+        tree_guard.delta_seconds = host.delta_seconds();
         Ok(())
     }
 
@@ -2102,6 +2140,9 @@ globalThis.script = {
     const rounded = Math.floor(numeric);
     globalThis.__gc_script_manifest.updateRateHz = rounded > 0 ? rounded : null;
     return globalThis.__gc_script_manifest.updateRateHz;
+  },
+  time() {
+    return Number(globalThis.gc.__time_seconds_raw());
   },
   listen(node, config = {}) {
     return globalThis.listen(node, config);
@@ -2706,16 +2747,25 @@ fn default_param_value(value_type: ScriptValueType) -> ParamValue {
 struct NodeScriptHostBridge<'a> {
     script_node: NodeId,
     host_node: Option<NodeId>,
+    started_elapsed: Duration,
     runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
     load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
     ctx: &'a mut ProcessCtx,
 }
 
 impl<'a> NodeScriptHostBridge<'a> {
-    fn new(script_node: NodeId, host_node: Option<NodeId>, runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>, load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>, ctx: &'a mut ProcessCtx) -> Self {
+    fn new(
+        script_node: NodeId,
+        host_node: Option<NodeId>,
+        started_elapsed: Duration,
+        runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
+        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
+        ctx: &'a mut ProcessCtx,
+    ) -> Self {
         Self {
             script_node,
             host_node,
+            started_elapsed,
             runtime_subscriptions,
             load_declared_children,
             ctx,
@@ -2733,7 +2783,7 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn time_seconds(&self) -> f64 {
-        self.ctx.time.tick as f64
+        self.ctx.runtime_elapsed.saturating_sub(self.started_elapsed).as_secs_f64()
     }
 
     fn delta_seconds(&self) -> f64 {
@@ -2877,6 +2927,7 @@ pub struct ScriptNode {
     runtime_subscriptions: Vec<crate::node::EventSubscription>,
     managed_load_children: HashSet<ManagedLoadChild>,
     reload_requested: bool,
+    runtime_started_elapsed: Duration,
 }
 
 impl ScriptNode {
@@ -2894,6 +2945,7 @@ impl ScriptNode {
             runtime_subscriptions: Vec::new(),
             managed_load_children: HashSet::new(),
             reload_requested: false,
+            runtime_started_elapsed: Duration::ZERO,
         }
     }
 
@@ -2988,13 +3040,14 @@ impl ScriptNode {
         let script_node = self.id();
         let host_node = self.node_data.parent;
         if let Some(mut active) = self.runtime.take() {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = active.runtime.call_on_destroy(&mut host) {
                 self.handle_runtime_error(ctx, &error);
             }
         }
 
         self.clear_runtime_subscriptions(ctx);
+        self.runtime_started_elapsed = ctx.runtime_elapsed;
     }
 
     fn source_file_modified(&self) -> Option<SystemTime> {
@@ -3046,6 +3099,7 @@ impl ScriptNode {
         self.config.validate_source_kind()?;
         let source_stamp = self.source_stamp_from_text(&script_source);
         self.teardown_runtime(ctx);
+        self.runtime_started_elapsed = ctx.runtime_elapsed;
 
         let mut runtime = create_runtime(self.budgets)?;
         let source_name = self.config.source.runtime_source_name();
@@ -3053,11 +3107,25 @@ impl ScriptNode {
         let host_node = self.node_data.parent;
         let mut declared_load_children = HashSet::new();
         let manifest = {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                Some(&mut declared_load_children),
+                ctx,
+            );
             runtime.load(&script_source, &source_name, Some(&mut host))?
         };
         {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                Some(&mut declared_load_children),
+                ctx,
+            );
             runtime.call_on_init(&mut host)?;
         }
         self.reconcile_load_declared_children(ctx, &declared_load_children);
@@ -3141,7 +3209,7 @@ impl Node for ScriptNode {
         let host_node = self.node_data.parent;
         let mut runtime_error = None;
         if let Some(runtime) = self.runtime.as_mut() {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = runtime.runtime.call_on_update(&mut host) {
                 runtime_error = Some(error);
             }
@@ -3166,7 +3234,7 @@ impl Node for ScriptNode {
 
         for event in &events {
             let script_event = ScriptEvent::from(event);
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
             if let Err(error) = runtime.runtime.call_on_event(&script_event, &mut host) {
                 runtime_error = Some(error);
                 break;
@@ -3183,6 +3251,7 @@ impl Node for ScriptNode {
         self.source_stamp = None;
         self.effective_update_rate_hz = None;
         self.reload_requested = false;
+        self.runtime_started_elapsed = Duration::ZERO;
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -3654,6 +3723,26 @@ script.addParameter("gain", { type: "float", default: 0.5, readOnly: true });
         assert_eq!(manifest.parameters[0].name, "gain");
         assert!(manifest.parameters[0].read_only);
         assert!(manifest.subscriptions.is_empty());
+    }
+
+    #[test]
+    fn quickjs_runtime_exposes_time_helpers() {
+        let source = r#"
+function update(delta) {
+  if (Math.abs(time() - script.time()) > 1e-9) {
+    throw new Error("time helpers should match");
+  }
+  if (Math.abs(delta - deltaTime) > 1e-9) {
+    throw new Error("deltaTime should mirror update arg");
+  }
+}
+"#;
+
+        let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
+        runtime.load(source, "time_helpers_test.js", None).expect("script should parse");
+
+        let mut host = TestHostBridge::new();
+        runtime.call_on_update(&mut host).expect("update callback should execute");
     }
 
     #[test]

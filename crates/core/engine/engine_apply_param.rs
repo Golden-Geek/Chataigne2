@@ -149,6 +149,7 @@ impl<T: Node> Engine<T> {
     pub(crate) fn apply_set_node_script_property(&mut self, edit_index: usize, node: NodeId, property: String, value: ParamValue) -> Result<(), EngineEditError> {
         const OP: &str = "SetNodeScriptProperty";
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.runtime_elapsed = self.runtime_elapsed;
         let handled = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
             let node_type = target.get_type().to_string();
@@ -176,6 +177,7 @@ impl<T: Node> Engine<T> {
     pub(crate) fn apply_call_node_script_method(&mut self, edit_index: usize, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), EngineEditError> {
         const OP: &str = "CallNodeScriptMethod";
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.runtime_elapsed = self.runtime_elapsed;
         ctx.set_tree_snapshot(self.build_process_tree_snapshot());
         let handled = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;

@@ -10,10 +10,15 @@
 // Script configuration methods:
 //   script.setApiVersion(number)
 //   script.setUpdateRateHz(number | null)
+//   script.time()                            -> seconds since script runtime start
 //   script.addParameter(name, specObject)   -> node handle (or deferred handle)
 //   script.addNode(type, label, defaultValue?)
 //   script.addFolder(label)
 //   script.removeParameter(name)
+//
+// Time helpers:
+//   time()          -> same as script.time()
+//   deltaTime       -> callback delta seconds
 //
 // Runtime listener helpers:
 //   listen(node, { level: 1 })  -> generic helper for any node/parameter

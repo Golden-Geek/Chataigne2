@@ -4,7 +4,10 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, PARAMETER_LINK_CONTROL_NODE_TYPE, ParameterAnimationControlNode, ParameterLinkControlNode, UserContainerRules},
+    node::{
+        Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE, PARAMETER_LINK_CONTROL_NODE_TYPE, ParameterAnimationControlNode,
+        ParameterExpressionControlNode, ParameterLinkControlNode, UserContainerRules,
+    },
     process_ctx::ProcessCtx,
 };
 
@@ -981,11 +984,8 @@ pub enum ParameterControlSpec {
         /// Raw user-authored template string.
         template: String,
     },
-    /// One-line expression source.
-    Expression {
-        /// Raw expression source.
-        expression: String,
-    },
+    /// Expression mode driven by an internal control node.
+    Expression,
     /// Linked parameter mode driven by an internal control node.
     Link,
     /// Local animation mode driven by an internal control node.
@@ -1792,6 +1792,7 @@ impl Node for Parameter {
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         match node_type {
             PARAMETER_LINK_CONTROL_NODE_TYPE => Some(Box::new(ParameterLinkControlNode::new(label))),
+            PARAMETER_EXPRESSION_CONTROL_NODE_TYPE => Some(Box::new(ParameterExpressionControlNode::new(label))),
             PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Some(Box::new(ParameterAnimationControlNode::new(label))),
             _ => None,
         }

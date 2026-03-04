@@ -97,6 +97,7 @@ impl<T: Node> Engine<T> {
 
             let mut ctx = ProcessCtx::new(phase, self.time);
             ctx.events = events;
+            ctx.runtime_elapsed = self.runtime_elapsed;
             if let Some(tree_snapshot) = &tree_snapshot {
                 if self.nodes.get(node_id).is_some_and(|node| node.get_type() == "script") {
                     ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
