@@ -204,8 +204,18 @@ folder(values, label = "Values", reuse = true) {
             label = "Reference Parameter",
             description = "A node reference parameter",
             reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
-            reference_default_search_filter = Some("values".to_string()),
+            // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+            reference_custom_filter_key = Some("module_values_parameters".to_string()),
+        );
+        float_reference_param: NodeReference (
+            label = "Float Reference Parameter",
+            description = "A node reference parameter that only accepts float parameters",
+            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            // reference_default_search_filter = Some("values".to_string()),
+            reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+            reference_allowed_parameter_types = vec!["float".to_string()],
+            reference_allow_projections = true,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
         );
         enum_param: Enum (
