@@ -74,6 +74,19 @@ pub enum Edit {
         /// Optional sibling after which insertion occurs.
         prev_sibling: Option<NodeId>,
     },
+    /// Insert a user-curated blueprint instance under `parent`, optionally after a sibling.
+    ///
+    /// The actual runtime node is instantiated by the engine blueprint registry.
+    CreateBlueprintInstance {
+        /// Blueprint declaration id.
+        blueprint_id: String,
+        /// Parent receiving the instance root.
+        parent: NodeId,
+        /// Optional sibling after which insertion occurs.
+        prev_sibling: Option<NodeId>,
+        /// Optional explicit root label.
+        label: Option<String>,
+    },
     /// Replace an existing node with a new node value.
     ReplaceNode {
         /// Existing node id to replace.

@@ -593,6 +593,7 @@ impl From<&Event> for ScriptEvent {
     fn from(event: &Event) -> Self {
         let (kind, origin, old_value) = match &event.kind {
             EventKind::ParamChanged { param, old_value, .. } => ("paramChanged".to_string(), Some(*param), Some(old_value.clone())),
+            EventKind::ParamControlChanged { param, .. } => ("paramControlChanged".to_string(), Some(*param), None),
             EventKind::ChildAdded { child, .. } => ("childAdded".to_string(), Some(*child), None),
             EventKind::ChildRemoved { parent, .. } => ("childRemoved".to_string(), Some(*parent), None),
             EventKind::ChildReplaced { new, .. } => ("childReplaced".to_string(), Some(*new), None),

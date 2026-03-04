@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole};
+use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::engine_history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -204,7 +204,10 @@ impl<T: Node> Engine<T> {
         let mut cursor = Some(start);
         while let Some(node_id) = cursor {
             let node = self.nodes.get(node_id)?;
-            if node.user_container_rules().is_some() || node.script_host_policy().is_some_and(|policy| policy.enabled) {
+            if node.user_container_rules().is_some()
+                || node.script_host_policy().is_some_and(|policy| policy.enabled)
+                || node.user_context_host_policy().is_some_and(|policy| policy.enabled)
+            {
                 return Some(node_id);
             }
             cursor = node.node_data().parent;
@@ -254,6 +257,13 @@ impl<T: Node> Engine<T> {
         let container_type = container_node.get_type().to_string();
         if item_type == "script" && item_kind == "script" {
             let Some(_) = container_node.script_host_policy().filter(|policy| policy.enabled) else {
+                return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: container });
+            };
+
+            return Ok(());
+        }
+        if (item_type == USER_CONTEXT_NODE_TYPE || item_type == "context") && item_kind == USER_CONTEXT_ITEM_KIND {
+            let Some(_) = container_node.user_context_host_policy().filter(|policy| policy.enabled) else {
                 return Err(EngineEditError::UserItemContainerRequired { edit_index, operation, parent: container });
             };
 
@@ -443,6 +453,7 @@ impl<T: Node> Engine<T> {
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
         self.nodes.reattach(node, replacement);
         self.mark_schedule_dirty();
+        self.blueprints.unregister_instance(node);
 
         self.emit_event(EventKind::ChildReplaced {
             parent,
@@ -477,6 +488,7 @@ impl<T: Node> Engine<T> {
         for removed in subtree.into_iter().rev() {
             let detached_node = self.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node: removed })?;
             detached_nodes.push((removed, detached_node));
+            self.blueprints.unregister_instance(removed);
             self.emit_event(EventKind::NodeDeleted { node: removed });
         }
 

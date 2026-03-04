@@ -370,6 +370,7 @@ impl<T: Node> Engine<T> {
             self.resolve_if_needed()?;
         }
 
+        self.run_control_pass()?;
         self.run_scheduled_updates(elapsed)?;
 
         self.run_stabilization_rounds()?;
@@ -554,6 +555,7 @@ impl<T: Node> Engine<T> {
 
         loop {
             self.absorb_external_edits()?;
+            self.run_control_pass()?;
 
             if self.inbox.events.is_empty() && self.edits.pending.is_empty() {
                 break;
@@ -578,6 +580,15 @@ impl<T: Node> Engine<T> {
             pass += 1;
         }
 
+        Ok(())
+    }
+
+    fn run_control_pass(&mut self) -> Result<(), EngineRuntimeError> {
+        self.evaluate_parameter_controls();
+        if !self.edits.pending.is_empty() {
+            self.apply_edits_without_history()?;
+            self.resolve_if_needed()?;
+        }
         Ok(())
     }
 }

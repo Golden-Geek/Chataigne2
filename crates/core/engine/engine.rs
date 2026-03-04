@@ -40,6 +40,15 @@ mod engine_refs;
 /// Runtime resolve/scheduling and ticking orchestration.
 #[path = "engine_runtime.rs"]
 mod engine_runtime;
+/// Unified node-type catalog and blueprint-backed dynamic type helpers.
+#[path = "engine_blueprints.rs"]
+mod engine_blueprints;
+/// UserContext and DynamicContext integration helpers.
+#[path = "engine_contexts.rs"]
+mod engine_contexts;
+/// Parameter control-plane runtime evaluation helpers.
+#[path = "engine_controls.rs"]
+mod engine_controls;
 #[cfg(test)]
 #[path = "engine_tests.rs"]
 mod engine_tests;
@@ -106,6 +115,10 @@ pub struct Engine<T: Node> {
     pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
     /// App-registered reference filters keyed by `ReferenceConstraints.custom_filter_key`.
     reference_filters: HashMap<String, Box<ReferenceFilterFn<T>>>,
+    /// Unified catalog registry for blueprint-backed dynamic node types.
+    blueprints: crate::blueprints::BlueprintRegistry<T>,
+    /// User-defined lexical context scopes and resolver cache.
+    user_contexts: crate::contexts::UserContextRegistry,
     /// UI-facing append-only event log used for replay/subscription.
     ui_event_log: Vec<crate::events::Event>,
     /// Start index of retained events inside `ui_event_log`.
@@ -128,6 +141,10 @@ pub struct Engine<T: Node> {
     runtime_elapsed: Duration,
     /// Last runtime timestamp at which each node received an update callback.
     last_update_elapsed_by_node: HashMap<NodeId, Duration>,
+    /// Monotonic counter incremented on each successful parameter write.
+    param_change_counter: u64,
+    /// Last change counter observed for each parameter node.
+    param_last_change_counter: HashMap<NodeId, u64>,
 }
 
 impl<T: Node> Engine<T> {
@@ -149,6 +166,8 @@ impl<T: Node> Engine<T> {
             external_edits_rx,
             event_listeners: HashMap::new(),
             reference_filters: HashMap::new(),
+            blueprints: crate::blueprints::BlueprintRegistry::new(),
+            user_contexts: crate::contexts::UserContextRegistry::new(),
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: engine_ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
@@ -160,8 +179,11 @@ impl<T: Node> Engine<T> {
             runtime_limits: engine_runtime::RuntimeLimits::default(),
             runtime_elapsed: Duration::ZERO,
             last_update_elapsed_by_node,
+            param_change_counter: 0,
+            param_last_change_counter: HashMap::new(),
         };
         engine.sync_missing_reference_warnings_silent();
+        engine.rebuild_user_context_registry_from_nodes();
         engine
     }
 

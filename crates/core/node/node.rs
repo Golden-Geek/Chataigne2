@@ -5,7 +5,7 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterSnapshot};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
@@ -261,6 +261,23 @@ fn parameter_node_type_from_value(value: &ParamValue) -> &'static str {
     }
 }
 
+fn default_parameter_value_for_node_type(node_type: &str) -> Option<ParamValue> {
+    match node_type {
+        "trigger" => Some(ParamValue::Trigger()),
+        "int" => Some(ParamValue::Int(0)),
+        "float" => Some(ParamValue::Float(0.0)),
+        "str" => Some(ParamValue::Str(String::new())),
+        "file" => Some(ParamValue::File(String::new())),
+        "enum" => Some(ParamValue::Enum(String::new())),
+        "bool" => Some(ParamValue::Bool(false)),
+        "vec2" => Some(ParamValue::Vec2(0.0, 0.0)),
+        "vec3" => Some(ParamValue::Vec3(0.0, 0.0, 0.0)),
+        "color" => Some(ParamValue::Color(1.0, 1.0, 1.0, 1.0)),
+        "reference" => Some(ParamValue::Reference(NodeReference::default())),
+        _ => None,
+    }
+}
+
 struct ScriptChildLookup {
     primary: Option<NodeId>,
     primary_matches_type: bool,
@@ -490,6 +507,31 @@ impl UserCreatableItem {
         }
     }
 }
+
+/// Built-in node type id used for user-authored lexical context scopes.
+pub const USER_CONTEXT_NODE_TYPE: &str = "user_context";
+/// Built-in user-item kind used for user-authored lexical context scopes.
+pub const USER_CONTEXT_ITEM_KIND: &str = "user_context";
+/// Default user-facing label for newly created user-context scope nodes.
+pub const USER_CONTEXT_DEFAULT_LABEL: &str = "Context";
+/// Built-in folder node type id.
+pub const FOLDER_NODE_TYPE: &str = "folder";
+/// All built-in parameter node type ids.
+pub const PARAMETER_NODE_TYPES: [&str; 11] = ["trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
+const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 12] = [
+    FOLDER_NODE_TYPE,
+    "trigger",
+    "int",
+    "float",
+    "str",
+    "file",
+    "enum",
+    "bool",
+    "vec2",
+    "vec3",
+    "color",
+    "reference",
+];
 
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -833,6 +875,44 @@ impl IntoScriptHostPolicyOption for Option<ScriptHostPolicy> {
     }
 }
 
+/// User-context host policy for one node type.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UserContextHostPolicy {
+    /// Whether `UserContextNode` creation is enabled for this node.
+    pub enabled: bool,
+}
+
+impl Default for UserContextHostPolicy {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}
+
+impl UserContextHostPolicy {
+    /// Default policy used by `#[node(contextualizable)]` and `#[item(..., contextualizable)]`.
+    pub fn default_contextualizable() -> Self {
+        Self { enabled: true }
+    }
+}
+
+/// Conversion helper for macro-generated user-context host policy methods.
+pub trait IntoUserContextHostPolicyOption {
+    /// Converts a value into an optional user-context host policy.
+    fn into_user_context_host_policy_option(self) -> Option<UserContextHostPolicy>;
+}
+
+impl IntoUserContextHostPolicyOption for UserContextHostPolicy {
+    fn into_user_context_host_policy_option(self) -> Option<UserContextHostPolicy> {
+        Some(self)
+    }
+}
+
+impl IntoUserContextHostPolicyOption for Option<UserContextHostPolicy> {
+    fn into_user_context_host_policy_option(self) -> Option<UserContextHostPolicy> {
+        self
+    }
+}
+
 /// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
     /// Returns immutable runtime node data.
@@ -870,6 +950,11 @@ pub trait Node: Send + Any {
         None
     }
 
+    /// Returns user-context host policy when this node supports hosting `UserContextNode`.
+    fn user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
+        None
+    }
+
     /// Engine-internal hook used by UI tooling to expose script runtime state.
     #[doc(hidden)]
     fn engine_script_state(&self) -> Option<ScriptUiState> {
@@ -895,6 +980,9 @@ pub trait Node: Send + Any {
         if item_type == "script" && item_kind == "script" {
             return self.script_host_policy().is_some_and(|policy| policy.enabled);
         }
+        if (item_type == USER_CONTEXT_NODE_TYPE || item_type == "context") && item_kind == USER_CONTEXT_ITEM_KIND {
+            return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
+        }
         let _ = item_type;
         self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind))
     }
@@ -903,7 +991,14 @@ pub trait Node: Send + Any {
     ///
     /// Nodes that do not create items return an empty list.
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        if self.script_host_policy().is_some_and(|policy| policy.enabled) { vec![UserCreatableItem::new("script", "script", "Script")] } else { Vec::new() }
+        let mut items = Vec::new();
+        if self.script_host_policy().is_some_and(|policy| policy.enabled) {
+            items.push(UserCreatableItem::new("script", "script", "Script"));
+        }
+        if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
+            items.push(UserCreatableItem::new(USER_CONTEXT_NODE_TYPE, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_DEFAULT_LABEL));
+        }
+        items
     }
 
     /// Creates one user item for `node_type` with `label` when supported.
@@ -912,6 +1007,9 @@ pub trait Node: Send + Any {
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
             return Some(Box::new(ScriptNode::new(label, ScriptNodeConfig::for_host_node_type(self.get_type()))));
+        }
+        if (node_type == USER_CONTEXT_NODE_TYPE || node_type == "context") && self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
+            return Some(Box::new(UserContextNode::new(label)));
         }
         None
     }
@@ -935,6 +1033,18 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_param_snapshot(&self) -> Option<ParameterSnapshot> {
         None
+    }
+
+    /// Engine-internal hook used by UI/runtime layers to expose parameter control state.
+    #[doc(hidden)]
+    fn engine_param_control_state(&self) -> Option<ParameterControlState> {
+        None
+    }
+
+    /// Engine-internal hook used to replace parameter control state.
+    #[doc(hidden)]
+    fn engine_set_param_control_state(&mut self, _state: ParameterControlState) -> Result<(), String> {
+        Err("node does not expose parameter control state".to_string())
     }
 
     /// Engine-internal hook used to expose script-facing properties and methods.
@@ -1150,10 +1260,16 @@ pub trait Node: Send + Any {
             "addNode" => {
                 let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
                 let normalized_node_type = node_type.trim().to_ascii_lowercase();
+                let resolved_node_type = if normalized_node_type == "context" {
+                    USER_CONTEXT_NODE_TYPE
+                } else {
+                    node_type.as_str()
+                };
 
                 let default_label = match normalized_node_type.as_str() {
                     "parameter" | "param" => "parameter".to_string(),
                     "folder" | "" => "Folder".to_string(),
+                    "user_context" | "context" => USER_CONTEXT_DEFAULT_LABEL.to_string(),
                     _ => node_type.clone(),
                 };
                 let label = args.get(1).and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or(default_label);
@@ -1232,7 +1348,7 @@ pub trait Node: Send + Any {
                     return Ok(true);
                 }
 
-                let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), node_type.as_str());
+                let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), resolved_node_type);
                 for duplicate in lookup.duplicates {
                     ctx.edits.push(Edit::RemoveNode { node: duplicate });
                 }
@@ -1253,11 +1369,11 @@ pub trait Node: Send + Any {
                         return Ok(true);
                     }
 
-                    if let Some(node) = self.create_user_item(node_type.as_str(), label) {
+                    if let Some(node) = self.create_user_item(resolved_node_type, label) {
                         ctx.replace_node_boxed(existing_node, node);
                         return Ok(true);
                     }
-                } else if let Some(node) = self.create_user_item(node_type.as_str(), label) {
+                } else if let Some(node) = self.create_user_item(resolved_node_type, label) {
                     ctx.add_user_item_boxed(self.id(), node, None);
                     return Ok(true);
                 }
@@ -1515,6 +1631,9 @@ pub trait Node: Send + Any {
                 EventKind::ParamChanged { param, old_value, .. } => {
                     self.on_param_change(ctx, param, old_value);
                 }
+                EventKind::ParamControlChanged { param, old_state, new_state } => {
+                    self.on_param_control_changed(ctx, param, old_state, new_state);
+                }
                 EventKind::ChildAdded { parent, child, decl_id } => {
                     self.on_child_added_decl(ctx, parent, child, &decl_id);
                 }
@@ -1548,6 +1667,15 @@ pub trait Node: Send + Any {
 
     /// Called when a parameter has changed.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
+    /// Called when a parameter control state has changed.
+    fn on_param_control_changed(
+        &mut self,
+        _ctx: &mut ProcessCtx,
+        _param: NodeId,
+        _old_state: ParameterControlState,
+        _new_state: ParameterControlState,
+    ) {
+    }
     /// Called once when any structural event is present in the current callback frame.
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {}
     /// Called when a child is added.
@@ -1602,6 +1730,16 @@ pub trait ViaTarget {
 
     /// Forwards generated inbox preprocessing to the via target when relevant.
     fn via_engine_preprocess_inbox(&mut self, _ctx: &mut ProcessCtx) {}
+
+    /// Forwards generated script-host policy lookup to the via target when relevant.
+    fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
+        None
+    }
+
+    /// Forwards generated user-context host policy lookup to the via target when relevant.
+    fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
+        None
+    }
 }
 
 impl ViaTarget for NodeData {
@@ -1642,6 +1780,85 @@ impl<T: Node + ?Sized> ViaTarget for T {
     fn via_engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.engine_preprocess_inbox(ctx);
     }
+
+    fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
+        self.script_host_policy()
+    }
+
+    fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
+        self.user_context_host_policy()
+    }
+}
+
+/// Internal scope node used to host user-authored lexical context entries.
+///
+/// Context entries are regular descendant parameter nodes. Symbols are derived from
+/// parameter `decl_id` values during resolver indexing.
+pub struct UserContextNode {
+    node_data: NodeData,
+}
+
+impl UserContextNode {
+    /// Creates a new user-context scope node.
+    pub fn new(label: impl Into<String>) -> Self {
+        let mut node_data = NodeData::new(label.into());
+        node_data.meta.can_be_disabled = false;
+        Self { node_data }
+    }
+}
+
+impl Node for UserContextNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        USER_CONTEXT_NODE_TYPE
+    }
+
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&USER_CONTEXT_ALLOWED_ITEM_KINDS))
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        let mut items = vec![UserCreatableItem::new(FOLDER_NODE_TYPE, FOLDER_NODE_TYPE, "Folder")];
+        items.extend([
+            UserCreatableItem::new("trigger", "trigger", "Trigger"),
+            UserCreatableItem::new("int", "int", "Int"),
+            UserCreatableItem::new("float", "float", "Float"),
+            UserCreatableItem::new("str", "str", "String"),
+            UserCreatableItem::new("file", "file", "File"),
+            UserCreatableItem::new("enum", "enum", "Enum"),
+            UserCreatableItem::new("bool", "bool", "Bool"),
+            UserCreatableItem::new("vec2", "vec2", "Vec2"),
+            UserCreatableItem::new("vec3", "vec3", "Vec3"),
+            UserCreatableItem::new("color", "color", "Color"),
+            UserCreatableItem::new("reference", "reference", "Reference"),
+        ]);
+        items
+    }
+
+    fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
+        let node_type = node_type.trim().to_ascii_lowercase();
+        if node_type == FOLDER_NODE_TYPE {
+            return Some(Box::new(Folder::new(label)));
+        }
+
+        if node_type == "param" || node_type == "parameter" {
+            return Some(Box::new(Parameter::new(label.as_str(), ParamValue::Float(0.0), ParameterChangeCheck::ValueChange)));
+        }
+
+        let default_value = default_parameter_value_for_node_type(node_type.as_str())?;
+        Some(Box::new(Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange)))
+    }
+
+    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
+        EventPropagation::PassOn
+    }
 }
 
 /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
@@ -1668,7 +1885,7 @@ impl Node for Folder {
     }
 
     fn get_type(&self) -> &str {
-        "folder"
+        FOLDER_NODE_TYPE
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

@@ -842,6 +842,8 @@ impl<T: Node> Engine<T> {
         // eprintln!("[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.undo(self)?;
         self.sync_missing_reference_warnings();
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
         self.redo_stack.push(transaction);
         // eprintln!("[gc-history] undo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)
@@ -857,6 +859,8 @@ impl<T: Node> Engine<T> {
         // eprintln!("[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.redo(self)?;
         self.sync_missing_reference_warnings();
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
         self.undo_stack.push(transaction);
         // eprintln!("[gc-history] redo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)

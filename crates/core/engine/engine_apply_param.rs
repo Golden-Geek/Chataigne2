@@ -67,6 +67,8 @@ impl<T: Node> Engine<T> {
             old_value: old_value.clone(),
             new_value: new_value.clone(),
         });
+        self.param_change_counter = self.param_change_counter.saturating_add(1);
+        self.param_last_change_counter.insert(node, self.param_change_counter);
 
         Ok(Some(SetParamEffect {
             node,

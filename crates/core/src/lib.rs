@@ -40,6 +40,14 @@ pub mod edit;
 /// Processing-time context passed to node callbacks.
 pub mod process_ctx;
 
+#[path = "../engine/blueprints.rs"]
+/// Blueprint declaration and instance registry APIs.
+pub mod blueprints;
+
+#[path = "../engine/contexts.rs"]
+/// UserContext and DynamicContext APIs.
+pub mod contexts;
+
 #[path = "../engine/logger.rs"]
 /// Process-wide logger API and `log!` macro support.
 pub mod logger;

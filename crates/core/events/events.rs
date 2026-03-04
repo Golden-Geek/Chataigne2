@@ -1,6 +1,6 @@
 use crate::engine::EngineTime;
 use crate::node::{DeclId, NodeId, NodeMetaPatch};
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParameterControlState};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -60,6 +60,15 @@ pub enum EventKind {
         old_value: ParamValue,
         /// Value after the change.
         new_value: ParamValue,
+    },
+    /// A parameter control state was changed.
+    ParamControlChanged {
+        /// Parameter node that changed.
+        param: NodeId,
+        /// Previous control state before the change.
+        old_state: ParameterControlState,
+        /// Control state after the change.
+        new_state: ParameterControlState,
     },
 
     /// A child node was attached under a parent.
@@ -134,6 +143,7 @@ impl EventKind {
     pub fn propagation_origin(&self) -> Option<NodeId> {
         match self {
             Self::ParamChanged { param, .. } => Some(*param),
+            Self::ParamControlChanged { param, .. } => Some(*param),
             Self::ChildAdded { child, .. } => Some(*child),
             Self::ChildRemoved { parent, .. } => Some(*parent),
             Self::ChildReplaced { new, .. } => Some(*new),

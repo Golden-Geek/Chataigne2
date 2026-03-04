@@ -77,6 +77,16 @@ struct ReferenceTargetsRequest {
 }
 
 #[derive(Deserialize)]
+struct ContextCandidatesRequest {
+    param: NodeId,
+}
+
+#[derive(Deserialize)]
+struct ParamControlInfoRequest {
+    param: NodeId,
+}
+
+#[derive(Deserialize)]
 struct ScriptStateRequest {
     node: NodeId,
 }
@@ -490,6 +500,13 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         ("GET", "/api/ui/health") => {
             write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
         }
+        ("GET", "/api/ui/user-contexts") => {
+            let guard = lock_engine(&state.engine);
+            let contexts = guard.ui_user_contexts();
+            drop(guard);
+
+            write_json(stream, "200 OK", &contexts)?;
+        }
         ("POST", "/api/ui/snapshot") => {
             let payload: SnapshotRequest = if request.body.is_empty() {
                 SnapshotRequest { scope: UiSubscriptionScope::WholeGraph }
@@ -539,6 +556,35 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             drop(guard);
 
             write_json(stream, "200 OK", &targets)?;
+        }
+        ("POST", "/api/ui/context-candidates") => {
+            let payload: ContextCandidatesRequest =
+                serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid context-candidates payload: {err}")))?;
+            eprintln!("[ui-http] context-candidates param={:?}", payload.param);
+
+            let guard = lock_engine(&state.engine);
+            let candidates = guard.ui_context_candidates_for_param(payload.param);
+            drop(guard);
+
+            write_json(stream, "200 OK", &candidates)?;
+        }
+        ("POST", "/api/ui/param-control-info") => {
+            let payload: ParamControlInfoRequest =
+                serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid param-control-info payload: {err}")))?;
+            eprintln!("[ui-http] param-control-info param={:?}", payload.param);
+
+            let guard = lock_engine(&state.engine);
+            let info_result = guard.ui_param_control_info(payload.param);
+            drop(guard);
+
+            match info_result {
+                Ok(info) => {
+                    write_json(stream, "200 OK", &info)?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &err)?;
+                }
+            }
         }
         ("POST", "/api/ui/script-state") => {
             let payload: ScriptStateRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-state payload: {err}")))?;

@@ -1,5 +1,6 @@
 use std::any::type_name;
 
+use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::Node;
@@ -37,6 +38,7 @@ impl<T: Node> Engine<T> {
         let mut transaction = HistoryTransaction::new();
         let mut redo_cleared = false;
         let mut missing_reference_warning_dirty = false;
+        let mut user_context_graph_dirty = false;
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
             let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request.edit {
@@ -81,6 +83,11 @@ impl<T: Node> Engine<T> {
                 Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
                     Some(mut effect) => {
                         missing_reference_warning_dirty = true;
+                        if UserContextValueType::from_param_value(&effect.old_value) != UserContextValueType::from_param_value(&effect.new_value)
+                            && self.node_within_user_context_scope(effect.node)
+                        {
+                            user_context_graph_dirty = true;
+                        }
                         effect.behaviour = behaviour;
                         effect.tick = self.time.tick;
                         (Ok(Some(effect.into())), true)
@@ -97,26 +104,42 @@ impl<T: Node> Engine<T> {
                 }
                 Edit::AddNode { node, parent, prev_sibling } => {
                     missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddUserItem { node, parent, prev_sibling } => {
                     missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
                     let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
+                    (Ok(Some(effect.into())), true)
+                }
+                Edit::CreateBlueprintInstance {
+                    blueprint_id,
+                    parent,
+                    prev_sibling,
+                    label,
+                } => {
+                    missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
+                    let effect = self.apply_create_blueprint_instance(edit_index, blueprint_id, parent, prev_sibling, label)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
                     let effect = self.apply_replace_node(edit_index, node, new_node)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::RemoveNode { node } => {
                     missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
                     let effect = self.apply_remove_node(edit_index, node)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::MoveNode { node, new_parent, new_prev_sibling } => {
                     missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
                     let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
@@ -195,6 +218,10 @@ impl<T: Node> Engine<T> {
         if missing_reference_warning_dirty {
             self.sync_missing_reference_warnings();
         }
+        if user_context_graph_dirty {
+            self.rebuild_user_context_registry_from_nodes();
+            self.mark_user_context_graph_changed();
+        }
 
         Ok(())
     }
@@ -221,6 +248,7 @@ impl<T: Node> Engine<T> {
             EventKind::NodeDeleted { node } => {
                 self.purge_event_listeners_for_node(*node);
                 self.last_update_elapsed_by_node.remove(node);
+                self.param_last_change_counter.remove(node);
             }
             _ => {}
         }

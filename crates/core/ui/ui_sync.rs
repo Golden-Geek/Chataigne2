@@ -2,16 +2,22 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints};
+use crate::parameter::{
+    ParamValue, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot,
+    ParameterUiHints,
+};
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
 pub const UI_PROTOCOL_VERSION: &str = "0.1.0";
+const UI_USER_CONTEXT_SCOPE_TOPIC: &str = "__user_context.scope_changed";
+const UI_USER_CONTEXT_ENTRY_TOPIC: &str = "__user_context.entry_changed";
 
 fn is_default_presentation_hint(value: &PresentationHint) -> bool {
     *value == PresentationHint::default()
@@ -90,6 +96,8 @@ pub struct UiParamDto {
     pub constraints: ParameterConstraints,
     /// Presentation and editing hints.
     pub ui_hints: ParameterUiHints,
+    /// Runtime control-plane state.
+    pub control: ParameterControlState,
     /// Engine-computed selectable targets for reference parameters.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_allowed_targets: Vec<NodeId>,
@@ -107,6 +115,7 @@ impl From<ParameterSnapshot> for UiParamDto {
             read_only: snapshot.read_only,
             constraints: snapshot.constraints,
             ui_hints: snapshot.ui_hints,
+            control: snapshot.control,
             reference_allowed_targets: Vec::new(),
             reference_visible_nodes: Vec::new(),
         }
@@ -122,6 +131,48 @@ pub struct UiReferenceTargetsDto {
     /// Visible picker nodes (targets + path ancestors).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub visible_nodes: Vec<NodeId>,
+}
+
+/// UI-facing control candidate for proxy/binding pickers.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiParamCandidateDto {
+    /// Candidate parameter node id.
+    pub param: NodeId,
+    /// Whether candidate value type is compatible.
+    pub compatible: bool,
+}
+
+/// UI-facing token suggestion for template/expression editors.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiTokenSuggestionDto {
+    /// Suggested token string.
+    pub token: String,
+}
+
+/// UI-facing per-parameter control info payload.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct UiParamControlInfoDto {
+    /// Parameter node id.
+    pub param: NodeId,
+    /// Active control mode.
+    pub active_mode: ParameterControlMode,
+    /// Supported control modes for this parameter.
+    pub available_modes: Vec<ParameterControlMode>,
+    /// Current diagnostics for this control state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<ParameterControlDiagnostic>,
+    /// Lexical user-context candidates.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_candidates: Vec<UserContextCandidate>,
+    /// Token suggestions for text/expression editors.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub token_suggestions: Vec<UiTokenSuggestionDto>,
+    /// Candidate proxy targets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub proxy_candidates: Vec<UiParamCandidateDto>,
+    /// Candidate binding targets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub binding_candidates: Vec<UiParamCandidateDto>,
 }
 
 /// UI-facing node data summary.
@@ -274,6 +325,13 @@ pub struct UiSnapshot {
     pub history: UiHistoryState,
     /// Current logger state.
     pub logger: UiLoggerState,
+    /// Current user-context scopes.
+    #[serde(default, skip_serializing_if = "is_default_user_contexts")]
+    pub user_contexts: UiUserContextsDto,
+}
+
+fn is_default_user_contexts(value: &UiUserContextsDto) -> bool {
+    *value == UiUserContextsDto::default()
 }
 
 /// UI-facing event kind.
@@ -288,6 +346,15 @@ pub enum UiEventKind {
         old_value: ParamValue,
         /// New value.
         new_value: ParamValue,
+    },
+    /// Parameter control state changed.
+    ParamControlChanged {
+        /// Parameter node id.
+        param: NodeId,
+        /// Previous control state.
+        old_state: ParameterControlState,
+        /// New control state.
+        new_state: ParameterControlState,
     },
     /// Child added.
     ChildAdded {
@@ -374,6 +441,7 @@ impl From<Event> for UiEventDto {
     fn from(event: Event) -> Self {
         let kind = match event.kind {
             EventKind::ParamChanged { param, old_value, new_value } => UiEventKind::ParamChanged { param, old_value, new_value },
+            EventKind::ParamControlChanged { param, old_state, new_state } => UiEventKind::ParamControlChanged { param, old_state, new_state },
             EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded { parent, child, decl_id },
             EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved { parent, child },
             EventKind::ChildReplaced { parent, old, new, decl_id } => UiEventKind::ChildReplaced { parent, old, new, decl_id },
@@ -432,6 +500,13 @@ pub enum UiEditIntent {
         /// Requested coalescing behavior.
         behaviour: ParameterEventBehaviour,
     },
+    /// Set a parameter control state.
+    SetParamControlState {
+        /// Target parameter node id.
+        node: NodeId,
+        /// New control state payload.
+        state: ParameterControlState,
+    },
     /// Move a node.
     MoveNode {
         /// Target node id.
@@ -463,6 +538,32 @@ pub enum UiEditIntent {
         node: NodeId,
         /// Metadata patch.
         patch: NodeMetaPatch,
+    },
+    /// Ensures one user-context scope exists on `owner`.
+    EnsureUserContextScope {
+        /// Scope owner node id.
+        owner: NodeId,
+    },
+    /// Removes the user-context scope from `owner`.
+    RemoveUserContextScope {
+        /// Scope owner node id.
+        owner: NodeId,
+    },
+    /// Adds or replaces one user-context entry.
+    UpsertUserContextEntry {
+        /// Scope owner node id.
+        owner: NodeId,
+        /// Symbol name.
+        symbol: String,
+        /// Parameter node backing this entry.
+        param: NodeId,
+    },
+    /// Removes one user-context entry by symbol.
+    RemoveUserContextEntry {
+        /// Scope owner node id.
+        owner: NodeId,
+        /// Symbol to remove.
+        symbol: String,
     },
     /// Request graph reevaluation.
     ReevaluateGraph,
@@ -542,10 +643,8 @@ impl<T: Node> Engine<T> {
             };
 
             let mut creatable_user_items = Vec::new();
-            for item in node.user_creatable_items().into_iter() {
-                if node.user_container_accepts_item(&item.node_type, &item.item_kind) {
-                    creatable_user_items.push(UiCreatableUserItemDto::from(item));
-                }
+            for item in self.catalog_creatable_items(node_id).into_iter() {
+                creatable_user_items.push(UiCreatableUserItemDto::from(item));
             }
 
             let mut accepted_user_item_kinds: Vec<String> = node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default();
@@ -591,6 +690,7 @@ impl<T: Node> Engine<T> {
                 max_entries: crate::logger::max_entries(),
                 records: crate::logger::records(),
             },
+            user_contexts: self.ui_user_contexts(),
         }
     }
 
@@ -625,6 +725,69 @@ impl<T: Node> Engine<T> {
             allowed_targets: self.reference_allowed_targets_for_param(param_node),
             visible_nodes: self.reference_visible_nodes_for_param(param_node),
         }
+    }
+
+    /// Returns control-related UI information for one parameter node.
+    pub fn ui_param_control_info(&self, param_node: NodeId) -> Result<UiParamControlInfoDto, String> {
+        let Some(node) = self.nodes.get(param_node) else {
+            return Err(format!("node {} not found", param_node.0));
+        };
+        let Some(snapshot) = node.engine_param_snapshot() else {
+            return Err(format!("node {} is not a parameter node", param_node.0));
+        };
+
+        let context_candidates = self.ui_context_candidates_for_param(param_node).candidates;
+
+        let mut token_set = HashSet::<String>::new();
+        token_set.insert("$name".to_string());
+        token_set.insert("$type".to_string());
+        token_set.insert("$id".to_string());
+        token_set.insert("$uuid".to_string());
+        for candidate in &context_candidates {
+            token_set.insert(candidate.symbol.clone());
+            if candidate.value_type == UserContextValueType::Reference {
+                token_set.insert(format!("{}.$name", candidate.symbol));
+                token_set.insert(format!("{}.$type", candidate.symbol));
+                token_set.insert(format!("{}.$id", candidate.symbol));
+                token_set.insert(format!("{}.$uuid", candidate.symbol));
+            }
+        }
+        let mut token_suggestions = token_set
+            .into_iter()
+            .map(|token| UiTokenSuggestionDto { token })
+            .collect::<Vec<_>>();
+        token_suggestions.sort_by(|left, right| left.token.cmp(&right.token));
+
+        let mut proxy_candidates = Vec::<UiParamCandidateDto>::new();
+        let mut binding_candidates = Vec::<UiParamCandidateDto>::new();
+        for (candidate_id, candidate_node) in self.nodes.iter() {
+            if candidate_id == param_node {
+                continue;
+            }
+            let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
+                continue;
+            };
+            let compatible = param_types_compatible(&candidate_snapshot.value, &snapshot.value);
+            let candidate = UiParamCandidateDto {
+                param: candidate_id,
+                compatible,
+            };
+            proxy_candidates.push(candidate.clone());
+            binding_candidates.push(candidate);
+        }
+        proxy_candidates.sort_by_key(|candidate| candidate.param.0);
+        binding_candidates.sort_by_key(|candidate| candidate.param.0);
+
+        Ok(UiParamControlInfoDto {
+            param: param_node,
+            active_mode: snapshot.control.mode,
+            available_modes: available_control_modes_for_value(&snapshot.value),
+            diagnostics: snapshot.control.diagnostics,
+            context_candidates,
+            token_suggestions,
+            proxy_candidates,
+            binding_candidates,
+        })
     }
 
     /// Returns script runtime state for `node` when it is a script node.
@@ -689,6 +852,27 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
+            UiEditIntent::SetParamControlState { node, state } => match self.set_param_control_state(node, state) {
+                Ok(changed) => {
+                    if changed {
+                        self.evaluate_parameter_controls();
+                    }
+                    let result = if self.edits.pending.is_empty() {
+                        Ok(())
+                    } else {
+                        self.apply_edits_without_history()
+                    };
+                    self.finish_ui_apply_now(before_len, result)
+                }
+                Err(message) => UiAck {
+                    success: false,
+                    status: UiAckStatus::Rejected,
+                    error_code: Some("param_control_error".to_string()),
+                    error_message: Some(message),
+                    earliest_event_time: None,
+                    history: self.ui_history_state(),
+                },
+            },
             UiEditIntent::MoveNode { node, new_parent, new_prev_sibling } => {
                 self.edits.push(Edit::MoveNode { node, new_parent, new_prev_sibling });
                 let result = self.apply_edits();
@@ -700,24 +884,9 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::CreateUserItem { parent, node_type, label } => {
-                let Some(parent_node) = self.nodes.get(parent) else {
-                    let err = crate::engine::EngineEditError::ParentNotFound { edit_index: 0, operation: "CreateUserItem", parent };
+                if let Err(err) = self.queue_catalog_create(parent, node_type, label, None) {
                     return self.finish_ui_apply_now(before_len, Err(err));
-                };
-
-                let resolved_label = label.unwrap_or_else(|| parent_node.user_creatable_items().into_iter().find(|candidate| candidate.node_type == node_type).map(|candidate| candidate.label).unwrap_or_else(|| node_type.clone()));
-
-                let Some(node) = parent_node.create_user_item(&node_type, resolved_label) else {
-                    let err = crate::engine::EngineEditError::UserItemTypeUnavailable {
-                        edit_index: 0,
-                        operation: "CreateUserItem",
-                        parent,
-                        node_type,
-                    };
-                    return self.finish_ui_apply_now(before_len, Err(err));
-                };
-
-                self.edits.push(Edit::AddUserItem { parent, prev_sibling: None, node });
+                }
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
@@ -725,6 +894,111 @@ impl<T: Node> Engine<T> {
                 self.edits.push(Edit::PatchMeta { node, patch });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::EnsureUserContextScope { owner } => match self.ensure_user_context_scope(owner) {
+                Ok(changed) => {
+                    if changed {
+                        self.push_ui_custom_event(
+                            UI_USER_CONTEXT_SCOPE_TOPIC,
+                            Some(owner),
+                            serde_json::json!({
+                                "action": "ensure_scope",
+                                "owner": owner.0,
+                            }),
+                        );
+                    }
+                    UiAck {
+                        success: true,
+                        status: UiAckStatus::Applied,
+                        error_code: None,
+                        error_message: None,
+                        earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                        history: self.ui_history_state(),
+                    }
+                }
+                Err(message) => UiAck {
+                    success: false,
+                    status: UiAckStatus::Rejected,
+                    error_code: Some("user_context_scope_error".to_string()),
+                    error_message: Some(message),
+                    earliest_event_time: None,
+                    history: self.ui_history_state(),
+                },
+            },
+            UiEditIntent::RemoveUserContextScope { owner } => {
+                let removed = self.remove_user_context_scope(owner);
+                if removed {
+                    self.push_ui_custom_event(
+                        UI_USER_CONTEXT_SCOPE_TOPIC,
+                        Some(owner),
+                        serde_json::json!({
+                            "action": "remove_scope",
+                            "owner": owner.0,
+                        }),
+                    );
+                }
+                UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
+                }
+            }
+            UiEditIntent::UpsertUserContextEntry { owner, symbol, param } => match self.upsert_user_context_entry(owner, symbol.as_str(), param) {
+                Ok(changed) => {
+                    if changed {
+                        self.push_ui_custom_event(
+                            UI_USER_CONTEXT_ENTRY_TOPIC,
+                            Some(owner),
+                            serde_json::json!({
+                                "action": "upsert_entry",
+                                "owner": owner.0,
+                                "symbol": symbol,
+                                "param": param.0,
+                            }),
+                        );
+                    }
+                    UiAck {
+                        success: true,
+                        status: UiAckStatus::Applied,
+                        error_code: None,
+                        error_message: None,
+                        earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                        history: self.ui_history_state(),
+                    }
+                }
+                Err(message) => UiAck {
+                    success: false,
+                    status: UiAckStatus::Rejected,
+                    error_code: Some("user_context_entry_error".to_string()),
+                    error_message: Some(message),
+                    earliest_event_time: None,
+                    history: self.ui_history_state(),
+                },
+            },
+            UiEditIntent::RemoveUserContextEntry { owner, symbol } => {
+                let removed = self.remove_user_context_entry(owner, symbol.as_str());
+                if removed {
+                    self.push_ui_custom_event(
+                        UI_USER_CONTEXT_ENTRY_TOPIC,
+                        Some(owner),
+                        serde_json::json!({
+                            "action": "remove_entry",
+                            "owner": owner.0,
+                            "symbol": symbol,
+                        }),
+                    );
+                }
+                UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    history: self.ui_history_state(),
+                }
             }
             UiEditIntent::ReevaluateGraph => {
                 self.edits.push(Edit::ReevaluateGraph);
@@ -881,6 +1155,7 @@ impl<T: Node> Engine<T> {
 
                 let candidate_nodes: Vec<NodeId> = match &event.kind {
                     EventKind::ParamChanged { param, .. } => vec![*param],
+                    EventKind::ParamControlChanged { param, .. } => vec![*param],
                     EventKind::ChildAdded { parent, child, .. } => vec![*parent, *child],
                     EventKind::ChildRemoved { parent, child } => vec![*parent, *child],
                     EventKind::ChildReplaced { parent, old, new, .. } => vec![*parent, *old, *new],
@@ -913,6 +1188,34 @@ impl<T: Node> Engine<T> {
         }
 
         false
+    }
+}
+
+fn available_control_modes_for_value(_value: &ParamValue) -> Vec<ParameterControlMode> {
+    vec![
+        ParameterControlMode::Manual,
+        ParameterControlMode::ContextLink,
+        ParameterControlMode::TemplateText,
+        ParameterControlMode::Expression,
+        ParameterControlMode::Proxy,
+        ParameterControlMode::Binding,
+        ParameterControlMode::Animation,
+    ]
+}
+
+fn param_types_compatible(source: &ParamValue, target: &ParamValue) -> bool {
+    match target {
+        ParamValue::Trigger() => matches!(source, ParamValue::Trigger()),
+        ParamValue::Int(_) => source.as_int().is_some(),
+        ParamValue::Float(_) => source.as_float().is_some(),
+        ParamValue::Str(_) => source.as_str().is_some(),
+        ParamValue::File(_) => source.as_str().is_some(),
+        ParamValue::Enum(_) => source.as_enum().is_some(),
+        ParamValue::Bool(_) => source.as_bool().is_some(),
+        ParamValue::Vec2(_, _) => source.as_vec2().is_some(),
+        ParamValue::Vec3(_, _, _) => source.as_vec3().is_some(),
+        ParamValue::Color(_, _, _, _) => source.as_color().is_some(),
+        ParamValue::Reference(_) => matches!(source, ParamValue::Reference(_)),
     }
 }
 

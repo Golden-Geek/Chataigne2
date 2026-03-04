@@ -262,6 +262,7 @@ impl<T: Node> Engine<T> {
         // Rebuild runtime caches for UUID-based references after full tree reconstruction.
         engine.resolve_reference_caches();
         engine.sync_missing_reference_warnings_silent();
+        engine.rebuild_user_context_registry_from_nodes();
 
         // Freshly loaded projects should start with no pending edits/history/events.
         engine.inbox.clear();

@@ -4,6 +4,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method(),
+            Self::UserContext(node) => node.$method(),
             Self::Parameter(node) => node.$method(),
             Self::Script(node) => node.$method(),
             $(Self::$variant(node) => node.$method(),)*
@@ -12,6 +13,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident, $arg1:expr ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method($arg1),
+            Self::UserContext(node) => node.$method($arg1),
             Self::Parameter(node) => node.$method($arg1),
             Self::Script(node) => node.$method($arg1),
             $(Self::$variant(node) => node.$method($arg1),)*
@@ -20,6 +22,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident, $arg1:expr, $arg2:expr ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2),
+            Self::UserContext(node) => node.$method($arg1, $arg2),
             Self::Parameter(node) => node.$method($arg1, $arg2),
             Self::Script(node) => node.$method($arg1, $arg2),
             $(Self::$variant(node) => node.$method($arg1, $arg2),)*
@@ -28,6 +31,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3),
+            Self::UserContext(node) => node.$method($arg1, $arg2, $arg3),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
@@ -36,6 +40,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
@@ -44,6 +49,7 @@ macro_rules! __dispatch_node_enum {
     ($self:expr, $method:ident, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr ; $($variant:ident),* $(,)?) => {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
@@ -174,6 +180,11 @@ macro_rules! define_user_item_factory_methods {
             if item_type == "script" && item_kind == "script" {
                 return self.script_host_policy().is_some_and(|policy| policy.enabled);
             }
+            if (item_type == $crate::node::USER_CONTEXT_NODE_TYPE || item_type == "context")
+                && item_kind == $crate::node::USER_CONTEXT_ITEM_KIND
+            {
+                return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
+            }
 
             if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
                 return false;
@@ -196,6 +207,13 @@ macro_rules! define_user_item_factory_methods {
             if self.script_host_policy().is_some_and(|policy| policy.enabled) {
                 items.push($crate::node::UserCreatableItem::new("script", "script", "Script"));
             }
+            if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
+                items.push($crate::node::UserCreatableItem::new(
+                    $crate::node::USER_CONTEXT_NODE_TYPE,
+                    $crate::node::USER_CONTEXT_ITEM_KIND,
+                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                ));
+            }
 
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
@@ -211,6 +229,11 @@ macro_rules! define_user_item_factory_methods {
                     label,
                     $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
                 )));
+            }
+            if (node_type == $crate::node::USER_CONTEXT_NODE_TYPE || node_type == "context")
+                && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
+            {
+                return Some(Box::new($crate::node::UserContextNode::new(label)));
             }
 
             match node_type {
@@ -241,6 +264,7 @@ macro_rules! define_user_item_factory_methods {
 ///
 /// Internal node variants are always included automatically:
 /// - `Folder($crate::node::Folder)`
+/// - `UserContext($crate::node::UserContextNode)`
 /// - `Parameter($crate::parameter::Parameter)`
 /// - `Script($crate::script::ScriptNode)`
 ///
@@ -254,6 +278,7 @@ macro_rules! define_node_enum {
     ($vis:vis enum $enum_name:ident { $($variant:ident($node_ty:ty)),* $(,)? }) => {
         $vis enum $enum_name {
             Folder($crate::node::Folder),
+            UserContext($crate::node::UserContextNode),
             Parameter($crate::parameter::Parameter),
             Script($crate::script::ScriptNode),
             $($variant($node_ty),)*
@@ -293,6 +318,11 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn script_host_policy(&self) -> Option<$crate::script::ScriptHostPolicy> {
                 $crate::__dispatch_node_enum!(self, script_host_policy; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn user_context_host_policy(&self) -> Option<$crate::node::UserContextHostPolicy> {
+                $crate::__dispatch_node_enum!(self, user_context_host_policy; $($variant),*)
             }
 
             #[inline(always)]
@@ -343,6 +373,16 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn engine_param_snapshot(&self) -> Option<$crate::parameter::ParameterSnapshot> {
                 $crate::__dispatch_node_enum!(self, engine_param_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_param_control_state(&self) -> Option<$crate::parameter::ParameterControlState> {
+                $crate::__dispatch_node_enum!(self, engine_param_control_state; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_set_param_control_state(&mut self, state: $crate::parameter::ParameterControlState) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_set_param_control_state, state; $($variant),*)
             }
 
             #[inline(always)]
@@ -520,6 +560,7 @@ macro_rules! define_node_enum {
                 };
 
                 $crate::__downcast_node_enum_variant!(any, Folder, $crate::node::Folder);
+                $crate::__downcast_node_enum_variant!(any, UserContext, $crate::node::UserContextNode);
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
                 $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
 
@@ -535,6 +576,12 @@ macro_rules! define_node_enum {
         impl From<$crate::node::Folder> for $enum_name {
             fn from(node: $crate::node::Folder) -> Self {
                 Self::Folder(node)
+            }
+        }
+
+        impl From<$crate::node::UserContextNode> for $enum_name {
+            fn from(node: $crate::node::UserContextNode) -> Self {
+                Self::UserContext(node)
             }
         }
 

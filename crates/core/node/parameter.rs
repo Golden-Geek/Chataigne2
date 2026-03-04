@@ -515,6 +515,199 @@ pub enum ParameterEventBehaviour {
     Append,
 }
 
+/// Runtime control mode used to drive one parameter value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ParameterControlMode {
+    /// Parameter uses its locally stored value.
+    #[default]
+    Manual,
+    /// Parameter reads one lexical user-context symbol.
+    ContextLink,
+    /// Parameter string is produced from a text template with token interpolation.
+    TemplateText,
+    /// Parameter value is computed from an expression.
+    Expression,
+    /// Parameter reads from another compatible parameter.
+    Proxy,
+    /// Parameter synchronizes bidirectionally with another compatible parameter.
+    Binding,
+    /// Parameter is driven by a local animation function.
+    Animation,
+}
+
+/// Animation waveform used by [`AnimationControlSpec`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum AnimationWaveform {
+    /// Smooth sinus wave in range `[-1, 1]`.
+    #[default]
+    Sine,
+    /// Triangle wave in range `[-1, 1]`.
+    Triangle,
+    /// Saw wave in range `[-1, 1]`.
+    Saw,
+    /// Square wave in range `[-1, 1]`.
+    Square,
+}
+
+/// Animation driver configuration for `ParameterControlMode::Animation`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnimationControlSpec {
+    /// Oscillator waveform.
+    #[serde(default)]
+    pub waveform: AnimationWaveform,
+    /// Oscillation frequency in Hertz.
+    #[serde(default = "default_animation_frequency_hz")]
+    pub frequency_hz: f64,
+    /// Output amplitude (applied after waveform generation).
+    #[serde(default = "default_animation_amplitude")]
+    pub amplitude: f64,
+    /// Constant output offset.
+    #[serde(default)]
+    pub offset: f64,
+    /// Additional phase offset in cycles (`1.0 = full cycle`).
+    #[serde(default)]
+    pub phase: f64,
+}
+
+fn default_animation_frequency_hz() -> f64 {
+    1.0
+}
+
+fn default_animation_amplitude() -> f64 {
+    1.0
+}
+
+impl Default for AnimationControlSpec {
+    fn default() -> Self {
+        Self {
+            waveform: AnimationWaveform::default(),
+            frequency_hz: default_animation_frequency_hz(),
+            amplitude: default_animation_amplitude(),
+            offset: 0.0,
+            phase: 0.0,
+        }
+    }
+}
+
+/// Persisted authoring intent for one parameter control mode.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "camelCase")]
+pub enum ParameterControlSpec {
+    /// Manual value editing with no external source.
+    Manual,
+    /// One lexical context symbol lookup.
+    ContextLink {
+        /// Symbol to resolve from nearest visible `UserContext` scope.
+        symbol: String,
+    },
+    /// Text template with `{token}` segments.
+    TemplateText {
+        /// Raw user-authored template string.
+        template: String,
+    },
+    /// One-line expression source.
+    Expression {
+        /// Raw expression source.
+        expression: String,
+    },
+    /// One-way proxy target.
+    Proxy {
+        /// Referenced parameter target.
+        target: NodeReference,
+    },
+    /// Two-way binding target.
+    Binding {
+        /// Referenced parameter target.
+        target: NodeReference,
+    },
+    /// Local animation driver.
+    Animation {
+        /// Animation configuration.
+        animation: AnimationControlSpec,
+    },
+}
+
+impl Default for ParameterControlSpec {
+    fn default() -> Self {
+        Self::Manual
+    }
+}
+
+/// One parameter-control diagnostic message.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ParameterControlDiagnostic {
+    /// Stable diagnostic code.
+    pub code: String,
+    /// Human-readable summary.
+    pub message: String,
+    /// Optional detail payload.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+impl ParameterControlDiagnostic {
+    /// Creates a new diagnostic with `code` and `message`.
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+            detail: None,
+        }
+    }
+
+    /// Sets diagnostic detail text.
+    pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
+        self.detail = Some(detail.into());
+        self
+    }
+}
+
+/// Full control-plane state attached to one parameter.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ParameterControlState {
+    /// Active control mode.
+    #[serde(default)]
+    pub mode: ParameterControlMode,
+    /// Persisted authoring intent for this mode.
+    #[serde(default)]
+    pub spec: ParameterControlSpec,
+    /// Last known diagnostics for this control state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub diagnostics: Vec<ParameterControlDiagnostic>,
+}
+
+impl Default for ParameterControlState {
+    fn default() -> Self {
+        Self::manual()
+    }
+}
+
+impl ParameterControlState {
+    /// Returns a manual/default control state.
+    pub fn manual() -> Self {
+        Self {
+            mode: ParameterControlMode::Manual,
+            spec: ParameterControlSpec::Manual,
+            diagnostics: Vec::new(),
+        }
+    }
+
+    /// Creates a state with explicit `mode` and `spec`.
+    pub fn new(mode: ParameterControlMode, spec: ParameterControlSpec) -> Self {
+        Self {
+            mode,
+            spec,
+            diagnostics: Vec::new(),
+        }
+    }
+}
+
+fn is_default_parameter_control_state(value: &ParameterControlState) -> bool {
+    *value == ParameterControlState::default()
+}
+
 /// Data-level enum option descriptor used by validation and UI rendering.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParameterEnumOption {
@@ -1035,6 +1228,9 @@ pub struct ParameterSnapshot {
     pub constraints: ParameterConstraints,
     /// UI hints consumed by editor widgets.
     pub ui_hints: ParameterUiHints,
+    /// Parameter control-plane state.
+    #[serde(default, skip_serializing_if = "is_default_parameter_control_state")]
+    pub control: ParameterControlState,
 }
 
 /// Built-in node type that stores a [`ParamValue`].
@@ -1076,6 +1272,8 @@ pub struct Parameter {
     pub constraints: ParameterConstraints,
     /// UI-facing editor hints.
     pub ui_hints: ParameterUiHints,
+    /// Control mode state for this parameter.
+    pub control: ParameterControlState,
 }
 
 impl Parameter {
@@ -1094,6 +1292,7 @@ impl Parameter {
             read_only: false,
             constraints: ParameterConstraints::default(),
             ui_hints: ParameterUiHints::default(),
+            control: ParameterControlState::default(),
         }
     }
 
@@ -1139,6 +1338,7 @@ impl Parameter {
             read_only: self.read_only,
             constraints: self.constraints.clone(),
             ui_hints: self.ui_hints.clone(),
+            control: self.control.clone(),
         }
     }
 }
@@ -1179,6 +1379,15 @@ impl Node for Parameter {
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
         Some(self.snapshot())
+    }
+
+    fn engine_param_control_state(&self) -> Option<crate::parameter::ParameterControlState> {
+        Some(self.control.clone())
+    }
+
+    fn engine_set_param_control_state(&mut self, state: crate::parameter::ParameterControlState) -> Result<(), String> {
+        self.control = state;
+        Ok(())
     }
 
     fn engine_script_descriptor(&self) -> crate::node::NodeScriptDescriptor {

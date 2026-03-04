@@ -515,3 +515,70 @@ For sparse-lane hosts:
 7. Dense lane state storage + flattening
 8. (Optional) Sparse-lane keyed state for ID-based hosts
 9. (Optional) Projection interface for advanced dynamic redirection
+
+---
+
+## 16. Placement Context vs Evaluation Context
+
+These are different concepts and must stay separate:
+
+- **Placement context** (creation/move time):
+  - used to validate admission rules and choose insertion location
+  - depends on target parent/container and edit intent
+  - belongs to edit application / graph mutation
+- **Evaluation context** (`EvalCtx`, processing time):
+  - used to resolve dynamic views like `@current`
+  - depends on active runtime frame stack
+  - belongs to endpoint evaluation during processing
+
+`EvalCtx` must not be used as node-creation API input.
+
+---
+
+## 17. Reparenting and Incremental Rebinding
+
+When nodes move in the hierarchy, lexical context ancestry can change. The engine should:
+
+1. mark affected subtrees and dependent endpoints as dirty
+2. rerun context symbol resolution for those consumers
+3. rebuild only impacted dependency/update metadata
+4. preserve user-authored source specs; only compiled bindings are replaced
+
+This is the right place to "set contexts" after structure edits: rebinding compiled references, not mutating authored context entries.
+
+---
+
+## 18. UI Context Discovery APIs
+
+UI must query context information for a specific parameter efficiently (inspector menus, token completion, expression helpers).
+
+Recommended engine-facing APIs:
+
+```rust
+fn ui_context_candidates_for_param(param: ParamAddr, expected: ContextType) -> Vec<UiContextCandidate>;
+fn ui_context_symbol_lookup(consumer: NodeId, symbol: SymbolId, expected: ContextType) -> UiContextLookupResult;
+```
+
+Where each candidate includes:
+
+- symbol name / id
+- value type
+- owning scope node
+- lexical depth (shadowing clarity)
+- resolved entry address
+- compatibility result (exact/convertible/incompatible)
+
+Caching should reuse resolver generations (graph structure + scope schema generations) so repeated UI requests stay O(k) in local candidates, not O(N) in graph size.
+
+---
+
+## 19. Integration with Parameter Control Modes
+
+Context infrastructure is shared by multiple parameter control modes (see `parameters_control_modes.md`):
+
+- direct context link mode
+- token interpolation in text templates
+- expression inputs
+- proxy metadata projection when required
+
+Using one endpoint/resolver path keeps behavior and diagnostics consistent across all modes.

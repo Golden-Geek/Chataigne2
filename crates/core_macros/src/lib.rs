@@ -32,9 +32,15 @@ struct NodeAttr {
     impl_node: bool,
     from_struct: bool,
     scriptable: Option<ScriptableAttr>,
+    contextualizable: Option<ContextualizableAttr>,
 }
 
 enum ScriptableAttr {
+    Default,
+    Expr(Expr),
+}
+
+enum ContextualizableAttr {
     Default,
     Expr(Expr),
 }
@@ -46,6 +52,7 @@ impl Parse for NodeAttr {
         let mut impl_node = false;
         let mut from_struct = false;
         let mut scriptable = None;
+        let mut contextualizable = None;
 
         while !input.is_empty() {
             if input.peek(LitStr) {
@@ -81,11 +88,27 @@ impl Parse for NodeAttr {
                     } else {
                         scriptable = Some(ScriptableAttr::Default);
                     }
+                } else if key == "contextualizable" {
+                    if contextualizable.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `contextualizable` argument"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        contextualizable = Some(ContextualizableAttr::Expr(input.parse::<Expr>()?));
+                    } else {
+                        contextualizable = Some(ContextualizableAttr::Default);
+                    }
                 } else {
-                    return Err(Error::new(key.span(), "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`"));
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
+                    ));
                 }
             } else {
-                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, or `scriptable`"));
+                return Err(Error::new(
+                    input.span(),
+                    "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
+                ));
             }
 
             if input.is_empty() {
@@ -98,7 +121,14 @@ impl Parse for NodeAttr {
             }
         }
 
-        Ok(Self { type_name, via, impl_node, from_struct, scriptable })
+        Ok(Self {
+            type_name,
+            via,
+            impl_node,
+            from_struct,
+            scriptable,
+            contextualizable,
+        })
     }
 }
 
@@ -115,6 +145,7 @@ impl Parse for ItemAttr {
         let mut impl_node = false;
         let mut from_struct = false;
         let mut scriptable = None;
+        let mut contextualizable = None;
 
         while !input.is_empty() {
             if input.peek(LitStr) {
@@ -166,16 +197,26 @@ impl Parse for ItemAttr {
                     } else {
                         scriptable = Some(ScriptableAttr::Default);
                     }
+                } else if key == "contextualizable" {
+                    if contextualizable.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `contextualizable` argument"));
+                    }
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>()?;
+                        contextualizable = Some(ContextualizableAttr::Expr(input.parse::<Expr>()?));
+                    } else {
+                        contextualizable = Some(ContextualizableAttr::Default);
+                    }
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`",
+                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                     ));
                 }
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                 ));
             }
 
@@ -195,7 +236,14 @@ impl Parse for ItemAttr {
 
         Ok(Self {
             item_kind,
-            node: NodeAttr { type_name, via, impl_node, from_struct, scriptable },
+            node: NodeAttr {
+                type_name,
+                via,
+                impl_node,
+                from_struct,
+                scriptable,
+                contextualizable,
+            },
         })
     }
 }
@@ -1289,12 +1337,19 @@ fn join_decl_path(path: &[String]) -> String {
 
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let NodeAttr { type_name, via, impl_node, from_struct, scriptable } = parse_macro_input!(attr as NodeAttr);
+    let NodeAttr {
+        type_name,
+        via,
+        impl_node,
+        from_struct,
+        scriptable,
+        contextualizable,
+    } = parse_macro_input!(attr as NodeAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, None, input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, None, input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -1303,13 +1358,20 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ItemAttr {
         item_kind,
-        node: NodeAttr { type_name, via, impl_node, from_struct, scriptable },
+        node: NodeAttr {
+            type_name,
+            via,
+            impl_node,
+            from_struct,
+            scriptable,
+            contextualizable,
+        },
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, Some(item_kind), input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, Some(item_kind), input).into(),
+        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
+        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
         other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -1357,7 +1419,16 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, item_kind: Option<LitStr>, mut input: ItemStruct) -> proc_macro2::TokenStream {
+fn expand_struct(
+    type_name: Option<LitStr>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
+    contextualizable: Option<ContextualizableAttr>,
+    item_kind: Option<LitStr>,
+    mut input: ItemStruct,
+) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
@@ -1369,6 +1440,9 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     }
     if scriptable.is_some() && !impl_node {
         return Error::new_spanned(input, "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
+    }
+    if contextualizable.is_some() && !impl_node {
+        return Error::new_spanned(input, "`contextualizable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
     }
 
     let mut params_dsl = None::<ParamsDsl>;
@@ -1750,6 +1824,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         }
     });
     let generated_script_host_policy = scriptable.as_ref().map(build_script_host_policy_method_tokens);
+    let generated_user_context_host_policy = contextualizable.as_ref().map(build_user_context_host_policy_method_tokens);
 
     let generated_node_impl = if impl_node {
         quote! {
@@ -1769,6 +1844,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 #generated_user_item_kind
                 #generated_declared_user_item
                 #generated_script_host_policy
+                #generated_user_context_host_policy
 
                 fn engine_child_event_interest_depth(&self, event: &golden_core::events::Event) -> u32 {
                     self.__golden_node_engine_child_event_interest_depth(event)
@@ -1878,7 +1954,16 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     }
 }
 
-fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, item_kind: Option<LitStr>, mut input: ItemImpl) -> proc_macro2::TokenStream {
+fn expand_impl(
+    type_name: Option<LitStr>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
+    contextualizable: Option<ContextualizableAttr>,
+    item_kind: Option<LitStr>,
+    mut input: ItemImpl,
+) -> proc_macro2::TokenStream {
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -1966,11 +2051,34 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         }
     }
 
-    if let Some(scriptable_attr) = scriptable.as_ref() {
-        if !has_method(&input, "script_host_policy") {
+    if !has_method(&input, "script_host_policy") {
+        if let Some(scriptable_attr) = scriptable.as_ref() {
             let method = build_script_host_policy_method_tokens(scriptable_attr);
             input.items.push(parse_quote! {
                 #method
+            });
+        } else if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn script_host_policy(&self) -> Option<golden_core::script::ScriptHostPolicy> {
+                    golden_core::node::ViaTarget::via_script_host_policy(&self.#(#segments).*)
+                }
+            });
+        }
+    }
+
+    if !has_method(&input, "user_context_host_policy") {
+        if let Some(contextualizable_attr) = contextualizable.as_ref() {
+            let method = build_user_context_host_policy_method_tokens(contextualizable_attr);
+            input.items.push(parse_quote! {
+                #method
+            });
+        } else if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn user_context_host_policy(&self) -> Option<golden_core::node::UserContextHostPolicy> {
+                    golden_core::node::ViaTarget::via_user_context_host_policy(&self.#(#segments).*)
+                }
             });
         }
     }
@@ -2628,6 +2736,25 @@ fn build_script_host_policy_method_tokens(scriptable: &ScriptableAttr) -> proc_m
             quote! {
                 fn script_host_policy(&self) -> Option<golden_core::script::ScriptHostPolicy> {
                     golden_core::node::IntoScriptHostPolicyOption::into_script_host_policy_option(#expr)
+                }
+            }
+        }
+    }
+}
+
+fn build_user_context_host_policy_method_tokens(contextualizable: &ContextualizableAttr) -> proc_macro2::TokenStream {
+    match contextualizable {
+        ContextualizableAttr::Default => {
+            quote! {
+                fn user_context_host_policy(&self) -> Option<golden_core::node::UserContextHostPolicy> {
+                    Some(golden_core::node::UserContextHostPolicy::default_contextualizable())
+                }
+            }
+        }
+        ContextualizableAttr::Expr(expr) => {
+            quote! {
+                fn user_context_host_policy(&self) -> Option<golden_core::node::UserContextHostPolicy> {
+                    golden_core::node::IntoUserContextHostPolicyOption::into_user_context_host_policy_option(#expr)
                 }
             }
         }
