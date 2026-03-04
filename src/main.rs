@@ -1,7 +1,10 @@
 use std::io::Error;
 
-use golden_core::{app::run_app, node::{Folder, Node}};
 use crate::nodes_module_demo::MODULE_MANAGER_UUID;
+use golden_core::{
+    app::run_app,
+    node::{Folder, Node},
+};
 
 include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 pub type AppEngine = golden_core::engine::Engine<AppNode>;

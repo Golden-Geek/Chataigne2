@@ -38,6 +38,7 @@ Backward compatibility is not a goal during this phase.
 
 ## Quality Bar
 - Code should be production-oriented even during rapid iteration.
+- Unify concepts, do not duplicate code and avoid as much as possible to have similar declaration in different places. Keep everything under the DRY concept !
 - Every change should leave the codebase cleaner than it was before.
 - Temporary hacks are acceptable only when explicitly scoped and scheduled for removal.
 - Never keep things for "API-compatibility"
