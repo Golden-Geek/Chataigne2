@@ -3108,6 +3108,27 @@ fn control_mode_template_text_is_rejected_for_non_string_parameter() {
 }
 
 #[test]
+fn control_mode_template_text_requires_visible_context_entries() {
+    let root = Parameter::new("title", ParamValue::Str(String::new()), ParameterChangeCheck::ValueChange);
+    let mut engine = Engine::new(root);
+
+    let result = engine.set_param_control_state(
+        engine.root,
+        ParameterControlState::new(
+            ParameterControlMode::TemplateText,
+            ParameterControlSpec::TemplateText {
+                template: "x {tempo}".to_string(),
+            },
+        ),
+    );
+
+    assert!(
+        result.is_err(),
+        "template-text should be rejected when no visible context entry exists"
+    );
+}
+
+#[test]
 fn control_mode_expression_reads_context_symbols() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -3482,6 +3503,63 @@ fn animation_control_update_rate_changes_schedule_frequency() {
         panic!("expected float value from animation");
     };
     assert!(value.abs() > 1e-9, "2 Hz update-rate should schedule an update by 600ms total elapsed",);
+}
+
+#[test]
+fn ui_param_control_info_hides_template_mode_without_context() {
+    let root = Parameter::new("title", ParamValue::Str(String::new()), ParameterChangeCheck::ValueChange);
+    let engine = Engine::new(root);
+
+    let info = engine
+        .ui_param_control_info(engine.root)
+        .expect("control info query should succeed");
+    assert!(
+        !info.available_modes.contains(&ParameterControlMode::TemplateText),
+        "template mode should be hidden when no visible context entry exists"
+    );
+}
+
+#[test]
+fn ui_param_control_info_exposes_template_mode_with_context() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(UserContextNode::new("Owner").into(), None);
+    engine.apply_edits().expect("owner context add should succeed");
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("owner should exist");
+
+    engine.add_node(
+        Parameter::new("tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(),
+        Some(owner),
+    );
+    engine.add_node(
+        Parameter::new("title", ParamValue::Str(String::new()), ParameterChangeCheck::ValueChange).into(),
+        Some(owner),
+    );
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let tempo = engine
+        .nodes
+        .get(owner)
+        .and_then(|node| node.node_data().first_child)
+        .expect("tempo should exist");
+    let title = engine
+        .nodes
+        .get(tempo)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("title should exist");
+
+    let info = engine
+        .ui_param_control_info(title)
+        .expect("control info query should succeed");
+    assert!(
+        info.available_modes.contains(&ParameterControlMode::TemplateText),
+        "template mode should be exposed when context entries are visible"
+    );
 }
 
 #[test]

@@ -782,6 +782,11 @@ impl<T: Node> Engine<T> {
         };
 
         let context_candidates = self.ui_context_candidates_for_param(param_node).candidates;
+        let mut available_modes =
+            available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled);
+        if context_candidates.is_empty() {
+            available_modes.retain(|mode| *mode != ParameterControlMode::TemplateText);
+        }
 
         let mut token_set = HashSet::<String>::new();
         token_set.insert("$name".to_string());
@@ -821,7 +826,7 @@ impl<T: Node> Engine<T> {
         Ok(UiParamControlInfoDto {
             param: param_node,
             active_mode: snapshot.control.mode,
-            available_modes: available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled),
+            available_modes,
             diagnostics: snapshot.control.diagnostics,
             context_candidates,
             token_suggestions,
