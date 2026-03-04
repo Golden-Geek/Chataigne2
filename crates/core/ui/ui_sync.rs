@@ -8,7 +8,7 @@ use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter};
+use crate::parameter::{ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_values};
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
@@ -128,6 +128,21 @@ pub struct UiReferenceTargetsDto {
     /// Visible picker nodes (targets + path ancestors).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub visible_nodes: Vec<NodeId>,
+    /// Compatibility details for each selectable target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub candidates: Vec<UiReferenceTargetCandidateDto>,
+}
+
+/// UI-facing compatibility details for one selectable reference target.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiReferenceTargetCandidateDto {
+    /// Candidate node id.
+    pub target: NodeId,
+    /// Whether this candidate can be consumed without projection.
+    pub direct: bool,
+    /// Projections that make this candidate compatible.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<ParamValueProjection>,
 }
 
 /// UI-facing control candidate for link target pickers.
@@ -137,6 +152,9 @@ pub struct UiParamCandidateDto {
     pub param: NodeId,
     /// Whether candidate value type is compatible.
     pub compatible: bool,
+    /// Projections that enable compatibility.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<ParamValueProjection>,
 }
 
 /// UI-facing token suggestion for template/expression editors.
@@ -708,16 +726,49 @@ impl<T: Node> Engine<T> {
 
     /// Resolves custom-filter reference picker targets for one parameter node.
     ///
-    /// Returns empty vectors when the parameter has no custom filter or cannot be resolved.
+    /// Returns empty vectors when the parameter cannot be resolved or is not a reference parameter.
     pub fn ui_reference_targets_for_param(&self, param_node: NodeId) -> UiReferenceTargetsDto {
-        let constraints = self.reference_constraints_for_param(param_node);
-        if constraints.custom_filter_key.is_none() {
+        let Some(node) = self.nodes.get(param_node) else {
+            return UiReferenceTargetsDto::default();
+        };
+        let Some(snapshot) = node.engine_param_snapshot() else {
+            return UiReferenceTargetsDto::default();
+        };
+        if !matches!(snapshot.value, ParamValue::Reference(_)) {
             return UiReferenceTargetsDto::default();
         }
 
+        let constraints = self.reference_constraints_for_param(param_node);
+        let mut allowed_targets = self.reference_allowed_targets_for_param(param_node);
+        allowed_targets.sort_by_key(|node_id| node_id.0);
+        let expected_parameter_values = self.expected_reference_parameter_values(param_node, &constraints);
+
+        let mut candidates = allowed_targets
+            .iter()
+            .map(|target| {
+                if let Some(compatibility) =
+                    self.reference_candidate_compatibility_for_expected_values(
+                        *target,
+                        expected_parameter_values.as_slice(),
+                        &constraints,
+                    )
+                {
+                    UiReferenceTargetCandidateDto {
+                        target: *target,
+                        direct: compatibility.direct,
+                        projections: compatibility.projections,
+                    }
+                } else {
+                    UiReferenceTargetCandidateDto { target: *target, direct: true, projections: Vec::new() }
+                }
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by_key(|candidate| candidate.target.0);
+
         UiReferenceTargetsDto {
-            allowed_targets: self.reference_allowed_targets_for_param(param_node),
+            allowed_targets,
             visible_nodes: self.reference_visible_nodes_for_param(param_node),
+            candidates,
         }
     }
 
@@ -757,8 +808,12 @@ impl<T: Node> Engine<T> {
             let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
                 continue;
             };
-            let compatible = param_types_compatible(&candidate_snapshot.value, &snapshot.value);
-            let candidate = UiParamCandidateDto { param: candidate_id, compatible };
+            let compatibility = compatibility_for_values(&candidate_snapshot.value, &snapshot.value);
+            let candidate = UiParamCandidateDto {
+                param: candidate_id,
+                compatible: compatibility.is_compatible(),
+                projections: compatibility.projections,
+            };
             link_candidates.push(candidate);
         }
         link_candidates.sort_by_key(|candidate| candidate.param.0);
@@ -1168,22 +1223,6 @@ impl<T: Node> Engine<T> {
         }
 
         false
-    }
-}
-
-fn param_types_compatible(source: &ParamValue, target: &ParamValue) -> bool {
-    match target {
-        ParamValue::Trigger() => matches!(source, ParamValue::Trigger()),
-        ParamValue::Int(_) => source.as_int().is_some(),
-        ParamValue::Float(_) => source.as_float().is_some(),
-        ParamValue::Str(_) => source.as_str().is_some(),
-        ParamValue::File(_) => source.as_str().is_some(),
-        ParamValue::Enum(_) => source.as_enum().is_some(),
-        ParamValue::Bool(_) => source.as_bool().is_some(),
-        ParamValue::Vec2(_, _) => source.as_vec2().is_some(),
-        ParamValue::Vec3(_, _, _) => source.as_vec3().is_some(),
-        ParamValue::Color(_, _, _, _) => source.as_color().is_some(),
-        ParamValue::Reference(_) => matches!(source, ParamValue::Reference(_)),
     }
 }
 

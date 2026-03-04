@@ -12,7 +12,8 @@ use crate::node::{
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
 };
 use crate::parameter::{
-    ParamValue, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind,
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot,
+    ReferenceTargetKind,
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::{ScriptHostPolicy, ScriptUiConfig, ScriptUiSource};
@@ -792,13 +793,20 @@ fn find_child_by_type(engine: &Engine<MacroTestNode>, parent: NodeId, node_type:
 }
 
 fn configure_link_control(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, two_way: bool) {
+    configure_link_control_with_projection(engine, param, target_uuid, two_way, None);
+}
+
+fn configure_link_control_with_projection(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, two_way: bool, projection: Option<ParamValueProjection>) {
     let link_node = find_child_by_type(engine, param, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
     let target_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
     let two_way_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TWO_WAY_DECL_ID).expect("link two-way parameter should exist");
 
+    let mut target_reference = NodeReference::new(target_uuid);
+    target_reference.set_projection(projection);
+
     engine.edits.push(Edit::SetParam {
         node: target_param,
-        value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        value: ParamValue::Reference(target_reference),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
     engine.edits.push(Edit::SetParam {
@@ -1603,22 +1611,14 @@ fn user_context_nodes_expose_blueprints_in_catalog() {
     let root: MacroTestNode = UiContextHostNode::new("root").into();
     let mut engine = Engine::new(root);
 
-    engine.register_blueprint(BlueprintDecl::new(
-        BlueprintId::new("ctx_scope_bp"),
-        "Context Scope Blueprint",
-        "sequence",
-        |label| UiContextHostNode::new(label).into(),
-    ));
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("ctx_scope_bp"), "Context Scope Blueprint", "sequence", |label| UiContextHostNode::new(label).into()));
 
     engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
     engine.apply_edits().expect("user_context creation should apply");
     let scope = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("scope should exist");
 
     let creatable = engine.catalog_creatable_items(scope);
-    assert!(
-        creatable.iter().any(|item| item.node_type == "blueprint::ctx_scope_bp" && item.item_kind == "sequence"),
-        "context scope should expose registered blueprint catalog items"
-    );
+    assert!(creatable.iter().any(|item| item.node_type == "blueprint::ctx_scope_bp" && item.item_kind == "sequence"), "context scope should expose registered blueprint catalog items");
 
     engine.queue_catalog_create(scope, "blueprint::ctx_scope_bp", None, None).expect("queueing blueprint creation in context should succeed");
     engine.apply_edits().expect("blueprint creation in context should apply");
@@ -1727,10 +1727,7 @@ fn context_owned_by_child_is_not_visible_to_parent_ancestor() {
     );
 
     let missing_for_ancestor = engine.resolve_user_context_symbol(gain_a, "tempo", Some(UserContextValueType::Float));
-    assert!(
-        matches!(missing_for_ancestor, UserContextLookup::Missing { .. }),
-        "ancestor nodes should not resolve symbols from descendant-owned contexts"
-    );
+    assert!(matches!(missing_for_ancestor, UserContextLookup::Missing { .. }), "ancestor nodes should not resolve symbols from descendant-owned contexts");
 }
 
 #[test]
@@ -1767,7 +1764,7 @@ fn ui_context_candidates_report_shadowing_and_compatibility() {
     assert_eq!(nearest.scope_owner, outer);
     assert_eq!(nearest.lexical_depth, 2);
     assert!(!nearest.shadowed);
-    assert!(!nearest.compatible, "inner Int value should be incompatible with Float target");
+    assert!(nearest.compatible, "inner Int value should be coercible for Float targets");
 
     let shadowed = &dto.candidates[1];
     assert_eq!(shadowed.symbol, "tempo");
@@ -2522,7 +2519,7 @@ fn set_param_reference_rejects_existing_target_that_violates_constraints() {
     let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);
 
-    engine.add_node(Parameter::new("target", ParamValue::Int(42), ParameterChangeCheck::None), Some(engine.root));
+    engine.add_node(Parameter::new("target", ParamValue::Trigger(), ParameterChangeCheck::None), Some(engine.root));
     engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::None), Some(engine.root));
     engine.apply_edits().expect("initial nodes should be added");
 
@@ -2537,6 +2534,7 @@ fn set_param_reference_rejects_existing_target_that_violates_constraints() {
             target_kind: ReferenceTargetKind::ParameterOnly,
             allowed_node_types: Vec::new(),
             allowed_parameter_types: vec!["float".to_string()],
+            allow_projections: true,
             custom_filter_key: None,
             default_search_filter: None,
         };
@@ -3058,7 +3056,7 @@ fn control_mode_context_link_updates_value_from_user_context() {
     let gain = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("gain should exist");
 
     engine
-        .set_param_control_state(gain, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }))
+        .set_param_control_state(gain, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None }))
         .expect("context-link state should be accepted");
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
@@ -3177,6 +3175,27 @@ fn control_mode_link_one_way_detects_cycles() {
 }
 
 #[test]
+fn control_mode_link_one_way_applies_projection_from_target_reference() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("source", ParamValue::Vec2(3.0, 7.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
+    let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
+    let source_uuid = engine.nodes.get(source).expect("source node should exist").node_data().meta.uuid;
+
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for target should be accepted");
+    configure_link_control_with_projection(&mut engine, target, source_uuid, false, Some(ParamValueProjection::Vec2Y));
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate projected one-way link");
+    let snapshot = engine.nodes.get(target).and_then(|node| node.engine_param_snapshot()).expect("target snapshot should exist");
+    assert_eq!(snapshot.value, ParamValue::Float(7.0));
+}
+
+#[test]
 fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -3249,6 +3268,32 @@ fn control_mode_link_two_way_single_side_syncs_referenced_parameter() {
 }
 
 #[test]
+fn link_target_reference_rejects_missing_required_projection() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("source", ParamValue::Vec2(1.0, 2.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
+    let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
+    let source_uuid = engine.nodes.get(source).expect("source node should exist").node_data().meta.uuid;
+
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for target should be accepted");
+    let link_node = find_child_by_type(&engine, target, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
+    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: target_param,
+        value: ParamValue::Reference(NodeReference::new(source_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    let result = engine.apply_edits();
+    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })), "missing projection should reject source that only matches through projection",);
+}
+
+#[test]
 fn link_target_reference_parameter_is_manual_only() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -3267,8 +3312,32 @@ fn link_target_reference_parameter_is_manual_only() {
     let info = engine.ui_param_control_info(target_param).expect("control info query should succeed");
     assert_eq!(info.available_modes, vec![ParameterControlMode::Manual]);
 
-    let err = engine.set_param_control_state(target_param, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }));
+    let err = engine.set_param_control_state(target_param, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None }));
     assert!(err.is_err(), "manual-only link target parameter should reject non-manual modes");
+}
+
+#[test]
+fn ui_reference_targets_report_projection_options_for_link_target_parameter() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("source", ParamValue::Vec2(1.0, 2.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
+    let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
+
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
+
+    let link_node = find_child_by_type(&engine, target, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
+    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+
+    let targets = engine.ui_reference_targets_for_param(target_param);
+    let candidate = targets.candidates.iter().find(|candidate| candidate.target == source).expect("source should be exposed as one reference target candidate");
+
+    assert!(!candidate.direct, "vec2->float should require projection");
+    assert_eq!(candidate.projections, vec![ParamValueProjection::Vec2X, ParamValueProjection::Vec2Y]);
 }
 
 #[test]
@@ -3457,7 +3526,7 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
 
     let ack = engine.apply_ui_intent(UiEditIntent::SetParamControlState {
         node: gain,
-        state: ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string() }),
+        state: ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None }),
     });
     assert!(ack.success);
     assert_eq!(ack.status, UiAckStatus::Applied);

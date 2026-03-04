@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUuid};
-use crate::parameter::{ParamValue, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind};
+use crate::node::{Node, NodeId, NodeUuid, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID};
+use crate::parameter::{ParamValue, ParamValueCompatibility, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_values, default_param_value_for_type_id};
 
 use super::Engine;
 
@@ -136,6 +136,7 @@ impl<T: Node> Engine<T> {
             reference.clear_cached_id();
             reference.clear_relative_path_from_root();
             reference.clear_cached_name();
+            reference.clear_projection();
             return Ok(reference);
         }
 
@@ -182,6 +183,22 @@ impl<T: Node> Engine<T> {
             reference.clear_cached_id();
             return Ok(reference);
         };
+
+        if reference.projection().is_some() && !constraints.allow_projections {
+            return Err("reference projections are disabled by constraints".to_string());
+        }
+
+        if let Some(compatibility) = self.reference_candidate_compatibility_for_param(param_node, target, &constraints) {
+            if let Some(projection) = reference.projection() {
+                if !compatibility.projections.contains(&projection) {
+                    return Err(format!("reference projection '{}' is not compatible with selected target", projection.variant_id()));
+                }
+            } else if !compatibility.direct && !compatibility.projections.is_empty() {
+                return Err("reference target requires selecting a projection".to_string());
+            }
+        } else if reference.projection().is_some() {
+            return Err("reference projection is only valid for parameter targets with a typed expectation".to_string());
+        }
 
         reference.set_cached_id(Some(target));
         if let Some(target_node) = self.nodes.get(target) {
@@ -263,6 +280,73 @@ impl<T: Node> Engine<T> {
         false
     }
 
+    fn link_target_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
+        let param_entry = self.nodes.get(param_node)?;
+        if param_entry.node_data().meta.decl_id.0 != PARAMETER_LINK_TARGET_DECL_ID {
+            return None;
+        }
+        let link_node = param_entry.node_data().parent?;
+        let link_entry = self.nodes.get(link_node)?;
+        if link_entry.get_type() != PARAMETER_LINK_CONTROL_NODE_TYPE {
+            return None;
+        }
+
+        let controlled_param = link_entry.node_data().parent?;
+        self.nodes.get(controlled_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value)
+    }
+
+    pub(crate) fn expected_reference_parameter_values(&self, param_node: NodeId, constraints: &ReferenceConstraints) -> Vec<ParamValue> {
+        let mut expected_values = constraints.allowed_parameter_types.iter().filter_map(|allowed| default_param_value_for_type_id(allowed)).collect::<Vec<_>>();
+
+        if expected_values.is_empty() {
+            if let Some(link_target_value) = self.link_target_expected_value(param_node) {
+                expected_values.push(link_target_value);
+            }
+        }
+
+        expected_values
+    }
+
+    fn compatibility_for_expected_values(&self, candidate_value: &ParamValue, expected_values: &[ParamValue]) -> ParamValueCompatibility {
+        let mut combined = ParamValueCompatibility::default();
+        for expected in expected_values {
+            let compatibility = compatibility_for_values(candidate_value, expected);
+            combined.direct |= compatibility.direct;
+            combined.projections.extend(compatibility.projections);
+        }
+        combined.projections.sort_by_key(|projection| projection.variant_id());
+        combined.projections.dedup();
+        combined
+    }
+
+    fn apply_projection_policy(&self, mut compatibility: ParamValueCompatibility, constraints: &ReferenceConstraints) -> ParamValueCompatibility {
+        if !constraints.allow_projections {
+            compatibility.projections.clear();
+        }
+        compatibility
+    }
+
+    pub(crate) fn reference_candidate_compatibility_for_expected_values(
+        &self,
+        candidate: NodeId,
+        expected_parameter_values: &[ParamValue],
+        constraints: &ReferenceConstraints,
+    ) -> Option<ParamValueCompatibility> {
+        if expected_parameter_values.is_empty() {
+            return None;
+        }
+        let candidate_snapshot = self.nodes.get(candidate)?.engine_param_snapshot()?;
+        Some(self.apply_projection_policy(
+            self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values),
+            constraints,
+        ))
+    }
+
+    pub(crate) fn reference_candidate_compatibility_for_param(&self, param_node: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
+        let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
+        self.reference_candidate_compatibility_for_expected_values(candidate, expected_parameter_values.as_slice(), constraints)
+    }
+
     pub(crate) fn reference_candidate_allowed(&self, param_node: NodeId, root: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Result<bool, String> {
         if !self.nodes.contains(candidate) {
             return Ok(false);
@@ -286,7 +370,25 @@ impl<T: Node> Engine<T> {
             return Ok(false);
         }
 
-        if !constraints.allowed_parameter_types.is_empty() {
+        let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
+        if !expected_parameter_values.is_empty() {
+            if !is_parameter {
+                return Ok(false);
+            }
+            let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
+                return Ok(false);
+            };
+            let compatibility = self.apply_projection_policy(
+                self.compatibility_for_expected_values(
+                    &candidate_snapshot.value,
+                    expected_parameter_values.as_slice(),
+                ),
+                constraints,
+            );
+            if !compatibility.is_compatible() {
+                return Ok(false);
+            }
+        } else if !constraints.allowed_parameter_types.is_empty() {
             if !is_parameter {
                 return Ok(false);
             }

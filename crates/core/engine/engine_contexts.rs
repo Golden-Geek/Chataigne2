@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use crate::contexts::{UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup, UserContextValueType};
 use crate::node::{Node, NodeId, USER_CONTEXT_NODE_TYPE};
+use crate::parameter::compatibility_for_values;
 
 use super::Engine;
 
@@ -27,10 +28,7 @@ impl<T: Node> Engine<T> {
     pub fn upsert_user_context_entry(&mut self, owner: NodeId, symbol: impl Into<String>, param: NodeId) -> Result<bool, String> {
         let scope_owner = self.resolve_user_context_scope_owner(owner)?;
         if !self.param_within_user_context_owner_scope(param, scope_owner) {
-            return Err(format!(
-                "context entry param {:?} must be under a direct '{}' child scope of owner {:?}",
-                param, USER_CONTEXT_NODE_TYPE, scope_owner
-            ));
+            return Err(format!("context entry param {:?} must be under a direct '{}' child scope of owner {:?}", param, USER_CONTEXT_NODE_TYPE, scope_owner));
         }
 
         let value_type = self.infer_user_context_value_type_for_param(param)?;
@@ -62,8 +60,25 @@ impl<T: Node> Engine<T> {
             return UiUserContextCandidatesDto { param, expected, candidates: Vec::new() };
         }
 
+        let target_value = self.nodes.get(param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value);
         let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
         candidates.retain(|candidate| candidate.entry_param != param);
+        for candidate in &mut candidates {
+            let Some(target_value) = &target_value else {
+                candidate.compatible = false;
+                candidate.projections.clear();
+                continue;
+            };
+            let Some(source_value) = self.nodes.get(candidate.entry_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value) else {
+                candidate.compatible = false;
+                candidate.projections.clear();
+                continue;
+            };
+
+            let compatibility = compatibility_for_values(&source_value, target_value);
+            candidate.compatible = compatibility.is_compatible();
+            candidate.projections = compatibility.projections;
+        }
 
         UiUserContextCandidatesDto { param, expected, candidates }
     }
@@ -162,10 +177,7 @@ impl<T: Node> Engine<T> {
     }
 
     fn user_context_scope_owner_for_scope_node(&self, scope_node: NodeId) -> NodeId {
-        self.nodes
-            .get(scope_node)
-            .and_then(|entry| entry.node_data().parent)
-            .unwrap_or(scope_node)
+        self.nodes.get(scope_node).and_then(|entry| entry.node_data().parent).unwrap_or(scope_node)
     }
 
     fn param_within_user_context_owner_scope(&self, param: NodeId, scope_owner: NodeId) -> bool {

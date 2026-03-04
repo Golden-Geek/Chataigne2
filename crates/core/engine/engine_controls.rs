@@ -4,7 +4,7 @@ use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, ParameterAnimationControlNode, ParameterLinkControlNode};
-use crate::parameter::{ParamValue, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter};
+use crate::parameter::{ParamValue, ParamValueProjection, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter, coerce_param_value_for_target};
 
 use super::Engine;
 
@@ -23,6 +23,7 @@ struct BindingEvaluation {
 struct LinkControlConfig {
     target: NodeReference,
     two_way: bool,
+    projection: Option<ParamValueProjection>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,7 +54,7 @@ impl<T: Node> Engine<T> {
             let maybe_value = match control.mode {
                 ParameterControlMode::Manual => None,
                 ParameterControlMode::ContextLink => match &control.spec {
-                    ParameterControlSpec::ContextLink { symbol } => self.evaluate_context_link(*param, snapshot, symbol.as_str(), &param_snapshots, &mut diagnostics),
+                    ParameterControlSpec::ContextLink { symbol, projection } => self.evaluate_context_link(*param, snapshot, symbol.as_str(), *projection, &param_snapshots, &mut diagnostics),
                     _ => {
                         diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/context-link mismatch"));
                         None
@@ -78,10 +79,15 @@ impl<T: Node> Engine<T> {
                         if let Some(config) = self.read_link_control_config(*param, &mut diagnostics) {
                             if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
                                 if config.two_way {
-                                    two_way_links.insert(*param, target_param);
-                                    None
+                                    if config.projection.is_some() {
+                                        diagnostics.push(ParameterControlDiagnostic::new("link_projection_unsupported_two_way", "two-way link does not support source projection"));
+                                        None
+                                    } else {
+                                        two_way_links.insert(*param, target_param);
+                                        None
+                                    }
                                 } else {
-                                    self.evaluate_link_one_way(*param, snapshot, target_param, &param_snapshots, &mut diagnostics)
+                                    self.evaluate_link_one_way(*param, snapshot, target_param, config.projection, &param_snapshots, &mut diagnostics)
                                 }
                             } else {
                                 diagnostics.push(ParameterControlDiagnostic::new("link_target_missing", "link target parameter could not be resolved"));
@@ -295,12 +301,12 @@ impl<T: Node> Engine<T> {
             two_way = parsed;
         }
 
-        Some(LinkControlConfig { target, two_way })
+        Some(LinkControlConfig { projection: target.projection(), target, two_way })
     }
 
-    fn evaluate_context_link(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, symbol: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_context_link(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, symbol: &str, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
         let source = self.resolve_context_symbol_value(consumer, symbol, None, param_snapshots, diagnostics)?;
-        self.convert_for_target(&source, target_snapshot, "context_link", diagnostics)
+        self.convert_for_target(&source, target_snapshot, "context_link", projection, diagnostics)
     }
 
     fn evaluate_template_text(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, template: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
@@ -316,7 +322,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.convert_for_target(&ParamValue::Str(output), target_snapshot, "template_text", diagnostics)
+        self.convert_for_target(&ParamValue::Str(output), target_snapshot, "template_text", None, diagnostics)
     }
 
     fn evaluate_expression(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, expression: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
@@ -338,10 +344,10 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        self.convert_for_target(&ParamValue::Float(value), target_snapshot, "expression", diagnostics)
+        self.convert_for_target(&ParamValue::Float(value), target_snapshot, "expression", None, diagnostics)
     }
 
-    fn evaluate_link_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_link_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
         if target_param == param {
             diagnostics.push(ParameterControlDiagnostic::new("link_cycle", "one-way link target cannot reference the same parameter"));
             return None;
@@ -360,7 +366,7 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        self.convert_for_target(&source, target_snapshot, "link", diagnostics)
+        self.convert_for_target(&source, target_snapshot, "link", projection, diagnostics)
     }
 
     fn evaluate_bindings(&self, two_way_links: &HashMap<NodeId, NodeId>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
@@ -417,7 +423,7 @@ impl<T: Node> Engine<T> {
             };
 
             let mut target_diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(converted) = self.convert_for_target(&source_snapshot.value, target_snapshot, "link_two_way", &mut target_diagnostics) else {
+            let Some(converted) = self.convert_for_target(&source_snapshot.value, target_snapshot, "link_two_way", None, &mut target_diagnostics) else {
                 if !target_diagnostics.is_empty() {
                     diagnostics_by_param.entry(target).or_default().extend(target_diagnostics);
                 }
@@ -556,32 +562,15 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn convert_for_target(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
-        let converted = match &target_snapshot.value {
-            ParamValue::Trigger() => {
-                if matches!(source, ParamValue::Trigger()) {
-                    Some(ParamValue::Trigger())
-                } else {
-                    None
-                }
-            }
-            ParamValue::Int(_) => source.as_int().map(ParamValue::Int),
-            ParamValue::Float(_) => source.as_float().map(ParamValue::Float),
-            ParamValue::Str(_) => source.as_str().map(ParamValue::Str),
-            ParamValue::File(_) => source.as_str().map(ParamValue::File),
-            ParamValue::Enum(_) => source.as_enum().map(ParamValue::Enum),
-            ParamValue::Bool(_) => source.as_bool().map(ParamValue::Bool),
-            ParamValue::Vec2(_, _) => source.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)),
-            ParamValue::Vec3(_, _, _) => source.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)),
-            ParamValue::Color(_, _, _, _) => source.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)),
-            ParamValue::Reference(_) => match source {
-                ParamValue::Reference(reference) => Some(ParamValue::Reference(reference.clone())),
-                _ => None,
-            },
-        };
+    fn convert_for_target(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+        let converted = coerce_param_value_for_target(source, &target_snapshot.value, projection);
 
         let Some(converted) = converted else {
-            diagnostics.push(ParameterControlDiagnostic::new("control_type_incompatible", format!("control mode '{}' cannot convert value {:?} for target {:?}", mode, source, target_snapshot.value)));
+            let projection_label = projection.map(|projection| format!(" with projection '{}'", projection.variant_id())).unwrap_or_default();
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "control_type_incompatible",
+                format!("control mode '{}' cannot convert value {:?}{} for target {:?}", mode, source, projection_label, target_snapshot.value),
+            ));
             return None;
         };
 

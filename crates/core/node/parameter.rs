@@ -64,6 +64,351 @@ impl fmt::Display for ParamValue {
     }
 }
 
+/// Explicit source projection used before coercion.
+///
+/// Projections are intentionally explicit so non-trivial coercions
+/// (component picks, reshapes, color-space mappings) stay user-controlled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParamValueProjection {
+    /// Expand one float to `(v, 0)`.
+    FloatToVec2X0,
+    /// Expand one float to `(0, v)`.
+    FloatToVec20Y,
+    /// Expand one float to `(v, v)`.
+    FloatToVec2XX,
+    /// Expand one float to `(v, 0, 0)`.
+    FloatToVec3X00,
+    /// Expand one float to `(0, v, 0)`.
+    FloatToVec30Y0,
+    /// Expand one float to `(0, 0, v)`.
+    FloatToVec300Z,
+    /// Expand one float to `(v, v, v)`.
+    FloatToVec3XXX,
+    /// Select `x` from a `vec2`.
+    Vec2X,
+    /// Select `y` from a `vec2`.
+    Vec2Y,
+    /// Lift one `vec2` to `(x, y, 0)`.
+    Vec2ToVec3XY0,
+    /// Lift one `vec2` to `(x, 0, y)`.
+    Vec2ToVec3X0Y,
+    /// Interpret one `vec2` as `(hue, sat)` and map to RGBA (value=1, alpha=1).
+    Vec2ToColorHs,
+    /// Select `x` from a `vec3`.
+    Vec3X,
+    /// Select `y` from a `vec3`.
+    Vec3Y,
+    /// Select `z` from a `vec3`.
+    Vec3Z,
+    /// Collapse one `vec3` to `(x, y)`.
+    Vec3ToVec2XY,
+    /// Collapse one `vec3` to `(x, z)`.
+    Vec3ToVec2XZ,
+    /// Collapse one `vec3` to `(y, z)`.
+    Vec3ToVec2YZ,
+    /// Interpret one `vec3` as RGB and map to RGBA (alpha=1).
+    Vec3ToColorRgb,
+    /// Interpret one `vec3` as HSV and map to RGBA (alpha=1).
+    Vec3ToColorHsv,
+    /// Select `r` from a `color`.
+    ColorR,
+    /// Select `g` from a `color`.
+    ColorG,
+    /// Select `b` from a `color`.
+    ColorB,
+    /// Select `a` from a `color`.
+    ColorA,
+    /// Convert one color to `vec3` RGB.
+    ColorToVec3Rgb,
+    /// Convert one color to `vec3` HSV.
+    ColorToVec3Hsv,
+    /// Convert one color to `vec2` `(hue, sat)`.
+    ColorToVec2Hs,
+}
+
+impl ParamValueProjection {
+    /// Returns all projections valid for `source`.
+    pub fn available_for_source(source: &ParamValue) -> Vec<Self> {
+        match source {
+            ParamValue::Float(_) => vec![Self::FloatToVec2X0, Self::FloatToVec20Y, Self::FloatToVec2XX, Self::FloatToVec3X00, Self::FloatToVec30Y0, Self::FloatToVec300Z, Self::FloatToVec3XXX],
+            ParamValue::Vec2(_, _) => vec![Self::Vec2X, Self::Vec2Y, Self::Vec2ToVec3XY0, Self::Vec2ToVec3X0Y, Self::Vec2ToColorHs],
+            ParamValue::Vec3(_, _, _) => vec![Self::Vec3X, Self::Vec3Y, Self::Vec3Z, Self::Vec3ToVec2XY, Self::Vec3ToVec2XZ, Self::Vec3ToVec2YZ, Self::Vec3ToColorRgb, Self::Vec3ToColorHsv],
+            ParamValue::Color(_, _, _, _) => {
+                vec![Self::ColorR, Self::ColorG, Self::ColorB, Self::ColorA, Self::ColorToVec3Rgb, Self::ColorToVec3Hsv, Self::ColorToVec2Hs]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Stable id used by enum-style UI controls.
+    pub fn variant_id(self) -> &'static str {
+        match self {
+            Self::FloatToVec2X0 => "floatToVec2X0",
+            Self::FloatToVec20Y => "floatToVec20Y",
+            Self::FloatToVec2XX => "floatToVec2XX",
+            Self::FloatToVec3X00 => "floatToVec3X00",
+            Self::FloatToVec30Y0 => "floatToVec30Y0",
+            Self::FloatToVec300Z => "floatToVec300Z",
+            Self::FloatToVec3XXX => "floatToVec3XXX",
+            Self::Vec2X => "vec2X",
+            Self::Vec2Y => "vec2Y",
+            Self::Vec2ToVec3XY0 => "vec2ToVec3XY0",
+            Self::Vec2ToVec3X0Y => "vec2ToVec3X0Y",
+            Self::Vec2ToColorHs => "vec2ToColorHs",
+            Self::Vec3X => "vec3X",
+            Self::Vec3Y => "vec3Y",
+            Self::Vec3Z => "vec3Z",
+            Self::Vec3ToVec2XY => "vec3ToVec2XY",
+            Self::Vec3ToVec2XZ => "vec3ToVec2XZ",
+            Self::Vec3ToVec2YZ => "vec3ToVec2YZ",
+            Self::Vec3ToColorRgb => "vec3ToColorRgb",
+            Self::Vec3ToColorHsv => "vec3ToColorHsv",
+            Self::ColorR => "colorR",
+            Self::ColorG => "colorG",
+            Self::ColorB => "colorB",
+            Self::ColorA => "colorA",
+            Self::ColorToVec3Rgb => "colorToVec3Rgb",
+            Self::ColorToVec3Hsv => "colorToVec3Hsv",
+            Self::ColorToVec2Hs => "colorToVec2Hs",
+        }
+    }
+
+    /// Human-friendly label.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FloatToVec2X0 => "Float -> Vec2 (v,0)",
+            Self::FloatToVec20Y => "Float -> Vec2 (0,v)",
+            Self::FloatToVec2XX => "Float -> Vec2 (v,v)",
+            Self::FloatToVec3X00 => "Float -> Vec3 (v,0,0)",
+            Self::FloatToVec30Y0 => "Float -> Vec3 (0,v,0)",
+            Self::FloatToVec300Z => "Float -> Vec3 (0,0,v)",
+            Self::FloatToVec3XXX => "Float -> Vec3 (v,v,v)",
+            Self::Vec2X => "Vec2 X",
+            Self::Vec2Y => "Vec2 Y",
+            Self::Vec2ToVec3XY0 => "Vec2 -> Vec3 (X,Y,0)",
+            Self::Vec2ToVec3X0Y => "Vec2 -> Vec3 (X,0,Y)",
+            Self::Vec2ToColorHs => "Vec2 -> Color (Hue,Sat)",
+            Self::Vec3X => "Vec3 X",
+            Self::Vec3Y => "Vec3 Y",
+            Self::Vec3Z => "Vec3 Z",
+            Self::Vec3ToVec2XY => "Vec3 -> Vec2 (X,Y)",
+            Self::Vec3ToVec2XZ => "Vec3 -> Vec2 (X,Z)",
+            Self::Vec3ToVec2YZ => "Vec3 -> Vec2 (Y,Z)",
+            Self::Vec3ToColorRgb => "Vec3 -> Color (RGB)",
+            Self::Vec3ToColorHsv => "Vec3 -> Color (HSV)",
+            Self::ColorR => "Color R",
+            Self::ColorG => "Color G",
+            Self::ColorB => "Color B",
+            Self::ColorA => "Color A",
+            Self::ColorToVec3Rgb => "Color -> Vec3 (RGB)",
+            Self::ColorToVec3Hsv => "Color -> Vec3 (HSV)",
+            Self::ColorToVec2Hs => "Color -> Vec2 (Hue,Sat)",
+        }
+    }
+
+    /// Parses one projection id.
+    pub fn from_variant_id(value: &str) -> Option<Self> {
+        match value.trim() {
+            "floatToVec2X0" => Some(Self::FloatToVec2X0),
+            "floatToVec20Y" => Some(Self::FloatToVec20Y),
+            "floatToVec2XX" => Some(Self::FloatToVec2XX),
+            "floatToVec3X00" => Some(Self::FloatToVec3X00),
+            "floatToVec30Y0" => Some(Self::FloatToVec30Y0),
+            "floatToVec300Z" => Some(Self::FloatToVec300Z),
+            "floatToVec3XXX" => Some(Self::FloatToVec3XXX),
+            "vec2X" => Some(Self::Vec2X),
+            "vec2Y" => Some(Self::Vec2Y),
+            "vec2ToVec3XY0" => Some(Self::Vec2ToVec3XY0),
+            "vec2ToVec3X0Y" => Some(Self::Vec2ToVec3X0Y),
+            "vec2ToColorHs" => Some(Self::Vec2ToColorHs),
+            "vec3X" => Some(Self::Vec3X),
+            "vec3Y" => Some(Self::Vec3Y),
+            "vec3Z" => Some(Self::Vec3Z),
+            "vec3ToVec2XY" => Some(Self::Vec3ToVec2XY),
+            "vec3ToVec2XZ" => Some(Self::Vec3ToVec2XZ),
+            "vec3ToVec2YZ" => Some(Self::Vec3ToVec2YZ),
+            "vec3ToColorRgb" => Some(Self::Vec3ToColorRgb),
+            "vec3ToColorHsv" => Some(Self::Vec3ToColorHsv),
+            "colorR" => Some(Self::ColorR),
+            "colorG" => Some(Self::ColorG),
+            "colorB" => Some(Self::ColorB),
+            "colorA" => Some(Self::ColorA),
+            "colorToVec3Rgb" => Some(Self::ColorToVec3Rgb),
+            "colorToVec3Hsv" => Some(Self::ColorToVec3Hsv),
+            "colorToVec2Hs" => Some(Self::ColorToVec2Hs),
+            _ => None,
+        }
+    }
+}
+
+/// Compatibility report between one source value and one target value kind.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ParamValueCompatibility {
+    /// `true` when direct coercion works without projection.
+    pub direct: bool,
+    /// Projections that make coercion possible.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<ParamValueProjection>,
+}
+
+impl ParamValueCompatibility {
+    /// Returns `true` when either direct or projected coercion works.
+    pub fn is_compatible(&self) -> bool {
+        self.direct || !self.projections.is_empty()
+    }
+}
+
+/// Returns one default value prototype for a parameter type id.
+pub fn default_param_value_for_type_id(type_id: &str) -> Option<ParamValue> {
+    match type_id.trim().to_ascii_lowercase().as_str() {
+        "trigger" => Some(ParamValue::Trigger()),
+        "int" => Some(ParamValue::Int(0)),
+        "float" => Some(ParamValue::Float(0.0)),
+        "str" => Some(ParamValue::Str(String::new())),
+        "file" => Some(ParamValue::File(String::new())),
+        "enum" => Some(ParamValue::Enum(String::new())),
+        "bool" => Some(ParamValue::Bool(false)),
+        "vec2" => Some(ParamValue::Vec2(0.0, 0.0)),
+        "vec3" => Some(ParamValue::Vec3(0.0, 0.0, 0.0)),
+        "color" => Some(ParamValue::Color(0.0, 0.0, 0.0, 1.0)),
+        "reference" => Some(ParamValue::Reference(NodeReference::default())),
+        _ => None,
+    }
+}
+
+fn rgb_to_hsv(r: f64, g: f64, b: f64) -> (f64, f64, f64) {
+    let max = r.max(g.max(b));
+    let min = r.min(g.min(b));
+    let delta = max - min;
+
+    let mut hue = if delta <= f64::EPSILON {
+        0.0
+    } else if (max - r).abs() <= f64::EPSILON {
+        ((g - b) / delta).rem_euclid(6.0)
+    } else if (max - g).abs() <= f64::EPSILON {
+        ((b - r) / delta) + 2.0
+    } else {
+        ((r - g) / delta) + 4.0
+    };
+    hue /= 6.0;
+
+    let sat = if max <= f64::EPSILON { 0.0 } else { delta / max };
+    (hue, sat, max)
+}
+
+fn hsv_to_rgb(h: f64, s: f64, v: f64) -> (f64, f64, f64) {
+    if s <= f64::EPSILON {
+        return (v, v, v);
+    }
+
+    let hh = h.rem_euclid(1.0) * 6.0;
+    let sector = hh.floor() as i32;
+    let frac = hh - sector as f64;
+
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - s * frac);
+    let t = v * (1.0 - s * (1.0 - frac));
+
+    match sector.rem_euclid(6) {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        _ => (v, p, q),
+    }
+}
+
+/// Applies one explicit projection to `source`.
+pub fn project_param_value(source: &ParamValue, projection: ParamValueProjection) -> Option<ParamValue> {
+    let projected = match (source, projection) {
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec2X0) => ParamValue::Vec2(*value, 0.0),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec20Y) => ParamValue::Vec2(0.0, *value),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec2XX) => ParamValue::Vec2(*value, *value),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec3X00) => ParamValue::Vec3(*value, 0.0, 0.0),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec30Y0) => ParamValue::Vec3(0.0, *value, 0.0),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec300Z) => ParamValue::Vec3(0.0, 0.0, *value),
+        (ParamValue::Float(value), ParamValueProjection::FloatToVec3XXX) => ParamValue::Vec3(*value, *value, *value),
+        (ParamValue::Vec2(x, _), ParamValueProjection::Vec2X) => ParamValue::Float(*x),
+        (ParamValue::Vec2(_, y), ParamValueProjection::Vec2Y) => ParamValue::Float(*y),
+        (ParamValue::Vec2(x, y), ParamValueProjection::Vec2ToVec3XY0) => ParamValue::Vec3(*x, *y, 0.0),
+        (ParamValue::Vec2(x, y), ParamValueProjection::Vec2ToVec3X0Y) => ParamValue::Vec3(*x, 0.0, *y),
+        (ParamValue::Vec2(h, s), ParamValueProjection::Vec2ToColorHs) => {
+            let (r, g, b) = hsv_to_rgb(*h, *s, 1.0);
+            ParamValue::Color(r, g, b, 1.0)
+        }
+        (ParamValue::Vec3(x, _, _), ParamValueProjection::Vec3X) => ParamValue::Float(*x),
+        (ParamValue::Vec3(_, y, _), ParamValueProjection::Vec3Y) => ParamValue::Float(*y),
+        (ParamValue::Vec3(_, _, z), ParamValueProjection::Vec3Z) => ParamValue::Float(*z),
+        (ParamValue::Vec3(x, y, _), ParamValueProjection::Vec3ToVec2XY) => ParamValue::Vec2(*x, *y),
+        (ParamValue::Vec3(x, _, z), ParamValueProjection::Vec3ToVec2XZ) => ParamValue::Vec2(*x, *z),
+        (ParamValue::Vec3(_, y, z), ParamValueProjection::Vec3ToVec2YZ) => ParamValue::Vec2(*y, *z),
+        (ParamValue::Vec3(r, g, b), ParamValueProjection::Vec3ToColorRgb) => ParamValue::Color(*r, *g, *b, 1.0),
+        (ParamValue::Vec3(h, s, v), ParamValueProjection::Vec3ToColorHsv) => {
+            let (r, g, b) = hsv_to_rgb(*h, *s, *v);
+            ParamValue::Color(r, g, b, 1.0)
+        }
+        (ParamValue::Color(r, _, _, _), ParamValueProjection::ColorR) => ParamValue::Float(*r),
+        (ParamValue::Color(_, g, _, _), ParamValueProjection::ColorG) => ParamValue::Float(*g),
+        (ParamValue::Color(_, _, b, _), ParamValueProjection::ColorB) => ParamValue::Float(*b),
+        (ParamValue::Color(_, _, _, a), ParamValueProjection::ColorA) => ParamValue::Float(*a),
+        (ParamValue::Color(r, g, b, _), ParamValueProjection::ColorToVec3Rgb) => ParamValue::Vec3(*r, *g, *b),
+        (ParamValue::Color(r, g, b, _), ParamValueProjection::ColorToVec3Hsv) => {
+            let (h, s, v) = rgb_to_hsv(*r, *g, *b);
+            ParamValue::Vec3(h, s, v)
+        }
+        (ParamValue::Color(r, g, b, _), ParamValueProjection::ColorToVec2Hs) => {
+            let (h, s, _) = rgb_to_hsv(*r, *g, *b);
+            ParamValue::Vec2(h, s)
+        }
+        _ => return None,
+    };
+    Some(projected)
+}
+
+fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) -> Option<ParamValue> {
+    match target {
+        ParamValue::Trigger() => {
+            if matches!(source, ParamValue::Trigger()) {
+                Some(ParamValue::Trigger())
+            } else {
+                None
+            }
+        }
+        ParamValue::Int(_) => source.as_int().map(ParamValue::Int),
+        ParamValue::Float(_) => source.as_float().map(ParamValue::Float),
+        ParamValue::Str(_) => source.as_str().map(ParamValue::Str),
+        ParamValue::File(_) => source.as_str().map(ParamValue::File),
+        ParamValue::Enum(_) => source.as_enum().map(ParamValue::Enum),
+        ParamValue::Bool(_) => source.as_bool().map(ParamValue::Bool),
+        ParamValue::Vec2(_, _) => source.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)),
+        ParamValue::Vec3(_, _, _) => source.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)),
+        ParamValue::Color(_, _, _, _) => source.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)),
+        ParamValue::Reference(_) => match source {
+            ParamValue::Reference(reference) => Some(ParamValue::Reference(reference.clone())),
+            _ => None,
+        },
+    }
+}
+
+/// Coerces `source` to the value kind represented by `target`.
+///
+/// When `projection` is provided, it is applied before coercion.
+pub fn coerce_param_value_for_target(source: &ParamValue, target: &ParamValue, projection: Option<ParamValueProjection>) -> Option<ParamValue> {
+    let projected = if let Some(projection) = projection { project_param_value(source, projection)? } else { source.clone() };
+
+    coerce_param_value_for_target_kind(&projected, target)
+}
+
+/// Computes compatibility between `source` and `target`.
+pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
+    let direct = coerce_param_value_for_target(source, target, None).is_some();
+    let projections = ParamValueProjection::available_for_source(source).into_iter().filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some()).collect();
+
+    ParamValueCompatibility { direct, projections }
+}
+
 /// Strongly-typed file path wrapper for parameter handles and params DSL.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct File(pub String);
@@ -341,11 +686,15 @@ impl ParamValue {
     /// Coerces this value into a string, when possible.
     pub fn as_str(&self) -> Option<String> {
         match self {
+            ParamValue::Trigger() => Some("trigger".to_string()),
             ParamValue::Int(i) => Some(i.to_string()),
             ParamValue::Float(f) => Some(f.to_string()),
             ParamValue::Str(s) | ParamValue::File(s) | ParamValue::Enum(s) => Some(s.clone()),
             ParamValue::Bool(b) => Some(b.to_string()),
-            _ => None,
+            ParamValue::Vec2(x, y) => Some(format!("{x},{y}")),
+            ParamValue::Vec3(x, y, z) => Some(format!("{x},{y},{z}")),
+            ParamValue::Color(r, g, b, a) => Some(format!("{r},{g},{b},{a}")),
+            ParamValue::Reference(reference) => Some(reference.cached_name().map(|name| name.to_string()).unwrap_or_else(|| reference.uuid().0.to_string())),
         }
     }
 
@@ -490,6 +839,7 @@ impl ParamValue {
                 "cachedId": reference.cached_id().map(|node| node.0),
                 "cachedName": reference.cached_name(),
                 "relativePathFromRoot": reference.relative_path_from_root(),
+                "projection": reference.projection().map(|projection| projection.variant_id()),
             }),
         }
     }
@@ -631,6 +981,9 @@ pub enum ParameterControlSpec {
     ContextLink {
         /// Symbol to resolve from nearest visible `UserContext` scope.
         symbol: String,
+        /// Optional projection applied before coercion.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        projection: Option<ParamValueProjection>,
     },
     /// Text template with `{token}` segments.
     TemplateText {
@@ -781,7 +1134,7 @@ pub enum ReferenceTargetKind {
 }
 
 /// Additional constraints specific to `ParamValue::Reference`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceConstraints {
     /// Root scope used by target validation and relative recovery.
     #[serde(default)]
@@ -799,12 +1152,42 @@ pub struct ReferenceConstraints {
     /// Empty means all parameter kinds are accepted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_parameter_types: Vec<String>,
+    /// Whether projection-based compatibility is accepted for typed references.
+    ///
+    /// When `false`, only direct type compatibility is accepted.
+    #[serde(
+        default = "reference_constraints_default_true",
+        skip_serializing_if = "is_reference_constraints_true"
+    )]
+    pub allow_projections: bool,
     /// Optional app-defined runtime filter key looked up in the engine registry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_filter_key: Option<String>,
     /// Optional UI default search filter suggested by the engine/app.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_search_filter: Option<String>,
+}
+
+impl Default for ReferenceConstraints {
+    fn default() -> Self {
+        Self {
+            root: ReferenceRoot::default(),
+            target_kind: ReferenceTargetKind::default(),
+            allowed_node_types: Vec::new(),
+            allowed_parameter_types: Vec::new(),
+            allow_projections: true,
+            custom_filter_key: None,
+            default_search_filter: None,
+        }
+    }
+}
+
+fn reference_constraints_default_true() -> bool {
+    true
+}
+
+fn is_reference_constraints_true(value: &bool) -> bool {
+    *value
 }
 
 fn is_default_reference_constraints(value: &ReferenceConstraints) -> bool {
@@ -1373,31 +1756,19 @@ impl Parameter {
     }
 
     fn coerce_for_current_value_kind(&self, incoming: ParamValue) -> Result<ParamValue, String> {
-        match &self.value {
-            ParamValue::Trigger() => {
-                if matches!(incoming, ParamValue::Trigger()) {
-                    Ok(ParamValue::Trigger())
-                } else {
-                    Err("trigger parameter only accepts trigger values".to_string())
-                }
-            }
-            ParamValue::Int(_) => incoming.as_int().map(ParamValue::Int).ok_or_else(|| "parameter expects an int-compatible value".to_string()),
-            ParamValue::Float(_) => incoming.as_float().map(ParamValue::Float).ok_or_else(|| "parameter expects a float-compatible value".to_string()),
-            ParamValue::Str(_) => incoming.as_str().map(ParamValue::Str).ok_or_else(|| "parameter expects a string-compatible value".to_string()),
-            ParamValue::File(_) => incoming.as_str().map(ParamValue::File).ok_or_else(|| "parameter expects a file-compatible value".to_string()),
-            ParamValue::Enum(_) => incoming.as_enum().map(ParamValue::Enum).ok_or_else(|| "parameter expects an enum-compatible value".to_string()),
-            ParamValue::Bool(_) => incoming.as_bool().map(ParamValue::Bool).ok_or_else(|| "parameter expects a bool-compatible value".to_string()),
-            ParamValue::Vec2(_, _) => incoming.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)).ok_or_else(|| "parameter expects a vec2-compatible value".to_string()),
-            ParamValue::Vec3(_, _, _) => incoming.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)).ok_or_else(|| "parameter expects a vec3-compatible value".to_string()),
-            ParamValue::Color(_, _, _, _) => incoming.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)).ok_or_else(|| "parameter expects a color-compatible value".to_string()),
-            ParamValue::Reference(_) => {
-                if let ParamValue::Reference(reference) = incoming {
-                    Ok(ParamValue::Reference(reference))
-                } else {
-                    Err("parameter expects a reference value".to_string())
-                }
-            }
-        }
+        coerce_param_value_for_target(&incoming, &self.value, None).ok_or_else(|| match &self.value {
+            ParamValue::Trigger() => "trigger parameter only accepts trigger values".to_string(),
+            ParamValue::Int(_) => "parameter expects an int-compatible value".to_string(),
+            ParamValue::Float(_) => "parameter expects a float-compatible value".to_string(),
+            ParamValue::Str(_) => "parameter expects a string-compatible value".to_string(),
+            ParamValue::File(_) => "parameter expects a file-compatible value".to_string(),
+            ParamValue::Enum(_) => "parameter expects an enum-compatible value".to_string(),
+            ParamValue::Bool(_) => "parameter expects a bool-compatible value".to_string(),
+            ParamValue::Vec2(_, _) => "parameter expects a vec2-compatible value".to_string(),
+            ParamValue::Vec3(_, _, _) => "parameter expects a vec3-compatible value".to_string(),
+            ParamValue::Color(_, _, _, _) => "parameter expects a color-compatible value".to_string(),
+            ParamValue::Reference(_) => "parameter expects a reference value".to_string(),
+        })
     }
 }
 
@@ -1503,6 +1874,10 @@ impl Node for Parameter {
 mod tests {
     use super::*;
 
+    fn approx_eq(left: f64, right: f64) {
+        assert!((left - right).abs() < 1e-9, "expected {left} ~= {right}");
+    }
+
     #[test]
     fn file_constraints_accept_matching_extension() {
         let constraints = ParameterConstraints {
@@ -1544,5 +1919,83 @@ mod tests {
 
         let int_modes = available_control_modes_for_value(&int_value);
         assert!(!int_modes.contains(&ParameterControlMode::TemplateText));
+    }
+
+    #[test]
+    fn projection_supports_float_expansions() {
+        let source = ParamValue::Float(2.5);
+
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec2X0), Some(ParamValue::Vec2(2.5, 0.0)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec20Y), Some(ParamValue::Vec2(0.0, 2.5)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec2XX), Some(ParamValue::Vec2(2.5, 2.5)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec3X00), Some(ParamValue::Vec3(2.5, 0.0, 0.0)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec30Y0), Some(ParamValue::Vec3(0.0, 2.5, 0.0)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec300Z), Some(ParamValue::Vec3(0.0, 0.0, 2.5)));
+        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec3XXX), Some(ParamValue::Vec3(2.5, 2.5, 2.5)));
+    }
+
+    #[test]
+    fn projection_supports_vec_reshapes() {
+        let vec3 = ParamValue::Vec3(1.0, 2.0, 3.0);
+        let vec2 = ParamValue::Vec2(4.0, 5.0);
+
+        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XY), Some(ParamValue::Vec2(1.0, 2.0)));
+        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XZ), Some(ParamValue::Vec2(1.0, 3.0)));
+        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2YZ), Some(ParamValue::Vec2(2.0, 3.0)));
+        assert_eq!(project_param_value(&vec2, ParamValueProjection::Vec2ToVec3XY0), Some(ParamValue::Vec3(4.0, 5.0, 0.0)));
+        assert_eq!(project_param_value(&vec2, ParamValueProjection::Vec2ToVec3X0Y), Some(ParamValue::Vec3(4.0, 0.0, 5.0)));
+    }
+
+    #[test]
+    fn projection_supports_color_rgb_hsv_mappings() {
+        let color = ParamValue::Color(1.0, 0.0, 0.0, 0.75);
+        let vec_hs = ParamValue::Vec2(0.0, 1.0);
+        let vec_hsv = ParamValue::Vec3(1.0 / 3.0, 1.0, 1.0);
+        let vec_rgb = ParamValue::Vec3(0.1, 0.2, 0.3);
+
+        assert_eq!(project_param_value(&color, ParamValueProjection::ColorToVec3Rgb), Some(ParamValue::Vec3(1.0, 0.0, 0.0)));
+        let hsv = project_param_value(&color, ParamValueProjection::ColorToVec3Hsv).expect("color->hsv projection should succeed");
+        let ParamValue::Vec3(h, s, v) = hsv else {
+            panic!("expected vec3 hsv result");
+        };
+        approx_eq(h, 0.0);
+        approx_eq(s, 1.0);
+        approx_eq(v, 1.0);
+
+        let hs = project_param_value(&color, ParamValueProjection::ColorToVec2Hs).expect("color->hs projection should succeed");
+        let ParamValue::Vec2(h, s) = hs else {
+            panic!("expected vec2 hs result");
+        };
+        approx_eq(h, 0.0);
+        approx_eq(s, 1.0);
+
+        let color_from_hs = project_param_value(&vec_hs, ParamValueProjection::Vec2ToColorHs).expect("vec2 hs->color projection should succeed");
+        let ParamValue::Color(r, g, b, a) = color_from_hs else {
+            panic!("expected color result");
+        };
+        approx_eq(r, 1.0);
+        approx_eq(g, 0.0);
+        approx_eq(b, 0.0);
+        approx_eq(a, 1.0);
+
+        let color_from_hsv = project_param_value(&vec_hsv, ParamValueProjection::Vec3ToColorHsv).expect("vec3 hsv->color projection should succeed");
+        let ParamValue::Color(r, g, b, a) = color_from_hsv else {
+            panic!("expected color result");
+        };
+        approx_eq(r, 0.0);
+        approx_eq(g, 1.0);
+        approx_eq(b, 0.0);
+        approx_eq(a, 1.0);
+
+        assert_eq!(project_param_value(&vec_rgb, ParamValueProjection::Vec3ToColorRgb), Some(ParamValue::Color(0.1, 0.2, 0.3, 1.0)));
+    }
+
+    #[test]
+    fn compatibility_includes_float_to_vec2_projections() {
+        let compatibility = compatibility_for_values(&ParamValue::Float(3.0), &ParamValue::Vec2(0.0, 0.0));
+        assert!(compatibility.direct, "float->vec2 keeps direct coercion");
+        assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2X0));
+        assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec20Y));
+        assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2XX));
     }
 }

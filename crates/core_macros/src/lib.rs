@@ -474,6 +474,7 @@ struct ParamsDslParamOptions {
     reference_target_kind: Option<Expr>,
     reference_allowed_node_types: Option<Expr>,
     reference_allowed_parameter_types: Option<Expr>,
+    reference_allow_projections: Option<Expr>,
     reference_custom_filter_key: Option<Expr>,
     reference_default_search_filter: Option<Expr>,
     default_callback: bool,
@@ -756,6 +757,18 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `reference_allowed_parameter_types` option"));
                 }
                 out.reference_allowed_parameter_types = Some(input.parse::<Expr>()?);
+            } else if key == "reference_allow_projections"
+                || key == "referenceAllowProjections"
+                || key == "reference_allow_projection"
+                || key == "referenceAllowProjection"
+            {
+                if out.reference_allow_projections.is_some() {
+                    return Err(Error::new(
+                        key.span(),
+                        "duplicate `reference_allow_projections` option",
+                    ));
+                }
+                out.reference_allow_projections = Some(input.parse::<Expr>()?);
             } else if key == "reference_custom_filter_key" || key == "referenceCustomFilterKey" {
                 if out.reference_custom_filter_key.is_some() {
                     return Err(Error::new(key.span(), "duplicate `reference_custom_filter_key` option"));
@@ -774,7 +787,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1152,6 +1165,7 @@ struct ParamsParamSpec {
     reference_target_kind: Option<Expr>,
     reference_allowed_node_types: Option<Expr>,
     reference_allowed_parameter_types: Option<Expr>,
+    reference_allow_projections: Option<Expr>,
     reference_custom_filter_key: Option<Expr>,
     reference_default_search_filter: Option<Expr>,
     callback: Option<ParamCallbackSpec>,
@@ -1317,6 +1331,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     reference_target_kind: param.options.reference_target_kind.clone(),
                     reference_allowed_node_types: param.options.reference_allowed_node_types.clone(),
                     reference_allowed_parameter_types: param.options.reference_allowed_parameter_types.clone(),
+                    reference_allow_projections: param.options.reference_allow_projections.clone(),
                     reference_custom_filter_key: param.options.reference_custom_filter_key.clone(),
                     reference_default_search_filter: param.options.reference_default_search_filter.clone(),
                     callback,
@@ -2431,6 +2446,13 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             }
         });
 
+        let set_reference_allow_projections =
+            param.reference_allow_projections.as_ref().map(|expr| {
+                quote! {
+                    __param_node.constraints.reference.allow_projections = #expr;
+                }
+            });
+
         let set_reference_custom_filter_key = param.reference_custom_filter_key.as_ref().map(|expr| {
             quote! {
                 __param_node.constraints.reference.custom_filter_key = #expr;
@@ -2468,6 +2490,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 #set_reference_target_kind
                 #set_reference_allowed_node_types
                 #set_reference_allowed_parameter_types
+                #set_reference_allow_projections
                 #set_reference_custom_filter_key
                 #set_reference_default_search_filter
                 golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =

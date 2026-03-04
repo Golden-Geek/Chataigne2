@@ -5,7 +5,7 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot, ReferenceTargetKind};
+use crate::parameter::{ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot, ReferenceTargetKind};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,9 @@ impl Default for NodeUuid {
 pub struct NodeReference {
     /// Persistent target identity.
     pub uuid: NodeUuid,
+    /// Optional projection applied when resolving source value from this target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<ParamValueProjection>,
     /// Cached user-facing target name used when the reference is currently unresolved.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cached_name: Option<String>,
@@ -69,6 +72,7 @@ impl NodeReference {
     pub fn new(uuid: NodeUuid) -> Self {
         Self {
             uuid,
+            projection: None,
             cached_name: None,
             cached_id: None,
             relative_path_from_root: Vec::new(),
@@ -84,6 +88,7 @@ impl NodeReference {
     pub fn with_cached_id(uuid: NodeUuid, cached_id: Option<NodeId>) -> Self {
         Self {
             uuid,
+            projection: None,
             cached_name: None,
             cached_id,
             relative_path_from_root: Vec::new(),
@@ -94,6 +99,7 @@ impl NodeReference {
     pub fn with_hints(uuid: NodeUuid, cached_id: Option<NodeId>, relative_path_from_root: Vec<String>) -> Self {
         Self {
             uuid,
+            projection: None,
             cached_name: None,
             cached_id,
             relative_path_from_root,
@@ -103,6 +109,21 @@ impl NodeReference {
     /// Returns the persistent target UUID.
     pub fn uuid(&self) -> NodeUuid {
         self.uuid
+    }
+
+    /// Returns the optional projection attached to this reference.
+    pub fn projection(&self) -> Option<ParamValueProjection> {
+        self.projection
+    }
+
+    /// Sets or clears the projection attached to this reference.
+    pub fn set_projection(&mut self, projection: Option<ParamValueProjection>) {
+        self.projection = projection;
+    }
+
+    /// Clears the projection attached to this reference.
+    pub fn clear_projection(&mut self) {
+        self.projection = None;
     }
 
     /// Returns the cached runtime node id, when available.
@@ -164,7 +185,7 @@ impl Default for NodeReference {
 
 impl PartialEq for NodeReference {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
+        self.uuid == other.uuid && self.projection == other.projection
     }
 }
 
@@ -542,21 +563,7 @@ pub const PARAMETER_ANIMATION_PHASE_DECL_ID: &str = "phase";
 pub const PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID: &str = "update_rate_hz";
 /// All built-in parameter node type ids.
 pub const PARAMETER_NODE_TYPES: [&str; 11] = ["trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
-const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 13] = [
-    FOLDER_NODE_TYPE,
-    "trigger",
-    "int",
-    "float",
-    "str",
-    "file",
-    "enum",
-    "bool",
-    "vec2",
-    "vec3",
-    "color",
-    "reference",
-    "*",
-];
+const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 13] = [FOLDER_NODE_TYPE, "trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference", "*"];
 
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

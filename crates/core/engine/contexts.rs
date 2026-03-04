@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::node::NodeId;
-use crate::parameter::ParamValue;
+use crate::parameter::{ParamValue, ParamValueProjection};
 
 /// Typed value family used by `UserContext` entries and lookups.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -145,6 +145,9 @@ pub struct UserContextCandidate {
     pub compatible: bool,
     /// Whether this candidate is shadowed by a nearer scope with the same symbol.
     pub shadowed: bool,
+    /// Optional projections that can make this candidate compatible.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projections: Vec<ParamValueProjection>,
 }
 
 /// UI payload returned by per-parameter context-candidate queries.
@@ -428,6 +431,7 @@ impl UserContextRegistry {
                         entry_param: entry.param,
                         compatible,
                         shadowed,
+                        projections: Vec::new(),
                     });
                 }
             }
