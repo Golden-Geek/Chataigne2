@@ -5,7 +5,6 @@ use golden_core::{
     item,
     log,
     node,
-    update,
     node::{Node, NodeId, NodeReference},
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
@@ -70,7 +69,7 @@ impl ModuleBase {
     }
 }
 
-#[node(from_struct, scriptable)]
+#[node(from_struct, scriptable, contextualizable)]
 impl Node for ModuleBase {
     fn user_item_kind(&self) -> &str {
         "module"
@@ -133,7 +132,7 @@ impl OscModule {
 }
 
 // #[update(50)]
-#[item("module", via = base, from_struct, scriptable)]
+#[item("module", via = base, from_struct)]
 impl Node for OscModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         log!("Initializing OSC Module: ", self.node_data().meta.label);
@@ -232,7 +231,7 @@ impl MidiModule {
     }
 }
 
-#[item("module", via = base, from_struct, scriptable)]
+#[item("module", via = base, from_struct)]
 impl Node for MidiModule {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         // Allow UI actions (color, delete/duplicate, constraints)
@@ -277,7 +276,7 @@ impl DmxModule {
     }
 }
 
-#[item("module", via = base, from_struct, scriptable)]
+#[item("module", via = base, from_struct)]
 impl Node for DmxModule {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         // Allow UI actions (color, delete/duplicate, constraints)

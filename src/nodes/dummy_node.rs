@@ -33,7 +33,7 @@ impl Node for DummyNode {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let osc: f64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64().sin() * 0.5 + 0.5;
+        let osc: f64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs_f64().sin() * 0.5 + 0.5;
         self.dummy_param.set(ctx, osc * 10.0);
         // println!("DummyNode update: {}", self.dummy_param.get());
     }
