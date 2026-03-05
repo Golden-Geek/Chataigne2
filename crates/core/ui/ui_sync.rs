@@ -8,7 +8,7 @@ use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
-use crate::parameter::{ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlDiagnostic, ParameterControlMode, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_values};
+use crate::parameter::{ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_values};
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
@@ -94,7 +94,7 @@ pub struct UiParamDto {
     /// Presentation and editing hints.
     pub ui_hints: ParameterUiHints,
     /// Runtime control-plane state.
-    pub control: ParameterControlState,
+    pub control: UiParameterControlStateDto,
     /// Engine-computed selectable targets for reference parameters.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_allowed_targets: Vec<NodeId>,
@@ -112,10 +112,45 @@ impl From<ParameterSnapshot> for UiParamDto {
             read_only: snapshot.read_only,
             constraints: snapshot.constraints,
             ui_hints: snapshot.ui_hints,
-            control: snapshot.control,
+            control: snapshot.control.into(),
             reference_allowed_targets: Vec::new(),
             reference_visible_nodes: Vec::new(),
         }
+    }
+}
+
+/// UI-facing parameter control state.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct UiParameterControlStateDto {
+    /// Active control mode.
+    #[serde(default)]
+    pub mode: ParameterControlMode,
+    /// Authoring control specification.
+    #[serde(default)]
+    pub spec: ParameterControlSpec,
+}
+
+impl Default for UiParameterControlStateDto {
+    fn default() -> Self {
+        Self {
+            mode: ParameterControlMode::Manual,
+            spec: ParameterControlSpec::Manual,
+        }
+    }
+}
+
+impl From<ParameterControlState> for UiParameterControlStateDto {
+    fn from(state: ParameterControlState) -> Self {
+        Self {
+            mode: state.mode,
+            spec: state.spec,
+        }
+    }
+}
+
+impl From<UiParameterControlStateDto> for ParameterControlState {
+    fn from(state: UiParameterControlStateDto) -> Self {
+        ParameterControlState::new(state.mode, state.spec)
     }
 }
 
@@ -173,9 +208,6 @@ pub struct UiParamControlInfoDto {
     pub active_mode: ParameterControlMode,
     /// Supported control modes for this parameter.
     pub available_modes: Vec<ParameterControlMode>,
-    /// Current diagnostics for this control state.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub diagnostics: Vec<ParameterControlDiagnostic>,
     /// Lexical user-context candidates.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_candidates: Vec<UserContextCandidate>,
@@ -364,9 +396,9 @@ pub enum UiEventKind {
         /// Parameter node id.
         param: NodeId,
         /// Previous control state.
-        old_state: ParameterControlState,
+        old_state: UiParameterControlStateDto,
         /// New control state.
-        new_state: ParameterControlState,
+        new_state: UiParameterControlStateDto,
     },
     /// Child added.
     ChildAdded {
@@ -453,7 +485,11 @@ impl From<Event> for UiEventDto {
     fn from(event: Event) -> Self {
         let kind = match event.kind {
             EventKind::ParamChanged { param, old_value, new_value } => UiEventKind::ParamChanged { param, old_value, new_value },
-            EventKind::ParamControlChanged { param, old_state, new_state } => UiEventKind::ParamControlChanged { param, old_state, new_state },
+            EventKind::ParamControlChanged { param, old_state, new_state } => UiEventKind::ParamControlChanged {
+                param,
+                old_state: old_state.into(),
+                new_state: new_state.into(),
+            },
             EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded { parent, child, decl_id },
             EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved { parent, child },
             EventKind::ChildReplaced { parent, old, new, decl_id } => UiEventKind::ChildReplaced { parent, old, new, decl_id },
@@ -517,7 +553,7 @@ pub enum UiEditIntent {
         /// Target parameter node id.
         node: NodeId,
         /// New control state payload.
-        state: ParameterControlState,
+        state: UiParameterControlStateDto,
     },
     /// Move a node.
     MoveNode {
@@ -820,7 +856,6 @@ impl<T: Node> Engine<T> {
             param: param_node,
             active_mode: snapshot.control.mode,
             available_modes,
-            diagnostics: snapshot.control.diagnostics,
             context_candidates,
             token_suggestions,
             link_candidates,
@@ -889,7 +924,7 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::SetParamControlState { node, state } => match self.set_param_control_state(node, state) {
+            UiEditIntent::SetParamControlState { node, state } => match self.set_param_control_state(node, state.into()) {
                 Ok(changed) => {
                     if changed {
                         self.evaluate_parameter_controls();

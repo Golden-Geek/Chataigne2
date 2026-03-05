@@ -6,12 +6,10 @@ use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
 use crate::node::{
-    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID,
-    ParameterAnimationControlNode, ParameterLinkControlNode,
+    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, ParameterAnimationControlNode, ParameterLinkControlNode,
 };
 use crate::parameter::{
-    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter,
-    coerce_param_value_for_target,
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter, coerce_param_value_for_target,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
@@ -45,6 +43,39 @@ struct ExpressionControlConfig {
 
 const EXPRESSION_EXPORT_NAME: &str = "__gc_eval_expression";
 const EXPRESSION_RUNTIME_SOURCE_NAME: &str = "expression_control.js";
+const CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX: &str = "control-diagnostic:";
+
+fn control_mode_id(mode: ParameterControlMode) -> &'static str {
+    match mode {
+        ParameterControlMode::Manual => "manual",
+        ParameterControlMode::ContextLink => "context-link",
+        ParameterControlMode::TemplateText => "template-text",
+        ParameterControlMode::Expression => "expression",
+        ParameterControlMode::Link => "link",
+        ParameterControlMode::Animation => "animation",
+    }
+}
+
+fn control_mode_label(mode: ParameterControlMode) -> &'static str {
+    match mode {
+        ParameterControlMode::Manual => "Manual",
+        ParameterControlMode::ContextLink => "Context Link",
+        ParameterControlMode::TemplateText => "Template",
+        ParameterControlMode::Expression => "Expression",
+        ParameterControlMode::Link => "Link",
+        ParameterControlMode::Animation => "Animation",
+    }
+}
+
+fn expression_error_diagnostic(summary: &str, detail: String) -> ParameterControlDiagnostic {
+    let detail = detail.trim();
+    let diagnostic = ParameterControlDiagnostic::new("expression_error", summary);
+    if detail.is_empty() {
+        diagnostic
+    } else {
+        diagnostic.with_detail(detail.to_string())
+    }
+}
 
 struct ExpressionScriptHostBridge {
     consumer: NodeId,
@@ -251,13 +282,11 @@ impl<T: Node> Engine<T> {
         }
 
         let diagnostics_changed = self.apply_parameter_control_diagnostics(&param_snapshots, diagnostics_by_param);
-        queued_any || diagnostics_changed
+        let warning_sync_changed = self.sync_parameter_control_warnings(&param_snapshots);
+        queued_any || diagnostics_changed || warning_sync_changed
     }
 
-    /// Sets control state on one parameter node.
-    ///
-    /// Returns `true` when the state changed.
-    pub fn set_param_control_state(&mut self, param: NodeId, mut state: ParameterControlState) -> Result<bool, String> {
+    fn set_param_control_state_impl(&mut self, param: NodeId, mut state: ParameterControlState) -> Result<bool, String> {
         if !control_spec_matches_mode(state.mode, &state.spec) {
             return Err("parameter control state has a mode/spec mismatch".to_string());
         }
@@ -291,6 +320,13 @@ impl<T: Node> Engine<T> {
         node.engine_set_param_control_state(state)?;
         self.emit_event(EventKind::ParamControlChanged { param, old_state: current_state, new_state: next_state });
         Ok(true)
+    }
+
+    /// Sets control state on one parameter node.
+    ///
+    /// Returns `true` when the state changed.
+    pub fn set_param_control_state(&mut self, param: NodeId, state: ParameterControlState) -> Result<bool, String> {
+        self.set_param_control_state_impl(param, state)
     }
 
     fn make_expression_source_parameter(initial_expression: String) -> Parameter {
@@ -511,15 +547,12 @@ impl<T: Node> Engine<T> {
 
         let previous_runtime = self.expression_runtime.get(&consumer).cloned().unwrap_or_default();
         if !self.expression_should_evaluate(consumer, &config, &previous_runtime, change_set) {
+            diagnostics.extend(target_snapshot.control.diagnostics.iter().cloned());
             return None;
         }
 
         let time_seconds = self.runtime_elapsed.as_secs_f64();
-        let delta_seconds = if previous_runtime.source_param.is_some() {
-            self.runtime_elapsed.saturating_sub(previous_runtime.last_eval_elapsed).as_secs_f64()
-        } else {
-            0.0
-        };
+        let delta_seconds = if previous_runtime.source_param.is_some() { self.runtime_elapsed.saturating_sub(previous_runtime.last_eval_elapsed).as_secs_f64() } else { 0.0 };
         let local_node = self.nodes.get(consumer).and_then(|node| node.node_data().parent);
         let (symbols, dependencies) = self.expression_symbols_and_dependencies(consumer, config.expression.as_str(), param_snapshots);
         let continuous = expression_should_run_continuously(config.expression.as_str());
@@ -536,23 +569,15 @@ impl<T: Node> Engine<T> {
         ) {
             Ok(runtime) => runtime,
             Err(message) => {
-                diagnostics.push(ParameterControlDiagnostic::new("expression_error", message));
+                diagnostics.push(expression_error_diagnostic("QuickJS setup failed", message));
                 return None;
             }
         };
 
-        let value = match self.evaluate_expression_script(
-            consumer,
-            local_node,
-            tree_snapshot,
-            script_runtime.clone(),
-            symbols,
-            time_seconds,
-            delta_seconds,
-        ) {
+        let value = match self.evaluate_expression_script(consumer, local_node, tree_snapshot, script_runtime.clone(), symbols, time_seconds, delta_seconds) {
             Ok(value) => value,
             Err(message) => {
-                diagnostics.push(ParameterControlDiagnostic::new("expression_error", message));
+                diagnostics.push(expression_error_diagnostic("QuickJS evaluation failed", message));
                 return None;
             }
         };
@@ -677,12 +702,7 @@ impl<T: Node> Engine<T> {
         BindingEvaluation { pending_writes, diagnostics_by_param }
     }
 
-    fn expression_symbols_and_dependencies(
-        &self,
-        consumer: NodeId,
-        expression: &str,
-        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
-    ) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
+    fn expression_symbols_and_dependencies(&self, consumer: NodeId, expression: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
         let mut symbols = JsonMap::<String, JsonValue>::new();
         let mut dependencies = HashSet::<NodeId>::new();
         let candidates = self.user_contexts.collect_candidates(consumer, None, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
@@ -727,28 +747,15 @@ impl<T: Node> Engine<T> {
         let source = build_expression_runtime_source(expression);
         let source_name = format!("{EXPRESSION_RUNTIME_SOURCE_NAME}#{}", consumer.0);
         let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
-        runtime
-            .load(source.as_str(), source_name.as_str(), Some(&mut host))
-            .map_err(|error| format!("failed to compile expression: {error}"))?;
+        runtime.load(source.as_str(), source_name.as_str(), Some(&mut host)).map_err(|error| format!("failed to compile expression: {error}"))?;
 
         Ok(Arc::new(Mutex::new(runtime)))
     }
 
-    fn evaluate_expression_script(
-        &self,
-        consumer: NodeId,
-        local_node: Option<NodeId>,
-        tree_snapshot: Arc<ProcessTreeSnapshot>,
-        runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>,
-        symbols: JsonMap<String, JsonValue>,
-        time_seconds: f64,
-        delta_seconds: f64,
-    ) -> Result<ParamValue, String> {
+    fn evaluate_expression_script(&self, consumer: NodeId, local_node: Option<NodeId>, tree_snapshot: Arc<ProcessTreeSnapshot>, runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>, symbols: JsonMap<String, JsonValue>, time_seconds: f64, delta_seconds: f64) -> Result<ParamValue, String> {
         let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
         let mut runtime_guard = runtime.lock().map_err(|_| "expression runtime lock poisoned".to_string())?;
-        let result = runtime_guard
-            .call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host)
-            .map_err(|error| format!("expression evaluation failed: {error}"))?;
+        let result = runtime_guard.call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host).map_err(|error| format!("expression evaluation failed:\n {error}"))?;
         script_value_to_param_value(result)
     }
 
@@ -905,21 +912,12 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        ControlChangeSet {
-            changed_params,
-            changed_controls,
-            structural,
-        }
+        ControlChangeSet { changed_params, changed_controls, structural }
     }
 
     fn expression_should_evaluate(&self, consumer: NodeId, config: &ExpressionControlConfig, previous: &ExpressionControlRuntime, change_set: &ControlChangeSet) -> bool {
         let continuous_tick_advanced = previous.continuous && self.runtime_elapsed > previous.last_eval_elapsed;
-        continuous_tick_advanced
-            || previous.source_param != Some(config.source_param)
-            || change_set.changed_controls.contains(&consumer)
-            || change_set.changed_params.contains(&config.source_param)
-            || !change_set.changed_params.is_disjoint(&previous.dependencies)
-            || change_set.structural
+        continuous_tick_advanced || previous.source_param != Some(config.source_param) || change_set.changed_controls.contains(&consumer) || change_set.changed_params.contains(&config.source_param) || !change_set.changed_params.is_disjoint(&previous.dependencies) || change_set.structural
     }
 
     fn reconcile_expression_runtime(&mut self, consumer: NodeId, previous: &ExpressionControlRuntime, next: &ExpressionControlRuntime) {
@@ -1006,6 +1004,72 @@ impl<T: Node> Engine<T> {
         }
 
         changed
+    }
+
+    fn sync_parameter_control_warnings(&mut self, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> bool {
+        let mut params = param_snapshots.keys().copied().collect::<Vec<_>>();
+        params.sort_by_key(|node| node.0);
+
+        let mut pending = Vec::<(NodeId, crate::node::PresentationHint)>::new();
+        for param in params {
+            let Some(node) = self.nodes.get(param) else {
+                continue;
+            };
+            let Some(control_state) = node.engine_param_control_state() else {
+                continue;
+            };
+
+            let mut next_presentation = node.node_data().meta.presentation.clone();
+            next_presentation.warnings.retain(|warning| !warning.id.starts_with(CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX));
+
+            let mut warning_id_occurrences = HashMap::<String, usize>::new();
+            for diagnostic in &control_state.diagnostics {
+                let diagnostic_code = diagnostic.code.trim();
+                let normalized_code = if diagnostic_code.is_empty() { "unknown" } else { diagnostic_code };
+                let mode_id = control_mode_id(control_state.mode);
+                let base_warning_id = format!("{CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX}{mode_id}:{normalized_code}");
+                let occurrence = warning_id_occurrences.entry(base_warning_id.clone()).or_insert(0usize);
+                let warning_id = if *occurrence == 0 { base_warning_id } else { format!("{base_warning_id}:{}", *occurrence + 1) };
+                *occurrence += 1;
+
+                let mut detail_lines = vec![format!("code: {normalized_code}")];
+                if let Some(detail) = diagnostic.detail.as_deref() {
+                    let detail = detail.trim();
+                    if !detail.is_empty() {
+                        detail_lines.push(detail.to_string());
+                    }
+                }
+                let detail = Some(detail_lines.join("\n"));
+
+                let diagnostic_message = diagnostic.message.trim();
+                let message = if diagnostic_message.is_empty() {
+                    format!("{} control diagnostic", control_mode_label(control_state.mode))
+                } else {
+                    format!("{} control: {}", control_mode_label(control_state.mode), diagnostic_message)
+                };
+
+                next_presentation.set_warning_message(Some(warning_id.as_str()), message, detail);
+            }
+
+            if next_presentation != node.node_data().meta.presentation {
+                pending.push((param, next_presentation));
+            }
+        }
+
+        for (node_id, presentation) in &pending {
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().meta.presentation = presentation.clone();
+            }
+            self.emit_event(EventKind::MetaChanged {
+                node: *node_id,
+                patch: crate::node::NodeMetaPatch {
+                    presentation: Some(presentation.clone()),
+                    ..Default::default()
+                },
+            });
+        }
+
+        !pending.is_empty()
     }
 }
 
@@ -1115,12 +1179,7 @@ fn expression_mentions_symbol(expression: &str, symbol: &str) -> bool {
 }
 
 fn expression_should_run_continuously(expression: &str) -> bool {
-    expression.contains("time(")
-        || expression_mentions_symbol(expression, "deltaTime")
-        || expression_mentions_symbol(expression, "root")
-        || expression_mentions_symbol(expression, "local")
-        || expression_mentions_symbol(expression, "script")
-        || expression_mentions_symbol(expression, "gc")
+    expression.contains("time(") || expression_mentions_symbol(expression, "deltaTime") || expression_mentions_symbol(expression, "root") || expression_mentions_symbol(expression, "local") || expression_mentions_symbol(expression, "script") || expression_mentions_symbol(expression, "gc")
 }
 
 fn parse_template_segments(template: &str) -> Vec<TemplateSegment> {

@@ -9,8 +9,8 @@ use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
     EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES,
-    USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode,
+    UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot,
@@ -18,7 +18,7 @@ use crate::parameter::{
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::{ScriptHostPolicy, ScriptUiConfig, ScriptUiSource};
-use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiSubscriptionScope};
+use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope};
 
 #[crate::node]
 struct ItemMacroAutoKindNode {}
@@ -3234,13 +3234,7 @@ fn control_mode_expression_updates_and_cleans_listeners() {
     engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Manual, ParameterControlSpec::Manual)).expect("manual mode should be accepted");
     engine.run_tick(Duration::from_millis(1)).expect("tick should clear expression listeners when mode exits");
 
-    assert!(
-        engine
-            .event_listeners
-            .get(&result)
-            .is_none_or(|subscriptions| subscriptions.is_empty()),
-        "expression listeners should be removed after leaving expression mode",
-    );
+    assert!(engine.event_listeners.get(&result).is_none_or(|subscriptions| subscriptions.is_empty()), "expression listeners should be removed after leaving expression mode",);
 }
 
 #[test]
@@ -3335,6 +3329,87 @@ fn control_mode_expression_supports_javascript_modulo_and_comparisons() {
     engine.run_tick(Duration::from_millis(1000)).expect("second tick should evaluate expression");
     let second = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_bool()).expect("result should stay boolean");
     assert!(!second, "time() % 2 < 1 should be false around t=1.1s");
+}
+
+#[test]
+fn control_mode_expression_diagnostics_surface_node_warnings() {
+    let root: MacroTestNode = Parameter::new("result", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+    let result = engine.root;
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "1 + )");
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate expression");
+
+    let warning = engine
+        .nodes
+        .get(result)
+        .expect("result should exist")
+        .node_data()
+        .meta
+        .presentation
+        .warning(Some("control-diagnostic:expression:expression_error"))
+        .expect("expression diagnostics should surface as node warnings");
+    assert!(
+        warning.message == "Expression control: QuickJS setup failed" || warning.message == "Expression control: QuickJS evaluation failed",
+        "warning message should stay concise and indicate the QuickJS stage"
+    );
+    assert!(
+        warning.detail.as_deref().is_some_and(|detail| !detail.trim().is_empty()),
+        "QuickJS internals should be placed in warning detail"
+    );
+
+    configure_expression_control_source(&mut engine, result, "1 + 2");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should clear expression diagnostics");
+
+    assert!(
+        engine.nodes.get(result).expect("result should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:expression:expression_error")).is_none(),
+        "warning should clear once expression diagnostics clear",
+    );
+
+    configure_expression_control_source(&mut engine, result, "test");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate expression with unknown symbol");
+    assert!(
+        engine.nodes.get(result).expect("result should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:expression:expression_error")).is_some(),
+        "warning should return when expression becomes invalid again",
+    );
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should keep previous expression diagnostic when reevaluation is skipped");
+    assert!(
+        engine.nodes.get(result).expect("result should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:expression:expression_error")).is_some(),
+        "warning should persist across ticks while expression remains invalid",
+    );
+}
+
+#[test]
+fn control_mode_link_diagnostics_surface_node_warnings() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("source", ParamValue::Float(5.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
+    let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
+    let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
+
+    engine.set_param_control_state(source, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link diagnostics");
+
+    assert!(
+        engine.nodes.get(source).expect("source should exist").node_data().meta.presentation.warning(Some("control-diagnostic:link:link_target_missing")).is_some(),
+        "missing link target diagnostics should surface as node warnings",
+    );
+
+    configure_link_control(&mut engine, source, target_uuid, false);
+    engine.run_tick(Duration::from_millis(1)).expect("tick should resolve link diagnostics");
+
+    assert!(
+        engine.nodes.get(source).expect("source should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:link:link_target_missing")).is_none(),
+        "warning should clear once link diagnostics clear",
+    );
 }
 
 #[test]
@@ -3745,12 +3820,20 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
     let tempo = engine.nodes.get(owner).and_then(|node| node.node_data().first_child).expect("tempo should exist");
     let gain = engine.nodes.get(tempo).and_then(|node| node.node_data().next_sibling).expect("gain should exist");
 
+    let undo_before = engine.undo_len();
     let ack = engine.apply_ui_intent(UiEditIntent::SetParamControlState {
         node: gain,
-        state: ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None }),
+        state: UiParameterControlStateDto {
+            mode: ParameterControlMode::ContextLink,
+            spec: ParameterControlSpec::ContextLink {
+                symbol: "tempo".to_string(),
+                projection: None,
+            },
+        },
     });
     assert!(ack.success);
     assert_eq!(ack.status, UiAckStatus::Applied);
+    assert_eq!(engine.undo_len(), undo_before, "control-mode change should not create history entries");
     assert!(
         engine.ui_event_log().iter().any(|event| matches!(
             &event.kind,
