@@ -13,6 +13,7 @@ Backward compatibility is not a goal during this phase.
 - Optimize for maintainability and correctness first, then ergonomics and speed.
 - When modifying behaviours and features, especially on nodes and other canonical elements, keep in mind that the app will have tens of thousands of them, so it has to be scalable.
 - Only edit files using the standard file edit tool, not with commands
+- Never keep things for "API-compatibility" or "retro compatibility", no project is using this right now.
 
 ## Rust Engineering Standards
 - Follow Rust best practices consistently (`idiomatic ownership`, `type-driven design`, `explicit error handling`, and `zero-cost abstractions`).
@@ -41,4 +42,3 @@ Backward compatibility is not a goal during this phase.
 - Unify concepts, do not duplicate code and avoid as much as possible to have similar declaration in different places. Keep everything under the DRY concept !
 - Every change should leave the codebase cleaner than it was before.
 - Temporary hacks are acceptable only when explicitly scoped and scheduled for removal.
-- Never keep things for "API-compatibility"

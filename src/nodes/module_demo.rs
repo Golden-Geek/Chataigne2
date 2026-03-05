@@ -5,10 +5,11 @@ use golden_core::{
     item,
     log,
     node,
-    node::{Node, NodeId, NodeReference},
+    node::{AnimationCurveNode, Node, NodeId, NodeReference},
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
+
 use uuid::uuid;
 
 pub const MODULE_MANAGER_UUID: golden_core::node::NodeUuid =
@@ -54,7 +55,7 @@ impl Node for ModuleManager {
 }
 
 #[node]
-#[params(
+#[children(
     folder(infos, label = "Infos") {
         connected: bool = true (label = "Connected", description = "Whether the module is currently connected", read_only = true);
     }
@@ -77,12 +78,12 @@ impl Node for ModuleBase {
 }
 
 #[node]
-#[params(
+#[children(
     folder(infos, label = "Infos", reuse = true) {
     }
 
     folder(parameters, label = "Parameters", reuse = true) {
-         trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
+        trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
         bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
         int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range", can_be_disabled = true, enabled = false);
         float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
@@ -92,6 +93,10 @@ impl Node for ModuleBase {
             description = "A file path parameter",
             file_allowed_types = ["script"],
             file_allowed_extensions = ["js", "mjs", "cjs"],
+        );
+        node animation_curve: AnimationCurveNode = AnimationCurveNode::new() (
+            label = "Animation Curve",
+            description = "An animation curve parameter with predefined keyframes",
         );
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
         vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
@@ -195,7 +200,7 @@ impl Node for OscModule {
 }
 
 #[node]
-#[params(
+#[children(
 folder(values, label = "Values", reuse = true) {
        
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
@@ -250,7 +255,7 @@ impl Node for MidiModule {
 }
 
 #[node]
-#[params(
+#[children(
 folder(values, label = "Values", reuse = true) {
        
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
