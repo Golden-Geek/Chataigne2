@@ -4,9 +4,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{
-        Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, PARAMETER_LINK_CONTROL_NODE_TYPE, ParameterAnimationControlNode, ParameterLinkControlNode, UserContainerRules,
-    },
+    node::{Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
     process_ctx::ProcessCtx,
 };
 
@@ -360,6 +358,53 @@ fn project_param_value_for_target(source: &ParamValue, target: &ParamValue, proj
     Some(projected)
 }
 
+fn project_param_value_for_target_reverse(source: &ParamValue, target: &ParamValue, projection: ParamValueProjection) -> Option<ParamValue> {
+    let projected = match (source, target, projection) {
+        (ParamValue::Vec2(x, _), ParamValue::Float(_), ParamValueProjection::FloatToVec2X0) => ParamValue::Float(*x),
+        (ParamValue::Vec2(_, y), ParamValue::Float(_), ParamValueProjection::FloatToVec20Y) => ParamValue::Float(*y),
+        (ParamValue::Vec2(x, y), ParamValue::Float(_), ParamValueProjection::FloatToVec2XX) => ParamValue::Float((*x + *y) * 0.5),
+        (ParamValue::Vec3(x, _, _), ParamValue::Float(_), ParamValueProjection::FloatToVec3X00) => ParamValue::Float(*x),
+        (ParamValue::Vec3(_, y, _), ParamValue::Float(_), ParamValueProjection::FloatToVec30Y0) => ParamValue::Float(*y),
+        (ParamValue::Vec3(_, _, z), ParamValue::Float(_), ParamValueProjection::FloatToVec300Z) => ParamValue::Float(*z),
+        (ParamValue::Vec3(x, y, z), ParamValue::Float(_), ParamValueProjection::FloatToVec3XXX) => ParamValue::Float((*x + *y + *z) / 3.0),
+        (ParamValue::Float(value), ParamValue::Vec2(_, y), ParamValueProjection::Vec2X) => ParamValue::Vec2(*value, *y),
+        (ParamValue::Float(value), ParamValue::Vec2(x, _), ParamValueProjection::Vec2Y) => ParamValue::Vec2(*x, *value),
+        (ParamValue::Vec3(x, y, _), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3XY0) => ParamValue::Vec2(*x, *y),
+        (ParamValue::Vec3(x, _, z), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3X0Y) => ParamValue::Vec2(*x, *z),
+        (ParamValue::Color(r, g, b, _), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToColorHs) => {
+            let (h, s, _) = rgb_to_hsv(*r, *g, *b);
+            ParamValue::Vec2(h, s)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::Vec3X) => ParamValue::Vec3(*value, *y, *z),
+        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::Vec3Y) => ParamValue::Vec3(*x, *value, *z),
+        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::Vec3Z) => ParamValue::Vec3(*x, *y, *value),
+        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec3ToVec2XY) => ParamValue::Vec3(*x, *y, *z),
+        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec3ToVec2XZ) => ParamValue::Vec3(*x, *y, *z),
+        (ParamValue::Vec2(y, z), ParamValue::Vec3(x, _, _), ParamValueProjection::Vec3ToVec2YZ) => ParamValue::Vec3(*x, *y, *z),
+        (ParamValue::Color(r, g, b, _), ParamValue::Vec3(_, _, _), ParamValueProjection::Vec3ToColorRgb) => ParamValue::Vec3(*r, *g, *b),
+        (ParamValue::Color(r, g, b, _), ParamValue::Vec3(_, _, _), ParamValueProjection::Vec3ToColorHsv) => {
+            let (h, s, v) = rgb_to_hsv(*r, *g, *b);
+            ParamValue::Vec3(h, s, v)
+        }
+        (ParamValue::Float(value), ParamValue::Color(_, g, b, a), ParamValueProjection::ColorR) => ParamValue::Color(*value, *g, *b, *a),
+        (ParamValue::Float(value), ParamValue::Color(r, _, b, a), ParamValueProjection::ColorG) => ParamValue::Color(*r, *value, *b, *a),
+        (ParamValue::Float(value), ParamValue::Color(r, g, _, a), ParamValueProjection::ColorB) => ParamValue::Color(*r, *g, *value, *a),
+        (ParamValue::Float(value), ParamValue::Color(r, g, b, _), ParamValueProjection::ColorA) => ParamValue::Color(*r, *g, *b, *value),
+        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::ColorToVec3Rgb) => ParamValue::Color(*r, *g, *b, *target_a),
+        (ParamValue::Vec3(h, s, v), ParamValue::Color(_, _, _, target_a), ParamValueProjection::ColorToVec3Hsv) => {
+            let (r, g, b) = hsv_to_rgb(*h, *s, *v);
+            ParamValue::Color(r, g, b, *target_a)
+        }
+        (ParamValue::Vec2(h, s), ParamValue::Color(target_r, target_g, target_b, target_a), ParamValueProjection::ColorToVec2Hs) => {
+            let (_, _, value) = rgb_to_hsv(*target_r, *target_g, *target_b);
+            let (r, g, b) = hsv_to_rgb(*h, *s, value);
+            ParamValue::Color(r, g, b, *target_a)
+        }
+        _ => return None,
+    };
+    Some(projected)
+}
+
 fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) -> Option<ParamValue> {
     match target {
         ParamValue::Trigger() => {
@@ -394,10 +439,37 @@ pub fn coerce_param_value_for_target(source: &ParamValue, target: &ParamValue, p
     coerce_param_value_for_target_kind(&projected, target)
 }
 
+/// Coerces `source` to `target` using the reverse direction of one projection.
+///
+/// This is primarily used by bidirectional binding so one selected projection
+/// can be applied in both write directions.
+pub fn coerce_param_value_for_target_reverse(source: &ParamValue, target: &ParamValue, projection: Option<ParamValueProjection>) -> Option<ParamValue> {
+    let projected = if let Some(projection) = projection { project_param_value_for_target_reverse(source, target, projection)? } else { source.clone() };
+
+    coerce_param_value_for_target_kind(&projected, target)
+}
+
 /// Computes compatibility between `source` and `target`.
 pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
     let direct = coerce_param_value_for_target(source, target, None).is_some();
     let projections = ParamValueProjection::available_for_source(source).into_iter().filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some()).collect();
+
+    ParamValueCompatibility { direct, projections }
+}
+
+/// Computes binding compatibility between `source` and `target`.
+///
+/// Binding is bidirectional, so direct/projection compatibility is only
+/// considered valid when conversion succeeds in both directions.
+pub fn compatibility_for_binding_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
+    let direct = coerce_param_value_for_target(source, target, None).is_some() && coerce_param_value_for_target(target, source, None).is_some();
+    let projections = ParamValueProjection::available_for_source(source)
+        .into_iter()
+        .filter(|projection| {
+            coerce_param_value_for_target(source, target, Some(*projection)).is_some()
+                && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some()
+        })
+        .collect();
 
     ParamValueCompatibility { direct, projections }
 }
@@ -871,8 +943,10 @@ pub enum ParameterControlMode {
     TemplateText,
     /// Parameter value is computed from an expression.
     Expression,
-    /// Parameter reads/synchronizes through a linked compatible parameter.
-    Link,
+    /// Parameter reads from one referenced compatible parameter.
+    Proxy,
+    /// Parameter synchronizes bidirectionally with one referenced compatible parameter.
+    Binding,
     /// Parameter is driven by a local animation function.
     Animation,
 }
@@ -892,7 +966,8 @@ pub fn available_control_modes_for_value(value: &ParamValue) -> Vec<ParameterCon
         ParameterControlMode::ContextLink,
         ParameterControlMode::TemplateText,
         ParameterControlMode::Expression,
-        ParameterControlMode::Link,
+        ParameterControlMode::Proxy,
+        ParameterControlMode::Binding,
         ParameterControlMode::Animation,
     ]
     .into_iter()
@@ -985,8 +1060,10 @@ pub enum ParameterControlSpec {
     },
     /// Expression mode driven by an internal control node.
     Expression,
-    /// Linked parameter mode driven by an internal control node.
-    Link,
+    /// One-way reference-based parameter mode.
+    Proxy,
+    /// Two-way reference-based parameter mode.
+    Binding,
     /// Local animation mode driven by an internal control node.
     Animation,
 }
@@ -1790,7 +1867,6 @@ impl Node for Parameter {
 
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         match node_type {
-            PARAMETER_LINK_CONTROL_NODE_TYPE => Some(Box::new(ParameterLinkControlNode::new(label))),
             PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Some(Box::new(ParameterAnimationControlNode::new(label))),
             _ => None,
         }

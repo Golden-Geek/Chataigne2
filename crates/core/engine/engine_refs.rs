@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUuid, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID};
-use crate::parameter::{ParamValue, ParamValueCompatibility, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_values, default_param_value_for_type_id};
+use crate::node::{Node, NodeId, NodeUuid, PARAMETER_CONTROL_REFERENCE_DECL_ID};
+use crate::parameter::{ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_values, default_param_value_for_type_id};
 
 use super::Engine;
 
@@ -280,18 +280,19 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    fn link_target_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
+    fn control_reference_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
         let param_entry = self.nodes.get(param_node)?;
-        if param_entry.node_data().meta.decl_id.0 != PARAMETER_LINK_TARGET_DECL_ID {
+        if param_entry.node_data().meta.decl_id.0 != PARAMETER_CONTROL_REFERENCE_DECL_ID {
             return None;
         }
-        let link_node = param_entry.node_data().parent?;
-        let link_entry = self.nodes.get(link_node)?;
-        if link_entry.get_type() != PARAMETER_LINK_CONTROL_NODE_TYPE {
+        let controlled_param = param_entry.node_data().parent?;
+        let Some(control_state) = self.nodes.get(controlled_param).and_then(|node| node.engine_param_control_state()) else {
+            return None;
+        };
+        if !matches!(control_state.mode, ParameterControlMode::Proxy | ParameterControlMode::Binding) {
             return None;
         }
 
-        let controlled_param = link_entry.node_data().parent?;
         self.nodes.get(controlled_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value)
     }
 
@@ -299,8 +300,8 @@ impl<T: Node> Engine<T> {
         let mut expected_values = constraints.allowed_parameter_types.iter().filter_map(|allowed| default_param_value_for_type_id(allowed)).collect::<Vec<_>>();
 
         if expected_values.is_empty() {
-            if let Some(link_target_value) = self.link_target_expected_value(param_node) {
-                expected_values.push(link_target_value);
+            if let Some(control_reference_value) = self.control_reference_expected_value(param_node) {
+                expected_values.push(control_reference_value);
             }
         }
 

@@ -9,8 +9,7 @@ use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
     EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode,
-    UserNodeRole,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot,
@@ -793,29 +792,21 @@ fn find_child_by_type(engine: &Engine<MacroTestNode>, parent: NodeId, node_type:
     None
 }
 
-fn configure_link_control(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, two_way: bool) {
-    configure_link_control_with_projection(engine, param, target_uuid, two_way, None);
+fn configure_control_reference(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid) {
+    configure_control_reference_with_projection(engine, param, target_uuid, None);
 }
 
-fn configure_link_control_with_projection(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, two_way: bool, projection: Option<ParamValueProjection>) {
-    let link_node = find_child_by_type(engine, param, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
-    let target_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
-    let two_way_param = find_child_by_decl(engine, link_node, PARAMETER_LINK_TWO_WAY_DECL_ID).expect("link two-way parameter should exist");
-
+fn configure_control_reference_with_projection(engine: &mut Engine<MacroTestNode>, param: NodeId, target_uuid: NodeUuid, projection: Option<ParamValueProjection>) {
+    let reference_param = find_child_by_decl(engine, param, PARAMETER_CONTROL_REFERENCE_DECL_ID).expect("control reference parameter should exist");
     let mut target_reference = NodeReference::new(target_uuid);
     target_reference.set_projection(projection);
 
     engine.edits.push(Edit::SetParam {
-        node: target_param,
+        node: reference_param,
         value: ParamValue::Reference(target_reference),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
-    engine.edits.push(Edit::SetParam {
-        node: two_way_param,
-        value: ParamValue::Bool(two_way),
-        behaviour: ParameterEventBehaviour::Coalesce,
-    });
-    engine.apply_edits().expect("link control parameter updates should apply");
+    engine.apply_edits().expect("control reference update should apply");
 }
 
 fn configure_expression_control_source(engine: &mut Engine<MacroTestNode>, param: NodeId, expression: &str) -> NodeId {
@@ -3351,14 +3342,9 @@ fn control_mode_expression_diagnostics_surface_node_warnings() {
         .presentation
         .warning(Some("control-diagnostic:expression:expression_error"))
         .expect("expression diagnostics should surface as node warnings");
-    assert!(
-        warning.message == "Expression control: QuickJS setup failed" || warning.message == "Expression control: QuickJS evaluation failed",
-        "warning message should stay concise and indicate the QuickJS stage"
-    );
-    assert!(
-        warning.detail.as_deref().is_some_and(|detail| !detail.trim().is_empty()),
-        "QuickJS internals should be placed in warning detail"
-    );
+    assert!(warning.message.starts_with("Expression error: SyntaxError:"), "warning message should surface the actionable JavaScript syntax failure: {}", warning.message);
+    assert!(warning.detail.as_deref().is_some_and(|detail| detail.contains("error: SyntaxError:")), "warning detail should include structured error context");
+    assert!(warning.detail.as_deref().is_some_and(|detail| detail.contains("stage:")), "warning detail should include the expression stage");
 
     configure_expression_control_source(&mut engine, result, "1 + 2");
     engine.run_tick(Duration::from_millis(1)).expect("tick should clear expression diagnostics");
@@ -3383,7 +3369,7 @@ fn control_mode_expression_diagnostics_surface_node_warnings() {
 }
 
 #[test]
-fn control_mode_link_diagnostics_surface_node_warnings() {
+fn control_mode_proxy_diagnostics_surface_node_warnings() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3395,25 +3381,25 @@ fn control_mode_link_diagnostics_surface_node_warnings() {
     let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
     let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(source, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
-    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link diagnostics");
+    engine.set_param_control_state(source, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate proxy diagnostics");
 
     assert!(
-        engine.nodes.get(source).expect("source should exist").node_data().meta.presentation.warning(Some("control-diagnostic:link:link_target_missing")).is_some(),
-        "missing link target diagnostics should surface as node warnings",
+        engine.nodes.get(source).expect("source should exist").node_data().meta.presentation.warning(Some("control-diagnostic:proxy:proxy_target_missing")).is_some(),
+        "missing proxy target diagnostics should surface as node warnings",
     );
 
-    configure_link_control(&mut engine, source, target_uuid, false);
-    engine.run_tick(Duration::from_millis(1)).expect("tick should resolve link diagnostics");
+    configure_control_reference(&mut engine, source, target_uuid);
+    engine.run_tick(Duration::from_millis(1)).expect("tick should resolve proxy diagnostics");
 
     assert!(
-        engine.nodes.get(source).expect("source should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:link:link_target_missing")).is_none(),
-        "warning should clear once link diagnostics clear",
+        engine.nodes.get(source).expect("source should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:proxy:proxy_target_missing")).is_none(),
+        "warning should clear once proxy diagnostics clear",
     );
 }
 
 #[test]
-fn control_mode_link_one_way_detects_cycles() {
+fn control_mode_proxy_detects_cycles() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3427,22 +3413,22 @@ fn control_mode_link_one_way_detects_cycles() {
     let a_uuid = engine.nodes.get(a).expect("a node should exist").node_data().meta.uuid;
     let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
-    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for b should be accepted");
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state for a should be accepted");
+    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state for b should be accepted");
 
-    configure_link_control(&mut engine, a, b_uuid, false);
-    configure_link_control(&mut engine, b, a_uuid, false);
+    configure_control_reference(&mut engine, a, b_uuid);
+    configure_control_reference(&mut engine, b, a_uuid);
 
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
 
     let a_snapshot = engine.nodes.get(a).and_then(|node| node.engine_param_snapshot()).expect("a snapshot should exist");
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
-    assert!(a_snapshot.control.diagnostics.iter().any(|diag| diag.code == "link_cycle"));
-    assert!(b_snapshot.control.diagnostics.iter().any(|diag| diag.code == "link_cycle"));
+    assert!(a_snapshot.control.diagnostics.iter().any(|diag| diag.code == "proxy_cycle"));
+    assert!(b_snapshot.control.diagnostics.iter().any(|diag| diag.code == "proxy_cycle"));
 }
 
 #[test]
-fn control_mode_link_one_way_applies_projection_from_target_reference() {
+fn control_mode_proxy_applies_projection_from_reference() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3454,16 +3440,16 @@ fn control_mode_link_one_way_applies_projection_from_target_reference() {
     let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
     let source_uuid = engine.nodes.get(source).expect("source node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for target should be accepted");
-    configure_link_control_with_projection(&mut engine, target, source_uuid, false, Some(ParamValueProjection::Vec2Y));
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state for target should be accepted");
+    configure_control_reference_with_projection(&mut engine, target, source_uuid, Some(ParamValueProjection::Vec2Y));
 
-    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate projected one-way link");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate projected proxy");
     let snapshot = engine.nodes.get(target).and_then(|node| node.engine_param_snapshot()).expect("target snapshot should exist");
     assert_eq!(snapshot.value, ParamValue::Float(7.0));
 }
 
 #[test]
-fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
+fn control_mode_binding_syncs_bidirectionally_with_latest_writer() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3477,13 +3463,13 @@ fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
     let a_uuid = engine.nodes.get(a).expect("a node should exist").node_data().meta.uuid;
     let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
-    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for b should be accepted");
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Binding, ParameterControlSpec::Binding)).expect("binding state for a should be accepted");
+    engine.set_param_control_state(b, ParameterControlState::new(ParameterControlMode::Binding, ParameterControlSpec::Binding)).expect("binding state for b should be accepted");
 
-    configure_link_control(&mut engine, a, b_uuid, true);
-    configure_link_control(&mut engine, b, a_uuid, true);
+    configure_control_reference(&mut engine, a, b_uuid);
+    configure_control_reference(&mut engine, b, a_uuid);
 
-    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate binding");
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
     assert_eq!(b_snapshot.value, ParamValue::Float(1.0));
 
@@ -3502,7 +3488,7 @@ fn control_mode_link_two_way_syncs_bidirectionally_with_latest_writer() {
 }
 
 #[test]
-fn control_mode_link_two_way_single_side_syncs_referenced_parameter() {
+fn control_mode_binding_single_side_syncs_referenced_parameter() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3515,10 +3501,10 @@ fn control_mode_link_two_way_single_side_syncs_referenced_parameter() {
 
     let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for a should be accepted");
-    configure_link_control(&mut engine, a, b_uuid, true);
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Binding, ParameterControlSpec::Binding)).expect("binding state for a should be accepted");
+    configure_control_reference(&mut engine, a, b_uuid);
 
-    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate link");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate binding");
     let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
     assert_eq!(b_snapshot.value, ParamValue::Float(1.0));
 
@@ -3535,7 +3521,7 @@ fn control_mode_link_two_way_single_side_syncs_referenced_parameter() {
 }
 
 #[test]
-fn link_target_reference_rejects_missing_required_projection() {
+fn control_reference_rejects_missing_required_projection() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3547,9 +3533,8 @@ fn link_target_reference_rejects_missing_required_projection() {
     let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
     let source_uuid = engine.nodes.get(source).expect("source node should exist").node_data().meta.uuid;
 
-    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state for target should be accepted");
-    let link_node = find_child_by_type(&engine, target, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
-    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state for target should be accepted");
+    let target_param = find_child_by_decl(&engine, target, PARAMETER_CONTROL_REFERENCE_DECL_ID).expect("control reference parameter should exist");
 
     engine.edits.push(Edit::SetParam {
         node: target_param,
@@ -3561,7 +3546,7 @@ fn link_target_reference_rejects_missing_required_projection() {
 }
 
 #[test]
-fn link_target_reference_parameter_is_manual_only() {
+fn control_reference_parameter_is_manual_only() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3571,20 +3556,19 @@ fn link_target_reference_parameter_is_manual_only() {
 
     let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
 
-    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state should be accepted");
 
-    let link_node = find_child_by_type(&engine, a, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
-    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+    let target_param = find_child_by_decl(&engine, a, PARAMETER_CONTROL_REFERENCE_DECL_ID).expect("control reference parameter should exist");
 
     let info = engine.ui_param_control_info(target_param).expect("control info query should succeed");
     assert_eq!(info.available_modes, vec![ParameterControlMode::Manual]);
 
     let err = engine.set_param_control_state(target_param, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None }));
-    assert!(err.is_err(), "manual-only link target parameter should reject non-manual modes");
+    assert!(err.is_err(), "manual-only control reference parameter should reject non-manual modes");
 }
 
 #[test]
-fn ui_reference_targets_report_projection_options_for_link_target_parameter() {
+fn ui_reference_targets_report_projection_options_for_control_reference_parameter() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3595,10 +3579,9 @@ fn ui_reference_targets_report_projection_options_for_link_target_parameter() {
     let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
     let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
 
-    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Link, ParameterControlSpec::Link)).expect("link state should be accepted");
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state should be accepted");
 
-    let link_node = find_child_by_type(&engine, target, PARAMETER_LINK_CONTROL_NODE_TYPE).expect("link control node should exist");
-    let target_param = find_child_by_decl(&engine, link_node, PARAMETER_LINK_TARGET_DECL_ID).expect("link target parameter should exist");
+    let target_param = find_child_by_decl(&engine, target, PARAMETER_CONTROL_REFERENCE_DECL_ID).expect("control reference parameter should exist");
 
     let targets = engine.ui_reference_targets_for_param(target_param);
     let candidate = targets.candidates.iter().find(|candidate| candidate.target == source).expect("source should be exposed as one reference target candidate");
@@ -3623,7 +3606,8 @@ fn animation_control_parameters_keep_control_modes_enabled() {
     let amplitude_param = find_child_by_decl(&engine, animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).expect("amplitude parameter should exist");
 
     let info = engine.ui_param_control_info(amplitude_param).expect("control info query should succeed");
-    assert!(info.available_modes.contains(&ParameterControlMode::Link), "animation control parameters should allow non-manual control modes",);
+    assert!(info.available_modes.contains(&ParameterControlMode::Proxy), "animation control parameters should allow proxy mode",);
+    assert!(info.available_modes.contains(&ParameterControlMode::Binding), "animation control parameters should allow binding mode",);
 }
 
 #[test]
@@ -3801,7 +3785,8 @@ fn ui_param_control_info_exposes_candidates_and_tokens() {
     assert!(info.context_candidates.iter().any(|candidate| candidate.symbol == "tempo"));
     assert!(info.token_suggestions.iter().any(|token| token.token == "$name"));
     assert!(info.token_suggestions.iter().any(|token| token.token == "tempo"));
-    assert!(info.link_candidates.iter().any(|candidate| candidate.param == tempo && candidate.compatible));
+    assert!(info.proxy_candidates.iter().any(|candidate| candidate.param == tempo && candidate.compatible));
+    assert!(info.binding_candidates.iter().any(|candidate| candidate.param == tempo && candidate.compatible));
 }
 
 #[test]
@@ -3825,10 +3810,7 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
         node: gain,
         state: UiParameterControlStateDto {
             mode: ParameterControlMode::ContextLink,
-            spec: ParameterControlSpec::ContextLink {
-                symbol: "tempo".to_string(),
-                projection: None,
-            },
+            spec: ParameterControlSpec::ContextLink { symbol: "tempo".to_string(), projection: None },
         },
     });
     assert!(ack.success);

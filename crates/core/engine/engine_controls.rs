@@ -5,11 +5,9 @@ use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
-use crate::node::{
-    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, ParameterAnimationControlNode, ParameterLinkControlNode,
-};
+use crate::node::{DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, ParameterAnimationControlNode};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter, coerce_param_value_for_target,
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind, available_control_modes_for_parameter, coerce_param_value_for_target,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
@@ -29,9 +27,8 @@ struct BindingEvaluation {
 }
 
 #[derive(Clone, Debug)]
-struct LinkControlConfig {
+struct ReferenceControlConfig {
     target: NodeReference,
-    two_way: bool,
     projection: Option<ParamValueProjection>,
 }
 
@@ -44,6 +41,29 @@ struct ExpressionControlConfig {
 const EXPRESSION_EXPORT_NAME: &str = "__gc_eval_expression";
 const EXPRESSION_RUNTIME_SOURCE_NAME: &str = "expression_control.js";
 const CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX: &str = "control-diagnostic:";
+const EXPRESSION_ERROR_WRAPPER_PREFIXES: [&str; 6] = ["failed to compile expression:", "failed to create quickjs runtime:", "expression evaluation failed:", "quickjs runtime error:", "script load:", "export callback:"];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ExpressionErrorStage {
+    Setup,
+    Evaluation,
+}
+
+impl ExpressionErrorStage {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Setup => "setup",
+            Self::Evaluation => "evaluation",
+        }
+    }
+
+    fn fallback_summary(self) -> &'static str {
+        match self {
+            Self::Setup => "setup failed",
+            Self::Evaluation => "evaluation failed",
+        }
+    }
+}
 
 fn control_mode_id(mode: ParameterControlMode) -> &'static str {
     match mode {
@@ -51,7 +71,8 @@ fn control_mode_id(mode: ParameterControlMode) -> &'static str {
         ParameterControlMode::ContextLink => "context-link",
         ParameterControlMode::TemplateText => "template-text",
         ParameterControlMode::Expression => "expression",
-        ParameterControlMode::Link => "link",
+        ParameterControlMode::Proxy => "proxy",
+        ParameterControlMode::Binding => "binding",
         ParameterControlMode::Animation => "animation",
     }
 }
@@ -62,19 +83,111 @@ fn control_mode_label(mode: ParameterControlMode) -> &'static str {
         ParameterControlMode::ContextLink => "Context Link",
         ParameterControlMode::TemplateText => "Template",
         ParameterControlMode::Expression => "Expression",
-        ParameterControlMode::Link => "Link",
+        ParameterControlMode::Proxy => "Proxy",
+        ParameterControlMode::Binding => "Binding",
         ParameterControlMode::Animation => "Animation",
     }
 }
 
-fn expression_error_diagnostic(summary: &str, detail: String) -> ParameterControlDiagnostic {
-    let detail = detail.trim();
-    let diagnostic = ParameterControlDiagnostic::new("expression_error", summary);
-    if detail.is_empty() {
-        diagnostic
-    } else {
-        diagnostic.with_detail(detail.to_string())
+fn strip_prefix_case_insensitive<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
+    let candidate = value.get(..prefix.len())?;
+    candidate.eq_ignore_ascii_case(prefix).then(|| value.get(prefix.len()..)).flatten()
+}
+
+fn compact_whitespace(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn peel_expression_error_wrappers(value: &str) -> String {
+    let mut current = value.trim().to_string();
+
+    loop {
+        let trimmed = current.trim_start();
+        let mut next = None;
+
+        for prefix in EXPRESSION_ERROR_WRAPPER_PREFIXES {
+            if let Some(rest) = strip_prefix_case_insensitive(trimmed, prefix) {
+                next = Some(rest.trim_start().to_string());
+                break;
+            }
+        }
+
+        if let Some(next_value) = next {
+            current = next_value;
+        } else {
+            return current;
+        }
     }
+}
+
+fn looks_like_location(value: &str) -> bool {
+    let candidate = value.trim();
+    if candidate.is_empty() || candidate.contains('(') || candidate.contains(')') {
+        return false;
+    }
+
+    let mut segments = candidate.rsplit(':');
+    let Some(column) = segments.next() else {
+        return false;
+    };
+    let Some(line) = segments.next() else {
+        return false;
+    };
+    !column.is_empty() && !line.is_empty() && column.chars().all(|ch| ch.is_ascii_digit()) && line.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn split_expression_error_payload(value: &str) -> (String, Option<String>, Vec<String>) {
+    let compact = compact_whitespace(value);
+    if compact.is_empty() {
+        return (String::new(), None, Vec::new());
+    }
+
+    let Some((head, tail)) = compact.split_once(" at ") else {
+        return (compact, None, Vec::new());
+    };
+
+    let mut stack = tail.split(" at ").map(str::trim).filter(|segment| !segment.is_empty()).map(|segment| format!("at {segment}")).collect::<Vec<_>>();
+
+    let mut location = None;
+    if let Some(first) = stack.first() {
+        let candidate = first.trim_start_matches("at ").trim();
+        if looks_like_location(candidate) {
+            location = Some(candidate.to_string());
+            stack.remove(0);
+        }
+    }
+
+    (head.trim().to_string(), location, stack)
+}
+
+fn format_expression_error_detail(stage: ExpressionErrorStage, summary: &str, location: Option<&str>, stack: &[String], raw_detail: &str) -> String {
+    let mut lines = vec![format!("error: {summary}"), format!("stage: {}", stage.label())];
+    if let Some(location) = location {
+        lines.push(format!("location: {location}"));
+    }
+    if !stack.is_empty() {
+        lines.push("stack:".to_string());
+        lines.extend(stack.iter().map(|entry| format!("  {entry}")));
+    }
+
+    let raw_lines = raw_detail.lines().map(str::trim).filter(|line| !line.is_empty()).collect::<Vec<_>>();
+    if !raw_lines.is_empty() {
+        lines.push("raw:".to_string());
+        lines.extend(raw_lines.into_iter().map(|line| format!("  {line}")));
+    }
+
+    lines.join("\n")
+}
+
+fn expression_error_diagnostic(stage: ExpressionErrorStage, detail: String) -> ParameterControlDiagnostic {
+    let raw_detail = detail.trim();
+    let peeled = peel_expression_error_wrappers(raw_detail);
+    let (parsed_summary, location, stack) = split_expression_error_payload(peeled.as_str());
+    let summary = if parsed_summary.is_empty() { stage.fallback_summary().to_string() } else { parsed_summary };
+
+    let diagnostic = ParameterControlDiagnostic::new("expression_error", format!("Expression error: {summary}"));
+    let formatted_detail = format_expression_error_detail(stage, summary.as_str(), location.as_deref(), stack.as_slice(), raw_detail);
+    if formatted_detail.trim().is_empty() { diagnostic } else { diagnostic.with_detail(formatted_detail) }
 }
 
 struct ExpressionScriptHostBridge {
@@ -185,7 +298,7 @@ impl<T: Node> Engine<T> {
             .then(|| self.build_process_tree_snapshot());
 
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
-        let mut two_way_links = HashMap::<NodeId, NodeId>::new();
+        let mut binding_targets = HashMap::<NodeId, NodeId>::new();
         let mut queued_writes = Vec::<(NodeId, ParamValue)>::new();
 
         for (param, snapshot) in &param_snapshots {
@@ -215,23 +328,13 @@ impl<T: Node> Engine<T> {
                         None
                     }
                 },
-                ParameterControlMode::Link => match &control.spec {
-                    ParameterControlSpec::Link => {
-                        if let Some(config) = self.read_link_control_config(*param, &mut diagnostics) {
+                ParameterControlMode::Proxy => match &control.spec {
+                    ParameterControlSpec::Proxy => {
+                        if let Some(config) = self.read_reference_control_config(*param, "proxy", &mut diagnostics) {
                             if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
-                                if config.two_way {
-                                    if config.projection.is_some() {
-                                        diagnostics.push(ParameterControlDiagnostic::new("link_projection_unsupported_two_way", "two-way link does not support source projection"));
-                                        None
-                                    } else {
-                                        two_way_links.insert(*param, target_param);
-                                        None
-                                    }
-                                } else {
-                                    self.evaluate_link_one_way(*param, snapshot, target_param, config.projection, &param_snapshots, &mut diagnostics)
-                                }
+                                self.evaluate_proxy_one_way(*param, snapshot, target_param, config.projection, &param_snapshots, &mut diagnostics)
                             } else {
-                                diagnostics.push(ParameterControlDiagnostic::new("link_target_missing", "link target parameter could not be resolved"));
+                                diagnostics.push(ParameterControlDiagnostic::new("proxy_target_missing", "proxy target parameter could not be resolved"));
                                 None
                             }
                         } else {
@@ -239,7 +342,29 @@ impl<T: Node> Engine<T> {
                         }
                     }
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/link mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/proxy mismatch"));
+                        None
+                    }
+                },
+                ParameterControlMode::Binding => match &control.spec {
+                    ParameterControlSpec::Binding => {
+                        if let Some(config) = self.read_reference_control_config(*param, "binding", &mut diagnostics) {
+                            if config.projection.is_some() {
+                                diagnostics.push(ParameterControlDiagnostic::new("binding_projection_unsupported", "binding does not support source projection"));
+                                None
+                            } else if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
+                                binding_targets.insert(*param, target_param);
+                                None
+                            } else {
+                                diagnostics.push(ParameterControlDiagnostic::new("binding_target_missing", "binding target parameter could not be resolved"));
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => {
+                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/binding mismatch"));
                         None
                     }
                 },
@@ -261,7 +386,7 @@ impl<T: Node> Engine<T> {
             diagnostics_by_param.insert(*param, diagnostics);
         }
 
-        let binding_result = self.evaluate_bindings(&two_way_links, &param_snapshots);
+        let binding_result = self.evaluate_bindings(&binding_targets, &param_snapshots);
         for (node, value) in binding_result.pending_writes {
             if param_snapshots.get(&node).is_some_and(|snapshot| snapshot.value != value) {
                 queued_writes.push((node, value));
@@ -337,9 +462,18 @@ impl<T: Node> Engine<T> {
         source
     }
 
+    fn make_control_reference_parameter() -> Parameter {
+        let mut reference = Parameter::new("Reference", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::ValueChange);
+        reference.node_data_mut().meta.decl_id = DeclId(PARAMETER_CONTROL_REFERENCE_DECL_ID.to_string());
+        reference.node_data_mut().meta.can_be_disabled = false;
+        reference.control_modes_enabled = false;
+        reference.constraints.reference.target_kind = ReferenceTargetKind::ParameterOnly;
+        reference
+    }
+
     fn sync_parameter_control_nodes(&mut self, param: NodeId, mode: ParameterControlMode) -> Result<(), String> {
         let children = self.direct_children(param);
-        let mut link_nodes = Vec::<NodeId>::new();
+        let mut control_reference_params = Vec::<NodeId>::new();
         let mut animation_nodes = Vec::<NodeId>::new();
         let mut expression_source_params = Vec::<NodeId>::new();
 
@@ -348,18 +482,16 @@ impl<T: Node> Engine<T> {
                 continue;
             };
 
-            match child_node.get_type() {
-                PARAMETER_LINK_CONTROL_NODE_TYPE => {
-                    link_nodes.push(child);
-                }
-                PARAMETER_ANIMATION_CONTROL_NODE_TYPE => {
-                    animation_nodes.push(child);
-                }
-                _ => {
-                    if child_node.node_data().meta.decl_id.0 == PARAMETER_EXPRESSION_SOURCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
-                        expression_source_params.push(child);
-                    }
-                }
+            if child_node.get_type() == PARAMETER_ANIMATION_CONTROL_NODE_TYPE {
+                animation_nodes.push(child);
+                continue;
+            }
+            if child_node.node_data().meta.decl_id.0 == PARAMETER_EXPRESSION_SOURCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
+                expression_source_params.push(child);
+                continue;
+            }
+            if child_node.node_data().meta.decl_id.0 == PARAMETER_CONTROL_REFERENCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
+                control_reference_params.push(child);
             }
         }
 
@@ -367,16 +499,16 @@ impl<T: Node> Engine<T> {
         let mut to_remove = Vec::<NodeId>::new();
 
         match mode {
-            ParameterControlMode::Link => {
-                if link_nodes.is_empty() {
+            ParameterControlMode::Proxy | ParameterControlMode::Binding => {
+                if control_reference_params.is_empty() {
                     self.edits.push(Edit::AddNode {
                         parent: param,
-                        node: Box::new(ParameterLinkControlNode::new("Link")),
+                        node: Box::new(Self::make_control_reference_parameter()),
                         prev_sibling: None,
                     });
                     changed = true;
                 } else {
-                    to_remove.extend(link_nodes.into_iter().skip(1));
+                    to_remove.extend(control_reference_params.into_iter().skip(1));
                 }
                 to_remove.extend(expression_source_params);
                 to_remove.extend(animation_nodes);
@@ -392,7 +524,7 @@ impl<T: Node> Engine<T> {
                 } else {
                     to_remove.extend(expression_source_params.into_iter().skip(1));
                 }
-                to_remove.extend(link_nodes);
+                to_remove.extend(control_reference_params);
                 to_remove.extend(animation_nodes);
             }
             ParameterControlMode::Animation => {
@@ -406,11 +538,11 @@ impl<T: Node> Engine<T> {
                 } else {
                     to_remove.extend(animation_nodes.into_iter().skip(1));
                 }
-                to_remove.extend(link_nodes);
+                to_remove.extend(control_reference_params);
                 to_remove.extend(expression_source_params);
             }
             _ => {
-                to_remove.extend(link_nodes);
+                to_remove.extend(control_reference_params);
                 to_remove.extend(animation_nodes);
                 to_remove.extend(expression_source_params);
             }
@@ -438,10 +570,6 @@ impl<T: Node> Engine<T> {
         out
     }
 
-    fn find_direct_child_by_type(&self, parent: NodeId, node_type: &str) -> Option<NodeId> {
-        self.direct_children(parent).into_iter().find(|child| self.nodes.get(*child).is_some_and(|node| node.get_type() == node_type))
-    }
-
     fn find_direct_child_by_decl_id(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
         self.direct_children(parent).into_iter().find(|child| self.nodes.get(*child).is_some_and(|node| node.node_data().meta.decl_id.0 == decl_id))
     }
@@ -450,41 +578,23 @@ impl<T: Node> Engine<T> {
         self.nodes.get(param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value)
     }
 
-    fn read_link_control_config(&self, param: NodeId, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<LinkControlConfig> {
-        let Some(link_node) = self.find_direct_child_by_type(param, PARAMETER_LINK_CONTROL_NODE_TYPE) else {
-            diagnostics.push(ParameterControlDiagnostic::new("link_control_missing", "link control node is missing"));
+    fn read_reference_control_config(&self, param: NodeId, mode_code: &str, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ReferenceControlConfig> {
+        let Some(reference_param) = self.find_direct_child_by_decl_id(param, PARAMETER_CONTROL_REFERENCE_DECL_ID) else {
+            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_missing"), format!("{mode_code} reference parameter is missing")));
             return None;
         };
 
-        let Some(target_param) = self.find_direct_child_by_decl_id(link_node, PARAMETER_LINK_TARGET_DECL_ID) else {
-            diagnostics.push(ParameterControlDiagnostic::new("link_target_param_missing", "link target parameter is missing"));
+        let Some(reference_value) = self.read_parameter_value(reference_param) else {
+            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_invalid"), format!("{mode_code} reference node is not a parameter")));
             return None;
         };
 
-        let Some(target_value) = self.read_parameter_value(target_param) else {
-            diagnostics.push(ParameterControlDiagnostic::new("link_target_param_invalid", "link target node is not a parameter"));
+        let ParamValue::Reference(target) = reference_value else {
+            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_type_mismatch"), format!("{mode_code} reference parameter must be a reference parameter")));
             return None;
         };
 
-        let ParamValue::Reference(target) = target_value else {
-            diagnostics.push(ParameterControlDiagnostic::new("link_target_param_type_mismatch", "link target parameter must be a reference parameter"));
-            return None;
-        };
-
-        let mut two_way = false;
-        if let Some(two_way_param) = self.find_direct_child_by_decl_id(link_node, PARAMETER_LINK_TWO_WAY_DECL_ID) {
-            let Some(two_way_value) = self.read_parameter_value(two_way_param) else {
-                diagnostics.push(ParameterControlDiagnostic::new("link_two_way_param_invalid", "link two-way node is not a parameter"));
-                return None;
-            };
-            let Some(parsed) = two_way_value.as_bool() else {
-                diagnostics.push(ParameterControlDiagnostic::new("link_two_way_param_type_mismatch", "link two-way parameter must be boolean-compatible"));
-                return None;
-            };
-            two_way = parsed;
-        }
-
-        Some(LinkControlConfig { projection: target.projection(), target, two_way })
+        Some(ReferenceControlConfig { projection: target.projection(), target })
     }
 
     fn read_expression_control_config(&self, param: NodeId, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ExpressionControlConfig> {
@@ -569,7 +679,7 @@ impl<T: Node> Engine<T> {
         ) {
             Ok(runtime) => runtime,
             Err(message) => {
-                diagnostics.push(expression_error_diagnostic("QuickJS setup failed", message));
+                diagnostics.push(expression_error_diagnostic(ExpressionErrorStage::Setup, message));
                 return None;
             }
         };
@@ -577,7 +687,7 @@ impl<T: Node> Engine<T> {
         let value = match self.evaluate_expression_script(consumer, local_node, tree_snapshot, script_runtime.clone(), symbols, time_seconds, delta_seconds) {
             Ok(value) => value,
             Err(message) => {
-                diagnostics.push(expression_error_diagnostic("QuickJS evaluation failed", message));
+                diagnostics.push(expression_error_diagnostic(ExpressionErrorStage::Evaluation, message));
                 return None;
             }
         };
@@ -599,54 +709,54 @@ impl<T: Node> Engine<T> {
         self.convert_for_target(&value, target_snapshot, "expression", None, diagnostics)
     }
 
-    fn evaluate_link_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_proxy_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
         if target_param == param {
-            diagnostics.push(ParameterControlDiagnostic::new("link_cycle", "one-way link target cannot reference the same parameter"));
+            diagnostics.push(ParameterControlDiagnostic::new("proxy_cycle", "proxy target cannot reference the same parameter"));
             return None;
         }
 
-        if self.link_chain_contains(param, target_param, param_snapshots) {
-            diagnostics.push(ParameterControlDiagnostic::new("link_cycle", "one-way link chain contains a cycle"));
+        if self.proxy_chain_contains(param, target_param, param_snapshots) {
+            diagnostics.push(ParameterControlDiagnostic::new("proxy_cycle", "proxy chain contains a cycle"));
             return None;
         }
 
         let source = match param_snapshots.get(&target_param) {
             Some(snapshot) => snapshot.value.clone(),
             None => {
-                diagnostics.push(ParameterControlDiagnostic::new("link_target_not_parameter", "one-way link target is not a parameter node"));
+                diagnostics.push(ParameterControlDiagnostic::new("proxy_target_not_parameter", "proxy target is not a parameter node"));
                 return None;
             }
         };
 
-        self.convert_for_target(&source, target_snapshot, "link", projection, diagnostics)
+        self.convert_for_target(&source, target_snapshot, "proxy", projection, diagnostics)
     }
 
-    fn evaluate_bindings(&self, two_way_links: &HashMap<NodeId, NodeId>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
+    fn evaluate_bindings(&self, binding_targets: &HashMap<NodeId, NodeId>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
-        if two_way_links.is_empty() {
+        if binding_targets.is_empty() {
             return BindingEvaluation { pending_writes: Vec::new(), diagnostics_by_param };
         }
 
         let mut pairs = HashSet::<(NodeId, NodeId)>::new();
 
-        for (param, target_param) in two_way_links {
+        for (param, target_param) in binding_targets {
             let param = *param;
             let target_param = *target_param;
             let mut diagnostics = Vec::<ParameterControlDiagnostic>::new();
             let Some(_) = param_snapshots.get(&param) else {
-                diagnostics.push(ParameterControlDiagnostic::new("link_param_missing", "two-way link parameter snapshot is missing"));
+                diagnostics.push(ParameterControlDiagnostic::new("binding_param_missing", "binding parameter snapshot is missing"));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             };
 
             if !param_snapshots.contains_key(&target_param) {
-                diagnostics.push(ParameterControlDiagnostic::new("link_target_missing", "two-way link target parameter could not be resolved"));
+                diagnostics.push(ParameterControlDiagnostic::new("binding_target_missing", "binding target parameter could not be resolved"));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             }
 
             if target_param == param {
-                diagnostics.push(ParameterControlDiagnostic::new("link_cycle", "two-way link target cannot reference the same parameter"));
+                diagnostics.push(ParameterControlDiagnostic::new("binding_cycle", "binding target cannot reference the same parameter"));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             }
@@ -675,7 +785,7 @@ impl<T: Node> Engine<T> {
             };
 
             let mut target_diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(converted) = self.convert_for_target(&source_snapshot.value, target_snapshot, "link_two_way", None, &mut target_diagnostics) else {
+            let Some(converted) = self.convert_for_target(&source_snapshot.value, target_snapshot, "binding", None, &mut target_diagnostics) else {
                 if !target_diagnostics.is_empty() {
                     diagnostics_by_param.entry(target).or_default().extend(target_diagnostics);
                 }
@@ -755,7 +865,7 @@ impl<T: Node> Engine<T> {
     fn evaluate_expression_script(&self, consumer: NodeId, local_node: Option<NodeId>, tree_snapshot: Arc<ProcessTreeSnapshot>, runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>, symbols: JsonMap<String, JsonValue>, time_seconds: f64, delta_seconds: f64) -> Result<ParamValue, String> {
         let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
         let mut runtime_guard = runtime.lock().map_err(|_| "expression runtime lock poisoned".to_string())?;
-        let result = runtime_guard.call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host).map_err(|error| format!("expression evaluation failed:\n {error}"))?;
+        let result = runtime_guard.call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host).map_err(|error| format!("expression evaluation failed: {error}"))?;
         script_value_to_param_value(result)
     }
 
@@ -834,7 +944,7 @@ impl<T: Node> Engine<T> {
         param_snapshots.contains_key(&target_node).then_some(target_node)
     }
 
-    fn link_chain_contains(&self, needle: NodeId, mut start: NodeId, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> bool {
+    fn proxy_chain_contains(&self, needle: NodeId, mut start: NodeId, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> bool {
         let mut visited = HashSet::<NodeId>::new();
 
         loop {
@@ -848,22 +958,18 @@ impl<T: Node> Engine<T> {
             let Some(snapshot) = param_snapshots.get(&start) else {
                 return false;
             };
-            if snapshot.control.mode != ParameterControlMode::Link {
+            if snapshot.control.mode != ParameterControlMode::Proxy {
                 return false;
             }
 
-            let ParameterControlSpec::Link = &snapshot.control.spec else {
+            let ParameterControlSpec::Proxy = &snapshot.control.spec else {
                 return false;
             };
 
             let mut diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(config) = self.read_link_control_config(start, &mut diagnostics) else {
+            let Some(config) = self.read_reference_control_config(start, "proxy", &mut diagnostics) else {
                 return false;
             };
-            if config.two_way {
-                return false;
-            }
-
             let Some(next) = self.resolve_control_target_param(&config.target, param_snapshots) else {
                 return false;
             };
@@ -1042,7 +1148,9 @@ impl<T: Node> Engine<T> {
                 let detail = Some(detail_lines.join("\n"));
 
                 let diagnostic_message = diagnostic.message.trim();
-                let message = if diagnostic_message.is_empty() {
+                let message = if control_state.mode == ParameterControlMode::Expression && normalized_code == "expression_error" {
+                    if diagnostic_message.is_empty() { "Expression error".to_string() } else { diagnostic_message.to_string() }
+                } else if diagnostic_message.is_empty() {
                     format!("{} control diagnostic", control_mode_label(control_state.mode))
                 } else {
                     format!("{} control: {}", control_mode_label(control_state.mode), diagnostic_message)
@@ -1246,7 +1354,8 @@ fn control_spec_matches_mode(mode: ParameterControlMode, spec: &ParameterControl
             | (ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { .. })
             | (ParameterControlMode::TemplateText, ParameterControlSpec::TemplateText { .. })
             | (ParameterControlMode::Expression, ParameterControlSpec::Expression)
-            | (ParameterControlMode::Link, ParameterControlSpec::Link)
+            | (ParameterControlMode::Proxy, ParameterControlSpec::Proxy)
+            | (ParameterControlMode::Binding, ParameterControlSpec::Binding)
             | (ParameterControlMode::Animation, ParameterControlSpec::Animation)
     )
 }

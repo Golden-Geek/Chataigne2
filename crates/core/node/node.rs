@@ -5,16 +5,16 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot, ReferenceTargetKind};
+use crate::parameter::{ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-mod handles;
 mod control_animation;
-pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
+mod handles;
 pub use control_animation::ParameterAnimationControlNode;
+pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -537,18 +537,12 @@ pub const USER_CONTEXT_DEFAULT_LABEL: &str = "Context";
 pub const FOLDER_NODE_TYPE: &str = "folder";
 /// Built-in item kind used for parameter control helper nodes.
 pub const PARAMETER_CONTROL_ITEM_KIND: &str = "parameter_control";
-/// Built-in node type id for link control nodes attached to parameters.
-pub const PARAMETER_LINK_CONTROL_NODE_TYPE: &str = "parameter_link_control";
 /// Built-in node type id for animation control nodes attached to parameters.
 pub const PARAMETER_ANIMATION_CONTROL_NODE_TYPE: &str = "parameter_animation_control";
-/// Built-in `decl_id` for parameter link control nodes.
-pub const PARAMETER_LINK_CONTROL_DECL_ID: &str = "link_control";
 /// Built-in `decl_id` for parameter animation control nodes.
 pub const PARAMETER_ANIMATION_CONTROL_DECL_ID: &str = "animation_control";
-/// Built-in child `decl_id` for the linked target reference parameter.
-pub const PARAMETER_LINK_TARGET_DECL_ID: &str = "target";
-/// Built-in child `decl_id` for the link two-way toggle parameter.
-pub const PARAMETER_LINK_TWO_WAY_DECL_ID: &str = "two_way";
+/// Built-in child `decl_id` for control reference parameters used by `proxy`/`binding`.
+pub const PARAMETER_CONTROL_REFERENCE_DECL_ID: &str = "reference";
 /// Built-in child `decl_id` for expression source text on controlled parameters.
 pub const PARAMETER_EXPRESSION_SOURCE_DECL_ID: &str = "expression";
 /// Built-in child `decl_id` for animation waveform selector.
@@ -1857,70 +1851,8 @@ impl Node for UserContextNode {
     }
 }
 
-fn parameter_child_exists(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
+pub(super) fn parameter_child_exists(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
     ctx.tree_snapshot().and_then(|snapshot| snapshot.find_child(parent, decl_id)).is_some()
-}
-
-fn make_link_target_parameter() -> Parameter {
-    let mut target = Parameter::new("Target", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::ValueChange);
-    target.node_data_mut().meta.decl_id = DeclId(PARAMETER_LINK_TARGET_DECL_ID.to_string());
-    target.node_data_mut().meta.can_be_disabled = false;
-    target.control_modes_enabled = false;
-    target.constraints.reference.target_kind = ReferenceTargetKind::ParameterOnly;
-    target
-}
-
-fn make_link_two_way_parameter() -> Parameter {
-    let mut two_way = Parameter::new("Two-Way", ParamValue::Bool(false), ParameterChangeCheck::ValueChange);
-    two_way.node_data_mut().meta.decl_id = DeclId(PARAMETER_LINK_TWO_WAY_DECL_ID.to_string());
-    two_way.node_data_mut().meta.can_be_disabled = false;
-    two_way
-}
-
-/// Internal control node attached to one parameter for link behavior.
-pub struct ParameterLinkControlNode {
-    node_data: NodeData,
-}
-
-impl ParameterLinkControlNode {
-    /// Creates a new link-control node.
-    pub fn new(label: impl Into<String>) -> Self {
-        let mut node_data = NodeData::new(label.into());
-        node_data.meta.can_be_disabled = false;
-        node_data.meta.decl_id = DeclId(PARAMETER_LINK_CONTROL_DECL_ID.to_string());
-        Self { node_data }
-    }
-}
-
-impl Node for ParameterLinkControlNode {
-    fn node_data(&self) -> &NodeData {
-        &self.node_data
-    }
-
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.node_data
-    }
-
-    fn get_type(&self) -> &str {
-        PARAMETER_LINK_CONTROL_NODE_TYPE
-    }
-
-    fn user_item_kind(&self) -> &str {
-        PARAMETER_CONTROL_ITEM_KIND
-    }
-
-    fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_LINK_TARGET_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(make_link_target_parameter()), None);
-        }
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_LINK_TWO_WAY_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(make_link_two_way_parameter()), None);
-        }
-    }
-
-    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
-    }
 }
 
 /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.

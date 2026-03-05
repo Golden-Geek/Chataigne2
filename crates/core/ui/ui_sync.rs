@@ -141,10 +141,7 @@ impl Default for UiParameterControlStateDto {
 
 impl From<ParameterControlState> for UiParameterControlStateDto {
     fn from(state: ParameterControlState) -> Self {
-        Self {
-            mode: state.mode,
-            spec: state.spec,
-        }
+        Self { mode: state.mode, spec: state.spec }
     }
 }
 
@@ -180,7 +177,7 @@ pub struct UiReferenceTargetCandidateDto {
     pub projections: Vec<ParamValueProjection>,
 }
 
-/// UI-facing control candidate for link target pickers.
+/// UI-facing control candidate for proxy/binding target pickers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UiParamCandidateDto {
     /// Candidate parameter node id.
@@ -214,9 +211,12 @@ pub struct UiParamControlInfoDto {
     /// Token suggestions for text/expression editors.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub token_suggestions: Vec<UiTokenSuggestionDto>,
-    /// Candidate link targets.
+    /// Candidate proxy targets.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub link_candidates: Vec<UiParamCandidateDto>,
+    pub proxy_candidates: Vec<UiParamCandidateDto>,
+    /// Candidate binding targets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub binding_candidates: Vec<UiParamCandidateDto>,
 }
 
 /// UI-facing node data summary.
@@ -834,7 +834,8 @@ impl<T: Node> Engine<T> {
         let mut token_suggestions = token_set.into_iter().map(|token| UiTokenSuggestionDto { token }).collect::<Vec<_>>();
         token_suggestions.sort_by(|left, right| left.token.cmp(&right.token));
 
-        let mut link_candidates = Vec::<UiParamCandidateDto>::new();
+        let mut proxy_candidates = Vec::<UiParamCandidateDto>::new();
+        let mut binding_candidates = Vec::<UiParamCandidateDto>::new();
         for (candidate_id, candidate_node) in self.nodes.iter() {
             if candidate_id == param_node {
                 continue;
@@ -843,14 +844,19 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let compatibility = compatibility_for_values(&candidate_snapshot.value, &snapshot.value);
-            let candidate = UiParamCandidateDto {
+            proxy_candidates.push(UiParamCandidateDto {
                 param: candidate_id,
                 compatible: compatibility.is_compatible(),
                 projections: compatibility.projections,
-            };
-            link_candidates.push(candidate);
+            });
+            binding_candidates.push(UiParamCandidateDto {
+                param: candidate_id,
+                compatible: compatibility.direct,
+                projections: Vec::new(),
+            });
         }
-        link_candidates.sort_by_key(|candidate| candidate.param.0);
+        proxy_candidates.sort_by_key(|candidate| candidate.param.0);
+        binding_candidates.sort_by_key(|candidate| candidate.param.0);
 
         Ok(UiParamControlInfoDto {
             param: param_node,
@@ -858,7 +864,8 @@ impl<T: Node> Engine<T> {
             available_modes,
             context_candidates,
             token_suggestions,
-            link_candidates,
+            proxy_candidates,
+            binding_candidates,
         })
     }
 
