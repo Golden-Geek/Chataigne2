@@ -934,22 +934,13 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::SetParamControlState { node, state } => match self.set_param_control_state(node, state.into()) {
-                Ok(changed) => {
-                    if changed {
-                        self.evaluate_parameter_controls();
-                    }
-                    let result = if self.edits.pending.is_empty() { Ok(()) } else { self.apply_edits_without_history() };
-                    self.finish_ui_apply_now(before_len, result)
+            UiEditIntent::SetParamControlState { node, state } => match self.apply_set_param_control_state(0, node, state.into()) {
+                Ok(Some(effect)) => {
+                    self.record_set_param_control_state_history(effect);
+                    self.finish_ui_apply_now(before_len, Ok(()))
                 }
-                Err(message) => UiAck {
-                    success: false,
-                    status: UiAckStatus::Rejected,
-                    error_code: Some("param_control_error".to_string()),
-                    error_message: Some(message),
-                    earliest_event_time: None,
-                    history: self.ui_history_state(),
-                },
+                Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
+                Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
             },
             UiEditIntent::MoveNode { node, new_parent, new_prev_sibling } => {
                 self.edits.push(Edit::MoveNode { node, new_parent, new_prev_sibling });
@@ -1274,6 +1265,7 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::NodeTypeMismatch { .. } => "node_type_mismatch",
         crate::engine::EngineEditError::ParamEditTargetMismatch { .. } => "param_edit_target_mismatch",
         crate::engine::EngineEditError::ParamConstraintViolation { .. } => "param_constraint_violation",
+        crate::engine::EngineEditError::ParamControlStateRejected { .. } => "param_control_error",
         crate::engine::EngineEditError::ScriptConfigRejected { .. } => "script_config_rejected",
         crate::engine::EngineEditError::ScriptPropertyRejected { .. } => "script_property_rejected",
         crate::engine::EngineEditError::ScriptMethodRejected { .. } => "script_method_rejected",

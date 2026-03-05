@@ -3943,7 +3943,7 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
     });
     assert!(ack.success);
     assert_eq!(ack.status, UiAckStatus::Applied);
-    assert_eq!(engine.undo_len(), undo_before, "control-mode change should not create history entries");
+    assert_eq!(engine.undo_len(), undo_before + 1, "control-mode change should create one history entry");
     assert!(
         engine.ui_event_log().iter().any(|event| matches!(
             &event.kind,
@@ -3956,6 +3956,20 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate controls");
     let gain_snapshot = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain snapshot should exist");
     assert_eq!(gain_snapshot.value, ParamValue::Float(120.0));
+
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(undo_ack.success, "undo should succeed for control-mode change");
+    let gain_after_undo = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain snapshot should exist after undo");
+    assert_eq!(gain_after_undo.control.mode, ParameterControlMode::Manual, "undo should restore manual mode");
+
+    let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
+    assert!(redo_ack.success, "redo should succeed for control-mode change");
+    let gain_after_redo = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain snapshot should exist after redo");
+    assert_eq!(
+        gain_after_redo.control.mode,
+        ParameterControlMode::ContextLink,
+        "redo should restore context-link mode"
+    );
 }
 
 #[test]

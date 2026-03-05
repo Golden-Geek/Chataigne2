@@ -14,7 +14,8 @@ use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 
-use super::{Engine, ExpressionControlRuntime};
+use super::engine_history::SetParamControlStateEffect;
+use super::{Engine, EngineEditError, ExpressionControlRuntime};
 
 #[derive(Clone, Debug, PartialEq)]
 enum TemplateSegment {
@@ -464,6 +465,93 @@ impl<T: Node> Engine<T> {
     /// Returns `true` when the state changed.
     pub fn set_param_control_state(&mut self, param: NodeId, state: ParameterControlState) -> Result<bool, String> {
         self.set_param_control_state_impl(param, state)
+    }
+
+    fn param_control_rejected_error(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+        message: String,
+    ) -> EngineEditError {
+        let node_type = self.nodes.get(node).map(|entry| entry.get_type().to_string()).unwrap_or_else(|| "unknown".to_string());
+        EngineEditError::ParamControlStateRejected {
+            edit_index,
+            operation,
+            node,
+            node_type,
+            message,
+        }
+    }
+
+    fn read_param_control_state_for_edit(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+    ) -> Result<ParameterControlState, EngineEditError> {
+        let Some(target) = self.nodes.get(node) else {
+            return Err(EngineEditError::NodeNotFound {
+                edit_index,
+                operation,
+                node,
+            });
+        };
+        target.engine_param_control_state().ok_or_else(|| {
+            self.param_control_rejected_error(
+                edit_index,
+                operation,
+                node,
+                "target node does not expose parameter control state".to_string(),
+            )
+        })
+    }
+
+    fn apply_set_param_control_state_internal(
+        &mut self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+        let old_state = self.read_param_control_state_for_edit(edit_index, operation, node)?;
+        let changed = self
+            .set_param_control_state_impl(node, state)
+            .map_err(|message| self.param_control_rejected_error(edit_index, operation, node, message))?;
+        if !changed {
+            return Ok(None);
+        }
+
+        let new_state = self.read_param_control_state_for_edit(edit_index, operation, node)?;
+        let _ = self.evaluate_parameter_controls();
+        if !self.edits.pending.is_empty() {
+            self.apply_edits_without_history()?;
+        }
+
+        Ok(Some(SetParamControlStateEffect {
+            node,
+            old_state,
+            new_state,
+        }))
+    }
+
+    pub(crate) fn apply_set_param_control_state(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+        self.apply_set_param_control_state_internal(edit_index, "SetParamControlState", node, state)
+    }
+
+    pub(crate) fn apply_set_param_control_state_for_history(
+        &mut self,
+        operation: &'static str,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<(), EngineEditError> {
+        let _ = self.apply_set_param_control_state_internal(0, operation, node, state)?;
+        Ok(())
     }
 
     fn make_expression_source_parameter(initial_expression: String) -> Parameter {

@@ -1,7 +1,7 @@
 use crate::edit::EditOrigin;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMeta, NodeMetaPatch};
-use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterControlState, ParameterEventBehaviour};
 use crate::script::ScriptNodeConfig;
 
 use super::{Engine, EngineEditError};
@@ -116,6 +116,8 @@ impl<T: Node> ActiveEditSession<T> {
 pub(crate) enum HistoryStep<T: Node> {
     /// Parameter value update history.
     SetParam(SetParamHistory),
+    /// Parameter control-state update history.
+    SetParamControlState(SetParamControlStateHistory),
     /// Node metadata patch history.
     PatchMeta(PatchMetaHistory),
     /// Script configuration update history.
@@ -136,6 +138,9 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
+            }
+            Self::SetParamControlState(step) => {
+                engine.apply_set_param_control_state_for_history("UndoSetParamControlState", step.node, step.old_state.clone())?;
             }
             Self::PatchMeta(step) => {
                 let enabled_changed = {
@@ -288,6 +293,9 @@ impl<T: Node> HistoryStep<T> {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
             }
+            Self::SetParamControlState(step) => {
+                engine.apply_set_param_control_state_for_history("RedoSetParamControlState", step.node, step.new_state.clone())?;
+            }
             Self::PatchMeta(step) => {
                 let enabled_changed = {
                     let current = engine.nodes.get(step.node).ok_or(EngineEditError::NodeNotFound {
@@ -439,7 +447,7 @@ impl<T: Node> HistoryStep<T> {
     /// Releases detached node payloads owned by this step, if any.
     fn dispose(&mut self, engine: &mut Engine<T>) {
         match self {
-            Self::SetParam(_) | Self::PatchMeta(_) | Self::SetScriptConfig(_) | Self::MoveNode(_) => {}
+            Self::SetParam(_) | Self::SetParamControlState(_) | Self::PatchMeta(_) | Self::SetScriptConfig(_) | Self::MoveNode(_) => {}
             Self::AddNode(step) => {
                 if let Some(node) = step.detached_node.take() {
                     purge_detached_node(engine, step.node, node);
@@ -500,6 +508,16 @@ pub(crate) struct SetParamEffect {
     pub(crate) behaviour: ParameterEventBehaviour,
     /// Tick at which this edit was applied.
     pub(crate) tick: u64,
+}
+
+/// Captured effect for a successful `SetParamControlState` operation.
+pub(crate) struct SetParamControlStateEffect {
+    /// Edited parameter node id.
+    pub(crate) node: NodeId,
+    /// Control state before the edit.
+    pub(crate) old_state: ParameterControlState,
+    /// Control state after the edit.
+    pub(crate) new_state: ParameterControlState,
 }
 
 /// Captured effect for a successful `PatchMeta` edit.
@@ -596,6 +614,16 @@ pub(crate) struct SetParamHistory {
     behaviour: ParameterEventBehaviour,
     /// Tick at which this edit was applied.
     tick: u64,
+}
+
+/// Undo/redo payload for control-state updates.
+pub(crate) struct SetParamControlStateHistory {
+    /// Edited parameter node id.
+    node: NodeId,
+    /// Control state before the edit.
+    old_state: ParameterControlState,
+    /// Control state after the edit.
+    new_state: ParameterControlState,
 }
 
 /// Undo/redo payload for metadata patches.
@@ -698,6 +726,16 @@ impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
     }
 }
 
+impl<T: Node> From<SetParamControlStateEffect> for HistoryStep<T> {
+    fn from(effect: SetParamControlStateEffect) -> Self {
+        Self::SetParamControlState(SetParamControlStateHistory {
+            node: effect.node,
+            old_state: effect.old_state,
+            new_state: effect.new_state,
+        })
+    }
+}
+
 impl<T: Node> From<PatchMetaEffect> for HistoryStep<T> {
     fn from(effect: PatchMetaEffect) -> Self {
         Self::PatchMeta(PatchMetaHistory {
@@ -773,6 +811,23 @@ impl<T: Node> From<ReplaceNodeEffect<T>> for HistoryStep<T> {
 }
 
 impl<T: Node> Engine<T> {
+    fn record_single_history_step(&mut self, step: HistoryStep<T>) {
+        self.clear_redo_history();
+        if let Some(active) = self.active_edit_session.as_mut() {
+            active.transaction.push(step);
+            return;
+        }
+
+        let mut transaction = HistoryTransaction::new();
+        transaction.push(step);
+        self.push_undo_transaction(transaction);
+    }
+
+    /// Records a parameter control-state update in undo/redo history.
+    pub(crate) fn record_set_param_control_state_history(&mut self, effect: SetParamControlStateEffect) {
+        self.record_single_history_step(effect.into());
+    }
+
     fn drop_active_edit_session_history(&mut self) {
         let Some(mut active) = self.active_edit_session.take() else {
             return;
