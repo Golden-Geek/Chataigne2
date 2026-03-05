@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeUuid, PARAMETER_CONTROL_REFERENCE_DECL_ID};
-use crate::parameter::{ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_values, default_param_value_for_type_id};
+use crate::parameter::{ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_binding_values, compatibility_for_values, default_param_value_for_type_id};
 
 use super::Engine;
 
@@ -280,7 +280,7 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    fn control_reference_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
+    fn control_reference_context(&self, param_node: NodeId) -> Option<(ParameterControlMode, ParamValue)> {
         let param_entry = self.nodes.get(param_node)?;
         if param_entry.node_data().meta.decl_id.0 != PARAMETER_CONTROL_REFERENCE_DECL_ID {
             return None;
@@ -293,7 +293,15 @@ impl<T: Node> Engine<T> {
             return None;
         }
 
-        self.nodes.get(controlled_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value)
+        self.nodes.get(controlled_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| (control_state.mode, snapshot.value))
+    }
+
+    fn control_reference_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
+        self.control_reference_context(param_node).map(|(_, value)| value)
+    }
+
+    fn control_reference_uses_binding_compatibility(&self, param_node: NodeId) -> bool {
+        self.control_reference_context(param_node).is_some_and(|(mode, _)| mode == ParameterControlMode::Binding)
     }
 
     pub(crate) fn expected_reference_parameter_values(&self, param_node: NodeId, constraints: &ReferenceConstraints) -> Vec<ParamValue> {
@@ -308,10 +316,10 @@ impl<T: Node> Engine<T> {
         expected_values
     }
 
-    fn compatibility_for_expected_values(&self, candidate_value: &ParamValue, expected_values: &[ParamValue]) -> ParamValueCompatibility {
+    fn compatibility_for_expected_values(&self, candidate_value: &ParamValue, expected_values: &[ParamValue], binding_semantics: bool) -> ParamValueCompatibility {
         let mut combined = ParamValueCompatibility::default();
         for expected in expected_values {
-            let compatibility = compatibility_for_values(candidate_value, expected);
+            let compatibility = if binding_semantics { compatibility_for_binding_values(candidate_value, expected) } else { compatibility_for_values(candidate_value, expected) };
             combined.direct |= compatibility.direct;
             combined.projections.extend(compatibility.projections);
         }
@@ -327,17 +335,18 @@ impl<T: Node> Engine<T> {
         compatibility
     }
 
-    pub(crate) fn reference_candidate_compatibility_for_expected_values(&self, candidate: NodeId, expected_parameter_values: &[ParamValue], constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
+    pub(crate) fn reference_candidate_compatibility_for_expected_values(&self, param_node: NodeId, candidate: NodeId, expected_parameter_values: &[ParamValue], constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
         if expected_parameter_values.is_empty() {
             return None;
         }
         let candidate_snapshot = self.nodes.get(candidate)?.engine_param_snapshot()?;
-        Some(self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values), constraints))
+        let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
+        Some(self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values, binding_semantics), constraints))
     }
 
     pub(crate) fn reference_candidate_compatibility_for_param(&self, param_node: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
         let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
-        self.reference_candidate_compatibility_for_expected_values(candidate, expected_parameter_values.as_slice(), constraints)
+        self.reference_candidate_compatibility_for_expected_values(param_node, candidate, expected_parameter_values.as_slice(), constraints)
     }
 
     pub(crate) fn reference_candidate_allowed(&self, param_node: NodeId, root: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Result<bool, String> {
@@ -371,7 +380,8 @@ impl<T: Node> Engine<T> {
             let Some(candidate_snapshot) = candidate_node.engine_param_snapshot() else {
                 return Ok(false);
             };
-            let compatibility = self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values.as_slice()), constraints);
+            let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
+            let compatibility = self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values.as_slice(), binding_semantics), constraints);
             if !compatibility.is_compatible() {
                 return Ok(false);
             }

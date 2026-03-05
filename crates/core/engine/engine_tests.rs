@@ -3369,7 +3369,7 @@ fn control_mode_expression_diagnostics_surface_node_warnings() {
 }
 
 #[test]
-fn control_mode_proxy_diagnostics_surface_node_warnings() {
+fn control_mode_proxy_ignores_empty_reference_and_warns_for_missing_target() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
 
@@ -3382,11 +3382,19 @@ fn control_mode_proxy_diagnostics_surface_node_warnings() {
     let target_uuid = engine.nodes.get(target).expect("target node should exist").node_data().meta.uuid;
 
     engine.set_param_control_state(source, ParameterControlState::new(ParameterControlMode::Proxy, ParameterControlSpec::Proxy)).expect("proxy state should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate empty proxy");
+
+    assert!(
+        engine.nodes.get(source).expect("source should exist").node_data().meta.presentation.warning(Some("control-diagnostic:proxy:proxy_target_missing")).is_none(),
+        "empty proxy reference should not emit diagnostics",
+    );
+
+    configure_control_reference(&mut engine, source, NodeUuid(Uuid::new_v4()));
     engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate proxy diagnostics");
 
     assert!(
         engine.nodes.get(source).expect("source should exist").node_data().meta.presentation.warning(Some("control-diagnostic:proxy:proxy_target_missing")).is_some(),
-        "missing proxy target diagnostics should surface as node warnings",
+        "dangling proxy target should surface diagnostics",
     );
 
     configure_control_reference(&mut engine, source, target_uuid);
@@ -3395,6 +3403,52 @@ fn control_mode_proxy_diagnostics_surface_node_warnings() {
     assert!(
         engine.nodes.get(source).expect("source should still exist").node_data().meta.presentation.warning(Some("control-diagnostic:proxy:proxy_target_missing")).is_none(),
         "warning should clear once proxy diagnostics clear",
+    );
+}
+
+#[test]
+fn control_mode_context_link_ignores_empty_symbol() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("value", ParamValue::Float(3.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let value = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("value should exist");
+
+    engine
+        .set_param_control_state(value, ParameterControlState::new(ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol: String::new(), projection: None }))
+        .expect("context-link state should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate empty context link");
+
+    let snapshot = engine.nodes.get(value).and_then(|node| node.engine_param_snapshot()).expect("value snapshot should exist");
+    assert_eq!(snapshot.value, ParamValue::Float(3.0));
+    assert!(snapshot.control.diagnostics.is_empty(), "empty context symbol should not produce diagnostics");
+    assert!(
+        engine.nodes.get(value).expect("value should exist").node_data().meta.presentation.warning(Some("control-diagnostic:context-link:context_symbol_missing")).is_none(),
+        "empty context symbol should not emit missing-symbol warnings",
+    );
+}
+
+#[test]
+fn control_mode_expression_ignores_empty_source() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("value", ParamValue::Float(3.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let value = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("value should exist");
+
+    engine.set_param_control_state(value, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate empty expression");
+
+    let snapshot = engine.nodes.get(value).and_then(|node| node.engine_param_snapshot()).expect("value snapshot should exist");
+    assert_eq!(snapshot.value, ParamValue::Float(3.0));
+    assert!(snapshot.control.diagnostics.is_empty(), "empty expression should not produce diagnostics");
+    assert!(
+        engine.nodes.get(value).expect("value should exist").node_data().meta.presentation.warning(Some("control-diagnostic:expression:expression_error")).is_none(),
+        "empty expression should not emit expression warnings",
     );
 }
 
@@ -3521,6 +3575,57 @@ fn control_mode_binding_single_side_syncs_referenced_parameter() {
 }
 
 #[test]
+fn control_mode_binding_projection_roundtrips_bidirectionally() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("a", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("b", ParamValue::Vec2(9.0, 2.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("a should exist");
+    let b = engine.nodes.get(a).and_then(|node| node.node_data().next_sibling).expect("b should exist");
+    let b_uuid = engine.nodes.get(b).expect("b node should exist").node_data().meta.uuid;
+
+    engine.set_param_control_state(a, ParameterControlState::new(ParameterControlMode::Binding, ParameterControlSpec::Binding)).expect("binding state for a should be accepted");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate empty binding");
+    assert!(
+        engine.nodes.get(a).expect("a should exist").node_data().meta.presentation.warning(Some("control-diagnostic:binding:binding_target_missing")).is_none(),
+        "empty binding reference should not emit missing-target warning",
+    );
+
+    configure_control_reference_with_projection(&mut engine, a, b_uuid, Some(ParamValueProjection::Vec2X));
+    engine.run_tick(Duration::from_millis(1)).expect("tick should apply binding projection");
+
+    let a_snapshot = engine.nodes.get(a).and_then(|node| node.engine_param_snapshot()).expect("a snapshot should exist");
+    let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
+    assert_eq!(a_snapshot.value, ParamValue::Float(1.0));
+    assert_eq!(b_snapshot.value, ParamValue::Vec2(1.0, 2.0));
+
+    engine.edits.push(Edit::SetParam {
+        node: b,
+        value: ParamValue::Vec2(7.0, 3.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("manual b write should apply");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should write forward projection");
+
+    let a_snapshot = engine.nodes.get(a).and_then(|node| node.engine_param_snapshot()).expect("a snapshot should exist");
+    assert_eq!(a_snapshot.value, ParamValue::Float(7.0));
+
+    engine.edits.push(Edit::SetParam {
+        node: a,
+        value: ParamValue::Float(4.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("manual a write should apply");
+    engine.run_tick(Duration::from_millis(1)).expect("tick should write reverse projection");
+
+    let b_snapshot = engine.nodes.get(b).and_then(|node| node.engine_param_snapshot()).expect("b snapshot should exist");
+    assert_eq!(b_snapshot.value, ParamValue::Vec2(4.5, 3.0));
+}
+
+#[test]
 fn control_reference_rejects_missing_required_projection() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -3588,6 +3693,29 @@ fn ui_reference_targets_report_projection_options_for_control_reference_paramete
 
     assert!(!candidate.direct, "vec2->float should require projection");
     assert_eq!(candidate.projections, vec![ParamValueProjection::Vec2X, ParamValueProjection::Vec2Y]);
+}
+
+#[test]
+fn ui_reference_targets_for_binding_use_bidirectional_compatibility() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("source", ParamValue::Color(0.1, 0.2, 0.3, 0.7), ParameterChangeCheck::ValueChange).into(), None);
+    engine.add_node(Parameter::new("target", ParamValue::Vec3(0.0, 0.0, 0.0), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("parameter add should succeed");
+
+    let source = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("source should exist");
+    let target = engine.nodes.get(source).and_then(|node| node.node_data().next_sibling).expect("target should exist");
+
+    engine.set_param_control_state(target, ParameterControlState::new(ParameterControlMode::Binding, ParameterControlSpec::Binding)).expect("binding state should be accepted");
+    let target_param = find_child_by_decl(&engine, target, PARAMETER_CONTROL_REFERENCE_DECL_ID).expect("control reference parameter should exist");
+
+    let targets = engine.ui_reference_targets_for_param(target_param);
+    let candidate = targets.candidates.iter().find(|candidate| candidate.target == source).expect("source should be exposed as one reference target candidate");
+
+    assert!(!candidate.direct, "binding compatibility should require bidirectional direct conversion");
+    assert!(candidate.projections.contains(&ParamValueProjection::ColorToVec3Rgb));
+    assert!(candidate.projections.contains(&ParamValueProjection::ColorToVec3Hsv));
 }
 
 #[test]

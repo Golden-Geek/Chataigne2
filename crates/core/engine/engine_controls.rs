@@ -7,7 +7,8 @@ use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
 use crate::node::{DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, ParameterAnimationControlNode};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind, available_control_modes_for_parameter, coerce_param_value_for_target,
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind, available_control_modes_for_parameter,
+    coerce_param_value_for_target, coerce_param_value_for_target_reverse,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
@@ -24,6 +25,12 @@ enum TemplateSegment {
 struct BindingEvaluation {
     pending_writes: Vec<(NodeId, ParamValue)>,
     diagnostics_by_param: HashMap<NodeId, Vec<ParameterControlDiagnostic>>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct BindingTargetConfig {
+    target: NodeId,
+    projection: Option<ParamValueProjection>,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +94,10 @@ fn control_mode_label(mode: ParameterControlMode) -> &'static str {
         ParameterControlMode::Binding => "Binding",
         ParameterControlMode::Animation => "Animation",
     }
+}
+
+fn reference_target_is_unset(reference: &NodeReference) -> bool {
+    reference.uuid().is_nil() && reference.relative_path_from_root().is_empty()
 }
 
 fn strip_prefix_case_insensitive<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
@@ -298,7 +309,7 @@ impl<T: Node> Engine<T> {
             .then(|| self.build_process_tree_snapshot());
 
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
-        let mut binding_targets = HashMap::<NodeId, NodeId>::new();
+        let mut binding_targets = HashMap::<NodeId, BindingTargetConfig>::new();
         let mut queued_writes = Vec::<(NodeId, ParamValue)>::new();
 
         for (param, snapshot) in &param_snapshots {
@@ -331,7 +342,9 @@ impl<T: Node> Engine<T> {
                 ParameterControlMode::Proxy => match &control.spec {
                     ParameterControlSpec::Proxy => {
                         if let Some(config) = self.read_reference_control_config(*param, "proxy", &mut diagnostics) {
-                            if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
+                            if reference_target_is_unset(&config.target) {
+                                None
+                            } else if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
                                 self.evaluate_proxy_one_way(*param, snapshot, target_param, config.projection, &param_snapshots, &mut diagnostics)
                             } else {
                                 diagnostics.push(ParameterControlDiagnostic::new("proxy_target_missing", "proxy target parameter could not be resolved"));
@@ -349,11 +362,10 @@ impl<T: Node> Engine<T> {
                 ParameterControlMode::Binding => match &control.spec {
                     ParameterControlSpec::Binding => {
                         if let Some(config) = self.read_reference_control_config(*param, "binding", &mut diagnostics) {
-                            if config.projection.is_some() {
-                                diagnostics.push(ParameterControlDiagnostic::new("binding_projection_unsupported", "binding does not support source projection"));
+                            if reference_target_is_unset(&config.target) {
                                 None
                             } else if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
-                                binding_targets.insert(*param, target_param);
+                                binding_targets.insert(*param, BindingTargetConfig { target: target_param, projection: config.projection });
                                 None
                             } else {
                                 diagnostics.push(ParameterControlDiagnostic::new("binding_target_missing", "binding target parameter could not be resolved"));
@@ -617,6 +629,10 @@ impl<T: Node> Engine<T> {
     }
 
     fn evaluate_context_link(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, symbol: &str, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+        let symbol = symbol.trim();
+        if symbol.is_empty() {
+            return None;
+        }
         let source = self.resolve_context_symbol_value(consumer, symbol, None, param_snapshots, diagnostics)?;
         self.convert_for_target(&source, target_snapshot, "context_link", projection, diagnostics)
     }
@@ -650,6 +666,10 @@ impl<T: Node> Engine<T> {
             self.clear_expression_runtime(consumer);
             return None;
         };
+        if config.expression.trim().is_empty() {
+            self.clear_expression_runtime(consumer);
+            return None;
+        }
         let Some(tree_snapshot) = tree_snapshot.cloned() else {
             diagnostics.push(ParameterControlDiagnostic::new("expression_runtime_error", "expression runtime tree snapshot is unavailable"));
             return None;
@@ -731,7 +751,7 @@ impl<T: Node> Engine<T> {
         self.convert_for_target(&source, target_snapshot, "proxy", projection, diagnostics)
     }
 
-    fn evaluate_bindings(&self, binding_targets: &HashMap<NodeId, NodeId>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
+    fn evaluate_bindings(&self, binding_targets: &HashMap<NodeId, BindingTargetConfig>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
         if binding_targets.is_empty() {
             return BindingEvaluation { pending_writes: Vec::new(), diagnostics_by_param };
@@ -739,9 +759,9 @@ impl<T: Node> Engine<T> {
 
         let mut pairs = HashSet::<(NodeId, NodeId)>::new();
 
-        for (param, target_param) in binding_targets {
+        for (param, config) in binding_targets {
             let param = *param;
-            let target_param = *target_param;
+            let target_param = config.target;
             let mut diagnostics = Vec::<ParameterControlDiagnostic>::new();
             let Some(_) = param_snapshots.get(&param) else {
                 diagnostics.push(ParameterControlDiagnostic::new("binding_param_missing", "binding parameter snapshot is missing"));
@@ -785,7 +805,7 @@ impl<T: Node> Engine<T> {
             };
 
             let mut target_diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(converted) = self.convert_for_target(&source_snapshot.value, target_snapshot, "binding", None, &mut target_diagnostics) else {
+            let Some(converted) = self.convert_binding_for_target(source, &source_snapshot.value, target, target_snapshot, binding_targets, &mut target_diagnostics) else {
                 if !target_diagnostics.is_empty() {
                     diagnostics_by_param.entry(target).or_default().extend(target_diagnostics);
                 }
@@ -810,6 +830,18 @@ impl<T: Node> Engine<T> {
         pending_writes.sort_by_key(|(node, _)| node.0);
 
         BindingEvaluation { pending_writes, diagnostics_by_param }
+    }
+
+    fn convert_binding_for_target(&self, source: NodeId, source_value: &ParamValue, target: NodeId, target_snapshot: &ParameterSnapshot, binding_targets: &HashMap<NodeId, BindingTargetConfig>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+        if let Some(config) = binding_targets.get(&target).filter(|config| config.target == source) {
+            return self.convert_for_target(source_value, target_snapshot, "binding", config.projection, diagnostics);
+        }
+
+        if let Some(config) = binding_targets.get(&source).filter(|config| config.target == target) {
+            return self.convert_for_target_reverse(source_value, target_snapshot, "binding", config.projection, diagnostics);
+        }
+
+        self.convert_for_target(source_value, target_snapshot, "binding", None, diagnostics)
     }
 
     fn expression_symbols_and_dependencies(&self, consumer: NodeId, expression: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
@@ -978,10 +1010,30 @@ impl<T: Node> Engine<T> {
     }
 
     fn convert_for_target(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
-        let converted = coerce_param_value_for_target(source, &target_snapshot.value, projection);
+        self.convert_for_target_with_direction(source, target_snapshot, mode, projection, false, diagnostics)
+    }
+
+    fn convert_for_target_reverse(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+        self.convert_for_target_with_direction(source, target_snapshot, mode, projection, true, diagnostics)
+    }
+
+    fn convert_for_target_with_direction(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, reverse_projection: bool, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+        let converted = if reverse_projection {
+            coerce_param_value_for_target_reverse(source, &target_snapshot.value, projection)
+        } else {
+            coerce_param_value_for_target(source, &target_snapshot.value, projection)
+        };
 
         let Some(converted) = converted else {
-            let projection_label = projection.map(|projection| format!(" with projection '{}'", projection.variant_id())).unwrap_or_default();
+            let projection_label = projection
+                .map(|projection| {
+                    if reverse_projection {
+                        format!(" with reverse projection '{}'", projection.variant_id())
+                    } else {
+                        format!(" with projection '{}'", projection.variant_id())
+                    }
+                })
+                .unwrap_or_default();
             diagnostics.push(ParameterControlDiagnostic::new(
                 "control_type_incompatible",
                 format!("control mode '{}' cannot convert value {:?}{} for target {:?}", mode, source, projection_label, target_snapshot.value),

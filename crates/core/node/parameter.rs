@@ -465,10 +465,7 @@ pub fn compatibility_for_binding_values(source: &ParamValue, target: &ParamValue
     let direct = coerce_param_value_for_target(source, target, None).is_some() && coerce_param_value_for_target(target, source, None).is_some();
     let projections = ParamValueProjection::available_for_source(source)
         .into_iter()
-        .filter(|projection| {
-            coerce_param_value_for_target(source, target, Some(*projection)).is_some()
-                && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some()
-        })
+        .filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some() && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some())
         .collect();
 
     ParamValueCompatibility { direct, projections }
@@ -2086,5 +2083,31 @@ mod tests {
         approx_eq(g, 0.0);
         approx_eq(b, 0.0);
         approx_eq(a, 0.25);
+    }
+
+    #[test]
+    fn reverse_projection_preserves_target_components() {
+        assert_eq!(coerce_param_value_for_target_reverse(&ParamValue::Float(3.5), &ParamValue::Vec2(1.0, 2.0), Some(ParamValueProjection::Vec2X)), Some(ParamValue::Vec2(3.5, 2.0)));
+        assert_eq!(coerce_param_value_for_target_reverse(&ParamValue::Float(9.0), &ParamValue::Vec3(1.0, 2.0, 3.0), Some(ParamValueProjection::Vec3Y)), Some(ParamValue::Vec3(1.0, 9.0, 3.0)));
+        assert_eq!(
+            coerce_param_value_for_target_reverse(&ParamValue::Float(0.6), &ParamValue::Color(0.1, 0.2, 0.3, 0.4), Some(ParamValueProjection::ColorB)),
+            Some(ParamValue::Color(0.1, 0.2, 0.6, 0.4))
+        );
+    }
+
+    #[test]
+    fn binding_compatibility_requires_bidirectional_direct_conversion() {
+        let compatibility = compatibility_for_binding_values(&ParamValue::Color(0.1, 0.2, 0.3, 1.0), &ParamValue::Vec3(0.0, 0.0, 0.0));
+        assert!(!compatibility.direct, "color->vec3 is direct, but vec3->color is not");
+        assert!(compatibility.projections.contains(&ParamValueProjection::ColorToVec3Rgb));
+    }
+
+    #[test]
+    fn binding_projection_roundtrips_vec2_x_to_float() {
+        let forward = coerce_param_value_for_target(&ParamValue::Vec2(8.0, 4.0), &ParamValue::Float(0.0), Some(ParamValueProjection::Vec2X)).expect("vec2 x projection should produce float");
+        assert_eq!(forward, ParamValue::Float(8.0));
+
+        let reverse = coerce_param_value_for_target_reverse(&ParamValue::Float(6.0), &ParamValue::Vec2(8.0, 4.0), Some(ParamValueProjection::Vec2X)).expect("reverse vec2 x projection should update vec2");
+        assert_eq!(reverse, ParamValue::Vec2(6.0, 4.0));
     }
 }

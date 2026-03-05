@@ -8,7 +8,9 @@ use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
-use crate::parameter::{ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_values};
+use crate::parameter::{
+    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+};
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
@@ -782,7 +784,7 @@ impl<T: Node> Engine<T> {
         let mut candidates = allowed_targets
             .iter()
             .map(|target| {
-                if let Some(compatibility) = self.reference_candidate_compatibility_for_expected_values(*target, expected_parameter_values.as_slice(), &constraints) {
+                if let Some(compatibility) = self.reference_candidate_compatibility_for_expected_values(param_node, *target, expected_parameter_values.as_slice(), &constraints) {
                     UiReferenceTargetCandidateDto {
                         target: *target,
                         direct: compatibility.direct,
@@ -849,10 +851,11 @@ impl<T: Node> Engine<T> {
                 compatible: compatibility.is_compatible(),
                 projections: compatibility.projections,
             });
+            let binding_compatibility = compatibility_for_binding_values(&candidate_snapshot.value, &snapshot.value);
             binding_candidates.push(UiParamCandidateDto {
                 param: candidate_id,
-                compatible: compatibility.direct,
-                projections: Vec::new(),
+                compatible: binding_compatibility.is_compatible(),
+                projections: binding_compatibility.projections,
             });
         }
         proxy_candidates.sort_by_key(|candidate| candidate.param.0);
