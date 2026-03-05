@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::animation_curve::{AnimationCurve, AnimationCurveKey, CurveCoordinateSpace, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode};
 use crate::events::{Event, EventKind};
 use crate::node::NodeId;
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint};
 use crate::process_ctx::{ProcessCtx, ProcessTreeSnapshot};
 
 use super::{
@@ -11,8 +11,11 @@ use super::{
     PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID, PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
     PARAMETER_ANIMATION_EASING_NODE_TYPE, PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID,
     PARAMETER_ANIMATION_EASING_PHASE_DECL_ID, PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, PARAMETER_ANIMATION_EASING_SEED_DECL_ID, PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, PARAMETER_ANIMATION_KEY_ITEM_KIND, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, UserContainerRules, UserCreatableItem, parameter_child_exists,
+    PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, PARAMETER_ANIMATION_KEY_ITEM_KIND, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID, PARAMETER_ANIMATION_RANGE_NODE_TYPE,
+    PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID, UserContainerRules, UserCreatableItem, parameter_child_exists,
 };
+
+const CURVE_RANGE_EPSILON: f64 = 1e-9;
 
 fn make_float_parameter(label: &str, decl_id: &str, default_value: f64) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Float(default_value), ParameterChangeCheck::ValueChange);
@@ -36,6 +39,13 @@ fn make_int_parameter(label: &str, decl_id: &str, default_value: i32) -> Paramet
 
 fn make_string_parameter(label: &str, decl_id: &str, default_value: &str) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Str(default_value.to_string()), ParameterChangeCheck::ValueChange);
+    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
+    parameter.node_data_mut().meta.can_be_disabled = false;
+    parameter
+}
+
+fn make_vec2_parameter(label: &str, decl_id: &str, x: f64, y: f64) -> Parameter {
+    let mut parameter = Parameter::new(label, ParamValue::Vec2(x, y), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
     parameter.node_data_mut().meta.can_be_disabled = false;
     parameter
@@ -214,9 +224,197 @@ fn parse_phase_mode(value: &str) -> CurvePhaseMode {
     }
 }
 
+fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
+    value.max(min).min(max)
+}
+
+/// Axis-aligned curve bounds used to constrain key positions, key values, and sampled output.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AnimationCurveRangeConstraint {
+    /// Minimum key position.
+    pub x_min: f64,
+    /// Maximum key position.
+    pub x_max: f64,
+    /// Minimum key/sample value.
+    pub y_min: f64,
+    /// Maximum key/sample value.
+    pub y_max: f64,
+}
+
+impl AnimationCurveRangeConstraint {
+    /// Default editable range.
+    pub const DEFAULT: Self = Self {
+        x_min: 0.0,
+        x_max: 1.0,
+        y_min: 0.0,
+        y_max: 1.0,
+    };
+
+    /// Builds one normalized range.
+    ///
+    /// Returns `None` when any value is non-finite or a span is effectively zero.
+    pub fn new(x_min: f64, x_max: f64, y_min: f64, y_max: f64) -> Option<Self> {
+        if !x_min.is_finite() || !x_max.is_finite() || !y_min.is_finite() || !y_max.is_finite() {
+            return None;
+        }
+
+        let (x_min, x_max) = if x_min <= x_max { (x_min, x_max) } else { (x_max, x_min) };
+        let (y_min, y_max) = if y_min <= y_max { (y_min, y_max) } else { (y_max, y_min) };
+        if (x_max - x_min).abs() <= CURVE_RANGE_EPSILON || (y_max - y_min).abs() <= CURVE_RANGE_EPSILON {
+            return None;
+        }
+
+        Some(Self {
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+        })
+    }
+
+    fn clamp_position(self, value: f64) -> f64 {
+        clamp_f64(value, self.x_min, self.x_max)
+    }
+
+    fn clamp_value(self, value: f64) -> f64 {
+        clamp_f64(value, self.y_min, self.y_max)
+    }
+}
+
+fn read_range_constraint_from_range_node(snapshot: &ProcessTreeSnapshot, range_node: NodeId) -> Option<AnimationCurveRangeConstraint> {
+    let node = snapshot.node(range_node)?;
+    if node.node_type != PARAMETER_ANIMATION_RANGE_NODE_TYPE || !node.enabled {
+        return None;
+    }
+
+    let x_bounds = read_child_param_value(snapshot, range_node, PARAMETER_ANIMATION_RANGE_X_DECL_ID).and_then(ParamValue::as_vec2)?;
+    let y_bounds = read_child_param_value(snapshot, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID).and_then(ParamValue::as_vec2)?;
+    AnimationCurveRangeConstraint::new(x_bounds.0, x_bounds.1, y_bounds.0, y_bounds.1)
+}
+
+fn read_range_axis_bounds(snapshot: &ProcessTreeSnapshot, range_node: NodeId, decl_id: &str) -> Option<(f64, f64)> {
+    let bounds = read_child_param_value(snapshot, range_node, decl_id).and_then(ParamValue::as_vec2)?;
+    Some((bounds.0, bounds.1))
+}
+
+fn read_uniform_constraint_bounds(range: Option<&RangeConstraint>) -> Option<(f64, f64)> {
+    match range {
+        Some(RangeConstraint::Uniform { min: Some(min), max: Some(max) }) if min.is_finite() && max.is_finite() => {
+            if min <= max {
+                Some((*min, *max))
+            } else {
+                Some((*max, *min))
+            }
+        }
+        _ => None,
+    }
+}
+
+fn read_range_constraint_from_key_param_constraints(snapshot: &ProcessTreeSnapshot, curve_node: NodeId) -> Option<AnimationCurveRangeConstraint> {
+    let mut x_bounds: Option<(f64, f64)> = None;
+    let mut y_bounds: Option<(f64, f64)> = None;
+
+    for child_id in snapshot.child_ids(curve_node) {
+        let Some(child_snapshot) = snapshot.node(child_id) else {
+            continue;
+        };
+        if child_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
+            continue;
+        }
+
+        if x_bounds.is_none() {
+            if let Some(position_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
+                x_bounds = read_uniform_constraint_bounds(snapshot.node(position_param).and_then(|entry| entry.param_constraints.as_ref()).and_then(|constraints| constraints.range.as_ref()));
+            }
+        }
+
+        if y_bounds.is_none() {
+            if let Some(value_param) = snapshot.find_child(child_id, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID) {
+                y_bounds = read_uniform_constraint_bounds(snapshot.node(value_param).and_then(|entry| entry.param_constraints.as_ref()).and_then(|constraints| constraints.range.as_ref()));
+            }
+        }
+
+        if x_bounds.is_some() && y_bounds.is_some() {
+            break;
+        }
+    }
+
+    let (x_min, x_max) = x_bounds?;
+    let (y_min, y_max) = y_bounds?;
+    AnimationCurveRangeConstraint::new(x_min, x_max, y_min, y_max)
+}
+
+/// Internal node storing editable X/Y curve range bounds.
+pub struct AnimationCurveRangeNode {
+    node_data: NodeData,
+    default_range: AnimationCurveRangeConstraint,
+}
+
+impl AnimationCurveRangeNode {
+    /// Creates one range node with optional initial bounds and enable state.
+    pub fn new(initial_range: Option<AnimationCurveRangeConstraint>, enabled: bool) -> Self {
+        let mut node_data = NodeData::new("Range".to_string());
+        node_data.meta.can_be_disabled = true;
+        node_data.meta.enabled = enabled;
+        node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_RANGE_DECL_ID.to_string());
+        Self {
+            node_data,
+            default_range: initial_range.unwrap_or(AnimationCurveRangeConstraint::DEFAULT),
+        }
+    }
+}
+
+impl Node for AnimationCurveRangeNode {
+    fn node_data(&self) -> &NodeData {
+        &self.node_data
+    }
+
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.node_data
+    }
+
+    fn get_type(&self) -> &str {
+        PARAMETER_ANIMATION_RANGE_NODE_TYPE
+    }
+
+    fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_RANGE_X_DECL_ID) {
+            ctx.add_child_boxed(
+                self.id(),
+                Box::new(make_vec2_parameter(
+                    "X",
+                    PARAMETER_ANIMATION_RANGE_X_DECL_ID,
+                    self.default_range.x_min,
+                    self.default_range.x_max,
+                )),
+                None,
+            );
+        }
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_RANGE_Y_DECL_ID) {
+            ctx.add_child_boxed(
+                self.id(),
+                Box::new(make_vec2_parameter(
+                    "Y",
+                    PARAMETER_ANIMATION_RANGE_Y_DECL_ID,
+                    self.default_range.y_min,
+                    self.default_range.y_max,
+                )),
+                None,
+            );
+        }
+    }
+
+    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
+        EventPropagation::PassOn
+    }
+}
+
 /// Internal node hosting one animation-curve key list.
 pub struct AnimationCurveNode {
     node_data: NodeData,
+    user_can_edit_range: bool,
+    code_range_constraint: Option<AnimationCurveRangeConstraint>,
+    range_node: Option<NodeId>,
 }
 
 impl AnimationCurveNode {
@@ -230,7 +428,207 @@ impl AnimationCurveNode {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_CURVE_DECL_ID.to_string());
-        Self { node_data }
+        Self {
+            node_data,
+            user_can_edit_range: true,
+            code_range_constraint: None,
+            range_node: None,
+        }
+    }
+
+    /// Enables/disables user-editable range controls.
+    pub fn with_user_editable_range(mut self, user_can_edit_range: bool) -> Self {
+        self.user_can_edit_range = user_can_edit_range;
+        self
+    }
+
+    /// Sets whether range controls are user-editable.
+    pub fn set_user_editable_range(&mut self, user_can_edit_range: bool) {
+        self.user_can_edit_range = user_can_edit_range;
+    }
+
+    /// Sets one code-authored range constraint.
+    pub fn with_range_constraint(mut self, range: Option<AnimationCurveRangeConstraint>) -> Self {
+        self.code_range_constraint = range;
+        self
+    }
+
+    /// Replaces the code-authored range constraint.
+    pub fn set_range_constraint(&mut self, range: Option<AnimationCurveRangeConstraint>) {
+        self.code_range_constraint = range;
+    }
+
+    fn bind_decl_child(&mut self, decl_id: &str, child: NodeId) {
+        if decl_id == PARAMETER_ANIMATION_RANGE_DECL_ID {
+            self.range_node = Some(child);
+        }
+    }
+
+    fn unbind_child(&mut self, child: NodeId) {
+        if self.range_node == Some(child) {
+            self.range_node = None;
+        }
+    }
+
+    fn initial_key_range_constraint(&self) -> Option<AnimationCurveRangeConstraint> {
+        if self.user_can_edit_range {
+            None
+        } else {
+            self.code_range_constraint
+        }
+    }
+
+    fn effective_range_constraint(&self, snapshot: &ProcessTreeSnapshot) -> Option<AnimationCurveRangeConstraint> {
+        if self.user_can_edit_range {
+            let range_node = self.range_node.or_else(|| snapshot.find_child(self.id(), PARAMETER_ANIMATION_RANGE_DECL_ID))?;
+            return read_range_constraint_from_range_node(snapshot, range_node);
+        }
+        self.code_range_constraint
+    }
+
+    fn editable_range_constraint(
+        enabled: bool,
+        x_bounds: Option<(f64, f64)>,
+        y_bounds: Option<(f64, f64)>,
+    ) -> Option<AnimationCurveRangeConstraint> {
+        if !enabled {
+            return None;
+        }
+
+        let (x_min, x_max) = x_bounds?;
+        let (y_min, y_max) = y_bounds?;
+        AnimationCurveRangeConstraint::new(x_min, x_max, y_min, y_max)
+    }
+
+    fn clamped_key_param_update(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        param: NodeId,
+        new_value: &ParamValue,
+        range: AnimationCurveRangeConstraint,
+    ) -> Option<(NodeId, f64)> {
+        let Some(param_snapshot) = snapshot.node(param) else {
+            return None;
+        };
+        let Some(key_node) = param_snapshot.parent else {
+            return None;
+        };
+        let Some(key_snapshot) = snapshot.node(key_node) else {
+            return None;
+        };
+        if key_snapshot.parent != Some(self.id()) || key_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
+            return None;
+        }
+
+        let Some(raw_value) = new_value.as_float().or_else(|| new_value.as_int().map(|int_value| int_value as f64)) else {
+            return None;
+        };
+
+        let clamped = if param_snapshot.decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID {
+            range.clamp_position(raw_value)
+        } else if param_snapshot.decl_id == PARAMETER_ANIMATION_KEY_VALUE_DECL_ID {
+            range.clamp_value(raw_value)
+        } else {
+            return None;
+        };
+
+        if (clamped - raw_value).abs() <= CURVE_RANGE_EPSILON {
+            return None;
+        }
+
+        Some((param, clamped))
+    }
+
+    fn collect_range_clamp_updates_for_all_keys(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        range: AnimationCurveRangeConstraint,
+    ) -> Vec<(NodeId, f64)> {
+        let mut updates = Vec::<(NodeId, f64)>::new();
+        for child in snapshot.child_ids(self.id()) {
+            let Some(child_snapshot) = snapshot.node(child) else {
+                continue;
+            };
+            if child_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
+                continue;
+            }
+
+            if let Some(position_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
+                if let Some(new_value) = snapshot.node(position_param).and_then(|entry| entry.param_value.as_ref()) {
+                    if let Some(update) = self.clamped_key_param_update(snapshot, position_param, new_value, range) {
+                        updates.push(update);
+                    }
+                }
+            }
+            if let Some(value_param) = snapshot.find_child(child, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID) {
+                if let Some(new_value) = snapshot.node(value_param).and_then(|entry| entry.param_value.as_ref()) {
+                    if let Some(update) = self.clamped_key_param_update(snapshot, value_param, new_value, range) {
+                        updates.push(update);
+                    }
+                }
+            }
+        }
+        updates
+    }
+
+    fn sync_range_node_presence(&mut self, ctx: &mut ProcessCtx) {
+        let mut range_children = Vec::<NodeId>::new();
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            for child in snapshot.child_ids(self.id()) {
+                let Some(child_snapshot) = snapshot.node(child) else {
+                    continue;
+                };
+                if child_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_DECL_ID {
+                    range_children.push(child);
+                }
+            }
+        }
+
+        if self.user_can_edit_range {
+            self.range_node = range_children.first().copied();
+            for duplicate in range_children.iter().skip(1).copied() {
+                self.remove_child(ctx, duplicate);
+            }
+            if self.range_node.is_none() {
+                self.add_child_boxed(
+                    ctx,
+                    Box::new(AnimationCurveRangeNode::new(
+                        self.code_range_constraint,
+                        self.code_range_constraint.is_some(),
+                    )),
+                    None,
+                );
+            }
+            return;
+        }
+
+        self.range_node = None;
+        for child in range_children {
+            self.remove_child(ctx, child);
+        }
+    }
+
+    fn sync_keys_and_clamp_to_active_range(&mut self, ctx: &mut ProcessCtx) {
+        self.sync_range_node_presence(ctx);
+
+        let key_count = ctx
+            .tree_snapshot()
+            .map(|snapshot| snapshot.child_ids(self.id()).into_iter().filter(|node_id| snapshot.node(*node_id).is_some_and(|node| node.node_type == PARAMETER_ANIMATION_KEY_NODE_TYPE)).count())
+            .unwrap_or(0);
+
+        if key_count == 0 {
+            let initial_range = self.initial_key_range_constraint();
+            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveKeyNode::new_with_values_and_range(0.0, 0.0, initial_range)), None);
+            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveKeyNode::new_with_values_and_range(1.0, 1.0, initial_range)), None);
+        }
+
+        let clamp_updates = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| self.effective_range_constraint(snapshot).map(|range| self.collect_range_clamp_updates_for_all_keys(snapshot, range)))
+            .unwrap_or_default();
+        for (param, value) in clamp_updates {
+            ctx.set_param_with_behaviour(param, ParamValue::Float(value), ParameterEventBehaviour::Coalesce);
+        }
     }
 }
 
@@ -262,25 +660,216 @@ impl Node for AnimationCurveNode {
     fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
         let normalized = node_type.trim().to_ascii_lowercase();
         if normalized == PARAMETER_ANIMATION_KEY_NODE_TYPE || normalized == "key" {
-            return Some(Box::new(AnimationCurveKeyNode::new_with_label(label)));
+            return Some(Box::new(AnimationCurveKeyNode::new_with_label_and_range(label, self.initial_key_range_constraint())));
         }
         None
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        let key_count = ctx
-            .tree_snapshot()
-            .map(|snapshot| snapshot.child_ids(self.id()).into_iter().filter(|node_id| snapshot.node(*node_id).is_some_and(|node| node.node_type == PARAMETER_ANIMATION_KEY_NODE_TYPE)).count())
-            .unwrap_or(0);
+        self.sync_keys_and_clamp_to_active_range(ctx);
+    }
 
-        if key_count == 0 {
-            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveKeyNode::new_with_values(0.0, 0.0)), None);
-            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveKeyNode::new_with_values(1.0, 1.0)), None);
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.sync_keys_and_clamp_to_active_range(ctx);
+    }
+
+    fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
+        let (mut remove_children, add_range_node, clamp_updates) = {
+            let Some(snapshot) = ctx.tree_snapshot() else {
+                return;
+            };
+
+            let mut remove_children = Vec::<NodeId>::new();
+            let mut add_range_node = false;
+            let mut clamp_updates = HashMap::<NodeId, f64>::new();
+            let mut pending_key_param_values = HashMap::<NodeId, f64>::new();
+            let mut enforce_all = false;
+            let mut tracked_range_node = self.range_node.or_else(|| snapshot.find_child(self.id(), PARAMETER_ANIMATION_RANGE_DECL_ID));
+            let mut editable_range_enabled = tracked_range_node.and_then(|range_node| snapshot.node(range_node).map(|node| node.enabled)).unwrap_or(false);
+            let mut editable_x_bounds = tracked_range_node.and_then(|range_node| read_range_axis_bounds(snapshot, range_node, PARAMETER_ANIMATION_RANGE_X_DECL_ID));
+            let mut editable_y_bounds = tracked_range_node.and_then(|range_node| read_range_axis_bounds(snapshot, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID));
+            let mut range_constraint = if self.user_can_edit_range {
+                Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds)
+            } else {
+                self.code_range_constraint
+            };
+
+            for event in &ctx.events {
+                match &event.kind {
+                    EventKind::ChildAdded { parent, child, decl_id } if *parent == self.id() => {
+                        if decl_id.0 == PARAMETER_ANIMATION_RANGE_DECL_ID {
+                            if !self.user_can_edit_range {
+                                remove_children.push(*child);
+                                continue;
+                            }
+                            if let Some(existing) = self.range_node {
+                                if existing != *child {
+                                    remove_children.push(*child);
+                                    continue;
+                                }
+                            }
+                            tracked_range_node = Some(*child);
+                            editable_range_enabled = snapshot.node(*child).is_some_and(|node| node.enabled);
+                            editable_x_bounds = read_range_axis_bounds(snapshot, *child, PARAMETER_ANIMATION_RANGE_X_DECL_ID);
+                            editable_y_bounds = read_range_axis_bounds(snapshot, *child, PARAMETER_ANIMATION_RANGE_Y_DECL_ID);
+                            range_constraint = Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds);
+                        }
+                        self.bind_decl_child(decl_id.0.as_str(), *child);
+                        enforce_all = true;
+                    }
+                    EventKind::ChildReplaced { parent, old, new, decl_id } if *parent == self.id() => {
+                        self.unbind_child(*old);
+                        if decl_id.0 == PARAMETER_ANIMATION_RANGE_DECL_ID {
+                            if !self.user_can_edit_range {
+                                remove_children.push(*new);
+                                continue;
+                            }
+                            if let Some(existing) = self.range_node {
+                                if existing != *new {
+                                    remove_children.push(*new);
+                                    continue;
+                                }
+                            }
+                            tracked_range_node = Some(*new);
+                            editable_range_enabled = snapshot.node(*new).is_some_and(|node| node.enabled);
+                            editable_x_bounds = read_range_axis_bounds(snapshot, *new, PARAMETER_ANIMATION_RANGE_X_DECL_ID);
+                            editable_y_bounds = read_range_axis_bounds(snapshot, *new, PARAMETER_ANIMATION_RANGE_Y_DECL_ID);
+                            range_constraint = Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds);
+                        }
+                        self.bind_decl_child(decl_id.0.as_str(), *new);
+                        enforce_all = true;
+                    }
+                    EventKind::ChildRemoved { parent, child } if *parent == self.id() => {
+                        let removed_range = self.range_node == Some(*child);
+                        self.unbind_child(*child);
+                        if removed_range && self.user_can_edit_range {
+                            tracked_range_node = None;
+                            editable_range_enabled = false;
+                            editable_x_bounds = None;
+                            editable_y_bounds = None;
+                            range_constraint = None;
+                            add_range_node = true;
+                        }
+                        enforce_all = true;
+                    }
+                    EventKind::ParamChanged { param, new_value, .. } => {
+                        if let Some(param_snapshot) = snapshot.node(*param) {
+                            if let Some(key_node) = param_snapshot.parent {
+                                if let Some(key_snapshot) = snapshot.node(key_node) {
+                                    if key_snapshot.parent == Some(self.id()) && key_snapshot.node_type == PARAMETER_ANIMATION_KEY_NODE_TYPE {
+                                        let decl_id = param_snapshot.decl_id.as_str();
+                                        if decl_id == PARAMETER_ANIMATION_KEY_POSITION_DECL_ID || decl_id == PARAMETER_ANIMATION_KEY_VALUE_DECL_ID {
+                                            if let Some(raw_value) = new_value.as_float().or_else(|| new_value.as_int().map(|int_value| int_value as f64)) {
+                                                pending_key_param_values.insert(*param, raw_value);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if let (true, Some(range_node), Some(param_snapshot)) = (self.user_can_edit_range, tracked_range_node, snapshot.node(*param)) {
+                            if param_snapshot.parent == Some(range_node) {
+                                if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_X_DECL_ID {
+                                    editable_x_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
+                                    range_constraint = Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds);
+                                    enforce_all = true;
+                                } else if param_snapshot.decl_id == PARAMETER_ANIMATION_RANGE_Y_DECL_ID {
+                                    editable_y_bounds = new_value.as_vec2().map(|bounds| (bounds.0, bounds.1));
+                                    range_constraint = Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds);
+                                    enforce_all = true;
+                                }
+                            }
+                        }
+                        if let Some(range) = range_constraint {
+                            if let Some(update) = self.clamped_key_param_update(snapshot, *param, new_value, range) {
+                                clamp_updates.insert(update.0, update.1);
+                            }
+                        }
+                    }
+                    EventKind::MetaChanged { node, patch } => {
+                        if self.user_can_edit_range && Some(*node) == tracked_range_node && patch.enabled.is_some() {
+                            editable_range_enabled = patch.enabled.unwrap_or(editable_range_enabled);
+                            range_constraint = Self::editable_range_constraint(editable_range_enabled, editable_x_bounds, editable_y_bounds);
+                            enforce_all = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if enforce_all {
+                if let Some(range) = range_constraint {
+                    for (param, value) in self.collect_range_clamp_updates_for_all_keys(snapshot, range) {
+                        clamp_updates.insert(param, value);
+                    }
+                    for (param, raw_value) in pending_key_param_values {
+                        if let Some(update) = self.clamped_key_param_update(snapshot, param, &ParamValue::Float(raw_value), range) {
+                            clamp_updates.insert(update.0, update.1);
+                        }
+                    }
+                }
+            }
+
+            let mut clamp_updates: Vec<(NodeId, f64)> = clamp_updates.into_iter().collect();
+            clamp_updates.sort_unstable_by_key(|(param, _)| param.0);
+            (remove_children, add_range_node, clamp_updates)
+        };
+
+        if !remove_children.is_empty() {
+            remove_children.sort_unstable_by_key(|node_id| node_id.0);
+            remove_children.dedup();
+            for child in remove_children {
+                self.remove_child(ctx, child);
+            }
+        }
+
+        if add_range_node {
+            self.add_child_boxed(
+                ctx,
+                Box::new(AnimationCurveRangeNode::new(
+                    self.code_range_constraint,
+                    self.code_range_constraint.is_some(),
+                )),
+                None,
+            );
+        }
+
+        if !clamp_updates.is_empty() {
+            for (param, value) in clamp_updates {
+                ctx.set_param_with_behaviour(param, ParamValue::Float(value), ParameterEventBehaviour::Coalesce);
+            }
         }
     }
 
+    fn on_child_added_decl(&mut self, _ctx: &mut ProcessCtx, parent: NodeId, child: NodeId, decl_id: &DeclId) {
+        if parent != self.id() {
+            return;
+        }
+        self.bind_decl_child(decl_id.0.as_str(), child);
+    }
+
+    fn on_child_replaced_decl(&mut self, _ctx: &mut ProcessCtx, parent: NodeId, old: NodeId, new: NodeId, decl_id: &DeclId) {
+        if parent != self.id() {
+            return;
+        }
+        self.unbind_child(old);
+        self.bind_decl_child(decl_id.0.as_str(), new);
+    }
+
+    fn on_child_removed(&mut self, _ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        if parent != self.id() {
+            return;
+        }
+        self.unbind_child(child);
+    }
+
+    fn engine_child_event_interest_depth(&self, _event: &Event) -> u32 {
+        2
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
@@ -289,31 +878,53 @@ pub struct AnimationCurveKeyNode {
     node_data: NodeData,
     default_position: f64,
     default_value: f64,
+    range_constraint: Option<AnimationCurveRangeConstraint>,
 }
 
 impl AnimationCurveKeyNode {
     /// Creates one key node with default position/value set to `0`.
     pub fn new() -> Self {
-        Self::new_with_label_and_values("Key", 0.0, 0.0)
+        Self::new_with_label_and_values_and_range("Key", 0.0, 0.0, None)
     }
 
     /// Creates one key node with custom label and default position/value.
     pub fn new_with_label(label: impl Into<String>) -> Self {
-        Self::new_with_label_and_values(label, 0.0, 0.0)
+        Self::new_with_label_and_values_and_range(label, 0.0, 0.0, None)
+    }
+
+    /// Creates one key node with custom label and optional range constraint.
+    pub fn new_with_label_and_range(label: impl Into<String>, range_constraint: Option<AnimationCurveRangeConstraint>) -> Self {
+        Self::new_with_label_and_values_and_range(label, 0.0, 0.0, range_constraint)
     }
 
     /// Creates one key node with explicit initial position/value.
     pub fn new_with_values(position: f64, value: f64) -> Self {
-        Self::new_with_label_and_values("Key", position, value)
+        Self::new_with_label_and_values_and_range("Key", position, value, None)
     }
 
-    fn new_with_label_and_values(label: impl Into<String>, position: f64, value: f64) -> Self {
+    /// Creates one key node with explicit initial position/value and optional range constraint.
+    pub fn new_with_values_and_range(position: f64, value: f64, range_constraint: Option<AnimationCurveRangeConstraint>) -> Self {
+        Self::new_with_label_and_values_and_range("Key", position, value, range_constraint)
+    }
+
+    fn new_with_label_and_values_and_range(
+        label: impl Into<String>,
+        position: f64,
+        value: f64,
+        range_constraint: Option<AnimationCurveRangeConstraint>,
+    ) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
+        let (default_position, default_value) = if let Some(range_constraint) = range_constraint {
+            (range_constraint.clamp_position(position), range_constraint.clamp_value(value))
+        } else {
+            (position, value)
+        };
         Self {
             node_data,
-            default_position: position,
-            default_value: value,
+            default_position,
+            default_value,
+            range_constraint,
         }
     }
 }
@@ -337,10 +948,24 @@ impl Node for AnimationCurveKeyNode {
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(make_float_parameter("Position", PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, self.default_position)), None);
+            let mut position_param = make_float_parameter("Position", PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, self.default_position);
+            if let Some(range_constraint) = self.range_constraint {
+                position_param.constraints.range = Some(RangeConstraint::Uniform {
+                    min: Some(range_constraint.x_min),
+                    max: Some(range_constraint.x_max),
+                });
+            }
+            ctx.add_child_boxed(self.id(), Box::new(position_param), None);
         }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_KEY_VALUE_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(make_float_parameter("Value", PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, self.default_value)), None);
+            let mut value_param = make_float_parameter("Value", PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, self.default_value);
+            if let Some(range_constraint) = self.range_constraint {
+                value_param.constraints.range = Some(RangeConstraint::Uniform {
+                    min: Some(range_constraint.y_min),
+                    max: Some(range_constraint.y_max),
+                });
+            }
+            ctx.add_child_boxed(self.id(), Box::new(value_param), None);
         }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_EASING_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(AnimationCurveEasingNode::new("Easing")), None);
@@ -727,14 +1352,22 @@ fn parse_easing_from_snapshot(snapshot: &ProcessTreeSnapshot, easing_node: NodeI
     }
 }
 
-fn parse_key_from_snapshot(snapshot: &ProcessTreeSnapshot, key_node: NodeId) -> Option<AnimationCurveKey> {
+fn parse_key_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    key_node: NodeId,
+    range_constraint: Option<AnimationCurveRangeConstraint>,
+) -> Option<AnimationCurveKey> {
     let key = snapshot.node(key_node)?;
     if key.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
         return None;
     }
 
-    let position = read_child_param_f64(snapshot, key_node, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, 0.0);
-    let value = read_child_param_f64(snapshot, key_node, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, 0.0);
+    let mut position = read_child_param_f64(snapshot, key_node, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, 0.0);
+    let mut value = read_child_param_f64(snapshot, key_node, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, 0.0);
+    if let Some(range_constraint) = range_constraint {
+        position = range_constraint.clamp_position(position);
+        value = range_constraint.clamp_value(value);
+    }
     let easing = snapshot.find_child(key_node, PARAMETER_ANIMATION_EASING_DECL_ID).map(|easing_node| parse_easing_from_snapshot(snapshot, easing_node)).unwrap_or(CurveEasing::Linear);
 
     Some(AnimationCurveKey::new(position, value, easing))
@@ -747,9 +1380,23 @@ pub fn curve_from_snapshot(snapshot: &ProcessTreeSnapshot, curve_node: NodeId) -
         return None;
     }
 
-    let keys = snapshot.child_ids(curve_node).into_iter().filter_map(|child_id| parse_key_from_snapshot(snapshot, child_id)).collect::<Vec<_>>();
+    let range_constraint = if let Some(range_node) = snapshot.find_child(curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID) {
+        read_range_constraint_from_range_node(snapshot, range_node)
+    } else {
+        read_range_constraint_from_key_param_constraints(snapshot, curve_node)
+    };
 
-    Some(AnimationCurve::new(keys))
+    let keys = snapshot
+        .child_ids(curve_node)
+        .into_iter()
+        .filter_map(|child_id| parse_key_from_snapshot(snapshot, child_id, range_constraint))
+        .collect::<Vec<_>>();
+
+    let mut curve = AnimationCurve::new(keys);
+    if let Some(range_constraint) = range_constraint {
+        curve.set_value_range_constraint(Some(range_constraint.y_min), Some(range_constraint.y_max));
+    }
+    Some(curve)
 }
 
 #[cfg(test)]

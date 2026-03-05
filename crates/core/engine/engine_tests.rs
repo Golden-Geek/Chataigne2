@@ -8,9 +8,10 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
-    AnimationCurveKeyNode, AnimationCurveNode, EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
+    AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
     PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID,
-    PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
+    PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID,
+    PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
     curve_from_snapshot,
 };
 use crate::parameter::{
@@ -3970,7 +3971,12 @@ fn animation_curve_easing_keeps_single_kind_parameter_while_switching_kind() {
 
     let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
     let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
-    let first_key = engine.nodes.get(curve_node).and_then(|node| node.node_data().first_child).expect("default key should exist");
+    let first_key = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .expect("default key should exist");
     let easing_node = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
     let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
 
@@ -4039,6 +4045,227 @@ fn animation_curve_accepts_user_created_key_items() {
         .count();
 
     assert_eq!(after, before + 1, "curve should accept key user items");
+}
+
+#[test]
+fn animation_curve_materializes_user_editable_range_node() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID).expect("range node should exist");
+
+    let range_entry = engine.nodes.get(range_node).expect("range node should exist");
+    assert_eq!(range_entry.get_type(), PARAMETER_ANIMATION_RANGE_NODE_TYPE);
+    assert!(range_entry.node_data().meta.can_be_disabled, "range node should be user-toggleable");
+    assert!(!range_entry.node_data().meta.enabled, "range node should start disabled when no code range is set");
+
+    let _x_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_X_DECL_ID).expect("range x parameter should exist");
+    let _y_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID).expect("range y parameter should exist");
+}
+
+#[test]
+fn animation_curve_enabled_range_clamps_key_position_and_value() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID).expect("range node should exist");
+    let x_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_X_DECL_ID).expect("range x parameter should exist");
+    let y_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID).expect("range y parameter should exist");
+
+    let first_key = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .expect("default key should exist");
+    let position_param = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID).expect("position parameter should exist");
+    let value_param = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID).expect("value parameter should exist");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: range_node,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(true),
+            ..Default::default()
+        },
+    });
+    engine.edits.push(Edit::SetParam {
+        node: x_param,
+        value: ParamValue::Vec2(0.0, 1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: y_param,
+        value: ParamValue::Vec2(-0.25, 0.25),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: position_param,
+        value: ParamValue::Float(5.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(1.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    engine.apply_edits().expect("first range update pass should apply");
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).expect("range update inbox pass should apply queued clamping");
+    engine.apply_edits().expect("second range update pass should apply queued clamping");
+
+    let position_value = engine
+        .nodes
+        .get(position_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("position snapshot should be float");
+    let value_value = engine
+        .nodes
+        .get(value_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("value snapshot should be float");
+
+    assert_eq!(position_value, 1.0, "position should clamp to range x_max");
+    assert_eq!(value_value, 0.25, "value should clamp to range y_max");
+}
+
+#[test]
+fn animation_curve_disabled_range_allows_values_outside_previous_bounds() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID).expect("range node should exist");
+    let y_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID).expect("range y parameter should exist");
+
+    let first_key = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .expect("default key should exist");
+    let value_param = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID).expect("value parameter should exist");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: range_node,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(true),
+            ..Default::default()
+        },
+    });
+    engine.edits.push(Edit::SetParam {
+        node: y_param,
+        value: ParamValue::Vec2(-0.25, 0.25),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(1.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("range-enabled pass should apply");
+    engine.apply_edits().expect("range-enabled pass should apply clamping");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: range_node,
+        patch: crate::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(1.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("range-disabled pass should apply");
+    engine.apply_edits().expect("range-disabled follow-up should stay unchanged");
+
+    let value_value = engine
+        .nodes
+        .get(value_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("value snapshot should be float");
+    assert_eq!(value_value, 1.5, "value should remain outside bounds when range is disabled");
+}
+
+#[test]
+fn animation_curve_code_range_applies_without_materializing_user_range_node() {
+    let range_constraint = AnimationCurveRangeConstraint::new(0.0, 2.0, -1.0, 1.0).expect("range constraint should be valid");
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        AnimationCurveNode::new()
+            .with_user_editable_range(false)
+            .with_range_constraint(Some(range_constraint))
+            .into(),
+        None,
+    );
+    engine.apply_edits().expect("first pass should create curve node");
+    engine.apply_edits().expect("second pass should materialize default key nodes");
+    engine.apply_edits().expect("third pass should materialize key parameters");
+
+    let curve_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("curve node should exist");
+
+    let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID);
+    assert!(range_node.is_none(), "code-only range should not materialize editable range node");
+
+    let first_key = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .expect("default key should exist");
+    let position_param = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID).expect("position parameter should exist");
+    let value_param = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID).expect("value parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: position_param,
+        value: ParamValue::Float(5.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(3.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("code-range first pass should apply");
+    engine.apply_edits().expect("code-range second pass should apply queued clamping");
+
+    let position_value = engine
+        .nodes
+        .get(position_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("position snapshot should be float");
+    let value_value = engine
+        .nodes
+        .get(value_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("value snapshot should be float");
+
+    assert_eq!(position_value, 2.0, "position should clamp to code-defined x_max");
+    assert_eq!(value_value, 1.0, "value should clamp to code-defined y_max");
 }
 
 #[test]

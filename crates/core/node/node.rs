@@ -14,7 +14,7 @@ use uuid::Uuid;
 mod animation_curve_nodes;
 mod control_animation;
 mod handles;
-pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, curve_from_snapshot};
+pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
 pub use control_animation::ParameterAnimationControlNode;
 pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
@@ -557,6 +557,14 @@ pub const PARAMETER_ANIMATION_KEY_ITEM_KIND: &str = "animation_curve_key";
 pub const PARAMETER_ANIMATION_KEY_POSITION_DECL_ID: &str = "position";
 /// Built-in `decl_id` for key value parameter nodes.
 pub const PARAMETER_ANIMATION_KEY_VALUE_DECL_ID: &str = "value";
+/// Built-in node type id for animation-curve range constraint nodes.
+pub const PARAMETER_ANIMATION_RANGE_NODE_TYPE: &str = "animation_curve_range";
+/// Built-in `decl_id` for range constraint nodes under animation-curve nodes.
+pub const PARAMETER_ANIMATION_RANGE_DECL_ID: &str = "range";
+/// Built-in `decl_id` for range x-axis bounds parameter.
+pub const PARAMETER_ANIMATION_RANGE_X_DECL_ID: &str = "x";
+/// Built-in `decl_id` for range y-axis bounds parameter.
+pub const PARAMETER_ANIMATION_RANGE_Y_DECL_ID: &str = "y";
 /// Built-in node type id for animation-curve easing nodes.
 pub const PARAMETER_ANIMATION_EASING_NODE_TYPE: &str = "animation_curve_easing";
 /// Built-in `decl_id` for easing nodes under key nodes.

@@ -8,6 +8,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
             Self::AnimationCurve(node) => node.$method(),
+            Self::AnimationCurveRange(node) => node.$method(),
             Self::AnimationCurveKey(node) => node.$method(),
             Self::AnimationCurveEasing(node) => node.$method(),
             Self::Script(node) => node.$method(),
@@ -21,6 +22,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
             Self::AnimationCurve(node) => node.$method($arg1),
+            Self::AnimationCurveRange(node) => node.$method($arg1),
             Self::AnimationCurveKey(node) => node.$method($arg1),
             Self::AnimationCurveEasing(node) => node.$method($arg1),
             Self::Script(node) => node.$method($arg1),
@@ -34,6 +36,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2),
+            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2),
             Self::AnimationCurveKey(node) => node.$method($arg1, $arg2),
             Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2),
             Self::Script(node) => node.$method($arg1, $arg2),
@@ -47,6 +50,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3),
+            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3),
@@ -60,6 +64,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
@@ -73,6 +78,7 @@ macro_rules! __dispatch_node_enum {
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
@@ -292,6 +298,7 @@ macro_rules! define_user_item_factory_methods {
 /// - `Parameter($crate::parameter::Parameter)`
 /// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
 /// - `AnimationCurve($crate::node::AnimationCurveNode)`
+/// - `AnimationCurveRange($crate::node::AnimationCurveRangeNode)`
 /// - `AnimationCurveKey($crate::node::AnimationCurveKeyNode)`
 /// - `AnimationCurveEasing($crate::node::AnimationCurveEasingNode)`
 /// - `Script($crate::script::ScriptNode)`
@@ -310,6 +317,7 @@ macro_rules! define_node_enum {
             Parameter($crate::parameter::Parameter),
             ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
             AnimationCurve($crate::node::AnimationCurveNode),
+            AnimationCurveRange($crate::node::AnimationCurveRangeNode),
             AnimationCurveKey($crate::node::AnimationCurveKeyNode),
             AnimationCurveEasing($crate::node::AnimationCurveEasingNode),
             Script($crate::script::ScriptNode),
@@ -596,6 +604,7 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
                 $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurve, $crate::node::AnimationCurveNode);
+                $crate::__downcast_node_enum_variant!(any, AnimationCurveRange, $crate::node::AnimationCurveRangeNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurveKey, $crate::node::AnimationCurveKeyNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurveEasing, $crate::node::AnimationCurveEasingNode);
                 $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
@@ -636,6 +645,12 @@ macro_rules! define_node_enum {
         impl From<$crate::node::AnimationCurveNode> for $enum_name {
             fn from(node: $crate::node::AnimationCurveNode) -> Self {
                 Self::AnimationCurve(node)
+            }
+        }
+
+        impl From<$crate::node::AnimationCurveRangeNode> for $enum_name {
+            fn from(node: $crate::node::AnimationCurveRangeNode) -> Self {
+                Self::AnimationCurveRange(node)
             }
         }
 

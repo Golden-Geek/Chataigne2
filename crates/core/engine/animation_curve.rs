@@ -297,6 +297,9 @@ pub struct AnimationCurve {
     /// Sorted curve keys.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     keys: Vec<AnimationCurveKey>,
+    /// Optional sampled-value clamp range.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    value_range_constraint: Option<(f64, f64)>,
     #[serde(skip, default)]
     compiled_segments: OnceCell<Vec<CompiledCurveSegment>>,
 }
@@ -310,7 +313,27 @@ impl AnimationCurve {
     /// - duplicate positions keep the last key
     pub fn new(mut keys: Vec<AnimationCurveKey>) -> Self {
         normalize_keys(&mut keys);
-        Self { keys, compiled_segments: OnceCell::new() }
+        Self {
+            keys,
+            value_range_constraint: None,
+            compiled_segments: OnceCell::new(),
+        }
+    }
+
+    /// Returns one copy of the sampled-value clamp range.
+    pub fn value_range_constraint(&self) -> Option<(f64, f64)> {
+        self.value_range_constraint
+    }
+
+    /// Sets/clears sampled-value clamping.
+    pub fn set_value_range_constraint(&mut self, min: Option<f64>, max: Option<f64>) {
+        self.value_range_constraint = normalize_value_range(min, max);
+    }
+
+    /// Fluent wrapper around [`Self::set_value_range_constraint`].
+    pub fn with_value_range_constraint(mut self, min: Option<f64>, max: Option<f64>) -> Self {
+        self.set_value_range_constraint(min, max);
+        self
     }
 
     /// Returns immutable keys.
@@ -419,7 +442,7 @@ impl AnimationCurve {
         }
 
         if self.keys.len() == 1 {
-            output.fill(self.keys[0].value);
+            output.fill(self.clamp_sampled_value(self.keys[0].value));
             return output.len();
         }
 
@@ -452,31 +475,38 @@ impl AnimationCurve {
         }
 
         if self.keys.len() == 1 {
-            return Some(self.keys[0].value);
+            return Some(self.clamp_sampled_value(self.keys[0].value));
         }
 
         let first = self.keys.first()?;
         let last = self.keys.last()?;
         if position <= first.position {
-            return Some(first.value);
+            return Some(self.clamp_sampled_value(first.value));
         }
         if position >= last.position {
-            return Some(last.value);
+            return Some(self.clamp_sampled_value(last.value));
         }
 
         let segments = self.compiled_segments();
         if segments.is_empty() {
-            return Some(first.value);
+            return Some(self.clamp_sampled_value(first.value));
         }
 
         let segment_index = if let Some(cursor) = cursor { resolve_segment_index_with_cursor(position, segments, cursor) } else { resolve_segment_index(position, segments) };
 
         let segment = segments.get(segment_index)?;
-        Some(sample_compiled_segment(segment, position, script_sampler))
+        Some(self.clamp_sampled_value(sample_compiled_segment(segment, position, script_sampler)))
     }
 
     fn compiled_segments(&self) -> &[CompiledCurveSegment] {
         self.compiled_segments.get_or_init(|| compile_segments(self.keys.as_slice())).as_slice()
+    }
+
+    fn clamp_sampled_value(&self, value: f64) -> f64 {
+        if let Some((min, max)) = self.value_range_constraint {
+            return value.max(min).min(max);
+        }
+        value
     }
 }
 
@@ -488,8 +518,24 @@ impl Default for AnimationCurve {
 
 impl PartialEq for AnimationCurve {
     fn eq(&self, other: &Self) -> bool {
-        self.keys == other.keys
+        self.keys == other.keys && self.value_range_constraint == other.value_range_constraint
     }
+}
+
+fn normalize_value_range(min: Option<f64>, max: Option<f64>) -> Option<(f64, f64)> {
+    let (Some(mut min), Some(mut max)) = (min, max) else {
+        return None;
+    };
+    if !min.is_finite() || !max.is_finite() {
+        return None;
+    }
+    if min > max {
+        std::mem::swap(&mut min, &mut max);
+    }
+    if (max - min).abs() <= CURVE_EPSILON {
+        return None;
+    }
+    Some((min, max))
 }
 
 #[derive(Clone, Debug)]
@@ -981,6 +1027,16 @@ mod tests {
         assert_close(curve.sample(-1.0).expect("sample should exist"), 0.0);
         assert_close(curve.sample(5.0).expect("sample should exist"), 5.0);
         assert_close(curve.sample(15.0).expect("sample should exist"), 10.0);
+    }
+
+    #[test]
+    fn value_range_constraint_clamps_sampled_output() {
+        let mut curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, -10.0, CurveEasing::Linear), AnimationCurveKey::new(1.0, 10.0, CurveEasing::Linear)]);
+        curve.set_value_range_constraint(Some(-2.0), Some(3.0));
+
+        assert_close(curve.sample(0.0).expect("sample should exist"), -2.0);
+        assert_close(curve.sample(1.0).expect("sample should exist"), 3.0);
+        assert_close(curve.sample(0.5).expect("sample should exist"), 0.0);
     }
 
     #[test]
