@@ -12,11 +12,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 mod handles;
-mod parameter_animation_control_node;
-mod parameter_expression_control_node;
+mod control_animation;
 pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
-pub use parameter_animation_control_node::ParameterAnimationControlNode;
-pub use parameter_expression_control_node::ParameterExpressionControlNode;
+pub use control_animation::ParameterAnimationControlNode;
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -541,21 +539,17 @@ pub const FOLDER_NODE_TYPE: &str = "folder";
 pub const PARAMETER_CONTROL_ITEM_KIND: &str = "parameter_control";
 /// Built-in node type id for link control nodes attached to parameters.
 pub const PARAMETER_LINK_CONTROL_NODE_TYPE: &str = "parameter_link_control";
-/// Built-in node type id for expression control nodes attached to parameters.
-pub const PARAMETER_EXPRESSION_CONTROL_NODE_TYPE: &str = "parameter_expression_control";
 /// Built-in node type id for animation control nodes attached to parameters.
 pub const PARAMETER_ANIMATION_CONTROL_NODE_TYPE: &str = "parameter_animation_control";
 /// Built-in `decl_id` for parameter link control nodes.
 pub const PARAMETER_LINK_CONTROL_DECL_ID: &str = "link_control";
-/// Built-in `decl_id` for parameter expression control nodes.
-pub const PARAMETER_EXPRESSION_CONTROL_DECL_ID: &str = "expression_control";
 /// Built-in `decl_id` for parameter animation control nodes.
 pub const PARAMETER_ANIMATION_CONTROL_DECL_ID: &str = "animation_control";
 /// Built-in child `decl_id` for the linked target reference parameter.
 pub const PARAMETER_LINK_TARGET_DECL_ID: &str = "target";
 /// Built-in child `decl_id` for the link two-way toggle parameter.
 pub const PARAMETER_LINK_TWO_WAY_DECL_ID: &str = "two_way";
-/// Built-in child `decl_id` for expression source text.
+/// Built-in child `decl_id` for expression source text on controlled parameters.
 pub const PARAMETER_EXPRESSION_SOURCE_DECL_ID: &str = "expression";
 /// Built-in child `decl_id` for animation waveform selector.
 pub const PARAMETER_ANIMATION_WAVEFORM_DECL_ID: &str = "waveform";

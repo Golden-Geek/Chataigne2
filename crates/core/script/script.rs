@@ -959,6 +959,23 @@ impl QuickJsRuntime {
                     return Ok(Some(metadata.to_string()));
                 }
 
+                if let Some(child_id) = snapshot.find_child(node_id, trimmed_key) {
+                    if let Some(child) = snapshot.node(child_id) {
+                        if let Some(value) = child.param_value.as_ref() {
+                            let encoded = QuickJsRuntime::param_value_to_tree_json(value);
+                            return Ok(Some(serde_json::json!({ "kind": "value", "value": encoded }).to_string()));
+                        }
+
+                        return Ok(Some(
+                            serde_json::json!({
+                                "kind": "node",
+                                "id": child_id.0
+                            })
+                            .to_string(),
+                        ));
+                    }
+                }
+
                 if let Some(value) = node.script_property(trimmed_key) {
                     return Ok(Some(serde_json::json!({ "kind": "value", "value": QuickJsRuntime::param_value_to_tree_json(value) }).to_string()));
                 }
@@ -967,25 +984,7 @@ impl QuickJsRuntime {
                     return Ok(Some(serde_json::json!({ "kind": "method" }).to_string()));
                 }
 
-                let Some(child_id) = snapshot.find_child(node_id, trimmed_key) else {
-                    return Ok(None);
-                };
-                let Some(child) = snapshot.node(child_id) else {
-                    return Ok(None);
-                };
-
-                if let Some(value) = child.param_value.as_ref() {
-                    let encoded = QuickJsRuntime::param_value_to_tree_json(value);
-                    return Ok(Some(serde_json::json!({ "kind": "value", "value": encoded }).to_string()));
-                }
-
-                Ok(Some(
-                    serde_json::json!({
-                        "kind": "node",
-                        "id": child_id.0
-                    })
-                    .to_string(),
-                ))
+                Ok(None)
             }));
             gc_table.set("__tree_get_raw", tree_get_fn)?;
 

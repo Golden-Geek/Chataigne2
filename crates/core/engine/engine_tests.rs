@@ -9,7 +9,7 @@ use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
     EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID, PARAMETER_NODE_TYPES,
     USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
 };
 use crate::parameter::{
@@ -819,8 +819,7 @@ fn configure_link_control_with_projection(engine: &mut Engine<MacroTestNode>, pa
 }
 
 fn configure_expression_control_source(engine: &mut Engine<MacroTestNode>, param: NodeId, expression: &str) -> NodeId {
-    let expression_node = find_child_by_type(engine, param, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE).expect("expression control node should exist");
-    let source_param = find_child_by_decl(engine, expression_node, PARAMETER_EXPRESSION_SOURCE_DECL_ID).expect("expression source parameter should exist");
+    let source_param = find_child_by_decl(engine, param, PARAMETER_EXPRESSION_SOURCE_DECL_ID).expect("expression source parameter should exist");
 
     engine.edits.push(Edit::SetParam {
         node: source_param,
@@ -3283,6 +3282,59 @@ fn control_mode_expression_delta_time_runs_continuously() {
     assert!(first.abs() < 1e-9, "initial deltaTime should start from zero");
     assert!((second - 0.05).abs() < 1e-9, "deltaTime should match per-tick elapsed seconds");
     assert!((third - 0.025).abs() < 1e-9, "deltaTime should keep updating each tick");
+}
+
+#[test]
+fn control_mode_expression_can_read_script_tree_globals() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Folder::new("moduleManager").into(), None);
+    engine.add_node(Parameter::new("result", ParamValue::Bool(false), ParameterChangeCheck::ValueChange).into(), None);
+    engine.apply_edits().expect("initial nodes should be added");
+
+    let module_manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("module manager should exist");
+    let result = engine.nodes.get(module_manager).and_then(|node| node.node_data().next_sibling).expect("result should exist");
+
+    engine.add_node(Parameter::new("enabled", ParamValue::Bool(true), ParameterChangeCheck::ValueChange).into(), Some(module_manager));
+    engine.apply_edits().expect("module manager enabled parameter should be added");
+    let enabled = engine.nodes.get(module_manager).and_then(|node| node.node_data().first_child).expect("enabled should exist");
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "root.moduleManager.enabled.get()");
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should evaluate expression");
+    let first = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_bool()).expect("result should stay boolean");
+    assert!(first, "root.moduleManager.enabled.get() should read true");
+
+    engine.edits.push(Edit::SetParam {
+        node: enabled,
+        value: ParamValue::Bool(false),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("enabled update should apply");
+
+    engine.run_tick(Duration::from_millis(1)).expect("tick should reevaluate expression");
+    let second = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_bool()).expect("result should stay boolean");
+    assert!(!second, "root.moduleManager.enabled.get() should read false after update");
+}
+
+#[test]
+fn control_mode_expression_supports_javascript_modulo_and_comparisons() {
+    let root: MacroTestNode = Parameter::new("result", ParamValue::Bool(false), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+    let result = engine.root;
+
+    engine.set_param_control_state(result, ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression)).expect("expression state should be accepted");
+    configure_expression_control_source(&mut engine, result, "time() % 2 < 1");
+
+    engine.run_tick(Duration::from_millis(100)).expect("first tick should evaluate expression");
+    let first = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_bool()).expect("result should stay boolean");
+    assert!(first, "time() % 2 < 1 should be true around t=0.1s");
+
+    engine.run_tick(Duration::from_millis(1000)).expect("second tick should evaluate expression");
+    let second = engine.nodes.get(result).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_bool()).expect("result should stay boolean");
+    assert!(!second, "time() % 2 < 1 should be false around t=1.1s");
 }
 
 #[test]

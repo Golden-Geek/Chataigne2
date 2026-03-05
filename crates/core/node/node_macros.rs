@@ -7,7 +7,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method(),
             Self::Parameter(node) => node.$method(),
             Self::ParameterLinkControl(node) => node.$method(),
-            Self::ParameterExpressionControl(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
             Self::Script(node) => node.$method(),
             $(Self::$variant(node) => node.$method(),)*
@@ -19,7 +18,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method($arg1),
             Self::Parameter(node) => node.$method($arg1),
             Self::ParameterLinkControl(node) => node.$method($arg1),
-            Self::ParameterExpressionControl(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
             Self::Script(node) => node.$method($arg1),
             $(Self::$variant(node) => node.$method($arg1),)*
@@ -31,7 +29,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method($arg1, $arg2),
             Self::Parameter(node) => node.$method($arg1, $arg2),
             Self::ParameterLinkControl(node) => node.$method($arg1, $arg2),
-            Self::ParameterExpressionControl(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
             Self::Script(node) => node.$method($arg1, $arg2),
             $(Self::$variant(node) => node.$method($arg1, $arg2),)*
@@ -43,7 +40,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterLinkControl(node) => node.$method($arg1, $arg2, $arg3),
-            Self::ParameterExpressionControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
@@ -55,7 +51,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterLinkControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
-            Self::ParameterExpressionControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
@@ -67,7 +62,6 @@ macro_rules! __dispatch_node_enum {
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterLinkControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
-            Self::ParameterExpressionControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
@@ -285,7 +279,6 @@ macro_rules! define_user_item_factory_methods {
 /// - `UserContext($crate::node::UserContextNode)`
 /// - `Parameter($crate::parameter::Parameter)`
 /// - `ParameterLinkControl($crate::node::ParameterLinkControlNode)`
-/// - `ParameterExpressionControl($crate::node::ParameterExpressionControlNode)`
 /// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
 /// - `Script($crate::script::ScriptNode)`
 ///
@@ -302,7 +295,6 @@ macro_rules! define_node_enum {
             UserContext($crate::node::UserContextNode),
             Parameter($crate::parameter::Parameter),
             ParameterLinkControl($crate::node::ParameterLinkControlNode),
-            ParameterExpressionControl($crate::node::ParameterExpressionControlNode),
             ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
             Script($crate::script::ScriptNode),
             $($variant($node_ty),)*
@@ -587,7 +579,6 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, UserContext, $crate::node::UserContextNode);
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
                 $crate::__downcast_node_enum_variant!(any, ParameterLinkControl, $crate::node::ParameterLinkControlNode);
-                $crate::__downcast_node_enum_variant!(any, ParameterExpressionControl, $crate::node::ParameterExpressionControlNode);
                 $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
                 $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
 
@@ -621,12 +612,6 @@ macro_rules! define_node_enum {
         impl From<$crate::node::ParameterLinkControlNode> for $enum_name {
             fn from(node: $crate::node::ParameterLinkControlNode) -> Self {
                 Self::ParameterLinkControl(node)
-            }
-        }
-
-        impl From<$crate::node::ParameterExpressionControlNode> for $enum_name {
-            fn from(node: $crate::node::ParameterExpressionControlNode) -> Self {
-                Self::ParameterExpressionControl(node)
             }
         }
 

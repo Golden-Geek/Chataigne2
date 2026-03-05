@@ -1,13 +1,21 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::EventKind;
+use crate::logger::{self, LogLevel};
 use crate::node::{
-    EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID,
-    PARAMETER_LINK_TWO_WAY_DECL_ID, ParameterAnimationControlNode, ParameterExpressionControlNode, ParameterLinkControlNode,
+    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_LINK_CONTROL_NODE_TYPE, PARAMETER_LINK_TARGET_DECL_ID, PARAMETER_LINK_TWO_WAY_DECL_ID,
+    ParameterAnimationControlNode, ParameterLinkControlNode,
 };
-use crate::parameter::{ParamValue, ParamValueProjection, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter, coerce_param_value_for_target};
+use crate::parameter::{
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, available_control_modes_for_parameter,
+    coerce_param_value_for_target,
+};
+use crate::process_ctx::ProcessTreeSnapshot;
+use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
+use serde_json::{Map as JsonMap, Value as JsonValue};
 
 use super::{Engine, ExpressionControlRuntime};
 
@@ -35,11 +43,83 @@ struct ExpressionControlConfig {
     expression: String,
 }
 
-#[derive(Clone, Debug, Default)]
-struct ExpressionEvaluationMetadata {
-    dependencies: HashSet<NodeId>,
-    uses_time: bool,
-    uses_delta_time: bool,
+const EXPRESSION_EXPORT_NAME: &str = "__gc_eval_expression";
+const EXPRESSION_RUNTIME_SOURCE_NAME: &str = "expression_control.js";
+
+struct ExpressionScriptHostBridge {
+    consumer: NodeId,
+    local_node: Option<NodeId>,
+    tree_snapshot: Arc<ProcessTreeSnapshot>,
+    time_seconds: f64,
+    delta_seconds: f64,
+}
+
+impl ExpressionScriptHostBridge {
+    fn new(consumer: NodeId, local_node: Option<NodeId>, tree_snapshot: Arc<ProcessTreeSnapshot>, time_seconds: f64, delta_seconds: f64) -> Self {
+        Self {
+            consumer,
+            local_node,
+            tree_snapshot,
+            time_seconds,
+            delta_seconds,
+        }
+    }
+}
+
+impl ScriptHostBridge for ExpressionScriptHostBridge {
+    fn owner_node(&self) -> Option<NodeId> {
+        self.local_node
+    }
+
+    fn script_node(&self) -> Option<NodeId> {
+        Some(self.consumer)
+    }
+
+    fn time_seconds(&self) -> f64 {
+        self.time_seconds
+    }
+
+    fn delta_seconds(&self) -> f64 {
+        self.delta_seconds
+    }
+
+    fn log(&mut self, level: ScriptLogLevel, message: &str) {
+        let level = match level {
+            ScriptLogLevel::Info => LogLevel::Info,
+            ScriptLogLevel::Success => LogLevel::Success,
+            ScriptLogLevel::Warning => LogLevel::Warning,
+            ScriptLogLevel::Error => LogLevel::Error,
+        };
+        let _ = logger::log_message(level, "expression".to_string(), Some(self.consumer), message.to_string());
+    }
+
+    fn emit_custom(&mut self, _topic: &str, _payload: JsonValue) -> Result<(), String> {
+        Err("expression mode cannot emit custom events".to_string())
+    }
+
+    fn tree_snapshot(&self) -> Option<Arc<ProcessTreeSnapshot>> {
+        Some(Arc::clone(&self.tree_snapshot))
+    }
+
+    fn set_node_script_property(&mut self, _node: NodeId, _property: String, _value: ParamValue) -> Result<(), String> {
+        Err("expression mode cannot mutate node script properties".to_string())
+    }
+
+    fn call_node_script_method(&mut self, _node: NodeId, _method: String, _args: Vec<ParamValue>) -> Result<(), String> {
+        Err("expression mode cannot call node script methods".to_string())
+    }
+
+    fn set_event_listener(&mut self, _target: NodeId, _level: u32) -> Result<(), String> {
+        Err("expression mode cannot register script listeners".to_string())
+    }
+
+    fn remove_event_listener(&mut self, _target: NodeId) -> Result<(), String> {
+        Err("expression mode cannot remove script listeners".to_string())
+    }
+
+    fn clear_event_listeners(&mut self) -> Result<(), String> {
+        Err("expression mode cannot clear script listeners".to_string())
+    }
 }
 
 #[derive(Default)]
@@ -68,6 +148,10 @@ impl<T: Node> Engine<T> {
 
         self.prune_expression_runtimes(&param_snapshots);
         let change_set = self.collect_control_change_set();
+        let expression_tree_snapshot = param_snapshots
+            .values()
+            .any(|snapshot| matches!((&snapshot.control.mode, &snapshot.control.spec), (ParameterControlMode::Expression, ParameterControlSpec::Expression)))
+            .then(|| self.build_process_tree_snapshot());
 
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
         let mut two_way_links = HashMap::<NodeId, NodeId>::new();
@@ -94,7 +178,7 @@ impl<T: Node> Engine<T> {
                     }
                 },
                 ParameterControlMode::Expression => match &control.spec {
-                    ParameterControlSpec::Expression => self.evaluate_expression(*param, snapshot, &param_snapshots, &change_set, &mut diagnostics),
+                    ParameterControlSpec::Expression => self.evaluate_expression(*param, snapshot, &param_snapshots, expression_tree_snapshot.as_ref(), &change_set, &mut diagnostics),
                     _ => {
                         diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/expression mismatch"));
                         None
@@ -209,11 +293,19 @@ impl<T: Node> Engine<T> {
         Ok(true)
     }
 
+    fn make_expression_source_parameter(initial_expression: String) -> Parameter {
+        let mut source = Parameter::new("Expression", ParamValue::Str(initial_expression), ParameterChangeCheck::ValueChange);
+        source.node_data_mut().meta.decl_id = DeclId(PARAMETER_EXPRESSION_SOURCE_DECL_ID.to_string());
+        source.node_data_mut().meta.can_be_disabled = false;
+        source.control_modes_enabled = false;
+        source
+    }
+
     fn sync_parameter_control_nodes(&mut self, param: NodeId, mode: ParameterControlMode) -> Result<(), String> {
         let children = self.direct_children(param);
         let mut link_nodes = Vec::<NodeId>::new();
-        let mut expression_nodes = Vec::<NodeId>::new();
         let mut animation_nodes = Vec::<NodeId>::new();
+        let mut expression_source_params = Vec::<NodeId>::new();
 
         for child in children {
             let Some(child_node) = self.nodes.get(child) else {
@@ -221,10 +313,17 @@ impl<T: Node> Engine<T> {
             };
 
             match child_node.get_type() {
-                PARAMETER_LINK_CONTROL_NODE_TYPE => link_nodes.push(child),
-                PARAMETER_EXPRESSION_CONTROL_NODE_TYPE => expression_nodes.push(child),
-                PARAMETER_ANIMATION_CONTROL_NODE_TYPE => animation_nodes.push(child),
-                _ => {}
+                PARAMETER_LINK_CONTROL_NODE_TYPE => {
+                    link_nodes.push(child);
+                }
+                PARAMETER_ANIMATION_CONTROL_NODE_TYPE => {
+                    animation_nodes.push(child);
+                }
+                _ => {
+                    if child_node.node_data().meta.decl_id.0 == PARAMETER_EXPRESSION_SOURCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
+                        expression_source_params.push(child);
+                    }
+                }
             }
         }
 
@@ -243,19 +342,19 @@ impl<T: Node> Engine<T> {
                 } else {
                     to_remove.extend(link_nodes.into_iter().skip(1));
                 }
-                to_remove.extend(expression_nodes);
+                to_remove.extend(expression_source_params);
                 to_remove.extend(animation_nodes);
             }
             ParameterControlMode::Expression => {
-                if expression_nodes.is_empty() {
+                if expression_source_params.is_empty() {
                     self.edits.push(Edit::AddNode {
                         parent: param,
-                        node: Box::new(ParameterExpressionControlNode::new("Expression")),
+                        node: Box::new(Self::make_expression_source_parameter(String::new())),
                         prev_sibling: None,
                     });
                     changed = true;
                 } else {
-                    to_remove.extend(expression_nodes.into_iter().skip(1));
+                    to_remove.extend(expression_source_params.into_iter().skip(1));
                 }
                 to_remove.extend(link_nodes);
                 to_remove.extend(animation_nodes);
@@ -272,12 +371,12 @@ impl<T: Node> Engine<T> {
                     to_remove.extend(animation_nodes.into_iter().skip(1));
                 }
                 to_remove.extend(link_nodes);
-                to_remove.extend(expression_nodes);
+                to_remove.extend(expression_source_params);
             }
             _ => {
                 to_remove.extend(link_nodes);
-                to_remove.extend(expression_nodes);
                 to_remove.extend(animation_nodes);
+                to_remove.extend(expression_source_params);
             }
         }
 
@@ -353,12 +452,7 @@ impl<T: Node> Engine<T> {
     }
 
     fn read_expression_control_config(&self, param: NodeId, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ExpressionControlConfig> {
-        let Some(expression_node) = self.find_direct_child_by_type(param, PARAMETER_EXPRESSION_CONTROL_NODE_TYPE) else {
-            diagnostics.push(ParameterControlDiagnostic::new("expression_control_missing", "expression control node is missing"));
-            return None;
-        };
-
-        let Some(source_param) = self.find_direct_child_by_decl_id(expression_node, PARAMETER_EXPRESSION_SOURCE_DECL_ID) else {
+        let Some(source_param) = self.find_direct_child_by_decl_id(param, PARAMETER_EXPRESSION_SOURCE_DECL_ID) else {
             diagnostics.push(ParameterControlDiagnostic::new("expression_source_missing", "expression source parameter is missing"));
             return None;
         };
@@ -402,11 +496,16 @@ impl<T: Node> Engine<T> {
         consumer: NodeId,
         target_snapshot: &ParameterSnapshot,
         param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        tree_snapshot: Option<&Arc<ProcessTreeSnapshot>>,
         change_set: &ControlChangeSet,
         diagnostics: &mut Vec<ParameterControlDiagnostic>,
     ) -> Option<ParamValue> {
         let Some(config) = self.read_expression_control_config(consumer, diagnostics) else {
             self.clear_expression_runtime(consumer);
+            return None;
+        };
+        let Some(tree_snapshot) = tree_snapshot.cloned() else {
+            diagnostics.push(ParameterControlDiagnostic::new("expression_runtime_error", "expression runtime tree snapshot is unavailable"));
             return None;
         };
 
@@ -415,42 +514,42 @@ impl<T: Node> Engine<T> {
             return None;
         }
 
-        let mut metadata = ExpressionEvaluationMetadata::default();
-        let mut dependencies = HashSet::<NodeId>::new();
         let time_seconds = self.runtime_elapsed.as_secs_f64();
         let delta_seconds = if previous_runtime.source_param.is_some() {
             self.runtime_elapsed.saturating_sub(previous_runtime.last_eval_elapsed).as_secs_f64()
         } else {
             0.0
         };
-        let result = evaluate_expression_numeric(config.expression.as_str(), delta_seconds, time_seconds, &mut metadata, |identifier| {
-            match self.resolve_user_context_symbol(consumer, identifier, None) {
-                UserContextLookup::Resolved(resolution) => {
-                    let Some(snapshot) = param_snapshots.get(&resolution.entry_param) else {
-                        return Err(format!("resolved symbol '{identifier}' references missing parameter node"));
-                    };
-                    dependencies.insert(resolution.entry_param);
-                    snapshot.value.as_float().ok_or_else(|| format!("symbol '{identifier}' cannot be coerced to numeric input"))
-                }
-                UserContextLookup::TypeMismatch(_) => Err(format!("symbol '{identifier}' type mismatch")),
-                UserContextLookup::Missing { .. } => Err(format!("symbol '{identifier}' was not found")),
+        let local_node = self.nodes.get(consumer).and_then(|node| node.node_data().parent);
+        let (symbols, dependencies) = self.expression_symbols_and_dependencies(consumer, config.expression.as_str(), param_snapshots);
+        let continuous = expression_should_run_continuously(config.expression.as_str());
+
+        let script_runtime = match self.ensure_expression_script_runtime(
+            consumer,
+            config.expression.as_str(),
+            previous_runtime.script_runtime.clone(),
+            previous_runtime.source_expression.as_str(),
+            local_node,
+            tree_snapshot.clone(),
+            time_seconds,
+            delta_seconds,
+        ) {
+            Ok(runtime) => runtime,
+            Err(message) => {
+                diagnostics.push(ParameterControlDiagnostic::new("expression_error", message));
+                return None;
             }
-        });
-        metadata.dependencies = dependencies;
-
-        let mut subscriptions = metadata.dependencies.clone();
-        subscriptions.insert(config.source_param);
-        let next_runtime = ExpressionControlRuntime {
-            source_param: Some(config.source_param),
-            dependencies: metadata.dependencies.clone(),
-            subscriptions,
-            continuous: metadata.uses_time || metadata.uses_delta_time,
-            last_eval_elapsed: self.runtime_elapsed,
         };
-        self.reconcile_expression_runtime(consumer, &previous_runtime, &next_runtime);
-        self.expression_runtime.insert(consumer, next_runtime);
 
-        let value = match result {
+        let value = match self.evaluate_expression_script(
+            consumer,
+            local_node,
+            tree_snapshot,
+            script_runtime.clone(),
+            symbols,
+            time_seconds,
+            delta_seconds,
+        ) {
             Ok(value) => value,
             Err(message) => {
                 diagnostics.push(ParameterControlDiagnostic::new("expression_error", message));
@@ -458,7 +557,21 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        self.convert_for_target(&ParamValue::Float(value), target_snapshot, "expression", None, diagnostics)
+        let mut subscriptions = dependencies.clone();
+        subscriptions.insert(config.source_param);
+        let next_runtime = ExpressionControlRuntime {
+            source_param: Some(config.source_param),
+            dependencies: dependencies.clone(),
+            subscriptions,
+            continuous,
+            last_eval_elapsed: self.runtime_elapsed,
+            source_expression: config.expression.clone(),
+            script_runtime: Some(script_runtime),
+        };
+        self.reconcile_expression_runtime(consumer, &previous_runtime, &next_runtime);
+        self.expression_runtime.insert(consumer, next_runtime);
+
+        self.convert_for_target(&value, target_snapshot, "expression", None, diagnostics)
     }
 
     fn evaluate_link_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
@@ -562,6 +675,81 @@ impl<T: Node> Engine<T> {
         pending_writes.sort_by_key(|(node, _)| node.0);
 
         BindingEvaluation { pending_writes, diagnostics_by_param }
+    }
+
+    fn expression_symbols_and_dependencies(
+        &self,
+        consumer: NodeId,
+        expression: &str,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+    ) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
+        let mut symbols = JsonMap::<String, JsonValue>::new();
+        let mut dependencies = HashSet::<NodeId>::new();
+        let candidates = self.user_contexts.collect_candidates(consumer, None, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
+
+        for candidate in candidates {
+            if candidate.shadowed || symbols.contains_key(candidate.symbol.as_str()) {
+                continue;
+            }
+            if !expression_mentions_symbol(expression, candidate.symbol.as_str()) {
+                continue;
+            }
+
+            let Some(snapshot) = param_snapshots.get(&candidate.entry_param) else {
+                continue;
+            };
+
+            symbols.insert(candidate.symbol, snapshot.value.to_script_json());
+            dependencies.insert(candidate.entry_param);
+        }
+
+        (symbols, dependencies)
+    }
+
+    fn ensure_expression_script_runtime(
+        &self,
+        consumer: NodeId,
+        expression: &str,
+        existing_runtime: Option<Arc<Mutex<Box<dyn ScriptRuntime>>>>,
+        previous_expression: &str,
+        local_node: Option<NodeId>,
+        tree_snapshot: Arc<ProcessTreeSnapshot>,
+        time_seconds: f64,
+        delta_seconds: f64,
+    ) -> Result<Arc<Mutex<Box<dyn ScriptRuntime>>>, String> {
+        if let Some(runtime) = existing_runtime {
+            if expression == previous_expression {
+                return Ok(runtime);
+            }
+        }
+
+        let mut runtime: Box<dyn ScriptRuntime> = Box::new(QuickJsRuntime::new(ScriptBudgets::default()).map_err(|error| format!("failed to create QuickJS runtime: {error}"))?);
+        let source = build_expression_runtime_source(expression);
+        let source_name = format!("{EXPRESSION_RUNTIME_SOURCE_NAME}#{}", consumer.0);
+        let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        runtime
+            .load(source.as_str(), source_name.as_str(), Some(&mut host))
+            .map_err(|error| format!("failed to compile expression: {error}"))?;
+
+        Ok(Arc::new(Mutex::new(runtime)))
+    }
+
+    fn evaluate_expression_script(
+        &self,
+        consumer: NodeId,
+        local_node: Option<NodeId>,
+        tree_snapshot: Arc<ProcessTreeSnapshot>,
+        runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>,
+        symbols: JsonMap<String, JsonValue>,
+        time_seconds: f64,
+        delta_seconds: f64,
+    ) -> Result<ParamValue, String> {
+        let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        let mut runtime_guard = runtime.lock().map_err(|_| "expression runtime lock poisoned".to_string())?;
+        let result = runtime_guard
+            .call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host)
+            .map_err(|error| format!("expression evaluation failed: {error}"))?;
+        script_value_to_param_value(result)
     }
 
     fn resolve_template_token(&mut self, consumer: NodeId, token: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<String> {
@@ -821,6 +1009,120 @@ impl<T: Node> Engine<T> {
     }
 }
 
+fn build_expression_runtime_source(expression: &str) -> String {
+    let expression_json = serde_json::to_string(expression).unwrap_or_else(|_| "\"\"".to_string());
+    format!(
+        r#"
+const __gc_expression_source = {expression_json};
+if (typeof Boolean.prototype.get !== "function") {{
+  Object.defineProperty(Boolean.prototype, "get", {{
+    value() {{ return this.valueOf(); }},
+    configurable: true,
+  }});
+}}
+if (typeof Number.prototype.get !== "function") {{
+  Object.defineProperty(Number.prototype, "get", {{
+    value() {{ return this.valueOf(); }},
+    configurable: true,
+  }});
+}}
+if (typeof String.prototype.get !== "function") {{
+  Object.defineProperty(String.prototype, "get", {{
+    value() {{ return this.valueOf(); }},
+    configurable: true,
+  }});
+}}
+globalThis.__gc_script_exports["{EXPRESSION_EXPORT_NAME}"] = function(__gc_symbols = {{}}) {{
+  const __gc_scope = (__gc_symbols && typeof __gc_symbols === "object" && !Array.isArray(__gc_symbols)) ? __gc_symbols : {{}};
+  const __gc_keys = Object.keys(__gc_scope).filter((key) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key));
+  const __gc_values = __gc_keys.map((key) => __gc_scope[key]);
+  const __gc_eval = Function(...__gc_keys, "return (" + __gc_expression_source + ");");
+  return __gc_eval(...__gc_values);
+}};
+"#
+    )
+}
+
+fn script_value_to_param_value(value: ScriptValue) -> Result<ParamValue, String> {
+    match value {
+        ScriptValue::Nil => Err("expression returned undefined/null".to_string()),
+        ScriptValue::Bool(value) => Ok(ParamValue::Bool(value)),
+        ScriptValue::Int(value) => {
+            if let Ok(value) = i32::try_from(value) {
+                Ok(ParamValue::Int(value))
+            } else {
+                Ok(ParamValue::Float(value as f64))
+            }
+        }
+        ScriptValue::Float(value) => Ok(ParamValue::Float(value)),
+        ScriptValue::Str(value) => Ok(ParamValue::Str(value)),
+        ScriptValue::Json(value) => ParamValue::from_script_json(&value),
+    }
+}
+
+fn is_expression_identifier_start(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_' || ch == '$'
+}
+
+fn is_expression_identifier_continue(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
+}
+
+fn expression_mentions_symbol(expression: &str, symbol: &str) -> bool {
+    let symbol = symbol.trim();
+    if symbol.is_empty() {
+        return false;
+    }
+    let mut symbol_chars = symbol.chars();
+    let Some(first) = symbol_chars.next() else {
+        return false;
+    };
+    if !is_expression_identifier_start(first) || !symbol_chars.all(is_expression_identifier_continue) {
+        return false;
+    }
+
+    let chars = expression.chars().collect::<Vec<_>>();
+    let mut index = 0usize;
+    while index < chars.len() {
+        if !is_expression_identifier_start(chars[index]) {
+            index += 1;
+            continue;
+        }
+
+        let start = index;
+        index += 1;
+        while index < chars.len() && is_expression_identifier_continue(chars[index]) {
+            index += 1;
+        }
+
+        let token = chars[start..index].iter().collect::<String>();
+        if token != symbol {
+            continue;
+        }
+
+        let mut cursor = start;
+        while cursor > 0 && chars[cursor - 1].is_whitespace() {
+            cursor -= 1;
+        }
+        if cursor > 0 && chars[cursor - 1] == '.' {
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+fn expression_should_run_continuously(expression: &str) -> bool {
+    expression.contains("time(")
+        || expression_mentions_symbol(expression, "deltaTime")
+        || expression_mentions_symbol(expression, "root")
+        || expression_mentions_symbol(expression, "local")
+        || expression_mentions_symbol(expression, "script")
+        || expression_mentions_symbol(expression, "gc")
+}
+
 fn parse_template_segments(template: &str) -> Vec<TemplateSegment> {
     let chars = template.chars().collect::<Vec<_>>();
     let mut out = Vec::<TemplateSegment>::new();
@@ -888,247 +1190,4 @@ fn control_spec_matches_mode(mode: ParameterControlMode, spec: &ParameterControl
             | (ParameterControlMode::Link, ParameterControlSpec::Link)
             | (ParameterControlMode::Animation, ParameterControlSpec::Animation)
     )
-}
-
-fn evaluate_expression_numeric<F>(source: &str, delta_seconds: f64, time_seconds: f64, metadata: &mut ExpressionEvaluationMetadata, mut resolve_identifier: F) -> Result<f64, String>
-where
-    F: FnMut(&str) -> Result<f64, String>,
-{
-    let tokens = lex_expression(source)?;
-    let mut parser = ExpressionParser::new(tokens, delta_seconds, time_seconds, metadata, &mut resolve_identifier);
-    let value = parser.parse_expression()?;
-    if parser.has_remaining_tokens() {
-        return Err("unexpected trailing tokens in expression".to_string());
-    }
-    Ok(value)
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum ExpressionToken {
-    Number(f64),
-    Identifier(String),
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    LParen,
-    RParen,
-    Comma,
-}
-
-fn lex_expression(source: &str) -> Result<Vec<ExpressionToken>, String> {
-    let chars = source.chars().collect::<Vec<_>>();
-    let mut out = Vec::<ExpressionToken>::new();
-    let mut index = 0usize;
-
-    while index < chars.len() {
-        let ch = chars[index];
-        if ch.is_whitespace() {
-            index += 1;
-            continue;
-        }
-
-        if ch.is_ascii_digit() || ch == '.' {
-            let start = index;
-            index += 1;
-            while index < chars.len() && (chars[index].is_ascii_digit() || chars[index] == '.') {
-                index += 1;
-            }
-            let number_text = chars[start..index].iter().collect::<String>();
-            let number = number_text.parse::<f64>().map_err(|_| format!("invalid number literal '{number_text}'"))?;
-            out.push(ExpressionToken::Number(number));
-            continue;
-        }
-
-        if ch.is_ascii_alphabetic() || ch == '_' {
-            let start = index;
-            index += 1;
-            while index < chars.len() && (chars[index].is_ascii_alphanumeric() || chars[index] == '_') {
-                index += 1;
-            }
-            let ident = chars[start..index].iter().collect::<String>();
-            out.push(ExpressionToken::Identifier(ident));
-            continue;
-        }
-
-        let token = match ch {
-            '+' => ExpressionToken::Plus,
-            '-' => ExpressionToken::Minus,
-            '*' => ExpressionToken::Star,
-            '/' => ExpressionToken::Slash,
-            '(' => ExpressionToken::LParen,
-            ')' => ExpressionToken::RParen,
-            ',' => ExpressionToken::Comma,
-            _ => return Err(format!("unsupported expression character '{ch}'")),
-        };
-        out.push(token);
-        index += 1;
-    }
-
-    Ok(out)
-}
-
-struct ExpressionParser<'a, 'm, F>
-where
-    F: FnMut(&str) -> Result<f64, String>,
-{
-    tokens: Vec<ExpressionToken>,
-    index: usize,
-    delta_seconds: f64,
-    time_seconds: f64,
-    metadata: &'m mut ExpressionEvaluationMetadata,
-    resolve_identifier: &'a mut F,
-}
-
-impl<'a, 'm, F> ExpressionParser<'a, 'm, F>
-where
-    F: FnMut(&str) -> Result<f64, String>,
-{
-    fn new(tokens: Vec<ExpressionToken>, delta_seconds: f64, time_seconds: f64, metadata: &'m mut ExpressionEvaluationMetadata, resolve_identifier: &'a mut F) -> Self {
-        Self {
-            tokens,
-            index: 0,
-            delta_seconds,
-            time_seconds,
-            metadata,
-            resolve_identifier,
-        }
-    }
-
-    fn has_remaining_tokens(&self) -> bool {
-        self.index < self.tokens.len()
-    }
-
-    fn parse_expression(&mut self) -> Result<f64, String> {
-        let mut lhs = self.parse_term()?;
-
-        loop {
-            match self.peek() {
-                Some(ExpressionToken::Plus) => {
-                    self.index += 1;
-                    lhs += self.parse_term()?;
-                }
-                Some(ExpressionToken::Minus) => {
-                    self.index += 1;
-                    lhs -= self.parse_term()?;
-                }
-                _ => break,
-            }
-        }
-
-        Ok(lhs)
-    }
-
-    fn parse_term(&mut self) -> Result<f64, String> {
-        let mut lhs = self.parse_unary()?;
-
-        loop {
-            match self.peek() {
-                Some(ExpressionToken::Star) => {
-                    self.index += 1;
-                    lhs *= self.parse_unary()?;
-                }
-                Some(ExpressionToken::Slash) => {
-                    self.index += 1;
-                    let rhs = self.parse_unary()?;
-                    lhs /= rhs;
-                }
-                _ => break,
-            }
-        }
-
-        Ok(lhs)
-    }
-
-    fn parse_unary(&mut self) -> Result<f64, String> {
-        match self.peek() {
-            Some(ExpressionToken::Plus) => {
-                self.index += 1;
-                self.parse_unary()
-            }
-            Some(ExpressionToken::Minus) => {
-                self.index += 1;
-                self.parse_unary().map(|value| -value)
-            }
-            _ => self.parse_primary(),
-        }
-    }
-
-    fn parse_primary(&mut self) -> Result<f64, String> {
-        let Some(token) = self.peek().cloned() else {
-            return Err("unexpected end of expression".to_string());
-        };
-
-        match token {
-            ExpressionToken::Number(number) => {
-                self.index += 1;
-                Ok(number)
-            }
-            ExpressionToken::Identifier(identifier) => {
-                self.index += 1;
-                if matches!(self.peek(), Some(ExpressionToken::LParen)) {
-                    self.index += 1;
-                    return self.parse_function_call(identifier.as_str());
-                }
-                if identifier == "deltaTime" {
-                    self.metadata.uses_delta_time = true;
-                    return Ok(self.delta_seconds);
-                }
-                (self.resolve_identifier)(identifier.as_str())
-            }
-            ExpressionToken::LParen => {
-                self.index += 1;
-                let value = self.parse_expression()?;
-                match self.peek() {
-                    Some(ExpressionToken::RParen) => {
-                        self.index += 1;
-                        Ok(value)
-                    }
-                    _ => Err("missing ')' in expression".to_string()),
-                }
-            }
-            _ => Err("expected number, identifier, function call, or '('".to_string()),
-        }
-    }
-
-    fn parse_function_call(&mut self, name: &str) -> Result<f64, String> {
-        let mut arg_count = 0usize;
-        if !matches!(self.peek(), Some(ExpressionToken::RParen)) {
-            loop {
-                let _value = self.parse_expression()?;
-                arg_count = arg_count.saturating_add(1);
-                match self.peek() {
-                    Some(ExpressionToken::Comma) => {
-                        self.index += 1;
-                    }
-                    Some(ExpressionToken::RParen) => break,
-                    _ => return Err(format!("missing ')' in function call '{name}'")),
-                }
-            }
-        }
-
-        match self.peek() {
-            Some(ExpressionToken::RParen) => {
-                self.index += 1;
-            }
-            _ => {
-                return Err(format!("missing ')' in function call '{name}'"));
-            }
-        }
-
-        match name {
-            "time" => {
-                if arg_count != 0 {
-                    return Err("time() does not accept arguments".to_string());
-                }
-                self.metadata.uses_time = true;
-                Ok(self.time_seconds)
-            }
-            _ => Err(format!("unsupported expression function '{name}'")),
-        }
-    }
-
-    fn peek(&self) -> Option<&ExpressionToken> {
-        self.tokens.get(self.index)
-    }
 }

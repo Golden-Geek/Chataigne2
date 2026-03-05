@@ -1,6 +1,6 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
 
@@ -95,13 +95,15 @@ pub struct EngineTime {
     pub seq: u32,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ExpressionControlRuntime {
     pub source_param: Option<NodeId>,
     pub dependencies: HashSet<NodeId>,
     pub subscriptions: HashSet<NodeId>,
     pub continuous: bool,
     pub last_eval_elapsed: Duration,
+    pub source_expression: String,
+    pub script_runtime: Option<Arc<Mutex<Box<dyn crate::script::ScriptRuntime>>>>,
 }
 
 /// Node engine storing graph state, pending edits, and emitted events.
