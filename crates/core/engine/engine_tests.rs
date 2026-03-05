@@ -8,8 +8,10 @@ use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
-    EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
+    AnimationCurveKeyNode, AnimationCurveNode, EventPropagation, EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
+    PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID,
+    PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserNodeRole,
+    curve_from_snapshot,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint, ReferenceConstraints, ReferenceRoot,
@@ -350,7 +352,7 @@ struct ViaComposedRootNode {
 impl Node for ViaComposedRootNode {}
 
 #[crate::node("reuse_folder_base_node")]
-#[params(
+#[children(
     folder(output, label = "Output") {
         host: String = "127.0.0.1" (label = "Host");
     }
@@ -361,7 +363,7 @@ struct ReuseFolderBaseNode {}
 impl Node for ReuseFolderBaseNode {}
 
 #[crate::node("reuse_folder_via_node")]
-#[params(
+#[children(
     folder(output, label = "Output", reuse = true) {
         gain: f64 = 0.5 [0.0..1.0] (label = "Gain");
     }
@@ -374,7 +376,7 @@ struct ReuseFolderViaNode {
 impl Node for ReuseFolderViaNode {}
 
 #[crate::node("dsl_params_node")]
-#[params(
+#[children(
     feedback: f64 = 0.5 [0.0..1.0] (
         label = "Feedback",
         description = "Delay feedback amount",
@@ -398,14 +400,14 @@ struct DslParamsNode {
 }
 
 #[crate::node("dsl_vector_bounds_node")]
-#[params(
+#[children(
     vec2_bounds: crate::parameter::Vec2 = (0.2, 0.5) [(-1.0, 0.0)..(1.0, 2.0)] (label = "Vec2 Bounds");
     vec3_bounds: crate::parameter::Vec3 = (0.2, 0.5, 12.0) [(-1.0, 0.0, 10.0)..(1.0, 2.0, 20.0)] (label = "Vec3 Bounds");
 )]
 struct DslVectorBoundsNode {}
 
 #[crate::node("dsl_enum_defaults_node")]
-#[params(
+#[children(
     mode_marked: crate::parameter::Enum (
         label = "Mode Marked",
         enum_options = ["off", "on", "auto (default)"],
@@ -423,13 +425,24 @@ struct DslVectorBoundsNode {}
 struct DslEnumDefaultsNode {}
 
 #[crate::node("dsl_reference_default_node")]
-#[params(
+#[children(
     target_ref: crate::node::NodeReference (label = "Target Reference");
 )]
 struct DslReferenceDefaultNode {}
 
+#[crate::node("dsl_node_children_node")]
+#[children(
+    folder(output, label = "Output") {
+        node curve: AnimationCurveNode = AnimationCurveNode::new_with_label("Curve") (
+            label = "Curve",
+            description = "Declared curve child",
+        );
+    }
+)]
+struct DslNodeChildrenNode {}
+
 #[crate::node("dsl_meta_params_node")]
-#[params(
+#[children(
     folder(
         settings,
         label = "Settings",
@@ -468,7 +481,7 @@ struct DslReferenceDefaultNode {}
 struct DslMetaParamsNode {}
 
 #[crate::node("manual_inbox_params_node")]
-#[params(
+#[children(
     value: f64 = 0.5 [0.0..1.0] (label = "Value");
 )]
 struct ManualInboxParamsNode {
@@ -476,7 +489,7 @@ struct ManualInboxParamsNode {
 }
 
 #[crate::node("params_with_custom_init_node")]
-#[params(
+#[children(
     value: f64 = 0.5 [0.0..1.0] (label = "Value");
 )]
 struct ParamsWithCustomInitNode {
@@ -487,7 +500,7 @@ struct ParamsWithCustomInitNode {
 }
 
 #[crate::node("nested_init_binding_node")]
-#[params(
+#[children(
     folder(group, label = "Group") {
         value: f64 = 0.5 [0.0..1.0] (label = "Value");
     }
@@ -499,7 +512,7 @@ struct NestedInitBindingNode {
 }
 
 #[crate::node("dsl_callback_params_node")]
-#[params(
+#[children(
     default_value: f64 = 0.1 (default_callback);
     named_value: f64 = 0.2 (callback = Self::named_value_callback);
     closure_value: f64 = 0.3 (
@@ -587,6 +600,9 @@ impl Node for DslEnumDefaultsNode {}
 
 #[crate::node("dsl_reference_default_node", from_struct)]
 impl Node for DslReferenceDefaultNode {}
+
+#[crate::node("dsl_node_children_node", from_struct)]
+impl Node for DslNodeChildrenNode {}
 
 #[crate::node("dsl_meta_params_node", from_struct)]
 impl Node for DslMetaParamsNode {}
@@ -707,6 +723,7 @@ crate::define_node_enum!(
         DslVectorBoundsNode,
         DslEnumDefaultsNode,
         DslReferenceDefaultNode,
+        DslNodeChildrenNode,
         DslMetaParamsNode,
         ManualInboxParamsNode,
         ParamsWithCustomInitNode,
@@ -774,6 +791,24 @@ fn find_child_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: 
         child = node.node_data().next_sibling;
     }
     None
+}
+
+fn count_children_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> usize {
+    let mut count = 0usize;
+    let Some(parent_node) = engine.nodes.get(parent) else {
+        return count;
+    };
+    let mut child = parent_node.node_data().first_child;
+    while let Some(id) = child {
+        let Some(node) = engine.nodes.get(id) else {
+            break;
+        };
+        if node.node_data().meta.decl_id.0 == decl_id {
+            count += 1;
+        }
+        child = node.node_data().next_sibling;
+    }
+    count
 }
 
 fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
@@ -978,6 +1013,34 @@ fn params_macro_allows_reference_without_explicit_default_value() {
     };
     assert!(reference.uuid().is_nil(), "reference default should use nil uuid");
     assert_eq!(reference.cached_id(), None, "reference default should have no cached id");
+}
+
+#[test]
+fn children_macro_materializes_declared_node_children_and_binds_handles() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DslNodeChildrenNode::new("node-children").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("node children node should be attached under root");
+    let output = find_child_by_decl(&engine, owner, "output").expect("output folder should exist");
+    let curve = find_child_by_decl(&engine, output, "output/curve").expect("curve child should exist");
+
+    let MacroTestNode::DslNodeChildrenNode(node) = engine.nodes.get(owner).expect("node children node should exist") else {
+        panic!("expected DslNodeChildrenNode variant");
+    };
+    assert!(node.curve.is_present(), "generated potential handle should be bound");
+    assert_eq!(node.curve.current_id(), Some(curve));
+    assert!(!node.curve.is_pending_create(), "bound handle should not stay pending");
+
+    let curve_node = engine.nodes.get(curve).expect("curve child should exist");
+    assert_eq!(curve_node.get_type(), PARAMETER_ANIMATION_CURVE_NODE_TYPE);
+    assert_eq!(curve_node.node_data().meta.label, "Curve");
+    assert_eq!(curve_node.node_data().meta.description.as_deref(), Some("Declared curve child"));
 }
 
 #[test]
@@ -3864,6 +3927,121 @@ fn animation_control_update_rate_changes_schedule_frequency() {
 }
 
 #[test]
+fn animation_control_materializes_curve_key_and_easing_nodes() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    assert_eq!(engine.nodes.get(curve_node).expect("curve node should exist").get_type(), PARAMETER_ANIMATION_CURVE_NODE_TYPE);
+
+    let mut key_count = 0usize;
+    let mut child = engine.nodes.get(curve_node).and_then(|node| node.node_data().first_child);
+    while let Some(key_id) = child {
+        let key_node = engine.nodes.get(key_id).expect("key node should exist");
+        if key_node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE {
+            key_count += 1;
+            let _position = find_child_by_decl_any(&engine, key_id, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID).expect("key position parameter should exist");
+            let _value = find_child_by_decl_any(&engine, key_id, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID).expect("key value parameter should exist");
+            let easing_node = find_child_by_decl_any(&engine, key_id, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
+            let _kind = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
+        }
+        child = key_node.node_data().next_sibling;
+    }
+    assert!(key_count >= 2, "curve should materialize default key nodes");
+
+    let tree_snapshot = engine.build_process_tree_snapshot();
+    let parsed_curve = curve_from_snapshot(tree_snapshot.as_ref(), curve_node).expect("curve should parse from node snapshot");
+    assert!(parsed_curve.key_count() >= 2, "parsed curve should expose at least two keys");
+}
+
+#[test]
+fn animation_curve_easing_keeps_single_kind_parameter_while_switching_kind() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    let first_key = engine.nodes.get(curve_node).and_then(|node| node.node_data().first_child).expect("default key should exist");
+    let easing_node = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
+    let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
+
+    assert_eq!(
+        count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID),
+        1,
+        "easing should start with exactly one kind parameter"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: kind_param,
+        value: ParamValue::Enum("bezier".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("switch to bezier should apply");
+    engine.apply_edits().expect("queued structural easing edits should apply");
+
+    assert_eq!(
+        count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID),
+        1,
+        "switching easing kind should not duplicate kind parameter"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: kind_param,
+        value: ParamValue::Enum("perlinNoise".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("switch to perlin noise should apply");
+    engine.apply_edits().expect("queued structural easing edits should apply");
+
+    assert_eq!(
+        count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID),
+        1,
+        "switching easing kind repeatedly should keep one kind parameter"
+    );
+}
+
+#[test]
+fn animation_curve_accepts_user_created_key_items() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    let before = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .filter(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .count();
+
+    engine.add_user_item(AnimationCurveKeyNode::new_with_label("Inserted Key").into(), Some(curve_node));
+    engine.apply_edits().expect("user key add should succeed");
+
+    let after = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .filter(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .count();
+
+    assert_eq!(after, before + 1, "curve should accept key user items");
+}
+
+#[test]
 fn ui_param_control_info_hides_template_mode_without_context() {
     let root = Parameter::new("title", ParamValue::Str(String::new()), ParameterChangeCheck::ValueChange);
     let engine = Engine::new(root);
@@ -3965,11 +4143,7 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
     let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
     assert!(redo_ack.success, "redo should succeed for control-mode change");
     let gain_after_redo = engine.nodes.get(gain).and_then(|node| node.engine_param_snapshot()).expect("gain snapshot should exist after redo");
-    assert_eq!(
-        gain_after_redo.control.mode,
-        ParameterControlMode::ContextLink,
-        "redo should restore context-link mode"
-    );
+    assert_eq!(gain_after_redo.control.mode, ParameterControlMode::ContextLink, "redo should restore context-link mode");
 }
 
 #[test]

@@ -2753,14 +2753,7 @@ struct NodeScriptHostBridge<'a> {
 }
 
 impl<'a> NodeScriptHostBridge<'a> {
-    fn new(
-        script_node: NodeId,
-        host_node: Option<NodeId>,
-        started_elapsed: Duration,
-        runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
-        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
-        ctx: &'a mut ProcessCtx,
-    ) -> Self {
+    fn new(script_node: NodeId, host_node: Option<NodeId>, started_elapsed: Duration, runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>, load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>, ctx: &'a mut ProcessCtx) -> Self {
         Self {
             script_node,
             host_node,
@@ -3106,25 +3099,11 @@ impl ScriptNode {
         let host_node = self.node_data.parent;
         let mut declared_load_children = HashSet::new();
         let manifest = {
-            let mut host = NodeScriptHostBridge::new(
-                script_node,
-                host_node,
-                self.runtime_started_elapsed,
-                &mut self.runtime_subscriptions,
-                Some(&mut declared_load_children),
-                ctx,
-            );
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
             runtime.load(&script_source, &source_name, Some(&mut host))?
         };
         {
-            let mut host = NodeScriptHostBridge::new(
-                script_node,
-                host_node,
-                self.runtime_started_elapsed,
-                &mut self.runtime_subscriptions,
-                Some(&mut declared_load_children),
-                ctx,
-            );
+            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
             runtime.call_on_init(&mut host)?;
         }
         self.reconcile_load_declared_children(ctx, &declared_load_children);

@@ -1,7 +1,7 @@
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::edit::{Edit, EditQueue, EditRequest};
@@ -158,6 +158,11 @@ pub struct Engine<T: Node> {
     param_last_change_counter: HashMap<NodeId, u64>,
     /// Runtime state for expression-controlled parameters.
     expression_runtime: HashMap<NodeId, ExpressionControlRuntime>,
+    /// Re-entrancy depth for outer structural stabilization loops.
+    ///
+    /// When non-zero, add-node inline stabilization is deferred to the outer pass
+    /// to avoid deep recursive `apply_edits` chains.
+    pub(crate) stabilization_scope_depth: usize,
 }
 
 impl<T: Node> Engine<T> {
@@ -195,6 +200,7 @@ impl<T: Node> Engine<T> {
             param_change_counter: 0,
             param_last_change_counter: HashMap::new(),
             expression_runtime: HashMap::new(),
+            stabilization_scope_depth: 0,
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();

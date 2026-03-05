@@ -48,6 +48,10 @@ pub mod blueprints;
 /// UserContext and DynamicContext APIs.
 pub mod contexts;
 
+#[path = "../engine/animation_curve.rs"]
+/// Animation curve model and high-performance samplers.
+pub mod animation_curve;
+
 #[path = "../engine/logger.rs"]
 /// Process-wide logger API and `log!` macro support.
 pub mod logger;

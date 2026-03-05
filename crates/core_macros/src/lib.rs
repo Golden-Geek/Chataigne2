@@ -427,6 +427,7 @@ struct ParamsDsl {
 enum ParamsDslItem {
     Folder(ParamsDslFolder),
     Param(ParamsDslParam),
+    Node(ParamsDslNode),
 }
 
 struct ParamsDslFolder {
@@ -482,11 +483,33 @@ struct ParamsDslParam {
     options: ParamsDslParamOptions,
 }
 
+#[derive(Default)]
+struct ParamsDslNodeOptions {
+    label: Option<LitStr>,
+    description: Option<LitStr>,
+    meta: ParamsDslMetaOptions,
+}
+
+struct ParamsDslNode {
+    field: Ident,
+    ty: Type,
+    default: Expr,
+    options: ParamsDslNodeOptions,
+}
+
 struct ParamsDslOptionsOnly(ParamsDslParamOptions);
 
 impl Parse for ParamsDslOptionsOnly {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self(parse_params_options(input)?))
+    }
+}
+
+struct ParamsDslNodeOptionsOnly(ParamsDslNodeOptions);
+
+impl Parse for ParamsDslNodeOptionsOnly {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Self(parse_node_options(input)?))
     }
 }
 
@@ -600,6 +623,23 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
             continue;
         }
 
+        if ident == "node" {
+            let field = input.parse::<Ident>()?;
+            input.parse::<Token![:]>()?;
+            let ty = input.parse::<Type>()?;
+
+            let mut tail = Vec::<TokenTree>::new();
+            while !input.peek(Token![;]) {
+                tail.push(input.parse::<TokenTree>()?);
+            }
+            input.parse::<Token![;]>()?;
+
+            let (default, options) = parse_node_tail(tail)?;
+
+            items.push(ParamsDslItem::Node(ParamsDslNode { field, ty, default, options }));
+            continue;
+        }
+
         input.parse::<Token![:]>()?;
         let ty = input.parse::<Type>()?;
 
@@ -615,6 +655,71 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
     }
 
     Ok(items)
+}
+
+fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
+    let mut out = ParamsDslNodeOptions::default();
+
+    while !input.is_empty() {
+        let key = input.parse::<Ident>()?;
+        if !input.peek(Token![=]) {
+            return Err(Error::new(key.span(), "unsupported node child option flag; expected `key = value`"));
+        }
+
+        input.parse::<Token![=]>()?;
+
+        if key == "label" {
+            if out.label.is_some() {
+                return Err(Error::new(key.span(), "duplicate `label` option"));
+            }
+            out.label = Some(input.parse::<LitStr>()?);
+        } else if key == "description" {
+            if out.description.is_some() {
+                return Err(Error::new(key.span(), "duplicate `description` option"));
+            }
+            out.description = Some(input.parse::<LitStr>()?);
+        } else if key == "short_name" || key == "shortName" {
+            if out.meta.short_name.is_some() {
+                return Err(Error::new(key.span(), "duplicate `short_name` option"));
+            }
+            out.meta.short_name = Some(input.parse::<LitStr>()?);
+        } else if key == "enabled" {
+            if out.meta.enabled.is_some() {
+                return Err(Error::new(key.span(), "duplicate `enabled` option"));
+            }
+            out.meta.enabled = Some(input.parse::<Expr>()?);
+        } else if key == "can_be_disabled" || key == "canBeDisabled" {
+            if out.meta.can_be_disabled.is_some() {
+                return Err(Error::new(key.span(), "duplicate `can_be_disabled` option"));
+            }
+            out.meta.can_be_disabled = Some(input.parse::<Expr>()?);
+        } else if key == "tags" {
+            if out.meta.tags.is_some() {
+                return Err(Error::new(key.span(), "duplicate `tags` option"));
+            }
+            out.meta.tags = Some(input.parse::<Expr>()?);
+        } else if key == "semantics" {
+            if out.meta.semantics.is_some() {
+                return Err(Error::new(key.span(), "duplicate `semantics` option"));
+            }
+            out.meta.semantics = Some(input.parse::<Expr>()?);
+        } else if key == "presentation" {
+            if out.meta.presentation.is_some() {
+                return Err(Error::new(key.span(), "duplicate `presentation` option"));
+            }
+            out.meta.presentation = Some(input.parse::<Expr>()?);
+        } else {
+            return Err(Error::new(key.span(), "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation)"));
+        }
+
+        if input.is_empty() {
+            break;
+        }
+
+        input.parse::<Token![,]>()?;
+    }
+
+    Ok(out)
 }
 
 fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
@@ -774,7 +879,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported params option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -842,6 +947,39 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
 
     let default_expr = syn::parse2::<Expr>(default_tokens)?;
     Ok((Some(default_expr), options))
+}
+
+fn parse_node_tail(mut tail: Vec<TokenTree>) -> Result<(Expr, ParamsDslNodeOptions)> {
+    let mut options = ParamsDslNodeOptions::default();
+
+    if let Some(TokenTree::Group(group)) = tail.last() {
+        if group.delimiter() == Delimiter::Parenthesis {
+            if let Ok(parsed_options) = syn::parse2::<ParamsDslNodeOptionsOnly>(group.stream()) {
+                options = parsed_options.0;
+                tail.pop();
+            }
+        }
+    }
+
+    if tail.is_empty() {
+        return Err(Error::new(proc_macro2::Span::call_site(), "node child declaration requires `= ...` to construct the child node"));
+    }
+
+    let Some(TokenTree::Punct(prefix)) = tail.first() else {
+        return Err(Error::new(proc_macro2::Span::call_site(), "expected `=` before node child expression"));
+    };
+
+    if prefix.as_char() != '=' {
+        return Err(Error::new(prefix.span(), "expected `=` before node child expression"));
+    }
+
+    let default_tokens: proc_macro2::TokenStream = tail.into_iter().skip(1).collect();
+    if default_tokens.is_empty() {
+        return Err(Error::new(proc_macro2::Span::call_site(), "missing node child expression after `=`"));
+    }
+
+    let default_expr = syn::parse2::<Expr>(default_tokens)?;
+    Ok((default_expr, options))
 }
 
 struct ParamsDslRange {
@@ -1102,6 +1240,7 @@ fn infer_enum_default_variant_from_expr(expr: &Expr) -> Option<String> {
 struct ParamsParentChildren {
     folders: Vec<usize>,
     params: Vec<usize>,
+    nodes: Vec<usize>,
 }
 
 struct ParamsFolderSpec {
@@ -1158,10 +1297,22 @@ struct ParamsParamSpec {
     callback: Option<ParamCallbackSpec>,
 }
 
+struct ParamsNodeSpec {
+    field: Ident,
+    ty: Type,
+    path: Vec<String>,
+    decl_id: LitStr,
+    label: LitStr,
+    description: Option<LitStr>,
+    meta: ParamsDslMetaOptions,
+    default: Expr,
+}
+
 #[derive(Default)]
 struct ParamsPlan {
     folders: Vec<ParamsFolderSpec>,
     params: Vec<ParamsParamSpec>,
+    nodes: Vec<ParamsNodeSpec>,
     children_by_parent: BTreeMap<String, ParamsParentChildren>,
     max_depth: u32,
 }
@@ -1327,6 +1478,27 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
 
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
             }
+            ParamsDslItem::Node(node) => {
+                let mut path = parent_path.to_vec();
+                path.push(node.field.to_string());
+                let decl_id_str = join_decl_path(&path);
+                let decl_id_lit = LitStr::new(&decl_id_str, node.field.span());
+                let label_lit = node.options.label.clone().unwrap_or_else(|| LitStr::new(&node.field.to_string(), node.field.span()));
+
+                let node_index = plan.nodes.len();
+                plan.nodes.push(ParamsNodeSpec {
+                    field: node.field.clone(),
+                    ty: node.ty.clone(),
+                    path: path.clone(),
+                    decl_id: decl_id_lit,
+                    label: label_lit,
+                    description: node.options.description.clone(),
+                    meta: node.options.meta.clone(),
+                    default: node.default.clone(),
+                });
+                plan.children_by_parent.entry(parent_key.clone()).or_default().nodes.push(node_index);
+                plan.max_depth = plan.max_depth.max(path.len() as u32);
+            }
         }
     }
 
@@ -1441,9 +1613,9 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     let mut params_dsl = None::<ParamsDsl>;
     let mut kept_attrs = Vec::with_capacity(input.attrs.len());
     for attr in input.attrs.drain(..) {
-        if attr.path().segments.last().is_some_and(|segment| segment.ident == "params") {
+        if attr.path().segments.last().is_some_and(|segment| segment.ident == "children") {
             if params_dsl.is_some() {
-                return Error::new_spanned(attr, "only one #[params(...)] attribute is supported per struct").to_compile_error();
+                return Error::new_spanned(attr, "only one #[children(...)] attribute is supported per struct").to_compile_error();
             }
             let parsed = match attr.parse_args::<ParamsDsl>() {
                 Ok(parsed) => parsed,
@@ -1508,7 +1680,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
         if let Some(param_attr) = param_attr {
             if params_plan.is_some() {
-                return Error::new_spanned(param_attr, "cannot combine field-level #[param(...)] with struct-level #[params(...)]; choose one parameter declaration style").to_compile_error();
+                return Error::new_spanned(param_attr, "cannot combine field-level #[param(...)] with struct-level #[children(...)]; choose one parameter declaration style").to_compile_error();
             }
             let args = match param_attr.parse_args::<ParamFieldArgs>() {
                 Ok(args) => args,
@@ -1698,7 +1870,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     if let Some(plan) = &params_plan {
         for param in &plan.params {
             if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &param.field)) {
-                return Error::new(param.field.span(), format!("duplicate field `{}` generated by #[params(...)]", param.field)).to_compile_error();
+                return Error::new(param.field.span(), format!("duplicate field `{}` generated by #[children(...)]", param.field)).to_compile_error();
             }
             let field_ident = &param.field;
             let ty = &param.ty;
@@ -1714,6 +1886,24 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                     #field_ident: golden_core::node::ParameterHandle::<#ty>::unbound()
                 });
             }
+        }
+
+        for node in &plan.nodes {
+            if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &node.field)) {
+                return Error::new(node.field.span(), format!("duplicate field `{}` generated by #[children(...)]", node.field)).to_compile_error();
+            }
+
+            let field_ident = &node.field;
+            let decl_id_lit = &node.decl_id;
+            fields.push(parse_quote! {
+                #field_ident: golden_core::node::PotentialNodeHandle
+            });
+            ctor_inits.push(quote! {
+                #field_ident: golden_core::node::PotentialNodeHandle::new(
+                    golden_core::node::NodeId(0),
+                    #decl_id_lit
+                )
+            });
         }
 
         let root_materialize = materialize_children_tokens(plan, "", quote!(__golden_node_owner_id));
@@ -1740,6 +1930,13 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             });
         }
 
+        for node in &plan.nodes {
+            let field_ident = &node.field;
+            child_added_decl_statements.push(quote! {
+                let _ = self.#field_ident.reconcile_child_added(parent, child, &decl_id);
+            });
+        }
+
         for folder in &plan.folders {
             let decl_id_lit = &folder.decl_id;
             let folder_key = join_decl_path(&folder.path);
@@ -1761,12 +1958,29 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             });
         }
 
+        for node in &plan.nodes {
+            let field_ident = &node.field;
+            child_replaced_decl_statements.push(quote! {
+                let _ = self.#field_ident.reconcile_child_replaced(parent, old, new, &decl_id);
+            });
+        }
+
         for param in &plan.params {
             let field_ident = &param.field;
             child_removed_statements.push(quote! {
                 if self.#field_ident.id() == child {
                     self.#field_ident.clear_node_id();
                 }
+            });
+        }
+
+        for node in &plan.nodes {
+            let field_ident = &node.field;
+            generated_init_statements.push(quote! {
+                self.#field_ident.set_parent(__golden_node_owner_id);
+            });
+            child_removed_statements.push(quote! {
+                let _ = self.#field_ident.reconcile_child_removed(parent, child);
             });
         }
 
@@ -1975,17 +2189,6 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         quote! { &mut self.node_data }
     };
 
-    let mut kept_items = Vec::with_capacity(input.items.len());
-    for item in input.items.drain(..) {
-        match item {
-            ImplItem::Macro(macro_item) if is_params_macro(&macro_item) => {
-                return Error::new_spanned(macro_item, "`params! { ... }` on `impl Node` has been removed; use `#[params(...)]` on the struct and `#[node(..., from_struct)]` on the impl").to_compile_error();
-            }
-            other => kept_items.push(other),
-        }
-    }
-    input.items = kept_items;
-
     if !has_method(&input, "node_data") {
         input.items.push(parse_quote! {
             fn node_data(&self) -> &golden_core::node::NodeData {
@@ -2076,10 +2279,6 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     quote! {
         #input
     }
-}
-
-fn is_params_macro(item: &syn::ImplItemMacro) -> bool {
-    item.mac.path.segments.last().is_some_and(|segment| segment.ident == "params")
 }
 
 fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&DelegatePath>) -> Result<()> {
@@ -2475,14 +2674,99 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
         });
     }
 
+    for node_index in &children.nodes {
+        let node = &plan.nodes[*node_index];
+        let field_ident = &node.field;
+        let ty = &node.ty;
+        let label_lit = &node.label;
+        let decl_id_lit = &node.decl_id;
+        let default_expr = &node.default;
+        let set_description = node.description.as_ref().map(|description_lit| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.description =
+                    Some(::std::string::String::from(#description_lit));
+            }
+        });
+        let set_short_name = node.meta.short_name.as_ref().map(|short_name_lit| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.short_name =
+                    ::std::string::String::from(#short_name_lit);
+            }
+        });
+        let set_enabled = node.meta.enabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.enabled = #expr;
+            }
+        });
+        let set_can_be_disabled = node.meta.can_be_disabled.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.can_be_disabled = #expr;
+            }
+        });
+        let set_tags = node.meta.tags.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.tags = #expr;
+            }
+        });
+        let set_semantics = node.meta.semantics.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.semantics = #expr;
+            }
+        });
+        let set_presentation = node.meta.presentation.as_ref().map(|expr| {
+            quote! {
+                golden_core::node::Node::node_data_mut(&mut __child_node).meta.presentation = #expr;
+            }
+        });
+
+        out.push(quote! {
+            self.#field_ident.set_parent(#parent_expr);
+            if !self.#field_ident.is_present() && !self.#field_ident.is_pending_create() {
+                let mut __golden_child_already_exists = false;
+                if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                    if let Some(__golden_existing) = __golden_snapshot.find_child(#parent_expr, #decl_id_lit) {
+                        self.#field_ident.bind_existing(__golden_existing);
+                        __golden_child_already_exists = true;
+                    }
+                }
+
+                if !__golden_child_already_exists {
+                    let _: &golden_core::node::PotentialNodeHandle = &self.#field_ident;
+                    let mut __child_node: #ty = (#default_expr);
+                    golden_core::node::Node::node_data_mut(&mut __child_node).meta.decl_id =
+                        golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                    golden_core::node::Node::node_data_mut(&mut __child_node).meta.label =
+                        ::std::string::String::from(#label_lit);
+                    #set_description
+                    #set_short_name
+                    #set_enabled
+                    #set_can_be_disabled
+                    #set_tags
+                    #set_semantics
+                    #set_presentation
+                    self.#field_ident.replace_with_boxed(ctx, ::std::boxed::Box::new(__child_node));
+                }
+            }
+        });
+    }
+
     out
 }
 
 fn folder_materialization_guard(plan: &ParamsPlan, folder_index: usize) -> proc_macro2::TokenStream {
     let folder = &plan.folders[folder_index];
     let descendant_params = plan.params.iter().filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path)).map(|param| param.field.clone()).collect::<Vec<_>>();
+    let descendant_nodes = plan.nodes.iter().filter(|node| node.path.len() > folder.path.len() && node.path.starts_with(&folder.path)).map(|node| node.field.clone()).collect::<Vec<_>>();
 
-    if descendant_params.is_empty() { quote!(true) } else { quote!(!(#(self.#descendant_params.is_bound())||*)) }
+    let mut bound_guards = Vec::<proc_macro2::TokenStream>::new();
+    for field_ident in descendant_params {
+        bound_guards.push(quote!(self.#field_ident.is_bound()));
+    }
+    for field_ident in descendant_nodes {
+        bound_guards.push(quote!(self.#field_ident.is_present() || self.#field_ident.is_pending_create()));
+    }
+
+    if bound_guards.is_empty() { quote!(true) } else { quote!(!(#(#bound_guards)||*)) }
 }
 
 fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallbackSpec) -> proc_macro2::TokenStream {

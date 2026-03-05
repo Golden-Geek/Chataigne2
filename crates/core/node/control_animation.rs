@@ -7,8 +7,8 @@ use crate::parameter::{AnimationWaveform, ParamValue, Parameter, ParameterChange
 use crate::process_ctx::ProcessCtx;
 
 use super::{
-    DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
+    AnimationCurveNode, DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
+    PARAMETER_ANIMATION_PHASE_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
 };
 
 const DEFAULT_ANIMATION_UPDATE_RATE_HZ: u32 = 60;
@@ -107,6 +107,7 @@ fn parse_update_rate_hz(value: &ParamValue) -> u32 {
 /// Internal control node attached to one parameter for animation behavior.
 pub struct ParameterAnimationControlNode {
     node_data: NodeData,
+    curve_node: Option<NodeId>,
     waveform_param: Option<NodeId>,
     frequency_param: Option<NodeId>,
     amplitude_param: Option<NodeId>,
@@ -130,6 +131,7 @@ impl ParameterAnimationControlNode {
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_CONTROL_DECL_ID.to_string());
         Self {
             node_data,
+            curve_node: None,
             waveform_param: None,
             frequency_param: None,
             amplitude_param: None,
@@ -148,6 +150,7 @@ impl ParameterAnimationControlNode {
 
     fn bind_decl_child(&mut self, decl_id: &str, child: NodeId) {
         match decl_id {
+            PARAMETER_ANIMATION_CURVE_DECL_ID => self.curve_node = Some(child),
             PARAMETER_ANIMATION_WAVEFORM_DECL_ID => self.waveform_param = Some(child),
             PARAMETER_ANIMATION_FREQUENCY_DECL_ID => self.frequency_param = Some(child),
             PARAMETER_ANIMATION_AMPLITUDE_DECL_ID => self.amplitude_param = Some(child),
@@ -159,6 +162,9 @@ impl ParameterAnimationControlNode {
     }
 
     fn unbind_child(&mut self, child: NodeId) {
+        if self.curve_node == Some(child) {
+            self.curve_node = None;
+        }
         if self.waveform_param == Some(child) {
             self.waveform_param = None;
         }
@@ -261,6 +267,9 @@ impl Node for ParameterAnimationControlNode {
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
+        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID) {
+            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveNode::new()), None);
+        }
         if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_waveform_parameter()), None);
         }

@@ -467,57 +467,21 @@ impl<T: Node> Engine<T> {
         self.set_param_control_state_impl(param, state)
     }
 
-    fn param_control_rejected_error(
-        &self,
-        edit_index: usize,
-        operation: &'static str,
-        node: NodeId,
-        message: String,
-    ) -> EngineEditError {
+    fn param_control_rejected_error(&self, edit_index: usize, operation: &'static str, node: NodeId, message: String) -> EngineEditError {
         let node_type = self.nodes.get(node).map(|entry| entry.get_type().to_string()).unwrap_or_else(|| "unknown".to_string());
-        EngineEditError::ParamControlStateRejected {
-            edit_index,
-            operation,
-            node,
-            node_type,
-            message,
-        }
+        EngineEditError::ParamControlStateRejected { edit_index, operation, node, node_type, message }
     }
 
-    fn read_param_control_state_for_edit(
-        &self,
-        edit_index: usize,
-        operation: &'static str,
-        node: NodeId,
-    ) -> Result<ParameterControlState, EngineEditError> {
+    fn read_param_control_state_for_edit(&self, edit_index: usize, operation: &'static str, node: NodeId) -> Result<ParameterControlState, EngineEditError> {
         let Some(target) = self.nodes.get(node) else {
-            return Err(EngineEditError::NodeNotFound {
-                edit_index,
-                operation,
-                node,
-            });
+            return Err(EngineEditError::NodeNotFound { edit_index, operation, node });
         };
-        target.engine_param_control_state().ok_or_else(|| {
-            self.param_control_rejected_error(
-                edit_index,
-                operation,
-                node,
-                "target node does not expose parameter control state".to_string(),
-            )
-        })
+        target.engine_param_control_state().ok_or_else(|| self.param_control_rejected_error(edit_index, operation, node, "target node does not expose parameter control state".to_string()))
     }
 
-    fn apply_set_param_control_state_internal(
-        &mut self,
-        edit_index: usize,
-        operation: &'static str,
-        node: NodeId,
-        state: ParameterControlState,
-    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+    fn apply_set_param_control_state_internal(&mut self, edit_index: usize, operation: &'static str, node: NodeId, state: ParameterControlState) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
         let old_state = self.read_param_control_state_for_edit(edit_index, operation, node)?;
-        let changed = self
-            .set_param_control_state_impl(node, state)
-            .map_err(|message| self.param_control_rejected_error(edit_index, operation, node, message))?;
+        let changed = self.set_param_control_state_impl(node, state).map_err(|message| self.param_control_rejected_error(edit_index, operation, node, message))?;
         if !changed {
             return Ok(None);
         }
@@ -528,28 +492,14 @@ impl<T: Node> Engine<T> {
             self.apply_edits_without_history()?;
         }
 
-        Ok(Some(SetParamControlStateEffect {
-            node,
-            old_state,
-            new_state,
-        }))
+        Ok(Some(SetParamControlStateEffect { node, old_state, new_state }))
     }
 
-    pub(crate) fn apply_set_param_control_state(
-        &mut self,
-        edit_index: usize,
-        node: NodeId,
-        state: ParameterControlState,
-    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+    pub(crate) fn apply_set_param_control_state(&mut self, edit_index: usize, node: NodeId, state: ParameterControlState) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
         self.apply_set_param_control_state_internal(edit_index, "SetParamControlState", node, state)
     }
 
-    pub(crate) fn apply_set_param_control_state_for_history(
-        &mut self,
-        operation: &'static str,
-        node: NodeId,
-        state: ParameterControlState,
-    ) -> Result<(), EngineEditError> {
+    pub(crate) fn apply_set_param_control_state_for_history(&mut self, operation: &'static str, node: NodeId, state: ParameterControlState) -> Result<(), EngineEditError> {
         let _ = self.apply_set_param_control_state_internal(0, operation, node, state)?;
         Ok(())
     }

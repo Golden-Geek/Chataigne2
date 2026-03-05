@@ -320,25 +320,30 @@ impl<T: Node> Engine<T> {
     /// Applies queued structural side effects and preprocesses newly emitted events
     /// until the add/bootstrap pipeline reaches a fixed point.
     fn stabilize_added_node_structure(&mut self, mut event_cursor: usize) -> Result<(), EngineEditError> {
-        loop {
-            if !self.edits.pending.is_empty() {
-                self.apply_edits_without_history()?;
-            }
-
-            let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
-            event_cursor = self.inbox.events.len();
-
-            if precomputed.is_empty() {
-                if self.edits.pending.is_empty() {
-                    break;
+        self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_add(1);
+        let result = (|| -> Result<(), EngineEditError> {
+            loop {
+                if !self.edits.pending.is_empty() {
+                    self.apply_edits_without_history()?;
                 }
-                continue;
+
+                let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
+                event_cursor = self.inbox.events.len();
+
+                if precomputed.is_empty() {
+                    if self.edits.pending.is_empty() {
+                        break;
+                    }
+                    continue;
+                }
+
+                self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
             }
 
-            self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
-        }
-
-        Ok(())
+            Ok(())
+        })();
+        self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_sub(1);
+        result
     }
 
     fn apply_add_node_with_role(&mut self, edit_index: usize, operation: &'static str, node: Box<dyn Node>, parent: NodeId, prev_sibling: Option<NodeId>, user_role: UserNodeRole, validate_as_user_item: bool) -> Result<AddNodeEffect, EngineEditError> {
@@ -393,7 +398,9 @@ impl<T: Node> Engine<T> {
             });
         }
         self.absorb_edits(&mut attach_ctx)?;
-        self.stabilize_added_node_structure(self.inbox.events.len())?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(self.inbox.events.len())?;
+        }
 
         // Run app init after declared/generated children are materialized and handles are bound.
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
@@ -407,7 +414,9 @@ impl<T: Node> Engine<T> {
             });
         }
         self.absorb_edits(&mut init_ctx)?;
-        self.stabilize_added_node_structure(self.inbox.events.len())?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(self.inbox.events.len())?;
+        }
 
         Ok(AddNodeEffect {
             node: child_id,

@@ -237,13 +237,7 @@ impl fmt::Display for EngineEditError {
                 write!(f, "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node", node)
             }
             Self::ParamConstraintViolation { edit_index, node, node_type, message } => write!(f, "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::ParamControlStateRejected {
-                edit_index,
-                operation,
-                node,
-                node_type,
-                message,
-            } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
+            Self::ParamControlStateRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::ScriptConfigRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::ScriptPropertyRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::ScriptMethodRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
