@@ -214,20 +214,24 @@ impl<T: Node> Engine<T> {
     }
 
     fn collect_subscription_recipients(&self, event: &Event, ancestry_depths: &HashMap<NodeId, u32>, recipients: &mut Vec<NodeId>, dedupe: &mut HashSet<NodeId>) {
-        for (subscriber_id, subscriber) in self.nodes.iter() {
+        if self.event_listeners.is_empty() {
+            return;
+        }
+
+        for (subscriber_id, subscriptions) in &self.event_listeners {
+            let Some(subscriber) = self.nodes.get(*subscriber_id) else {
+                continue;
+            };
             let propagation = subscriber.event_propagation(event, 0);
             if propagation == EventPropagation::PassOn {
                 continue;
             }
 
-            let matches_runtime = self
-                .event_listeners
-                .get(&subscriber_id)
-                .is_some_and(|subscriptions| subscriptions.iter().copied().any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription)));
+            let matches_runtime = subscriptions.iter().copied().any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription));
             let matches_subscription = matches_runtime;
 
-            if matches_subscription && dedupe.insert(subscriber_id) {
-                recipients.push(subscriber_id);
+            if matches_subscription && dedupe.insert(*subscriber_id) {
+                recipients.push(*subscriber_id);
             }
         }
     }

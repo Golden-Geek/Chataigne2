@@ -2,7 +2,6 @@
 
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use crate::engine::{Engine, EngineRuntimeError};
 use crate::node::Node;
@@ -55,8 +54,10 @@ impl<T: Node> GoldenApp<T> {
 pub fn run_app_with_config<T: Node + 'static>(mut engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
     engine.apply_edits().map_err(|err| Error::new(ErrorKind::Other, format!("initial apply_edits failed: {err}")))?;
     engine.resolve_if_needed().map_err(|err| Error::new(ErrorKind::Other, format!("initial resolve failed: {err}")))?;
+    // Startup shape is already reflected by the in-memory graph and initial snapshot.
+    // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
+    engine.inbox.clear();
     engine.clear_history(); // keep runtime undo history strictly post-start
-    engine.run_tick(Duration::ZERO).map_err(|err| Error::new(ErrorKind::Other, format!("initial runtime tick failed: {err}")))?;
 
     let shared_engine = Arc::new(Mutex::new(engine));
     run_ui_server(shared_engine, config)

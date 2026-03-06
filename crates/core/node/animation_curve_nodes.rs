@@ -77,7 +77,7 @@ fn make_easing_kind_parameter() -> Parameter {
     make_enum_parameter(
         "Kind",
         PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-        "bezier",
+        "linear",
         &[("linear", "Linear"), ("bezier", "Bezier"), ("hold", "Hold"), ("steps", "Steps"), ("shape", "Shape"), ("perlinNoise", "Perlin Noise"), ("random", "Random"), ("script", "Script")],
     )
 }
@@ -1188,7 +1188,7 @@ impl AnimationCurveEasingNode {
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
         Self {
             node_data,
-            current_kind: "bezier",
+            current_kind: "linear",
             kind_param: None,
             managed_children: HashMap::new(),
         }
