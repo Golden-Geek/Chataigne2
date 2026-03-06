@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use super::ProjectCodec;
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::script::ScriptUiConfig;
@@ -41,6 +42,7 @@ impl Default for UiServerConfig {
 struct ServerState<T: Node> {
     engine: Arc<Mutex<Engine<T>>>,
     ws_hub: WsHubHandle,
+    project_codec: Option<ProjectCodec<T>>,
 }
 
 impl<T: Node> Clone for ServerState<T> {
@@ -48,6 +50,7 @@ impl<T: Node> Clone for ServerState<T> {
         Self {
             engine: self.engine.clone(),
             ws_hub: self.ws_hub.clone(),
+            project_codec: self.project_codec.clone(),
         }
     }
 }
@@ -102,6 +105,11 @@ struct ScriptConfigRequest {
 #[derive(Deserialize)]
 struct ScriptReloadRequest {
     node: NodeId,
+}
+
+#[derive(Deserialize)]
+struct ProjectPathRequest {
+    path: String,
 }
 
 struct HttpRequest {
@@ -210,14 +218,14 @@ enum WsIncomingFrame {
 }
 
 /// Runs the built-in UI server and runtime loop for a shared engine.
-pub fn run_ui_server<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig) -> std::io::Result<()> {
+pub fn run_ui_server<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig, project_codec: Option<ProjectCodec<T>>) -> std::io::Result<()> {
     spawn_runtime_loop(engine.clone(), config.tick_interval);
     let ws_hub = spawn_ws_hub(engine.clone(), config.tick_interval.max(WS_RETRY_INTERVAL), make_server_session_id());
 
     let listener = TcpListener::bind(&config.bind_addr)?;
     println!("UI API listening on http://{}", config.bind_addr);
 
-    let state = ServerState { engine, ws_hub };
+    let state = ServerState { engine, ws_hub, project_codec };
 
     for stream in listener.incoming() {
         match stream {
@@ -685,6 +693,54 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
                 }
             }
         }
+        ("POST", "/api/ui/project-save") => {
+            let Some(project_codec) = state.project_codec.clone() else {
+                write_json_error(stream, "400 Bad Request", "project persistence is not configured for this app")?;
+                return Ok(());
+            };
+            let payload: ProjectPathRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
+            let Some(path) = normalize_project_path(&payload.path) else {
+                write_json_error(stream, "400 Bad Request", "project-save path cannot be empty")?;
+                return Ok(());
+            };
+
+            let guard = lock_engine(&state.engine);
+            let save_result = guard.save_project_file_with(path.as_str(), |node| project_codec.encode_node(node));
+            drop(guard);
+
+            match save_result {
+                Ok(()) => {
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &format!("project-save failed: {err}"))?;
+                }
+            }
+        }
+        ("POST", "/api/ui/project-load") => {
+            let Some(project_codec) = state.project_codec.clone() else {
+                write_json_error(stream, "400 Bad Request", "project persistence is not configured for this app")?;
+                return Ok(());
+            };
+            let payload: ProjectPathRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
+            let Some(path) = normalize_project_path(&payload.path) else {
+                write_json_error(stream, "400 Bad Request", "project-load path cannot be empty")?;
+                return Ok(());
+            };
+
+            let loaded = Engine::<T>::load_project_file_with(path.as_str(), |node_type, data, meta| project_codec.decode_node(node_type, data, meta));
+            match loaded {
+                Ok(next_engine) => {
+                    let mut guard = lock_engine(&state.engine);
+                    *guard = next_engine;
+                    drop(guard);
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
+                }
+            }
+        }
         ("POST", "/api/ui/intent") => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
 
@@ -713,6 +769,15 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
 
     Ok(())
 }
+
+fn normalize_project_path(raw_path: &str) -> Option<String> {
+    let path = raw_path.trim();
+    if path.is_empty() {
+        return None;
+    }
+    Some(path.to_string())
+}
+
 fn handle_ws_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>, request: &HttpRequest) -> std::io::Result<()> {
     let version = request.headers.get("sec-websocket-version").map(String::as_str).unwrap_or("");
     if version.trim() != "13" {

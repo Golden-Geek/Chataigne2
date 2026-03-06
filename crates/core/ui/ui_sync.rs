@@ -607,6 +607,11 @@ pub enum UiEditIntent {
         /// Target node id.
         node: NodeId,
     },
+    /// Remove multiple nodes in one intent transaction.
+    RemoveNodes {
+        /// Target node ids.
+        nodes: Vec<NodeId>,
+    },
     /// Creates a user item under `parent` from a node type id.
     CreateUserItem {
         /// Parent node id.
@@ -1028,6 +1033,16 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::RemoveNode { node } => {
                 self.edits.push(Edit::RemoveNode { node });
+                let result = self.apply_edits();
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::RemoveNodes { nodes } => {
+                let mut seen = HashSet::<NodeId>::new();
+                for node in nodes {
+                    if seen.insert(node) {
+                        self.edits.push(Edit::RemoveNode { node });
+                    }
+                }
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }

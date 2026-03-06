@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tauri::window::Color;
 use tauri::{Url, WebviewUrl};
 
-use super::{UiServerConfig, run_app_with_config};
+use super::{ProjectCodec, UiServerConfig, run_app_with_config};
 use crate::engine::Engine;
 use crate::node::Node;
 
@@ -37,7 +37,18 @@ pub fn run_app<T: Node + 'static>(engine: Engine<T>) -> std::io::Result<()> {
         return Ok(());
     }
 
-    run_with_frontends(engine, args)
+    run_with_frontends(engine, args, None)
+}
+
+/// Boots an engine and runs the default app host with project save/load support.
+pub fn run_app_with_project_codec<T: Node + 'static>(engine: Engine<T>, project_codec: ProjectCodec<T>) -> std::io::Result<()> {
+    let args = parse_launch_args()?;
+    if args.show_help {
+        print_usage();
+        return Ok(());
+    }
+
+    run_with_frontends(engine, args, Some(project_codec))
 }
 
 fn parse_launch_args() -> std::io::Result<LaunchArgs> {
@@ -66,7 +77,7 @@ fn print_usage() {
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
 }
 
-fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs) -> std::io::Result<()> {
+fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs, project_codec: Option<ProjectCodec<T>>) -> std::io::Result<()> {
     let mut config = UiServerConfig::default();
     if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
         if !bind_addr.trim().is_empty() {
@@ -82,12 +93,12 @@ fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs) ->
 
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
     if args.headless {
-        return run_app_with_config(engine, config);
+        return run_app_with_config(engine, config, project_codec);
     }
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
     thread::spawn(move || {
-        let result = run_app_with_config(engine, config);
+        let result = run_app_with_config(engine, config, project_codec);
         let _ = startup_tx.send(result);
     });
 
@@ -227,6 +238,42 @@ fn open_file_dialog(allowed_extensions: Option<Vec<String>>) -> Result<Option<St
     Ok(dialog.pick_file().map(|path| path.to_string_lossy().to_string()))
 }
 
+#[tauri::command]
+fn save_file_dialog(suggested_path: Option<String>, allowed_extensions: Option<Vec<String>>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new();
+
+    let normalized_extensions = allowed_extensions
+        .unwrap_or_default()
+        .into_iter()
+        .map(|value| value.trim().trim_start_matches('.').to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<String>>()
+        .into_iter()
+        .collect::<Vec<String>>();
+
+    if !normalized_extensions.is_empty() {
+        let extension_refs = normalized_extensions.iter().map(String::as_str).collect::<Vec<&str>>();
+        dialog = dialog.add_filter("Allowed files", &extension_refs);
+    }
+
+    if let Some(path_text) = suggested_path {
+        let trimmed = path_text.trim();
+        if !trimmed.is_empty() {
+            let path = std::path::PathBuf::from(trimmed);
+            if let Some(parent) = path.parent() {
+                dialog = dialog.set_directory(parent);
+            }
+            if let Some(file_name) = path.file_name().and_then(|value| value.to_str()) {
+                if !file_name.trim().is_empty() {
+                    dialog = dialog.set_file_name(file_name);
+                }
+            }
+        }
+    }
+
+    Ok(dialog.save_file().map(|path| path.to_string_lossy().to_string()))
+}
+
 fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| Error::new(ErrorKind::InvalidInput, format!("invalid UI URL '{ui_base_url}': {err}")))?;
 
@@ -271,7 +318,7 @@ fn run_tauri(ui_base_url: &str) -> std::io::Result<()> {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![window_minimize, window_toggle_maximize, window_close, window_is_maximized, start_drag, open_file_dialog])
+        .invoke_handler(tauri::generate_handler![window_minimize, window_toggle_maximize, window_close, window_is_maximized, start_drag, open_file_dialog, save_file_dialog])
         .append_invoke_initialization_script(&init_script)
         .run(tauri::generate_context!("../../../../tauri.conf.json"))
         .map_err(|err| Error::other(format!("tauri runtime failed: {err}")))
