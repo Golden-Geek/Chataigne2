@@ -6,17 +6,6 @@ use serde::{Deserialize, Serialize};
 const CURVE_EPSILON: f64 = 1e-12;
 const MAX_PERLIN_OCTAVES: u32 = 12;
 
-/// Coordinate space used by easing parameters that can be relative or absolute.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub enum CurveCoordinateSpace {
-    /// Parameters are normalized relative to the current key segment.
-    #[default]
-    Relative,
-    /// Parameters are expressed in absolute curve coordinates.
-    Absolute,
-}
-
 /// Handle coordinates used by bezier easing.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CurveHandle {
@@ -87,9 +76,6 @@ pub enum CurveEasing {
     Linear,
     /// Cubic bezier interpolation.
     Bezier {
-        /// Coordinate space for both handles.
-        #[serde(default)]
-        coordinate_space: CurveCoordinateSpace,
         /// Outgoing handle anchored at the current key.
         #[serde(default = "default_bezier_out_handle")]
         out_handle: CurveHandle,
@@ -113,9 +99,6 @@ pub enum CurveEasing {
     },
     /// Shape modulation over the base linear segment.
     Shape {
-        /// Amplitude coordinate space.
-        #[serde(default)]
-        coordinate_space: CurveCoordinateSpace,
         /// Shape waveform.
         #[serde(default)]
         shape: CurveShape,
@@ -554,35 +537,11 @@ enum CompiledCurveEasing {
     Linear,
     Hold,
     Bezier(CompiledBezierSegment),
-    Steps {
-        steps: f64,
-    },
-    Shape {
-        coordinate_space: CurveCoordinateSpace,
-        shape: CurveShape,
-        amplitude: f64,
-        phase_cycles: f64,
-        fade_in: f64,
-        fade_out: f64,
-    },
-    PerlinNoise {
-        frequency: f64,
-        amplitude: f64,
-        octaves: u32,
-        fade_in: f64,
-        fade_out: f64,
-        phase: f64,
-        seed: u64,
-    },
-    Random {
-        frequency: f64,
-        fade_in: f64,
-        fade_out: f64,
-        seed: u64,
-    },
-    Script {
-        source: String,
-    },
+    Steps { steps: f64 },
+    Shape { shape: CurveShape, amplitude: f64, phase_cycles: f64, fade_in: f64, fade_out: f64 },
+    PerlinNoise { frequency: f64, amplitude: f64, octaves: u32, fade_in: f64, fade_out: f64, phase: f64, seed: u64 },
+    Random { frequency: f64, fade_in: f64, fade_out: f64, seed: u64 },
+    Script { source: String },
 }
 
 impl CompiledCurveEasing {
@@ -591,10 +550,10 @@ impl CompiledCurveEasing {
         match easing {
             CurveEasing::Linear => Self::Linear,
             CurveEasing::Hold => Self::Hold,
-            CurveEasing::Bezier { coordinate_space, out_handle, in_handle } => {
+            CurveEasing::Bezier { out_handle, in_handle } => {
                 let out_handle = sanitize_handle(*out_handle, default_bezier_out_handle());
                 let in_handle = sanitize_handle(*in_handle, default_bezier_in_handle());
-                Self::Bezier(CompiledBezierSegment::new(*coordinate_space, out_handle, in_handle, start, end))
+                Self::Bezier(CompiledBezierSegment::new(out_handle, in_handle, start, end))
             }
             CurveEasing::Steps { step_mode, step_size, num_steps } => {
                 let steps = match step_mode {
@@ -607,7 +566,6 @@ impl CompiledCurveEasing {
                 Self::Steps { steps }
             }
             CurveEasing::Shape {
-                coordinate_space,
                 shape,
                 amplitude,
                 phase_mode,
@@ -621,7 +579,6 @@ impl CompiledCurveEasing {
                     CurvePhaseMode::NumPhases => finite_or(*num_phases, default_shape_num_phases()).abs(),
                 };
                 Self::Shape {
-                    coordinate_space: *coordinate_space,
                     shape: *shape,
                     amplitude: finite_or(*amplitude, default_shape_amplitude()),
                     phase_cycles,
@@ -692,20 +649,17 @@ struct CompiledBezierSegment {
 }
 
 impl CompiledBezierSegment {
-    fn new(coordinate_space: CurveCoordinateSpace, out_handle: CurveHandle, in_handle: CurveHandle, start: &AnimationCurveKey, end: &AnimationCurveKey) -> Self {
+    fn new(out_handle: CurveHandle, in_handle: CurveHandle, start: &AnimationCurveKey, end: &AnimationCurveKey) -> Self {
         let span = (end.position - start.position).max(CURVE_EPSILON);
         let value_span = end.value - start.value;
 
-        let (out_position, out_value, in_position, in_value) = match coordinate_space {
-            CurveCoordinateSpace::Relative => (start.position + out_handle.position * span, start.value + out_handle.value * value_span, end.position + in_handle.position * span, end.value + in_handle.value * value_span),
-            CurveCoordinateSpace::Absolute => (out_handle.position, out_handle.value, in_handle.position, in_handle.value),
-        };
+        let out_position = start.position + out_handle.position * span;
+        let out_value = start.value + out_handle.value * value_span;
+        let in_position = end.position + in_handle.position * span;
+        let in_value = end.value + in_handle.value * value_span;
 
-        let mut p1x = finite_or(out_position, start.position + span / 3.0).clamp(start.position, end.position);
-        let mut p2x = finite_or(in_position, start.position + (span * 2.0) / 3.0).clamp(start.position, end.position);
-        if p2x < p1x {
-            std::mem::swap(&mut p1x, &mut p2x);
-        }
+        let p1x = finite_or(out_position, start.position + span / 3.0).clamp(start.position, end.position);
+        let p2x = finite_or(in_position, start.position + (span * 2.0) / 3.0).clamp(start.position, end.position);
 
         let p1y = finite_or(out_value, start.value + value_span / 3.0);
         let p2y = finite_or(in_value, start.value + (value_span * 2.0) / 3.0);
@@ -773,19 +727,9 @@ fn sample_compiled_segment(segment: &CompiledCurveSegment, position: f64, script
             let stepped_progress = (step_index / steps).clamp(0.0, 1.0);
             segment.start_value + segment.value_delta * stepped_progress
         }
-        CompiledCurveEasing::Shape {
-            coordinate_space,
-            shape,
-            amplitude,
-            phase_cycles,
-            fade_in,
-            fade_out,
-        } => {
+        CompiledCurveEasing::Shape { shape, amplitude, phase_cycles, fade_in, fade_out } => {
             let envelope = fade_envelope(progress, *fade_in, *fade_out);
-            let resolved_amplitude = match coordinate_space {
-                CurveCoordinateSpace::Relative => amplitude * segment.value_delta.abs(),
-                CurveCoordinateSpace::Absolute => *amplitude,
-            };
+            let resolved_amplitude = amplitude * segment.value_delta.abs();
             let wave = sample_shape_wave(*shape, phase_cycles * progress);
             linear_value + resolved_amplitude * wave * envelope
         }
@@ -1076,7 +1020,6 @@ mod tests {
                 0.0,
                 0.0,
                 CurveEasing::Bezier {
-                    coordinate_space: CurveCoordinateSpace::Relative,
                     out_handle: CurveHandle::new(0.2, 0.0),
                     in_handle: CurveHandle::new(-0.2, -0.2),
                 },
@@ -1089,13 +1032,35 @@ mod tests {
     }
 
     #[test]
+    fn bezier_crossed_handle_x_stays_non_linear() {
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(
+                0.0,
+                0.0,
+                CurveEasing::Bezier {
+                    out_handle: CurveHandle::new(1.0, 0.0),
+                    in_handle: CurveHandle::new(-1.0, 0.0),
+                },
+            ),
+            AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear),
+        ]);
+
+        let quarter = curve.sample(0.25).expect("sample should exist");
+        let half = curve.sample(0.5).expect("sample should exist");
+        let three_quarter = curve.sample(0.75).expect("sample should exist");
+
+        assert!(quarter < 0.2, "expected strong ease-in shape, got {quarter}");
+        assert!((half - 0.5).abs() < 0.01, "expected midpoint to stay near 0.5, got {half}");
+        assert!(three_quarter > 0.8, "expected strong ease-out shape, got {three_quarter}");
+    }
+
+    #[test]
     fn shape_relative_mode_modulates_linear_segment() {
         let curve = AnimationCurve::new(vec![
             AnimationCurveKey::new(
                 0.0,
                 0.0,
                 CurveEasing::Shape {
-                    coordinate_space: CurveCoordinateSpace::Relative,
                     shape: CurveShape::Sine,
                     amplitude: 0.5,
                     phase_mode: CurvePhaseMode::NumPhases,

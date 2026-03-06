@@ -571,8 +571,6 @@ pub const PARAMETER_ANIMATION_EASING_NODE_TYPE: &str = "animation_curve_easing";
 pub const PARAMETER_ANIMATION_EASING_DECL_ID: &str = "easing";
 /// Built-in `decl_id` for easing kind selector.
 pub const PARAMETER_ANIMATION_EASING_KIND_DECL_ID: &str = "kind";
-/// Built-in `decl_id` for easing coordinate-space selector.
-pub const PARAMETER_ANIMATION_EASING_COORDINATE_SPACE_DECL_ID: &str = "coordinate_space";
 /// Built-in `decl_id` for bezier out-handle position.
 pub const PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID: &str = "out_position";
 /// Built-in `decl_id` for bezier out-handle value.
