@@ -4051,6 +4051,109 @@ fn animation_curve_accepts_user_created_key_items() {
 }
 
 #[test]
+fn animation_curve_user_created_key_defaults_to_bezier_easing() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    let before_keys = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .filter(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .collect::<Vec<_>>();
+
+    engine.add_user_item(AnimationCurveKeyNode::new_with_label("Inserted Key").into(), Some(curve_node));
+    engine.apply_edits().expect("user key add should succeed");
+
+    let after_keys = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .filter(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .collect::<Vec<_>>();
+
+    let inserted_key = after_keys
+        .iter()
+        .copied()
+        .find(|key_id| !before_keys.contains(key_id))
+        .expect("inserted key should exist");
+    let easing_node = find_child_by_decl_any(&engine, inserted_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
+    let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
+    let kind = engine
+        .nodes
+        .get(kind_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_enum())
+        .expect("easing kind should be enum");
+
+    assert_eq!(kind, "bezier", "UI-created keys should default to bezier easing");
+}
+
+#[test]
+fn animation_curve_insert_keys_with_easing_uses_requested_kind() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    engine.edits.push(Edit::CallNodeMutation {
+        node: curve_node,
+        callback: Box::new(|node, ctx| {
+            let Some(curve) = node.as_any_mut().downcast_mut::<AnimationCurveNode>() else {
+                return Err("curve mutation target should be AnimationCurveNode".to_string());
+            };
+            curve.insert_keys_with_easing(ctx, vec![(0.25, 0.75, crate::animation_curve::CurveEasing::Hold)]);
+            Ok(())
+        }),
+    });
+    engine.apply_edits().expect("explicit easing key insertion should succeed");
+    engine.apply_edits().expect("queued key subtree materialization should succeed");
+
+    let snapshot = engine.build_process_tree_snapshot();
+    let inserted_key = snapshot
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|child| {
+            if !engine.nodes.get(*child).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE) {
+                return false;
+            }
+            let position_param = match snapshot.find_child(*child, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
+                Some(node_id) => node_id,
+                None => return false,
+            };
+            let position = snapshot
+                .node(position_param)
+                .and_then(|node| node.param_value.as_ref())
+                .and_then(ParamValue::as_float);
+            position.is_some_and(|value| (value - 0.25).abs() < 1e-9)
+        })
+        .expect("inserted key should exist");
+
+    let easing_node = find_child_by_decl_any(&engine, inserted_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
+    let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
+    let kind = engine
+        .nodes
+        .get(kind_param)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_enum())
+        .expect("easing kind should be enum");
+
+    assert_eq!(kind, "hold", "code insertion should honor the provided easing");
+}
+
+#[test]
 fn animation_curve_materializes_user_editable_range_node() {
     let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
     let mut engine = Engine::new(root);

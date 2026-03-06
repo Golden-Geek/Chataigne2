@@ -73,25 +73,69 @@ fn make_enum_parameter(label: &str, decl_id: &str, default_variant: &str, varian
     parameter
 }
 
-fn make_easing_kind_parameter() -> Parameter {
+fn default_curve_easing() -> CurveEasing {
+    CurveEasing::Bezier {
+        out_handle: CurveHandle::new(1.0 / 3.0, 0.0),
+        in_handle: CurveHandle::new(-1.0 / 3.0,  0.0),
+    }
+}
+
+fn curve_easing_kind_id(easing: &CurveEasing) -> &'static str {
+    match easing {
+        CurveEasing::Linear => "linear",
+        CurveEasing::Bezier { .. } => "bezier",
+        CurveEasing::Hold => "hold",
+        CurveEasing::Steps { .. } => "steps",
+        CurveEasing::Shape { .. } => "shape",
+        CurveEasing::PerlinNoise { .. } => "perlinNoise",
+        CurveEasing::Random { .. } => "random",
+        CurveEasing::Script { .. } => "script",
+    }
+}
+
+fn curve_step_mode_variant_id(mode: CurveStepMode) -> &'static str {
+    match mode {
+        CurveStepMode::StepSize => "stepSize",
+        CurveStepMode::NumSteps => "numSteps",
+    }
+}
+
+fn curve_shape_variant_id(shape: CurveShape) -> &'static str {
+    match shape {
+        CurveShape::Sine => "sine",
+        CurveShape::Triangle => "triangle",
+        CurveShape::Saw => "saw",
+        CurveShape::ReverseSaw => "reverseSaw",
+        CurveShape::Square => "square",
+    }
+}
+
+fn curve_phase_mode_variant_id(mode: CurvePhaseMode) -> &'static str {
+    match mode {
+        CurvePhaseMode::Frequency => "frequency",
+        CurvePhaseMode::NumPhases => "numPhases",
+    }
+}
+
+fn make_easing_kind_parameter(default_variant: &str) -> Parameter {
     make_enum_parameter(
         "Kind",
         PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-        "linear",
+        default_variant,
         &[("linear", "Linear"), ("bezier", "Bezier"), ("hold", "Hold"), ("steps", "Steps"), ("shape", "Shape"), ("perlinNoise", "Perlin Noise"), ("random", "Random"), ("script", "Script")],
     )
 }
 
-fn make_step_mode_parameter() -> Parameter {
-    make_enum_parameter("Step Mode", PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, "numSteps", &[("stepSize", "Step Size"), ("numSteps", "Number of Steps")])
+fn make_step_mode_parameter(default_variant: &str) -> Parameter {
+    make_enum_parameter("Step Mode", PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, default_variant, &[("stepSize", "Step Size"), ("numSteps", "Number of Steps")])
 }
 
-fn make_shape_parameter() -> Parameter {
-    make_enum_parameter("Shape", PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, "sine", &[("sine", "Sine"), ("triangle", "Triangle"), ("saw", "Saw"), ("reverseSaw", "Reverse Saw"), ("square", "Square")])
+fn make_shape_parameter(default_variant: &str) -> Parameter {
+    make_enum_parameter("Shape", PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, default_variant, &[("sine", "Sine"), ("triangle", "Triangle"), ("saw", "Saw"), ("reverseSaw", "Reverse Saw"), ("square", "Square")])
 }
 
-fn make_phase_mode_parameter() -> Parameter {
-    make_enum_parameter("Phase Mode", PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, "frequency", &[("frequency", "Frequency"), ("numPhases", "Number of Phases")])
+fn make_phase_mode_parameter(default_variant: &str) -> Parameter {
+    make_enum_parameter("Phase Mode", PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, default_variant, &[("frequency", "Frequency"), ("numPhases", "Number of Phases")])
 }
 
 const EASING_REQUIRED_LINEAR_DECL_IDS: [&str; 1] = [PARAMETER_ANIMATION_EASING_KIND_DECL_ID];
@@ -428,13 +472,23 @@ impl AnimationCurveNode {
 
     /// Inserts multiple keys using `(position, value)` tuples.
     ///
+    /// Inserted keys default to linear easing so code-driven bulk inserts can stay lightweight.
+    ///
     /// Returns created key node ids in insertion order.
-    pub fn insert_keys(&mut self, ctx: &mut ProcessCtx, mut keys: Vec<(f64, f64)>) -> Vec<NodeId> {
+    pub fn insert_keys(&mut self, ctx: &mut ProcessCtx, keys: Vec<(f64, f64)>) -> Vec<NodeId> {
+        let keys_with_easing = keys.into_iter().map(|(position, value)| (position, value, CurveEasing::Linear)).collect();
+        self.insert_keys_with_easing(ctx, keys_with_easing)
+    }
+
+    /// Inserts multiple keys with explicit per-key easing.
+    ///
+    /// Returns created key node ids in insertion order.
+    pub fn insert_keys_with_easing(&mut self, ctx: &mut ProcessCtx, mut keys: Vec<(f64, f64, CurveEasing)>) -> Vec<NodeId> {
         if keys.is_empty() {
             return Vec::new();
         }
 
-        keys.retain(|(position, value)| position.is_finite() && value.is_finite());
+        keys.retain(|(position, value, _)| position.is_finite() && value.is_finite());
         if keys.is_empty() {
             return Vec::new();
         }
@@ -443,14 +497,14 @@ impl AnimationCurveNode {
         let active_range = ctx.tree_snapshot().and_then(|snapshot| self.effective_range_constraint(snapshot));
         let child_range = self.initial_key_range_constraint();
         let mut created = Vec::<NodeId>::with_capacity(keys.len());
-        for (position, value) in keys {
+        for (position, value, easing) in keys {
             let (position, value) = if let Some(range) = active_range {
                 (range.clamp_position(position), range.clamp_value(value))
             } else {
                 (position, value)
             };
 
-            let key_node = AnimationCurveKeyNode::new_with_values_and_range(position, value, child_range);
+            let key_node = AnimationCurveKeyNode::new_with_values_and_range_and_easing(position, value, child_range, easing);
             let key_id = key_node.id();
             self.add_child_boxed(ctx, Box::new(key_node), None);
             created.push(key_id);
@@ -1071,35 +1125,47 @@ pub struct AnimationCurveKeyNode {
     default_position: f64,
     default_value: f64,
     range_constraint: Option<AnimationCurveRangeConstraint>,
+    default_easing: CurveEasing,
 }
 
 impl AnimationCurveKeyNode {
     /// Creates one key node with default position/value set to `0`.
     pub fn new() -> Self {
-        Self::new_with_label_and_values_and_range("Key", 0.0, 0.0, None)
+        Self::new_with_label_and_values_and_range_and_easing("Key", 0.0, 0.0, None, default_curve_easing())
     }
 
     /// Creates one key node with custom label and default position/value.
     pub fn new_with_label(label: impl Into<String>) -> Self {
-        Self::new_with_label_and_values_and_range(label, 0.0, 0.0, None)
+        Self::new_with_label_and_values_and_range_and_easing(label, 0.0, 0.0, None, default_curve_easing())
     }
 
     /// Creates one key node with custom label and optional range constraint.
     pub fn new_with_label_and_range(label: impl Into<String>, range_constraint: Option<AnimationCurveRangeConstraint>) -> Self {
-        Self::new_with_label_and_values_and_range(label, 0.0, 0.0, range_constraint)
+        Self::new_with_label_and_values_and_range_and_easing(label, 0.0, 0.0, range_constraint, default_curve_easing())
     }
 
     /// Creates one key node with explicit initial position/value.
     pub fn new_with_values(position: f64, value: f64) -> Self {
-        Self::new_with_label_and_values_and_range("Key", position, value, None)
+        Self::new_with_label_and_values_and_range_and_easing("Key", position, value, None, default_curve_easing())
     }
 
     /// Creates one key node with explicit initial position/value and optional range constraint.
     pub fn new_with_values_and_range(position: f64, value: f64, range_constraint: Option<AnimationCurveRangeConstraint>) -> Self {
-        Self::new_with_label_and_values_and_range("Key", position, value, range_constraint)
+        Self::new_with_label_and_values_and_range_and_easing("Key", position, value, range_constraint, default_curve_easing())
     }
 
-    fn new_with_label_and_values_and_range(label: impl Into<String>, position: f64, value: f64, range_constraint: Option<AnimationCurveRangeConstraint>) -> Self {
+    /// Creates one key node with explicit initial position/value, optional range, and explicit easing.
+    pub fn new_with_values_and_range_and_easing(position: f64, value: f64, range_constraint: Option<AnimationCurveRangeConstraint>, easing: CurveEasing) -> Self {
+        Self::new_with_label_and_values_and_range_and_easing("Key", position, value, range_constraint, easing)
+    }
+
+    fn new_with_label_and_values_and_range_and_easing(
+        label: impl Into<String>,
+        position: f64,
+        value: f64,
+        range_constraint: Option<AnimationCurveRangeConstraint>,
+        default_easing: CurveEasing,
+    ) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         let (default_position, default_value) = if let Some(range_constraint) = range_constraint {
@@ -1112,6 +1178,7 @@ impl AnimationCurveKeyNode {
             default_position,
             default_value,
             range_constraint,
+            default_easing,
         }
     }
 }
@@ -1163,7 +1230,7 @@ impl Node for AnimationCurveKeyNode {
             ctx.add_child_boxed(self.id(), Box::new(value_param), None);
         }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_EASING_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveEasingNode::new("Easing")), None);
+            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveEasingNode::new_with_easing("Easing", self.default_easing.clone())), None);
         }
     }
 
@@ -1176,6 +1243,7 @@ impl Node for AnimationCurveKeyNode {
 pub struct AnimationCurveEasingNode {
     node_data: NodeData,
     current_kind: &'static str,
+    default_easing: CurveEasing,
     kind_param: Option<NodeId>,
     managed_children: HashMap<String, Option<NodeId>>,
 }
@@ -1183,12 +1251,19 @@ pub struct AnimationCurveEasingNode {
 impl AnimationCurveEasingNode {
     /// Creates one easing node.
     pub fn new(label: impl Into<String>) -> Self {
+        Self::new_with_easing(label, default_curve_easing())
+    }
+
+    /// Creates one easing node with explicit default easing values.
+    pub fn new_with_easing(label: impl Into<String>, default_easing: CurveEasing) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
+        let current_kind = Self::normalize_kind(curve_easing_kind_id(&default_easing));
         Self {
             node_data,
-            current_kind: "linear",
+            current_kind,
+            default_easing,
             kind_param: None,
             managed_children: HashMap::new(),
         }
@@ -1271,35 +1346,139 @@ impl AnimationCurveEasingNode {
         }
     }
 
-    fn make_parameter_node(decl_id: &str) -> Option<Box<dyn Node>> {
+    fn make_parameter_node(&self, decl_id: &str) -> Option<Box<dyn Node>> {
         match decl_id {
-            PARAMETER_ANIMATION_EASING_KIND_DECL_ID => Some(Box::new(make_easing_kind_parameter())),
-            PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID => Some(Box::new(make_float_parameter("Out Handle Position", PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, 1.0 / 3.0))),
-            PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID => Some(Box::new(make_float_parameter("Out Handle Value", PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, 0.0))),
-            PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID => Some(Box::new(make_float_parameter("In Handle Position", PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, -1.0 / 3.0))),
-            PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID => Some(Box::new(make_float_parameter("In Handle Value", PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, 0.0))),
-            PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID => Some(Box::new(make_step_mode_parameter())),
-            PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID => Some(Box::new(make_non_negative_float_parameter("Step Size", PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, 0.1))),
+            PARAMETER_ANIMATION_EASING_KIND_DECL_ID => Some(Box::new(make_easing_kind_parameter(curve_easing_kind_id(&self.default_easing)))),
+            PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Bezier { out_handle, .. } => out_handle.position,
+                    _ => 1.0 / 3.0,
+                };
+                Some(Box::new(make_float_parameter("Out Handle Position", PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Bezier { out_handle, .. } => out_handle.value,
+                    _ => 0.0,
+                };
+                Some(Box::new(make_float_parameter("Out Handle Value", PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Bezier { in_handle, .. } => in_handle.position,
+                    _ => -1.0 / 3.0,
+                };
+                Some(Box::new(make_float_parameter("In Handle Position", PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Bezier { in_handle, .. } => in_handle.value,
+                    _ => 0.0,
+                };
+                Some(Box::new(make_float_parameter("In Handle Value", PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Steps { step_mode, .. } => curve_step_mode_variant_id(*step_mode),
+                    _ => "numSteps",
+                };
+                Some(Box::new(make_step_mode_parameter(default)))
+            }
+            PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Steps { step_size, .. } => *step_size,
+                    _ => 0.1,
+                };
+                Some(Box::new(make_non_negative_float_parameter("Step Size", PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, default)))
+            }
             PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID => {
-                let mut parameter = make_int_parameter("Number of Steps", PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, 8);
+                let default = match &self.default_easing {
+                    CurveEasing::Steps { num_steps, .. } => (*num_steps).max(1) as i32,
+                    _ => 8,
+                };
+                let mut parameter = make_int_parameter("Number of Steps", PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, default);
                 parameter.constraints.range = Some(RangeConstraint::Uniform { min: Some(1.0), max: None });
                 Some(Box::new(parameter))
             }
-            PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID => Some(Box::new(make_shape_parameter())),
-            PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID => Some(Box::new(make_float_parameter("Amplitude", PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID, 1.0))),
-            PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID => Some(Box::new(make_phase_mode_parameter())),
-            PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID => Some(Box::new(make_non_negative_float_parameter("Frequency", PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, 1.0))),
-            PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID => Some(Box::new(make_non_negative_float_parameter("Number of Phases", PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, 1.0))),
-            PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID => Some(Box::new(make_non_negative_float_parameter("Fade In", PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID, 0.0))),
-            PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID => Some(Box::new(make_non_negative_float_parameter("Fade Out", PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, 0.0))),
+            PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { shape, .. } => curve_shape_variant_id(*shape),
+                    _ => "sine",
+                };
+                Some(Box::new(make_shape_parameter(default)))
+            }
+            PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { amplitude, .. } | CurveEasing::PerlinNoise { amplitude, .. } => *amplitude,
+                    _ => 1.0,
+                };
+                Some(Box::new(make_float_parameter("Amplitude", PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { phase_mode, .. } => curve_phase_mode_variant_id(*phase_mode),
+                    _ => "frequency",
+                };
+                Some(Box::new(make_phase_mode_parameter(default)))
+            }
+            PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { frequency, .. } | CurveEasing::PerlinNoise { frequency, .. } | CurveEasing::Random { frequency, .. } => *frequency,
+                    _ => 1.0,
+                };
+                Some(Box::new(make_non_negative_float_parameter("Frequency", PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { num_phases, .. } => *num_phases,
+                    _ => 1.0,
+                };
+                Some(Box::new(make_non_negative_float_parameter("Number of Phases", PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { fade_in, .. } | CurveEasing::PerlinNoise { fade_in, .. } | CurveEasing::Random { fade_in, .. } => *fade_in,
+                    _ => 0.0,
+                };
+                Some(Box::new(make_non_negative_float_parameter("Fade In", PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Shape { fade_out, .. } | CurveEasing::PerlinNoise { fade_out, .. } | CurveEasing::Random { fade_out, .. } => *fade_out,
+                    _ => 0.0,
+                };
+                Some(Box::new(make_non_negative_float_parameter("Fade Out", PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, default)))
+            }
             PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID => {
-                let mut parameter = make_int_parameter("Octaves", PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, 4);
+                let default = match &self.default_easing {
+                    CurveEasing::PerlinNoise { octaves, .. } => (*octaves).max(1) as i32,
+                    _ => 4,
+                };
+                let mut parameter = make_int_parameter("Octaves", PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, default);
                 parameter.constraints.range = Some(RangeConstraint::Uniform { min: Some(1.0), max: None });
                 Some(Box::new(parameter))
             }
-            PARAMETER_ANIMATION_EASING_PHASE_DECL_ID => Some(Box::new(make_float_parameter("Phase", PARAMETER_ANIMATION_EASING_PHASE_DECL_ID, 0.0))),
-            PARAMETER_ANIMATION_EASING_SEED_DECL_ID => Some(Box::new(make_int_parameter("Seed", PARAMETER_ANIMATION_EASING_SEED_DECL_ID, 0))),
-            PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID => Some(Box::new(make_string_parameter("Script Source", PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, ""))),
+            PARAMETER_ANIMATION_EASING_PHASE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::PerlinNoise { phase, .. } => *phase,
+                    _ => 0.0,
+                };
+                Some(Box::new(make_float_parameter("Phase", PARAMETER_ANIMATION_EASING_PHASE_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_SEED_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Random { seed, .. } => (*seed).min(i32::MAX as u64) as i32,
+                    _ => 0,
+                };
+                Some(Box::new(make_int_parameter("Seed", PARAMETER_ANIMATION_EASING_SEED_DECL_ID, default)))
+            }
+            PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID => {
+                let default = match &self.default_easing {
+                    CurveEasing::Script { source } => source.as_str(),
+                    _ => "",
+                };
+                Some(Box::new(make_string_parameter("Script Source", PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, default)))
+            }
             _ => None,
         }
     }
@@ -1337,7 +1516,7 @@ impl AnimationCurveEasingNode {
             if self.managed_children.contains_key(*required_decl_id) {
                 continue;
             }
-            if let Some(parameter_node) = Self::make_parameter_node(required_decl_id) {
+            if let Some(parameter_node) = self.make_parameter_node(required_decl_id) {
                 self.mark_decl_child_pending_addition(required_decl_id);
                 self.add_child_boxed(ctx, parameter_node, None);
             }
