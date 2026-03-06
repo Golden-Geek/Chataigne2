@@ -89,6 +89,19 @@ pub enum EngineEditError {
         /// Human-readable rejection message.
         message: String,
     },
+    /// A runtime node-mutation callback was rejected by the target node.
+    NodeMutationRejected {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Target node id.
+        node: NodeId,
+        /// Runtime type name of the target node.
+        node_type: String,
+        /// Human-readable rejection message.
+        message: String,
+    },
     /// A node id referenced by an edit was not found.
     NodeNotFound {
         /// Index of the edit in the drained queue.
@@ -241,6 +254,9 @@ impl fmt::Display for EngineEditError {
             Self::ScriptConfigRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::ScriptPropertyRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
             Self::ScriptMethodRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
+            Self::NodeMutationRejected { edit_index, operation, node, node_type, message } => {
+                write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node)
+            }
             Self::NodeNotFound { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
             Self::ParentNotFound { edit_index, operation, parent } => write!(f, "edit #{edit_index} ({operation}) references missing parent {:?}", parent),
             Self::SiblingNotFound { edit_index, operation, sibling } => write!(f, "edit #{edit_index} ({operation}) references missing sibling {:?}", sibling),

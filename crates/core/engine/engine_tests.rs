@@ -685,6 +685,14 @@ impl Node for UiScriptHostNode {
         "ui_script_host"
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
         Some(ScriptHostPolicy::default_scriptable())
     }
@@ -1525,6 +1533,14 @@ impl Node for ContainerTestNode {
 
     fn get_type(&self) -> &str {
         self.kind
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn user_item_kind(&self) -> &str {
@@ -2953,7 +2969,7 @@ fn ui_snapshot_projects_parameter_nodes_with_param_payload() {
     match &snapshot.nodes[0].data {
         UiNodeDataDto::Parameter { param } => {
             assert_eq!(param.value, ParamValue::Float(0.5));
-            assert_eq!(param.default_value, ParamValue::Float(0.5));
+            assert_eq!(param.default_value, None);
         }
         UiNodeDataDto::Node { .. } => panic!("expected parameter payload for parameter node"),
     }
@@ -4570,6 +4586,14 @@ impl Node for RoutingNode {
         "routing_node"
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn child_event_interest_depth(&self, _event: &crate::events::Event) -> u32 {
         self.interest_depth
     }
@@ -4855,6 +4879,14 @@ impl Node for RuntimeNode {
         "runtime_node"
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         self.rule.clone()
     }
@@ -5107,6 +5139,14 @@ impl Node for StressNode {
 
     fn get_type(&self) -> &str {
         "stress_node"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

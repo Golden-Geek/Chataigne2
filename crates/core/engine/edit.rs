@@ -1,8 +1,12 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::process_ctx::ProcessCtx;
 use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
+
+/// Deferred mutable node callback executed during edit application.
+pub type NodeMutation = Box<dyn FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send>;
 
 /// Origin of an edit session boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +59,16 @@ pub enum Edit {
         method: String,
         /// Method arguments converted to `ParamValue`.
         args: Vec<ParamValue>,
+    },
+    /// Invokes one runtime Rust callback on a node.
+    ///
+    /// This is intended for strongly typed node-handle APIs that need to call
+    /// methods on existing child nodes while preserving the edit pipeline.
+    CallNodeMutation {
+        /// Target node id.
+        node: NodeId,
+        /// Deferred typed callback to run against the target node.
+        callback: NodeMutation,
     },
     /// Insert a node under `parent`, optionally after a sibling.
     AddNode {

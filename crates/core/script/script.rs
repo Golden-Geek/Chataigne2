@@ -3136,6 +3136,14 @@ impl Node for ScriptNode {
         "script"
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn engine_script_state(&self) -> Option<ScriptUiState> {
         Some(self.ui_state())
     }

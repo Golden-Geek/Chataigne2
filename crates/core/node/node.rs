@@ -16,7 +16,7 @@ mod control_animation;
 mod handles;
 pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
 pub use control_animation::ParameterAnimationControlNode;
-pub use handles::{NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
+pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1481,6 +1481,34 @@ pub trait Node: Send + Any {
         }
     }
 
+    /// Returns this node as `Any` for dynamic downcasting.
+    ///
+    /// Node-enum wrappers should override this method to expose the wrapped
+    /// concrete variant instead of the enum container type.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns this node as mutable `Any` for dynamic downcasting.
+    ///
+    /// Node-enum wrappers should override this method to expose the wrapped
+    /// concrete variant instead of the enum container type.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// Attempts to downcast this node to an immutable concrete node reference.
+    fn cast_ref<N: Node + 'static>(&self) -> Option<&N>
+    where
+        Self: Sized,
+    {
+        self.as_any().downcast_ref::<N>()
+    }
+
+    /// Attempts to downcast this node to a mutable concrete node reference.
+    fn cast_mut<N: Node + 'static>(&mut self) -> Option<&mut N>
+    where
+        Self: Sized,
+    {
+        self.as_any_mut().downcast_mut::<N>()
+    }
+
     /// Attempts to downcast a boxed trait object into `Self`.
     fn from_boxed_node(node: Box<dyn Node>) -> Option<Self>
     where
@@ -1876,6 +1904,14 @@ impl Node for UserContextNode {
         USER_CONTEXT_NODE_TYPE
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&USER_CONTEXT_ALLOWED_ITEM_KINDS))
     }
@@ -1946,6 +1982,14 @@ impl Node for Folder {
 
     fn get_type(&self) -> &str {
         FOLDER_NODE_TYPE
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

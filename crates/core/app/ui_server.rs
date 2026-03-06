@@ -249,6 +249,9 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
             let spent = tick_start.elapsed();
             if spent < tick_interval {
                 thread::sleep(tick_interval - spent);
+            } else {
+                // Avoid starving UI request threads when runtime ticks run longer than target cadence.
+                thread::yield_now();
             }
         }
     });
@@ -513,13 +516,27 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             } else {
                 serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?
             };
-            eprintln!("[ui-http] snapshot scope={:?}", payload.scope);
-
+            let request_started = Instant::now();
+            let scope = payload.scope;
             let guard = lock_engine(&state.engine);
-            let snapshot = guard.ui_snapshot(payload.scope);
+            let build_started = Instant::now();
+            let snapshot = guard.ui_snapshot(scope.clone());
+            let build_elapsed = build_started.elapsed();
             drop(guard);
 
-            write_json(stream, "200 OK", &snapshot)?;
+            let serialize_started = Instant::now();
+            let body = serde_json::to_vec(&snapshot).map_err(|err| Error::new(ErrorKind::InvalidData, format!("failed to serialize json: {err}")))?;
+            let serialize_elapsed = serialize_started.elapsed();
+            eprintln!(
+                "[ui-http] snapshot scope={scope:?} nodes={} bytes={} build_ms={} serialize_ms={} total_ms={}",
+                snapshot.nodes.len(),
+                body.len(),
+                build_elapsed.as_millis(),
+                serialize_elapsed.as_millis(),
+                request_started.elapsed().as_millis()
+            );
+
+            write_response(stream, "200 OK", "application/json; charset=utf-8", &body)?;
         }
         ("POST", "/api/ui/replay") => {
             let payload: ReplayRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid replay payload: {err}")))?;

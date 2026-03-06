@@ -488,6 +488,10 @@ impl<T: Node> Engine<T> {
 
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let due_nodes = self.runtime_schedule.collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        if due_nodes.is_empty() {
+            return Ok(());
+        }
+
         let needs_tree_snapshot = due_nodes.iter().any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
         let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         let mut parameter_values = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect::<HashMap<_, _>>();

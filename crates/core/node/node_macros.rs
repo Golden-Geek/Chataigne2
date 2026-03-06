@@ -341,6 +341,38 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn as_any(&self) -> &dyn std::any::Any {
+                match self {
+                    Self::Folder(node) => node,
+                    Self::UserContext(node) => node,
+                    Self::Parameter(node) => node,
+                    Self::ParameterAnimationControl(node) => node,
+                    Self::AnimationCurve(node) => node,
+                    Self::AnimationCurveRange(node) => node,
+                    Self::AnimationCurveKey(node) => node,
+                    Self::AnimationCurveEasing(node) => node,
+                    Self::Script(node) => node,
+                    $(Self::$variant(node) => node,)*
+                }
+            }
+
+            #[inline(always)]
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                match self {
+                    Self::Folder(node) => node,
+                    Self::UserContext(node) => node,
+                    Self::Parameter(node) => node,
+                    Self::ParameterAnimationControl(node) => node,
+                    Self::AnimationCurve(node) => node,
+                    Self::AnimationCurveRange(node) => node,
+                    Self::AnimationCurveKey(node) => node,
+                    Self::AnimationCurveEasing(node) => node,
+                    Self::Script(node) => node,
+                    $(Self::$variant(node) => node,)*
+                }
+            }
+
+            #[inline(always)]
             fn user_item_kind(&self) -> &str {
                 $crate::__dispatch_node_enum!(self, user_item_kind; $($variant),*)
             }

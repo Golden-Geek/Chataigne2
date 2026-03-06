@@ -674,10 +674,12 @@ impl CompiledBezierSegment {
 
     fn sample(&self, position: f64) -> f64 {
         let mut t = ((position - self.start_position) * self.inv_span).clamp(0.0, 1.0);
-        for _ in 0..4 {
+        let mut converged = false;
+        for _ in 0..6 {
             let sampled_x = self.x.sample(t);
             let delta = sampled_x - position;
-            if delta.abs() <= 1e-8 {
+            if delta.abs() <= 1e-10 {
+                converged = true;
                 break;
             }
 
@@ -686,21 +688,27 @@ impl CompiledBezierSegment {
                 break;
             }
 
-            t = (t - delta / derivative).clamp(0.0, 1.0);
+            let next_t = t - delta / derivative;
+            if !next_t.is_finite() {
+                break;
+            }
+            t = next_t.clamp(0.0, 1.0);
         }
 
-        let mut low = 0.0;
-        let mut high = 1.0;
-        for _ in 0..8 {
-            let mid = 0.5 * (low + high);
-            let sampled_x = self.x.sample(mid);
-            if sampled_x <= position {
-                low = mid;
-            } else {
-                high = mid;
+        if !converged {
+            let mut low = 0.0;
+            let mut high = 1.0;
+            for _ in 0..20 {
+                let mid = 0.5 * (low + high);
+                let sampled_x = self.x.sample(mid);
+                if sampled_x <= position {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
             }
+            t = 0.5 * (low + high);
         }
-        t = 0.5 * (low + high);
 
         self.y.sample(t)
     }

@@ -296,6 +296,18 @@ impl<T: Node> Engine<T> {
     ///
     /// Returns `true` when it changed queued edits or updated control diagnostics.
     pub(crate) fn evaluate_parameter_controls(&mut self) -> bool {
+        let has_active_controls = self.nodes.values().any(|node| {
+            node.engine_param_control_state().is_some_and(|state| {
+                state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()
+            })
+        });
+        if !has_active_controls {
+            if !self.expression_runtime.is_empty() {
+                self.expression_runtime.clear();
+            }
+            return false;
+        }
+
         let param_snapshots = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot))).collect::<HashMap<_, _>>();
 
         if param_snapshots.is_empty() {

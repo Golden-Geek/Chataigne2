@@ -1,3 +1,4 @@
+use crate::edit::NodeMutation;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
@@ -196,6 +197,29 @@ impl<T: Node> Engine<T> {
                 node_type,
                 message: format!("method '{method}' is not exposed by target node"),
             });
+        }
+
+        self.absorb_edits(&mut ctx)?;
+        Ok(())
+    }
+
+    /// Applies one typed runtime node-mutation callback on one target node.
+    pub(crate) fn apply_call_node_mutation(&mut self, edit_index: usize, node: NodeId, callback: NodeMutation) -> Result<(), EngineEditError> {
+        const OP: &str = "CallNodeMutation";
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.runtime_elapsed = self.runtime_elapsed;
+        ctx.set_tree_snapshot(self.build_process_tree_snapshot());
+
+        {
+            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
+            let node_type = target.get_type().to_string();
+            callback(target as &mut dyn Node, &mut ctx).map_err(|message| EngineEditError::NodeMutationRejected {
+                edit_index,
+                operation: OP,
+                node,
+                node_type,
+                message,
+            })?;
         }
 
         self.absorb_edits(&mut ctx)?;

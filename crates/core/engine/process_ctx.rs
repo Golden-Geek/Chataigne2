@@ -274,6 +274,19 @@ impl ProcessCtx {
         self.edits.push(Edit::CallNodeScriptMethod { node, method: method.into(), args });
     }
 
+    /// Queues one runtime Rust callback invocation on `node`.
+    ///
+    /// The callback is executed by the engine while applying queued edits.
+    pub fn call_node_mutation<F>(&mut self, node: NodeId, callback: F)
+    where
+        F: FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send + 'static,
+    {
+        self.edits.push(Edit::CallNodeMutation {
+            node,
+            callback: Box::new(callback),
+        });
+    }
+
     /// Sets or replaces the default warning on `node`.
     pub fn set_node_warning(&mut self, node: NodeId, message: impl Into<String>) {
         self.set_node_warning_with(node, None, message, None);

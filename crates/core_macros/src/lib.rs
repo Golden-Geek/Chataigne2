@@ -1894,12 +1894,13 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             }
 
             let field_ident = &node.field;
+            let ty = &node.ty;
             let decl_id_lit = &node.decl_id;
             fields.push(parse_quote! {
-                #field_ident: golden_core::node::PotentialNodeHandle
+                #field_ident: golden_core::node::DeclaredNodeHandle<#ty>
             });
             ctor_inits.push(quote! {
-                #field_ident: golden_core::node::PotentialNodeHandle::new(
+                #field_ident: golden_core::node::DeclaredNodeHandle::<#ty>::new(
                     golden_core::node::NodeId(0),
                     #decl_id_lit
                 )
@@ -2046,6 +2047,14 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
                 fn get_type(&self) -> &str {
                     #resolved_type_name
+                }
+
+                fn as_any(&self) -> &dyn std::any::Any {
+                    self
+                }
+
+                fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                    self
                 }
 
                 #generated_user_item_kind
@@ -2216,6 +2225,22 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         input.items.push(parse_quote! {
             fn get_type(&self) -> &str {
                 #resolved_type_name
+            }
+        });
+    }
+
+    if !has_method(&input, "as_any") {
+        input.items.push(parse_quote! {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        });
+    }
+
+    if !has_method(&input, "as_any_mut") {
+        input.items.push(parse_quote! {
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
             }
         });
     }
@@ -2731,7 +2756,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 }
 
                 if !__golden_child_already_exists {
-                    let _: &golden_core::node::PotentialNodeHandle = &self.#field_ident;
+                    let _: &golden_core::node::DeclaredNodeHandle<#ty> = &self.#field_ident;
                     let mut __child_node: #ty = (#default_expr);
                     golden_core::node::Node::node_data_mut(&mut __child_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));

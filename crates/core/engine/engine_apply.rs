@@ -100,6 +100,10 @@ impl<T: Node> Engine<T> {
                     self.apply_call_node_script_method(edit_index, node, method, args)?;
                     (Ok(None), true)
                 }
+                Edit::CallNodeMutation { node, callback } => {
+                    self.apply_call_node_mutation(edit_index, node, callback)?;
+                    (Ok(None), true)
+                }
                 Edit::AddNode { node, parent, prev_sibling } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;

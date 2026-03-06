@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::ops::RangeInclusive;
 
 use crate::animation_curve::{AnimationCurve, AnimationCurveKey, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode};
 use crate::edit::Edit;
@@ -352,6 +353,14 @@ impl Node for AnimationCurveRangeNode {
         PARAMETER_ANIMATION_RANGE_NODE_TYPE
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_RANGE_X_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_vec2_parameter("X", PARAMETER_ANIMATION_RANGE_X_DECL_ID, self.default_range.x_min, self.default_range.x_max)), None);
@@ -415,6 +424,138 @@ impl AnimationCurveNode {
     /// Replaces the code-authored range constraint.
     pub fn set_range_constraint(&mut self, range: Option<AnimationCurveRangeConstraint>) {
         self.code_range_constraint = range;
+    }
+
+    /// Inserts multiple keys using `(position, value)` tuples.
+    ///
+    /// Returns created key node ids in insertion order.
+    pub fn insert_keys(&mut self, ctx: &mut ProcessCtx, mut keys: Vec<(f64, f64)>) -> Vec<NodeId> {
+        if keys.is_empty() {
+            return Vec::new();
+        }
+
+        keys.retain(|(position, value)| position.is_finite() && value.is_finite());
+        if keys.is_empty() {
+            return Vec::new();
+        }
+        keys.sort_by(|left, right| left.0.total_cmp(&right.0));
+
+        let active_range = ctx.tree_snapshot().and_then(|snapshot| self.effective_range_constraint(snapshot));
+        let child_range = self.initial_key_range_constraint();
+        let mut created = Vec::<NodeId>::with_capacity(keys.len());
+        for (position, value) in keys {
+            let (position, value) = if let Some(range) = active_range {
+                (range.clamp_position(position), range.clamp_value(value))
+            } else {
+                (position, value)
+            };
+
+            let key_node = AnimationCurveKeyNode::new_with_values_and_range(position, value, child_range);
+            let key_id = key_node.id();
+            self.add_child_boxed(ctx, Box::new(key_node), None);
+            created.push(key_id);
+        }
+        created
+    }
+
+    /// Samples one value at `position` from the current curve snapshot.
+    ///
+    /// Returns `0` when curve data is unavailable or sampling fails.
+    pub fn get_value_at(&self, snapshot: &ProcessTreeSnapshot, position: f64) -> f64 {
+        if !position.is_finite() {
+            return 0.0;
+        }
+        curve_from_snapshot(snapshot, self.id())
+            .and_then(|curve| curve.sample(position))
+            .unwrap_or(0.0)
+    }
+
+    /// Returns sorted `(key_id, position, value)` tuples inside `range`.
+    pub fn get_keys_between(&self, snapshot: &ProcessTreeSnapshot, range: RangeInclusive<f64>) -> Vec<(NodeId, f64, f64)> {
+        let start = *range.start();
+        let end = *range.end();
+        if !start.is_finite() || !end.is_finite() {
+            return Vec::new();
+        }
+        let (min_position, max_position) = if start <= end { (start, end) } else { (end, start) };
+        self.collect_sorted_key_data(snapshot)
+            .into_iter()
+            .filter(|(_, position, _)| *position >= min_position && *position <= max_position)
+            .collect()
+    }
+
+    /// Returns the closest key to `position` as `(key_id, position, value)`.
+    pub fn get_closest_key(&self, snapshot: &ProcessTreeSnapshot, position: f64) -> Option<(NodeId, f64, f64)> {
+        if !position.is_finite() {
+            return None;
+        }
+
+        self.collect_sorted_key_data(snapshot).into_iter().min_by(|left, right| {
+            let left_distance = (left.1 - position).abs();
+            let right_distance = (right.1 - position).abs();
+            left_distance
+                .total_cmp(&right_distance)
+                .then(left.1.total_cmp(&right.1))
+                .then(left.0 .0.cmp(&right.0 .0))
+        })
+    }
+
+    /// Returns the closest strictly-previous key to `position`.
+    pub fn get_prev_key(&self, snapshot: &ProcessTreeSnapshot, position: f64) -> Option<(NodeId, f64, f64)> {
+        if !position.is_finite() {
+            return None;
+        }
+
+        let mut previous = None;
+        for key in self.collect_sorted_key_data(snapshot) {
+            if key.1 < position - KEY_ORDER_POSITION_EPSILON {
+                previous = Some(key);
+            } else {
+                break;
+            }
+        }
+        previous
+    }
+
+    /// Returns the closest strictly-next key to `position`.
+    pub fn get_next_key(&self, snapshot: &ProcessTreeSnapshot, position: f64) -> Option<(NodeId, f64, f64)> {
+        if !position.is_finite() {
+            return None;
+        }
+
+        self.collect_sorted_key_data(snapshot)
+            .into_iter()
+            .find(|(_, key_position, _)| *key_position > position + KEY_ORDER_POSITION_EPSILON)
+    }
+
+    fn collect_sorted_key_data(&self, snapshot: &ProcessTreeSnapshot) -> Vec<(NodeId, f64, f64)> {
+        let range_constraint = self.effective_range_constraint(snapshot).or_else(|| read_range_constraint_from_key_param_constraints(snapshot, self.id()));
+        let mut key_entries = Vec::<(usize, NodeId, f64, f64)>::new();
+        for (source_index, child) in snapshot.child_ids(self.id()).into_iter().enumerate() {
+            let Some(child_snapshot) = snapshot.node(child) else {
+                continue;
+            };
+            if child_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
+                continue;
+            }
+
+            let mut position = read_child_param_f64(snapshot, child, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, 0.0);
+            let mut value = read_child_param_f64(snapshot, child, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, 0.0);
+            if let Some(range_constraint) = range_constraint {
+                position = range_constraint.clamp_position(position);
+                value = range_constraint.clamp_value(value);
+            }
+            key_entries.push((source_index, child, position, value));
+        }
+
+        key_entries.sort_by(|left, right| {
+            if (left.2 - right.2).abs() <= KEY_ORDER_POSITION_EPSILON {
+                left.0.cmp(&right.0)
+            } else {
+                left.2.total_cmp(&right.2)
+            }
+        });
+        key_entries.into_iter().map(|(_, key_id, position, value)| (key_id, position, value)).collect()
     }
 
     fn bind_decl_child(&mut self, decl_id: &str, child: NodeId) {
@@ -671,6 +812,14 @@ impl Node for AnimationCurveNode {
 
     fn get_type(&self) -> &str {
         PARAMETER_ANIMATION_CURVE_NODE_TYPE
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn user_item_kind(&self) -> &str {
@@ -980,6 +1129,14 @@ impl Node for AnimationCurveKeyNode {
         PARAMETER_ANIMATION_KEY_NODE_TYPE
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn user_item_kind(&self) -> &str {
         PARAMETER_ANIMATION_KEY_ITEM_KIND
     }
@@ -1215,6 +1372,14 @@ impl Node for AnimationCurveEasingNode {
 
     fn get_type(&self) -> &str {
         PARAMETER_ANIMATION_EASING_NODE_TYPE
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {

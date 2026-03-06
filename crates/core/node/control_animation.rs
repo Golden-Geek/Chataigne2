@@ -258,6 +258,14 @@ impl Node for ParameterAnimationControlNode {
         PARAMETER_ANIMATION_CONTROL_NODE_TYPE
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn user_item_kind(&self) -> &str {
         PARAMETER_CONTROL_ITEM_KIND
     }

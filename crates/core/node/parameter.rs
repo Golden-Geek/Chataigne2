@@ -1858,6 +1858,14 @@ impl Node for Parameter {
         }
     }
 
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[PARAMETER_CONTROL_ITEM_KIND]))
     }

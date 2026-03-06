@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -7,9 +7,10 @@ use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
-use crate::node::{DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
+use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
+    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
 };
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
@@ -24,6 +25,22 @@ fn is_default_presentation_hint(value: &PresentationHint) -> bool {
 
 fn is_default_user_permissions(value: &NodeUserPermissions) -> bool {
     *value == NodeUserPermissions::default()
+}
+
+fn is_default_event_behaviour(value: &ParameterEventBehaviour) -> bool {
+    *value == ParameterEventBehaviour::default()
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn is_default_parameter_constraints(value: &ParameterConstraints) -> bool {
+    *value == ParameterConstraints::default()
+}
+
+fn is_default_parameter_ui_hints(value: &ParameterUiHints) -> bool {
+    *value == ParameterUiHints::default()
 }
 
 /// Scope used by snapshot/event subscriptions.
@@ -86,17 +103,26 @@ pub struct UiParamDto {
     /// Current value.
     pub value: ParamValue,
     /// Declared default value.
-    pub default_value: ParamValue,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<ParamValue>,
     /// Coalescing policy.
+    #[serde(default, skip_serializing_if = "is_default_event_behaviour")]
     pub event_behaviour: ParameterEventBehaviour,
     /// Read-only flag.
+    #[serde(default, skip_serializing_if = "is_false")]
     pub read_only: bool,
     /// Runtime value constraints.
+    #[serde(default, skip_serializing_if = "is_default_parameter_constraints")]
     pub constraints: ParameterConstraints,
     /// Presentation and editing hints.
+    #[serde(default, skip_serializing_if = "is_default_parameter_ui_hints")]
     pub ui_hints: ParameterUiHints,
     /// Runtime control-plane state.
+    #[serde(default, skip_serializing_if = "is_default_ui_parameter_control_state")]
     pub control: UiParameterControlStateDto,
+    /// Optional shared enum-options id resolved via `UiSchemaView.enums`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enum_options_id: Option<String>,
     /// Engine-computed selectable targets for reference parameters.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reference_allowed_targets: Vec<NodeId>,
@@ -107,14 +133,16 @@ pub struct UiParamDto {
 
 impl From<ParameterSnapshot> for UiParamDto {
     fn from(snapshot: ParameterSnapshot) -> Self {
+        let default_value = if snapshot.default_value == snapshot.value { None } else { Some(snapshot.default_value) };
         Self {
             value: snapshot.value,
-            default_value: snapshot.default_value,
+            default_value,
             event_behaviour: snapshot.event_behaviour,
             read_only: snapshot.read_only,
             constraints: snapshot.constraints,
             ui_hints: snapshot.ui_hints,
             control: snapshot.control.into(),
+            enum_options_id: None,
             reference_allowed_targets: Vec::new(),
             reference_visible_nodes: Vec::new(),
         }
@@ -139,6 +167,10 @@ impl Default for UiParameterControlStateDto {
             spec: ParameterControlSpec::Manual,
         }
     }
+}
+
+fn is_default_ui_parameter_control_state(value: &UiParameterControlStateDto) -> bool {
+    *value == UiParameterControlStateDto::default()
 }
 
 impl From<ParameterControlState> for UiParameterControlStateDto {
@@ -263,6 +295,7 @@ pub struct UiNodeDto {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub creatable_user_items: Vec<UiCreatableUserItemDto>,
     /// Direct children ids in visual order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<NodeId>,
 }
 
@@ -295,7 +328,7 @@ pub struct UiNodeTypeDescriptor {
 }
 
 /// UI-facing enum descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiEnumDefinition {
     /// Stable enum id.
     pub enum_id: String,
@@ -304,10 +337,12 @@ pub struct UiEnumDefinition {
 }
 
 /// UI-facing enum variant descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiEnumVariantDefinition {
     /// Stable variant id.
     pub variant_id: String,
+    /// Value represented by this variant.
+    pub value: ParamValue,
     /// Display label.
     pub label: String,
     /// Optional tags.
@@ -319,7 +354,7 @@ pub struct UiEnumVariantDefinition {
 }
 
 /// UI-facing schema payload needed by editors.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct UiSchemaView {
     /// Known node types within the snapshot scope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -663,12 +698,34 @@ pub struct UiAck {
 }
 
 impl<T: Node> Engine<T> {
+    fn ui_enum_options_fingerprint(options: &[ParameterEnumOption]) -> String {
+        serde_json::to_string(options).unwrap_or_default()
+    }
+
+    fn ui_enum_definition_from_options(enum_id: String, options: Vec<ParameterEnumOption>) -> UiEnumDefinition {
+        UiEnumDefinition {
+            enum_id,
+            variants: options
+                .into_iter()
+                .map(|option| UiEnumVariantDefinition {
+                    variant_id: option.variant_id,
+                    value: option.value,
+                    label: option.label,
+                    tags: option.tags,
+                    ordering: option.ordering,
+                })
+                .collect(),
+        }
+    }
+
     /// Builds a UI snapshot for the requested scope.
     pub fn ui_snapshot(&self, scope: UiSubscriptionScope) -> UiSnapshot {
         let node_ids = self.collect_scope_nodes(scope.clone());
         let visible: HashSet<NodeId> = node_ids.iter().copied().collect();
         let mut nodes = Vec::with_capacity(node_ids.len());
         let mut known_node_types = HashSet::new();
+        let mut enum_id_by_fingerprint = HashMap::<String, String>::new();
+        let mut enums = Vec::<UiEnumDefinition>::new();
 
         for node_id in node_ids {
             let Some(node) = self.nodes.get(node_id) else {
@@ -686,19 +743,41 @@ impl<T: Node> Engine<T> {
                 child = self.nodes.get(child_id).and_then(|next| next.node_data().next_sibling);
             }
 
-            let data = if let Some(param) = node.engine_param_snapshot() {
-                UiNodeDataDto::Parameter { param: UiParamDto::from(param) }
+            let data = if let Some(mut param) = node.engine_param_snapshot() {
+                let enum_options_id = if param.constraints.enum_options.is_empty() {
+                    None
+                } else {
+                    let enum_options = std::mem::take(&mut param.constraints.enum_options);
+                    let fingerprint = Self::ui_enum_options_fingerprint(enum_options.as_slice());
+                    if let Some(existing_id) = enum_id_by_fingerprint.get(&fingerprint) {
+                        Some(existing_id.clone())
+                    } else {
+                        let enum_id = format!("enumOptions{}", enums.len() + 1);
+                        enum_id_by_fingerprint.insert(fingerprint, enum_id.clone());
+                        enums.push(Self::ui_enum_definition_from_options(enum_id.clone(), enum_options));
+                        Some(enum_id)
+                    }
+                };
+                let mut dto = UiParamDto::from(param);
+                dto.enum_options_id = enum_options_id;
+                UiNodeDataDto::Parameter { param: dto }
             } else {
                 UiNodeDataDto::Node { node_type: node.get_type().to_string() }
             };
 
+            let script_host_enabled = node.script_host_policy().is_some_and(|policy| policy.enabled);
+            let user_context_host_enabled = node.user_context_host_policy().is_some_and(|policy| policy.enabled);
+            let can_query_creatable_items = node.get_type() == FOLDER_NODE_TYPE || node.user_container_rules().is_some() || script_host_enabled || user_context_host_enabled;
+
             let mut creatable_user_items = Vec::new();
-            for item in self.catalog_creatable_items(node_id).into_iter() {
-                creatable_user_items.push(UiCreatableUserItemDto::from(item));
+            if can_query_creatable_items {
+                for item in self.catalog_creatable_items(node_id).into_iter() {
+                    creatable_user_items.push(UiCreatableUserItemDto::from(item));
+                }
             }
 
             let mut accepted_user_item_kinds: Vec<String> = node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default();
-            if node.script_host_policy().is_some_and(|policy| policy.enabled) && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
+            if script_host_enabled && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
                 accepted_user_item_kinds.push("script".to_string());
             }
 
@@ -734,7 +813,7 @@ impl<T: Node> Engine<T> {
             scope,
             at: self.time,
             nodes,
-            schema: UiSchemaView { node_types, enums: Vec::new() },
+            schema: UiSchemaView { node_types, enums },
             history: self.ui_history_state(),
             logger: UiLoggerState {
                 max_entries: crate::logger::max_entries(),
@@ -1269,6 +1348,7 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::ScriptConfigRejected { .. } => "script_config_rejected",
         crate::engine::EngineEditError::ScriptPropertyRejected { .. } => "script_property_rejected",
         crate::engine::EngineEditError::ScriptMethodRejected { .. } => "script_method_rejected",
+        crate::engine::EngineEditError::NodeMutationRejected { .. } => "node_mutation_rejected",
         crate::engine::EngineEditError::NodeNotFound { .. } => "node_not_found",
         crate::engine::EngineEditError::ParentNotFound { .. } => "parent_not_found",
         crate::engine::EngineEditError::SiblingNotFound { .. } => "sibling_not_found",
