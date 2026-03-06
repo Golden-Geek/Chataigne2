@@ -132,6 +132,7 @@ enum WsHubCommand {
     Subscribe { client_id: u64, subscription_id: String, scope: UiSubscriptionScope, from: Option<EngineTime> },
     Unsubscribe { client_id: u64, subscription_id: String },
     Intent { client_id: u64, request_id: String, intent: UiEditIntent, include_self_events: bool },
+    IntentBatch { client_id: u64, request_id: String, intents: Vec<UiEditIntent>, include_self_events: bool },
 }
 
 enum WsOutbound {
@@ -156,6 +157,10 @@ enum WsServerMessage {
     IntentAck {
         request_id: String,
         ack: UiAck,
+    },
+    IntentBatchAck {
+        request_id: String,
+        acks: Vec<UiAck>,
     },
     ResyncRequired {
         subscription_id: String,
@@ -186,6 +191,12 @@ enum WsClientMessage {
     Intent {
         request_id: String,
         intent: UiEditIntent,
+        #[serde(default)]
+        include_self_events: bool,
+    },
+    IntentBatch {
+        request_id: String,
+        intents: Vec<UiEditIntent>,
         #[serde(default)]
         include_self_events: bool,
     },
@@ -336,6 +347,28 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut 
             }
 
             send_to_client(clients, client_id, WsServerMessage::IntentAck { request_id, ack });
+        }
+        WsHubCommand::IntentBatch { client_id, request_id, intents, include_self_events } => {
+            let (acks, produced_times) = {
+                let mut guard = lock_engine(engine);
+                let mut acks = Vec::<UiAck>::with_capacity(intents.len());
+                let mut produced_times = Vec::<EngineTime>::new();
+
+                for intent in intents {
+                    let before_len = guard.ui_event_log().len();
+                    let ack = guard.apply_ui_intent(intent);
+                    acks.push(ack);
+                    produced_times.extend(guard.ui_event_log().iter().skip(before_len).map(|event| event.time));
+                }
+
+                (acks, produced_times)
+            };
+
+            for time in produced_times {
+                origins.insert(time, WsEventOrigin { client_id, include_self_events });
+            }
+
+            send_to_client(clients, client_id, WsServerMessage::IntentBatchAck { request_id, acks });
         }
     }
 }
@@ -814,6 +847,24 @@ fn handle_ws_client_message(message: WsClientMessage, client_id: u64, hub: &WsHu
             }
 
             hub.cmd_tx.send(WsHubCommand::Intent { client_id, request_id, intent, include_self_events }).is_ok()
+        }
+        WsClientMessage::IntentBatch { request_id, intents, include_self_events } => {
+            if request_id.trim().is_empty() {
+                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                    message: "request_id cannot be empty".to_string(),
+                    request_id: None,
+                }));
+                return true;
+            }
+            if intents.is_empty() {
+                let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                    message: "intent batch cannot be empty".to_string(),
+                    request_id: Some(request_id),
+                }));
+                return true;
+            }
+
+            hub.cmd_tx.send(WsHubCommand::IntentBatch { client_id, request_id, intents, include_self_events }).is_ok()
         }
     }
 }
