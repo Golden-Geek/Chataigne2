@@ -136,10 +136,14 @@ impl OscModule {
     }
 
     fn seed_animation_curve(&self, ctx: &mut ProcessCtx) {
+        let key_count = std::env::var("GC_DEMO_KEY_COUNT")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .unwrap_or(1000);
         let mut keys_to_insert = Vec::new();
         let mut rng = rand::rng();
 
-        for i in 0..1000 {
+        for i in 0..key_count {
             keys_to_insert.push((i as f64 / 500.0, rng.random_range(0.0..1.0)));
         }
 
