@@ -11,6 +11,7 @@ use golden_core::{
 };
 
 use uuid::uuid;
+use rand::prelude::*;
 
 pub const MODULE_MANAGER_UUID: golden_core::node::NodeUuid =
 	golden_core::node::NodeUuid(uuid!("3f0d7ac2-5c7a-4d8f-85e2-2c6e6cf3b451"));
@@ -72,6 +73,8 @@ impl ModuleBase {
 
 #[node(from_struct, scriptable, contextualizable)]
 impl Node for ModuleBase {
+    
+
     fn user_item_kind(&self) -> &str {
         "module"
     }
@@ -129,6 +132,20 @@ impl OscModule {
     pub fn create(label: impl Into<String>) -> Self {
         let label = label.into();
         Self::new(label.clone(), ModuleBase::new(label))
+
+    }
+
+    fn seed_animation_curve(&self, ctx: &mut ProcessCtx) {
+        let mut keys_to_insert = Vec::new();
+        let mut rng = rand::rng();
+
+        for i in 0..1000 {
+            keys_to_insert.push((i as f64 / 500.0, rng.random_range(0.0..1.0)));
+        }
+
+        let _ = self.animation_curve.with_mut(ctx, move |animation_curve, curve_ctx| {
+            animation_curve.insert_keys(curve_ctx, keys_to_insert);
+        });
     }
 
     pub fn send_command(&mut self, ctx: &mut ProcessCtx, command: impl AsRef<str>) {
@@ -145,6 +162,7 @@ impl Node for OscModule {
         self.set_child_warning_depth(ctx, 2);
         // Enable typical user-edit permissions so the UI can offer context-menu actions
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
+        self.seed_animation_curve(ctx);
         // self.float_param.set_warning_with(
         //     ctx,
         //     None,
