@@ -26,6 +26,10 @@ impl ModuleManager {
     pub fn create(label: impl Into<String>, allow_dmx: bool) -> Self {
         Self::new(label.into(), allow_dmx)
     }
+
+    pub fn allow_dmx(&self) -> bool {
+        self.allow_dmx
+    }
 }
 
 #[node(from_struct)]
@@ -172,7 +176,7 @@ impl Node for OscModule {
         self.set_child_warning_depth(ctx, 2);
         // Enable typical user-edit permissions so the UI can offer context-menu actions
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
-        self.seed_animation_curve(ctx);
+        // self.seed_animation_curve(ctx);
         // self.float_param.set_warning_with(
         //     ctx,
         //     None,

@@ -2,12 +2,183 @@ use std::io::Error;
 
 use crate::nodes_module_demo::MODULE_MANAGER_UUID;
 use golden_core::{
-    app::run_app,
-    node::{Folder, Node},
+    app::{run_app_with_project_codec, ProjectCodec},
+    node::{
+        AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeNode, Folder, Node, NodeMeta, ParameterAnimationControlNode, UserContextNode, FOLDER_NODE_TYPE, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_NODE_TYPE,
+        PARAMETER_ANIMATION_EASING_NODE_TYPE, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE,
+    },
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterEventBehaviour, ParameterUiHints},
+    script::{ScriptBudgets, ScriptNode, ScriptNodeConfig},
 };
+use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ParameterProjectData {
+    value: ParamValue,
+    default_value: ParamValue,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+    read_only: bool,
+    constraints: ParameterConstraints,
+    ui_hints: ParameterUiHints,
+    control: ParameterControlState,
+    #[serde(default = "default_true")]
+    control_modes_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct LegacyParameterProjectData {
+    value: ParamValue,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ScriptProjectData {
+    config: ScriptNodeConfig,
+    #[serde(default)]
+    budgets: ScriptBudgets,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ModuleManagerProjectData {
+    #[serde(default = "default_true")]
+    allow_dmx: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_parameter_value_for_node_type(node_type: &str) -> Option<ParamValue> {
+    match node_type {
+        "trigger" => Some(ParamValue::Trigger()),
+        "int" => Some(ParamValue::Int(0)),
+        "float" => Some(ParamValue::Float(0.0)),
+        "str" => Some(ParamValue::Str(String::new())),
+        "file" => Some(ParamValue::File(String::new())),
+        "enum" => Some(ParamValue::Enum(String::new())),
+        "bool" => Some(ParamValue::Bool(false)),
+        "vec2" => Some(ParamValue::Vec2(0.0, 0.0)),
+        "vec3" => Some(ParamValue::Vec3(0.0, 0.0, 0.0)),
+        "color" => Some(ParamValue::Color(1.0, 1.0, 1.0, 1.0)),
+        "reference" => Some(ParamValue::Reference(golden_core::node::NodeReference::default())),
+        _ => None,
+    }
+}
+
+fn encode_project_node(node: &AppNode) -> Result<serde_json::Value, String> {
+    let encoded = match node {
+        AppNode::ModuleManager(module_manager) => serde_json::to_value(ModuleManagerProjectData { allow_dmx: module_manager.allow_dmx() }),
+        AppNode::Parameter(parameter) => serde_json::to_value(ParameterProjectData {
+            value: parameter.value.clone(),
+            default_value: parameter.default_value.clone(),
+            change_check: parameter.change_check.clone(),
+            event_behaviour: parameter.event_behaviour,
+            read_only: parameter.read_only,
+            constraints: parameter.constraints.clone(),
+            ui_hints: parameter.ui_hints.clone(),
+            control: parameter.control.clone(),
+            control_modes_enabled: parameter.control_modes_enabled,
+        }),
+        AppNode::Script(script) => serde_json::to_value(ScriptProjectData { config: script.config.clone(), budgets: script.budgets }),
+        _ => Ok(serde_json::Value::Null),
+    };
+
+    encoded.map_err(|err| format!("failed to encode node data: {err}"))
+}
+
+fn decode_parameter_node_data(node_type: &str, data: &serde_json::Value, meta: &NodeMeta) -> Result<Parameter, String> {
+    let parsed = if data.is_null() {
+        let fallback_value = default_parameter_value_for_node_type(node_type).ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
+        ParameterProjectData {
+            value: fallback_value.clone(),
+            default_value: fallback_value,
+            change_check: ParameterChangeCheck::ValueChange,
+            event_behaviour: ParameterEventBehaviour::Coalesce,
+            read_only: false,
+            constraints: ParameterConstraints::default(),
+            ui_hints: ParameterUiHints::default(),
+            control: ParameterControlState::default(),
+            control_modes_enabled: true,
+        }
+    } else if let Ok(full) = serde_json::from_value::<ParameterProjectData>(data.clone()) {
+        full
+    } else {
+        let legacy = serde_json::from_value::<LegacyParameterProjectData>(data.clone()).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        ParameterProjectData {
+            value: legacy.value.clone(),
+            default_value: legacy.value,
+            change_check: legacy.change_check,
+            event_behaviour: legacy.event_behaviour,
+            read_only: false,
+            constraints: ParameterConstraints::default(),
+            ui_hints: ParameterUiHints::default(),
+            control: ParameterControlState::default(),
+            control_modes_enabled: true,
+        }
+    };
+
+    let mut node = Parameter::new(&meta.label, parsed.value.clone(), parsed.change_check);
+    node.value = parsed.value;
+    node.default_value = parsed.default_value;
+    node.event_behaviour = parsed.event_behaviour;
+    node.read_only = parsed.read_only;
+    node.constraints = parsed.constraints;
+    node.ui_hints = parsed.ui_hints;
+    node.control = parsed.control;
+    node.control_modes_enabled = parsed.control_modes_enabled;
+    Ok(node)
+}
+
+fn decode_project_node(node_type: &str, data: &serde_json::Value, meta: &NodeMeta) -> Result<AppNode, String> {
+    if PARAMETER_NODE_TYPES.contains(&node_type) {
+        return decode_parameter_node_data(node_type, data, meta).map(Into::into);
+    }
+
+    match node_type {
+        FOLDER_NODE_TYPE => Ok(Folder::new(meta.label.clone()).into()),
+        USER_CONTEXT_NODE_TYPE => Ok(UserContextNode::new(meta.label.clone()).into()),
+        PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Ok(ParameterAnimationControlNode::new(meta.label.clone()).into()),
+        PARAMETER_ANIMATION_CURVE_NODE_TYPE => Ok(AnimationCurveNode::new_with_label(meta.label.clone()).into()),
+        PARAMETER_ANIMATION_RANGE_NODE_TYPE => Ok(AnimationCurveRangeNode::new(None, true).into()),
+        PARAMETER_ANIMATION_KEY_NODE_TYPE => Ok(AnimationCurveKeyNode::new_with_label(meta.label.clone()).into()),
+        PARAMETER_ANIMATION_EASING_NODE_TYPE => Ok(AnimationCurveEasingNode::new(meta.label.clone()).into()),
+        "script" => {
+            let parsed = if data.is_null() {
+                ScriptProjectData {
+                    config: ScriptNodeConfig::default(),
+                    budgets: ScriptBudgets::default(),
+                }
+            } else {
+                serde_json::from_value::<ScriptProjectData>(data.clone()).map_err(|err| format!("invalid script payload: {err}"))?
+            };
+            let mut node = ScriptNode::new(meta.label.clone(), parsed.config);
+            node.budgets = parsed.budgets;
+            Ok(node.into())
+        }
+        "module_manager" => {
+            let parsed = if data.is_null() {
+                ModuleManagerProjectData { allow_dmx: true }
+            } else {
+                serde_json::from_value::<ModuleManagerProjectData>(data.clone()).map_err(|err| format!("invalid module_manager payload: {err}"))?
+            };
+            Ok(ModuleManager::create(meta.label.clone(), parsed.allow_dmx).into())
+        }
+        "module_base" => Ok(ModuleBase::new(meta.label.clone()).into()),
+        "osc_module" => Ok(OscModule::create(meta.label.clone()).into()),
+        "midi_module" => Ok(MidiModule::create(meta.label.clone()).into()),
+        "dmx_module" => Ok(DmxModule::create(meta.label.clone()).into()),
+        _ => Err(format!("unsupported node type '{node_type}'")),
+    }
+}
+
+fn app_project_codec() -> ProjectCodec<AppNode> {
+    ProjectCodec::new(encode_project_node, decode_project_node)
+}
 
 fn main() -> std::io::Result<()> {
     let root: AppNode = Folder::new("Root".to_string()).into();
@@ -65,5 +236,5 @@ fn main() -> std::io::Result<()> {
     engine.add_user_item(MidiModule::create("MIDI Module").into(), Some(manager));
     engine.add_user_item(DmxModule::create("DMX Module").into(), Some(module_folder));
 
-    run_app(engine)
+    run_app_with_project_codec(engine, app_project_codec())
 }
