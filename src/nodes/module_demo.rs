@@ -140,7 +140,7 @@ impl OscModule {
         let key_count = std::env::var("GC_DEMO_KEY_COUNT")
             .ok()
             .and_then(|raw| raw.parse::<usize>().ok())
-            .unwrap_or(5);
+            .unwrap_or(100);
         let mut keys_to_insert = Vec::new();
         let mut rng = rand::rng();
 
