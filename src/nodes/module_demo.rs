@@ -96,7 +96,7 @@ impl Node for ModuleBase {
         );
         node animation_curve: AnimationCurveNode = AnimationCurveNode::new() (
             label = "Animation Curve",
-            description = "An animation curve parameter with predefined keyframes",
+            description = "An animation curve parameter with predefined keyframes"
         );
         vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
         vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
