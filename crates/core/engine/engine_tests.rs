@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::blueprints::{BlueprintDecl, BlueprintId};
+use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
 use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
@@ -4332,6 +4333,155 @@ fn animation_curve_code_range_applies_without_materializing_user_range_node() {
 
     assert_eq!(position_value, 2.0, "position should clamp to code-defined x_max");
     assert_eq!(value_value, 1.0, "value should clamp to code-defined y_max");
+}
+
+#[test]
+fn ui_intent_fit_animation_curve_path_replaces_range_with_fitted_bezier_keys() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
+        curve: curve_node,
+        points: vec![
+            AnimationCurveFitPoint::new(0.25, 0.2),
+            AnimationCurveFitPoint::new(0.5, 0.92),
+            AnimationCurveFitPoint::new(0.75, 0.15),
+        ],
+        options: AnimationCurveBezierFitOptions {
+            max_value_error: 0.02,
+            max_keys: 8,
+        },
+    });
+    assert!(ack.success, "fit intent should succeed");
+    assert!(engine.edits.pending.is_empty(), "fit intent should fully materialize its queued edits");
+
+    let snapshot = engine.build_process_tree_snapshot();
+    let parsed_curve = curve_from_snapshot(snapshot.as_ref(), curve_node).expect("curve should parse from node snapshot");
+
+    assert!(parsed_curve.key_count() >= 4, "fitted range should keep outer keys and insert fitted keys");
+    assert!((parsed_curve.sample(0.25).expect("sample should exist") - 0.2).abs() < 0.08);
+    assert!((parsed_curve.sample(0.5).expect("sample should exist") - 0.92).abs() < 0.08);
+    assert!((parsed_curve.sample(0.75).expect("sample should exist") - 0.15).abs() < 0.08);
+}
+
+#[test]
+fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    let snapshot_before = engine.build_process_tree_snapshot();
+    let curve_before = curve_from_snapshot(snapshot_before.as_ref(), curve_node).expect("curve should parse before draw fit");
+    let key_count_before = curve_before.key_count();
+    let sample_before = curve_before.sample(0.5).expect("baseline sample should exist");
+
+    let begin_ack = engine.apply_ui_intent(UiEditIntent::BeginEdit {
+        client_edit_id: "curve-draw-1".to_string(),
+        label: Some("Draw Curve".to_string()),
+    });
+    assert!(begin_ack.success, "begin edit should succeed");
+
+    let fit_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
+        curve: curve_node,
+        points: vec![
+            AnimationCurveFitPoint::new(0.25, 0.2),
+            AnimationCurveFitPoint::new(0.5, 0.92),
+            AnimationCurveFitPoint::new(0.75, 0.15),
+        ],
+        options: AnimationCurveBezierFitOptions {
+            max_value_error: 0.02,
+            max_keys: 8,
+        },
+    });
+    assert!(fit_ack.success, "fit intent should succeed inside the edit session");
+
+    assert!(engine.edits.pending.is_empty(), "fit intent should fully materialize its queued edits before session end");
+    assert_eq!(engine.undo_len(), 0, "open draw session should not commit undo history yet");
+
+    let end_ack = engine.apply_ui_intent(UiEditIntent::EndEdit {
+        client_edit_id: "curve-draw-1".to_string(),
+    });
+    assert!(end_ack.success, "end edit should succeed");
+    assert_eq!(engine.undo_len(), 1, "draw fit should commit as one undo step");
+
+    let snapshot_fitted = engine.build_process_tree_snapshot();
+    let curve_fitted = curve_from_snapshot(snapshot_fitted.as_ref(), curve_node).expect("curve should parse after draw fit");
+    assert!(curve_fitted.key_count() >= 4, "fitted draw should insert extra bezier keys");
+    assert!((curve_fitted.sample(0.5).expect("fitted sample should exist") - 0.92).abs() < 0.08);
+
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(undo_ack.success, "undo should succeed for draw fit");
+    let snapshot_undone = engine.build_process_tree_snapshot();
+    let curve_undone = curve_from_snapshot(snapshot_undone.as_ref(), curve_node).expect("curve should parse after undo");
+    assert_eq!(curve_undone.key_count(), key_count_before, "undo should restore the original key count");
+    assert!((curve_undone.sample(0.5).expect("undo sample should exist") - sample_before).abs() < 1e-9);
+
+    let redo_ack = engine.apply_ui_intent(UiEditIntent::Redo);
+    assert!(redo_ack.success, "redo should succeed for draw fit");
+    let snapshot_redone = engine.build_process_tree_snapshot();
+    let curve_redone = curve_from_snapshot(snapshot_redone.as_ref(), curve_node).expect("curve should parse after redo");
+    assert!(curve_redone.key_count() >= 4, "redo should restore the fitted draw keys");
+    assert!((curve_redone.sample(0.5).expect("redo sample should exist") - 0.92).abs() < 0.08);
+}
+
+#[test]
+fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+
+    let first_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
+        curve: curve_node,
+        points: vec![
+            AnimationCurveFitPoint::new(0.25, 0.2),
+            AnimationCurveFitPoint::new(0.5, 0.92),
+            AnimationCurveFitPoint::new(0.75, 0.15),
+        ],
+        options: AnimationCurveBezierFitOptions {
+            max_value_error: 0.02,
+            max_keys: 8,
+        },
+    });
+    assert!(first_ack.success, "initial fit intent should succeed");
+
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(undo_ack.success, "undo should succeed after initial fit");
+    assert_eq!(engine.redo_len(), 1, "undo should expose one redo transaction");
+
+    let second_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
+        curve: curve_node,
+        points: vec![
+            AnimationCurveFitPoint::new(0.2, 0.1),
+            AnimationCurveFitPoint::new(0.5, 0.7),
+            AnimationCurveFitPoint::new(0.8, 0.25),
+        ],
+        options: AnimationCurveBezierFitOptions {
+            max_value_error: 0.03,
+            max_keys: 8,
+        },
+    });
+    assert!(second_ack.success, "fit after undo should succeed without panicking");
+    assert_eq!(engine.redo_len(), 0, "new fit should clear redo history");
+    assert!(engine.edits.pending.is_empty(), "fit after undo should leave no queued edits behind");
 }
 
 #[test]

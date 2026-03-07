@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
 
-use crate::animation_curve::{AnimationCurve, AnimationCurveKey, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode};
+use crate::animation_curve::{
+    AnimationCurve, AnimationCurveBezierFitOptions, AnimationCurveFitPoint, AnimationCurveKey, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode, bezier_easing_from_endpoint_slopes,
+    fit_points_to_bezier_keys,
+};
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::NodeId;
@@ -256,6 +259,49 @@ fn parse_phase_mode(value: &str) -> CurvePhaseMode {
 
 fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
     value.max(min).min(max)
+}
+
+fn key_secant_slope(start_position: f64, start_value: f64, end_position: f64, end_value: f64) -> Option<f64> {
+    let span = end_position - start_position;
+    if !span.is_finite() || span.abs() <= CURVE_RANGE_EPSILON {
+        return None;
+    }
+    let slope = (end_value - start_value) / span;
+    slope.is_finite().then_some(slope)
+}
+
+fn outgoing_segment_slope(start: &AnimationCurveKey, end: &AnimationCurveKey) -> Option<f64> {
+    let secant = key_secant_slope(start.position, start.value, end.position, end.value);
+    match &start.easing {
+        CurveEasing::Bezier { out_handle, .. } => {
+            let span = end.position - start.position;
+            let delta_x = out_handle.position * span;
+            if !delta_x.is_finite() || delta_x.abs() <= CURVE_RANGE_EPSILON {
+                return secant;
+            }
+            let slope = out_handle.value / delta_x;
+            if slope.is_finite() { Some(slope) } else { secant }
+        }
+        CurveEasing::Hold => Some(0.0),
+        _ => secant,
+    }
+}
+
+fn incoming_segment_slope(start: &AnimationCurveKey, end: &AnimationCurveKey) -> Option<f64> {
+    let secant = key_secant_slope(start.position, start.value, end.position, end.value);
+    match &start.easing {
+        CurveEasing::Bezier { in_handle, .. } => {
+            let span = end.position - start.position;
+            let delta_x = in_handle.position * span;
+            if !delta_x.is_finite() || delta_x.abs() <= CURVE_RANGE_EPSILON {
+                return secant;
+            }
+            let slope = in_handle.value / delta_x;
+            if slope.is_finite() { Some(slope) } else { secant }
+        }
+        CurveEasing::Hold => Some(0.0),
+        _ => secant,
+    }
 }
 
 /// Axis-aligned curve bounds used to constrain key positions, key values, and sampled output.
@@ -580,6 +626,184 @@ impl AnimationCurveNode {
         self.collect_sorted_key_data(snapshot)
             .into_iter()
             .find(|(_, key_position, _)| *key_position > position + KEY_ORDER_POSITION_EPSILON)
+    }
+
+    fn collect_sorted_key_records(&self, snapshot: &ProcessTreeSnapshot) -> Vec<(NodeId, AnimationCurveKey)> {
+        let range_constraint = self.effective_range_constraint(snapshot).or_else(|| read_range_constraint_from_key_param_constraints(snapshot, self.id()));
+        let mut key_entries = Vec::<(usize, NodeId, AnimationCurveKey)>::new();
+        for (source_index, child) in snapshot.child_ids(self.id()).into_iter().enumerate() {
+            let Some(child_snapshot) = snapshot.node(child) else {
+                continue;
+            };
+            if child_snapshot.node_type != PARAMETER_ANIMATION_KEY_NODE_TYPE {
+                continue;
+            }
+            let Some(key) = parse_key_from_snapshot(snapshot, child, range_constraint) else {
+                continue;
+            };
+            key_entries.push((source_index, child, key));
+        }
+
+        key_entries.sort_by(|left, right| {
+            if (left.2.position - right.2.position).abs() <= KEY_ORDER_POSITION_EPSILON {
+                left.0.cmp(&right.0)
+            } else {
+                left.2.position.total_cmp(&right.2.position)
+            }
+        });
+        key_entries.into_iter().map(|(_, node_id, key)| (node_id, key)).collect()
+    }
+
+    fn queue_key_easing_replace(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        key_node: NodeId,
+        easing: CurveEasing,
+    ) -> Result<Edit, String> {
+        let easing_node = snapshot
+            .find_child(key_node, PARAMETER_ANIMATION_EASING_DECL_ID)
+            .ok_or_else(|| format!("missing easing node for animation-curve key {}", key_node.0))?;
+        let label = snapshot
+            .node(easing_node)
+            .map(|node| node.label.clone())
+            .unwrap_or_else(|| "Easing".to_string());
+        Ok(Edit::ReplaceNode {
+            node: easing_node,
+            new_node: Box::new(AnimationCurveEasingNode::new_with_easing(label, easing)),
+        })
+    }
+
+    /// Replaces all keys inside the sampled x-range with a sparse bezier fit of `samples`.
+    pub fn replace_range_with_fitted_samples(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        samples: &[AnimationCurveFitPoint],
+        options: AnimationCurveBezierFitOptions,
+    ) -> Result<Vec<NodeId>, String> {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return Err("animation curve fit requires an active tree snapshot".to_string());
+        };
+
+        let active_range = self.effective_range_constraint(snapshot).or_else(|| read_range_constraint_from_key_param_constraints(snapshot, self.id()));
+        let normalized_samples = samples
+            .iter()
+            .copied()
+            .map(|point| {
+                if let Some(range) = active_range {
+                    AnimationCurveFitPoint::new(range.clamp_position(point.position), range.clamp_value(point.value))
+                } else {
+                    point
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut fitted_keys = fit_points_to_bezier_keys(normalized_samples.as_slice(), options);
+        if fitted_keys.len() < 2 {
+            return Err("animation curve fit requires at least two unique sample positions".to_string());
+        }
+
+        let key_records = self.collect_sorted_key_records(snapshot);
+        let range_start = fitted_keys.first().map(|key| key.position).unwrap_or(0.0);
+        let range_end = fitted_keys.last().map(|key| key.position).unwrap_or(range_start);
+        let keys_to_remove = key_records
+            .iter()
+            .filter(|(_, key)| {
+                key.position >= range_start - KEY_ORDER_POSITION_EPSILON
+                    && key.position <= range_end + KEY_ORDER_POSITION_EPSILON
+            })
+            .map(|(node_id, _)| *node_id)
+            .collect::<Vec<_>>();
+        let left_index = key_records
+            .iter()
+            .rposition(|(_, key)| key.position < range_start - KEY_ORDER_POSITION_EPSILON);
+        let right_index = key_records
+            .iter()
+            .position(|(_, key)| key.position > range_end + KEY_ORDER_POSITION_EPSILON);
+
+        let first_path_slope = outgoing_segment_slope(&fitted_keys[0], &fitted_keys[1]).unwrap_or_else(|| {
+            key_secant_slope(
+                fitted_keys[0].position,
+                fitted_keys[0].value,
+                fitted_keys[1].position,
+                fitted_keys[1].value,
+            )
+            .unwrap_or(0.0)
+        });
+        let fitted_len = fitted_keys.len();
+        let last_path_slope = incoming_segment_slope(&fitted_keys[fitted_len - 2], &fitted_keys[fitted_len - 1]).unwrap_or_else(|| {
+            key_secant_slope(
+                fitted_keys[fitted_len - 2].position,
+                fitted_keys[fitted_len - 2].value,
+                fitted_keys[fitted_len - 1].position,
+                fitted_keys[fitted_len - 1].value,
+            )
+            .unwrap_or(0.0)
+        });
+
+        if let Some(right_index) = right_index {
+            let (_, right_key) = &key_records[right_index];
+            let right_boundary_slope = key_records
+                .get(right_index + 1)
+                .and_then(|(_, next_key)| outgoing_segment_slope(right_key, next_key))
+                .or_else(|| {
+                    key_secant_slope(
+                        fitted_keys[fitted_len - 1].position,
+                        fitted_keys[fitted_len - 1].value,
+                        right_key.position,
+                        right_key.value,
+                    )
+                })
+                .unwrap_or(0.0);
+            if let Some(easing) = bezier_easing_from_endpoint_slopes(
+                fitted_keys[fitted_len - 1].position,
+                fitted_keys[fitted_len - 1].value,
+                right_key.position,
+                right_key.value,
+                last_path_slope,
+                right_boundary_slope,
+            ) {
+                fitted_keys[fitted_len - 1].easing = easing;
+            }
+        }
+
+        let mut left_key_easing_replace = None;
+        if let Some(left_index) = left_index {
+            let (left_node_id, left_key) = &key_records[left_index];
+            let left_boundary_slope = key_records
+                .get(left_index + 1)
+                .and_then(|(_, next_key)| outgoing_segment_slope(left_key, next_key))
+                .or_else(|| {
+                    key_secant_slope(
+                        left_key.position,
+                        left_key.value,
+                        fitted_keys[0].position,
+                        fitted_keys[0].value,
+                    )
+                })
+                .unwrap_or(0.0);
+            if let Some(easing) = bezier_easing_from_endpoint_slopes(
+                left_key.position,
+                left_key.value,
+                fitted_keys[0].position,
+                fitted_keys[0].value,
+                left_boundary_slope,
+                first_path_slope,
+            ) {
+                left_key_easing_replace = Some(self.queue_key_easing_replace(snapshot, *left_node_id, easing)?);
+            }
+        }
+
+        if let Some(edit) = left_key_easing_replace {
+            ctx.edits.push(edit);
+        }
+
+        for node_id in keys_to_remove {
+            ctx.edits.push(Edit::RemoveNode { node: node_id });
+        }
+
+        Ok(self.insert_keys_with_easing(
+            ctx,
+            fitted_keys.into_iter().map(|key| (key.position, key.value, key.easing)).collect(),
+        ))
     }
 
     fn collect_sorted_key_data(&self, snapshot: &ProcessTreeSnapshot) -> Vec<(NodeId, f64, f64)> {

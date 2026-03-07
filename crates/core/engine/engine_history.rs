@@ -474,6 +474,9 @@ impl<T: Node> HistoryStep<T> {
 
 /// Temporarily reattaches then permanently removes a previously detached node payload.
 fn purge_detached_node<T: Node>(engine: &mut Engine<T>, id: NodeId, node: T) {
+    if engine.nodes.contains(id) {
+        return;
+    }
     engine.nodes.reattach(id, node);
     let _ = engine.nodes.remove(id);
 }

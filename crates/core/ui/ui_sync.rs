@@ -2,12 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
-use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
+use crate::node::{AnimationCurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
     available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
@@ -622,6 +623,16 @@ pub enum UiEditIntent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         label: Option<String>,
     },
+    /// Replaces one curve range with a sparse bezier fit of recorded samples.
+    FitAnimationCurvePath {
+        /// Target animation-curve node id.
+        curve: NodeId,
+        /// Recorded path samples.
+        points: Vec<AnimationCurveFitPoint>,
+        /// Fit controls.
+        #[serde(default)]
+        options: AnimationCurveBezierFitOptions,
+    },
     /// Patch node metadata.
     PatchMeta {
         /// Target node id.
@@ -1053,6 +1064,20 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
+            UiEditIntent::FitAnimationCurvePath { curve, points, options } => {
+                self.edits.push(Edit::CallNodeMutation {
+                    node: curve,
+                    callback: Box::new(move |node, ctx| {
+                        let Some(curve_node) = node.as_any_mut().downcast_mut::<AnimationCurveNode>() else {
+                            return Err("target node should be AnimationCurveNode".to_string());
+                        };
+                        curve_node.replace_range_with_fitted_samples(ctx, points.as_slice(), options)?;
+                        Ok(())
+                    }),
+                });
+                let result = self.apply_edits_to_fixed_point(16);
+                self.finish_ui_apply_now(before_len, result)
+            }
             UiEditIntent::PatchMeta { node, patch } => {
                 self.edits.push(Edit::PatchMeta { node, patch });
                 let result = self.apply_edits();
@@ -1257,6 +1282,24 @@ impl<T: Node> Engine<T> {
                 history: self.ui_history_state(),
             },
         }
+    }
+
+    fn apply_edits_to_fixed_point(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
+        let pass_limit = max_passes.max(1);
+        for _ in 0..pass_limit {
+            self.apply_edits()?;
+            if self.edits.pending.is_empty() {
+                return Ok(());
+            }
+        }
+
+        Err(crate::engine::EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation: "UiApplyFixedPoint",
+            node: self.root,
+            node_type: self.nodes.get(self.root).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+            message: format!("ui intent left pending edits after {pass_limit} stabilization passes"),
+        })
     }
 
     fn ui_history_state(&self) -> UiHistoryState {
