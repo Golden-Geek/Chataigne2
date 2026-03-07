@@ -13,9 +13,14 @@ use uuid::Uuid;
 
 mod animation_curve_nodes;
 mod control_animation;
+mod dashboard;
 mod handles;
 pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
 pub use control_animation::ParameterAnimationControlNode;
+pub use dashboard::{
+    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+    DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode,
+};
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].

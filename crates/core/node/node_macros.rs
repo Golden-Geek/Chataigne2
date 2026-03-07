@@ -6,6 +6,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method(),
             Self::UserContext(node) => node.$method(),
             Self::Parameter(node) => node.$method(),
+            Self::Dashboard(node) => node.$method(),
+            Self::DashboardPage(node) => node.$method(),
+            Self::DashboardWidgetContainer(node) => node.$method(),
+            Self::DashboardNodeWidget(node) => node.$method(),
+            Self::DashboardGenericWidget(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
             Self::AnimationCurve(node) => node.$method(),
             Self::AnimationCurveRange(node) => node.$method(),
@@ -20,6 +25,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method($arg1),
             Self::UserContext(node) => node.$method($arg1),
             Self::Parameter(node) => node.$method($arg1),
+            Self::Dashboard(node) => node.$method($arg1),
+            Self::DashboardPage(node) => node.$method($arg1),
+            Self::DashboardWidgetContainer(node) => node.$method($arg1),
+            Self::DashboardNodeWidget(node) => node.$method($arg1),
+            Self::DashboardGenericWidget(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
             Self::AnimationCurve(node) => node.$method($arg1),
             Self::AnimationCurveRange(node) => node.$method($arg1),
@@ -34,6 +44,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method($arg1, $arg2),
             Self::UserContext(node) => node.$method($arg1, $arg2),
             Self::Parameter(node) => node.$method($arg1, $arg2),
+            Self::Dashboard(node) => node.$method($arg1, $arg2),
+            Self::DashboardPage(node) => node.$method($arg1, $arg2),
+            Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2),
+            Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2),
@@ -48,6 +63,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3),
@@ -62,6 +82,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
@@ -76,6 +101,11 @@ macro_rules! __dispatch_node_enum {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
@@ -296,6 +326,11 @@ macro_rules! define_user_item_factory_methods {
 /// - `Folder($crate::node::Folder)`
 /// - `UserContext($crate::node::UserContextNode)`
 /// - `Parameter($crate::parameter::Parameter)`
+/// - `Dashboard($crate::node::DashboardNode)`
+/// - `DashboardPage($crate::node::DashboardPageNode)`
+/// - `DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode)`
+/// - `DashboardNodeWidget($crate::node::DashboardNodeWidgetNode)`
+/// - `DashboardGenericWidget($crate::node::DashboardGenericWidgetNode)`
 /// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
 /// - `AnimationCurve($crate::node::AnimationCurveNode)`
 /// - `AnimationCurveRange($crate::node::AnimationCurveRangeNode)`
@@ -315,6 +350,11 @@ macro_rules! define_node_enum {
             Folder($crate::node::Folder),
             UserContext($crate::node::UserContextNode),
             Parameter($crate::parameter::Parameter),
+            Dashboard($crate::node::DashboardNode),
+            DashboardPage($crate::node::DashboardPageNode),
+            DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode),
+            DashboardNodeWidget($crate::node::DashboardNodeWidgetNode),
+            DashboardGenericWidget($crate::node::DashboardGenericWidgetNode),
             ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
             AnimationCurve($crate::node::AnimationCurveNode),
             AnimationCurveRange($crate::node::AnimationCurveRangeNode),
@@ -346,6 +386,11 @@ macro_rules! define_node_enum {
                     Self::Folder(node) => node,
                     Self::UserContext(node) => node,
                     Self::Parameter(node) => node,
+                    Self::Dashboard(node) => node,
+                    Self::DashboardPage(node) => node,
+                    Self::DashboardWidgetContainer(node) => node,
+                    Self::DashboardNodeWidget(node) => node,
+                    Self::DashboardGenericWidget(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -362,6 +407,11 @@ macro_rules! define_node_enum {
                     Self::Folder(node) => node,
                     Self::UserContext(node) => node,
                     Self::Parameter(node) => node,
+                    Self::Dashboard(node) => node,
+                    Self::DashboardPage(node) => node,
+                    Self::DashboardWidgetContainer(node) => node,
+                    Self::DashboardNodeWidget(node) => node,
+                    Self::DashboardGenericWidget(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -634,6 +684,11 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, Folder, $crate::node::Folder);
                 $crate::__downcast_node_enum_variant!(any, UserContext, $crate::node::UserContextNode);
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
+                $crate::__downcast_node_enum_variant!(any, Dashboard, $crate::node::DashboardNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardPage, $crate::node::DashboardPageNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardWidgetContainer, $crate::node::DashboardWidgetContainerNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidget, $crate::node::DashboardNodeWidgetNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardGenericWidget, $crate::node::DashboardGenericWidgetNode);
                 $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurve, $crate::node::AnimationCurveNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurveRange, $crate::node::AnimationCurveRangeNode);
@@ -665,6 +720,36 @@ macro_rules! define_node_enum {
         impl From<$crate::parameter::Parameter> for $enum_name {
             fn from(node: $crate::parameter::Parameter) -> Self {
                 Self::Parameter(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNode) -> Self {
+                Self::Dashboard(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardPageNode> for $enum_name {
+            fn from(node: $crate::node::DashboardPageNode) -> Self {
+                Self::DashboardPage(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardWidgetContainerNode> for $enum_name {
+            fn from(node: $crate::node::DashboardWidgetContainerNode) -> Self {
+                Self::DashboardWidgetContainer(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetNode) -> Self {
+                Self::DashboardNodeWidget(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardGenericWidgetNode> for $enum_name {
+            fn from(node: $crate::node::DashboardGenericWidgetNode) -> Self {
+                Self::DashboardGenericWidget(node)
             }
         }
 
