@@ -4,8 +4,10 @@ use crate::nodes_module_demo::MODULE_MANAGER_UUID;
 use golden_core::{
     app::{run_app_with_project_codec, ProjectCodec},
     node::{
-        AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeNode, Folder, Node, NodeMeta, ParameterAnimationControlNode, UserContextNode, FOLDER_NODE_TYPE, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_NODE_TYPE,
-        PARAMETER_ANIMATION_EASING_NODE_TYPE, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE,
+        AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeNode, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, Folder, Node, NodeMeta,
+        ParameterAnimationControlNode, UserContextNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, FOLDER_NODE_TYPE,
+        PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_NODE_TYPE, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_NODE_TYPES,
+        USER_CONTEXT_NODE_TYPE,
     },
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterEventBehaviour, ParameterUiHints},
     script::{ScriptBudgets, ScriptNode, ScriptNodeConfig},
@@ -142,6 +144,11 @@ fn decode_project_node(node_type: &str, data: &serde_json::Value, meta: &NodeMet
     match node_type {
         FOLDER_NODE_TYPE => Ok(Folder::new(meta.label.clone()).into()),
         USER_CONTEXT_NODE_TYPE => Ok(UserContextNode::new(meta.label.clone()).into()),
+        DASHBOARD_NODE_TYPE => Ok(DashboardNode::new(meta.label.clone()).into()),
+        DASHBOARD_PAGE_NODE_TYPE => Ok(DashboardPageNode::new(meta.label.clone()).into()),
+        DASHBOARD_WIDGET_CONTAINER_NODE_TYPE => Ok(DashboardWidgetContainerNode::new(meta.label.clone()).into()),
+        DASHBOARD_NODE_WIDGET_NODE_TYPE => Ok(DashboardNodeWidgetNode::new(meta.label.clone()).into()),
+        DASHBOARD_GENERIC_WIDGET_NODE_TYPE => Ok(DashboardGenericWidgetNode::new(meta.label.clone()).into()),
         PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Ok(ParameterAnimationControlNode::new(meta.label.clone()).into()),
         PARAMETER_ANIMATION_CURVE_NODE_TYPE => Ok(AnimationCurveNode::new_with_label(meta.label.clone()).into()),
         PARAMETER_ANIMATION_RANGE_NODE_TYPE => Ok(AnimationCurveRangeNode::new(None, true).into()),
@@ -226,6 +233,9 @@ fn main() -> std::io::Result<()> {
     engine.apply_edits().map_err(|err| Error::other(format!("failed to create module manager: {err}")))?;
 
     let manager = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).ok_or_else(|| Error::other("module manager node was not attached under root"))?;
+
+    engine.add_node(DashboardNode::new("Dashboard").into(), None);
+    engine.apply_edits().map_err(|err| Error::other(format!("failed to create dashboard root: {err}")))?;
 
     engine.add_node(Folder::new("Module Folder").into(), Some(manager));
     engine.apply_edits().map_err(|err| Error::other(format!("failed to create module folder: {err}")))?;
