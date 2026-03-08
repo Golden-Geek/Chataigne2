@@ -115,6 +115,18 @@ impl Node for DashboardNode {
 #[node("dashboard_page")]
 #[children(
     route: String = "".to_string() (label = "Route", description = "Stable route or slug used to address this page.");
+    page_width: CssValue = CssValue::new(1920.0, CssUnit::Px) (
+        label = "Page Width",
+        description = "Logical page width used by the dashboard panel viewer to preserve aspect ratio. Disable to let the page fill the panel.",
+        enabled = false,
+        can_be_disabled = true,
+    );
+    page_height: CssValue = CssValue::new(1080.0, CssUnit::Px) (
+        label = "Page Height",
+        description = "Logical page height used by the dashboard panel viewer to preserve aspect ratio. Disable to let the page fill the panel.",
+        enabled = false,
+        can_be_disabled = true,
+    );
     layout_kind: Enum = "free" (
         label = "Layout",
         description = "Primary layout strategy used for the page root.",
@@ -126,6 +138,13 @@ impl Node for DashboardNode {
         label = "Grid Columns",
         description = "Column count when the page layout uses a grid.",
         dependency = layout_kind == "grid",
+    );
+    snap_grid: f64 = 1.0 [0.0..100.0] (
+        label = "Snap Grid",
+        description = "Grid size in rem used to snap widgets while editing free layouts. Disable to move widgets freely.",
+        dependency = layout_kind == "free",
+        enabled = false,
+        can_be_disabled = true,
     );
     scrollable: bool = true (label = "Scrollable", description = "Whether this page may scroll when content exceeds the viewport.");
 )]
@@ -216,6 +235,13 @@ impl Node for DashboardPageNode {
         label = "Grid Columns",
         description = "Column count when the container layout uses a grid.",
         dependency = layout_kind == "grid",
+    );
+    snap_grid: f64 = 1.0 [0.0..100.0] (
+        label = "Snap Grid",
+        description = "Grid size in rem used to snap child widgets while editing free layouts. Disable to move widgets freely.",
+        dependency = layout_kind == "free",
+        enabled = false,
+        can_be_disabled = true,
     );
     wrap: bool = true (label = "Wrap", description = "Whether children may wrap onto new rows or columns.");
 )]
@@ -332,10 +358,10 @@ impl Node for DashboardWidgetContainerNode {
         description = "Node rendered by this widget using the inspector-style UI.",
         reference_target_kind = crate::parameter::ReferenceTargetKind::AnyNode,
     );
-    display_mode: Enum = "inspector" (
+    display_mode: Enum = "auto" (
         label = "Display Mode",
-        description = "Rendering strategy used for the generated node UI.",
-        enum_options = ["inspector", "compact", "minimal"],
+        description = "Rendering strategy used for the generated node UI. Auto chooses the natural default for the target node.",
+        enum_options = ["auto", "inspector", "editor"],
     );
     include_children: bool = true (label = "Include Children", description = "Whether the generated UI should render child parameters and subnodes.");
     locked: bool = false (label = "Locked", description = "Whether drag-and-drop rebinding is disabled for this widget.");
