@@ -3,7 +3,7 @@
 use crate::{item, node};
 use crate::events::Event;
 use crate::node::{EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
-use crate::parameter::{CssUnit, CssValue, Enum, Vec2};
+use crate::parameter::{CssUnit, CssValue, Enum, ParamValue, Vec2};
 use crate::process_ctx::ProcessCtx;
 
 /// Runtime node type id for dashboard roots.
@@ -51,6 +51,23 @@ fn dashboard_parent_layout_matches(node_id: NodeId, ctx: &ProcessCtx, expected: 
         return false;
     };
     expected.iter().any(|candidate| *candidate == layout_kind)
+}
+
+fn dashboard_node_widget_target_type(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
+    let snapshot = ctx.tree_snapshot()?;
+    let target_param = snapshot.find_child(node_id, "target_node")?;
+    let target_id = match snapshot.node(target_param)?.param_value.as_ref()? {
+        ParamValue::Reference(reference) => reference.cached_id()?,
+        _ => return None,
+    };
+    Some(snapshot.node(target_id)?.node_type.clone())
+}
+
+fn dashboard_node_widget_target_matches(node_id: NodeId, ctx: &ProcessCtx, expected: &[&str]) -> bool {
+    let Some(target_type) = dashboard_node_widget_target_type(node_id, ctx) else {
+        return false;
+    };
+    expected.iter().any(|candidate| *candidate == target_type)
 }
 
 fn refresh_dashboard_widget_dependencies(ctx: &mut ProcessCtx, widget: NodeId) {
@@ -382,6 +399,47 @@ impl Node for DashboardWidgetContainerNode {
         enum_options = ["auto", "inspector", "editor"],
     );
     include_children: bool = true (label = "Include Children", description = "Whether the generated UI should render child parameters and subnodes.");
+    number_show_value_field: bool = true (
+        label = "Number Show Value Field",
+        description = "Whether number editor widgets keep the numeric value field visible next to the slider.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["int", "float"]),
+    );
+    number_max_decimals: i32 = 3 [0..8] (
+        label = "Number Max Decimals",
+        description = "Maximum number of decimals shown by scalar number editor widgets.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["int", "float"]),
+    );
+    vector_layout: Enum = "inline" (
+        label = "Vector Layout",
+        description = "Arrangement used for vector editor widgets.",
+        enum_options = ["inline", "column"],
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["vec2", "vec3"]),
+    );
+    vector_show_value_fields: bool = true (
+        label = "Vector Show Value Fields",
+        description = "Whether vector editor widgets keep per-component numeric fields visible.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["vec2", "vec3"]),
+    );
+    vector_max_decimals: i32 = 2 [0..8] (
+        label = "Vector Max Decimals",
+        description = "Maximum number of decimals shown by vector editor widget fields.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["vec2", "vec3"]),
+    );
+    color_force_expanded: bool = false (
+        label = "Color Always Expanded",
+        description = "Whether color editor widgets stay expanded instead of collapsing to preview mode.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["color"]),
+    );
+    color_show_hex: bool = true (
+        label = "Color Show Hex",
+        description = "Whether color editor widgets show the hexadecimal color input.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["color"]),
+    );
+    color_show_rgba_fields: bool = true (
+        label = "Color Show RGBA Fields",
+        description = "Whether color editor widgets show the RGBA numeric controls.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_target_matches(node.id(), ctx, &["color"]),
+    );
     locked: bool = false (label = "Locked", description = "Whether drag-and-drop rebinding is disabled for this widget.");
 )]
 pub struct DashboardNodeWidgetNode {}

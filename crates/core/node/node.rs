@@ -257,8 +257,8 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
-/// Presentation hints used for editor rendering.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+/// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
     /// Preferred UI color.
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -1927,7 +1927,7 @@ pub struct ParameterUiHints {
     pub unit: Option<String>,
 }
 
-/// Snapshot of parameter runtime state used for UI DTO projection.
+/// Snapshot of parameter runtime state used f²or UI DTO projection.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParameterSnapshot {
     /// Current value.
