@@ -9,6 +9,84 @@
   ],
   "tasks": [
     {
+      "label": "UI: Copilot dev server (4173)",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev:copilot"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\src-ui"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Backend: headless UI server",
+      "type": "process",
+      "command": "cargo",
+      "args": [
+        "run",
+        "--",
+        "--headless"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "UI: smoke test",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "smoke:ui"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\src-ui"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "UI: inspect root DOM",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "inspect:ui",
+        "--",
+        "--selector",
+        "body"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\src-ui"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "Supercommit: full commit (submodules + main)",
       "type": "process",
       "command": "powershell",

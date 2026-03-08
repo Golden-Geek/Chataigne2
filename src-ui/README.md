@@ -29,6 +29,54 @@ npm run dev
 npm run dev -- --open
 ```
 
+Your regular UI dev server remains on `http://127.0.0.1:5173`.
+
+Copilot browser tooling uses a separate dedicated server on `http://127.0.0.1:4173` so it can run in parallel without colliding with your own session.
+
+If you need LAN access instead of loopback-only access:
+
+```sh
+npm run dev:lan
+```
+
+If you want to start the dedicated Copilot server explicitly:
+
+```sh
+npm run dev:copilot
+```
+
+## Browser Tooling
+
+The workspace includes a small browser automation toolkit for local UI debugging.
+
+Smoke test the current UI and fail on page errors, request failures, or console errors:
+
+```sh
+npm run smoke:ui
+```
+
+Inspect rendered DOM for a selector and dump layout-relevant details:
+
+```sh
+npm run inspect:ui -- --selector ".dashboard-widget-shell"
+```
+
+Useful examples:
+
+```sh
+npm run smoke:ui -- --url http://127.0.0.1:4173/?gc_debug_runtime=1
+npm run smoke:ui -- --ignore-console-error "ui ws server error"
+npm run inspect:ui -- --selector ".dashboard-page" --style display,position,width,height,transform
+```
+
+The smoke tool writes a screenshot to `src-ui/artifacts/ui-smoke.png` and a JSON report to `src-ui/artifacts/ui-smoke-report.json`.
+
+## Runtime Probe
+
+Appending `?gc_debug_runtime=1` enables an in-app runtime probe overlay in development. It captures uncaught errors and unhandled promise rejections so runtime failures such as Svelte update-depth errors are surfaced directly in the UI.
+
+This is intended to be used alongside the headless Rust UI backend on `http://localhost:7010` when the page depends on live data.
+
 ## Building
 
 To create a production version of your app:
