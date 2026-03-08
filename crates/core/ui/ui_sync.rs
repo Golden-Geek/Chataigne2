@@ -623,6 +623,19 @@ pub enum UiEditIntent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         label: Option<String>,
     },
+    /// Duplicates an existing node subtree under `new_parent`.
+    DuplicateNode {
+        /// Source node id to clone.
+        source: NodeId,
+        /// Parent receiving the duplicated subtree root.
+        new_parent: NodeId,
+        /// Optional sibling after which insertion occurs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        new_prev_sibling: Option<NodeId>,
+        /// Optional explicit label for the duplicated root.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+    },
     /// Replaces one curve range with a sparse bezier fit of recorded samples.
     FitAnimationCurvePath {
         /// Target animation-curve node id.
@@ -1064,6 +1077,22 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
+            UiEditIntent::DuplicateNode {
+                source,
+                new_parent,
+                new_prev_sibling,
+                label,
+            } => UiAck {
+                success: false,
+                status: UiAckStatus::Rejected,
+                error_code: Some("duplicate_node_transport_required".to_string()),
+                error_message: Some(format!(
+                    "duplicateNode requires transport-level project codec support (source={}, new_parent={}, new_prev_sibling={:?}, label={:?})",
+                    source.0, new_parent.0, new_prev_sibling, label
+                )),
+                earliest_event_time: None,
+                history: self.ui_history_state(),
+            },
             UiEditIntent::FitAnimationCurvePath { curve, points, options } => {
                 self.edits.push(Edit::CallNodeMutation {
                     node: curve,
@@ -1327,7 +1356,7 @@ impl<T: Node> Engine<T> {
         })
     }
 
-    fn ui_history_state(&self) -> UiHistoryState {
+    pub(crate) fn ui_history_state(&self) -> UiHistoryState {
         UiHistoryState {
             can_undo: self.undo_len() > 0,
             can_redo: self.redo_len() > 0,
