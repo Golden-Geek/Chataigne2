@@ -23,6 +23,9 @@ pub enum UserContextValueType {
     Enum,
     /// Boolean.
     Bool,
+    /// CSS scalar value.
+    #[serde(rename = "css_value")]
+    CssValue,
     /// 2D vector.
     Vec2,
     /// 3D vector.
@@ -44,6 +47,7 @@ impl UserContextValueType {
             ParamValue::File(_) => Self::File,
             ParamValue::Enum(_) => Self::Enum,
             ParamValue::Bool(_) => Self::Bool,
+            ParamValue::CssValue(_) => Self::CssValue,
             ParamValue::Vec2(_, _) => Self::Vec2,
             ParamValue::Vec3(_, _, _) => Self::Vec3,
             ParamValue::Color(_, _, _, _) => Self::Color,

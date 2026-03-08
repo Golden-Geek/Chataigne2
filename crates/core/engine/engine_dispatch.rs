@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::events::Event;
-use crate::node::{EventPropagation, EventSubscription, Node, NodeId, PARAMETER_ANIMATION_CURVE_NODE_TYPE};
+use crate::node::{EventPropagation, EventSubscription, Node, NodeId};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::{Engine, EngineEditError};
@@ -87,12 +87,7 @@ impl<T: Node> Engine<T> {
 
     fn dispatch_precomputed_inbox_internal(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>, run_app_callbacks: bool) -> Result<(), EngineEditError> {
         let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect();
-        let requires_tree_snapshot = |node: &T| {
-            let node_type = node.get_type();
-            node_type == "script" || node_type == PARAMETER_ANIMATION_CURVE_NODE_TYPE
-        };
-        let needs_tree_snapshot = per_node_events.iter().any(|(node_id, _)| self.nodes.get(*node_id).is_some_and(&requires_tree_snapshot));
-        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let tree_snapshot = (!per_node_events.is_empty()).then(|| self.build_process_tree_snapshot());
 
         for (node_id, events) in per_node_events {
             if events.is_empty() {
@@ -103,9 +98,7 @@ impl<T: Node> Engine<T> {
             ctx.events = events;
             ctx.runtime_elapsed = self.runtime_elapsed;
             if let Some(tree_snapshot) = &tree_snapshot {
-                if self.nodes.get(node_id).is_some_and(&requires_tree_snapshot) {
-                    ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
-                }
+                ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
             }
 
             if let Some(node) = self.nodes.get_mut(node_id) {

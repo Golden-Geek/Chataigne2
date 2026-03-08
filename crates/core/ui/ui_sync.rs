@@ -1026,7 +1026,7 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::SetParam { node, value, behaviour } => {
                 self.edits.push(Edit::SetParam { node, value, behaviour });
-                let result = self.apply_edits();
+                let result = self.apply_ui_stabilization_to_fixed_point(16);
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::SetParamControlState { node, state } => match self.apply_set_param_control_state(0, node, state.into()) {
@@ -1299,6 +1299,31 @@ impl<T: Node> Engine<T> {
             node: self.root,
             node_type: self.nodes.get(self.root).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
             message: format!("ui intent left pending edits after {pass_limit} stabilization passes"),
+        })
+    }
+
+    fn apply_ui_stabilization_to_fixed_point(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
+        let pass_limit = max_passes.max(1);
+        for _ in 0..pass_limit {
+            if !self.edits.pending.is_empty() {
+                self.apply_edits()?;
+            }
+
+            if !self.inbox.events.is_empty() {
+                self.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)?;
+            }
+
+            if self.edits.pending.is_empty() && self.inbox.events.is_empty() {
+                return Ok(());
+            }
+        }
+
+        Err(crate::engine::EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation: "UiApplyStabilizationFixedPoint",
+            node: self.root,
+            node_type: self.nodes.get(self.root).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+            message: format!("ui intent left pending edits or inbox events after {pass_limit} stabilization passes"),
         })
     }
 

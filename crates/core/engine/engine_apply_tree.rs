@@ -323,7 +323,7 @@ impl<T: Node> Engine<T> {
         self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_add(1);
         let result = (|| -> Result<(), EngineEditError> {
             loop {
-                if !self.edits.pending.is_empty() {
+                while !self.edits.pending.is_empty() {
                     self.apply_edits_without_history()?;
                 }
 
@@ -384,7 +384,7 @@ impl<T: Node> Engine<T> {
 
         self.emit_event(EventKind::NodeCreated { node: child_id });
         self.emit_event(EventKind::ChildAdded { parent, child: child_id, decl_id });
-        let child_tree_snapshot = self.nodes.get(child_id).is_some_and(|node| node.get_type() == "script").then(|| self.build_process_tree_snapshot());
+        let child_tree_snapshot = Some(self.build_process_tree_snapshot());
 
         // Allow newly attached nodes to request deterministic follow-up structure before app init.
         let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);

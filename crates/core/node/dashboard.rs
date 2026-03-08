@@ -2,8 +2,8 @@
 
 use crate::{item, node};
 use crate::events::Event;
-use crate::node::{EventPropagation, Node, NodeData, NodeReference, NodeUserPermissions};
-use crate::parameter::{Enum, Vec2};
+use crate::node::{EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
+use crate::parameter::{CssUnit, CssValue, Enum, Vec2};
 use crate::process_ctx::ProcessCtx;
 
 /// Runtime node type id for dashboard roots.
@@ -25,6 +25,57 @@ pub const DASHBOARD_WIDGET_ITEM_KIND: &str = "dashboard_widget";
 
 fn enable_dashboard_authoring(node_data: &mut NodeData) {
     node_data.meta.user_permissions = NodeUserPermissions::all();
+}
+
+fn dashboard_parent_layout_kind(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
+    let snapshot = ctx.tree_snapshot()?;
+    let parent_id = snapshot.node(node_id)?.parent?;
+    let parent_type = snapshot.node(parent_id)?.node_type.as_str();
+    match parent_type {
+        DASHBOARD_PAGE_NODE_TYPE | DASHBOARD_WIDGET_CONTAINER_NODE_TYPE => snapshot
+            .find_child(parent_id, "layout_kind")
+            .and_then(|layout_kind| snapshot.node(layout_kind))
+            .and_then(|layout_kind| layout_kind.param_value.as_ref())
+            .and_then(|value| value.as_enum().or_else(|| value.as_str()))
+            .map(|value| value.to_string()),
+        _ => None,
+    }
+}
+
+fn dashboard_parent_layout_is(node_id: NodeId, ctx: &ProcessCtx, expected: &str) -> bool {
+    dashboard_parent_layout_kind(node_id, ctx).as_deref() == Some(expected)
+}
+
+fn refresh_dashboard_widget_dependencies(ctx: &mut ProcessCtx, widget: NodeId) {
+    let Some(node_type) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(widget)).map(|snapshot| snapshot.node_type.clone()) else {
+        return;
+    };
+
+    match node_type.as_str() {
+        DASHBOARD_WIDGET_CONTAINER_NODE_TYPE => crate::node::NodeHandle::new(widget).with_mut::<DashboardWidgetContainerNode, _>(ctx, |node, child_ctx| {
+            node.sync_parent_layout_dependency_handles(child_ctx);
+            node.__golden_node_engine_preprocess_inbox(child_ctx, node.id());
+        }),
+        DASHBOARD_NODE_WIDGET_NODE_TYPE => crate::node::NodeHandle::new(widget).with_mut::<DashboardNodeWidgetNode, _>(ctx, |node, child_ctx| {
+            node.sync_parent_layout_dependency_handles(child_ctx);
+            node.__golden_node_engine_preprocess_inbox(child_ctx, node.id());
+        }),
+        DASHBOARD_GENERIC_WIDGET_NODE_TYPE => crate::node::NodeHandle::new(widget).with_mut::<DashboardGenericWidgetNode, _>(ctx, |node, child_ctx| {
+            node.sync_parent_layout_dependency_handles(child_ctx);
+            node.__golden_node_engine_preprocess_inbox(child_ctx, node.id());
+        }),
+        _ => {}
+    }
+}
+
+fn refresh_direct_dashboard_widgets(ctx: &mut ProcessCtx, parent: NodeId) {
+    let Some(child_ids) = ctx.tree_snapshot().map(|snapshot| snapshot.child_ids(parent)) else {
+        return;
+    };
+
+    for child_id in child_ids {
+        refresh_dashboard_widget_dependencies(ctx, child_id);
+    }
 }
 
 /// Root dashboard node that owns a collection of dashboard pages.
@@ -55,7 +106,7 @@ impl Node for DashboardNode {
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
@@ -69,8 +120,13 @@ impl Node for DashboardNode {
         description = "Primary layout strategy used for the page root.",
         enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
     );
-    gap: Vec2 = (1.0, 1.0) (label = "Gap", description = "Spacing between child widgets.");
-    grid_columns: i32 = 12 [1..64] (label = "Grid Columns", description = "Column count when the page layout uses a grid.");
+    gap_x: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap X", description = "Horizontal spacing between child widgets.");
+    gap_y: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap Y", description = "Vertical spacing between child widgets.");
+    grid_columns: i32 = 12 [1..64] (
+        label = "Grid Columns",
+        description = "Column count when the page layout uses a grid.",
+        dependency = layout_kind == "grid",
+    );
     scrollable: bool = true (label = "Scrollable", description = "Whether this page may scroll when content exceeds the viewport.");
 )]
 pub struct DashboardPageNode {}
@@ -105,8 +161,20 @@ impl Node for DashboardPageNode {
         enable_dashboard_authoring(self.node_data_mut());
     }
 
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: crate::parameter::ParamValue) {
+        if param != self.layout_kind.id() {
+            return;
+        }
+
+        refresh_direct_dashboard_widgets(ctx, self.id());
+    }
+
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        1
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
@@ -115,20 +183,75 @@ impl Node for DashboardPageNode {
 #[node("dashboard_widget_container")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the container title bar is visible.");
-    position: Vec2 = (0.0, 0.0) (label = "Position", description = "Anchor position used by free layouts.");
-    size: Vec2 = (12.0, 8.0) (label = "Size", description = "Preferred widget size in logical layout units.");
-    column_span: i32 = 1 [1..64] (label = "Column Span", description = "Number of grid columns consumed by this widget.");
-    row_span: i32 = 1 [1..64] (label = "Row Span", description = "Number of grid rows consumed by this widget.");
+    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position X",
+        description = "Horizontal anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position Y",
+        description = "Vertical anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
+    height: CssValue = CssValue::new(8.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    column_span: i32 = 1 [1..64] (
+        label = "Column Span",
+        description = "Number of grid columns consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
+    row_span: i32 = 1 [1..64] (
+        label = "Row Span",
+        description = "Number of grid rows consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
     layout_kind: Enum = "free" (
         label = "Layout",
         description = "How this container arranges its child widgets.",
         enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
     );
-    gap: Vec2 = (1.0, 1.0) (label = "Gap", description = "Spacing between child widgets.");
-    grid_columns: i32 = 12 [1..64] (label = "Grid Columns", description = "Column count when the container layout uses a grid.");
+    gap_x: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap X", description = "Horizontal spacing between child widgets.");
+    gap_y: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap Y", description = "Vertical spacing between child widgets.");
+    grid_columns: i32 = 12 [1..64] (
+        label = "Grid Columns",
+        description = "Column count when the container layout uses a grid.",
+        dependency = layout_kind == "grid",
+    );
     wrap: bool = true (label = "Wrap", description = "Whether children may wrap onto new rows or columns.");
 )]
 pub struct DashboardWidgetContainerNode {}
+
+impl DashboardWidgetContainerNode {
+    fn sync_parent_layout_dependency_handles(&mut self, ctx: &ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+
+        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
+            self.position_x.set_node_id(position_x);
+        } else {
+            self.position_x.clear_node_id();
+        }
+
+        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
+            self.position_y.set_node_id(position_y);
+        } else {
+            self.position_y.clear_node_id();
+        }
+
+        if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
+            self.column_span.set_node_id(column_span);
+        } else {
+            self.column_span.clear_node_id();
+        }
+
+        if let Some(row_span) = snapshot.find_child(self.id(), "row_span") {
+            self.row_span.set_node_id(row_span);
+        } else {
+            self.row_span.clear_node_id();
+        }
+    }
+}
 
 #[item("dashboard_widget", from_struct)]
 impl Node for DashboardWidgetContainerNode {
@@ -160,8 +283,20 @@ impl Node for DashboardWidgetContainerNode {
         enable_dashboard_authoring(self.node_data_mut());
     }
 
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: crate::parameter::ParamValue) {
+        if param != self.layout_kind.id() {
+            return;
+        }
+
+        refresh_direct_dashboard_widgets(ctx, self.id());
+    }
+
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        1
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
@@ -170,10 +305,28 @@ impl Node for DashboardWidgetContainerNode {
 #[node("dashboard_node_widget")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the widget title bar is visible.");
-    position: Vec2 = (0.0, 0.0) (label = "Position", description = "Anchor position used by free layouts.");
-    size: Vec2 = (12.0, 4.0) (label = "Size", description = "Preferred widget size in logical layout units.");
-    column_span: i32 = 1 [1..64] (label = "Column Span", description = "Number of grid columns consumed by this widget.");
-    row_span: i32 = 1 [1..64] (label = "Row Span", description = "Number of grid rows consumed by this widget.");
+    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position X",
+        description = "Horizontal anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position Y",
+        description = "Vertical anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
+    height: CssValue = CssValue::new(4.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    column_span: i32 = 1 [1..64] (
+        label = "Column Span",
+        description = "Number of grid columns consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
+    row_span: i32 = 1 [1..64] (
+        label = "Row Span",
+        description = "Number of grid rows consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
     target_node: NodeReference (
         label = "Target Node",
         description = "Node rendered by this widget using the inspector-style UI.",
@@ -189,14 +342,50 @@ impl Node for DashboardWidgetContainerNode {
 )]
 pub struct DashboardNodeWidgetNode {}
 
+impl DashboardNodeWidgetNode {
+    fn sync_parent_layout_dependency_handles(&mut self, ctx: &ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+
+        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
+            self.position_x.set_node_id(position_x);
+        } else {
+            self.position_x.clear_node_id();
+        }
+
+        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
+            self.position_y.set_node_id(position_y);
+        } else {
+            self.position_y.clear_node_id();
+        }
+
+        if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
+            self.column_span.set_node_id(column_span);
+        } else {
+            self.column_span.clear_node_id();
+        }
+
+        if let Some(row_span) = snapshot.find_child(self.id(), "row_span") {
+            self.row_span.set_node_id(row_span);
+        } else {
+            self.row_span.clear_node_id();
+        }
+    }
+}
+
 #[item("dashboard_widget", from_struct)]
 impl Node for DashboardNodeWidgetNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         enable_dashboard_authoring(self.node_data_mut());
     }
 
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        1
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
@@ -205,21 +394,59 @@ impl Node for DashboardNodeWidgetNode {
 #[node("dashboard_generic_widget")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the widget title bar is visible.");
-    position: Vec2 = (0.0, 0.0) (label = "Position", description = "Anchor position used by free layouts.");
-    size: Vec2 = (10.0, 3.0) (label = "Size", description = "Preferred widget size in logical layout units.");
-    column_span: i32 = 1 [1..64] (label = "Column Span", description = "Number of grid columns consumed by this widget.");
-    row_span: i32 = 1 [1..64] (label = "Row Span", description = "Number of grid rows consumed by this widget.");
+    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position X",
+        description = "Horizontal anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
+        label = "Position Y",
+        description = "Vertical anchor position used by free layouts.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+    );
+    width: CssValue = CssValue::new(10.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
+    height: CssValue = CssValue::new(3.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    column_span: i32 = 1 [1..64] (
+        label = "Column Span",
+        description = "Number of grid columns consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
+    row_span: i32 = 1 [1..64] (
+        label = "Row Span",
+        description = "Number of grid rows consumed by this widget.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+    );
     widget_kind: Enum = "text" (
         label = "Widget Kind",
         description = "Canonical widget family rendered by this node.",
         enum_options = ["text", "button", "slider", "textInput", "checkbox"],
     );
     text: String = "".to_string() (label = "Text", description = "Static text content or button label when applicable.");
-    placeholder: String = "".to_string() (label = "Placeholder", description = "Placeholder text used by text input widgets.");
-    value_range: Vec2 = (0.0, 1.0) (label = "Value Range", description = "Minimum and maximum range for slider widgets.");
-    step: f64 = 0.01 [0.0..1000.0] (label = "Step", description = "Step increment used by slider widgets.");
-    multiline: bool = false (label = "Multiline", description = "Whether text inputs accept multiple lines.");
-    default_checked: bool = false (label = "Default Checked", description = "Default state used by checkbox widgets.");
+    placeholder: String = "".to_string() (
+        label = "Placeholder",
+        description = "Placeholder text used by text input widgets.",
+        dependency = widget_kind == "textInput",
+    );
+    value_range: Vec2 = (0.0, 1.0) (
+        label = "Value Range",
+        description = "Minimum and maximum range for slider widgets.",
+        dependency = widget_kind == "slider",
+    );
+    step: f64 = 0.01 [0.0..1000.0] (
+        label = "Step",
+        description = "Step increment used by slider widgets.",
+        dependency = widget_kind == "slider",
+    );
+    multiline: bool = false (
+        label = "Multiline",
+        description = "Whether text inputs accept multiple lines.",
+        dependency = widget_kind == "textInput",
+    );
+    default_checked: bool = false (
+        label = "Default Checked",
+        description = "Default state used by checkbox widgets.",
+        dependency = widget_kind == "checkbox",
+    );
     target_param: NodeReference (
         label = "Target Parameter",
         description = "Parameter targeted by this widget when it acts as a control or display.",
@@ -228,23 +455,60 @@ impl Node for DashboardNodeWidgetNode {
 )]
 pub struct DashboardGenericWidgetNode {}
 
+impl DashboardGenericWidgetNode {
+    fn sync_parent_layout_dependency_handles(&mut self, ctx: &ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+
+        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
+            self.position_x.set_node_id(position_x);
+        } else {
+            self.position_x.clear_node_id();
+        }
+
+        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
+            self.position_y.set_node_id(position_y);
+        } else {
+            self.position_y.clear_node_id();
+        }
+
+        if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
+            self.column_span.set_node_id(column_span);
+        } else {
+            self.column_span.clear_node_id();
+        }
+
+        if let Some(row_span) = snapshot.find_child(self.id(), "row_span") {
+            self.row_span.set_node_id(row_span);
+        } else {
+            self.row_span.clear_node_id();
+        }
+    }
+}
+
 #[item("dashboard_widget", from_struct, scriptable, contextualizable)]
 impl Node for DashboardGenericWidgetNode {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         enable_dashboard_authoring(self.node_data_mut());
     }
 
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        1
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::PassOn
+        EventPropagation::Notify
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::edit::Edit;
     use crate::define_node_enum;
     use crate::engine::Engine;
     use crate::node::{Folder, Node, NodeId};
-    use crate::parameter::{ParameterSnapshot, ReferenceTargetKind};
+    use crate::parameter::{ParamValue, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind};
 
     use super::{
         DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DashboardNode,
@@ -293,6 +557,17 @@ mod tests {
 
     fn param_snapshot<T: Node>(engine: &Engine<T>, node_id: NodeId) -> ParameterSnapshot {
         engine.nodes.get(node_id).and_then(Node::engine_param_snapshot).expect("node should expose a parameter snapshot")
+    }
+
+    fn direct_child_decl_ids<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<String> {
+        let mut decl_ids = Vec::new();
+        let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let child_node = engine.nodes.get(child_id).expect("child should exist");
+            decl_ids.push(child_node.node_data().meta.decl_id.0.clone());
+            child = child_node.node_data().next_sibling;
+        }
+        decl_ids
     }
 
     #[test]
@@ -344,5 +619,138 @@ mod tests {
 
         assert_eq!(param_snapshot(&engine, target_node_param).constraints.reference.target_kind, ReferenceTargetKind::AnyNode, "node widgets should accept references to any node");
         assert_eq!(param_snapshot(&engine, target_param_param).constraints.reference.target_kind, ReferenceTargetKind::ParameterOnly, "generic widgets should bind to parameters by default");
+    }
+
+    #[test]
+    fn dashboard_widget_layout_dependencies_follow_parent_layout() {
+        let root: DashboardTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.apply_edits().expect("dashboard creation should apply");
+
+        let dashboard = first_child(&engine, engine.root);
+        engine.queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None).expect("page creation should queue");
+        engine.apply_edits().expect("page creation should apply");
+
+        let page = first_child(&engine, dashboard);
+        engine.queue_catalog_create(page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE, Some("Widget".to_string()), None).expect("generic widget creation should queue");
+        for _ in 0..3 {
+            engine.apply_edits().expect("widget creation should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE).expect("page should contain a generic widget child");
+        let page_layout = find_descendant_by_decl(&engine, page, "layout_kind").expect("page layout parameter should exist");
+
+        assert!(find_descendant_by_decl(&engine, widget, "position").is_some(), "free-layout widgets should expose position");
+        assert!(find_descendant_by_decl(&engine, widget, "column_span").is_none(), "free-layout widgets should hide grid-only spans");
+        assert!(find_descendant_by_decl(&engine, widget, "row_span").is_none(), "free-layout widgets should hide grid-only spans");
+
+        engine.edits.push(Edit::SetParam {
+            node: page_layout,
+            value: ParamValue::Enum("grid".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..3 {
+            engine.apply_edits().expect("switching page layout should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "position").is_none(), "grid-layout widgets should hide free-layout position");
+        assert!(find_descendant_by_decl(&engine, widget, "column_span").is_some(), "grid-layout widgets should expose column span");
+        assert!(find_descendant_by_decl(&engine, widget, "row_span").is_some(), "grid-layout widgets should expose row span");
+
+        engine.edits.push(Edit::SetParam {
+            node: page_layout,
+            value: ParamValue::Enum("free".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..3 {
+            engine.apply_edits().expect("switching page layout back should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert_eq!(
+            direct_child_decl_ids(&engine, widget),
+            vec!["title_visible", "position", "size", "widget_kind", "text", "target_param"],
+            "reintroduced free-layout parameters should return to declared order",
+        );
+    }
+
+    #[test]
+    fn dashboard_generic_widget_kind_dependencies_follow_widget_kind() {
+        let root: DashboardTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.apply_edits().expect("dashboard creation should apply");
+
+        let dashboard = first_child(&engine, engine.root);
+        engine.queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None).expect("page creation should queue");
+        engine.apply_edits().expect("page creation should apply");
+
+        let page = first_child(&engine, dashboard);
+        engine.queue_catalog_create(page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE, Some("Widget".to_string()), None).expect("generic widget creation should queue");
+        for _ in 0..3 {
+            engine.apply_edits().expect("widget creation should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE).expect("page should contain a generic widget child");
+        let widget_kind = find_descendant_by_decl(&engine, widget, "widget_kind").expect("widget kind parameter should exist");
+
+        assert!(find_descendant_by_decl(&engine, widget, "placeholder").is_none(), "text widgets should hide text-input placeholder");
+        assert!(find_descendant_by_decl(&engine, widget, "multiline").is_none(), "text widgets should hide multiline");
+        assert!(find_descendant_by_decl(&engine, widget, "value_range").is_none(), "text widgets should hide slider range");
+        assert!(find_descendant_by_decl(&engine, widget, "step").is_none(), "text widgets should hide slider step");
+        assert!(find_descendant_by_decl(&engine, widget, "default_checked").is_none(), "text widgets should hide checkbox defaults");
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_kind,
+            value: ParamValue::Enum("textInput".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..3 {
+            engine.apply_edits().expect("switching widget kind to text input should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "placeholder").is_some(), "text-input widgets should expose placeholder");
+        assert!(find_descendant_by_decl(&engine, widget, "multiline").is_some(), "text-input widgets should expose multiline");
+        assert!(find_descendant_by_decl(&engine, widget, "value_range").is_none(), "text-input widgets should hide slider range");
+        assert!(find_descendant_by_decl(&engine, widget, "step").is_none(), "text-input widgets should hide slider step");
+        assert!(find_descendant_by_decl(&engine, widget, "default_checked").is_none(), "text-input widgets should hide checkbox defaults");
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_kind,
+            value: ParamValue::Enum("slider".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..3 {
+            engine.apply_edits().expect("switching widget kind to slider should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "placeholder").is_none(), "slider widgets should hide text-input placeholder");
+        assert!(find_descendant_by_decl(&engine, widget, "multiline").is_none(), "slider widgets should hide multiline");
+        assert!(find_descendant_by_decl(&engine, widget, "value_range").is_some(), "slider widgets should expose range");
+        assert!(find_descendant_by_decl(&engine, widget, "step").is_some(), "slider widgets should expose step");
+        assert!(find_descendant_by_decl(&engine, widget, "default_checked").is_none(), "slider widgets should hide checkbox defaults");
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_kind,
+            value: ParamValue::Enum("checkbox".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..3 {
+            engine.apply_edits().expect("switching widget kind to checkbox should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "default_checked").is_some(), "checkbox widgets should expose default checked");
+        assert!(find_descendant_by_decl(&engine, widget, "placeholder").is_none(), "checkbox widgets should hide text-input placeholder");
+        assert!(find_descendant_by_decl(&engine, widget, "value_range").is_none(), "checkbox widgets should hide slider range");
+        assert!(find_descendant_by_decl(&engine, widget, "step").is_none(), "checkbox widgets should hide slider step");
     }
 }

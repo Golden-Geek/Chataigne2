@@ -143,6 +143,21 @@ impl ProcessTreeSnapshot {
         None
     }
 
+    /// Returns the previous sibling of `node` under `parent`, when present.
+    pub fn previous_sibling(&self, parent: NodeId, node: NodeId) -> Option<NodeId> {
+        let mut previous = None;
+        let mut child = self.node(parent)?.first_child;
+        while let Some(child_id) = child {
+            if child_id == node {
+                return previous;
+            }
+            previous = Some(child_id);
+            child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
+        }
+
+        None
+    }
+
     /// Resolves a slash-separated child path from `start`.
     ///
     /// Supported segments:

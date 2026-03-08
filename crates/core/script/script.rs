@@ -16,7 +16,7 @@ use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::logger;
 use crate::node::{DeclId, Node, NodeData, NodeId};
-use crate::parameter::{FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterUiHints, RangeConstraint};
+use crate::parameter::{CssUnit, CssValue, FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterUiHints, RangeConstraint};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 
 /// Script-host policy for one node type.
@@ -392,6 +392,9 @@ pub enum ScriptValueType {
     Enum,
     /// Boolean.
     Bool,
+    /// CSS scalar value.
+    #[serde(rename = "css_value")]
+    CssValue,
     /// 2D vector.
     Vec2,
     /// 3D vector.
@@ -412,6 +415,7 @@ impl ScriptValueType {
             "file" | "path" => Some(Self::File),
             "enum" => Some(Self::Enum),
             "bool" | "boolean" => Some(Self::Bool),
+            "css_value" | "css-value" | "cssvalue" => Some(Self::CssValue),
             "vec2" => Some(Self::Vec2),
             "vec3" => Some(Self::Vec3),
             "color" => Some(Self::Color),
@@ -2619,7 +2623,7 @@ fn parse_file_constraints_json(entry: &serde_json::Map<String, JsonValue>, param
 
 fn parse_range_constraint_json(value_type: ScriptValueType, min: Option<&JsonValue>, max: Option<&JsonValue>) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
     match value_type {
-        ScriptValueType::Int | ScriptValueType::Float | ScriptValueType::Enum | ScriptValueType::Bool | ScriptValueType::Str | ScriptValueType::File | ScriptValueType::Trigger | ScriptValueType::Reference => {
+        ScriptValueType::Int | ScriptValueType::Float | ScriptValueType::Enum | ScriptValueType::Bool | ScriptValueType::Str | ScriptValueType::File | ScriptValueType::Trigger | ScriptValueType::Reference | ScriptValueType::CssValue => {
             let min = min.and_then(json_as_f64);
             let max = max.and_then(json_as_f64);
             Ok(RangeConstraint::uniform(min, max))
@@ -2670,6 +2674,19 @@ fn parameter_default_from_json_value(value_type: ScriptValueType, value: &JsonVa
                 return Err(ScriptRuntimeError::InvalidManifest("expected boolean default for bool parameter".to_string()));
             };
             ParamValue::Bool(raw)
+        }
+        ScriptValueType::CssValue => {
+            let parsed = if let Some(raw) = value.as_str() {
+                CssValue::parse_with_default_unit(raw, Some(CssUnit::Rem))
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("invalid css_value default '{raw}'")))?
+            } else if let Some(raw) = value.as_f64().or_else(|| value.as_i64().map(|raw| raw as f64)) {
+                CssValue::new(raw, CssUnit::Rem)
+            } else {
+                serde_json::from_value::<CssValue>(value.clone()).map_err(|error| {
+                    ScriptRuntimeError::InvalidManifest(format!("expected css_value default as string, number, or object: {error}"))
+                })?
+            };
+            ParamValue::CssValue(parsed)
         }
         ScriptValueType::Vec2 => {
             let Some(raw) = value.as_array() else {
@@ -2736,6 +2753,7 @@ fn default_param_value(value_type: ScriptValueType) -> ParamValue {
         ScriptValueType::File => ParamValue::File(String::new()),
         ScriptValueType::Enum => ParamValue::Enum(String::new()),
         ScriptValueType::Bool => ParamValue::Bool(false),
+        ScriptValueType::CssValue => ParamValue::CssValue(CssValue::default()),
         ScriptValueType::Vec2 => ParamValue::Vec2(0.0, 0.0),
         ScriptValueType::Vec3 => ParamValue::Vec3(0.0, 0.0, 0.0),
         ScriptValueType::Color => ParamValue::Color(0.0, 0.0, 0.0, 1.0),

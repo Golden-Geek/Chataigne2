@@ -8,12 +8,12 @@ use crate::animation_curve::{
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::NodeId;
-use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour, RangeConstraint};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint};
 use crate::process_ctx::{ProcessCtx, ProcessTreeSnapshot};
 
 use super::{
     DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_CURVE_DECL_ID, PARAMETER_ANIMATION_CURVE_ITEM_KIND, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_EASING_DECL_ID, PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_EASING_NODE_TYPE,
+    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
     PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_PHASE_DECL_ID,
     PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, PARAMETER_ANIMATION_EASING_SEED_DECL_ID, PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID,
     PARAMETER_ANIMATION_KEY_ITEM_KIND, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID,
@@ -22,30 +22,9 @@ use super::{
 
 const CURVE_RANGE_EPSILON: f64 = 1e-9;
 const KEY_ORDER_POSITION_EPSILON: f64 = 1e-10;
-const LEGACY_COORDINATE_SPACE_DECL_ID: &str = "coordinate_space";
 
 fn make_float_parameter(label: &str, decl_id: &str, default_value: f64) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Float(default_value), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.can_be_disabled = false;
-    parameter
-}
-
-fn make_non_negative_float_parameter(label: &str, decl_id: &str, default_value: f64) -> Parameter {
-    let mut parameter = make_float_parameter(label, decl_id, default_value);
-    parameter.constraints.range = Some(RangeConstraint::Uniform { min: Some(0.0), max: None });
-    parameter
-}
-
-fn make_int_parameter(label: &str, decl_id: &str, default_value: i32) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Int(default_value), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.can_be_disabled = false;
-    parameter
-}
-
-fn make_string_parameter(label: &str, decl_id: &str, default_value: &str) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Str(default_value.to_string()), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
     parameter.node_data_mut().meta.can_be_disabled = false;
     parameter
@@ -55,24 +34,6 @@ fn make_vec2_parameter(label: &str, decl_id: &str, x: f64, y: f64) -> Parameter 
     let mut parameter = Parameter::new(label, ParamValue::Vec2(x, y), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
     parameter.node_data_mut().meta.can_be_disabled = false;
-    parameter
-}
-
-fn make_enum_parameter(label: &str, decl_id: &str, default_variant: &str, variants: &[(&str, &str)]) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Enum(default_variant.to_string()), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.can_be_disabled = false;
-    parameter.constraints.enum_options = variants
-        .iter()
-        .enumerate()
-        .map(|(index, (variant_id, variant_label))| ParameterEnumOption {
-            variant_id: (*variant_id).to_string(),
-            value: ParamValue::Enum((*variant_id).to_string()),
-            label: (*variant_label).to_string(),
-            tags: Vec::new(),
-            ordering: Some(index as i32),
-        })
-        .collect();
     parameter
 }
 
@@ -119,88 +80,6 @@ fn curve_phase_mode_variant_id(mode: CurvePhaseMode) -> &'static str {
         CurvePhaseMode::NumPhases => "numPhases",
     }
 }
-
-fn make_easing_kind_parameter(default_variant: &str) -> Parameter {
-    make_enum_parameter(
-        "Kind",
-        PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-        default_variant,
-        &[("linear", "Linear"), ("bezier", "Bezier"), ("hold", "Hold"), ("steps", "Steps"), ("shape", "Shape"), ("perlinNoise", "Perlin Noise"), ("random", "Random"), ("script", "Script")],
-    )
-}
-
-fn make_step_mode_parameter(default_variant: &str) -> Parameter {
-    make_enum_parameter("Step Mode", PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, default_variant, &[("stepSize", "Step Size"), ("numSteps", "Number of Steps")])
-}
-
-fn make_shape_parameter(default_variant: &str) -> Parameter {
-    make_enum_parameter("Shape", PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, default_variant, &[("sine", "Sine"), ("triangle", "Triangle"), ("saw", "Saw"), ("reverseSaw", "Reverse Saw"), ("square", "Square")])
-}
-
-fn make_phase_mode_parameter(default_variant: &str) -> Parameter {
-    make_enum_parameter("Phase Mode", PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, default_variant, &[("frequency", "Frequency"), ("numPhases", "Number of Phases")])
-}
-
-const EASING_REQUIRED_LINEAR_DECL_IDS: [&str; 1] = [PARAMETER_ANIMATION_EASING_KIND_DECL_ID];
-const EASING_REQUIRED_BEZIER_DECL_IDS: [&str; 5] = [
-    PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID,
-    PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID,
-];
-const EASING_REQUIRED_HOLD_DECL_IDS: [&str; 1] = [PARAMETER_ANIMATION_EASING_KIND_DECL_ID];
-const EASING_REQUIRED_STEPS_DECL_IDS: [&str; 4] = [PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID];
-const EASING_REQUIRED_SHAPE_DECL_IDS: [&str; 8] = [
-    PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID,
-    PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID,
-];
-const EASING_REQUIRED_PERLIN_NOISE_DECL_IDS: [&str; 7] = [
-    PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID,
-    PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID,
-    PARAMETER_ANIMATION_EASING_PHASE_DECL_ID,
-];
-const EASING_REQUIRED_RANDOM_DECL_IDS: [&str; 5] = [
-    PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID,
-    PARAMETER_ANIMATION_EASING_SEED_DECL_ID,
-];
-const EASING_REQUIRED_SCRIPT_DECL_IDS: [&str; 2] = [PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID];
-
-const EASING_MANAGED_DECL_IDS: [&str; 20] = [
-    PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    LEGACY_COORDINATE_SPACE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID,
-    PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID,
-    PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID,
-    PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID,
-    PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID,
-    PARAMETER_ANIMATION_EASING_PHASE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_SEED_DECL_ID,
-    PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID,
-];
 
 fn read_child_param_value<'a>(snapshot: &'a ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<&'a ParamValue> {
     let child = snapshot.find_child(parent, decl_id)?;
@@ -1464,411 +1343,233 @@ impl Node for AnimationCurveKeyNode {
 }
 
 /// Internal node storing one key-to-next easing specification.
-pub struct AnimationCurveEasingNode {
-    node_data: NodeData,
-    current_kind: &'static str,
-    default_easing: CurveEasing,
-    kind_param: Option<NodeId>,
-    managed_children: HashMap<String, Option<NodeId>>,
-}
+#[allow(missing_docs)]
+#[crate::node("animation_curve_easing")]
+#[children(
+    kind: crate::parameter::Enum = "bezier" (
+        label = "Kind",
+        enum_options = ["linear", "bezier", "hold", "steps", "shape", "perlinNoise", "random", "script"],
+    );
+    out_position: f64 = 1.0 / 3.0 (
+        label = "Out Handle Position",
+        dependency = kind == "bezier",
+    );
+    out_value: f64 = 0.0 (
+        label = "Out Handle Value",
+        dependency = kind == "bezier",
+    );
+    in_position: f64 = -1.0 / 3.0 (
+        label = "In Handle Position",
+        dependency = kind == "bezier",
+    );
+    in_value: f64 = 0.0 (
+        label = "In Handle Value",
+        dependency = kind == "bezier",
+    );
+    step_mode: crate::parameter::Enum = "numSteps" (
+        label = "Step Mode",
+        enum_options = ["stepSize", "numSteps"],
+        dependency = kind == "steps",
+    );
+    step_size: f64 = 0.1 [0.0..] (
+        label = "Step Size",
+        dependency = kind == "steps" && step_mode == "stepSize",
+    );
+    num_steps: i32 = 8 [1..] (
+        label = "Number of Steps",
+        dependency = kind == "steps" && step_mode == "numSteps",
+    );
+    shape: crate::parameter::Enum = "sine" (
+        label = "Shape",
+        enum_options = ["sine", "triangle", "saw", "reverseSaw", "square"],
+        dependency = kind == "shape",
+    );
+    amplitude: f64 = 1.0 (
+        label = "Amplitude",
+        dependency = kind == "shape" || kind == "perlinNoise",
+    );
+    phase_mode: crate::parameter::Enum = "frequency" (
+        label = "Phase Mode",
+        enum_options = ["frequency", "numPhases"],
+        dependency = kind == "shape",
+    );
+    frequency: f64 = 1.0 [0.0..] (
+        label = "Frequency",
+        dependency = kind == "shape" || kind == "perlinNoise" || kind == "random",
+    );
+    num_phases: f64 = 1.0 [0.0..] (
+        label = "Number of Phases",
+        dependency = kind == "shape" && phase_mode == "numPhases",
+    );
+    fade_in: f64 = 0.0 [0.0..] (
+        label = "Fade In",
+        dependency = kind == "shape" || kind == "perlinNoise" || kind == "random",
+    );
+    fade_out: f64 = 0.0 [0.0..] (
+        label = "Fade Out",
+        dependency = kind == "shape" || kind == "perlinNoise" || kind == "random",
+    );
+    octaves: i32 = 4 [1..] (
+        label = "Octaves",
+        dependency = kind == "perlinNoise",
+    );
+    phase: f64 = 0.0 (
+        label = "Phase",
+        dependency = kind == "perlinNoise",
+    );
+    seed: i32 = 0 (
+        label = "Seed",
+        dependency = kind == "random",
+    );
+    script_source: String = "".to_string() (
+        label = "Script Source",
+        dependency = kind == "script",
+    );
+)]
+pub struct AnimationCurveEasingNode {}
 
 impl AnimationCurveEasingNode {
-    /// Creates one easing node.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self::new_with_easing(label, default_curve_easing())
-    }
-
     /// Creates one easing node with explicit default easing values.
     pub fn new_with_easing(label: impl Into<String>, default_easing: CurveEasing) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
-        let current_kind = Self::normalize_kind(curve_easing_kind_id(&default_easing));
+
+        let (kind, out_position, out_value, in_position, in_value, step_mode, step_size, num_steps, shape, amplitude, phase_mode, frequency, num_phases, fade_in, fade_out, octaves, phase, seed, script_source) =
+            Self::defaults_from_easing(&default_easing);
+
         Self {
             node_data,
-            current_kind,
-            default_easing,
-            kind_param: None,
-            managed_children: HashMap::new(),
+            kind: crate::node::ParameterHandle::new(kind.into()),
+            out_position: crate::node::ParameterHandle::new(out_position),
+            out_value: crate::node::ParameterHandle::new(out_value),
+            in_position: crate::node::ParameterHandle::new(in_position),
+            in_value: crate::node::ParameterHandle::new(in_value),
+            step_mode: crate::node::ParameterHandle::new(step_mode.into()),
+            step_size: crate::node::ParameterHandle::new(step_size),
+            num_steps: crate::node::ParameterHandle::new(num_steps),
+            shape: crate::node::ParameterHandle::new(shape.into()),
+            amplitude: crate::node::ParameterHandle::new(amplitude),
+            phase_mode: crate::node::ParameterHandle::new(phase_mode.into()),
+            frequency: crate::node::ParameterHandle::new(frequency),
+            num_phases: crate::node::ParameterHandle::new(num_phases),
+            fade_in: crate::node::ParameterHandle::new(fade_in),
+            fade_out: crate::node::ParameterHandle::new(fade_out),
+            octaves: crate::node::ParameterHandle::new(octaves),
+            phase: crate::node::ParameterHandle::new(phase),
+            seed: crate::node::ParameterHandle::new(seed),
+            script_source: crate::node::ParameterHandle::new(script_source),
         }
     }
 
-    fn normalize_kind(kind: &str) -> &'static str {
-        match kind.trim().to_ascii_lowercase().as_str() {
-            "bezier" => "bezier",
-            "hold" => "hold",
-            "steps" => "steps",
-            "shape" => "shape",
-            "perlinnoise" => "perlinnoise",
-            "random" => "random",
-            "script" => "script",
-            _ => "linear",
-        }
-    }
+    fn defaults_from_easing(easing: &CurveEasing) -> (&'static str, f64, f64, f64, f64, &'static str, f64, i32, &'static str, f64, &'static str, f64, f64, f64, f64, i32, f64, i32, String) {
+        let kind = curve_easing_kind_id(easing);
+        let out_position = match easing {
+            CurveEasing::Bezier { out_handle, .. } => out_handle.position,
+            _ => 1.0 / 3.0,
+        };
+        let out_value = match easing {
+            CurveEasing::Bezier { out_handle, .. } => out_handle.value,
+            _ => 0.0,
+        };
+        let in_position = match easing {
+            CurveEasing::Bezier { in_handle, .. } => in_handle.position,
+            _ => -1.0 / 3.0,
+        };
+        let in_value = match easing {
+            CurveEasing::Bezier { in_handle, .. } => in_handle.value,
+            _ => 0.0,
+        };
+        let step_mode = match easing {
+            CurveEasing::Steps { step_mode, .. } => curve_step_mode_variant_id(*step_mode),
+            _ => "numSteps",
+        };
+        let step_size = match easing {
+            CurveEasing::Steps { step_size, .. } => *step_size,
+            _ => 0.1,
+        };
+        let num_steps = match easing {
+            CurveEasing::Steps { num_steps, .. } => (*num_steps).max(1) as i32,
+            _ => 8,
+        };
+        let shape = match easing {
+            CurveEasing::Shape { shape, .. } => curve_shape_variant_id(*shape),
+            _ => "sine",
+        };
+        let amplitude = match easing {
+            CurveEasing::Shape { amplitude, .. } | CurveEasing::PerlinNoise { amplitude, .. } => *amplitude,
+            _ => 1.0,
+        };
+        let phase_mode = match easing {
+            CurveEasing::Shape { phase_mode, .. } => curve_phase_mode_variant_id(*phase_mode),
+            _ => "frequency",
+        };
+        let frequency = match easing {
+            CurveEasing::Shape { frequency, .. } | CurveEasing::PerlinNoise { frequency, .. } | CurveEasing::Random { frequency, .. } => *frequency,
+            _ => 1.0,
+        };
+        let num_phases = match easing {
+            CurveEasing::Shape { num_phases, .. } => *num_phases,
+            _ => 1.0,
+        };
+        let fade_in = match easing {
+            CurveEasing::Shape { fade_in, .. } | CurveEasing::PerlinNoise { fade_in, .. } | CurveEasing::Random { fade_in, .. } => *fade_in,
+            _ => 0.0,
+        };
+        let fade_out = match easing {
+            CurveEasing::Shape { fade_out, .. } | CurveEasing::PerlinNoise { fade_out, .. } | CurveEasing::Random { fade_out, .. } => *fade_out,
+            _ => 0.0,
+        };
+        let octaves = match easing {
+            CurveEasing::PerlinNoise { octaves, .. } => (*octaves).max(1) as i32,
+            _ => 4,
+        };
+        let phase = match easing {
+            CurveEasing::PerlinNoise { phase, .. } => *phase,
+            _ => 0.0,
+        };
+        let seed = match easing {
+            CurveEasing::Random { seed, .. } => (*seed).min(i32::MAX as u64) as i32,
+            _ => 0,
+        };
+        let script_source = match easing {
+            CurveEasing::Script { source } => source.clone(),
+            _ => String::new(),
+        };
 
-    fn required_decl_ids_for_kind(kind: &str) -> &'static [&'static str] {
-        match Self::normalize_kind(kind) {
-            "bezier" => &EASING_REQUIRED_BEZIER_DECL_IDS,
-            "hold" => &EASING_REQUIRED_HOLD_DECL_IDS,
-            "steps" => &EASING_REQUIRED_STEPS_DECL_IDS,
-            "shape" => &EASING_REQUIRED_SHAPE_DECL_IDS,
-            "perlinnoise" => &EASING_REQUIRED_PERLIN_NOISE_DECL_IDS,
-            "random" => &EASING_REQUIRED_RANDOM_DECL_IDS,
-            "script" => &EASING_REQUIRED_SCRIPT_DECL_IDS,
-            _ => &EASING_REQUIRED_LINEAR_DECL_IDS,
-        }
-    }
-
-    fn is_managed_decl_id(decl_id: &str) -> bool {
-        EASING_MANAGED_DECL_IDS.contains(&decl_id)
-    }
-
-    fn is_required_decl_id_for_kind(kind: &str, decl_id: &str) -> bool {
-        Self::required_decl_ids_for_kind(kind).contains(&decl_id)
-    }
-
-    fn kind_from_param_value(value: &ParamValue) -> &'static str {
-        if let Some(kind) = value.as_enum() {
-            return Self::normalize_kind(kind.as_str());
-        }
-        if let Some(kind) = value.as_str() {
-            return Self::normalize_kind(kind.as_str());
-        }
-        "linear"
-    }
-
-    fn kind_from_snapshot(snapshot: &ProcessTreeSnapshot, easing_node: NodeId) -> &'static str {
-        let kind = read_child_param_enum(snapshot, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, "linear");
-        Self::normalize_kind(kind.as_str())
-    }
-
-    fn bind_decl_child(&mut self, decl_id: &str, child: NodeId) {
-        if !Self::is_managed_decl_id(decl_id) {
-            return;
-        }
-        self.managed_children.insert(decl_id.to_string(), Some(child));
-        if decl_id == PARAMETER_ANIMATION_EASING_KIND_DECL_ID {
-            self.kind_param = Some(child);
-        }
-    }
-
-    fn mark_decl_child_pending_addition(&mut self, decl_id: &str) {
-        if !Self::is_managed_decl_id(decl_id) {
-            return;
-        }
-        self.managed_children.entry(decl_id.to_string()).or_insert(None);
-    }
-
-    fn unbind_child(&mut self, child: NodeId) {
-        let removed_decl = self.managed_children.iter().find_map(|(decl_id, node_id)| (*node_id == Some(child)).then_some(decl_id.clone()));
-
-        if let Some(decl_id) = removed_decl {
-            self.managed_children.remove(decl_id.as_str());
-        }
-        if self.kind_param == Some(child) {
-            self.kind_param = None;
-        }
-    }
-
-    fn make_parameter_node(&self, decl_id: &str) -> Option<Box<dyn Node>> {
-        match decl_id {
-            PARAMETER_ANIMATION_EASING_KIND_DECL_ID => Some(Box::new(make_easing_kind_parameter(curve_easing_kind_id(&self.default_easing)))),
-            PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Bezier { out_handle, .. } => out_handle.position,
-                    _ => 1.0 / 3.0,
-                };
-                Some(Box::new(make_float_parameter("Out Handle Position", PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Bezier { out_handle, .. } => out_handle.value,
-                    _ => 0.0,
-                };
-                Some(Box::new(make_float_parameter("Out Handle Value", PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Bezier { in_handle, .. } => in_handle.position,
-                    _ => -1.0 / 3.0,
-                };
-                Some(Box::new(make_float_parameter("In Handle Position", PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Bezier { in_handle, .. } => in_handle.value,
-                    _ => 0.0,
-                };
-                Some(Box::new(make_float_parameter("In Handle Value", PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Steps { step_mode, .. } => curve_step_mode_variant_id(*step_mode),
-                    _ => "numSteps",
-                };
-                Some(Box::new(make_step_mode_parameter(default)))
-            }
-            PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Steps { step_size, .. } => *step_size,
-                    _ => 0.1,
-                };
-                Some(Box::new(make_non_negative_float_parameter("Step Size", PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Steps { num_steps, .. } => (*num_steps).max(1) as i32,
-                    _ => 8,
-                };
-                let mut parameter = make_int_parameter("Number of Steps", PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, default);
-                parameter.constraints.range = Some(RangeConstraint::Uniform { min: Some(1.0), max: None });
-                Some(Box::new(parameter))
-            }
-            PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { shape, .. } => curve_shape_variant_id(*shape),
-                    _ => "sine",
-                };
-                Some(Box::new(make_shape_parameter(default)))
-            }
-            PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { amplitude, .. } | CurveEasing::PerlinNoise { amplitude, .. } => *amplitude,
-                    _ => 1.0,
-                };
-                Some(Box::new(make_float_parameter("Amplitude", PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { phase_mode, .. } => curve_phase_mode_variant_id(*phase_mode),
-                    _ => "frequency",
-                };
-                Some(Box::new(make_phase_mode_parameter(default)))
-            }
-            PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { frequency, .. } | CurveEasing::PerlinNoise { frequency, .. } | CurveEasing::Random { frequency, .. } => *frequency,
-                    _ => 1.0,
-                };
-                Some(Box::new(make_non_negative_float_parameter("Frequency", PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { num_phases, .. } => *num_phases,
-                    _ => 1.0,
-                };
-                Some(Box::new(make_non_negative_float_parameter("Number of Phases", PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { fade_in, .. } | CurveEasing::PerlinNoise { fade_in, .. } | CurveEasing::Random { fade_in, .. } => *fade_in,
-                    _ => 0.0,
-                };
-                Some(Box::new(make_non_negative_float_parameter("Fade In", PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Shape { fade_out, .. } | CurveEasing::PerlinNoise { fade_out, .. } | CurveEasing::Random { fade_out, .. } => *fade_out,
-                    _ => 0.0,
-                };
-                Some(Box::new(make_non_negative_float_parameter("Fade Out", PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::PerlinNoise { octaves, .. } => (*octaves).max(1) as i32,
-                    _ => 4,
-                };
-                let mut parameter = make_int_parameter("Octaves", PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, default);
-                parameter.constraints.range = Some(RangeConstraint::Uniform { min: Some(1.0), max: None });
-                Some(Box::new(parameter))
-            }
-            PARAMETER_ANIMATION_EASING_PHASE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::PerlinNoise { phase, .. } => *phase,
-                    _ => 0.0,
-                };
-                Some(Box::new(make_float_parameter("Phase", PARAMETER_ANIMATION_EASING_PHASE_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_SEED_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Random { seed, .. } => (*seed).min(i32::MAX as u64) as i32,
-                    _ => 0,
-                };
-                Some(Box::new(make_int_parameter("Seed", PARAMETER_ANIMATION_EASING_SEED_DECL_ID, default)))
-            }
-            PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID => {
-                let default = match &self.default_easing {
-                    CurveEasing::Script { source } => source.as_str(),
-                    _ => "",
-                };
-                Some(Box::new(make_string_parameter("Script Source", PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, default)))
-            }
-            _ => None,
-        }
-    }
-
-    fn sync_parameter_children_for_kind(&mut self, ctx: &mut ProcessCtx, kind: &str) {
-        let normalized_kind = Self::normalize_kind(kind);
-        if let Some(snapshot) = ctx.tree_snapshot() {
-            self.managed_children.clear();
-            self.kind_param = None;
-            let mut duplicate_children = Vec::new();
-            for child_id in snapshot.child_ids(self.id()) {
-                let Some(child_snapshot) = snapshot.node(child_id) else {
-                    continue;
-                };
-                if child_snapshot.param_value.is_none() {
-                    continue;
-                }
-                let decl_id = child_snapshot.decl_id.as_str();
-                if !Self::is_managed_decl_id(decl_id) {
-                    continue;
-                }
-                if self.managed_children.contains_key(decl_id) {
-                    duplicate_children.push(child_id);
-                    continue;
-                }
-                self.bind_decl_child(decl_id, child_id);
-            }
-
-            for duplicate_child in duplicate_children {
-                self.remove_child(ctx, duplicate_child);
-            }
-        }
-
-        for required_decl_id in Self::required_decl_ids_for_kind(normalized_kind) {
-            if self.managed_children.contains_key(*required_decl_id) {
-                continue;
-            }
-            if let Some(parameter_node) = self.make_parameter_node(required_decl_id) {
-                self.mark_decl_child_pending_addition(required_decl_id);
-                self.add_child_boxed(ctx, parameter_node, None);
-            }
-        }
-
-        let existing_children_by_decl = self.managed_children.clone();
-        for (decl_id, maybe_child_id) in existing_children_by_decl {
-            if Self::is_required_decl_id_for_kind(normalized_kind, decl_id.as_str()) {
-                continue;
-            }
-            self.managed_children.remove(decl_id.as_str());
-            if let Some(child_id) = maybe_child_id {
-                self.remove_child(ctx, child_id);
-                if self.kind_param == Some(child_id) {
-                    self.kind_param = None;
-                }
-            } else if decl_id == PARAMETER_ANIMATION_EASING_KIND_DECL_ID {
-                self.kind_param = None;
-            }
-        }
+        (
+            kind,
+            out_position,
+            out_value,
+            in_position,
+            in_value,
+            step_mode,
+            step_size,
+            num_steps,
+            shape,
+            amplitude,
+            phase_mode,
+            frequency,
+            num_phases,
+            fade_in,
+            fade_out,
+            octaves,
+            phase,
+            seed,
+            script_source,
+        )
     }
 }
 
+#[crate::node("animation_curve_easing", from_struct)]
 impl Node for AnimationCurveEasingNode {
-    fn node_data(&self) -> &NodeData {
-        &self.node_data
-    }
-
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.node_data
-    }
-
-    fn get_type(&self) -> &str {
-        PARAMETER_ANIMATION_EASING_NODE_TYPE
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.can_be_disabled = false;
+        self.node_data_mut().meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::Notify
-    }
-
-    fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        let current_kind = ctx.tree_snapshot().map(|snapshot| Self::kind_from_snapshot(snapshot, self.id())).unwrap_or(self.current_kind);
-        self.current_kind = current_kind;
-        self.sync_parameter_children_for_kind(ctx, self.current_kind);
-    }
-
-    fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
-        let mut next_kind_from_event: Option<&'static str> = None;
-        let mut should_sync = !self.managed_children.contains_key(PARAMETER_ANIMATION_EASING_KIND_DECL_ID);
-        let mut duplicate_children_to_remove = Vec::new();
-
-        for event in &ctx.events {
-            match &event.kind {
-                EventKind::ParamChanged { param, new_value, .. } => {
-                    if Some(*param) == self.kind_param {
-                        next_kind_from_event = Some(Self::kind_from_param_value(new_value));
-                        should_sync = true;
-                    }
-                }
-                EventKind::ChildAdded { parent, child, decl_id } => {
-                    if *parent == self.id() {
-                        let child_decl_id = decl_id.0.as_str();
-                        if let Some(Some(existing_child)) = self.managed_children.get(child_decl_id) {
-                            if *existing_child != *child {
-                                duplicate_children_to_remove.push(*child);
-                                should_sync = true;
-                                continue;
-                            }
-                        }
-                        self.bind_decl_child(child_decl_id, *child);
-                        should_sync = true;
-                    }
-                }
-                EventKind::ChildRemoved { parent, child } => {
-                    if *parent == self.id() {
-                        self.unbind_child(*child);
-                        should_sync = true;
-                    }
-                }
-                EventKind::ChildReplaced { parent, old, new, decl_id } => {
-                    if *parent == self.id() {
-                        let child_decl_id = decl_id.0.as_str();
-                        self.unbind_child(*old);
-                        if let Some(Some(existing_child)) = self.managed_children.get(child_decl_id) {
-                            if *existing_child != *new {
-                                duplicate_children_to_remove.push(*new);
-                                should_sync = true;
-                                continue;
-                            }
-                        }
-                        self.bind_decl_child(child_decl_id, *new);
-                        should_sync = true;
-                    }
-                }
-                EventKind::ChildReordered { parent, .. } => {
-                    if *parent == self.id() {
-                        should_sync = true;
-                    }
-                }
-                EventKind::ChildMoved { old_parent, new_parent, .. } => {
-                    if *old_parent == self.id() || *new_parent == self.id() {
-                        should_sync = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        for duplicate_child in duplicate_children_to_remove {
-            self.remove_child(ctx, duplicate_child);
-        }
-
-        if !should_sync {
-            return;
-        }
-
-        if let Some(next_kind) = next_kind_from_event {
-            self.current_kind = next_kind;
-        }
-        self.sync_parameter_children_for_kind(ctx, self.current_kind);
     }
 }
 
@@ -1962,12 +1663,190 @@ pub fn curve_from_snapshot(snapshot: &ProcessTreeSnapshot, curve_node: NodeId) -
 
 #[cfg(test)]
 mod tests {
+    use crate::define_node_enum;
+    use crate::edit::Edit;
+    use crate::engine::Engine;
+    use crate::node::{Folder, Node, NodeId};
+    use crate::parameter::ParameterEventBehaviour;
+    use crate::process_ctx::ExecutionPhase;
+
     use super::*;
+
+    define_node_enum!(enum AnimationCurveTestNode {});
+
+    fn first_child<T: Node>(engine: &Engine<T>, parent: NodeId) -> NodeId {
+        engine.nodes.get(parent).and_then(|node| node.node_data().first_child).expect("parent should have one child")
+    }
+
+    fn direct_child_decl_ids<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<String> {
+        let mut decl_ids = Vec::new();
+        let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let child_node = engine.nodes.get(child_id).expect("child should exist");
+            decl_ids.push(child_node.node_data().meta.decl_id.0.clone());
+            child = child_node.node_data().next_sibling;
+        }
+        decl_ids
+    }
+
+    fn find_direct_child_by_decl<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+        let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let child_node = engine.nodes.get(child_id)?;
+            if child_node.node_data().meta.decl_id.0 == decl_id {
+                return Some(child_id);
+            }
+            child = child_node.node_data().next_sibling;
+        }
+        None
+    }
+
+    fn stabilize_dependency_updates<T: Node>(engine: &mut Engine<T>, reason: &str) {
+        for _ in 0..3 {
+            engine.apply_edits().expect(reason);
+            engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dependency stabilization dispatch should succeed");
+        }
+    }
 
     #[test]
     fn parse_helpers_map_variants() {
         assert_eq!(parse_step_mode("stepSize"), CurveStepMode::StepSize);
         assert_eq!(parse_shape("reverseSaw"), CurveShape::ReverseSaw);
         assert_eq!(parse_phase_mode("numPhases"), CurvePhaseMode::NumPhases);
+    }
+
+    #[test]
+    fn easing_node_dependencies_follow_kind_and_mode() {
+        let root: AnimationCurveTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        engine.add_node(
+            AnimationCurveEasingNode::new_with_easing(
+                "Ease",
+                CurveEasing::Steps {
+                    step_mode: CurveStepMode::StepSize,
+                    step_size: 0.25,
+                    num_steps: 9,
+                },
+            )
+            .into(),
+            None,
+        );
+        stabilize_dependency_updates(&mut engine, "easing node creation should apply");
+
+        let easing = first_child(&engine, engine.root);
+        let direct_children_after_create = direct_child_decl_ids(&engine, easing);
+        let step_mode = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID)
+            .unwrap_or_else(|| panic!("step mode should exist; children were {:?}", direct_children_after_create));
+        let kind = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("kind should exist");
+
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(), "non-bezier easings should hide the out handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID).is_none(), "non-bezier easings should hide the out handle value");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID).is_none(), "non-bezier easings should hide the in handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID).is_none(), "non-bezier easings should hide the in handle value");
+
+        assert_eq!(
+            direct_child_decl_ids(&engine, easing),
+            vec![
+                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID.to_string(),
+            ],
+            "step-size easings should materialize only the active step parameter",
+        );
+
+        engine.edits.push(Edit::SetParam {
+            node: step_mode,
+            value: ParamValue::Enum("numSteps".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        stabilize_dependency_updates(&mut engine, "switching step mode should apply");
+
+        assert_eq!(
+            direct_child_decl_ids(&engine, easing),
+            vec![
+                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID.to_string(),
+            ],
+            "switching step mode should swap the dependent step parameter in place",
+        );
+
+        engine.edits.push(Edit::SetParam {
+            node: kind,
+            value: ParamValue::Enum("shape".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        stabilize_dependency_updates(&mut engine, "switching easing kind should apply");
+
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(), "shape easings should hide the out handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID).is_none(), "shape easings should hide the out handle value");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID).is_none(), "shape easings should hide the in handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID).is_none(), "shape easings should hide the in handle value");
+
+        assert_eq!(
+            direct_child_decl_ids(&engine, easing),
+            vec![
+                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID.to_string(),
+            ],
+            "shape easings should expose only the active shape-specific parameters",
+        );
+
+        engine.edits.push(Edit::SetParam {
+            node: kind,
+            value: ParamValue::Enum("bezier".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        stabilize_dependency_updates(&mut engine, "switching easing kind to bezier should apply");
+
+        assert_eq!(
+            direct_child_decl_ids(&engine, easing),
+            vec![
+                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID.to_string(),
+                PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID.to_string(),
+            ],
+            "bezier easings should expose only the bezier handle parameters",
+        );
+    }
+
+    #[test]
+    fn easing_node_preserves_script_source_default() {
+        let root: AnimationCurveTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        let expected_source = "return t * 0.5;".to_string();
+
+        engine.add_node(
+            AnimationCurveEasingNode::new_with_easing(
+                "Ease",
+                CurveEasing::Script {
+                    source: expected_source.clone(),
+                },
+            )
+            .into(),
+            None,
+        );
+        stabilize_dependency_updates(&mut engine, "script easing node creation should apply");
+
+        let easing = first_child(&engine, engine.root);
+        let direct_children_after_create = direct_child_decl_ids(&engine, easing);
+        let script_source = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID)
+            .unwrap_or_else(|| panic!("script easings should materialize script source; children were {:?}", direct_children_after_create));
+        let script_source_snapshot = engine.nodes.get(script_source).and_then(Node::engine_param_snapshot).expect("script source should expose a parameter snapshot");
+
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(), "script easings should hide the out handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID).is_none(), "script easings should hide the out handle value");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID).is_none(), "script easings should hide the in handle position");
+        assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID).is_none(), "script easings should hide the in handle value");
+
+        assert_eq!(script_source_snapshot.value, ParamValue::Str(expected_source));
     }
 }

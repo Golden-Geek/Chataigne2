@@ -28,6 +28,8 @@ pub enum ParamValue {
     Enum(String),
     /// Boolean value.
     Bool(bool),
+    /// CSS scalar value with explicit unit.
+    CssValue(CssValue),
 
     /// 2D vector value.
     Vec2(f64, f64),
@@ -40,6 +42,112 @@ pub enum ParamValue {
     Reference(NodeReference),
 }
 
+/// Comparison operator used by macro-generated parameter dependency predicates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParameterDependencyOperator {
+    /// Equality comparison.
+    Eq,
+    /// Inequality comparison.
+    Ne,
+    /// Strictly less-than comparison.
+    Lt,
+    /// Less-than-or-equal comparison.
+    Le,
+    /// Strictly greater-than comparison.
+    Gt,
+    /// Greater-than-or-equal comparison.
+    Ge,
+}
+
+/// Returns whether a value should be treated as enabled/active for dependency predicates.
+pub fn dependency_truthy(value: &ParamValue) -> bool {
+    match value {
+        ParamValue::Trigger() => true,
+        ParamValue::Int(value) => *value != 0,
+        ParamValue::Float(value) => value.abs() > f64::EPSILON,
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => !value.is_empty(),
+        ParamValue::Bool(value) => *value,
+        ParamValue::CssValue(value) => value.value.abs() > f64::EPSILON,
+        ParamValue::Vec2(x, y) => x.abs() > f64::EPSILON || y.abs() > f64::EPSILON,
+        ParamValue::Vec3(x, y, z) => x.abs() > f64::EPSILON || y.abs() > f64::EPSILON || z.abs() > f64::EPSILON,
+        ParamValue::Color(r, g, b, a) => r.abs() > f64::EPSILON || g.abs() > f64::EPSILON || b.abs() > f64::EPSILON || a.abs() > f64::EPSILON,
+        ParamValue::Reference(reference) => !reference.is_empty(),
+    }
+}
+
+/// Compares two runtime values for a parameter dependency predicate.
+pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: ParameterDependencyOperator) -> bool {
+    if matches!(lhs, ParamValue::CssValue(_)) || matches!(rhs, ParamValue::CssValue(_)) {
+        match (lhs, rhs) {
+            (ParamValue::CssValue(lhs), ParamValue::CssValue(rhs)) if lhs.unit == rhs.unit => {
+                return compare_partial_ord(lhs.value, rhs.value, operator);
+            }
+            (ParamValue::CssValue(lhs), other) => {
+                if let Some(rhs) = other.as_float() {
+                    return compare_partial_ord(lhs.value, rhs, operator);
+                }
+            }
+            (other, ParamValue::CssValue(rhs)) => {
+                if let Some(lhs) = other.as_float() {
+                    return compare_partial_ord(lhs, rhs.value, operator);
+                }
+            }
+            _ => {}
+        }
+
+        if matches!(operator, ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne) {
+            if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
+                return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
+            }
+        }
+
+        return false;
+    }
+
+    if matches!(lhs, ParamValue::Int(_) | ParamValue::Float(_)) || matches!(rhs, ParamValue::Int(_) | ParamValue::Float(_)) {
+        if let (Some(lhs), Some(rhs)) = (lhs.as_float(), rhs.as_float()) {
+            return compare_partial_ord(lhs, rhs, operator);
+        }
+    }
+
+    if matches!(lhs, ParamValue::Bool(_)) || matches!(rhs, ParamValue::Bool(_)) {
+        if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+            return compare_partial_ord(lhs, rhs, operator);
+        }
+    }
+
+    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+        || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+    {
+        if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
+            return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
+        }
+    }
+
+    match operator {
+        ParameterDependencyOperator::Eq => lhs == rhs,
+        ParameterDependencyOperator::Ne => lhs != rhs,
+        ParameterDependencyOperator::Lt
+        | ParameterDependencyOperator::Le
+        | ParameterDependencyOperator::Gt
+        | ParameterDependencyOperator::Ge => false,
+    }
+}
+
+fn compare_partial_ord<T>(lhs: T, rhs: T, operator: ParameterDependencyOperator) -> bool
+where
+    T: PartialEq + PartialOrd,
+{
+    match operator {
+        ParameterDependencyOperator::Eq => lhs == rhs,
+        ParameterDependencyOperator::Ne => lhs != rhs,
+        ParameterDependencyOperator::Lt => lhs < rhs,
+        ParameterDependencyOperator::Le => lhs <= rhs,
+        ParameterDependencyOperator::Gt => lhs > rhs,
+        ParameterDependencyOperator::Ge => lhs >= rhs,
+    }
+}
+
 impl fmt::Display for ParamValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -50,6 +158,7 @@ impl fmt::Display for ParamValue {
             Self::File(path) => write!(f, "file:{path}"),
             Self::Enum(variant) => write!(f, "enum:{variant}"),
             Self::Bool(value) => write!(f, "{value}"),
+            Self::CssValue(value) => write!(f, "{value}"),
             Self::Vec2(x, y) => write!(f, "[{x}, {y}]"),
             Self::Vec3(x, y, z) => write!(f, "[{x}, {y}, {z}]"),
             Self::Color(r, g, b, a) => write!(f, "[{r}, {g}, {b}, {a}]"),
@@ -236,6 +345,7 @@ pub fn default_param_value_for_type_id(type_id: &str) -> Option<ParamValue> {
         "file" => Some(ParamValue::File(String::new())),
         "enum" => Some(ParamValue::Enum(String::new())),
         "bool" => Some(ParamValue::Bool(false)),
+        "css_value" | "css-value" => Some(ParamValue::CssValue(CssValue::default())),
         "vec2" => Some(ParamValue::Vec2(0.0, 0.0)),
         "vec3" => Some(ParamValue::Vec3(0.0, 0.0, 0.0)),
         "color" => Some(ParamValue::Color(0.0, 0.0, 0.0, 1.0)),
@@ -420,6 +530,7 @@ fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) 
         ParamValue::File(_) => source.as_str().map(ParamValue::File),
         ParamValue::Enum(_) => source.as_enum().map(ParamValue::Enum),
         ParamValue::Bool(_) => source.as_bool().map(ParamValue::Bool),
+        ParamValue::CssValue(target_value) => source.as_css_value_with_unit(target_value.unit).map(ParamValue::CssValue),
         ParamValue::Vec2(_, _) => source.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)),
         ParamValue::Vec3(_, _, _) => source.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)),
         ParamValue::Color(_, _, _, _) => source.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)),
@@ -518,6 +629,109 @@ impl From<PathBuf> for File {
 impl From<File> for String {
     fn from(value: File) -> Self {
         value.0
+    }
+}
+
+/// CSS unit used by [`CssValue`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CssUnit {
+    /// CSS pixels.
+    Px,
+    /// Root-em units.
+    #[default]
+    Rem,
+    /// Element-em units.
+    Em,
+    /// Percentage values.
+    Percent,
+    /// Viewport width percentage.
+    Vw,
+    /// Viewport height percentage.
+    Vh,
+}
+
+impl CssUnit {
+    /// Returns the CSS suffix used when formatting this unit.
+    pub fn suffix(self) -> &'static str {
+        match self {
+            Self::Px => "px",
+            Self::Rem => "rem",
+            Self::Em => "em",
+            Self::Percent => "%",
+            Self::Vw => "vw",
+            Self::Vh => "vh",
+        }
+    }
+}
+
+impl fmt::Display for CssUnit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.suffix())
+    }
+}
+
+/// CSS scalar value with an explicit unit.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CssValue {
+    /// Numeric component.
+    pub value: f64,
+    /// CSS unit.
+    pub unit: CssUnit,
+}
+
+impl CssValue {
+    /// Creates a new CSS value.
+    pub fn new(value: f64, unit: CssUnit) -> Self {
+        Self { value, unit }
+    }
+
+    /// Parses a CSS value string such as `12rem` or `50%`.
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::parse_with_default_unit(value, None)
+    }
+
+    /// Parses a CSS value string, accepting raw numbers via `default_unit`.
+    pub fn parse_with_default_unit(value: &str, default_unit: Option<CssUnit>) -> Option<Self> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        let lowercase = trimmed.to_ascii_lowercase();
+        for (suffix, unit) in [("rem", CssUnit::Rem), ("px", CssUnit::Px), ("em", CssUnit::Em), ("vw", CssUnit::Vw), ("vh", CssUnit::Vh), ("%", CssUnit::Percent)] {
+            if lowercase.ends_with(suffix) {
+                let number_text = trimmed[..trimmed.len() - suffix.len()].trim();
+                let parsed = number_text.parse::<f64>().ok()?;
+                return Some(Self::new(parsed, unit));
+            }
+        }
+
+        let unit = default_unit?;
+        trimmed.parse::<f64>().ok().map(|parsed| Self::new(parsed, unit))
+    }
+
+    /// Formats this CSS value as a CSS string.
+    pub fn to_css_string(self) -> String {
+        format!("{}{}", self.value, self.unit.suffix())
+    }
+}
+
+impl fmt::Display for CssValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.to_css_string())
+    }
+}
+
+impl From<(f64, CssUnit)> for CssValue {
+    fn from(value: (f64, CssUnit)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+
+impl From<CssValue> for (f64, CssUnit) {
+    fn from(value: CssValue) -> Self {
+        (value.value, value.unit)
     }
 }
 
@@ -667,6 +881,18 @@ impl From<bool> for ParamValue {
     }
 }
 
+impl From<(f64, CssUnit)> for ParamValue {
+    fn from(value: (f64, CssUnit)) -> Self {
+        ParamValue::CssValue(CssValue::from(value))
+    }
+}
+
+impl From<CssValue> for ParamValue {
+    fn from(value: CssValue) -> Self {
+        ParamValue::CssValue(value)
+    }
+}
+
 impl From<(f64, f64)> for ParamValue {
     fn from(value: (f64, f64)) -> Self {
         ParamValue::Vec2(value.0, value.1)
@@ -730,6 +956,7 @@ impl ParamValue {
             ParamValue::Float(f) => Some(*f as i32),
             ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(if *b { 1 } else { 0 }),
+            ParamValue::CssValue(value) => Some(value.value as i32),
             _ => None,
         }
     }
@@ -741,6 +968,7 @@ impl ParamValue {
             ParamValue::Float(f) => Some(*f),
             ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+            ParamValue::CssValue(value) => Some(value.value),
             _ => None,
         }
     }
@@ -753,6 +981,7 @@ impl ParamValue {
             ParamValue::Float(f) => Some(f.to_string()),
             ParamValue::Str(s) | ParamValue::File(s) | ParamValue::Enum(s) => Some(s.clone()),
             ParamValue::Bool(b) => Some(b.to_string()),
+            ParamValue::CssValue(value) => Some(value.to_css_string()),
             ParamValue::Vec2(x, y) => Some(format!("{x},{y}")),
             ParamValue::Vec3(x, y, z) => Some(format!("{x},{y},{z}")),
             ParamValue::Color(r, g, b, a) => Some(format!("{r},{g},{b},{a}")),
@@ -776,6 +1005,24 @@ impl ParamValue {
             ParamValue::Float(f) => Some(*f != 0.0),
             ParamValue::Str(s) | ParamValue::Enum(s) => s.parse().ok(),
             ParamValue::Bool(b) => Some(*b),
+            ParamValue::CssValue(value) => Some(value.value != 0.0),
+            _ => None,
+        }
+    }
+
+    /// Coerces this value into a CSS value, when possible.
+    pub fn as_css_value(&self) -> Option<CssValue> {
+        self.as_css_value_with_unit(CssUnit::Rem)
+    }
+
+    /// Coerces this value into a CSS value using `default_unit` for unitless sources.
+    pub fn as_css_value_with_unit(&self, default_unit: CssUnit) -> Option<CssValue> {
+        match self {
+            ParamValue::Int(i) => Some(CssValue::new(*i as f64, default_unit)),
+            ParamValue::Float(f) => Some(CssValue::new(*f, default_unit)),
+            ParamValue::Str(s) | ParamValue::Enum(s) | ParamValue::File(s) => CssValue::parse_with_default_unit(s, Some(default_unit)),
+            ParamValue::Bool(b) => Some(CssValue::new(if *b { 1.0 } else { 0.0 }, default_unit)),
+            ParamValue::CssValue(value) => Some(*value),
             _ => None,
         }
     }
@@ -892,6 +1139,7 @@ impl ParamValue {
             ParamValue::Float(value) => serde_json::json!(value),
             ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => serde_json::json!(value),
             ParamValue::Bool(value) => serde_json::json!(value),
+            ParamValue::CssValue(value) => serde_json::json!(value.to_css_string()),
             ParamValue::Vec2(x, y) => serde_json::json!([x, y]),
             ParamValue::Vec3(x, y, z) => serde_json::json!([x, y, z]),
             ParamValue::Color(r, g, b, a) => serde_json::json!([r, g, b, a]),
@@ -1452,6 +1700,7 @@ impl ParameterConstraints {
         let mut normalized = match incoming {
             ParamValue::Int(value) => self.normalize_int(value)?,
             ParamValue::Float(value) => self.normalize_float(value)?,
+            ParamValue::CssValue(value) => self.normalize_css_value(value)?,
             ParamValue::Vec2(x, y) => self.normalize_vec2(x, y)?,
             ParamValue::Vec3(x, y, z) => self.normalize_vec3(x, y, z)?,
             ParamValue::File(path) => self.normalize_file(path)?,
@@ -1498,6 +1747,10 @@ impl ParameterConstraints {
 
     fn normalize_float(&self, value: f64) -> Result<ParamValue, String> {
         Ok(ParamValue::Float(self.normalize_numeric(value)?))
+    }
+
+    fn normalize_css_value(&self, value: CssValue) -> Result<ParamValue, String> {
+        Ok(ParamValue::CssValue(CssValue::new(self.normalize_numeric(value.value)?, value.unit)))
     }
 
     fn normalize_vec2(&self, x: f64, y: f64) -> Result<ParamValue, String> {
@@ -1825,6 +2078,7 @@ impl Parameter {
             ParamValue::File(_) => "parameter expects a file-compatible value".to_string(),
             ParamValue::Enum(_) => "parameter expects an enum-compatible value".to_string(),
             ParamValue::Bool(_) => "parameter expects a bool-compatible value".to_string(),
+            ParamValue::CssValue(_) => "parameter expects a css-value-compatible value".to_string(),
             ParamValue::Vec2(_, _) => "parameter expects a vec2-compatible value".to_string(),
             ParamValue::Vec3(_, _, _) => "parameter expects a vec3-compatible value".to_string(),
             ParamValue::Color(_, _, _, _) => "parameter expects a color-compatible value".to_string(),
@@ -1851,6 +2105,7 @@ impl Node for Parameter {
             ParamValue::File(_) => "file",
             ParamValue::Enum(_) => "enum",
             ParamValue::Bool(_) => "bool",
+            ParamValue::CssValue(_) => "css_value",
             ParamValue::Vec2(_, _) => "vec2",
             ParamValue::Vec3(_, _, _) => "vec3",
             ParamValue::Color(_, _, _, _) => "color",

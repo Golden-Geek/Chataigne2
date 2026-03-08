@@ -583,6 +583,44 @@ impl FieldCallbackParamsNode {
     }
 }
 
+#[crate::node("dependency_params_node")]
+#[children(
+    driver: f64 = 0.0 (label = "Driver");
+    gated_simple: f64 = 1.0 (label = "Gated Simple", dependency = driver > 0.0);
+    mode: crate::parameter::Enum = "off" (
+        label = "Mode",
+        enum_options = ["off (default)", "cool"],
+    );
+    gated_text: String = "hello".to_string() (
+        label = "Gated Text",
+        dependency = mode == "cool",
+    );
+    gated_complex: bool = true (
+        label = "Gated Complex",
+        dependency = |node: &Self| node.driver.get() > 0.0 && node.mode.get_ref().as_str() == "cool",
+    );
+    tail: f64 = 2.0 (label = "Tail");
+)]
+struct DependencyParamsNode {}
+
+#[crate::node("dependency_params_node", from_struct)]
+impl Node for DependencyParamsNode {}
+
+#[crate::node("dependency_optional_child_node")]
+#[children(
+    gated_by_child: f64 = 1.0 (
+        label = "Gated By Child",
+        dependency = |node: &Self| node.optional_child.current_id().is_some(),
+    );
+)]
+struct DependencyOptionalChildNode {
+    #[potential_node(decl_id = "optional_child")]
+    optional_child: crate::node::PotentialNodeHandle,
+}
+
+#[crate::node("dependency_optional_child_node", from_struct)]
+impl Node for DependencyOptionalChildNode {}
+
 #[crate::node("dsl_params_node", from_struct)]
 impl Node for DslParamsNode {
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
@@ -739,6 +777,8 @@ crate::define_node_enum!(
         NestedInitBindingNode,
         DslCallbackParamsNode,
         FieldCallbackParamsNode,
+        DependencyParamsNode,
+        DependencyOptionalChildNode,
         UiScriptHostNode,
         UiContextHostNode,
         ViaScriptHostNode,
@@ -818,6 +858,40 @@ fn count_children_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_
         child = node.node_data().next_sibling;
     }
     count
+}
+
+fn direct_child_decl_ids_any<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<String> {
+    let mut decl_ids = Vec::new();
+    let Some(parent_node) = engine.nodes.get(parent) else {
+        return decl_ids;
+    };
+    let mut child = parent_node.node_data().first_child;
+    while let Some(id) = child {
+        let Some(node) = engine.nodes.get(id) else {
+            break;
+        };
+        decl_ids.push(node.node_data().meta.decl_id.0.clone());
+        child = node.node_data().next_sibling;
+    }
+    decl_ids
+}
+
+fn child_decl_ids_any<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(parent_node) = engine.nodes.get(parent) else {
+        return out;
+    };
+
+    let mut child = parent_node.node_data().first_child;
+    while let Some(id) = child {
+        let Some(node) = engine.nodes.get(id) else {
+            break;
+        };
+        out.push(node.node_data().meta.decl_id.0.clone());
+        child = node.node_data().next_sibling;
+    }
+
+    out
 }
 
 fn find_child_by_decl(engine: &Engine<MacroTestNode>, parent: NodeId, decl_id: &str) -> Option<NodeId> {
@@ -1212,6 +1286,93 @@ fn field_params_support_default_named_and_closure_callbacks() {
     assert!(matches!(node.default_callback_old, Some(ParamValue::Float(value)) if (value - 0.4).abs() < 1e-9), "default callback should receive previous value",);
     assert!(matches!(node.named_callback_old, Some(ParamValue::Float(value)) if (value - 0.5).abs() < 1e-9), "named callback should receive previous value",);
     assert!(matches!(node.closure_callback_old, Some(ParamValue::Float(value)) if (value - 0.6).abs() < 1e-9), "closure callback should receive previous value",);
+}
+
+#[test]
+fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DependencyParamsNode::new("deps").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dependency node should be attached under root");
+    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "mode", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "initial dependency-filtered order should skip gated params");
+
+    let driver = find_child_by_decl(&engine, owner, "driver").expect("driver parameter should exist");
+    let mode = find_child_by_decl(&engine, owner, "mode").expect("mode parameter should exist");
+
+    engine.edits.push(Edit::SetParam {
+        node: driver,
+        value: ParamValue::Float(1.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("driver edit should apply");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "gated_simple", "mode", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "simple dependency should insert the parameter between its declared neighbors",);
+    assert_eq!(count_children_by_decl_any(&engine, owner, "gated_simple"), 1, "gated simple parameter should not duplicate");
+
+    engine.edits.push(Edit::SetParam {
+        node: mode,
+        value: ParamValue::Enum("cool".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("mode edit should apply");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "gated_simple", "mode", "gated_text", "gated_complex", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "string comparison and closure dependencies should both materialize in declared order",);
+
+    engine.edits.push(Edit::SetParam {
+        node: driver,
+        value: ParamValue::Float(0.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("driver reset should apply");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "mode", "gated_text", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "dependent removals should keep surviving params in their declared slots",);
+    assert!(find_child_by_decl(&engine, owner, "gated_simple").is_none(), "simple dependency param should be removed again");
+    assert!(find_child_by_decl(&engine, owner, "gated_complex").is_none(), "closure dependency param should be removed again");
+}
+
+#[test]
+fn params_macro_dependency_closure_can_observe_absent_local_child_as_false() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(DependencyOptionalChildNode::new("deps").into(), None);
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("apply should succeed");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    let owner = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dependency node should be attached under root");
+    assert!(find_child_by_decl(&engine, owner, "gated_by_child").is_none(), "dependency should evaluate false while the optional child is absent");
+
+    let mut optional_child = Folder::new("Optional Child".to_string());
+    optional_child.node_data_mut().meta.decl_id = crate::node::DeclId("optional_child".to_string());
+    engine.edits.push(Edit::AddNode {
+        parent: owner,
+        prev_sibling: None,
+        node: Box::new(optional_child),
+    });
+
+    for _ in 0..4 {
+        engine.apply_edits().expect("child add should apply");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+    }
+
+    assert!(find_child_by_decl(&engine, owner, "gated_by_child").is_some(), "dependency should become true once the local optional child exists");
 }
 
 #[test]
@@ -4017,6 +4178,61 @@ fn animation_curve_easing_keeps_single_kind_parameter_while_switching_kind() {
     engine.apply_edits().expect("queued structural easing edits should apply");
 
     assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID), 1, "switching easing kind repeatedly should keep one kind parameter");
+}
+
+#[test]
+fn ui_set_param_stabilizes_animation_curve_easing_dependencies() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(engine.root, ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation))
+        .expect("animation state should be accepted");
+
+    let animation_node = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("animation control node should exist");
+    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID).expect("curve node should exist");
+    let first_key = engine
+        .build_process_tree_snapshot()
+        .child_ids(curve_node)
+        .into_iter()
+        .find(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
+        .expect("default key should exist");
+    let easing_node = find_child_by_decl_any(&engine, first_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
+    let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
+
+    let initial_children = direct_child_decl_ids_any(&engine, easing_node);
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID), 1, "default bezier easing should start with one out-position parameter; children were {:?}", initial_children);
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID), 1, "default bezier easing should start with one out-value parameter");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID), 1, "default bezier easing should start with one in-position parameter");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID), 1, "default bezier easing should start with one in-value parameter");
+
+    let to_steps_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: kind_param,
+        value: ParamValue::Enum("steps".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(to_steps_ack.success, "UI set-param should succeed when switching easing to steps");
+
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID), 1, "kind should remain singular after switching to steps");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID), 0, "steps easing should remove out-position immediately in the UI flow");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID), 0, "steps easing should remove out-value immediately in the UI flow");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID), 0, "steps easing should remove in-position immediately in the UI flow");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID), 0, "steps easing should remove in-value immediately in the UI flow");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID), 1, "steps easing should materialize one step mode parameter");
+
+    let to_bezier_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: kind_param,
+        value: ParamValue::Enum("bezier".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(to_bezier_ack.success, "UI set-param should succeed when switching easing back to bezier");
+
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID), 1, "kind should remain singular after switching back to bezier");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID), 0, "bezier easing should remove step mode immediately in the UI flow");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID), 1, "bezier easing should recreate exactly one out-position parameter");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID), 1, "bezier easing should recreate exactly one out-value parameter");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID), 1, "bezier easing should recreate exactly one in-position parameter");
+    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID), 1, "bezier easing should recreate exactly one in-value parameter");
 }
 
 #[test]

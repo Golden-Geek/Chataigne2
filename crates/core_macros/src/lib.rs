@@ -5,7 +5,7 @@ use proc_macro2::{Delimiter, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Error, Expr, ExprArray, ExprCall, ExprLit, ExprMethodCall, ExprPath, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, parse_macro_input, parse_quote};
+use syn::{BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -271,6 +271,7 @@ struct ParamFieldArgs {
     enum_options: Option<Expr>,
     file_allowed_types: Option<Expr>,
     file_allowed_extensions: Option<Expr>,
+    dependency: Option<Expr>,
     default_callback: bool,
     callback: Option<Expr>,
 }
@@ -359,6 +360,11 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `file_allowed_extensions`"));
                     }
                     out.file_allowed_extensions = Some(input.parse::<Expr>()?);
+                } else if key == "dependency" {
+                    if out.dependency.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `dependency`"));
+                    }
+                    out.dependency = Some(input.parse::<Expr>()?);
                 } else if key == "callback" {
                     if out.callback.is_some() {
                         return Err(Error::new(key.span(), "duplicate `callback`"));
@@ -367,7 +373,7 @@ impl Parse for ParamFieldArgs {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, default_callback, callback)",
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, dependency, default_callback, callback)",
                     ));
                 }
             }
@@ -454,6 +460,7 @@ struct ParamsDslParamOptions {
     label: Option<LitStr>,
     description: Option<LitStr>,
     read_only: Option<Expr>,
+    dependency: Option<Expr>,
     meta: ParamsDslMetaOptions,
     behaviour: Option<LitStr>,
     min: Option<Expr>,
@@ -756,6 +763,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `read_only` option"));
                 }
                 out.read_only = Some(input.parse::<Expr>()?);
+                } else if key == "dependency" {
+                if out.dependency.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `dependency` option"));
+                }
+                out.dependency = Some(input.parse::<Expr>()?);
             } else if key == "short_name" || key == "shortName" {
                 if out.meta.short_name.is_some() {
                     return Err(Error::new(key.span(), "duplicate `short_name` option"));
@@ -879,7 +891,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1241,6 +1253,14 @@ struct ParamsParentChildren {
     folders: Vec<usize>,
     params: Vec<usize>,
     nodes: Vec<usize>,
+    ordered: Vec<ParamsChildRef>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ParamsChildRef {
+    Folder(usize),
+    Param(usize),
+    Node(usize),
 }
 
 struct ParamsFolderSpec {
@@ -1277,6 +1297,7 @@ struct ParamsParamSpec {
     description: Option<LitStr>,
     meta: ParamsDslMetaOptions,
     default: Option<Expr>,
+    dependency: Option<Expr>,
     behaviour: Option<ParamEventBehaviourSpec>,
     read_only: Option<Expr>,
     min: Option<Expr>,
@@ -1343,7 +1364,9 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     reuse: folder.reuse,
                     meta: folder.meta.clone(),
                 });
-                plan.children_by_parent.entry(parent_key.clone()).or_default().folders.push(folder_index);
+                let children = plan.children_by_parent.entry(parent_key.clone()).or_default();
+                children.folders.push(folder_index);
+                children.ordered.push(ParamsChildRef::Folder(folder_index));
 
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
                 push_params_items_into_plan(&folder.items, &path, plan)?;
@@ -1455,6 +1478,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     description: param.options.description.clone(),
                     meta: param.options.meta.clone(),
                     default: resolved_default,
+                    dependency: param.options.dependency.clone(),
                     behaviour,
                     read_only: param.options.read_only.clone(),
                     min: param.options.min.clone(),
@@ -1474,7 +1498,9 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     reference_default_search_filter: param.options.reference_default_search_filter.clone(),
                     callback,
                 });
-                plan.children_by_parent.entry(parent_key.clone()).or_default().params.push(param_index);
+                let children = plan.children_by_parent.entry(parent_key.clone()).or_default();
+                children.params.push(param_index);
+                children.ordered.push(ParamsChildRef::Param(param_index));
 
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
             }
@@ -1496,7 +1522,9 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     meta: node.options.meta.clone(),
                     default: node.default.clone(),
                 });
-                plan.children_by_parent.entry(parent_key.clone()).or_default().nodes.push(node_index);
+                let children = plan.children_by_parent.entry(parent_key.clone()).or_default();
+                children.nodes.push(node_index);
+                children.ordered.push(ParamsChildRef::Node(node_index));
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
             }
         }
@@ -1663,6 +1691,16 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     let mut param_runtime_sync_bindings = Vec::<proc_macro2::TokenStream>::new();
     let mut param_change_callback_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut param_refresh_bindings = Vec::<proc_macro2::TokenStream>::new();
+    let mut param_dependency_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
+    let mut param_order_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
+    let field_param_order = fields
+        .iter()
+        .filter_map(|field| {
+            let ident = field.ident.clone()?;
+            field.attrs.iter().any(|attr| attr.path().is_ident("param")).then_some(ident)
+        })
+        .collect::<Vec<_>>();
+    let mut field_param_prev_decl_ids = Vec::<LitStr>::new();
 
     for field in fields.iter_mut() {
         let Some(field_ident) = field.ident.clone() else {
@@ -1697,6 +1735,16 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
             let decl_id_lit = args.decl_id.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
             let label_lit = args.label.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
+            let dependency_predicate = match args.dependency.as_ref() {
+                Some(expr) => match build_param_dependency_eval_tokens(expr, &field_param_order) {
+                    Ok(tokens) => Some(tokens),
+                    Err(err) => return err.to_compile_error(),
+                },
+                None => None,
+            };
+            let previous_decl_ids = field_param_prev_decl_ids.clone();
+            field_param_prev_decl_ids.push(decl_id_lit.clone());
+            let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids, quote!(__golden_node_owner_id));
             let set_description = args.description.map(|description_lit| {
                 quote! {
                     golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
@@ -1754,12 +1802,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 None
             };
             let callback = if args.default_callback { Some(ParamCallbackSpec::Default) } else { args.callback.map(ParamCallbackSpec::Custom) };
-
-            ctor_inits.push(quote! {
-                #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
-            });
-
-            generated_init_statements.push(quote! {
+            let create_param_node = quote! {
                 {
                     let mut __param_node = golden_core::parameter::Parameter::new(
                         #label_lit,
@@ -1780,9 +1823,50 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                     golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
                         golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                     #set_description
-                    ctx.add_child(__golden_node_owner_id, __param_node, None);
+                    ctx.add_child(__golden_node_owner_id, __param_node, #insert_after);
                 }
+            };
+
+            ctor_inits.push(quote! {
+                #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
             });
+
+            if let Some(predicate) = &dependency_predicate {
+                generated_init_statements.push(quote! {
+                    if #predicate {
+                        #create_param_node
+                    }
+                });
+                param_dependency_reconcile_statements.push(quote! {
+                    if #predicate {
+                        if !self.#field_ident.is_bound() {
+                            #create_param_node
+                        }
+                    } else if self.#field_ident.is_bound() {
+                        ctx.edits.push(golden_core::edit::Edit::RemoveNode { node: self.#field_ident.id() });
+                    }
+                });
+                param_order_reconcile_statements.push(quote! {
+                    if #predicate && self.#field_ident.is_bound() {
+                        let __golden_node_id = self.#field_ident.id();
+                        if __golden_node_id.0 != 0 {
+                            if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                                let __golden_expected_prev = #insert_after;
+                                let __golden_current_prev = __golden_snapshot.previous_sibling(__golden_node_owner_id, __golden_node_id);
+                                if __golden_current_prev != __golden_expected_prev {
+                                    ctx.edits.push(golden_core::edit::Edit::MoveNode {
+                                        node: __golden_node_id,
+                                        new_parent: __golden_node_owner_id,
+                                        new_prev_sibling: __golden_expected_prev,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                generated_init_statements.push(create_param_node);
+            }
 
             child_added_decl_statements.push(quote! {
                 if parent == __golden_node_owner_id && decl_id.0 == #decl_id_lit {
@@ -1868,6 +1952,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() { 0u32 } else { 1u32 };
 
     if let Some(plan) = &params_plan {
+        let plan_param_fields = plan.params.iter().map(|param| param.field.clone()).collect::<Vec<_>>();
         for param in &plan.params {
             if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &param.field)) {
                 return Error::new(param.field.span(), format!("duplicate field `{}` generated by #[children(...)]", param.field)).to_compile_error();
@@ -2012,6 +2097,63 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             });
         }
 
+        for (param_index, param) in plan.params.iter().enumerate() {
+            let Some(dependency_expr) = param.dependency.as_ref() else {
+                continue;
+            };
+            let dependency_predicate = match build_param_dependency_eval_tokens(dependency_expr, &plan_param_fields) {
+                Ok(tokens) => tokens,
+                Err(err) => return err.to_compile_error(),
+            };
+            let field_ident = &param.field;
+            let parent_path = join_decl_path(&param.path[..param.path.len().saturating_sub(1)]);
+            let parent_path_lit = LitStr::new(&parent_path, proc_macro2::Span::call_site());
+            let expected_prev = match build_plan_prev_sibling_tokens(plan, &parent_path, ParamsChildRef::Param(param_index), quote!(__golden_parent), &plan_param_fields) {
+                Ok(tokens) => tokens,
+                Err(err) => return err.to_compile_error(),
+            };
+            let create_param = build_params_plan_param_create_tokens_with_insert_after(plan, quote!(__golden_parent), field_ident, expected_prev.clone());
+            let resolve_parent = if parent_path.is_empty() {
+                quote!(Some(__golden_node_owner_id))
+            } else {
+                quote!(ctx.tree_snapshot().and_then(|snapshot| snapshot.resolve_path_from(__golden_node_owner_id, #parent_path_lit)))
+            };
+            param_dependency_reconcile_statements.push(quote! {
+                {
+                    let __golden_parent = #resolve_parent;
+                    if let Some(__golden_parent) = __golden_parent {
+                        if #dependency_predicate {
+                            if !self.#field_ident.is_bound() {
+                                #create_param
+                            }
+                        } else if self.#field_ident.is_bound() {
+                            ctx.edits.push(golden_core::edit::Edit::RemoveNode { node: self.#field_ident.id() });
+                        }
+                    }
+                }
+            });
+            param_order_reconcile_statements.push(quote! {
+                if let Some(__golden_parent) = #resolve_parent {
+                    if #dependency_predicate && self.#field_ident.is_bound() {
+                        let __golden_node_id = self.#field_ident.id();
+                        if __golden_node_id.0 != 0 {
+                            if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                                let __golden_expected_prev = #expected_prev;
+                                let __golden_current_prev = __golden_snapshot.previous_sibling(__golden_parent, __golden_node_id);
+                                if __golden_current_prev != __golden_expected_prev {
+                                    ctx.edits.push(golden_core::edit::Edit::MoveNode {
+                                        node: __golden_node_id,
+                                        new_parent: __golden_parent,
+                                        new_prev_sibling: __golden_expected_prev,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
     }
 
@@ -2098,6 +2240,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         #input
 
         impl #impl_generics #struct_name #ty_generics #where_clause {
+            /// Creates a new node instance with its declared default handles and state.
             pub fn new(label: impl Into<String> #(, #ctor_args)*) -> Self {
                 Self {
                     node_data: golden_core::node::NodeData::new(label.into()),
@@ -2163,6 +2306,8 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                         _ => {}
                     }
                 }
+                #(#param_dependency_reconcile_statements)*
+                #(#param_order_reconcile_statements)*
             }
         }
 
@@ -2409,259 +2554,347 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
     Ok(())
 }
 
-fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
-    let mut out = Vec::new();
+fn params_child_decl_id(plan: &ParamsPlan, child: ParamsChildRef) -> LitStr {
+    match child {
+        ParamsChildRef::Folder(index) => plan.folders[index].decl_id.clone(),
+        ParamsChildRef::Param(index) => plan.params[index].decl_id.clone(),
+        ParamsChildRef::Node(index) => plan.nodes[index].decl_id.clone(),
+    }
+}
+
+fn previous_decl_ids_for_child(plan: &ParamsPlan, parent_key: &str, current: ParamsChildRef) -> Vec<LitStr> {
     let Some(children) = plan.children_by_parent.get(parent_key) else {
-        return out;
+        return Vec::new();
     };
 
-    for folder_index in &children.folders {
-        let folder = &plan.folders[*folder_index];
-        let label_lit = &folder.label;
-        let decl_id_lit = &folder.decl_id;
-        let set_description = folder.description.as_ref().map(|description_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.description =
-                    Some(::std::string::String::from(#description_lit));
-            }
-        });
-        let set_short_name = folder.meta.short_name.as_ref().map(|short_name_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.short_name =
-                    ::std::string::String::from(#short_name_lit);
-            }
-        });
-        let set_enabled = folder.meta.enabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.enabled = #expr;
-            }
-        });
-        let set_can_be_disabled = folder.meta.can_be_disabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.can_be_disabled = #expr;
-            }
-        });
-        let set_tags = folder.meta.tags.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.tags = #expr;
-            }
-        });
-        let set_semantics = folder.meta.semantics.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.semantics = #expr;
-            }
-        });
-        let set_presentation = folder.meta.presentation.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.presentation = #expr;
-            }
-        });
-        let guard = folder_materialization_guard(plan, *folder_index);
-        if folder.reuse {
-            out.push(quote! {
-                if #guard {
-                    let __golden_folder_already_pending = ctx.edits.pending.iter().any(|request| {
-                        matches!(
-                            &request.edit,
-                            golden_core::edit::Edit::AddNode { parent, node, .. }
-                                if *parent == #parent_expr
-                                    && node.node_data().meta.decl_id.0 == #decl_id_lit
-                        )
-                    });
-                    if !__golden_folder_already_pending {
-                        let mut __folder_node = golden_core::node::Folder::new(#label_lit);
-                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
-                            golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                        #set_description
-                        #set_short_name
-                        #set_enabled
-                        #set_can_be_disabled
-                        #set_tags
-                        #set_semantics
-                        #set_presentation
-                        ctx.add_child(#parent_expr, __folder_node, None);
+    let mut out = Vec::new();
+    for child in &children.ordered {
+        if *child == current {
+            break;
+        }
+        out.push(params_child_decl_id(plan, *child));
+    }
+    out
+}
+
+fn build_declared_prev_sibling_tokens(prev_decl_ids: &[LitStr], parent_expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    if prev_decl_ids.is_empty() {
+        return quote!(None);
+    }
+
+    quote! {
+        {
+            let mut __golden_prev_sibling = None;
+            if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                #(
+                    if let Some(__golden_candidate) = __golden_snapshot.find_child(#parent_expr, #prev_decl_ids) {
+                        __golden_prev_sibling = Some(__golden_candidate);
                     }
+                )*
+            }
+            __golden_prev_sibling
+        }
+    }
+}
+
+fn extract_dependency_field_ident(expr: &Expr, parameter_fields: &[Ident]) -> Option<Ident> {
+    let Expr::Path(ExprPath { qself: None, path, .. }) = expr else {
+        return None;
+    };
+    let ident = path.get_ident()?.clone();
+    parameter_fields.iter().any(|candidate| candidate == &ident).then_some(ident)
+}
+
+fn build_param_dependency_value_tokens(expr: &Expr, parameter_fields: &[Ident]) -> proc_macro2::TokenStream {
+    if let Some(field_ident) = extract_dependency_field_ident(expr, parameter_fields) {
+        quote!(golden_core::node::ParameterValueType::to_param_value(self.#field_ident.get_ref().clone()))
+    } else {
+        quote!(::std::convert::Into::<golden_core::parameter::ParamValue>::into(#expr))
+    }
+}
+
+fn build_param_dependency_closure_tokens(closure: &syn::ExprClosure) -> Result<proc_macro2::TokenStream> {
+    match closure.inputs.len() {
+        1 => Ok(quote!((#closure)(self))),
+        2 => Ok(quote!((#closure)(self, ctx))),
+        _ => Err(Error::new_spanned(
+            closure,
+            "dependency closures must accept `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`",
+        )),
+    }
+}
+
+fn build_param_dependency_eval_tokens(expr: &Expr, parameter_fields: &[Ident]) -> Result<proc_macro2::TokenStream> {
+    match expr {
+        Expr::Closure(closure) => build_param_dependency_closure_tokens(closure),
+        Expr::Paren(inner) => build_param_dependency_eval_tokens(&inner.expr, parameter_fields),
+        Expr::Unary(ExprUnary { op: UnOp::Not(_), expr, .. }) => {
+            let inner = build_param_dependency_eval_tokens(expr, parameter_fields)?;
+            Ok(quote!(!(#inner)))
+        }
+        Expr::Binary(ExprBinary { left, right, op, .. }) => match op {
+            BinOp::And(_) => {
+                let left = build_param_dependency_eval_tokens(left, parameter_fields)?;
+                let right = build_param_dependency_eval_tokens(right, parameter_fields)?;
+                Ok(quote!((#left) && (#right)))
+            }
+            BinOp::Or(_) => {
+                let left = build_param_dependency_eval_tokens(left, parameter_fields)?;
+                let right = build_param_dependency_eval_tokens(right, parameter_fields)?;
+                Ok(quote!((#left) || (#right)))
+            }
+            BinOp::Eq(_) | BinOp::Ne(_) | BinOp::Lt(_) | BinOp::Le(_) | BinOp::Gt(_) | BinOp::Ge(_) => {
+                let lhs_tokens = build_param_dependency_value_tokens(left, parameter_fields);
+                let rhs_tokens = build_param_dependency_value_tokens(right, parameter_fields);
+                let operator = match op {
+                    BinOp::Eq(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Eq),
+                    BinOp::Ne(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Ne),
+                    BinOp::Lt(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Lt),
+                    BinOp::Le(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Le),
+                    BinOp::Gt(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Gt),
+                    BinOp::Ge(_) => quote!(golden_core::parameter::ParameterDependencyOperator::Ge),
+                    _ => unreachable!(),
+                };
+                Ok(quote! {
+                    {
+                        let __golden_dep_lhs = #lhs_tokens;
+                        let __golden_dep_rhs = #rhs_tokens;
+                        golden_core::parameter::dependency_binary_compare(&__golden_dep_lhs, &__golden_dep_rhs, #operator)
+                    }
+                })
+            }
+            _ => Err(Error::new_spanned(expr, "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
+        },
+        Expr::Path(_) => {
+            let value_tokens = build_param_dependency_value_tokens(expr, parameter_fields);
+            Ok(quote! {
+                {
+                    let __golden_dep_value = #value_tokens;
+                    golden_core::parameter::dependency_truthy(&__golden_dep_value)
                 }
-            });
-        } else {
-            out.push(quote! {
-                if #guard {
-                    let mut __folder_node = golden_core::node::Folder::new(#label_lit);
-                    golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
-                        golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                    #set_description
-                    #set_short_name
-                    #set_enabled
-                    #set_can_be_disabled
-                    #set_tags
-                    #set_semantics
-                    #set_presentation
-                    ctx.add_child(#parent_expr, __folder_node, None);
+            })
+        }
+        _ => Err(Error::new_spanned(expr, "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
+    }
+}
+
+fn build_plan_prev_sibling_tokens(
+    plan: &ParamsPlan,
+    parent_key: &str,
+    current: ParamsChildRef,
+    parent_expr: proc_macro2::TokenStream,
+    parameter_fields: &[Ident],
+) -> Result<proc_macro2::TokenStream> {
+    let Some(children) = plan.children_by_parent.get(parent_key) else {
+        return Ok(quote!(None));
+    };
+
+    let mut checks = Vec::new();
+    for child in &children.ordered {
+        if *child == current {
+            break;
+        }
+
+        match *child {
+            ParamsChildRef::Folder(index) => {
+                let decl_id = &plan.folders[index].decl_id;
+                checks.push(quote! {
+                    if let Some(__golden_candidate) = __golden_snapshot.find_child(#parent_expr, #decl_id) {
+                        __golden_prev_sibling = Some(__golden_candidate);
+                    }
+                });
+            }
+            ParamsChildRef::Node(index) => {
+                let decl_id = &plan.nodes[index].decl_id;
+                checks.push(quote! {
+                    if let Some(__golden_candidate) = __golden_snapshot.find_child(#parent_expr, #decl_id) {
+                        __golden_prev_sibling = Some(__golden_candidate);
+                    }
+                });
+            }
+            ParamsChildRef::Param(index) => {
+                let param = &plan.params[index];
+                let decl_id = &param.decl_id;
+                if let Some(dependency_expr) = &param.dependency {
+                    let predicate = build_param_dependency_eval_tokens(dependency_expr, parameter_fields)?;
+                    checks.push(quote! {
+                        if #predicate {
+                            if let Some(__golden_candidate) = __golden_snapshot.find_child(#parent_expr, #decl_id) {
+                                __golden_prev_sibling = Some(__golden_candidate);
+                            }
+                        }
+                    });
+                } else {
+                    checks.push(quote! {
+                        if let Some(__golden_candidate) = __golden_snapshot.find_child(#parent_expr, #decl_id) {
+                            __golden_prev_sibling = Some(__golden_candidate);
+                        }
+                    });
                 }
-            });
+            }
         }
     }
 
-    for param_index in &children.params {
-        let param = &plan.params[*param_index];
-        let field_ident = &param.field;
-        let ty = &param.ty;
-        let label_lit = &param.label;
-        let decl_id_lit = &param.decl_id;
-        let set_description = param.description.as_ref().map(|description_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
-                    Some(::std::string::String::from(#description_lit));
+    Ok(quote! {
+        {
+            let mut __golden_prev_sibling = None;
+            if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                #(#checks)*
             }
-        });
-        let set_short_name = param.meta.short_name.as_ref().map(|short_name_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.short_name =
-                    ::std::string::String::from(#short_name_lit);
-            }
-        });
-        let set_enabled = param.meta.enabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.enabled = #expr;
-            }
-        });
-        let set_can_be_disabled = param.meta.can_be_disabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.can_be_disabled = #expr;
-            }
-        });
-        let set_tags = param.meta.tags.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.tags = #expr;
-            }
-        });
-        let set_semantics = param.meta.semantics.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.semantics = #expr;
-            }
-        });
-        let set_presentation = param.meta.presentation.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.presentation = #expr;
-            }
-        });
+            __golden_prev_sibling
+        }
+    })
+}
 
-        let set_default = param.default.as_ref().map(|default_expr| {
-            quote! {
-                let _ = self.#field_ident.apply_runtime_value(
-                    &<#ty as golden_core::node::ParameterValueType>::to_param_value((#default_expr).into())
-                );
-            }
-        });
+fn build_params_plan_param_create_tokens_with_insert_after(
+    plan: &ParamsPlan,
+    parent_expr: proc_macro2::TokenStream,
+    field_ident: &Ident,
+    insert_after: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let (_, param) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
+    let ty = &param.ty;
+    let label_lit = &param.label;
+    let decl_id_lit = &param.decl_id;
+    let set_description = param.description.as_ref().map(|description_lit| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
+                Some(::std::string::String::from(#description_lit));
+        }
+    });
+    let set_short_name = param.meta.short_name.as_ref().map(|short_name_lit| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.short_name =
+                ::std::string::String::from(#short_name_lit);
+        }
+    });
+    let set_enabled = param.meta.enabled.as_ref().map(|expr| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.enabled = #expr;
+        }
+    });
+    let set_can_be_disabled = param.meta.can_be_disabled.as_ref().map(|expr| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.can_be_disabled = #expr;
+        }
+    });
+    let set_tags = param.meta.tags.as_ref().map(|expr| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.tags = #expr;
+        }
+    });
+    let set_semantics = param.meta.semantics.as_ref().map(|expr| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.semantics = #expr;
+        }
+    });
+    let set_presentation = param.meta.presentation.as_ref().map(|expr| {
+        quote! {
+            golden_core::node::Node::node_data_mut(&mut __param_node).meta.presentation = #expr;
+        }
+    });
+    let set_behaviour = match param.behaviour {
+        Some(ParamEventBehaviourSpec::Append) => Some(quote! {
+            self.#field_ident.set_event_behaviour(golden_core::parameter::ParameterEventBehaviour::Append);
+        }),
+        Some(ParamEventBehaviourSpec::Coalesce) => Some(quote! {
+            self.#field_ident.set_event_behaviour(golden_core::parameter::ParameterEventBehaviour::Coalesce);
+        }),
+        None => None,
+    };
+    let set_range = build_range_constraint_assignment(param.min.as_ref(), param.max.as_ref(), ty);
+    let set_read_only = param.read_only.as_ref().map(|expr| {
+        quote! {
+            __param_node.read_only = #expr;
+        }
+    });
+    let set_step = param.step.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.step = Some((#expr) as f64);
+        }
+    });
+    let set_step_base = param.step_base.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.step_base = Some((#expr) as f64);
+        }
+    });
+    let set_enum_options = param.enum_options.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.enum_options = #expr;
+        }
+    });
+    let set_file_allowed_types = match param.file_allowed_types.as_ref() {
+        Some(expr) => match build_file_allowed_types_assignment(expr) {
+            Ok(tokens) => Some(tokens),
+            Err(err) => return err.to_compile_error(),
+        },
+        None => None,
+    };
+    let set_file_allowed_extensions = match param.file_allowed_extensions.as_ref() {
+        Some(expr) => match build_file_allowed_extensions_assignment(expr) {
+            Ok(tokens) => Some(tokens),
+            Err(err) => return err.to_compile_error(),
+        },
+        None => None,
+    };
+    let set_constraint_policy = match param.constraint_policy {
+        Some(ParamConstraintPolicySpec::ClampAdapt) => Some(quote! {
+            __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::ClampAdapt;
+        }),
+        Some(ParamConstraintPolicySpec::Reject) => Some(quote! {
+            __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::Reject;
+        }),
+        None => None,
+    };
+    let set_reference_root = param.reference_root.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.root = #expr;
+        }
+    });
+    let set_reference_target_kind = param.reference_target_kind.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.target_kind = #expr;
+        }
+    });
+    let set_reference_allowed_node_types = param.reference_allowed_node_types.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.allowed_node_types = #expr;
+        }
+    });
+    let set_reference_allowed_parameter_types = param.reference_allowed_parameter_types.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.allowed_parameter_types = #expr;
+        }
+    });
+    let set_reference_allow_projections = param.reference_allow_projections.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.allow_projections = #expr;
+        }
+    });
+    let set_reference_custom_filter_key = param.reference_custom_filter_key.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.custom_filter_key = #expr;
+        }
+    });
+    let set_reference_default_search_filter = param.reference_default_search_filter.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.reference.default_search_filter = #expr;
+        }
+    });
 
-        let set_behaviour = match param.behaviour {
-            Some(ParamEventBehaviourSpec::Append) => Some(quote! {
-                self.#field_ident.set_event_behaviour(golden_core::parameter::ParameterEventBehaviour::Append);
-            }),
-            Some(ParamEventBehaviourSpec::Coalesce) => Some(quote! {
-                self.#field_ident.set_event_behaviour(golden_core::parameter::ParameterEventBehaviour::Coalesce);
-            }),
-            None => None,
-        };
-
-        let set_range = build_range_constraint_assignment(param.min.as_ref(), param.max.as_ref(), ty);
-        let set_read_only = param.read_only.as_ref().map(|expr| {
-            quote! {
-                __param_node.read_only = #expr;
-            }
-        });
-
-        let set_step = param.step.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.step = Some((#expr) as f64);
-            }
-        });
-
-        let set_step_base = param.step_base.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.step_base = Some((#expr) as f64);
-            }
-        });
-
-        let set_enum_options = param.enum_options.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.enum_options = #expr;
-            }
-        });
-
-        let set_file_allowed_types = match param.file_allowed_types.as_ref() {
-            Some(expr) => match build_file_allowed_types_assignment(expr) {
-                Ok(tokens) => Some(tokens),
-                Err(err) => return vec![err.to_compile_error()],
-            },
-            None => None,
-        };
-
-        let set_file_allowed_extensions = match param.file_allowed_extensions.as_ref() {
-            Some(expr) => match build_file_allowed_extensions_assignment(expr) {
-                Ok(tokens) => Some(tokens),
-                Err(err) => return vec![err.to_compile_error()],
-            },
-            None => None,
-        };
-
-        let set_constraint_policy = match param.constraint_policy {
-            Some(ParamConstraintPolicySpec::ClampAdapt) => Some(quote! {
-                __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::ClampAdapt;
-            }),
-            Some(ParamConstraintPolicySpec::Reject) => Some(quote! {
-                __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::Reject;
-            }),
-            None => None,
-        };
-
-        let set_reference_root = param.reference_root.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.root = #expr;
-            }
-        });
-
-        let set_reference_target_kind = param.reference_target_kind.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.target_kind = #expr;
-            }
-        });
-
-        let set_reference_allowed_node_types = param.reference_allowed_node_types.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.allowed_node_types = #expr;
-            }
-        });
-
-        let set_reference_allowed_parameter_types = param.reference_allowed_parameter_types.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.allowed_parameter_types = #expr;
-            }
-        });
-
-        let set_reference_allow_projections = param.reference_allow_projections.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.allow_projections = #expr;
-            }
-        });
-
-        let set_reference_custom_filter_key = param.reference_custom_filter_key.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.custom_filter_key = #expr;
-            }
-        });
-
-        let set_reference_default_search_filter = param.reference_default_search_filter.as_ref().map(|expr| {
-            quote! {
-                __param_node.constraints.reference.default_search_filter = #expr;
-            }
-        });
-
-        out.push(quote! {
-            if !self.#field_ident.is_bound() {
-                let _: &golden_core::node::ParameterHandle<#ty> = &self.#field_ident;
-                #set_default
-                #set_behaviour
+    quote! {
+        let _: &golden_core::node::ParameterHandle<#ty> = &self.#field_ident;
+        #set_behaviour
+        {
+            let __golden_param_already_pending = ctx.edits.pending.iter().any(|request| {
+                matches!(
+                    &request.edit,
+                    golden_core::edit::Edit::AddNode { parent, node, .. }
+                        if *parent == #parent_expr
+                            && node.node_data().meta.decl_id.0 == #decl_id_lit
+                )
+            });
+            if !__golden_param_already_pending {
                 let mut __param_node = golden_core::parameter::Parameter::new(
                     #label_lit,
                     <#ty as golden_core::node::ParameterValueType>::to_param_value(
@@ -2694,85 +2927,223 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 #set_tags
                 #set_semantics
                 #set_presentation
-                ctx.add_child(#parent_expr, __param_node, None);
+                ctx.add_child(#parent_expr, __param_node, #insert_after);
             }
-        });
+        }
     }
+}
 
-    for node_index in &children.nodes {
-        let node = &plan.nodes[*node_index];
-        let field_ident = &node.field;
-        let ty = &node.ty;
-        let label_lit = &node.label;
-        let decl_id_lit = &node.decl_id;
-        let default_expr = &node.default;
-        let set_description = node.description.as_ref().map(|description_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.description =
-                    Some(::std::string::String::from(#description_lit));
-            }
-        });
-        let set_short_name = node.meta.short_name.as_ref().map(|short_name_lit| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.short_name =
-                    ::std::string::String::from(#short_name_lit);
-            }
-        });
-        let set_enabled = node.meta.enabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.enabled = #expr;
-            }
-        });
-        let set_can_be_disabled = node.meta.can_be_disabled.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.can_be_disabled = #expr;
-            }
-        });
-        let set_tags = node.meta.tags.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.tags = #expr;
-            }
-        });
-        let set_semantics = node.meta.semantics.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.semantics = #expr;
-            }
-        });
-        let set_presentation = node.meta.presentation.as_ref().map(|expr| {
-            quote! {
-                golden_core::node::Node::node_data_mut(&mut __child_node).meta.presentation = #expr;
-            }
-        });
+fn build_params_plan_param_create_tokens(
+    plan: &ParamsPlan,
+    parent_key: &str,
+    parent_expr: proc_macro2::TokenStream,
+    field_ident: &Ident,
+) -> proc_macro2::TokenStream {
+    let (param_index, _) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
+    let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Param(param_index)), parent_expr.clone());
+    build_params_plan_param_create_tokens_with_insert_after(plan, parent_expr, field_ident, insert_after)
+}
 
-        out.push(quote! {
-            self.#field_ident.set_parent(#parent_expr);
-            if !self.#field_ident.is_present() && !self.#field_ident.is_pending_create() {
-                let mut __golden_child_already_exists = false;
-                if let Some(__golden_snapshot) = ctx.tree_snapshot() {
-                    if let Some(__golden_existing) = __golden_snapshot.find_child(#parent_expr, #decl_id_lit) {
-                        self.#field_ident.bind_existing(__golden_existing);
-                        __golden_child_already_exists = true;
+fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
+    let mut out = Vec::new();
+    let Some(children) = plan.children_by_parent.get(parent_key) else {
+        return out;
+    };
+
+    let plan_param_fields = plan.params.iter().map(|param| param.field.clone()).collect::<Vec<_>>();
+
+    for child in &children.ordered {
+        match *child {
+            ParamsChildRef::Folder(folder_index) => {
+                let folder = &plan.folders[folder_index];
+                let label_lit = &folder.label;
+                let decl_id_lit = &folder.decl_id;
+                let insert_after = build_declared_prev_sibling_tokens(
+                    &previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)),
+                    parent_expr.clone(),
+                );
+                let set_description = folder.description.as_ref().map(|description_lit| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.description =
+                            Some(::std::string::String::from(#description_lit));
                     }
-                }
-
-                if !__golden_child_already_exists {
-                    let _: &golden_core::node::DeclaredNodeHandle<#ty> = &self.#field_ident;
-                    let mut __child_node: #ty = (#default_expr);
-                    golden_core::node::Node::node_data_mut(&mut __child_node).meta.decl_id =
-                        golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                    golden_core::node::Node::node_data_mut(&mut __child_node).meta.label =
-                        ::std::string::String::from(#label_lit);
-                    #set_description
-                    #set_short_name
-                    #set_enabled
-                    #set_can_be_disabled
-                    #set_tags
-                    #set_semantics
-                    #set_presentation
-                    self.#field_ident.replace_with_boxed(ctx, ::std::boxed::Box::new(__child_node));
+                });
+                let set_short_name = folder.meta.short_name.as_ref().map(|short_name_lit| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.short_name =
+                            ::std::string::String::from(#short_name_lit);
+                    }
+                });
+                let set_enabled = folder.meta.enabled.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.enabled = #expr;
+                    }
+                });
+                let set_can_be_disabled = folder.meta.can_be_disabled.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.can_be_disabled = #expr;
+                    }
+                });
+                let set_tags = folder.meta.tags.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.tags = #expr;
+                    }
+                });
+                let set_semantics = folder.meta.semantics.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.semantics = #expr;
+                    }
+                });
+                let set_presentation = folder.meta.presentation.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.presentation = #expr;
+                    }
+                });
+                let guard = folder_materialization_guard(plan, folder_index);
+                if folder.reuse {
+                    out.push(quote! {
+                        if #guard {
+                            let __golden_folder_already_pending = ctx.edits.pending.iter().any(|request| {
+                                matches!(
+                                    &request.edit,
+                                    golden_core::edit::Edit::AddNode { parent, node, .. }
+                                        if *parent == #parent_expr
+                                            && node.node_data().meta.decl_id.0 == #decl_id_lit
+                                )
+                            });
+                            if !__golden_folder_already_pending {
+                                let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
+                                    golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                                #set_description
+                                #set_short_name
+                                #set_enabled
+                                #set_can_be_disabled
+                                #set_tags
+                                #set_semantics
+                                #set_presentation
+                                ctx.add_child(#parent_expr, __folder_node, #insert_after);
+                            }
+                        }
+                    });
+                } else {
+                    out.push(quote! {
+                        if #guard {
+                            let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                            golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
+                                golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                            #set_description
+                            #set_short_name
+                            #set_enabled
+                            #set_can_be_disabled
+                            #set_tags
+                            #set_semantics
+                            #set_presentation
+                            ctx.add_child(#parent_expr, __folder_node, #insert_after);
+                        }
+                    });
                 }
             }
-        });
+            ParamsChildRef::Param(param_index) => {
+                let param = &plan.params[param_index];
+                let field_ident = &param.field;
+                let create_param = build_params_plan_param_create_tokens(plan, parent_key, parent_expr.clone(), field_ident);
+                if let Some(dependency_expr) = param.dependency.as_ref() {
+                    let dependency_predicate = match build_param_dependency_eval_tokens(dependency_expr, &plan_param_fields) {
+                        Ok(tokens) => tokens,
+                        Err(err) => return vec![err.to_compile_error()],
+                    };
+                    out.push(quote! {
+                        if #dependency_predicate {
+                            if !self.#field_ident.is_bound() {
+                                #create_param
+                            }
+                        }
+                    });
+                } else {
+                    out.push(quote! {
+                        if !self.#field_ident.is_bound() {
+                            #create_param
+                        }
+                    });
+                }
+            }
+            ParamsChildRef::Node(node_index) => {
+                let node = &plan.nodes[node_index];
+                let field_ident = &node.field;
+                let ty = &node.ty;
+                let label_lit = &node.label;
+                let decl_id_lit = &node.decl_id;
+                let default_expr = &node.default;
+                let set_description = node.description.as_ref().map(|description_lit| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.description =
+                            Some(::std::string::String::from(#description_lit));
+                    }
+                });
+                let set_short_name = node.meta.short_name.as_ref().map(|short_name_lit| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.short_name =
+                            ::std::string::String::from(#short_name_lit);
+                    }
+                });
+                let set_enabled = node.meta.enabled.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.enabled = #expr;
+                    }
+                });
+                let set_can_be_disabled = node.meta.can_be_disabled.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.can_be_disabled = #expr;
+                    }
+                });
+                let set_tags = node.meta.tags.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.tags = #expr;
+                    }
+                });
+                let set_semantics = node.meta.semantics.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.semantics = #expr;
+                    }
+                });
+                let set_presentation = node.meta.presentation.as_ref().map(|expr| {
+                    quote! {
+                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.presentation = #expr;
+                    }
+                });
+
+                out.push(quote! {
+                    self.#field_ident.set_parent(#parent_expr);
+                    if !self.#field_ident.is_present() && !self.#field_ident.is_pending_create() {
+                        let mut __golden_child_already_exists = false;
+                        if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                            if let Some(__golden_existing) = __golden_snapshot.find_child(#parent_expr, #decl_id_lit) {
+                                self.#field_ident.bind_existing(__golden_existing);
+                                __golden_child_already_exists = true;
+                            }
+                        }
+
+                        if !__golden_child_already_exists {
+                            let _: &golden_core::node::DeclaredNodeHandle<#ty> = &self.#field_ident;
+                            let mut __child_node: #ty = (#default_expr);
+                            golden_core::node::Node::node_data_mut(&mut __child_node).meta.decl_id =
+                                golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                            golden_core::node::Node::node_data_mut(&mut __child_node).meta.label =
+                                ::std::string::String::from(#label_lit);
+                            #set_description
+                            #set_short_name
+                            #set_enabled
+                            #set_can_be_disabled
+                            #set_tags
+                            #set_semantics
+                            #set_presentation
+                            self.#field_ident.replace_with_boxed(ctx, ::std::boxed::Box::new(__child_node));
+                        }
+                    }
+                });
+            }
+        }
     }
 
     out

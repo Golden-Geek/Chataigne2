@@ -1,7 +1,7 @@
 use crate::color::Color;
 use crate::edit::Edit;
 use crate::events::EventKind;
-use crate::parameter::{Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
+use crate::parameter::{CssUnit, CssValue, Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
 use std::path::PathBuf;
 use std::marker::PhantomData;
@@ -91,6 +91,26 @@ impl ParameterValueType for bool {
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
         value.as_bool()
+    }
+}
+
+impl ParameterValueType for (f64, CssUnit) {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::CssValue(CssValue::from(value))
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_css_value().map(Into::into)
+    }
+}
+
+impl ParameterValueType for CssValue {
+    fn to_param_value(value: Self) -> ParamValue {
+        ParamValue::CssValue(value)
+    }
+
+    fn from_param_value(value: &ParamValue) -> Option<Self> {
+        value.as_css_value()
     }
 }
 
