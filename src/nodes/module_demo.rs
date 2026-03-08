@@ -1,7 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use golden_core::{
-    animation_curve::{CurveEasing, CurveHandle},
+    // animation_curve::{CurveEasing, CurveHandle},
     color::Color,
     item,
     log,
@@ -12,7 +12,6 @@ use golden_core::{
 };
 
 use uuid::uuid;
-use rand::prelude::*;
 
 pub const MODULE_MANAGER_UUID: golden_core::node::NodeUuid =
 	golden_core::node::NodeUuid(uuid!("3f0d7ac2-5c7a-4d8f-85e2-2c6e6cf3b451"));
@@ -138,32 +137,6 @@ impl OscModule {
         let label = label.into();
         Self::new(label.clone(), ModuleBase::new(label))
 
-    }
-
-    fn seed_animation_curve(&self, ctx: &mut ProcessCtx) {
-        let key_count = std::env::var("GC_DEMO_KEY_COUNT")
-            .ok()
-            .and_then(|raw| raw.parse::<usize>().ok())
-            .unwrap_or(100);
-        let mut keys_to_insert = Vec::new();
-        let mut rng = rand::rng();
-
-        let easing =  CurveEasing::Bezier {
-                out_handle: CurveHandle::new(1.0 / 3.0, 0.0),
-                in_handle: CurveHandle::new(-1.0 / 3.0,  0.0),
-            };
-
-        for i in 0..key_count {
-            keys_to_insert.push(((i+1) as f64 / (key_count+1) as f64, rng.random_range(0.0..1.0), easing.clone()));
-        }
-
-        let _ = self.animation_curve.with_mut(ctx, move |animation_curve, curve_ctx| {
-            animation_curve.insert_keys_with_easing(curve_ctx, keys_to_insert);
-        });
-    }
-
-    pub fn send_command(&mut self, ctx: &mut ProcessCtx, command: impl AsRef<str>) {
-        self.base.send_command(ctx, command);
     }
 }
 
