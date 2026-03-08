@@ -32,8 +32,22 @@ struct ParameterProjectData {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct LegacyParameterProjectData {
-    value: ParamValue,
+struct RawParameterProjectData {
+    value: serde_json::Value,
+    default_value: serde_json::Value,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+    read_only: bool,
+    constraints: ParameterConstraints,
+    ui_hints: ParameterUiHints,
+    control: ParameterControlState,
+    #[serde(default = "default_true")]
+    control_modes_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct RawLegacyParameterProjectData {
+    value: serde_json::Value,
     change_check: ParameterChangeCheck,
     event_behaviour: ParameterEventBehaviour,
 }
@@ -72,6 +86,22 @@ fn default_parameter_value_for_node_type(node_type: &str) -> Option<ParamValue> 
     }
 }
 
+fn decode_project_param_value(value: &serde_json::Value) -> Result<ParamValue, String> {
+    if value.is_null() {
+        return Ok(ParamValue::Trigger());
+    }
+
+    if let Ok(decoded) = serde_json::from_value::<ParamValue>(value.clone()) {
+        return Ok(decoded);
+    }
+
+    if value.as_object().is_some_and(|object| object.len() == 1 && object.contains_key("Trigger")) {
+        return Ok(ParamValue::Trigger());
+    }
+
+    ParamValue::from_script_json(value)
+}
+
 fn encode_project_node(node: &AppNode) -> Result<serde_json::Value, String> {
     let encoded = match node {
         AppNode::ModuleManager(module_manager) => serde_json::to_value(ModuleManagerProjectData { allow_dmx: module_manager.allow_dmx() }),
@@ -107,13 +137,23 @@ fn decode_parameter_node_data(node_type: &str, data: &serde_json::Value, meta: &
             control: ParameterControlState::default(),
             control_modes_enabled: true,
         }
-    } else if let Ok(full) = serde_json::from_value::<ParameterProjectData>(data.clone()) {
-        full
-    } else {
-        let legacy = serde_json::from_value::<LegacyParameterProjectData>(data.clone()).map_err(|err| format!("invalid parameter payload: {err}"))?;
+    } else if let Ok(full) = serde_json::from_value::<RawParameterProjectData>(data.clone()) {
         ParameterProjectData {
-            value: legacy.value.clone(),
-            default_value: legacy.value,
+            value: decode_project_param_value(&full.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            default_value: decode_project_param_value(&full.default_value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            change_check: full.change_check,
+            event_behaviour: full.event_behaviour,
+            read_only: full.read_only,
+            constraints: full.constraints,
+            ui_hints: full.ui_hints,
+            control: full.control,
+            control_modes_enabled: full.control_modes_enabled,
+        }
+    } else {
+        let legacy = serde_json::from_value::<RawLegacyParameterProjectData>(data.clone()).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        ParameterProjectData {
+            value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            default_value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
             change_check: legacy.change_check,
             event_behaviour: legacy.event_behaviour,
             read_only: false,
@@ -247,4 +287,37 @@ fn main() -> std::io::Result<()> {
     engine.add_user_item(DmxModule::create("DMX Module").into(), Some(module_folder));
 
     run_app_with_project_codec(engine, app_project_codec())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use golden_core::node::{DeclId, NodeMeta, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint};
+
+    fn test_meta(label: &str) -> NodeMeta {
+        NodeMeta {
+            uuid: NodeUuid::nil(),
+            decl_id: DeclId(label.to_string()),
+            short_name: label.to_string(),
+            enabled: true,
+            can_be_disabled: true,
+            label: label.to_string(),
+            description: None,
+            tags: Vec::new(),
+            user_permissions: NodeUserPermissions::default(),
+            semantics: SemanticsHint::default(),
+            presentation: PresentationHint::default(),
+        }
+    }
+
+    #[test]
+    fn decode_trigger_parameter_payload_accepts_encoded_null_values() {
+        let meta = test_meta("Trigger");
+        let payload = encode_project_node(&AppNode::Parameter(Parameter::new("Trigger", ParamValue::Trigger(), ParameterChangeCheck::ValueChange).into()))
+            .expect("trigger parameter payload should encode");
+
+        let node = decode_parameter_node_data("trigger", &payload, &meta).expect("trigger parameter payload should decode");
+        assert!(matches!(node.value, ParamValue::Trigger()));
+        assert!(matches!(node.default_value, ParamValue::Trigger()));
+    }
 }
