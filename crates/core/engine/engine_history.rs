@@ -170,17 +170,26 @@ impl<T: Node> HistoryStep<T> {
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
 
-                if step.detached_node.is_some() {
+                if step.detached_nodes.is_some() {
                     return Ok(());
                 }
 
-                let parent = engine.detach_node(0, OP, step.node)?;
-                let detached_node = engine.nodes.detach(step.node).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.node })?;
+                let subtree = engine.collect_subtree(0, OP, step.node)?;
+                let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
+                engine.detach_node(0, OP, step.node)?;
+
+                let mut detached_nodes = Vec::with_capacity(subtree.len());
+                for removed in subtree.into_iter().rev() {
+                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: removed })?;
+                    detached_nodes.push((removed, detached));
+                    engine.emit_event(EventKind::NodeDeleted { node: removed });
+                }
 
                 step.parent = parent;
-                step.detached_node = Some(detached_node);
+                step.prev_sibling = prev_sibling;
+                step.next_sibling = next_sibling;
+                step.detached_nodes = Some(detached_nodes);
 
-                engine.emit_event(EventKind::NodeDeleted { node: step.node });
                 engine.emit_event(EventKind::ChildRemoved { parent, child: step.node });
             }
             Self::RemoveNode(step) => {
@@ -324,14 +333,19 @@ impl<T: Node> HistoryStep<T> {
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";
 
-                let Some(node) = step.detached_node.take() else {
+                let Some(detached_nodes) = step.detached_nodes.take() else {
                     return Ok(());
                 };
 
-                engine.nodes.reattach(step.node, node);
+                let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
+                for (id, node) in detached_nodes {
+                    engine.nodes.reattach(id, node);
+                }
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                engine.emit_event(EventKind::NodeCreated { node: step.node });
+                for node in created_ids.into_iter().rev() {
+                    engine.emit_event(EventKind::NodeCreated { node });
+                }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
                 engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node, decl_id });
             }
@@ -449,8 +463,10 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::SetParam(_) | Self::SetParamControlState(_) | Self::PatchMeta(_) | Self::SetScriptConfig(_) | Self::MoveNode(_) => {}
             Self::AddNode(step) => {
-                if let Some(node) = step.detached_node.take() {
-                    purge_detached_node(engine, step.node, node);
+                if let Some(nodes) = step.detached_nodes.take() {
+                    for (id, node) in nodes {
+                        purge_detached_node(engine, id, node);
+                    }
                 }
             }
             Self::RemoveNode(step) => {
@@ -661,8 +677,8 @@ pub(crate) struct AddNodeHistory<T: Node> {
     prev_sibling: Option<NodeId>,
     /// Next sibling after insertion.
     next_sibling: Option<NodeId>,
-    /// Detached payload used to replay undo/redo.
-    detached_node: Option<T>,
+    /// Detached subtree payloads used to replay undo/redo.
+    detached_nodes: Option<Vec<(NodeId, T)>>,
 }
 
 /// Undo/redo payload for remove-node edits.
@@ -767,7 +783,7 @@ impl<T: Node> From<AddNodeEffect> for HistoryStep<T> {
             parent: effect.parent,
             prev_sibling: effect.prev_sibling,
             next_sibling: effect.next_sibling,
-            detached_node: None,
+            detached_nodes: None,
         })
     }
 }
@@ -814,7 +830,7 @@ impl<T: Node> From<ReplaceNodeEffect<T>> for HistoryStep<T> {
 }
 
 impl<T: Node> Engine<T> {
-    fn record_single_history_step(&mut self, step: HistoryStep<T>) {
+    pub(crate) fn record_single_history_step(&mut self, step: HistoryStep<T>) {
         self.clear_redo_history();
         if let Some(active) = self.active_edit_session.as_mut() {
             active.transaction.push(step);

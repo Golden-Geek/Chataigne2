@@ -1,11 +1,14 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
+use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
 
+use super::engine_history::AddNodeEffect;
 use super::{Engine, EngineEditError};
 
 /// Version tag emitted in project files created by this engine.
@@ -294,6 +297,52 @@ impl<T: Node> Engine<T> {
         Self::from_project_json_with(&json, decode_node)
     }
 
+    pub(crate) fn duplicate_subtree_with<Encode, Decode>(
+        &mut self,
+        source: NodeId,
+        new_parent: NodeId,
+        new_prev_sibling: Option<NodeId>,
+        label: Option<String>,
+        mut encode_data: Encode,
+        mut decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        let mut record = self.encode_node_record_with(source, &mut encode_data)?;
+        if let Some(label) = label {
+            let short_name = generate_short_name(&label);
+            record.meta.label = label;
+            record.meta.short_name = short_name.clone();
+            record.meta.decl_id = DeclId(short_name);
+        }
+
+        let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
+        remap_record_uuids(&mut record, &mut uuid_map);
+
+        let duplicated_root = self.insert_duplicate_record_subtree_with(new_parent, new_prev_sibling, &record, &uuid_map, &mut decode_node)?;
+
+        self.resolve_reference_caches();
+        self.sync_missing_reference_warnings_silent();
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
+        self.push_ui_custom_event(
+            "__transport.resync_required",
+            Some(duplicated_root),
+            serde_json::json!({ "reason": "duplicate_subtree_loaded" }),
+        );
+        self.record_single_history_step(AddNodeEffect {
+            node: duplicated_root,
+            parent: new_parent,
+            prev_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().prev_sibling),
+            next_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().next_sibling),
+        }
+        .into());
+
+        Ok(duplicated_root)
+    }
+
     fn encode_node_record_with<F>(&self, node_id: NodeId, encode_data: &mut F) -> Result<ProjectNodeRecord, ProjectPersistenceError>
     where
         F: FnMut(&T) -> Result<serde_json::Value, String>,
@@ -365,4 +414,76 @@ impl<T: Node> Engine<T> {
 
         Ok(())
     }
+
+    fn insert_duplicate_record_subtree_with<F>(
+        &mut self,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        record: &ProjectNodeRecord,
+        uuid_map: &HashMap<NodeUuid, NodeUuid>,
+        decode_node: &mut F,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        let mut node = Self::decode_node_record_with(record, decode_node)?;
+        remap_node_references(&mut node, uuid_map);
+
+        let node_id = self.nodes.insert(node);
+        self.attach_node(0, "DuplicateNode", node_id, parent, prev_sibling)?;
+
+        let mut child_prev_sibling = None;
+        for child_record in &record.children {
+            let child_id = self.insert_duplicate_record_subtree_with(node_id, child_prev_sibling, child_record, uuid_map, decode_node)?;
+            child_prev_sibling = Some(child_id);
+        }
+
+        Ok(node_id)
+    }
+}
+
+fn remap_record_uuids(record: &mut ProjectNodeRecord, uuid_map: &mut HashMap<NodeUuid, NodeUuid>) {
+    let next_uuid = NodeUuid(Uuid::new_v4());
+    uuid_map.insert(record.uuid, next_uuid);
+    record.uuid = next_uuid;
+
+    for child in &mut record.children {
+        remap_record_uuids(child, uuid_map);
+    }
+}
+
+fn remap_node_references<T: Node>(node: &mut T, uuid_map: &HashMap<NodeUuid, NodeUuid>) {
+    node.engine_visit_references_mut(&mut |reference: &mut NodeReference| {
+        if let Some(remapped_uuid) = uuid_map.get(&reference.uuid()) {
+            reference.uuid = *remapped_uuid;
+        }
+        reference.clear_cached_id();
+        reference.clear_cached_name();
+    });
+}
+
+fn generate_short_name(label: &str) -> String {
+    let mut short_name = String::new();
+    let mut capitalize_next = false;
+
+    for c in label.chars() {
+        if c.is_alphanumeric() {
+            if capitalize_next {
+                short_name.push(c.to_ascii_uppercase());
+                capitalize_next = false;
+            } else {
+                short_name.push(c.to_ascii_lowercase());
+            }
+        } else if c == '+' {
+            short_name.push_str(if capitalize_next { "Plus" } else { "plus" });
+            capitalize_next = false;
+        } else if c == '-' {
+            short_name.push_str(if capitalize_next { "Minus" } else { "minus" });
+            capitalize_next = false;
+        } else {
+            capitalize_next = true;
+        }
+    }
+
+    short_name
 }

@@ -2589,6 +2589,88 @@ fn project_roundtrip_keeps_cached_reference_name_when_target_is_missing() {
 }
 
 #[test]
+fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Parameter::new("group", ParamValue::Int(1), ParameterChangeCheck::None), None);
+    engine.apply_edits().expect("group add should succeed");
+
+    let group = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("group child should exist");
+
+    engine.add_node(Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None), Some(group));
+    engine.add_node(
+        Parameter::new(
+            "target_ref",
+            ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))),
+            ParameterChangeCheck::None,
+        ),
+        Some(group),
+    );
+    engine.apply_edits().expect("group children add should succeed");
+
+    let target = engine.nodes.get(group).and_then(|node| node.node_data().first_child).expect("target child should exist");
+    let target_ref = engine.nodes.get(target).and_then(|node| node.node_data().next_sibling).expect("reference child should exist");
+    let original_target_uuid = engine.nodes.get(target).expect("target should exist").node_data().meta.uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(original_target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+    engine.inbox.clear();
+    engine.clear_ui_event_log();
+
+    let duplicated_group = engine
+        .duplicate_subtree_with(
+            group,
+            engine.root,
+            Some(group),
+            Some("group Copy".to_string()),
+            encode_parameter_node,
+            decode_parameter_node,
+        )
+        .expect("duplicate subtree should succeed");
+
+    assert!(engine.inbox.events.is_empty(), "duplicate subtree should not enqueue structural inbox events like a live node add");
+    assert!(
+        engine.ui_event_log().iter().any(|event| matches!(
+            &event.kind,
+            EventKind::Custom(custom)
+                if custom.topic == "__transport.resync_required"
+                    && custom.payload.get("reason") == Some(&serde_json::json!("duplicate_subtree_loaded"))
+        )),
+        "duplicate subtree should request a UI snapshot resync"
+    );
+
+    assert_eq!(engine.nodes.get(group).and_then(|node| node.node_data().next_sibling), Some(duplicated_group), "duplicate should be inserted after the source subtree root");
+
+    let duplicated_target = engine.nodes.get(duplicated_group).and_then(|node| node.node_data().first_child).expect("duplicated target child should exist");
+    let duplicated_target_ref = engine.nodes.get(duplicated_target).and_then(|node| node.node_data().next_sibling).expect("duplicated reference child should exist");
+    let duplicated_target_uuid = engine.nodes.get(duplicated_target).expect("duplicated target should exist").node_data().meta.uuid;
+
+    assert_ne!(duplicated_target_uuid, original_target_uuid, "duplicated subtree must receive fresh UUIDs");
+
+    match &engine.nodes.get(duplicated_target_ref).expect("duplicated reference should exist").value {
+        ParamValue::Reference(reference) => {
+            assert_eq!(reference.uuid(), duplicated_target_uuid, "internal duplicated references should point at duplicated targets");
+            assert_eq!(reference.cached_id(), Some(duplicated_target), "duplicated references should resolve to duplicated runtime ids");
+            assert_eq!(reference.cached_name(), Some("target"), "duplicated references should refresh cached target labels");
+        }
+        other => panic!("expected duplicated reference value, got {:?}", other),
+    }
+
+    assert!(engine.undo().expect("undo should succeed"), "duplicate should create undo history");
+    assert_eq!(engine.nodes.get(group).and_then(|node| node.node_data().next_sibling), None, "undo should remove the duplicated subtree root");
+    assert!(engine.nodes.get(duplicated_group).is_none(), "duplicated subtree root should be detached after undo");
+
+    assert!(engine.redo().expect("redo should succeed"), "redo should restore duplicated subtree");
+    assert_eq!(engine.nodes.get(group).and_then(|node| node.node_data().next_sibling), Some(duplicated_group), "redo should restore the duplicated subtree root at the same position");
+    assert_eq!(engine.nodes.get(duplicated_group).and_then(|node| node.node_data().first_child), Some(duplicated_target), "redo should restore the same duplicated child ids");
+}
+
+#[test]
 fn set_param_reference_recovers_target_from_relative_path_and_updates_hints() {
     let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);

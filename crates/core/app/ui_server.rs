@@ -11,7 +11,7 @@ use super::ProjectCodec;
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::script::ScriptUiConfig;
-use crate::ui_sync::{UI_PROTOCOL_VERSION, UiAck, UiEditIntent, UiEventBatch, UiEventDto, UiEventKind, UiSubscriptionScope};
+use crate::ui_sync::{UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiEditIntent, UiEventBatch, UiEventDto, UiEventKind, UiSubscriptionScope};
 use serde::{Deserialize, Serialize};
 
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
@@ -52,6 +52,57 @@ impl<T: Node> Clone for ServerState<T> {
             ws_hub: self.ws_hub.clone(),
             project_codec: self.project_codec.clone(),
         }
+    }
+}
+
+fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec: Option<&ProjectCodec<T>>, intent: UiEditIntent) -> UiAck {
+    let before_len = engine.ui_event_log().len();
+
+    match intent {
+        UiEditIntent::DuplicateNode {
+            source,
+            new_parent,
+            new_prev_sibling,
+            label,
+        } => {
+            let Some(project_codec) = project_codec else {
+                return UiAck {
+                    success: false,
+                    status: UiAckStatus::Rejected,
+                    error_code: Some("project_codec_required".to_string()),
+                    error_message: Some("duplicateNode requires project persistence codec support".to_string()),
+                    earliest_event_time: None,
+                    history: engine.ui_history_state(),
+                };
+            };
+
+            match engine.duplicate_subtree_with(
+                source,
+                new_parent,
+                new_prev_sibling,
+                label,
+                |node| project_codec.encode_node(node),
+                |node_type, data, meta| project_codec.decode_node(node_type, data, meta),
+            ) {
+                Ok(_) => UiAck {
+                    success: true,
+                    status: UiAckStatus::Applied,
+                    error_code: None,
+                    error_message: None,
+                    earliest_event_time: engine.ui_event_log().get(before_len).map(|event| event.time),
+                    history: engine.ui_history_state(),
+                },
+                Err(err) => UiAck {
+                    success: false,
+                    status: UiAckStatus::Rejected,
+                    error_code: Some("duplicate_node_failed".to_string()),
+                    error_message: Some(err.to_string()),
+                    earliest_event_time: None,
+                    history: engine.ui_history_state(),
+                },
+            }
+        }
+        other => engine.apply_ui_intent(other),
     }
 }
 
@@ -220,7 +271,7 @@ enum WsIncomingFrame {
 /// Runs the built-in UI server and runtime loop for a shared engine.
 pub fn run_ui_server<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig, project_codec: Option<ProjectCodec<T>>) -> std::io::Result<()> {
     spawn_runtime_loop(engine.clone(), config.tick_interval);
-    let ws_hub = spawn_ws_hub(engine.clone(), config.tick_interval.max(WS_RETRY_INTERVAL), make_server_session_id());
+    let ws_hub = spawn_ws_hub(engine.clone(), project_codec.clone(), config.tick_interval.max(WS_RETRY_INTERVAL), make_server_session_id());
 
     let listener = TcpListener::bind(&config.bind_addr)?;
     println!("UI API listening on http://{}", config.bind_addr);
@@ -276,22 +327,22 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
     });
 }
 
-fn spawn_ws_hub<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, dispatch_interval: Duration, session_id: String) -> WsHubHandle {
+fn spawn_ws_hub<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<ProjectCodec<T>>, dispatch_interval: Duration, session_id: String) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
-    thread::spawn(move || ws_hub_loop(engine, cmd_rx, dispatch_interval, session_id));
+    thread::spawn(move || ws_hub_loop(engine, project_codec, cmd_rx, dispatch_interval, session_id));
     WsHubHandle { cmd_tx }
 }
 
-fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
+fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<ProjectCodec<T>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
 
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
-                handle_ws_hub_command(&engine, &mut clients, &mut origins, command, &session_id);
+                handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut origins, command, &session_id);
                 while let Ok(next) = cmd_rx.try_recv() {
-                    handle_ws_hub_command(&engine, &mut clients, &mut origins, next, &session_id);
+                    handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut origins, next, &session_id);
                 }
             }
             Err(RecvTimeoutError::Timeout) => {}
@@ -301,7 +352,14 @@ fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<WsHubCom
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut HashMap<u64, WsClientState>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
+fn handle_ws_hub_command<T: Node>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    project_codec: Option<&ProjectCodec<T>>,
+    clients: &mut HashMap<u64, WsClientState>,
+    origins: &mut HashMap<EngineTime, WsEventOrigin>,
+    command: WsHubCommand,
+    session_id: &str,
+) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
             clients.insert(client_id, WsClientState { outbound, subscriptions: HashMap::new() });
@@ -345,7 +403,7 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut 
             let (ack, produced_times) = {
                 let mut guard = lock_engine(engine);
                 let before_len = guard.ui_event_log().len();
-                let ack = guard.apply_ui_intent(intent);
+                let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent);
                 let produced_times = guard.ui_event_log().iter().skip(before_len).map(|event| event.time).collect::<Vec<_>>();
                 (ack, produced_times)
             };
@@ -364,7 +422,7 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut 
 
                 for intent in intents {
                     let before_len = guard.ui_event_log().len();
-                    let ack = guard.apply_ui_intent(intent);
+                    let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent);
                     acks.push(ack);
                     produced_times.extend(guard.ui_event_log().iter().skip(before_len).map(|event| event.time));
                 }
@@ -745,7 +803,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             let intent: UiEditIntent = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
 
             let mut guard = lock_engine(&state.engine);
-            let ack = guard.apply_ui_intent(intent);
+            let ack = apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent);
             drop(guard);
 
             write_json(stream, "200 OK", &ack)?;
@@ -756,7 +814,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             let mut guard = lock_engine(&state.engine);
             let mut acks = Vec::<UiAck>::with_capacity(intents.len());
             for intent in intents {
-                acks.push(guard.apply_ui_intent(intent));
+                acks.push(apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent));
             }
             drop(guard);
 
