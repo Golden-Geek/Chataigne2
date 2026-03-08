@@ -46,6 +46,13 @@ fn dashboard_parent_layout_is(node_id: NodeId, ctx: &ProcessCtx, expected: &str)
     dashboard_parent_layout_kind(node_id, ctx).as_deref() == Some(expected)
 }
 
+fn dashboard_parent_layout_matches(node_id: NodeId, ctx: &ProcessCtx, expected: &[&str]) -> bool {
+    let Some(layout_kind) = dashboard_parent_layout_kind(node_id, ctx) else {
+        return false;
+    };
+    expected.iter().any(|candidate| *candidate == layout_kind)
+}
+
 fn refresh_dashboard_widget_dependencies(ctx: &mut ProcessCtx, widget: NodeId) {
     let Some(node_type) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(widget)).map(|snapshot| snapshot.node_type.clone()) else {
         return;
@@ -202,18 +209,27 @@ impl Node for DashboardPageNode {
 #[node("dashboard_widget_container")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the container title bar is visible.");
-    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position X",
-        description = "Horizontal anchor position used by free layouts.",
+    position: Vec2 = (0.0, 0.0) (
+        label = "Position",
+        description = "Position offset in pixels relative to the selected free-layout anchor.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
     );
-    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position Y",
-        description = "Vertical anchor position used by free layouts.",
+    anchor: Enum = "top-left" (
+        label = "Anchor",
+        description = "Anchor used to interpret the widget position within free layouts.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+        enum_options = ["top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"],
     );
-    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
-    height: CssValue = CssValue::new(8.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (
+        label = "Width",
+        description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+    );
+    height: CssValue = CssValue::new(8.0, CssUnit::Rem) (
+        label = "Height",
+        description = "Preferred widget height when the parent layout allows widgets to size vertically.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
+    );
     column_span: i32 = 1 [1..64] (
         label = "Column Span",
         description = "Number of grid columns consumed by this widget.",
@@ -243,7 +259,6 @@ impl Node for DashboardPageNode {
         enabled = false,
         can_be_disabled = true,
     );
-    wrap: bool = true (label = "Wrap", description = "Whether children may wrap onto new rows or columns.");
 )]
 pub struct DashboardWidgetContainerNode {}
 
@@ -253,16 +268,10 @@ impl DashboardWidgetContainerNode {
             return;
         };
 
-        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
-            self.position_x.set_node_id(position_x);
+        if let Some(position) = snapshot.find_child(self.id(), "position") {
+            self.position.set_node_id(position);
         } else {
-            self.position_x.clear_node_id();
-        }
-
-        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
-            self.position_y.set_node_id(position_y);
-        } else {
-            self.position_y.clear_node_id();
+            self.position.clear_node_id();
         }
 
         if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
@@ -331,18 +340,27 @@ impl Node for DashboardWidgetContainerNode {
 #[node("dashboard_node_widget")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the widget title bar is visible.");
-    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position X",
-        description = "Horizontal anchor position used by free layouts.",
+    position: Vec2 = (0.0, 0.0) (
+        label = "Position",
+        description = "Position offset in pixels relative to the selected free-layout anchor.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
     );
-    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position Y",
-        description = "Vertical anchor position used by free layouts.",
+    anchor: Enum = "top-left" (
+        label = "Anchor",
+        description = "Anchor used to interpret the widget position within free layouts.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+        enum_options = ["top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"],
     );
-    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
-    height: CssValue = CssValue::new(4.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    width: CssValue = CssValue::new(12.0, CssUnit::Rem) (
+        label = "Width",
+        description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+    );
+    height: CssValue = CssValue::new(4.0, CssUnit::Rem) (
+        label = "Height",
+        description = "Preferred widget height when the parent layout allows widgets to size vertically.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
+    );
     column_span: i32 = 1 [1..64] (
         label = "Column Span",
         description = "Number of grid columns consumed by this widget.",
@@ -374,16 +392,10 @@ impl DashboardNodeWidgetNode {
             return;
         };
 
-        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
-            self.position_x.set_node_id(position_x);
+        if let Some(position) = snapshot.find_child(self.id(), "position") {
+            self.position.set_node_id(position);
         } else {
-            self.position_x.clear_node_id();
-        }
-
-        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
-            self.position_y.set_node_id(position_y);
-        } else {
-            self.position_y.clear_node_id();
+            self.position.clear_node_id();
         }
 
         if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
@@ -420,18 +432,27 @@ impl Node for DashboardNodeWidgetNode {
 #[node("dashboard_generic_widget")]
 #[children(
     title_visible: bool = true (label = "Title Visible", description = "Whether the widget title bar is visible.");
-    position_x: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position X",
-        description = "Horizontal anchor position used by free layouts.",
+    position: Vec2 = (0.0, 0.0) (
+        label = "Position",
+        description = "Position offset in pixels relative to the selected free-layout anchor.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
     );
-    position_y: CssValue = CssValue::new(0.0, CssUnit::Rem) (
-        label = "Position Y",
-        description = "Vertical anchor position used by free layouts.",
+    anchor: Enum = "top-left" (
+        label = "Anchor",
+        description = "Anchor used to interpret the widget position within free layouts.",
         dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "free"),
+        enum_options = ["top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"],
     );
-    width: CssValue = CssValue::new(10.0, CssUnit::Rem) (label = "Width", description = "Preferred widget width.");
-    height: CssValue = CssValue::new(3.0, CssUnit::Rem) (label = "Height", description = "Preferred widget height.");
+    width: CssValue = CssValue::new(10.0, CssUnit::Rem) (
+        label = "Width",
+        description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+    );
+    height: CssValue = CssValue::new(3.0, CssUnit::Rem) (
+        label = "Height",
+        description = "Preferred widget height when the parent layout allows widgets to size vertically.",
+        dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
+    );
     column_span: i32 = 1 [1..64] (
         label = "Column Span",
         description = "Number of grid columns consumed by this widget.",
@@ -487,16 +508,10 @@ impl DashboardGenericWidgetNode {
             return;
         };
 
-        if let Some(position_x) = snapshot.find_child(self.id(), "position_x") {
-            self.position_x.set_node_id(position_x);
+        if let Some(position) = snapshot.find_child(self.id(), "position") {
+            self.position.set_node_id(position);
         } else {
-            self.position_x.clear_node_id();
-        }
-
-        if let Some(position_y) = snapshot.find_child(self.id(), "position_y") {
-            self.position_y.set_node_id(position_y);
-        } else {
-            self.position_y.clear_node_id();
+            self.position.clear_node_id();
         }
 
         if let Some(column_span) = snapshot.find_child(self.id(), "column_span") {
