@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
+use super::dashboard_widget_options::{dashboard_widget_options_node_type, initialize_replaced_dashboard_widget_options_node, make_dashboard_widget_options_node};
 use crate::events::Event;
 use crate::node::{DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
-use crate::parameter::{CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint, Vec2};
+use crate::parameter::{CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, Vec2};
 use crate::process_ctx::ProcessCtx;
 use crate::{item, node};
 
@@ -20,53 +21,76 @@ pub const DASHBOARD_WIDGET_CONTAINER_NODE_TYPE: &str = "dashboard_widget_contain
 pub const DASHBOARD_NODE_WIDGET_NODE_TYPE: &str = "dashboard_node_widget";
 /// Runtime node type id for dashboard generic widgets.
 pub const DASHBOARD_GENERIC_WIDGET_NODE_TYPE: &str = "dashboard_generic_widget";
-/// Runtime node type id for parameter-specific dashboard widget options.
-pub const DASHBOARD_NODE_WIDGET_PARAMETER_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_parameter_options";
 /// Shared user-item kind for all dashboard widgets.
 pub const DASHBOARD_WIDGET_ITEM_KIND: &str = "dashboard_widget";
 
-/// One dashboard widget display mode exposed by a target node.
+/// One dashboard widget type exposed by a target node.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DashboardWidgetDisplayModeSpec {
-    /// Stable mode id used by widget parameters and UI renderers.
+pub struct DashboardWidgetTypeSpec {
+    /// Stable type id used by widget parameters and UI renderers.
     pub id: String,
-    /// User-visible mode label.
+    /// User-visible type label.
     pub label: String,
+    /// Optional target-specific child node mounted under the widget for this type.
+    pub options_node_kind: Option<DashboardWidgetOptionsNodeKind>,
 }
 
-impl DashboardWidgetDisplayModeSpec {
-    /// Creates one display-mode descriptor.
+impl DashboardWidgetTypeSpec {
+    /// Creates one widget-type descriptor.
     pub fn new(id: impl Into<String>, label: impl Into<String>) -> Self {
-        Self { id: id.into(), label: label.into() }
+        Self {
+            id: id.into(),
+            label: label.into(),
+            options_node_kind: None,
+        }
+    }
+
+    /// Attaches one widget-type-specific options node kind.
+    pub fn with_options_node_kind(mut self, kind: DashboardWidgetOptionsNodeKind) -> Self {
+        self.options_node_kind = Some(kind);
+        self
     }
 }
 
 /// Target-specific child node family exposed to dashboard widgets.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DashboardWidgetOptionsNodeKind {
-    /// Parameter editor presentation options.
-    ParameterEditor,
+    /// Inspector-style node widget options.
+    Inspector,
+    /// Slider-style scalar parameter options.
+    NumberSlider,
+    /// Rotary-style scalar parameter options.
+    NumberRotary,
+    /// 2D pad options for vec2 parameters.
+    Vec2Pad,
+    /// Default vec2 editor options.
+    Vec2Editor,
+    /// Default vec3 editor options.
+    Vec3Editor,
+    /// Default color editor options.
+    ColorEditor,
 }
 
 /// Dashboard widget authoring capabilities exposed by one target node.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DashboardWidgetTargetDescriptor {
-    /// Display modes supported by the target node.
-    pub display_modes: Vec<DashboardWidgetDisplayModeSpec>,
-    /// Natural default mode for the target node.
-    pub default_display_mode_id: String,
-    /// Optional target-specific child node mounted under the widget.
-    pub options_node_kind: Option<DashboardWidgetOptionsNodeKind>,
+    /// Widget types supported by the target node.
+    pub widget_types: Vec<DashboardWidgetTypeSpec>,
+    /// Natural default widget type for the target node.
+    pub default_widget_type_id: String,
 }
 
 impl DashboardWidgetTargetDescriptor {
     /// Creates the default inspector-only target descriptor.
     pub fn inspector_only() -> Self {
         Self {
-            display_modes: vec![DashboardWidgetDisplayModeSpec::new("inspector", "Inspector")],
-            default_display_mode_id: "inspector".to_string(),
-            options_node_kind: None,
+            widget_types: vec![DashboardWidgetTypeSpec::new("inspector", "Inspector").with_options_node_kind(DashboardWidgetOptionsNodeKind::Inspector)],
+            default_widget_type_id: "inspector".to_string(),
         }
+    }
+
+    fn widget_type(&self, type_id: &str) -> Option<&DashboardWidgetTypeSpec> {
+        self.widget_types.iter().find(|widget_type| widget_type.id == type_id)
     }
 }
 
@@ -101,12 +125,8 @@ fn snapshot_child_decl_matches(snapshot: &crate::process_ctx::ProcessTreeSnapsho
     snapshot.node(node_id).map(|node| node.decl_id == decl_id || node.decl_id.rsplit('/').next() == Some(decl_id)).unwrap_or(false)
 }
 
-fn snapshot_reference_target(snapshot: &crate::process_ctx::ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-    let reference_param = snapshot_find_descendant_by_decl(snapshot, parent, decl_id)?;
-    match snapshot.node(reference_param)?.param_value.as_ref()? {
-        ParamValue::Reference(reference) => reference.cached_id(),
-        _ => None,
-    }
+fn resolve_snapshot_reference_target(snapshot: &crate::process_ctx::ProcessTreeSnapshot, reference: &NodeReference) -> Option<NodeId> {
+    reference.cached_id().filter(|node_id| snapshot.node(*node_id).is_some()).or_else(|| (!reference.uuid().is_nil()).then(|| snapshot.node_id_by_uuid(reference.uuid())).flatten())
 }
 
 fn dashboard_parent_layout_kind(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
@@ -134,130 +154,48 @@ fn dashboard_parent_layout_matches(node_id: NodeId, ctx: &ProcessCtx, expected: 
     expected.iter().any(|candidate| *candidate == layout_kind)
 }
 
-fn dashboard_node_widget_target_type(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
-    let snapshot = ctx.tree_snapshot()?;
-    let target_id = snapshot_reference_target(snapshot, node_id, "target_node")?;
-    Some(snapshot.node(target_id)?.node_type.clone())
-}
-
-fn dashboard_node_widget_target_descriptor(node_id: NodeId, ctx: &ProcessCtx) -> DashboardWidgetTargetDescriptor {
+fn dashboard_widget_target_descriptor_for_reference(target_reference: &NodeReference, ctx: &ProcessCtx) -> DashboardWidgetTargetDescriptor {
     let Some(snapshot) = ctx.tree_snapshot() else {
         return DashboardWidgetTargetDescriptor::inspector_only();
     };
-    let Some(target_id) = snapshot_reference_target(snapshot, node_id, "target_node") else {
+    let Some(target_id) = resolve_snapshot_reference_target(snapshot, target_reference) else {
         return DashboardWidgetTargetDescriptor::inspector_only();
     };
     snapshot.node(target_id).map(|target| target.dashboard_widget_target.clone()).unwrap_or_else(DashboardWidgetTargetDescriptor::inspector_only)
 }
 
-fn dashboard_node_widget_current_display_mode(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
+fn dashboard_node_widget_current_widget_type(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
     let snapshot = ctx.tree_snapshot()?;
-    let display_mode = snapshot_find_descendant_by_decl(snapshot, node_id, "display_mode")?;
-    snapshot.node(display_mode)?.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str()))
+    let widget_type = snapshot_find_descendant_by_decl(snapshot, node_id, "widget_type")?;
+    snapshot.node(widget_type)?.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str()))
 }
 
-fn dashboard_node_widget_display_mode_uses_label_placement(node_id: NodeId, ctx: &ProcessCtx) -> bool {
-    dashboard_node_widget_current_display_mode(node_id, ctx).map(|mode| mode != "inspector").unwrap_or(false)
+fn dashboard_node_widget_type_uses_label_placement(node_id: NodeId, ctx: &ProcessCtx) -> bool {
+    dashboard_node_widget_current_widget_type(node_id, ctx).map(|widget_type| widget_type != "inspector").unwrap_or(false)
 }
 
-fn dashboard_node_widget_parameter_options_parent(node_id: NodeId, ctx: &ProcessCtx) -> Option<NodeId> {
+fn dashboard_node_widget_widget_options_parent(node_id: NodeId, ctx: &ProcessCtx) -> Option<NodeId> {
     let snapshot = ctx.tree_snapshot()?;
-    let parent_id = snapshot.node(node_id)?.parent?;
-    snapshot.node(parent_id).filter(|parent| parent.node_type == DASHBOARD_NODE_WIDGET_NODE_TYPE).map(|_| parent_id)
+    snapshot_find_descendant_by_decl(snapshot, node_id, "parameter_options")
 }
 
-fn dashboard_node_widget_parameter_options_target_type(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
-    let widget_id = dashboard_node_widget_parameter_options_parent(node_id, ctx)?;
-    dashboard_node_widget_target_type(widget_id, ctx)
-}
-
-fn dashboard_widget_enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOption {
+fn dashboard_widget_type_enum_option(widget_type: &DashboardWidgetTypeSpec, ordering: i32) -> ParameterEnumOption {
     ParameterEnumOption {
-        variant_id: variant_id.to_string(),
-        value: ParamValue::Enum(variant_id.to_string()),
-        label: label.to_string(),
+        variant_id: widget_type.id.clone(),
+        value: ParamValue::Enum(widget_type.id.clone()),
+        label: widget_type.label.clone(),
         tags: Vec::new(),
         ordering: Some(ordering),
     }
 }
 
-fn make_dashboard_widget_bool_parameter(label: &str, decl_id: &str, description: &str, value: bool) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Bool(value), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.description = Some(description.to_string());
-    parameter
-}
-
-fn make_dashboard_widget_int_parameter(label: &str, decl_id: &str, description: &str, value: i32, min: i32, max: i32) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Int(value), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.description = Some(description.to_string());
-    parameter.constraints.range = RangeConstraint::uniform(Some(min as f64), Some(max as f64));
-    parameter
-}
-
-fn make_dashboard_widget_enum_parameter(label: &str, decl_id: &str, description: &str, value: &str, options: &[(&str, &str)]) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Enum(value.to_string()), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    parameter.node_data_mut().meta.description = Some(description.to_string());
-    parameter.constraints.enum_options = options.iter().enumerate().map(|(index, (variant_id, option_label))| dashboard_widget_enum_option(variant_id, option_label, index as i32)).collect();
-    parameter
-}
-
-fn is_dashboard_node_widget_parameter_option_decl(decl_id: &str) -> bool {
-    matches!(
-        decl_id,
-        "number_show_value_field" | "number_max_decimals" | "vector_layout" | "vector_show_value_fields" | "vector_max_decimals" | "color_force_expanded" | "color_show_hex" | "color_show_rgba_fields"
-    )
-}
-
-fn dashboard_node_widget_parameter_option_parameters(target_type: Option<&str>) -> Vec<Parameter> {
-    match target_type {
-        Some("int") | Some("float") => vec![
-            make_dashboard_widget_bool_parameter("Number Show Value Field", "number_show_value_field", "Whether number editor widgets keep the numeric value field visible next to the slider.", true),
-            make_dashboard_widget_int_parameter("Number Max Decimals", "number_max_decimals", "Maximum number of decimals shown by scalar number editor widgets.", 3, 0, 8),
-        ],
-        Some("vec2") | Some("vec3") => vec![
-            make_dashboard_widget_enum_parameter("Vector Layout", "vector_layout", "Arrangement used for vector editor widgets.", "inline", &[("inline", "Inline"), ("column", "Column")]),
-            make_dashboard_widget_bool_parameter("Vector Show Value Fields", "vector_show_value_fields", "Whether vector editor widgets keep per-component numeric fields visible.", true),
-            make_dashboard_widget_int_parameter("Vector Max Decimals", "vector_max_decimals", "Maximum number of decimals shown by vector editor widget fields.", 2, 0, 8),
-        ],
-        Some("color") => vec![
-            make_dashboard_widget_bool_parameter("Color Always Expanded", "color_force_expanded", "Whether color editor widgets stay expanded instead of collapsing to preview mode.", false),
-            make_dashboard_widget_bool_parameter("Color Show Hex", "color_show_hex", "Whether color editor widgets show the hexadecimal color input.", true),
-            make_dashboard_widget_bool_parameter("Color Show RGBA Fields", "color_show_rgba_fields", "Whether color editor widgets show the RGBA numeric controls.", true),
-        ],
-        _ => Vec::new(),
-    }
-}
-
-fn dashboard_parameter_schema_matches(snapshot: &crate::process_ctx::ProcessTreeNodeSnapshot, parameter: &Parameter) -> bool {
-    snapshot.is_parameter() && snapshot.node_type == parameter.get_type() && snapshot.label == parameter.node_data().meta.label && snapshot.param_constraints.as_ref() == Some(&parameter.constraints)
-}
-
-fn dashboard_widget_display_mode_enum_option(mode: &DashboardWidgetDisplayModeSpec, ordering: i32) -> ParameterEnumOption {
-    ParameterEnumOption {
-        variant_id: mode.id.clone(),
-        value: ParamValue::Enum(mode.id.clone()),
-        label: mode.label.clone(),
-        tags: Vec::new(),
-        ordering: Some(ordering),
-    }
-}
-
-fn make_dashboard_node_widget_display_mode_parameter(value: impl Into<String>, descriptor: &DashboardWidgetTargetDescriptor) -> Parameter {
+fn make_dashboard_node_widget_type_parameter(value: impl Into<String>, descriptor: &DashboardWidgetTargetDescriptor) -> Parameter {
     let value = value.into();
-    let mut parameter = Parameter::new("Display Mode", ParamValue::Enum(value), ParameterChangeCheck::ValueChange);
-    parameter.node_data_mut().meta.decl_id = DeclId("display_mode".to_string());
-    parameter.node_data_mut().meta.description = Some("Rendering strategy used for the generated node UI.".to_string());
-    parameter.constraints.enum_options = descriptor.display_modes.iter().enumerate().map(|(index, mode)| dashboard_widget_display_mode_enum_option(mode, index as i32)).collect();
+    let mut parameter = Parameter::new("Type", ParamValue::Enum(value), ParameterChangeCheck::ValueChange);
+    parameter.node_data_mut().meta.decl_id = DeclId("widget_type".to_string());
+    parameter.node_data_mut().meta.description = Some("Widget rendering type used for the generated node UI.".to_string());
+    parameter.constraints.enum_options = descriptor.widget_types.iter().enumerate().map(|(index, widget_type)| dashboard_widget_type_enum_option(widget_type, index as i32)).collect();
     parameter
-}
-
-fn make_dashboard_node_widget_target_specific_node(kind: &DashboardWidgetOptionsNodeKind) -> Box<dyn Node> {
-    match kind {
-        DashboardWidgetOptionsNodeKind::ParameterEditor => Box::new(DashboardNodeWidgetParameterOptionsNode::new("Parameter Options")),
-    }
 }
 
 fn refresh_dashboard_widget_dependencies(ctx: &mut ProcessCtx, widget: NodeId) {
@@ -289,6 +227,18 @@ fn refresh_direct_dashboard_widgets(ctx: &mut ProcessCtx, parent: NodeId) {
 
     for child_id in child_ids {
         refresh_dashboard_widget_dependencies(ctx, child_id);
+    }
+}
+
+/// Legacy placeholder retained because the node-enum macro still includes this built-in type.
+#[allow(missing_docs)]
+#[node("dashboard_node_widget_parameter_options")]
+pub struct DashboardNodeWidgetParameterOptionsNode {}
+
+#[node("dashboard_node_widget_parameter_options", from_struct)]
+impl Node for DashboardNodeWidgetParameterOptionsNode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
     }
 }
 
@@ -556,108 +506,20 @@ impl Node for DashboardWidgetContainerNode {
     }
 }
 
-/// Parameter-editor options mounted under a dashboard node widget when the target is a parameter.
-#[allow(missing_docs)]
-#[node("dashboard_node_widget_parameter_options")]
-pub struct DashboardNodeWidgetParameterOptionsNode {}
-
-impl DashboardNodeWidgetParameterOptionsNode {
-    fn sync_children(&mut self, ctx: &mut ProcessCtx) {
-        let desired_parameters = dashboard_node_widget_parameter_option_parameters(dashboard_node_widget_parameter_options_target_type(self.id(), ctx).as_deref());
-        let desired_decl_ids = desired_parameters.iter().map(|parameter| parameter.node_data().meta.decl_id.0.clone()).collect::<Vec<_>>();
-
-        let (stale_children, existing_children) = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
-
-            let mut stale_children = Vec::new();
-            let mut existing_children = std::collections::HashMap::new();
-            let mut child = snapshot.node(self.id()).and_then(|node| node.first_child);
-            while let Some(child_id) = child {
-                let Some(child_snapshot) = snapshot.node(child_id) else {
-                    break;
-                };
-                if is_dashboard_node_widget_parameter_option_decl(&child_snapshot.decl_id) {
-                    if desired_decl_ids.iter().any(|decl_id| decl_id == &child_snapshot.decl_id) {
-                        existing_children.insert(child_snapshot.decl_id.clone(), child_snapshot.clone());
-                    } else {
-                        stale_children.push(child_id);
-                    }
-                }
-                child = child_snapshot.next_sibling;
-            }
-
-            (stale_children, existing_children)
-        };
-
-        for child_id in stale_children {
-            self.remove_child(ctx, child_id);
-        }
-
-        for mut parameter in desired_parameters {
-            let decl_id = parameter.node_data().meta.decl_id.0.clone();
-            match existing_children.get(&decl_id) {
-                Some(existing) => {
-                    if !dashboard_parameter_schema_matches(existing, &parameter) {
-                        if let Some(existing_value) = existing.param_value.clone() {
-                            if let Ok(value) = parameter.engine_prepare_param_value(existing_value) {
-                                parameter.value = value;
-                            }
-                        }
-                        ctx.replace_node(existing.id, parameter);
-                    }
-                }
-                None => ctx.add_child_boxed(self.id(), Box::new(parameter), None),
-            }
-        }
-    }
-}
-
-#[node("dashboard_node_widget_parameter_options", from_struct)]
-impl Node for DashboardNodeWidgetParameterOptionsNode {
-    fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.sync_children(ctx);
-    }
-
-    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
-        1
-    }
-
-    fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
-        EventPropagation::Notify
-    }
-}
-
 /// Widget that binds directly to one engine node and renders its inspector-style UI.
 #[allow(missing_docs)]
 #[node("dashboard_node_widget")]
 #[children(
-    folder(binding, label = "Binding") {
+    folder(widget, label = "Widget") {
         target_node: NodeReference (
             label = "Target Node",
-            description = "Node rendered by this widget using the inspector-style UI.",
+            description = "Node rendered by this widget.",
             reference_target_kind = crate::parameter::ReferenceTargetKind::AnyNode,
         );
-    }
-    folder(appearance, label = "Appearance") {
-        display_mode: Enum = "inspector" (
-            label = "Display Mode",
-            description = "Rendering strategy used for the generated node UI.",
+        widget_type: Enum = "inspector" (
+            label = "Type",
+            description = "Widget rendering type used for the generated node UI.",
             enum_options = ["inspector"],
-        );
-        label_placement: Enum = "top" (
-            label = "Label Placement",
-            description = "Where the widget label is rendered. Disable to hide it.",
-            enum_options = ["left", "right", "top", "bottom", "inside"],
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_display_mode_uses_label_placement(node.id(), ctx),
-            can_be_disabled = true,
-        );
-        include_children: bool = true (
-            label = "Include Children",
-            description = "Whether inspector display mode renders child parameters and subnodes.",
-            dependency = display_mode == "inspector",
         );
     }
     folder(layout, label = "Layout") {
@@ -696,6 +558,15 @@ impl Node for DashboardNodeWidgetParameterOptionsNode {
             label = "Locked",
             description = "Whether drag-and-drop rebinding is disabled for this widget.",
         );
+        label_placement: Enum = "inside" (
+            label = "Label Placement",
+            description = "Where the widget label is rendered. Disable to hide it.",
+            enum_options = ["left", "right", "top", "bottom", "inside"],
+            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_type_uses_label_placement(node.id(), ctx),
+            can_be_disabled = true,
+        );
+    }
+    folder(parameter_options, label = "Parameter Options") {
     }
 )]
 pub struct DashboardNodeWidgetNode {}
@@ -725,66 +596,70 @@ impl DashboardNodeWidgetNode {
         }
     }
 
-    fn sync_display_mode_parameter(&mut self, ctx: &mut ProcessCtx, descriptor: &DashboardWidgetTargetDescriptor) {
+    fn sync_widget_type_parameter(&mut self, ctx: &mut ProcessCtx, descriptor: &DashboardWidgetTargetDescriptor) -> String {
         let Some(snapshot) = ctx.tree_snapshot() else {
-            return;
+            return descriptor.default_widget_type_id.clone();
         };
-        let Some(display_mode_node) = snapshot_find_descendant_by_decl(snapshot, self.id(), "display_mode") else {
-            return;
+        let Some(widget_type_node) = snapshot_find_descendant_by_decl(snapshot, self.id(), "widget_type") else {
+            return descriptor.default_widget_type_id.clone();
         };
-        let Some(display_mode_snapshot) = snapshot.node(display_mode_node) else {
-            return;
+        let Some(widget_type_snapshot) = snapshot.node(widget_type_node) else {
+            return descriptor.default_widget_type_id.clone();
         };
 
-        let current_value = display_mode_snapshot.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str())).unwrap_or_default();
+        let current_value = widget_type_snapshot.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str())).unwrap_or_default();
 
-        let existing_options = display_mode_snapshot.param_constraints.as_ref().map(|constraints| constraints.enum_options.as_slice()).unwrap_or(&[]);
-        let options_match = existing_options.len() == descriptor.display_modes.len()
+        let existing_options = widget_type_snapshot.param_constraints.as_ref().map(|constraints| constraints.enum_options.as_slice()).unwrap_or(&[]);
+        let options_match = existing_options.len() == descriptor.widget_types.len()
             && existing_options
                 .iter()
-                .zip(descriptor.display_modes.iter())
-                .all(|(option, mode)| option.variant_id == mode.id && option.label == mode.label && option.value == ParamValue::Enum(mode.id.clone()));
+                .zip(descriptor.widget_types.iter())
+                .all(|(option, widget_type)| option.variant_id == widget_type.id && option.label == widget_type.label && option.value == ParamValue::Enum(widget_type.id.clone()));
         let is_initial_placeholder_mode = existing_options.len() == 1 && existing_options[0].variant_id == "inspector" && current_value == "inspector";
         let resolved_value = if !options_match && is_initial_placeholder_mode {
-            descriptor.default_display_mode_id.clone()
-        } else if descriptor.display_modes.iter().any(|mode| mode.id == current_value) {
+            descriptor.default_widget_type_id.clone()
+        } else if descriptor.widget_types.iter().any(|widget_type| widget_type.id == current_value) {
             current_value.clone()
         } else {
-            descriptor.default_display_mode_id.clone()
+            descriptor.default_widget_type_id.clone()
         };
 
         if options_match && current_value == resolved_value {
-            return;
+            return resolved_value;
         }
 
-        ctx.replace_node(display_mode_node, make_dashboard_node_widget_display_mode_parameter(resolved_value, descriptor));
+        ctx.replace_node(widget_type_node, make_dashboard_node_widget_type_parameter(resolved_value.clone(), descriptor));
+        resolved_value
     }
 
-    fn sync_target_specific_node(&mut self, ctx: &mut ProcessCtx, kind: Option<&DashboardWidgetOptionsNodeKind>) {
+    fn sync_widget_options_node(&mut self, ctx: &mut ProcessCtx, kind: Option<&DashboardWidgetOptionsNodeKind>) {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return;
         };
-        let existing_node = snapshot.find_child(self.id(), "target_specific");
+        let Some(options_parent) = dashboard_node_widget_widget_options_parent(self.id(), ctx) else {
+            return;
+        };
+        let existing_node = snapshot.find_child(options_parent, "widget_options");
 
         match kind {
             Some(kind) => {
-                let expected_type = match kind {
-                    DashboardWidgetOptionsNodeKind::ParameterEditor => DASHBOARD_NODE_WIDGET_PARAMETER_OPTIONS_NODE_TYPE,
-                };
+                let expected_type = dashboard_widget_options_node_type(kind);
 
                 if let Some(existing_node) = existing_node {
                     let existing_matches = snapshot.node(existing_node).map(|node| node.node_type == expected_type).unwrap_or(false);
                     if existing_matches {
-                        crate::node::NodeHandle::new(existing_node).with_mut::<DashboardNodeWidgetParameterOptionsNode, _>(ctx, |node, child_ctx| {
-                            node.sync_children(child_ctx);
-                        });
-                    } else {
-                        ctx.replace_node_boxed(existing_node, make_dashboard_node_widget_target_specific_node(kind));
+                        return;
                     }
+
+                    for child_id in snapshot.child_ids(existing_node) {
+                        ctx.edits.push(crate::edit::Edit::RemoveNode { node: child_id });
+                    }
+                    ctx.replace_node_boxed(existing_node, make_dashboard_widget_options_node(kind));
+                    initialize_replaced_dashboard_widget_options_node(ctx, existing_node);
                 } else {
-                    let mut new_node = make_dashboard_node_widget_target_specific_node(kind);
-                    new_node.node_data_mut().meta.decl_id = DeclId("target_specific".to_string());
-                    ctx.add_child_boxed(self.id(), new_node, None);
+                    let mut new_node = make_dashboard_widget_options_node(kind);
+                    new_node.node_data_mut().meta.decl_id = DeclId("widget_options".to_string());
+                    ctx.add_child_boxed(options_parent, new_node, None);
                 }
             }
             None => {
@@ -796,9 +671,10 @@ impl DashboardNodeWidgetNode {
     }
 
     fn sync_target_descriptor(&mut self, ctx: &mut ProcessCtx) {
-        let descriptor = dashboard_node_widget_target_descriptor(self.id(), ctx);
-        self.sync_display_mode_parameter(ctx, &descriptor);
-        self.sync_target_specific_node(ctx, descriptor.options_node_kind.as_ref());
+        let descriptor = dashboard_widget_target_descriptor_for_reference(self.target_node.get_ref(), ctx);
+        let widget_type_id = self.sync_widget_type_parameter(ctx, &descriptor);
+        let options_node_kind = descriptor.widget_type(widget_type_id.as_str()).and_then(|widget_type| widget_type.options_node_kind.as_ref());
+        self.sync_widget_options_node(ctx, options_node_kind);
     }
 }
 
@@ -818,9 +694,11 @@ impl Node for DashboardNodeWidgetNode {
             self.sync_target_descriptor(ctx);
             return;
         }
-        if snapshot_child_decl_matches(snapshot, param, "display_mode") {
-            let descriptor = dashboard_node_widget_target_descriptor(self.id(), ctx);
-            self.sync_target_specific_node(ctx, descriptor.options_node_kind.as_ref());
+        if snapshot_child_decl_matches(snapshot, param, "widget_type") {
+            let descriptor = dashboard_widget_target_descriptor_for_reference(self.target_node.get_ref(), ctx);
+            let widget_type_id = dashboard_node_widget_current_widget_type(self.id(), ctx).unwrap_or_else(|| descriptor.default_widget_type_id.clone());
+            let options_node_kind = descriptor.widget_type(widget_type_id.as_str()).and_then(|widget_type| widget_type.options_node_kind.as_ref());
+            self.sync_widget_options_node(ctx, options_node_kind);
         }
     }
 
@@ -964,11 +842,13 @@ impl Node for DashboardGenericWidgetNode {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::define_node_enum;
     use crate::edit::Edit;
     use crate::engine::Engine;
     use crate::node::{DeclId, Folder, Node, NodeId, NodeReference};
-    use crate::parameter::{CssUnit, CssValue, ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind};
+    use crate::parameter::{CssUnit, CssValue, ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParameterSnapshot, RangeConstraint, ReferenceTargetKind};
     use crate::ui_sync::{UiCreateUserItemInitialParam, UiEditIntent};
 
     use super::{DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DashboardNode};
@@ -1083,11 +963,13 @@ mod tests {
     }
 
     #[test]
-    fn dashboard_node_widget_display_modes_follow_target_capabilities() {
+    fn dashboard_node_widget_types_follow_target_capabilities() {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(Parameter::new("Speed", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange).into(), None);
+        let mut speed = Parameter::new("Speed", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
+        speed.constraints.range = RangeConstraint::uniform(Some(0.0), Some(1.0));
+        engine.add_node(speed.into(), None);
         engine.add_node(Parameter::new("Point", ParamValue::Vec2(0.0, 0.0), ParameterChangeCheck::ValueChange).into(), None);
         engine.add_node(DashboardNode::new("Dashboard").into(), None);
         engine.apply_edits().expect("initial tree should apply");
@@ -1106,13 +988,14 @@ mod tests {
         }
 
         let widget = direct_child_by_type(&engine, page, DASHBOARD_NODE_WIDGET_NODE_TYPE).expect("page should contain a node widget child");
-        let display_mode = find_descendant_by_decl(&engine, widget, "display_mode").expect("display mode parameter should exist");
+        assert_eq!(direct_child_decl_ids(&engine, widget), vec!["widget", "layout", "parameter_options"], "node widgets should expose widget, layout, and parameter options folders in declared order");
+        let widget_type = find_descendant_by_decl(&engine, widget, "widget_type").expect("widget type parameter should exist");
         let target_node = find_descendant_by_decl(&engine, widget, "target_node").expect("target node parameter should exist");
 
-        let initial_display = param_snapshot(&engine, display_mode);
-        let initial_modes = initial_display.constraints.enum_options.iter().map(|option| option.variant_id.as_str()).collect::<Vec<_>>();
-        assert_eq!(initial_modes, vec!["inspector"], "unbound widgets should expose inspector mode only");
-        assert_eq!(initial_display.value, ParamValue::Enum("inspector".to_string()), "unbound widgets should default to inspector");
+        let initial_widget_type = param_snapshot(&engine, widget_type);
+        let initial_types = initial_widget_type.constraints.enum_options.iter().map(|option| option.variant_id.as_str()).collect::<Vec<_>>();
+        assert_eq!(initial_types, vec!["inspector"], "unbound widgets should expose inspector only");
+        assert_eq!(initial_widget_type.value, ParamValue::Enum("inspector".to_string()), "unbound widgets should default to inspector");
 
         let float_uuid = engine.nodes.get(float_param).expect("float parameter should exist").node_data().meta.uuid;
         engine.edits.push(Edit::SetParam {
@@ -1125,11 +1008,32 @@ mod tests {
             engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
         }
 
-        let float_display = param_snapshot(&engine, display_mode);
-        let float_modes = float_display.constraints.enum_options.iter().map(|option| option.variant_id.as_str()).collect::<Vec<_>>();
-        assert_eq!(float_modes, vec!["inspector", "editor"], "parameter widgets should expose inspector and editor modes");
-        assert_eq!(float_display.value, ParamValue::Enum("editor".to_string()), "parameter widgets should default to editor when first bound");
-        assert!(find_descendant_by_decl(&engine, widget, "number_show_value_field").is_some(), "parameter widgets should materialize parameter-specific option nodes");
+        let float_widget_type = param_snapshot(&engine, widget_type);
+        let float_types = float_widget_type.constraints.enum_options.iter().map(|option| (option.variant_id.as_str(), option.label.as_str())).collect::<Vec<_>>();
+        assert_eq!(
+            float_types,
+            vec![("default", "Default"), ("inspector", "Inspector"), ("slider", "Slider"), ("rotary", "Rotary"),],
+            "numeric parameters should expose default, inspector, slider, and rotary widget types",
+        );
+        assert_eq!(float_widget_type.value, ParamValue::Enum("default".to_string()), "parameter widgets should default to the semantic default widget type when first bound",);
+        assert!(find_descendant_by_decl(&engine, widget, "slider_show_value_field").is_some(), "default numeric widgets should materialize slider option nodes",);
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "default numeric widgets should expose the custom range parameter",);
+        assert!(find_descendant_by_decl(&engine, widget, "rotary_show_value_field").is_none(), "default numeric widgets should not materialize rotary options",);
+        assert!(find_descendant_by_decl(&engine, widget, "widget_options").is_some(), "widget options should mount under parameter options",);
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_type,
+            value: ParamValue::Enum("rotary".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..4 {
+            engine.apply_edits().expect("switching float widget to rotary should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "slider_show_value_field").is_none(), "switching to rotary should replace the slider options node",);
+        assert!(find_descendant_by_decl(&engine, widget, "rotary_show_value_field").is_some(), "switching to rotary should materialize rotary-specific options",);
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "rotary widgets should expose the custom range parameter",);
 
         let vec2_uuid = engine.nodes.get(vec2_param).expect("vec2 parameter should exist").node_data().meta.uuid;
         engine.edits.push(Edit::SetParam {
@@ -1142,9 +1046,28 @@ mod tests {
             engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
         }
 
-        let vec2_display = param_snapshot(&engine, display_mode);
-        let vec2_modes = vec2_display.constraints.enum_options.iter().map(|option| (option.variant_id.as_str(), option.label.as_str())).collect::<Vec<_>>();
-        assert_eq!(vec2_modes, vec![("inspector", "Inspector"), ("editor", "Editor"), ("vec2Pad", "2D Pad")], "vec2 parameters should expose the 2D Pad display mode");
+        let vec2_widget_type = param_snapshot(&engine, widget_type);
+        let vec2_types = vec2_widget_type.constraints.enum_options.iter().map(|option| (option.variant_id.as_str(), option.label.as_str())).collect::<Vec<_>>();
+        assert_eq!(vec2_types, vec![("default", "Default"), ("inspector", "Inspector"), ("vec2Pad", "2D Pad"),], "vec2 parameters should expose the default and 2D Pad widget types",);
+        assert_eq!(vec2_widget_type.value, ParamValue::Enum("default".to_string()), "unsupported widget types should reset to the target default when rebinding",);
+        assert!(find_descendant_by_decl(&engine, widget, "vector_layout").is_some(), "rebinding to vec2 should replace rotary options with vector-editor options",);
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "vec2 widgets should expose the custom range folder",);
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range/range_min").is_some(), "vec2 widgets should expose vector custom range bounds",);
+        assert!(find_descendant_by_decl(&engine, widget, "rotary_show_value_field").is_none(), "rebinding away from numeric rotary mode should remove rotary options",);
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_type,
+            value: ParamValue::Enum("vec2Pad".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..4 {
+            engine.apply_edits().expect("switching vec2 widget to 2D pad should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "vec2 pad widgets should keep the custom range folder available",);
+        assert!(find_descendant_by_decl(&engine, widget, "custom_range/range_min").is_some(), "vec2 pad widgets should keep custom range bounds available",);
+        assert!(find_descendant_by_decl(&engine, widget, "vector_layout").is_none(), "vec2 pad widgets should hide vector-editor-only layout options",);
     }
 
     #[test]
@@ -1377,5 +1300,48 @@ mod tests {
         assert_eq!(param_snapshot(&engine, position).value, ParamValue::Vec2(240.0, 160.0));
         assert_eq!(param_snapshot(&engine, width).value, ParamValue::CssValue(CssValue::new(18.0, CssUnit::Rem)));
         assert_eq!(param_snapshot(&engine, height).value, ParamValue::CssValue(CssValue::new(6.0, CssUnit::Rem)));
+    }
+
+    #[test]
+    fn dashboard_node_widget_initial_target_reference_without_cached_id_stabilizes() {
+        let root: DashboardTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        let mut speed = Parameter::new("Speed", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
+        speed.constraints.range = RangeConstraint::uniform(Some(0.0), Some(1.0));
+        engine.add_node(speed.into(), None);
+        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.apply_edits().expect("initial tree should apply");
+
+        let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");
+        let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+        engine.queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None).expect("page creation should queue");
+        engine.apply_edits().expect("page creation should apply");
+
+        let page = first_child(&engine, dashboard);
+        let target_uuid = engine.nodes.get(target_param).expect("target parameter should exist").node_data().meta.uuid;
+        engine.queue_catalog_create(page, DASHBOARD_NODE_WIDGET_NODE_TYPE, Some("Speed Widget".to_string()), None).expect("node widget creation should queue");
+        engine.apply_edits().expect("node widget creation should apply");
+
+        let widget = direct_child_by_type(&engine, page, DASHBOARD_NODE_WIDGET_NODE_TYPE).expect("page should contain the created node widget");
+        let target_node = find_descendant_by_decl(&engine, widget, "target_node").expect("target node parameter should exist");
+        engine.edits.push(Edit::SetParam {
+            node: target_node,
+            value: ParamValue::Reference(NodeReference::new(target_uuid)),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        engine.apply_edits().expect("target binding should apply");
+        engine.resolve().expect("resolve should succeed");
+        engine.run_tick(Duration::from_millis(1)).expect("runtime tick should stabilize");
+
+        let widget_type = find_descendant_by_decl(&engine, widget, "widget_type").expect("widget type parameter should exist");
+        let widget_type_snapshot = param_snapshot(&engine, widget_type);
+        let widget_types = widget_type_snapshot.constraints.enum_options.iter().map(|option| option.variant_id.as_str()).collect::<Vec<_>>();
+        assert_eq!(
+            widget_types,
+            vec!["default", "inspector", "slider", "rotary"],
+            "bound numeric widgets should converge to their widget types even when the target reference cached id is initially empty"
+        );
+        assert_eq!(widget_type_snapshot.value, ParamValue::Enum("default".to_string()), "bound numeric widgets should resolve to the default widget type");
     }
 }

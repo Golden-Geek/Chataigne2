@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
-use crate::node::{DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
+use crate::node::{DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use serde::Serialize;
 
@@ -15,6 +15,8 @@ use serde::Serialize;
 pub struct ProcessTreeNodeSnapshot {
     /// Runtime node id.
     pub id: NodeId,
+    /// Persistent node uuid.
+    pub uuid: NodeUuid,
     /// Parent node id.
     pub parent: Option<NodeId>,
     /// First child in sibling chain.
@@ -158,6 +160,11 @@ impl ProcessTreeSnapshot {
         }
 
         None
+    }
+
+    /// Returns the current runtime node id for `uuid`, when present in this snapshot.
+    pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
+        self.nodes.iter().find_map(|(node_id, node)| (node.uuid == uuid).then_some(*node_id))
     }
 
     /// Resolves a slash-separated child path from `start`.

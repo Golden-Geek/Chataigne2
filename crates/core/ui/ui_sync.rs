@@ -330,6 +330,9 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
 pub struct UiNodeTypeDescriptor {
     /// Runtime node type identifier.
     pub node_type: String,
+    /// Canonical description shared by all nodes of this type when available.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// UI-facing enum descriptor.
@@ -768,7 +771,7 @@ impl<T: Node> Engine<T> {
         let node_ids = self.collect_scope_nodes(scope.clone());
         let visible: HashSet<NodeId> = node_ids.iter().copied().collect();
         let mut nodes = Vec::with_capacity(node_ids.len());
-        let mut known_node_types = HashSet::new();
+        let mut known_node_types = HashMap::<String, Option<String>>::new();
         let mut enum_id_by_fingerprint = HashMap::<String, String>::new();
         let mut enums = Vec::<UiEnumDefinition>::new();
 
@@ -777,7 +780,16 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let node_data = node.node_data();
-            known_node_types.insert(node.get_type().to_string());
+            let node_type = node.get_type().to_string();
+            let type_description = node.type_description().map(str::to_string);
+            known_node_types
+                .entry(node_type.clone())
+                .and_modify(|existing| {
+                    if existing.is_none() && type_description.is_some() {
+                        *existing = type_description.clone();
+                    }
+                })
+                .or_insert(type_description);
 
             let mut children = Vec::new();
             let mut child = node_data.first_child;
@@ -837,7 +849,10 @@ impl<T: Node> Engine<T> {
                     enabled: node_data.meta.enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
                     user_permissions: node_data.meta.user_permissions.clone(),
-                    description: node_data.meta.description.clone(),
+                    description: match node_data.meta.description.as_deref() {
+                        Some(description) if Some(description) != node.type_description() => Some(description.to_string()),
+                        _ => None,
+                    },
                     tags: node_data.meta.tags.clone(),
                     presentation: node_data.meta.presentation.clone(),
                 },
@@ -850,7 +865,7 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        let mut node_types: Vec<UiNodeTypeDescriptor> = known_node_types.into_iter().map(|node_type| UiNodeTypeDescriptor { node_type }).collect();
+        let mut node_types: Vec<UiNodeTypeDescriptor> = known_node_types.into_iter().map(|(node_type, description)| UiNodeTypeDescriptor { node_type, description }).collect();
         node_types.sort_by(|left, right| left.node_type.cmp(&right.node_type));
 
         UiSnapshot {
@@ -1130,11 +1145,7 @@ impl<T: Node> Engine<T> {
     }
 
     /// Applies one UI edit intent while attributing any opened edit session to a stable client.
-    pub fn apply_ui_intent_from_client(
-        &mut self,
-        intent: UiEditIntent,
-        ui_client_instance_id: Option<&str>,
-    ) -> UiAck {
+    pub fn apply_ui_intent_from_client(&mut self, intent: UiEditIntent, ui_client_instance_id: Option<&str>) -> UiAck {
         let before_len = self.ui_event_log().len();
         // eprintln!("[gc-ui] intent recv: {intent:?} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 

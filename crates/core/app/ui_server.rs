@@ -55,12 +55,7 @@ impl<T: Node> Clone for ServerState<T> {
     }
 }
 
-fn apply_ui_intent_with_transport<T: Node>(
-    engine: &mut Engine<T>,
-    project_codec: Option<&ProjectCodec<T>>,
-    intent: UiEditIntent,
-    ui_client_instance_id: Option<&str>,
-) -> UiAck {
+fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec: Option<&ProjectCodec<T>>, intent: UiEditIntent, ui_client_instance_id: Option<&str>) -> UiAck {
     let before_len = engine.ui_event_log().len();
 
     match intent {
@@ -108,9 +103,7 @@ fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
 }
 
 fn ui_client_instance_id_from_headers(headers: &HashMap<String, String>) -> Option<String> {
-    headers
-        .get("x-gc-ui-client-instance")
-        .and_then(|value| normalize_ui_client_instance_id(value))
+    headers.get("x-gc-ui-client-instance").and_then(|value| normalize_ui_client_instance_id(value))
 }
 
 #[derive(Clone)]
@@ -354,25 +347,9 @@ fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<Pro
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
-                handle_ws_hub_command(
-                    &engine,
-                    project_codec.as_ref(),
-                    &mut clients,
-                    &mut client_instances,
-                    &mut origins,
-                    command,
-                    &session_id,
-                );
+                handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut client_instances, &mut origins, command, &session_id);
                 while let Ok(next) = cmd_rx.try_recv() {
-                    handle_ws_hub_command(
-                        &engine,
-                        project_codec.as_ref(),
-                        &mut clients,
-                        &mut client_instances,
-                        &mut origins,
-                        next,
-                        &session_id,
-                    );
+                    handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut client_instances, &mut origins, next, &session_id);
                 }
             }
             Err(RecvTimeoutError::Timeout) => {}
@@ -382,15 +359,7 @@ fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<Pro
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: Node>(
-    engine: &Arc<Mutex<Engine<T>>>,
-    project_codec: Option<&ProjectCodec<T>>,
-    clients: &mut HashMap<u64, WsClientState>,
-    client_instances: &mut HashMap<String, u64>,
-    origins: &mut HashMap<EngineTime, WsEventOrigin>,
-    command: WsHubCommand,
-    session_id: &str,
-) {
+fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec: Option<&ProjectCodec<T>>, clients: &mut HashMap<u64, WsClientState>, client_instances: &mut HashMap<String, u64>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
             clients.insert(
@@ -413,10 +382,7 @@ fn handle_ws_hub_command<T: Node>(
                 },
             );
         }
-        WsHubCommand::BindClientInstance {
-            client_id,
-            client_instance_id,
-        } => {
+        WsHubCommand::BindClientInstance { client_id, client_instance_id } => {
             let previous_instance_id = {
                 let Some(client) = clients.get_mut(&client_id) else {
                     return;
@@ -425,16 +391,12 @@ fn handle_ws_hub_command<T: Node>(
             };
 
             if let Some(previous_instance_id) = previous_instance_id {
-                if client_instances
-                    .get(&previous_instance_id)
-                    .is_some_and(|mapped_client_id| *mapped_client_id == client_id)
-                {
+                if client_instances.get(&previous_instance_id).is_some_and(|mapped_client_id| *mapped_client_id == client_id) {
                     client_instances.remove(&previous_instance_id);
                 }
             }
 
-            if let Some(previous_client_id) = client_instances.insert(client_instance_id.clone(), client_id)
-            {
+            if let Some(previous_client_id) = client_instances.insert(client_instance_id.clone(), client_id) {
                 if previous_client_id != client_id {
                     if let Some(previous_client) = clients.remove(&previous_client_id) {
                         let _ = previous_client.outbound.send(WsOutbound::Close);
@@ -448,14 +410,8 @@ fn handle_ws_hub_command<T: Node>(
         WsHubCommand::UnregisterClient { client_id } => {
             let removed = clients.remove(&client_id);
             let subscription_count = removed.as_ref().map_or(0, |client| client.subscriptions.len());
-            if let Some(client_instance_id) = removed
-                .as_ref()
-                .and_then(|client| client.client_instance_id.as_ref())
-            {
-                if client_instances
-                    .get(client_instance_id)
-                    .is_some_and(|mapped_client_id| *mapped_client_id == client_id)
-                {
+            if let Some(client_instance_id) = removed.as_ref().and_then(|client| client.client_instance_id.as_ref()) {
+                if client_instances.get(client_instance_id).is_some_and(|mapped_client_id| *mapped_client_id == client_id) {
                     client_instances.remove(client_instance_id);
                 }
 
@@ -487,15 +443,8 @@ fn handle_ws_hub_command<T: Node>(
             let (ack, produced_times) = {
                 let mut guard = lock_engine(engine);
                 let before_len = guard.ui_event_log().len();
-                let client_instance_id = clients
-                    .get(&client_id)
-                    .and_then(|client| client.client_instance_id.as_deref());
-                let ack = apply_ui_intent_with_transport(
-                    &mut guard,
-                    project_codec,
-                    intent,
-                    client_instance_id,
-                );
+                let client_instance_id = clients.get(&client_id).and_then(|client| client.client_instance_id.as_deref());
+                let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent, client_instance_id);
                 let produced_times = guard.ui_event_log().iter().skip(before_len).map(|event| event.time).collect::<Vec<_>>();
                 (ack, produced_times)
             };
@@ -511,18 +460,11 @@ fn handle_ws_hub_command<T: Node>(
                 let mut guard = lock_engine(engine);
                 let mut acks = Vec::<UiAck>::with_capacity(intents.len());
                 let mut produced_times = Vec::<EngineTime>::new();
-                let client_instance_id = clients
-                    .get(&client_id)
-                    .and_then(|client| client.client_instance_id.as_deref());
+                let client_instance_id = clients.get(&client_id).and_then(|client| client.client_instance_id.as_deref());
 
                 for intent in intents {
                     let before_len = guard.ui_event_log().len();
-                    let ack = apply_ui_intent_with_transport(
-                        &mut guard,
-                        project_codec,
-                        intent,
-                        client_instance_id,
-                    );
+                    let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent, client_instance_id);
                     acks.push(ack);
                     produced_times.extend(guard.ui_event_log().iter().skip(before_len).map(|event| event.time));
                 }
@@ -914,12 +856,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
             let mut guard = lock_engine(&state.engine);
-            let ack = apply_ui_intent_with_transport(
-                &mut guard,
-                state.project_codec.as_ref(),
-                intent,
-                client_instance_id.as_deref(),
-            );
+            let ack = apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent, client_instance_id.as_deref());
             drop(guard);
 
             write_json(stream, "200 OK", &ack)?;
@@ -931,12 +868,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
             let mut guard = lock_engine(&state.engine);
             let mut acks = Vec::<UiAck>::with_capacity(intents.len());
             for intent in intents {
-                acks.push(apply_ui_intent_with_transport(
-                    &mut guard,
-                    state.project_codec.as_ref(),
-                    intent,
-                    client_instance_id.as_deref(),
-                ));
+                acks.push(apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent, client_instance_id.as_deref()));
             }
             drop(guard);
 
@@ -1061,10 +993,7 @@ fn handle_ws_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>,
 
 fn handle_ws_client_message(message: WsClientMessage, client_id: u64, hub: &WsHubHandle, outbound: &Sender<WsOutbound>) -> bool {
     match message {
-        WsClientMessage::Hello {
-            protocol_version,
-            client_instance_id,
-        } => {
+        WsClientMessage::Hello { protocol_version, client_instance_id } => {
             if protocol_version != UI_PROTOCOL_VERSION {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                     message: format!("protocol mismatch: client={protocol_version}, server={UI_PROTOCOL_VERSION}"),
@@ -1081,14 +1010,7 @@ fn handle_ws_client_message(message: WsClientMessage, client_id: u64, hub: &WsHu
                     return true;
                 };
 
-                if !hub
-                    .cmd_tx
-                    .send(WsHubCommand::BindClientInstance {
-                        client_id,
-                        client_instance_id,
-                    })
-                    .is_ok()
-                {
+                if !hub.cmd_tx.send(WsHubCommand::BindClientInstance { client_id, client_instance_id }).is_ok() {
                     return false;
                 }
             }

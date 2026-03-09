@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{DashboardWidgetDisplayModeSpec, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
+    node::{DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
     process_ctx::ProcessCtx,
 };
 
@@ -2139,6 +2139,23 @@ impl Node for Parameter {
         }
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some(match self.value {
+            ParamValue::Trigger() => "Parameter node storing an instantaneous trigger event.",
+            ParamValue::Int(_) => "Parameter node storing an integer value.",
+            ParamValue::Float(_) => "Parameter node storing a floating-point value.",
+            ParamValue::Str(_) => "Parameter node storing text.",
+            ParamValue::File(_) => "Parameter node storing a file path.",
+            ParamValue::Enum(_) => "Parameter node storing an enumerated option.",
+            ParamValue::Bool(_) => "Parameter node storing a boolean value.",
+            ParamValue::CssValue(_) => "Parameter node storing a CSS scalar value with an explicit unit.",
+            ParamValue::Vec2(_, _) => "Parameter node storing a 2D vector.",
+            ParamValue::Vec3(_, _, _) => "Parameter node storing a 3D vector.",
+            ParamValue::Color(_, _, _, _) => "Parameter node storing an RGBA color.",
+            ParamValue::Reference(_) => "Parameter node storing a reference to another node.",
+        })
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -2177,16 +2194,33 @@ impl Node for Parameter {
     }
 
     fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
-        let mut display_modes = vec![DashboardWidgetDisplayModeSpec::new("inspector", "Inspector"), DashboardWidgetDisplayModeSpec::new("editor", "Editor")];
+        let mut widget_types = vec![DashboardWidgetTypeSpec::new("inspector", "Inspector").with_options_node_kind(DashboardWidgetOptionsNodeKind::Inspector)];
 
-        if matches!(self.value, ParamValue::Vec2(_, _)) {
-            display_modes.push(DashboardWidgetDisplayModeSpec::new("vec2Pad", "2D Pad"));
+        match &self.value {
+            ParamValue::Int(_) | ParamValue::Float(_) => {
+                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider));
+                widget_types.push(DashboardWidgetTypeSpec::new("slider", "Slider").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider));
+                widget_types.push(DashboardWidgetTypeSpec::new("rotary", "Rotary").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberRotary));
+            }
+            ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) => {
+                let default_kind = if matches!(&self.value, ParamValue::Vec2(_, _)) { DashboardWidgetOptionsNodeKind::Vec2Editor } else { DashboardWidgetOptionsNodeKind::Vec3Editor };
+                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(default_kind));
+
+                if matches!(&self.value, ParamValue::Vec2(_, _)) {
+                    widget_types.push(DashboardWidgetTypeSpec::new("vec2Pad", "2D Pad").with_options_node_kind(DashboardWidgetOptionsNodeKind::Vec2Pad));
+                }
+            }
+            ParamValue::Color(_, _, _, _) => {
+                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::ColorEditor));
+            }
+            _ => {
+                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default"));
+            }
         }
 
         DashboardWidgetTargetDescriptor {
-            display_modes,
-            default_display_mode_id: "editor".to_string(),
-            options_node_kind: Some(DashboardWidgetOptionsNodeKind::ParameterEditor),
+            widget_types,
+            default_widget_type_id: "default".to_string(),
         }
     }
 

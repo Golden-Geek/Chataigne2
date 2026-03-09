@@ -104,12 +104,7 @@ pub(crate) struct ActiveEditSession<T: Node> {
 
 impl<T: Node> ActiveEditSession<T> {
     /// Creates a new empty active edit session.
-    pub(crate) fn new(
-        origin: EditOrigin,
-        label: Option<String>,
-        client_edit_id: String,
-        ui_client_instance_id: Option<String>,
-    ) -> Self {
+    pub(crate) fn new(origin: EditOrigin, label: Option<String>, client_edit_id: String, ui_client_instance_id: Option<String>) -> Self {
         Self {
             origin,
             label,
@@ -869,10 +864,7 @@ impl<T: Node> Engine<T> {
 
     /// Cancels the active UI edit session owned by `client_instance_id`, if any.
     pub fn cancel_active_ui_edit_session_for_client(&mut self, client_instance_id: &str) -> bool {
-        let should_cancel = self.active_edit_session.as_ref().is_some_and(|active| {
-            active.origin == EditOrigin::Ui
-                && active.ui_client_instance_id.as_deref() == Some(client_instance_id)
-        });
+        let should_cancel = self.active_edit_session.as_ref().is_some_and(|active| active.origin == EditOrigin::Ui && active.ui_client_instance_id.as_deref() == Some(client_instance_id));
         if !should_cancel {
             return false;
         }
@@ -984,8 +976,6 @@ impl<T: Node> Engine<T> {
 
     /// Returns the stable UI client instance id that owns the active edit session.
     pub fn active_edit_session_ui_client_instance_id(&self) -> Option<&str> {
-        self.active_edit_session
-            .as_ref()
-            .and_then(|session| session.ui_client_instance_id.as_deref())
+        self.active_edit_session.as_ref().and_then(|session| session.ui_client_instance_id.as_deref())
     }
 }

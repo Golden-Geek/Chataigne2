@@ -12,6 +12,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method(),
             Self::DashboardGenericWidget(node) => node.$method(),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method(),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
             Self::AnimationCurve(node) => node.$method(),
             Self::AnimationCurveRange(node) => node.$method(),
@@ -32,6 +39,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method($arg1),
             Self::DashboardGenericWidget(node) => node.$method($arg1),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
             Self::AnimationCurve(node) => node.$method($arg1),
             Self::AnimationCurveRange(node) => node.$method($arg1),
@@ -52,6 +66,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2),
@@ -72,6 +93,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3),
@@ -92,6 +120,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
@@ -112,6 +147,13 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetInspectorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetNumberSliderOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetVec2PadOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetVec2EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
@@ -338,6 +380,13 @@ macro_rules! define_user_item_factory_methods {
 /// - `DashboardNodeWidget($crate::node::DashboardNodeWidgetNode)`
 /// - `DashboardGenericWidget($crate::node::DashboardGenericWidgetNode)`
 /// - `DashboardNodeWidgetParameterOptions($crate::node::DashboardNodeWidgetParameterOptionsNode)`
+/// - `DashboardNodeWidgetInspectorOptions($crate::node::DashboardNodeWidgetInspectorOptionsNode)`
+/// - `DashboardNodeWidgetNumberSliderOptions($crate::node::DashboardNodeWidgetNumberSliderOptionsNode)`
+/// - `DashboardNodeWidgetNumberRotaryOptions($crate::node::DashboardNodeWidgetNumberRotaryOptionsNode)`
+/// - `DashboardNodeWidgetVec2PadOptions($crate::node::DashboardNodeWidgetVec2PadOptionsNode)`
+/// - `DashboardNodeWidgetVec2EditorOptions($crate::node::DashboardNodeWidgetVec2EditorOptionsNode)`
+/// - `DashboardNodeWidgetVec3EditorOptions($crate::node::DashboardNodeWidgetVec3EditorOptionsNode)`
+/// - `DashboardNodeWidgetColorEditorOptions($crate::node::DashboardNodeWidgetColorEditorOptionsNode)`
 /// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
 /// - `AnimationCurve($crate::node::AnimationCurveNode)`
 /// - `AnimationCurveRange($crate::node::AnimationCurveRangeNode)`
@@ -363,6 +412,13 @@ macro_rules! define_node_enum {
             DashboardNodeWidget($crate::node::DashboardNodeWidgetNode),
             DashboardGenericWidget($crate::node::DashboardGenericWidgetNode),
             DashboardNodeWidgetParameterOptions($crate::node::DashboardNodeWidgetParameterOptionsNode),
+            DashboardNodeWidgetInspectorOptions($crate::node::DashboardNodeWidgetInspectorOptionsNode),
+            DashboardNodeWidgetNumberSliderOptions($crate::node::DashboardNodeWidgetNumberSliderOptionsNode),
+            DashboardNodeWidgetNumberRotaryOptions($crate::node::DashboardNodeWidgetNumberRotaryOptionsNode),
+            DashboardNodeWidgetVec2PadOptions($crate::node::DashboardNodeWidgetVec2PadOptionsNode),
+            DashboardNodeWidgetVec2EditorOptions($crate::node::DashboardNodeWidgetVec2EditorOptionsNode),
+            DashboardNodeWidgetVec3EditorOptions($crate::node::DashboardNodeWidgetVec3EditorOptionsNode),
+            DashboardNodeWidgetColorEditorOptions($crate::node::DashboardNodeWidgetColorEditorOptionsNode),
             ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
             AnimationCurve($crate::node::AnimationCurveNode),
             AnimationCurveRange($crate::node::AnimationCurveRangeNode),
@@ -400,6 +456,13 @@ macro_rules! define_node_enum {
                     Self::DashboardNodeWidget(node) => node,
                     Self::DashboardGenericWidget(node) => node,
                     Self::DashboardNodeWidgetParameterOptions(node) => node,
+                    Self::DashboardNodeWidgetInspectorOptions(node) => node,
+                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node,
+                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node,
+                    Self::DashboardNodeWidgetVec2PadOptions(node) => node,
+                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node,
+                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
+                    Self::DashboardNodeWidgetColorEditorOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -422,6 +485,13 @@ macro_rules! define_node_enum {
                     Self::DashboardNodeWidget(node) => node,
                     Self::DashboardGenericWidget(node) => node,
                     Self::DashboardNodeWidgetParameterOptions(node) => node,
+                    Self::DashboardNodeWidgetInspectorOptions(node) => node,
+                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node,
+                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node,
+                    Self::DashboardNodeWidgetVec2PadOptions(node) => node,
+                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node,
+                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
+                    Self::DashboardNodeWidgetColorEditorOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -435,6 +505,11 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn user_item_kind(&self) -> &str {
                 $crate::__dispatch_node_enum!(self, user_item_kind; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn type_description(&self) -> Option<&str> {
+                $crate::__dispatch_node_enum!(self, type_description; $($variant),*)
             }
 
             #[inline(always)]
@@ -705,6 +780,13 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidget, $crate::node::DashboardNodeWidgetNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardGenericWidget, $crate::node::DashboardGenericWidgetNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetParameterOptions, $crate::node::DashboardNodeWidgetParameterOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetInspectorOptions, $crate::node::DashboardNodeWidgetInspectorOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetNumberSliderOptions, $crate::node::DashboardNodeWidgetNumberSliderOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetNumberRotaryOptions, $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetVec2PadOptions, $crate::node::DashboardNodeWidgetVec2PadOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetVec2EditorOptions, $crate::node::DashboardNodeWidgetVec2EditorOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetVec3EditorOptions, $crate::node::DashboardNodeWidgetVec3EditorOptionsNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetColorEditorOptions, $crate::node::DashboardNodeWidgetColorEditorOptionsNode);
                 $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurve, $crate::node::AnimationCurveNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurveRange, $crate::node::AnimationCurveRangeNode);
@@ -772,6 +854,48 @@ macro_rules! define_node_enum {
         impl From<$crate::node::DashboardNodeWidgetParameterOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetParameterOptionsNode) -> Self {
                 Self::DashboardNodeWidgetParameterOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetInspectorOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetInspectorOptionsNode) -> Self {
+                Self::DashboardNodeWidgetInspectorOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetNumberSliderOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetNumberSliderOptionsNode) -> Self {
+                Self::DashboardNodeWidgetNumberSliderOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetNumberRotaryOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode) -> Self {
+                Self::DashboardNodeWidgetNumberRotaryOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetVec2PadOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetVec2PadOptionsNode) -> Self {
+                Self::DashboardNodeWidgetVec2PadOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetVec2EditorOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetVec2EditorOptionsNode) -> Self {
+                Self::DashboardNodeWidgetVec2EditorOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetVec3EditorOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetVec3EditorOptionsNode) -> Self {
+                Self::DashboardNodeWidgetVec3EditorOptions(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetColorEditorOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetColorEditorOptionsNode) -> Self {
+                Self::DashboardNodeWidgetColorEditorOptions(node)
             }
         }
 

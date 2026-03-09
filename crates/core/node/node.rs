@@ -14,12 +14,16 @@ use uuid::Uuid;
 mod animation_curve_nodes;
 mod control_animation;
 mod dashboard;
+mod dashboard_widget_options;
 mod handles;
 pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
 pub use control_animation::ParameterAnimationControlNode;
 pub use dashboard::{
-    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_NODE_WIDGET_PARAMETER_OPTIONS_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DASHBOARD_WIDGET_ITEM_KIND,
-    DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardNodeWidgetParameterOptionsNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetDisplayModeSpec, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor,
+    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode,
+    DashboardNodeWidgetNode, DashboardNodeWidgetParameterOptionsNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec,
+};
+pub use dashboard_widget_options::{
+    DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode, DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode, DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
@@ -1024,6 +1028,13 @@ pub trait Node: Send + Any {
     /// Returns the node type identifier.
     fn get_type(&self) -> &str;
 
+    /// Returns the canonical description for this node type when one exists.
+    ///
+    /// This should describe the node type itself, not one instance-specific role.
+    fn type_description(&self) -> Option<&str> {
+        None
+    }
+
     /// Returns the item-kind identifier used by container admission rules.
     ///
     /// By default this matches [`Self::get_type`].
@@ -1917,6 +1928,10 @@ impl Node for UserContextNode {
         USER_CONTEXT_NODE_TYPE
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal scope node used to host user-authored lexical context entries.\n\nContext entries are regular descendant parameter nodes. Symbols are derived from parameter decl_id values during resolver indexing.")
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -1995,6 +2010,10 @@ impl Node for Folder {
 
     fn get_type(&self) -> &str {
         FOLDER_NODE_TYPE
+    }
+
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal folder-like node used as empty organizational structure and root for user content without process or bubbling.")
     }
 
     fn as_any(&self) -> &dyn Any {

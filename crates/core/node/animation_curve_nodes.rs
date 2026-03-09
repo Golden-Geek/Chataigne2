@@ -318,6 +318,10 @@ impl Node for AnimationCurveRangeNode {
         PARAMETER_ANIMATION_RANGE_NODE_TYPE
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal node storing editable X/Y curve range bounds.")
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -867,6 +871,10 @@ impl Node for AnimationCurveNode {
         PARAMETER_ANIMATION_CURVE_NODE_TYPE
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal node hosting one animation-curve key list.")
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -1183,6 +1191,10 @@ impl Node for AnimationCurveKeyNode {
 
     fn get_type(&self) -> &str {
         PARAMETER_ANIMATION_KEY_NODE_TYPE
+    }
+
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal node representing one animation curve key.")
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

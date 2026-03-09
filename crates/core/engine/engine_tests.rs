@@ -38,6 +38,13 @@ impl Node for ItemMacroOverrideKindNode {
     }
 }
 
+/// Description surfaced once in the UI schema for all nodes of this type.
+#[crate::node("ui_schema_description_node")]
+struct UiSchemaDescriptionNode {}
+
+#[crate::node("ui_schema_description_node", from_struct)]
+impl Node for UiSchemaDescriptionNode {}
+
 #[test]
 fn item_macro_sets_user_item_kind_when_not_overridden() {
     let node = ItemMacroAutoKindNode::new("Auto");
@@ -56,6 +63,27 @@ fn item_macro_marks_nodes_as_declared_user_items() {
     let override_kind = ItemMacroOverrideKindNode::new("Override");
     assert!(auto.is_declared_user_item());
     assert!(override_kind.is_declared_user_item());
+}
+
+#[test]
+fn ui_snapshot_moves_type_descriptions_into_schema() {
+    assert_eq!(UiSchemaDescriptionNode::new("Example").type_description(), Some("Description surfaced once in the UI schema for all nodes of this type."));
+    let wrapped: MacroTestNode = UiSchemaDescriptionNode::new("Wrapped").into();
+    assert_eq!(wrapped.type_description(), Some("Description surfaced once in the UI schema for all nodes of this type."));
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(UiSchemaDescriptionNode::new("First").into(), None);
+    engine.add_node(UiSchemaDescriptionNode::new("Second").into(), None);
+    engine.apply_edits().expect("described nodes should attach");
+
+    let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    let description = snapshot.schema.node_types.iter().find(|descriptor| descriptor.node_type == "ui_schema_description_node").and_then(|descriptor| descriptor.description.as_deref());
+
+    assert_eq!(description, Some("Description surfaced once in the UI schema for all nodes of this type."));
+    assert!(
+        snapshot.nodes.iter().filter(|node| node.node_type == "ui_schema_description_node").all(|node| node.meta.description.is_none()),
+        "canonical type descriptions should not be duplicated on each node instance"
+    );
 }
 
 #[test]
@@ -783,6 +811,7 @@ crate::define_node_enum!(
         UiContextHostNode,
         ViaScriptHostNode,
         ViaContextHostNode,
+        UiSchemaDescriptionNode,
     }
 );
 
@@ -3314,10 +3343,7 @@ fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
         Some("browser-client-a"),
     );
     assert!(begin_ack.success, "begin edit should succeed");
-    assert_eq!(
-        engine.active_edit_session_ui_client_instance_id(),
-        Some("browser-client-a")
-    );
+    assert_eq!(engine.active_edit_session_ui_client_instance_id(), Some("browser-client-a"));
 
     let set_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
         node: engine.root,
@@ -3326,16 +3352,10 @@ fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
     });
     assert!(set_ack.success, "set param should succeed inside the open session");
 
-    assert!(
-        !engine.cancel_active_ui_edit_session_for_client("browser-client-b"),
-        "different clients must not cancel another client's edit session"
-    );
+    assert!(!engine.cancel_active_ui_edit_session_for_client("browser-client-b"), "different clients must not cancel another client's edit session");
     assert!(engine.has_active_edit_session(), "session should remain active after mismatched cancel");
 
-    assert!(
-        engine.cancel_active_ui_edit_session_for_client("browser-client-a"),
-        "matching client should cancel the active session"
-    );
+    assert!(engine.cancel_active_ui_edit_session_for_client("browser-client-a"), "matching client should cancel the active session");
     assert!(!engine.has_active_edit_session(), "session should be cleared after cancel");
     assert_eq!(engine.undo_len(), 0, "canceled session history must be discarded");
 
@@ -3347,11 +3367,7 @@ fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
     assert!(post_cancel_ack.success, "post-cancel edit should succeed");
     assert!(engine.undo().expect("undo should succeed after cancel"));
     assert_eq!(
-        engine
-            .nodes
-            .get(engine.root)
-            .expect("root parameter should exist")
-            .value,
+        engine.nodes.get(engine.root).expect("root parameter should exist").value,
         ParamValue::Int(10),
         "undo should restore the live value at cancel time, not the discarded session baseline"
     );

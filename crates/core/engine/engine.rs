@@ -466,6 +466,7 @@ impl<T: Node> Engine<T> {
                 node_id,
                 ProcessTreeNodeSnapshot {
                     id: node_id,
+                    uuid: node_data.meta.uuid,
                     parent: node_data.parent,
                     first_child: node_data.first_child,
                     next_sibling: node_data.next_sibling,

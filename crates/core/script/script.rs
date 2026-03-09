@@ -15,6 +15,8 @@ use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::logger;
+#[cfg(test)]
+use crate::node::NodeUuid;
 use crate::node::{DeclId, Node, NodeData, NodeId};
 use crate::parameter::{CssUnit, CssValue, FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterUiHints, RangeConstraint};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
@@ -3151,6 +3153,10 @@ impl Node for ScriptNode {
         "script"
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some("Built-in QuickJS script node.")
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -3456,6 +3462,7 @@ mod tests {
             root,
             ProcessTreeNodeSnapshot {
                 id: root,
+                uuid: NodeUuid::default(),
                 parent: None,
                 first_child: Some(host),
                 next_sibling: None,
@@ -3493,6 +3500,7 @@ mod tests {
             host,
             ProcessTreeNodeSnapshot {
                 id: host,
+                uuid: NodeUuid::default(),
                 parent: Some(root),
                 first_child: Some(gain),
                 next_sibling: None,
@@ -3530,6 +3538,7 @@ mod tests {
             gain,
             ProcessTreeNodeSnapshot {
                 id: gain,
+                uuid: NodeUuid::default(),
                 parent: Some(host),
                 first_child: None,
                 next_sibling: None,
@@ -3597,6 +3606,7 @@ mod tests {
             root,
             ProcessTreeNodeSnapshot {
                 id: root,
+                uuid: NodeUuid::default(),
                 parent: None,
                 first_child: Some(host),
                 next_sibling: None,
@@ -3617,6 +3627,7 @@ mod tests {
             host,
             ProcessTreeNodeSnapshot {
                 id: host,
+                uuid: NodeUuid::default(),
                 parent: Some(root),
                 first_child: Some(gain),
                 next_sibling: None,
@@ -3637,6 +3648,7 @@ mod tests {
             gain,
             ProcessTreeNodeSnapshot {
                 id: gain,
+                uuid: NodeUuid::default(),
                 parent: Some(host),
                 first_child: None,
                 next_sibling: Some(depth),
@@ -3657,6 +3669,7 @@ mod tests {
             depth,
             ProcessTreeNodeSnapshot {
                 id: depth,
+                uuid: NodeUuid::default(),
                 parent: Some(host),
                 first_child: None,
                 next_sibling: None,
@@ -3983,6 +3996,7 @@ script.setApiVersion(1);
             NodeId(100),
             ProcessTreeNodeSnapshot {
                 id: NodeId(100),
+                uuid: NodeUuid::default(),
                 parent: None,
                 first_child: Some(NodeId(101)),
                 next_sibling: None,
@@ -4003,6 +4017,7 @@ script.setApiVersion(1);
             NodeId(101),
             ProcessTreeNodeSnapshot {
                 id: NodeId(101),
+                uuid: NodeUuid::default(),
                 parent: Some(NodeId(100)),
                 first_child: Some(NodeId(102)),
                 next_sibling: None,
@@ -4023,6 +4038,7 @@ script.setApiVersion(1);
             NodeId(102),
             ProcessTreeNodeSnapshot {
                 id: NodeId(102),
+                uuid: NodeUuid::default(),
                 parent: Some(NodeId(101)),
                 first_child: None,
                 next_sibling: Some(NodeId(103)),
@@ -4043,6 +4059,7 @@ script.setApiVersion(1);
             NodeId(103),
             ProcessTreeNodeSnapshot {
                 id: NodeId(103),
+                uuid: NodeUuid::default(),
                 parent: Some(NodeId(101)),
                 first_child: None,
                 next_sibling: None,

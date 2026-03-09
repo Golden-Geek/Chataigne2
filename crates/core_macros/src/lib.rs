@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use proc_macro::TokenStream;
-use proc_macro2::{Delimiter, TokenTree};
+use proc_macro2::{Delimiter, Span, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote};
+use syn::{Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -1638,6 +1638,10 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         return Error::new_spanned(input, "`contextualizable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
     }
 
+    let generated_type_description = extract_doc_comment_literal(&input.attrs).map_or_else(
+        || quote!(None),
+        |description| quote!(Some(#description)),
+    );
     let mut params_dsl = None::<ParamsDsl>;
     let mut kept_attrs = Vec::with_capacity(input.attrs.len());
     for attr in input.attrs.drain(..) {
@@ -2191,6 +2195,10 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                     #resolved_type_name
                 }
 
+                fn type_description(&self) -> Option<&str> {
+                    Self::__golden_node_type_description()
+                }
+
                 fn as_any(&self) -> &dyn std::any::Any {
                     self
                 }
@@ -2246,6 +2254,11 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                     node_data: golden_core::node::NodeData::new(label.into()),
                     #(#ctor_inits),*
                 }
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_type_description() -> Option<&'static str> {
+                #generated_type_description
             }
 
             #[doc(hidden)]
@@ -2370,6 +2383,14 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         input.items.push(parse_quote! {
             fn get_type(&self) -> &str {
                 #resolved_type_name
+            }
+        });
+    }
+
+    if from_struct && !has_method(&input, "type_description") {
+        input.items.push(parse_quote! {
+            fn type_description(&self) -> Option<&str> {
+                Self::__golden_node_type_description()
             }
         });
     }
@@ -2552,6 +2573,48 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
     });
 
     Ok(())
+}
+
+fn extract_doc_comment_literal(attrs: &[Attribute]) -> Option<LitStr> {
+    let mut lines = Vec::<String>::new();
+
+    for attr in attrs {
+        if !attr.path().is_ident("doc") {
+            continue;
+        }
+
+        let Meta::NameValue(meta) = &attr.meta else {
+            continue;
+        };
+        let Expr::Lit(ExprLit {
+            lit: Lit::Str(value),
+            ..
+        }) = &meta.value
+        else {
+            continue;
+        };
+
+        let line = value.value();
+        lines.push(line.strip_prefix(' ').unwrap_or(line.as_str()).to_string());
+    }
+
+    while lines.first().is_some_and(|line| line.trim().is_empty()) {
+        lines.remove(0);
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+
+    if lines.is_empty() {
+        return None;
+    }
+
+    let description = lines.join("\n");
+    if description.trim().is_empty() {
+        return None;
+    }
+
+    Some(LitStr::new(description.as_str(), Span::call_site()))
 }
 
 fn params_child_decl_id(plan: &ParamsPlan, child: ParamsChildRef) -> LitStr {

@@ -258,6 +258,10 @@ impl Node for ParameterAnimationControlNode {
         PARAMETER_ANIMATION_CONTROL_NODE_TYPE
     }
 
+    fn type_description(&self) -> Option<&str> {
+        Some("Internal control node attached to one parameter for animation behavior.")
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
