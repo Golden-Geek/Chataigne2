@@ -30,6 +30,7 @@ impl Parse for DelegatePath {
 
 struct NodeAttr {
     type_name: Option<LitStr>,
+    ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
@@ -50,6 +51,7 @@ enum ContextualizableAttr {
 impl Parse for NodeAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut type_name = None;
+        let mut ctor_meta_fields = BTreeMap::new();
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
@@ -101,10 +103,19 @@ impl Parse for NodeAttr {
                         contextualizable = Some(ContextualizableAttr::Default);
                     }
                 } else {
-                    return Err(Error::new(key.span(), "unsupported argument, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`"));
+                    let field_name = key.to_string();
+                    if ctor_meta_fields.contains_key(&field_name) {
+                        return Err(Error::new(key.span(), format!("duplicate meta field `{field_name}`")));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let expr = input.parse::<Expr>()?;
+                    ctor_meta_fields.insert(field_name, (key, expr));
                 }
             } else {
-                return Err(Error::new(input.span(), "unexpected attribute arguments, expected string literal, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`"));
+                return Err(Error::new(
+                    input.span(),
+                    "unexpected attribute arguments, expected string literal, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
+                ));
             }
 
             if input.is_empty() {
@@ -119,6 +130,7 @@ impl Parse for NodeAttr {
 
         Ok(Self {
             type_name,
+            ctor_meta_fields,
             via,
             impl_node,
             from_struct,
@@ -137,6 +149,7 @@ impl Parse for ItemAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut item_kind = None;
         let mut type_name = None;
+        let mut ctor_meta_fields = BTreeMap::new();
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
@@ -204,15 +217,18 @@ impl Parse for ItemAttr {
                         contextualizable = Some(ContextualizableAttr::Default);
                     }
                 } else {
-                    return Err(Error::new(
-                        key.span(),
-                        "unsupported argument, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
-                    ));
+                    let field_name = key.to_string();
+                    if ctor_meta_fields.contains_key(&field_name) {
+                        return Err(Error::new(key.span(), format!("duplicate meta field `{field_name}`")));
+                    }
+                    input.parse::<Token![=]>()?;
+                    let expr = input.parse::<Expr>()?;
+                    ctor_meta_fields.insert(field_name, (key, expr));
                 }
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                 ));
             }
 
@@ -234,6 +250,7 @@ impl Parse for ItemAttr {
             item_kind,
             node: NodeAttr {
                 type_name,
+                ctor_meta_fields,
                 via,
                 impl_node,
                 from_struct,
@@ -1635,6 +1652,7 @@ fn build_set_declared_description_tokens(target_expr: proc_macro2::TokenStream, 
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let NodeAttr {
         type_name,
+        ctor_meta_fields,
         via,
         impl_node,
         from_struct,
@@ -1644,7 +1662,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
+        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
         Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
@@ -1656,6 +1674,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
         item_kind,
         node: NodeAttr {
             type_name,
+            ctor_meta_fields,
             via,
             impl_node,
             from_struct,
@@ -1666,7 +1685,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
+        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
         Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
         other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
@@ -1715,7 +1734,17 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, contextualizable: Option<ContextualizableAttr>, item_kind: Option<LitStr>, mut input: ItemStruct) -> proc_macro2::TokenStream {
+fn expand_struct(
+    type_name: Option<LitStr>,
+    ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
+    contextualizable: Option<ContextualizableAttr>,
+    item_kind: Option<LitStr>,
+    mut input: ItemStruct,
+) -> proc_macro2::TokenStream {
     if via.is_some() {
         return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
     }
@@ -1763,6 +1792,8 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
     let struct_name = input.ident.clone();
     let resolved_type_name = type_name.unwrap_or_else(|| make_type_name_literal(&struct_name.to_string()));
+    let fallback_default_label = make_label_literal(&resolved_type_name.value());
+    let static_default_label = ctor_meta_fields.get("label").and_then(|(_, expr)| expr_string_literal(expr)).unwrap_or_else(|| fallback_default_label.clone());
     let generics = input.generics.clone();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -2298,45 +2329,37 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
     }
 
-    let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty));
+    let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty)).collect::<Vec<_>>();
+    let generated_default_label = match ctor_meta_fields.get("label") {
+        Some((_, expr)) => quote! { (#expr).into() },
+        None => quote! { ::std::string::String::from(Self::DEFAULT_LABEL) },
+    };
+    let ctor_meta_inits = ctor_meta_fields
+        .values()
+        .map(|(field_ident, expr)| {
+            let field_name = field_ident.to_string();
+            if field_name == "label" || field_name == "short_name" {
+                quote! {
+                    node_data.meta.#field_ident = (#expr).into();
+                }
+            } else {
+                quote! {
+                    node_data.meta.#field_ident = #expr;
+                }
+            }
+        })
+        .collect::<Vec<_>>();
     let generated_project_create = if ctor_fields.is_empty() {
         quote! {
             if node_type == #resolved_type_name {
-                Some(Self::new(label))
+                Some(Self::new())
             } else {
-                None
-            }
-        }
-    } else if let Some(path) = via.as_ref() {
-        let via_root = path.segments.first().expect("via path always has at least one segment");
-        if let Some((_, via_root_ty)) = ctor_fields.iter().find(|(ident, _)| ident == via_root) {
-            if ctor_fields.len() == 1 {
-                quote! {
-                    if node_type == #resolved_type_name {
-                        let __golden_label = ::std::string::ToString::to_string(label);
-                        Some(Self::new(__golden_label.clone(), <#via_root_ty>::new(__golden_label)))
-                    } else {
-                        None
-                    }
-                }
-            } else {
-                quote! {
-                    let _ = node_type;
-                    let _ = label;
-                    None
-                }
-            }
-        } else {
-            quote! {
-                let _ = node_type;
-                let _ = label;
                 None
             }
         }
     } else {
         quote! {
             let _ = node_type;
-            let _ = label;
             None
         }
     };
@@ -2475,10 +2498,20 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         #input
 
         impl #impl_generics #struct_name #ty_generics #where_clause {
-            /// Creates a new node instance with its declared default handles and state.
-            pub fn new(label: impl Into<String> #(, #ctor_args)*) -> Self {
+            /// Static fallback label exposed for catalog and schema code.
+            pub const DEFAULT_LABEL: &'static str = #static_default_label;
+
+            /// Returns the runtime default label used by the generated constructor.
+            pub fn default_label() -> ::std::string::String {
+                #generated_default_label
+            }
+
+            /// Creates a new node instance with its declared default label, handles, and state.
+            pub fn new(#(#ctor_args),*) -> Self {
+                let mut node_data = golden_core::node::NodeData::new(Self::default_label());
+                #(#ctor_meta_inits)*
                 Self {
-                    node_data: golden_core::node::NodeData::new(label.into()),
+                    node_data,
                     #(#ctor_inits),*
                 }
             }
@@ -2489,7 +2522,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             }
 
             #[doc(hidden)]
-            pub fn __golden_node_project_create(node_type: &str, label: &str) -> Option<Self> {
+            pub fn __golden_node_project_create(node_type: &str) -> Option<Self> {
                 #generated_project_create
             }
 
@@ -2639,8 +2672,8 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
 
     if from_struct && !has_method(&input, "project_create") {
         input.items.push(parse_quote! {
-            fn project_create(node_type: &str, label: &str) -> Option<Self> {
-                Self::__golden_node_project_create(node_type, label)
+            fn project_create(node_type: &str) -> Option<Self> {
+                Self::__golden_node_project_create(node_type)
             }
         });
     }
@@ -3725,6 +3758,19 @@ fn make_type_name_literal(type_ident: &str) -> LitStr {
     let snake = to_snake_case(type_ident);
     let trimmed = snake.strip_suffix("_node").unwrap_or(&snake);
     LitStr::new(trimmed, proc_macro2::Span::call_site())
+}
+
+fn make_label_literal(node_type: &str) -> LitStr {
+    let trimmed = node_type.strip_suffix("_node").unwrap_or(node_type);
+    let label = enum_label_from_variant_id(trimmed);
+    LitStr::new(&label, proc_macro2::Span::call_site())
+}
+
+fn expr_string_literal(expr: &Expr) -> Option<LitStr> {
+    let Expr::Lit(ExprLit { lit: Lit::Str(value), .. }) = expr else {
+        return None;
+    };
+    Some(value.clone())
 }
 
 fn to_snake_case(input: &str) -> String {

@@ -9,7 +9,7 @@ use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabl
 pub const DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec2_pad_options";
 
 #[allow(missing_docs)]
-#[node("dashboard_node_widget_vec2_pad_options")]
+#[node("dashboard_node_widget_vec2_pad_options", label = "Widget Options")]
 #[children(
     label_placement: Enum = "inside" (
         label = "Label Placement",

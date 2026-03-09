@@ -386,7 +386,8 @@ impl<T: Node> Engine<T> {
         let data = record.data.clone().unwrap_or(serde_json::Value::Null);
         let mut node = if record.user_role == UserNodeRole::ItemRoot {
             if let Some(parent) = parent {
-                if let Some(mut node) = parent.create_user_item(record.node_type.as_str(), meta.label.clone()) {
+                if let Some(mut node) = parent.create_user_item(record.node_type.as_str()) {
+                    node.node_data_mut().meta.label = meta.label.clone();
                     node.project_decode_data(&data).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?;
                     T::from_boxed_node(node).ok_or(ProjectPersistenceError::Codec {
                         node_type: record.node_type.clone(),

@@ -2292,9 +2292,9 @@ impl Node for Parameter {
         Ok(())
     }
 
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+    fn project_create(node_type: &str) -> Option<Self> {
         let default_value = crate::node::default_parameter_value_for_node_type(node_type)?;
-        Some(Self::new(label, default_value, ParameterChangeCheck::ValueChange))
+        Some(Self::new(node_type, default_value, ParameterChangeCheck::ValueChange))
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
@@ -2305,9 +2305,9 @@ impl Node for Parameter {
         Some(UserContainerRules::new(&[PARAMETER_CONTROL_ITEM_KIND]))
     }
 
-    fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         match node_type {
-            PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Some(Box::new(ParameterAnimationControlNode::new(label))),
+            PARAMETER_ANIMATION_CONTROL_NODE_TYPE => Some(Box::new(ParameterAnimationControlNode::new("Animation"))),
             _ => None,
         }
     }

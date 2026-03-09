@@ -11,7 +11,7 @@ pub const DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard
 pub const DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec3_editor_options";
 
 #[allow(missing_docs)]
-#[node("dashboard_node_widget_vec2_editor_options")]
+#[node("dashboard_node_widget_vec2_editor_options", label = "Widget Options")]
 #[children(
     label_placement: Enum = "inside" (
         label = "Label Placement",
@@ -58,7 +58,7 @@ impl Node for DashboardNodeWidgetVec2EditorOptionsNode {
 }
 
 #[allow(missing_docs)]
-#[node("dashboard_node_widget_vec3_editor_options")]
+#[node("dashboard_node_widget_vec3_editor_options", label = "Widget Options")]
 #[children(
     label_placement: Enum = "inside" (
         label = "Label Placement",

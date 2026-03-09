@@ -225,7 +225,7 @@ fn refresh_direct_dashboard_widgets(ctx: &mut ProcessCtx, parent: NodeId) {
 
 /// Root dashboard node that owns a collection of dashboard pages.
 #[allow(missing_docs)]
-#[node("dashboard")]
+#[node("dashboard", label = "Dashboard")]
 pub struct DashboardNode {}
 
 #[node("dashboard", from_struct)]
@@ -236,8 +236,8 @@ impl Node for DashboardNode {
             {
                 node_type: "dashboard_page",
                 item_kind: "dashboard_page",
-                label: "Dashboard Page",
-                create: |_: &Self, label: String| DashboardPageNode::new(label),
+                label: DashboardPageNode::default_label(),
+                create: |_: &Self| DashboardPageNode::new(),
             },
         ];
     }
@@ -257,7 +257,7 @@ impl Node for DashboardNode {
 
 /// Top-level dashboard page that arranges widgets for one route/view.
 #[allow(missing_docs)]
-#[node("dashboard_page")]
+#[node("dashboard_page", label = "Dashboard Page")]
 #[children(
     route: String = "".to_string() (label = "Route", description = "Stable route or slug used to address this page.");
     page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
@@ -299,20 +299,20 @@ impl Node for DashboardPageNode {
             {
                 node_type: "dashboard_widget_container",
                 item_kind: "dashboard_widget",
-                label: "Container Widget",
-                create: |_: &Self, label: String| DashboardWidgetContainerNode::new(label),
+                label: DashboardWidgetContainerNode::default_label(),
+                create: |_: &Self| DashboardWidgetContainerNode::new(),
             },
             {
                 node_type: "dashboard_node_widget",
                 item_kind: "dashboard_widget",
-                label: "Node Widget",
-                create: |_: &Self, label: String| DashboardNodeWidgetNode::new(label),
+                label: DashboardNodeWidgetNode::default_label(),
+                create: |_: &Self| DashboardNodeWidgetNode::new(),
             },
             {
                 node_type: "dashboard_generic_widget",
                 item_kind: "dashboard_widget",
-                label: "Generic Widget",
-                create: |_: &Self, label: String| DashboardGenericWidgetNode::new(label),
+                label: DashboardGenericWidgetNode::default_label(),
+                create: |_: &Self| DashboardGenericWidgetNode::new(),
             },
         ];
     }
@@ -340,7 +340,7 @@ impl Node for DashboardPageNode {
 
 /// Widget container that arranges child widgets using one layout strategy.
 #[allow(missing_docs)]
-#[node("dashboard_widget_container")]
+#[node("dashboard_widget_container", label = "Container Widget")]
 #[children(
     folder(appearance, label = "Appearance") {
         label_placement: Enum = "top" (
@@ -441,20 +441,20 @@ impl Node for DashboardWidgetContainerNode {
             {
                 node_type: "dashboard_widget_container",
                 item_kind: "dashboard_widget",
-                label: "Container Widget",
-                create: |_: &Self, label: String| DashboardWidgetContainerNode::new(label),
+                label: DashboardWidgetContainerNode::default_label(),
+                create: |_: &Self| DashboardWidgetContainerNode::new(),
             },
             {
                 node_type: "dashboard_node_widget",
                 item_kind: "dashboard_widget",
-                label: "Node Widget",
-                create: |_: &Self, label: String| DashboardNodeWidgetNode::new(label),
+                label: DashboardNodeWidgetNode::default_label(),
+                create: |_: &Self| DashboardNodeWidgetNode::new(),
             },
             {
                 node_type: "dashboard_generic_widget",
                 item_kind: "dashboard_widget",
-                label: "Generic Widget",
-                create: |_: &Self, label: String| DashboardGenericWidgetNode::new(label),
+                label: DashboardGenericWidgetNode::default_label(),
+                create: |_: &Self| DashboardGenericWidgetNode::new(),
             },
         ];
     }
@@ -485,7 +485,7 @@ impl Node for DashboardWidgetContainerNode {
 
 /// Widget that binds directly to one engine node and renders its inspector-style UI.
 #[allow(missing_docs)]
-#[node("dashboard_node_widget")]
+#[node("dashboard_node_widget", label = "Node Widget")]
 #[children(
     folder(widget, label = "Widget") {
         target_node: NodeReference (
@@ -681,7 +681,7 @@ impl Node for DashboardNodeWidgetNode {
 
 /// Configurable widget for canonical controls such as buttons, sliders, text, and checkboxes.
 #[allow(missing_docs)]
-#[node("dashboard_generic_widget")]
+#[node("dashboard_generic_widget", label = "Generic Widget")]
 #[children(
     folder(binding, label = "Binding") {
         target_param: NodeReference (
@@ -909,7 +909,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -933,7 +933,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -960,7 +960,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -991,7 +991,7 @@ mod tests {
         speed.constraints.range = RangeConstraint::uniform(Some(0.0), Some(1.0));
         engine.add_node(speed.into(), None);
         engine.add_node(Parameter::new("Point", ParamValue::Vec2(0.0, 0.0), ParameterChangeCheck::ValueChange).into(), None);
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("initial tree should apply");
 
         let float_param = direct_child_by_type(&engine, engine.root, "float").expect("float parameter should exist");
@@ -1102,7 +1102,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -1155,7 +1155,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -1231,7 +1231,7 @@ mod tests {
         let root: DashboardTestNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
 
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("dashboard creation should apply");
 
         let dashboard = first_child(&engine, engine.root);
@@ -1262,7 +1262,7 @@ mod tests {
         let mut target = Parameter::new("Toggleable", ParamValue::Str("Value".to_string()), ParameterChangeCheck::ValueChange);
         target.node_data_mut().meta.can_be_disabled = true;
         engine.add_node(target.into(), None);
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("initial tree should apply");
 
         let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
@@ -1328,7 +1328,7 @@ mod tests {
         let mut engine = Engine::new(root);
 
         engine.add_node(Parameter::new("Tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(), None);
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("initial tree should apply");
 
         let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");
@@ -1405,7 +1405,7 @@ mod tests {
         let mut speed = Parameter::new("Speed", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
         speed.constraints.range = RangeConstraint::uniform(Some(0.0), Some(1.0));
         engine.add_node(speed.into(), None);
-        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.add_node(DashboardNode::new().into(), None);
         engine.apply_edits().expect("initial tree should apply");
 
         let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");

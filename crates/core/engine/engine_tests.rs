@@ -47,33 +47,33 @@ impl Node for UiSchemaDescriptionNode {}
 
 #[test]
 fn item_macro_sets_user_item_kind_when_not_overridden() {
-    let node = ItemMacroAutoKindNode::new("Auto");
+    let node = ItemMacroAutoKindNode::new();
     assert_eq!(node.user_item_kind(), "sequence");
 }
 
 #[test]
 fn item_macro_keeps_manual_user_item_kind_override() {
-    let node = ItemMacroOverrideKindNode::new("Override");
+    let node = ItemMacroOverrideKindNode::new();
     assert_eq!(node.user_item_kind(), "custom_sequence");
 }
 
 #[test]
 fn item_macro_marks_nodes_as_declared_user_items() {
-    let auto = ItemMacroAutoKindNode::new("Auto");
-    let override_kind = ItemMacroOverrideKindNode::new("Override");
+    let auto = ItemMacroAutoKindNode::new();
+    let override_kind = ItemMacroOverrideKindNode::new();
     assert!(auto.is_declared_user_item());
     assert!(override_kind.is_declared_user_item());
 }
 
 #[test]
 fn ui_snapshot_moves_type_descriptions_into_schema() {
-    assert_eq!(UiSchemaDescriptionNode::new("Example").type_description(), Some("Description surfaced once in the UI schema for all nodes of this type."));
-    let wrapped: MacroTestNode = UiSchemaDescriptionNode::new("Wrapped").into();
+    assert_eq!(UiSchemaDescriptionNode::new().type_description(), Some("Description surfaced once in the UI schema for all nodes of this type."));
+    let wrapped: MacroTestNode = UiSchemaDescriptionNode::new().into();
     assert_eq!(wrapped.type_description(), Some("Description surfaced once in the UI schema for all nodes of this type."));
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(UiSchemaDescriptionNode::new("First").into(), None);
-    engine.add_node(UiSchemaDescriptionNode::new("Second").into(), None);
+    engine.add_node(UiSchemaDescriptionNode::new().into(), None);
+    engine.add_node(UiSchemaDescriptionNode::new().into(), None);
     engine.apply_edits().expect("described nodes should attach");
 
     let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
@@ -90,8 +90,8 @@ fn ui_snapshot_moves_type_descriptions_into_schema() {
 fn ui_snapshot_moves_declared_children_descriptions_into_shared_schema() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(SharedDeclaredDescriptionNode::new("Key A").into(), None);
-    engine.add_node(SharedDeclaredDescriptionNode::new("Key B").into(), None);
+    engine.add_node(SharedDeclaredDescriptionNode::new().into(), None);
+    engine.add_node(SharedDeclaredDescriptionNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("shared-description nodes should attach");
@@ -130,10 +130,10 @@ fn ui_snapshot_moves_declared_children_descriptions_into_shared_schema() {
 
 #[test]
 fn add_node_infers_default_permissions_for_declared_item_nodes() {
-    let root = ItemMacroAutoKindNode::new("Root");
+    let root = ItemMacroAutoKindNode::new();
     let mut engine = Engine::new(root);
 
-    engine.add_node(ItemMacroAutoKindNode::new("Child"), None);
+    engine.add_node(ItemMacroAutoKindNode::new(), None);
     engine.apply_edits().expect("declared item add should succeed");
 
     let child = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("child should exist");
@@ -878,7 +878,7 @@ crate::define_node_enum!(
 fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(AutoDeclaredNode::new("declared").into(), None);
+    engine.add_node(AutoDeclaredNode::new().into(), None);
 
     // First pass adds the node and runs generated init, which queues param creation.
     engine.apply_edits().expect("first apply should succeed");
@@ -1044,7 +1044,7 @@ fn child_decl_ids(engine: &Engine<MacroTestNode>, parent: NodeId) -> Vec<String>
 fn params_macro_materializes_nested_folders_and_binds_handles() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
+    engine.add_node(DslParamsNode::new(None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1092,7 +1092,7 @@ fn params_macro_materializes_nested_folders_and_binds_handles() {
 fn params_macro_supports_component_min_max_for_vector_parameters() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslVectorBoundsNode::new("vector-bounds").into(), None);
+    engine.add_node(DslVectorBoundsNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1118,7 +1118,7 @@ fn params_macro_supports_component_min_max_for_vector_parameters() {
 fn params_macro_supports_simple_enum_option_lists_and_default_resolution() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslEnumDefaultsNode::new("enum-defaults").into(), None);
+    engine.add_node(DslEnumDefaultsNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1161,7 +1161,7 @@ fn params_macro_supports_simple_enum_option_lists_and_default_resolution() {
 fn params_macro_allows_reference_without_explicit_default_value() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslReferenceDefaultNode::new("ref-default").into(), None);
+    engine.add_node(DslReferenceDefaultNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1190,7 +1190,7 @@ fn params_macro_allows_reference_without_explicit_default_value() {
 fn children_macro_materializes_declared_node_children_and_binds_handles() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslNodeChildrenNode::new("node-children").into(), None);
+    engine.add_node(DslNodeChildrenNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1218,7 +1218,7 @@ fn children_macro_materializes_declared_node_children_and_binds_handles() {
 fn params_macro_applies_metadata_overrides_for_generated_nodes() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslMetaParamsNode::new("meta").into(), None);
+    engine.add_node(DslMetaParamsNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1256,7 +1256,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
 fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
+    engine.add_node(DslParamsNode::new(None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1286,7 +1286,7 @@ fn params_macro_syncs_handle_cache_before_on_param_change_callback() {
 fn params_macro_supports_default_named_and_closure_callbacks() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(), None);
+    engine.add_node(DslCallbackParamsNode::new(0, 0, 0, 0, None, None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1333,7 +1333,7 @@ fn params_macro_supports_default_named_and_closure_callbacks() {
 fn field_params_support_default_named_and_closure_callbacks() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(FieldCallbackParamsNode::new("callbacks", 0, 0, 0, 0, None, None, None).into(), None);
+    engine.add_node(FieldCallbackParamsNode::new(0, 0, 0, 0, None, None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1380,7 +1380,7 @@ fn field_params_support_default_named_and_closure_callbacks() {
 fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DependencyParamsNode::new("deps").into(), None);
+    engine.add_node(DependencyParamsNode::new().into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1449,7 +1449,7 @@ fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
 fn params_macro_dependency_closure_can_observe_absent_local_child_as_false() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DependencyOptionalChildNode::new("deps").into(), None);
+    engine.add_node(DependencyOptionalChildNode::new().into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -1479,7 +1479,7 @@ fn params_macro_dependency_closure_can_observe_absent_local_child_as_false() {
 fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ManualInboxParamsNode::new("manual", None).into(), None);
+    engine.add_node(ManualInboxParamsNode::new(None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -1508,7 +1508,7 @@ fn engine_preprocesses_inbox_before_custom_on_inbox_logic() {
 fn params_macro_keeps_init_and_child_interest_overrides_available() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ParamsWithCustomInitNode::new("custom", 0, None, false, None).into(), None);
+    engine.add_node(ParamsWithCustomInitNode::new(0, None, false, None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -1533,7 +1533,7 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
 fn nested_declared_params_are_bound_during_init() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(NestedInitBindingNode::new("nested", 0, false, None).into(), None);
+    engine.add_node(NestedInitBindingNode::new(0, false, None).into(), None);
 
     engine.apply_edits().expect("single apply should materialize nested declarations before init");
 
@@ -1554,7 +1554,7 @@ fn nested_declared_params_are_bound_during_init() {
 fn struct_param_declarations_delegate_wiring_into_impl_node() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(StructDeclaredParamsNode::new("decl", 0, None).into(), None);
+    engine.add_node(StructDeclaredParamsNode::new(0, None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -1577,7 +1577,7 @@ fn struct_param_declarations_delegate_wiring_into_impl_node() {
 fn struct_param_declarations_with_via_use_composed_node_data() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ViaStructDeclaredParamsNode::new("decl", ViaNodeCore::new("base"), 0, None).into(), None);
+    engine.add_node(ViaStructDeclaredParamsNode::new(ViaNodeCore::new("base"), 0, None).into(), None);
 
     for _ in 0..4 {
         engine.apply_edits().expect("apply should succeed");
@@ -1601,7 +1601,7 @@ fn struct_param_declarations_with_via_use_composed_node_data() {
 fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ViaComposedRootNode::new("composed", ViaComposedMidNode::new("mid", ViaComposedLeafNode::new("leaf"))).into(), None);
+    engine.add_node(ViaComposedRootNode::new(ViaComposedMidNode::new(ViaComposedLeafNode::new())).into(), None);
 
     for _ in 0..8 {
         engine.apply_edits().expect("apply should succeed");
@@ -1628,7 +1628,7 @@ fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() 
 fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(ReuseFolderViaNode::new("reuse", ReuseFolderBaseNode::new("base")).into(), None);
+    engine.add_node(ReuseFolderViaNode::new(ReuseFolderBaseNode::new()).into(), None);
 
     for _ in 0..8 {
         engine.apply_edits().expect("apply should succeed");
@@ -1661,7 +1661,7 @@ fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
 fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_event() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
-    engine.add_node(DslParamsNode::new("dsl", None, None).into(), None);
+    engine.add_node(DslParamsNode::new(None, None).into(), None);
 
     for _ in 0..6 {
         engine.apply_edits().expect("apply should succeed");
@@ -1856,7 +1856,7 @@ fn catalog_creatable_items_include_registered_blueprints() {
 
     let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
 
-    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", |label| ContainerTestNode::regular(label.as_str(), "sequence")));
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", || ContainerTestNode::regular("Sequence Blueprint", "sequence")));
 
     let creatable = engine.catalog_creatable_items(manager);
     assert!(creatable.iter().any(|item| item.node_type == "blueprint::sequence_bp" && item.item_kind == "sequence"), "registered blueprint should be listed in catalog creatable items");
@@ -1872,7 +1872,7 @@ fn queue_catalog_create_instantiates_blueprint_and_tracks_instance_meta() {
 
     let manager = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child).expect("manager should exist");
 
-    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", |label| ContainerTestNode::regular(label.as_str(), "sequence")).with_version(3));
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("sequence_bp"), "Sequence Blueprint", "sequence", || ContainerTestNode::regular("Sequence Blueprint", "sequence")).with_version(3));
 
     engine.queue_catalog_create(manager, "blueprint::sequence_bp", None, None).expect("queueing blueprint creation should succeed");
     engine.apply_edits().expect("blueprint creation should apply");
@@ -1890,7 +1890,7 @@ fn queue_catalog_create_instantiates_blueprint_and_tracks_instance_meta() {
 
 #[test]
 fn contextualizable_nodes_expose_user_context_items_in_catalog() {
-    let root: MacroTestNode = UiContextHostNode::new("root").into();
+    let root: MacroTestNode = UiContextHostNode::new().into();
     let mut engine = Engine::new(root);
 
     let creatable = engine.catalog_creatable_items(engine.root);
@@ -1908,7 +1908,7 @@ fn contextualizable_nodes_expose_user_context_items_in_catalog() {
 
 #[test]
 fn user_context_nodes_create_folders_and_all_parameter_types() {
-    let root: MacroTestNode = UiContextHostNode::new("root").into();
+    let root: MacroTestNode = UiContextHostNode::new().into();
     let mut engine = Engine::new(root);
 
     engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
@@ -1953,10 +1953,10 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
 
 #[test]
 fn user_context_nodes_expose_blueprints_in_catalog() {
-    let root: MacroTestNode = UiContextHostNode::new("root").into();
+    let root: MacroTestNode = UiContextHostNode::new().into();
     let mut engine = Engine::new(root);
 
-    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("ctx_scope_bp"), "Context Scope Blueprint", "sequence", |label| UiContextHostNode::new(label).into()));
+    engine.register_blueprint(BlueprintDecl::new(BlueprintId::new("ctx_scope_bp"), "Context Scope Blueprint", "sequence", || UiContextHostNode::new().into()));
 
     engine.queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None).expect("queueing user_context creation should succeed");
     engine.apply_edits().expect("user_context creation should apply");
@@ -1975,7 +1975,7 @@ fn user_context_nodes_expose_blueprints_in_catalog() {
 
 #[test]
 fn via_nodes_inherit_script_host_policy_from_base() {
-    let root: MacroTestNode = ViaScriptHostNode::new("root", UiScriptHostNode::new("base")).into();
+    let root: MacroTestNode = ViaScriptHostNode::new(UiScriptHostNode::new("base")).into();
     let mut engine = Engine::new(root);
 
     let creatable = engine.catalog_creatable_items(engine.root);
@@ -1990,7 +1990,7 @@ fn via_nodes_inherit_script_host_policy_from_base() {
 
 #[test]
 fn via_nodes_inherit_context_host_policy_from_base() {
-    let root: MacroTestNode = ViaContextHostNode::new("root", UiContextHostNode::new("base")).into();
+    let root: MacroTestNode = ViaContextHostNode::new(UiContextHostNode::new()).into();
     let engine = Engine::new(root);
 
     let creatable = engine.catalog_creatable_items(engine.root);
@@ -4209,7 +4209,7 @@ fn animation_control_node_rejects_user_created_children() {
 
     assert!(animation.user_container_rules().is_none());
     assert!(animation.user_creatable_items().is_empty());
-    assert!(animation.create_user_item("float", "Extra".to_string()).is_none());
+    assert!(animation.create_user_item("float").is_none());
 }
 
 #[test]

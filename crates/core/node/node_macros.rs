@@ -192,14 +192,14 @@ macro_rules! __downcast_node_enum_variant {
 ///             node_type: "osc_module",
 ///             item_kind: "module",
 ///             label: "OSC Module",
-///             create: |_: &Self, label: String| OscModule::create(label),
+///             create: |_: &Self| OscModule::create(),
 ///         },
 ///         {
 ///             node_type: "dmx_module",
 ///             item_kind: "module",
 ///             label: "DMX Module",
 ///             when: |this: &Self| this.allow_dmx,
-///             create: |_: &Self, label: String| DmxModule::create(label),
+///             create: |_: &Self| DmxModule::create(),
 ///         },
 ///     ];
 /// }`
@@ -331,24 +331,28 @@ macro_rules! define_user_item_factory_methods {
             items
         }
 
-        fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn $crate::node::Node>> {
+        fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
             if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
                 return Some(Box::new($crate::script::ScriptNode::new(
-                    label,
+                    "Script",
                     $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
                 )));
             }
             if (node_type == $crate::node::USER_CONTEXT_NODE_TYPE || node_type == "context")
                 && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
             {
-                return Some(Box::new($crate::node::UserContextNode::new(label)));
+                return Some(Box::new($crate::node::UserContextNode::new(
+                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                )));
             }
 
             match node_type {
                 $(
                     $node_type => {
                         if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
-                            Some(Box::new(($create)(self, label)))
+                            let mut node = ($create)(self);
+                            $crate::node::Node::node_data_mut(&mut node).meta.label = ($label).to_string();
+                            Some(Box::new(node))
                         } else {
                             None
                         }
@@ -568,8 +572,8 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
-            fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn $crate::node::Node>> {
-                $crate::__dispatch_node_enum!(self, create_user_item, node_type, label; $($variant),*)
+            fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
+                $crate::__dispatch_node_enum!(self, create_user_item, node_type; $($variant),*)
             }
 
             #[inline(always)]
@@ -815,80 +819,96 @@ macro_rules! define_node_enum {
 
         impl $crate::app::ProjectNode for $enum_name {
             fn project_decode_node(node_type: &str, data: &serde_json::Value, meta: &$crate::node::NodeMeta) -> Result<Self, String> {
-                if let Some(mut node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type, meta.label.as_str()) {
+                if let Some(mut node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type) {
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::Folder(node));
                 }
-                if let Some(mut node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type, meta.label.as_str()) {
+                if let Some(mut node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type) {
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::UserContext(node));
                 }
-                if let Some(mut node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type, meta.label.as_str()) {
+                if let Some(mut node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::Parameter(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::Dashboard(node));
                 }
                 if node_type == $crate::node::DASHBOARD_PAGE_NODE_TYPE {
-                    let mut node = $crate::node::DashboardPageNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardPageNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardPage(node));
                 }
                 if node_type == $crate::node::DASHBOARD_WIDGET_CONTAINER_NODE_TYPE {
-                    let mut node = $crate::node::DashboardWidgetContainerNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardWidgetContainerNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardWidgetContainer(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidget(node));
                 }
                 if node_type == $crate::node::DASHBOARD_GENERIC_WIDGET_NODE_TYPE {
-                    let mut node = $crate::node::DashboardGenericWidgetNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardGenericWidgetNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardGenericWidget(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetInspectorOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetInspectorOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetInspectorOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetParameterEditorOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetNumberSliderOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetNumberRotaryOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetVec2PadOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetVec2PadOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetVec2PadOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetVec2EditorOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetVec3EditorOptions(node));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE {
-                    let mut node = $crate::node::DashboardNodeWidgetColorEditorOptionsNode::new(meta.label.clone());
+                    let mut node = $crate::node::DashboardNodeWidgetColorEditorOptionsNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::DashboardNodeWidgetColorEditorOptions(node));
                 }
@@ -913,17 +933,20 @@ macro_rules! define_node_enum {
                     return Ok(Self::AnimationCurveKey(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
-                    let mut node = $crate::node::AnimationCurveEasingNode::new(meta.label.clone());
+                    let mut node = $crate::node::AnimationCurveEasingNode::new();
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::AnimationCurveEasing(node));
                 }
-                if let Some(mut node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type, meta.label.as_str()) {
+                if let Some(mut node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::Script(node));
                 }
 
                 $(
-                    if let Some(mut node) = <$node_ty as $crate::node::Node>::project_create(node_type, meta.label.as_str()) {
+                    if let Some(mut node) = <$node_ty as $crate::node::Node>::project_create(node_type) {
+                        $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                         $crate::node::Node::project_decode_data(&mut node, data)?;
                         return Ok(Self::$variant(node));
                     }

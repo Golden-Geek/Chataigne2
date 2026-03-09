@@ -100,7 +100,7 @@ impl<T: Node> Engine<T> {
 
         let resolved_label = label.unwrap_or_else(|| factory_node.user_creatable_items().into_iter().find(|candidate| candidate.node_type == node_type).map(|candidate| candidate.label).unwrap_or_else(|| node_type.clone()));
 
-        let Some(node) = factory_node.create_user_item(node_type.as_str(), resolved_label) else {
+        let Some(mut node) = factory_node.create_user_item(node_type.as_str()) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
                 edit_index: 0,
                 operation: "CreateCatalogItem",
@@ -108,6 +108,7 @@ impl<T: Node> Engine<T> {
                 node_type,
             });
         };
+        node.node_data_mut().meta.label = resolved_label;
 
         self.edits.push(Edit::AddUserItem { parent, prev_sibling, node });
         Ok(())
@@ -128,7 +129,8 @@ impl<T: Node> Engine<T> {
 
         let blueprint_version = decl.version;
         let resolved_label = label.unwrap_or_else(|| decl.label.clone());
-        let mut node = decl.instantiate(resolved_label);
+        let mut node = decl.instantiate();
+        node.node_data_mut().meta.label = resolved_label;
         let tag = format!("blueprint:{}", blueprint_id.as_str());
         if !node.node_data().meta.tags.iter().any(|existing| existing == &tag) {
             node.node_data_mut().meta.tags.push(tag);

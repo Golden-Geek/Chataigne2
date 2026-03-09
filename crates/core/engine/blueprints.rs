@@ -83,7 +83,7 @@ impl BlueprintInstanceMeta {
     }
 }
 
-type InstantiateBlueprintFn<T> = dyn Fn(String) -> T + Send + Sync;
+type InstantiateBlueprintFn<T> = dyn Fn() -> T + Send + Sync;
 
 /// Blueprint declaration exposed as one dynamic node type in the unified catalog.
 #[derive(Clone)]
@@ -115,7 +115,7 @@ impl<T: Node> fmt::Debug for BlueprintDecl<T> {
 
 impl<T: Node> BlueprintDecl<T> {
     /// Creates a new blueprint declaration.
-    pub fn new(id: BlueprintId, label: impl Into<String>, item_kind: impl Into<String>, instantiate: impl Fn(String) -> T + Send + Sync + 'static) -> Self {
+    pub fn new(id: BlueprintId, label: impl Into<String>, item_kind: impl Into<String>, instantiate: impl Fn() -> T + Send + Sync + 'static) -> Self {
         Self {
             id,
             label: label.into(),
@@ -144,8 +144,8 @@ impl<T: Node> BlueprintDecl<T> {
     }
 
     /// Instantiates one runtime root node.
-    pub fn instantiate(&self, label: String) -> T {
-        (self.instantiate)(label)
+    pub fn instantiate(&self) -> T {
+        (self.instantiate)()
     }
 }
 

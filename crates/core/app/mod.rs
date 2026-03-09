@@ -56,7 +56,7 @@ pub fn add_default_project_nodes<T>(engine: &mut Engine<T>)
 where
     T: Node + From<DashboardNode>,
 {
-    engine.add_node(DashboardNode::new("Dashboard").into(), None);
+    engine.add_node(DashboardNode::new().into(), None);
 }
 
 /// Creates a fresh engine instance and applies the app runtime configuration.
@@ -148,7 +148,7 @@ mod tests {
     use super::*;
     use crate::node::Node;
 
-    #[crate::node("lifecycle_marker_node")]
+    #[crate::node("lifecycle_marker_node", label = "Marker")]
     struct LifecycleMarkerNode {}
 
     #[crate::node("lifecycle_marker_node", from_struct)]
@@ -196,12 +196,12 @@ mod tests {
 
     #[crate::node("via_persisted_state_wrapper_node", via = base, from_struct)]
     impl Node for ViaPersistedStateWrapperNode {
-        fn project_create(node_type: &str, label: &str) -> Option<Self> {
-            (node_type == "via_persisted_state_wrapper_node").then(|| Self::new(label, ViaPersistedStateBaseNode::new(label)))
+        fn project_create(node_type: &str) -> Option<Self> {
+            (node_type == "via_persisted_state_wrapper_node").then(|| Self::new(ViaPersistedStateBaseNode::new()))
         }
     }
 
-    #[crate::node("managed_item_manager_node")]
+    #[crate::node("managed_item_manager_node", label = "Manager")]
     struct ManagedItemManagerNode {}
 
     #[crate::node("managed_item_manager_node", from_struct)]
@@ -212,8 +212,8 @@ mod tests {
                 {
                     node_type: "managed_item_node",
                     item_kind: "managed_item",
-                    label: "Managed Item",
-                    create: |_: &Self, label: String| ManagedItemNode::create(label),
+                    label: ManagedItemNode::default_label(),
+                    create: |_: &Self| ManagedItemNode::create(),
                 },
             ];
         }
@@ -225,15 +225,14 @@ mod tests {
     #[crate::node("managed_item_base_node", from_struct)]
     impl Node for ManagedItemBaseNode {}
 
-    #[crate::node("managed_item_node")]
+    #[crate::node("managed_item_node", label = "Managed Item")]
     struct ManagedItemNode {
         base: ManagedItemBaseNode,
     }
 
     impl ManagedItemNode {
-        fn create(label: impl Into<String>) -> Self {
-            let label = label.into();
-            Self::new(label.clone(), ManagedItemBaseNode::new(label))
+        fn create() -> Self {
+            Self::new(ManagedItemBaseNode::new())
         }
     }
 
@@ -267,7 +266,7 @@ mod tests {
 
         fn initialize_new_project(engine: &mut Engine<Self>) -> Result<(), String> {
             add_default_project_nodes(engine);
-            engine.add_node(LifecycleMarkerNode::new("Marker").into(), None);
+            engine.add_node(LifecycleMarkerNode::new().into(), None);
             Ok(())
         }
 
@@ -309,7 +308,7 @@ mod tests {
     fn from_struct_nodes_without_special_ctor_decode_without_manual_project_create() {
         let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
-        engine.add_node(AutoLoadedNode::new("Simple").into(), None);
+        engine.add_node(AutoLoadedNode::new().into(), None);
         engine.apply_edits().expect("simple node should attach");
 
         let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
@@ -321,7 +320,7 @@ mod tests {
 
     #[test]
     fn defaulted_struct_fields_feed_generated_new_and_project_create() {
-        let node = DefaultedLoadedNode::new("Defaulted");
+        let node = DefaultedLoadedNode::new();
         assert!(node.flag, "generated constructor should apply #[defaults(...)] values");
 
         let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
@@ -342,7 +341,7 @@ mod tests {
 
     #[test]
     fn state_fields_can_define_default_and_persistence_in_one_place() {
-        let mut node = PersistedStateNode::new("Persisted");
+        let mut node = PersistedStateNode::new();
         assert!(node.flag, "generated constructor should apply #[state(default = ...)] values");
         node.flag = false;
 
@@ -364,7 +363,7 @@ mod tests {
 
     #[test]
     fn via_nodes_can_persist_wrapper_and_base_state_without_manual_codecs() {
-        let mut node = ViaPersistedStateWrapperNode::new("Via", ViaPersistedStateBaseNode::new("Via"));
+        let mut node = ViaPersistedStateWrapperNode::new(ViaPersistedStateBaseNode::new());
         assert!(node.base.base_flag, "via base should use generated default-backed constructor");
         assert!(!node.wrapper_flag, "via wrapper should use generated default-backed constructor");
 
@@ -392,11 +391,11 @@ mod tests {
     fn managed_item_nodes_decode_from_parent_factory_without_manual_project_create() {
         let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
-        engine.add_node(ManagedItemManagerNode::new("Manager").into(), None);
+        engine.add_node(ManagedItemManagerNode::new().into(), None);
         engine.apply_edits().expect("manager should attach");
 
         let manager = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("manager should exist under root");
-        engine.add_user_item(ManagedItemNode::create("Item").into(), Some(manager));
+        engine.add_user_item(ManagedItemNode::create().into(), Some(manager));
         engine.apply_edits().expect("managed item should attach");
 
         let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
@@ -413,11 +412,11 @@ mod tests {
     fn managed_item_nodes_duplicate_from_parent_factory_without_manual_project_create() {
         let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
         let mut engine = Engine::new(root);
-        engine.add_node(ManagedItemManagerNode::new("Manager").into(), None);
+        engine.add_node(ManagedItemManagerNode::new().into(), None);
         engine.apply_edits().expect("manager should attach");
 
         let manager = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("manager should exist under root");
-        engine.add_user_item(ManagedItemNode::create("Item").into(), Some(manager));
+        engine.add_user_item(ManagedItemNode::create().into(), Some(manager));
         engine.apply_edits().expect("managed item should attach");
 
         let item = engine.nodes.get(manager).and_then(|node| node.node_data().first_child).expect("managed item should exist under manager");

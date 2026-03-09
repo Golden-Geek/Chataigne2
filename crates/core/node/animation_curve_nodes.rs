@@ -895,10 +895,10 @@ impl Node for AnimationCurveNode {
         vec![UserCreatableItem::new(PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_ITEM_KIND, "Key")]
     }
 
-    fn create_user_item(&self, node_type: &str, label: String) -> Option<Box<dyn Node>> {
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         let normalized = node_type.trim().to_ascii_lowercase();
         if normalized == PARAMETER_ANIMATION_KEY_NODE_TYPE || normalized == "key" {
-            return Some(Box::new(AnimationCurveKeyNode::new_with_label_and_range(label, self.initial_key_range_constraint())));
+            return Some(Box::new(AnimationCurveKeyNode::new_with_label_and_range("Key", self.initial_key_range_constraint())));
         }
         None
     }

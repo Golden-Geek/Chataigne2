@@ -74,14 +74,14 @@ pub(crate) fn dashboard_widget_options_node_type(kind: &DashboardWidgetOptionsNo
 
 pub(crate) fn make_dashboard_widget_options_node(kind: &DashboardWidgetOptionsNodeKind) -> Box<dyn Node> {
     match kind {
-        DashboardWidgetOptionsNodeKind::Inspector => Box::new(DashboardNodeWidgetInspectorOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::ParameterEditor => Box::new(DashboardNodeWidgetParameterEditorOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::NumberSlider => Box::new(DashboardNodeWidgetNumberSliderOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::NumberRotary => Box::new(DashboardNodeWidgetNumberRotaryOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::Vec2Pad => Box::new(DashboardNodeWidgetVec2PadOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::Vec2Editor => Box::new(DashboardNodeWidgetVec2EditorOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::Vec3Editor => Box::new(DashboardNodeWidgetVec3EditorOptionsNode::new("Widget Options")),
-        DashboardWidgetOptionsNodeKind::ColorEditor => Box::new(DashboardNodeWidgetColorEditorOptionsNode::new("Widget Options")),
+        DashboardWidgetOptionsNodeKind::Inspector => Box::new(DashboardNodeWidgetInspectorOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::ParameterEditor => Box::new(DashboardNodeWidgetParameterEditorOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::NumberSlider => Box::new(DashboardNodeWidgetNumberSliderOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::NumberRotary => Box::new(DashboardNodeWidgetNumberRotaryOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::Vec2Pad => Box::new(DashboardNodeWidgetVec2PadOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::Vec2Editor => Box::new(DashboardNodeWidgetVec2EditorOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::Vec3Editor => Box::new(DashboardNodeWidgetVec3EditorOptionsNode::new()),
+        DashboardWidgetOptionsNodeKind::ColorEditor => Box::new(DashboardNodeWidgetColorEditorOptionsNode::new()),
     }
 }
 

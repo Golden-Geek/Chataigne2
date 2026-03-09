@@ -3199,8 +3199,8 @@ impl Node for ScriptNode {
         Ok(())
     }
 
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "script").then(|| Self::new(label, ScriptNodeConfig::default()))
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == "script").then(|| Self::new("Script", ScriptNodeConfig::default()))
     }
 
     fn engine_script_state(&self) -> Option<ScriptUiState> {
