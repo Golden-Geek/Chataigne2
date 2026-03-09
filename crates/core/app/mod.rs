@@ -160,6 +160,24 @@ mod tests {
     #[crate::node("auto_loaded_node", from_struct)]
     impl Node for AutoLoadedNode {}
 
+    #[crate::node("defaulted_loaded_node")]
+    #[defaults(flag = true)]
+    struct DefaultedLoadedNode {
+        flag: bool,
+    }
+
+    #[crate::node("defaulted_loaded_node", from_struct)]
+    impl Node for DefaultedLoadedNode {}
+
+    #[crate::node("persisted_state_node")]
+    struct PersistedStateNode {
+        #[state(default = true, persist)]
+        flag: bool,
+    }
+
+    #[crate::node("persisted_state_node", from_struct)]
+    impl Node for PersistedStateNode {}
+
     #[crate::node("managed_item_manager_node")]
     struct ManagedItemManagerNode {}
 
@@ -208,6 +226,8 @@ mod tests {
     crate::define_node_enum!(
         enum ProjectDecodeTestAppNode {
             AutoLoadedNode,
+            DefaultedLoadedNode,
+            PersistedStateNode,
             ManagedItemManagerNode,
             ManagedItemBaseNode,
             ManagedItemNode,
@@ -272,6 +292,49 @@ mod tests {
 
         let simple = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("simple node should be restored under root");
         assert_eq!(loaded.nodes.get(simple).map(Node::get_type), Some("auto_loaded_node"));
+    }
+
+    #[test]
+    fn defaulted_struct_fields_feed_generated_new_and_project_create() {
+        let node = DefaultedLoadedNode::new("Defaulted");
+        assert!(node.flag, "generated constructor should apply #[defaults(...)] values");
+
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(node.into(), None);
+        engine.apply_edits().expect("defaulted node should attach");
+
+        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+
+        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("defaulted node should be restored under root");
+        let ProjectDecodeTestAppNode::DefaultedLoadedNode(node) = loaded.nodes.get(restored).expect("defaulted node should exist") else {
+            panic!("restored node should be a DefaultedLoadedNode");
+        };
+
+        assert!(node.flag, "autoloaded node should preserve generated default-backed constructor state");
+    }
+
+    #[test]
+    fn state_fields_can_define_default_and_persistence_in_one_place() {
+        let mut node = PersistedStateNode::new("Persisted");
+        assert!(node.flag, "generated constructor should apply #[state(default = ...)] values");
+        node.flag = false;
+
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(node.into(), None);
+        engine.apply_edits().expect("persisted-state node should attach");
+
+        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+
+        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("persisted-state node should be restored under root");
+        let ProjectDecodeTestAppNode::PersistedStateNode(node) = loaded.nodes.get(restored).expect("persisted-state node should exist") else {
+            panic!("restored node should be a PersistedStateNode");
+        };
+
+        assert!(!node.flag, "persisted #[state(..., persist)] field should round-trip through project save/load");
     }
 
     #[test]

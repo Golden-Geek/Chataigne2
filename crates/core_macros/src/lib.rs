@@ -258,6 +258,38 @@ impl Parse for UpdateAttr {
     }
 }
 
+struct StructDefaultsAttr {
+    values: BTreeMap<String, (Ident, Expr)>,
+}
+
+impl Parse for StructDefaultsAttr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut values = BTreeMap::new();
+
+        while !input.is_empty() {
+            let field = input.parse::<Ident>()?;
+            let key = field.to_string();
+            if values.contains_key(&key) {
+                return Err(Error::new(field.span(), format!("duplicate default for field `{key}`")));
+            }
+            input.parse::<Token![=]>()?;
+            let expr = input.parse::<Expr>()?;
+            values.insert(key, (field, expr));
+
+            if input.is_empty() {
+                break;
+            }
+
+            input.parse::<Token![,]>()?;
+            if input.is_empty() {
+                break;
+            }
+        }
+
+        Ok(Self { values })
+    }
+}
+
 #[derive(Default)]
 struct ParamFieldArgs {
     default: Option<Expr>,
@@ -415,6 +447,52 @@ impl Parse for PotentialNodeFieldArgs {
                 out.decl_id = Some(input.parse::<LitStr>()?);
             } else {
                 return Err(Error::new(key.span(), "unsupported #[potential_node(...)] argument (supported: decl_id)"));
+            }
+
+            if input.is_empty() {
+                break;
+            }
+
+            input.parse::<Token![,]>()?;
+        }
+
+        Ok(out)
+    }
+}
+
+#[derive(Default)]
+struct StateFieldArgs {
+    default: Option<Expr>,
+    persist: Option<bool>,
+}
+
+impl Parse for StateFieldArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut out = Self::default();
+
+        while !input.is_empty() {
+            let key = input.parse::<Ident>()?;
+            if key == "persist" {
+                if out.persist.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `persist`"));
+                }
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>()?;
+                    out.persist = Some(input.parse::<LitBool>()?.value);
+                } else {
+                    out.persist = Some(true);
+                }
+            } else {
+                input.parse::<Token![=]>()?;
+
+                if key == "default" {
+                    if out.default.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `default`"));
+                    }
+                    out.default = Some(input.parse::<Expr>()?);
+                } else {
+                    return Err(Error::new(key.span(), "unsupported #[state(...)] argument (supported: default, persist)"));
+                }
             }
 
             if input.is_empty() {
@@ -1656,6 +1734,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
     let generated_type_description = extract_doc_comment_literal(&input.attrs).map_or_else(|| quote!(None), |description| quote!(Some(#description)));
     let mut params_dsl = None::<ParamsDsl>;
+    let mut struct_defaults = BTreeMap::<String, (Ident, Expr)>::new();
     let mut kept_attrs = Vec::with_capacity(input.attrs.len());
     for attr in input.attrs.drain(..) {
         if attr.path().segments.last().is_some_and(|segment| segment.ident == "children") {
@@ -1667,6 +1746,15 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 Err(err) => return err.to_compile_error(),
             };
             params_dsl = Some(parsed);
+        } else if attr.path().segments.last().is_some_and(|segment| segment.ident == "defaults") {
+            if !struct_defaults.is_empty() {
+                return Error::new_spanned(attr, "only one #[defaults(...)] attribute is supported per struct").to_compile_error();
+            }
+            let parsed = match attr.parse_args::<StructDefaultsAttr>() {
+                Ok(parsed) => parsed,
+                Err(err) => return err.to_compile_error(),
+            };
+            struct_defaults = parsed.values;
         } else {
             kept_attrs.push(attr);
         }
@@ -1710,6 +1798,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     let mut param_refresh_bindings = Vec::<proc_macro2::TokenStream>::new();
     let mut param_dependency_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut param_order_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
+    let mut persisted_state_fields = Vec::<(Ident, LitStr)>::new();
     let field_param_order = fields
         .iter()
         .filter_map(|field| {
@@ -1728,12 +1817,35 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             continue;
         }
 
-        let (param_attr, potential_attr) = take_handle_attrs(field);
+        let field_default = struct_defaults.remove(&field_ident.to_string()).map(|(_, expr)| expr);
+        let (param_attr, potential_attr, state_attr) = match take_handle_attrs(field) {
+            Ok(attrs) => attrs,
+            Err(err) => return err.to_compile_error(),
+        };
         if param_attr.is_some() && potential_attr.is_some() {
             return Error::new_spanned(field, "field cannot have both #[param(...)] and #[potential_node(...)]").to_compile_error();
         }
+        if state_attr.is_some() && (param_attr.is_some() || potential_attr.is_some()) {
+            return Error::new_spanned(field, "#[state(...)] is only supported on plain node fields").to_compile_error();
+        }
+
+        let state_args = if let Some(state_attr) = state_attr {
+            let args = match state_attr.parse_args::<StateFieldArgs>() {
+                Ok(args) => args,
+                Err(err) => return err.to_compile_error(),
+            };
+            if args.persist.unwrap_or(false) && via.is_some() {
+                return Error::new_spanned(field, "#[state(..., persist)] is not supported on #[node(..., via = ...)] yet; implement project_encode_data/project_decode_data manually for this node").to_compile_error();
+            }
+            Some(args)
+        } else {
+            None
+        };
 
         if let Some(param_attr) = param_attr {
+            if field_default.is_some() {
+                return Error::new_spanned(field, "cannot combine #[defaults(...)] with #[param(...)] field declarations").to_compile_error();
+            }
             if params_plan.is_some() {
                 return Error::new_spanned(param_attr, "cannot combine field-level #[param(...)] with struct-level #[children(...)]; choose one parameter declaration style").to_compile_error();
             }
@@ -1920,6 +2032,9 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         }
 
         if let Some(potential_attr) = potential_attr {
+            if field_default.is_some() {
+                return Error::new_spanned(field, "cannot combine #[defaults(...)] with #[potential_node(...)] field declarations").to_compile_error();
+            }
             let args = match potential_attr.parse_args::<PotentialNodeFieldArgs>() {
                 Ok(args) => args,
                 Err(err) => return err.to_compile_error(),
@@ -1957,8 +2072,25 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             continue;
         }
 
-        ctor_fields.push((field_ident.clone(), field.ty.clone()));
-        ctor_inits.push(quote! { #field_ident });
+        let state_default = state_args.as_ref().and_then(|args| args.default.clone());
+        if field_default.is_some() && state_default.is_some() {
+            return Error::new_spanned(field, "cannot define both #[defaults(...)] and #[state(default = ...)] for the same field").to_compile_error();
+        }
+
+        if state_args.as_ref().and_then(|args| args.persist).unwrap_or(false) {
+            persisted_state_fields.push((field_ident.clone(), LitStr::new(&field_ident.to_string(), field_ident.span())));
+        }
+
+        if let Some(default_expr) = state_default.or(field_default) {
+            ctor_inits.push(quote! { #field_ident: #default_expr });
+        } else {
+            ctor_fields.push((field_ident.clone(), field.ty.clone()));
+            ctor_inits.push(quote! { #field_ident });
+        }
+    }
+
+    if let Some((_, (field, _))) = struct_defaults.iter().next() {
+        return Error::new(field.span(), format!("unknown #[defaults(...)] field `{}`", field)).to_compile_error();
     }
 
     let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() { 0u32 } else { 1u32 };
@@ -2185,6 +2317,55 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             None
         }
     };
+    let generated_project_encode_data = if persisted_state_fields.is_empty() {
+        quote! {
+            Ok(serde_json::Value::Null)
+        }
+    } else {
+        let inserts = persisted_state_fields.iter().map(|(field_ident, field_name)| {
+            quote! {
+                __golden_data.insert(
+                    ::std::string::ToString::to_string(#field_name),
+                    serde_json::to_value(&self.#field_ident).map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?,
+                );
+            }
+        });
+        quote! {
+            let mut __golden_data = serde_json::Map::new();
+            #(#inserts)*
+            Ok(serde_json::Value::Object(__golden_data))
+        }
+    };
+    let generated_project_decode_data = if persisted_state_fields.is_empty() {
+        quote! {
+            if data.is_null() {
+                return Ok(());
+            }
+
+            Err(format!("node type '{}' does not support persisted project data", #resolved_type_name))
+        }
+    } else {
+        let decodes = persisted_state_fields.iter().map(|(field_ident, field_name)| {
+            quote! {
+                if let Some(__golden_value) = __golden_object.get(#field_name) {
+                    self.#field_ident = serde_json::from_value(__golden_value.clone())
+                        .map_err(|err| format!("invalid '{}' field: {err}", #field_name))?;
+                }
+            }
+        });
+        quote! {
+            if data.is_null() {
+                return Ok(());
+            }
+
+            let Some(__golden_object) = data.as_object() else {
+                return Err(format!("node type '{}' expects persisted project data as an object", #resolved_type_name));
+            };
+
+            #(#decodes)*
+            Ok(())
+        }
+    };
 
     let generated_user_item_kind = item_kind.as_ref().map(|item_kind| {
         quote! {
@@ -2287,6 +2468,16 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             #[doc(hidden)]
             pub fn __golden_node_project_create(node_type: &str, label: &str) -> Option<Self> {
                 #generated_project_create
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_project_encode_data(&self) -> Result<serde_json::Value, String> {
+                #generated_project_encode_data
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                #generated_project_decode_data
             }
 
             #[doc(hidden)]
@@ -2427,6 +2618,22 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         input.items.push(parse_quote! {
             fn project_create(node_type: &str, label: &str) -> Option<Self> {
                 Self::__golden_node_project_create(node_type, label)
+            }
+        });
+    }
+
+    if from_struct && via.is_none() && !has_method(&input, "project_encode_data") {
+        input.items.push(parse_quote! {
+            fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+                Self::__golden_node_project_encode_data(self)
+            }
+        });
+    }
+
+    if from_struct && via.is_none() && !has_method(&input, "project_decode_data") {
+        input.items.push(parse_quote! {
+            fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                Self::__golden_node_project_decode_data(self, data)
             }
         });
     }
@@ -3365,23 +3572,35 @@ fn extract_vector_components(expr: &Expr) -> Option<Vec<Expr>> {
     }
 }
 
-fn take_handle_attrs(field: &mut Field) -> (Option<syn::Attribute>, Option<syn::Attribute>) {
+fn take_handle_attrs(field: &mut Field) -> Result<(Option<syn::Attribute>, Option<syn::Attribute>, Option<syn::Attribute>)> {
     let mut param_attr = None;
     let mut potential_attr = None;
+    let mut state_attr = None;
     let mut keep = Vec::with_capacity(field.attrs.len());
 
     for attr in field.attrs.drain(..) {
         if attr.path().is_ident("param") {
+            if param_attr.is_some() {
+                return Err(Error::new_spanned(attr, "duplicate `param` field attribute"));
+            }
             param_attr = Some(attr);
         } else if attr.path().is_ident("potential_node") {
+            if potential_attr.is_some() {
+                return Err(Error::new_spanned(attr, "duplicate `potential_node` field attribute"));
+            }
             potential_attr = Some(attr);
+        } else if attr.path().is_ident("state") {
+            if state_attr.is_some() {
+                return Err(Error::new_spanned(attr, "duplicate `state` field attribute"));
+            }
+            state_attr = Some(attr);
         } else {
             keep.push(attr);
         }
     }
 
     field.attrs = keep;
-    (param_attr, potential_attr)
+    Ok((param_attr, potential_attr, state_attr))
 }
 
 fn is_named_type(ty: &Type, ident: &str) -> bool {
