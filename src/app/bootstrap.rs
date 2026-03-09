@@ -15,7 +15,8 @@ fn find_root_child_by_type(engine: &AppEngine, node_type: &str) -> Option<NodeId
 
 fn create_manager_item(engine: &AppEngine, manager: NodeId, node_type: &str, label: &str) -> Result<AppNode, String> {
     let manager_node = engine.nodes.get(manager).ok_or_else(|| format!("module manager node {manager:?} no longer exists during project initialization"))?;
-    let node = manager_node.create_user_item(node_type, label.to_string()).ok_or_else(|| format!("module manager could not create '{node_type}' during project initialization"))?;
+    let mut node = manager_node.create_user_item(node_type).ok_or_else(|| format!("module manager could not create '{node_type}' during project initialization"))?;
+    node.node_data_mut().meta.label = label.to_string();
     <AppNode as Node>::from_boxed_node(node).ok_or_else(|| format!("module manager created '{node_type}' outside the app node enum"))
 }
 
@@ -28,7 +29,7 @@ impl golden_core::app::ProjectLifecycle for AppNode {
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
         golden_core::app::add_default_project_nodes(engine);
 
-        engine.add_node(super::ModuleManager::new("Module Manager").into(), None);
+        engine.add_node(super::ModuleManager::new().into(), None);
         engine.apply_edits().map_err(|err| format!("failed to create default module manager: {err}"))?;
 
         let manager = find_root_child_by_type(engine, "module_manager").ok_or_else(|| "default module manager was not created during project initialization".to_string())?;

@@ -12,7 +12,7 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-#[node]
+#[node(label = "Module Manager")]
 pub struct ModuleManager {
     #[state(default = true, persist)]
     allow_dmx: bool,
@@ -26,27 +26,27 @@ impl Node for ModuleManager {
             {
                 node_type: "osc_module",
                 item_kind: "module",
-                label: "OSC Module",
-                create: |_: &Self, label: String| OscModule::create(label),
+                label: OscModule::default_label(),
+                create: |_: &Self| OscModule::create(),
             },
             {
                 node_type: "midi_module",
                 item_kind: "module",
-                label: "MIDI Module",
-                create: |_: &Self, label: String| MidiModule::create(label),
+                label: MidiModule::default_label(),
+                create: |_: &Self| MidiModule::create(),
             },
             {
                 node_type: "dmx_module",
                 item_kind: "module",
-                label: "DMX Module",
+                label: DmxModule::default_label(),
                 when: |this: &Self| this.allow_dmx,
-                create: |_: &Self, label: String| DmxModule::create(label),
+                create: |_: &Self| DmxModule::create(),
             },
         ];
     }
 }
 
-#[node]
+#[node(label = "Module")]
 #[children(
     folder(infos, label = "Infos") {
         connected: bool = true (label = "Connected", description = "Whether the module is currently connected", read_only = true);
@@ -63,7 +63,7 @@ impl Node for ModuleBase {
     }
 }
 
-#[node]
+#[node(label = "OSC Module")]
 #[children(
     folder(infos, label = "Infos", reuse = true) {
     }
@@ -112,10 +112,8 @@ pub struct OscModule {
 }
 
 impl OscModule {
-    pub fn create(label: impl Into<String>) -> Self {
-        let label = label.into();
-        Self::new(label.clone(), ModuleBase::new(label))
-
+    pub fn create() -> Self {
+        Self::new(ModuleBase::new())
     }
 }
 
@@ -184,7 +182,7 @@ impl Node for OscModule {
 
 }
 
-#[node]
+#[node(label = "MIDI Module")]
 #[children(
 folder(values, label = "Values", reuse = true) {
        
@@ -221,9 +219,8 @@ pub struct MidiModule {
 }
 
 impl MidiModule {
-    pub fn create(label: impl Into<String>) -> Self {
-        let label = label.into();
-        Self::new(label.clone(), ModuleBase::new(label))
+    pub fn create() -> Self {
+        Self::new(ModuleBase::new())
     }
 }
 
@@ -236,7 +233,7 @@ impl Node for MidiModule {
 
 }
 
-#[node]
+#[node(label = "DMX Module")]
 #[children(
 folder(values, label = "Values", reuse = true) {
        
@@ -263,9 +260,8 @@ pub struct DmxModule {
 }
 
 impl DmxModule {
-    pub fn create(label: impl Into<String>) -> Self {
-        let label = label.into();
-        Self::new(label.clone(), ModuleBase::new(label))
+    pub fn create() -> Self {
+        Self::new(ModuleBase::new())
     }
 }
 
