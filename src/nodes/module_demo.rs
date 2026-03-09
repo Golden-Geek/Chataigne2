@@ -11,27 +11,11 @@ use golden_core::{
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct ModuleManagerProjectData {
-    #[serde(default = "default_true")]
-    allow_dmx: bool,
-}
-
-fn default_true() -> bool {
-    true
-}
 
 #[node]
 pub struct ModuleManager {
+    #[state(default = true, persist)]
     allow_dmx: bool,
-}
-
-impl ModuleManager {
-    pub fn create(label: impl Into<String>, allow_dmx: bool) -> Self {
-        Self::new(label.into(), allow_dmx)
-    }
 }
 
 #[node(from_struct)]
@@ -59,24 +43,6 @@ impl Node for ModuleManager {
                 create: |_: &Self, label: String| DmxModule::create(label),
             },
         ];
-    }
-
-    fn project_encode_data(&self) -> Result<serde_json::Value, String> {
-        serde_json::to_value(ModuleManagerProjectData { allow_dmx: self.allow_dmx }).map_err(|err| format!("failed to encode module_manager node data: {err}"))
-    }
-
-    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        let parsed = if data.is_null() {
-            ModuleManagerProjectData { allow_dmx: true }
-        } else {
-            serde_json::from_value::<ModuleManagerProjectData>(data.clone()).map_err(|err| format!("invalid module_manager payload: {err}"))?
-        };
-        self.allow_dmx = parsed.allow_dmx;
-        Ok(())
-    }
-
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "module_manager").then(|| Self::create(label, true))
     }
 }
 
