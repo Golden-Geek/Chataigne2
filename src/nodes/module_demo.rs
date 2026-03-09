@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use golden_core::{
+    engine::Engine,
     // animation_curve::{CurveEasing, CurveHandle},
     color::Color,
     item,
@@ -10,11 +11,17 @@ use golden_core::{
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
+use serde::{Deserialize, Serialize};
 
-use uuid::uuid;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ModuleManagerProjectData {
+    #[serde(default = "default_true")]
+    allow_dmx: bool,
+}
 
-pub const MODULE_MANAGER_UUID: golden_core::node::NodeUuid =
-	golden_core::node::NodeUuid(uuid!("3f0d7ac2-5c7a-4d8f-85e2-2c6e6cf3b451"));
+fn default_true() -> bool {
+    true
+}
 
 #[node]
 pub struct ModuleManager {
@@ -24,10 +31,6 @@ pub struct ModuleManager {
 impl ModuleManager {
     pub fn create(label: impl Into<String>, allow_dmx: bool) -> Self {
         Self::new(label.into(), allow_dmx)
-    }
-
-    pub fn allow_dmx(&self) -> bool {
-        self.allow_dmx
     }
 }
 
@@ -57,6 +60,24 @@ impl Node for ModuleManager {
             },
         ];
     }
+
+    fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+        serde_json::to_value(ModuleManagerProjectData { allow_dmx: self.allow_dmx }).map_err(|err| format!("failed to encode module_manager node data: {err}"))
+    }
+
+    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        let parsed = if data.is_null() {
+            ModuleManagerProjectData { allow_dmx: true }
+        } else {
+            serde_json::from_value::<ModuleManagerProjectData>(data.clone()).map_err(|err| format!("invalid module_manager payload: {err}"))?
+        };
+        self.allow_dmx = parsed.allow_dmx;
+        Ok(())
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "module_manager").then(|| Self::create(label, true))
+    }
 }
 
 #[node]
@@ -70,17 +91,16 @@ impl Node for ModuleManager {
 pub struct ModuleBase {}
 
 impl ModuleBase {
-    pub fn send_command(&mut self, _ctx: &mut ProcessCtx, command: impl AsRef<str>) {
-        println!("[{}] send_command: {}", self.node_data().meta.label, command.as_ref());
-    }
 }
 
 #[node(from_struct, scriptable, contextualizable)]
 impl Node for ModuleBase {
-    
-
     fn user_item_kind(&self) -> &str {
         "module"
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "module_base").then(|| Self::new(label))
     }
 }
 
@@ -116,7 +136,7 @@ impl Node for ModuleBase {
         reference_param: NodeReference (
             label = "Test Reference Parameter",
             description = "Test node reference parameter",
-            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_root = golden_core::parameter::ReferenceRoot::EngineRoot,
             // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
@@ -202,6 +222,10 @@ impl Node for OscModule {
         };
         }
     }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "osc_module").then(|| Self::create(label))
+    }
 }
 
 #[node]
@@ -213,7 +237,7 @@ folder(values, label = "Values", reuse = true) {
         reference_param: NodeReference (
             label = "Reference Parameter",
             description = "A node reference parameter",
-            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_root = golden_core::parameter::ReferenceRoot::EngineRoot,
             // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
@@ -221,7 +245,7 @@ folder(values, label = "Values", reuse = true) {
         float_reference_param: NodeReference (
             label = "Float Reference Parameter",
             description = "A node reference parameter that only accepts float parameters",
-            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_root = golden_core::parameter::ReferenceRoot::EngineRoot,
             // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_allowed_parameter_types = vec!["float".to_string()],
@@ -245,10 +269,6 @@ impl MidiModule {
         let label = label.into();
         Self::new(label.clone(), ModuleBase::new(label))
     }
-
-    pub fn send_command(&mut self, ctx: &mut ProcessCtx, command: impl AsRef<str>) {
-        self.base.send_command(ctx, command);
-    }
 }
 
 #[item("module", via = base, from_struct)]
@@ -256,6 +276,10 @@ impl Node for MidiModule {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         // Allow UI actions (color, delete/duplicate, constraints)
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "midi_module").then(|| Self::create(label))
     }
 }
 
@@ -268,7 +292,7 @@ folder(values, label = "Values", reuse = true) {
         reference_param: NodeReference (
             label = "Reference Parameter",
             description = "A node reference parameter",
-            reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
+            reference_root = golden_core::parameter::ReferenceRoot::EngineRoot,
             // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
@@ -290,10 +314,6 @@ impl DmxModule {
         let label = label.into();
         Self::new(label.clone(), ModuleBase::new(label))
     }
-
-    pub fn send_command(&mut self, ctx: &mut ProcessCtx, command: impl AsRef<str>) {
-        self.base.send_command(ctx, command);
-    }
 }
 
 #[item("module", via = base, from_struct)]
@@ -302,4 +322,47 @@ impl Node for DmxModule {
         // Allow UI actions (color, delete/duplicate, constraints)
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
     }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "dmx_module").then(|| Self::create(label))
+    }
+}
+
+pub fn register_demo_reference_filters<T: Node>(engine: &mut Engine<T>) {
+    engine.register_reference_filter("module_values_parameters", |engine, _param_node, _root, candidate| {
+        let Some(candidate_node) = engine.nodes.get(candidate) else {
+            return false;
+        };
+        if candidate_node.engine_param_snapshot().is_none() {
+            return false;
+        }
+
+        let Some(parent_id) = candidate_node.node_data().parent else {
+            return false;
+        };
+        let Some(parent_node) = engine.nodes.get(parent_id) else {
+            return false;
+        };
+        if parent_node.node_data().meta.decl_id.0 != "values" {
+            return false;
+        }
+
+        let mut current = Some(parent_id);
+        let mut has_module_ancestor = false;
+        let mut has_module_manager_ancestor = false;
+        while let Some(node_id) = current {
+            let Some(node) = engine.nodes.get(node_id) else {
+                break;
+            };
+            if node.user_item_kind() == "module" {
+                has_module_ancestor = true;
+            }
+            if node.get_type() == "module_manager" {
+                has_module_manager_ancestor = true;
+            }
+            current = node.node_data().parent;
+        }
+
+        has_module_ancestor && has_module_manager_ancestor
+    });
 }
