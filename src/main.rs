@@ -302,6 +302,8 @@ mod tests {
             can_be_disabled: true,
             label: label.to_string(),
             description: None,
+            declared_description_key: None,
+            declared_description: None,
             tags: Vec::new(),
             user_permissions: NodeUserPermissions::default(),
             semantics: SemanticsHint::default(),
