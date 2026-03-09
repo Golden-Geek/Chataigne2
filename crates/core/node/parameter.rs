@@ -2214,7 +2214,7 @@ impl Node for Parameter {
                 widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::ColorEditor));
             }
             _ => {
-                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default"));
+                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::ParameterEditor));
             }
         }
 
@@ -2274,6 +2274,13 @@ impl Node for Parameter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parameter_nodes_are_not_disableable_by_default() {
+        let parameter = Parameter::new("Amount", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
+
+        assert!(!parameter.node_data().meta.can_be_disabled);
+    }
 
     fn approx_eq(left: f64, right: f64) {
         assert!((left - right).abs() < 1e-9, "expected {left} ~= {right}");

@@ -81,6 +81,12 @@ pub struct ProjectNodeMeta {
     /// Optional description.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Canonical declaration-description key shared by repeated declared nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_description_key: Option<String>,
+    /// Canonical declaration description before any instance-level override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_description: Option<String>,
     /// User tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -104,6 +110,8 @@ impl ProjectNodeMeta {
             can_be_disabled: meta.can_be_disabled,
             label: meta.label.clone(),
             description: meta.description.clone(),
+            declared_description_key: meta.declared_description_key.clone(),
+            declared_description: meta.declared_description.clone(),
             tags: meta.tags.clone(),
             user_permissions: meta.user_permissions.clone(),
             semantics: meta.semantics.clone(),
@@ -126,6 +134,8 @@ impl ProjectNodeMeta {
             can_be_disabled: self.can_be_disabled,
             label: self.label,
             description: self.description,
+            declared_description_key: self.declared_description_key,
+            declared_description: self.declared_description,
             tags: self.tags,
             user_permissions,
             semantics: self.semantics,

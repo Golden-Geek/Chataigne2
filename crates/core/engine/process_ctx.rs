@@ -33,6 +33,8 @@ pub struct ProcessTreeNodeSnapshot {
     pub label: String,
     /// Node enabled flag.
     pub enabled: bool,
+    /// Whether the enabled flag may be toggled by UI/editor code.
+    pub can_be_disabled: bool,
     /// Number of direct children.
     pub child_count: usize,
     /// Current parameter value when this node is a parameter.

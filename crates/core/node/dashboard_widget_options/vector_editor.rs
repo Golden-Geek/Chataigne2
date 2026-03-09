@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::parameter::{Enum, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
 
-use super::configure_dashboard_widget_options_node;
+use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
 
 pub const DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec2_editor_options";
 pub const DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec3_editor_options";
@@ -11,6 +11,17 @@ pub const DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard
 #[allow(missing_docs)]
 #[node("dashboard_node_widget_vec2_editor_options")]
 #[children(
+    label_placement: Enum = "inside" (
+        label = "Label Placement",
+        description = "Where the widget label is rendered. Disable to hide it.",
+        enum_options = ["left", "right", "top", "bottom", "inside"],
+        can_be_disabled = true,
+    );
+    show_enable_button: bool = true (
+        label = "Show Enable Button",
+        description = "Whether vector editor widgets expose the target enable toggle when the target supports disabling.",
+        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
+    );
     vector_layout: Enum = "inline" (
         label = "Layout",
         description = "Arrangement used for vector editor widgets.",
@@ -47,6 +58,17 @@ impl Node for DashboardNodeWidgetVec2EditorOptionsNode {
 #[allow(missing_docs)]
 #[node("dashboard_node_widget_vec3_editor_options")]
 #[children(
+    label_placement: Enum = "inside" (
+        label = "Label Placement",
+        description = "Where the widget label is rendered. Disable to hide it.",
+        enum_options = ["left", "right", "top", "bottom", "inside"],
+        can_be_disabled = true,
+    );
+    show_enable_button: bool = true (
+        label = "Show Enable Button",
+        description = "Whether vector editor widgets expose the target enable toggle when the target supports disabling.",
+        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
+    );
     vector_layout: Enum = "inline" (
         label = "Layout",
         description = "Arrangement used for vector editor widgets.",

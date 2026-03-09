@@ -20,10 +20,11 @@ pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode,
 pub use control_animation::ParameterAnimationControlNode;
 pub use dashboard::{
     DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode,
-    DashboardNodeWidgetNode, DashboardNodeWidgetParameterOptionsNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec,
+    DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec,
 };
 pub use dashboard_widget_options::{
-    DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode, DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode, DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
+    DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode, DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetParameterEditorOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode,
+    DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
@@ -695,6 +696,12 @@ pub struct NodeMeta {
     pub label: String,
     /// Optional free-form description.
     pub description: Option<String>,
+    /// Canonical declaration-description key shared by repeated declared nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_description_key: Option<String>,
+    /// Canonical declaration description before any instance-level override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_description: Option<String>,
     /// Arbitrary classification tags.
     pub tags: Vec<String>,
     /// User-edit permissions for tooling and editor workflows.
@@ -718,6 +725,8 @@ impl NodeMeta {
             can_be_disabled: true,
             label,
             description: None,
+            declared_description_key: None,
+            declared_description: None,
             tags: vec![],
             user_permissions: NodeUserPermissions::default(),
             semantics: SemanticsHint::default(),
@@ -729,6 +738,20 @@ impl NodeMeta {
     pub fn with_description(mut self, description: String) -> Self {
         self.description = Some(description);
         self
+    }
+
+    /// Sets the canonical declaration-backed description for this node.
+    pub fn with_declared_description(mut self, key: impl Into<String>, description: impl Into<String>) -> Self {
+        self.set_declared_description(key, description);
+        self
+    }
+
+    /// Replaces the canonical declaration-backed description for this node.
+    pub fn set_declared_description(&mut self, key: impl Into<String>, description: impl Into<String>) {
+        let description = description.into();
+        self.declared_description_key = Some(key.into());
+        self.declared_description = Some(description.clone());
+        self.description = Some(description);
     }
 
     /// Replaces tags.

@@ -1,15 +1,26 @@
 use crate::node;
 use crate::node::Node;
-use crate::parameter::Vec2;
+use crate::parameter::{Enum, Vec2};
 use crate::process_ctx::ProcessCtx;
 
-use super::configure_dashboard_widget_options_node;
+use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
 
 pub const DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_number_slider_options";
 
 #[allow(missing_docs)]
 #[node("dashboard_node_widget_number_slider_options")]
 #[children(
+    label_placement: Enum = "inside" (
+        label = "Label Placement",
+        description = "Where the widget label is rendered. Disable to hide it.",
+        enum_options = ["left", "right", "top", "bottom", "inside"],
+        can_be_disabled = true,
+    );
+    show_enable_button: bool = true (
+        label = "Show Enable Button",
+        description = "Whether slider widgets expose the target enable toggle when the target supports disabling.",
+        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
+    );
     slider_show_value_field: bool = true (
         label = "Show Value Field",
         description = "Whether slider widgets keep the numeric value field visible next to the slider.",

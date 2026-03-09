@@ -475,6 +475,7 @@ impl<T: Node> Engine<T> {
                     short_name: node_data.meta.short_name.clone(),
                     label: node_data.meta.label.clone(),
                     enabled: node_data.meta.enabled,
+                    can_be_disabled: node_data.meta.can_be_disabled,
                     child_count: 0,
                     param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
                     param_constraints: parameter_snapshot.as_ref().map(|snapshot| snapshot.constraints.clone()),

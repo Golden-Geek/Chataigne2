@@ -94,6 +94,12 @@ pub struct UiNodeMetaDto {
     /// Optional description.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Shared declaration-description key resolved via `UiSchemaView.declared_descriptions`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_description_key: Option<String>,
+    /// Whether `description` is an instance-level override relative to the declared description.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub description_overridden: bool,
     /// Optional tags.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
@@ -335,6 +341,15 @@ pub struct UiNodeTypeDescriptor {
     pub description: Option<String>,
 }
 
+/// UI-facing shared declaration-description descriptor.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UiDeclaredDescriptionDescriptor {
+    /// Stable key used by nodes that share this declared description.
+    pub key: String,
+    /// Canonical declared description text.
+    pub description: String,
+}
+
 /// UI-facing enum descriptor.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UiEnumDefinition {
@@ -367,6 +382,9 @@ pub struct UiSchemaView {
     /// Known node types within the snapshot scope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub node_types: Vec<UiNodeTypeDescriptor>,
+    /// Shared descriptions for repeated declared nodes and parameters.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub declared_descriptions: Vec<UiDeclaredDescriptionDescriptor>,
     /// Enum definitions used by UI editors.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub enums: Vec<UiEnumDefinition>,
@@ -772,6 +790,7 @@ impl<T: Node> Engine<T> {
         let visible: HashSet<NodeId> = node_ids.iter().copied().collect();
         let mut nodes = Vec::with_capacity(node_ids.len());
         let mut known_node_types = HashMap::<String, Option<String>>::new();
+        let mut known_declared_descriptions = HashMap::<String, String>::new();
         let mut enum_id_by_fingerprint = HashMap::<String, String>::new();
         let mut enums = Vec::<UiEnumDefinition>::new();
 
@@ -838,6 +857,25 @@ impl<T: Node> Engine<T> {
                 accepted_user_item_kinds.push("script".to_string());
             }
 
+            let declared_description_key = node_data.meta.declared_description_key.as_deref().filter(|key| !key.trim().is_empty());
+            let declared_description = node_data.meta.declared_description.as_deref().filter(|description| !description.trim().is_empty());
+            let effective_description = node_data.meta.description.as_deref();
+
+            let (description, declared_description_key, description_overridden) = if let (Some(key), Some(description)) = (declared_description_key, declared_description) {
+                known_declared_descriptions.entry(key.to_string()).or_insert_with(|| description.to_string());
+                let overridden = effective_description != Some(description);
+                (if overridden { effective_description.map(str::to_string) } else { None }, Some(key.to_string()), overridden)
+            } else {
+                (
+                    match effective_description {
+                        Some(description) if Some(description) != node.type_description() => Some(description.to_string()),
+                        _ => None,
+                    },
+                    None,
+                    false,
+                )
+            };
+
             nodes.push(UiNodeDto {
                 node_id,
                 uuid: node_data.meta.uuid,
@@ -849,10 +887,9 @@ impl<T: Node> Engine<T> {
                     enabled: node_data.meta.enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
                     user_permissions: node_data.meta.user_permissions.clone(),
-                    description: match node_data.meta.description.as_deref() {
-                        Some(description) if Some(description) != node.type_description() => Some(description.to_string()),
-                        _ => None,
-                    },
+                    description,
+                    declared_description_key,
+                    description_overridden,
                     tags: node_data.meta.tags.clone(),
                     presentation: node_data.meta.presentation.clone(),
                 },
@@ -867,13 +904,15 @@ impl<T: Node> Engine<T> {
 
         let mut node_types: Vec<UiNodeTypeDescriptor> = known_node_types.into_iter().map(|(node_type, description)| UiNodeTypeDescriptor { node_type, description }).collect();
         node_types.sort_by(|left, right| left.node_type.cmp(&right.node_type));
+        let mut declared_descriptions: Vec<UiDeclaredDescriptionDescriptor> = known_declared_descriptions.into_iter().map(|(key, description)| UiDeclaredDescriptionDescriptor { key, description }).collect();
+        declared_descriptions.sort_by(|left, right| left.key.cmp(&right.key));
 
         UiSnapshot {
             protocol_version: UI_PROTOCOL_VERSION.to_string(),
             scope,
             at: self.time,
             nodes,
-            schema: UiSchemaView { node_types, enums },
+            schema: UiSchemaView { node_types, declared_descriptions, enums },
             history: self.ui_history_state(),
             logger: UiLoggerState {
                 max_entries: crate::logger::max_entries(),

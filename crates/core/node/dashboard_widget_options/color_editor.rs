@@ -1,15 +1,27 @@
 use crate::node;
 use crate::node::Node;
+use crate::parameter::Enum;
 use crate::process_ctx::ProcessCtx;
 
-use super::configure_dashboard_widget_options_node;
+use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
 
 pub const DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_color_editor_options";
 
 #[allow(missing_docs)]
 #[node("dashboard_node_widget_color_editor_options")]
 #[children(
-    color_force_expanded: bool = false (
+    label_placement: Enum = "inside" (
+        label = "Label Placement",
+        description = "Where the widget label is rendered. Disable to hide it.",
+        enum_options = ["left", "right", "top", "bottom", "inside"],
+        can_be_disabled = true,
+    );
+    show_enable_button: bool = true (
+        label = "Show Enable Button",
+        description = "Whether color editor widgets expose the target enable toggle when the target supports disabling.",
+        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
+    );
+    color_force_expanded: bool = true (
         label = "Always Expanded",
         description = "Whether color editor widgets stay expanded instead of collapsing to preview mode.",
     );

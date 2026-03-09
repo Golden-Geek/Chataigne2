@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::dashboard_widget_options::{dashboard_widget_options_node_type, initialize_replaced_dashboard_widget_options_node, make_dashboard_widget_options_node};
+use super::dashboard_widget_options::{dashboard_widget_options_node_type, initialize_replaced_dashboard_widget_options_node, make_dashboard_widget_options_node, refresh_dashboard_widget_options_node};
 use crate::events::Event;
 use crate::node::{DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
 use crate::parameter::{CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, Vec2};
@@ -57,6 +57,8 @@ impl DashboardWidgetTypeSpec {
 pub enum DashboardWidgetOptionsNodeKind {
     /// Inspector-style node widget options.
     Inspector,
+    /// Default parameter editor options.
+    ParameterEditor,
     /// Slider-style scalar parameter options.
     NumberSlider,
     /// Rotary-style scalar parameter options.
@@ -170,15 +172,6 @@ fn dashboard_node_widget_current_widget_type(node_id: NodeId, ctx: &ProcessCtx) 
     snapshot.node(widget_type)?.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str()))
 }
 
-fn dashboard_node_widget_type_uses_label_placement(node_id: NodeId, ctx: &ProcessCtx) -> bool {
-    dashboard_node_widget_current_widget_type(node_id, ctx).map(|widget_type| widget_type != "inspector").unwrap_or(false)
-}
-
-fn dashboard_node_widget_widget_options_parent(node_id: NodeId, ctx: &ProcessCtx) -> Option<NodeId> {
-    let snapshot = ctx.tree_snapshot()?;
-    snapshot_find_descendant_by_decl(snapshot, node_id, "parameter_options")
-}
-
 fn dashboard_widget_type_enum_option(widget_type: &DashboardWidgetTypeSpec, ordering: i32) -> ParameterEnumOption {
     ParameterEnumOption {
         variant_id: widget_type.id.clone(),
@@ -227,18 +220,6 @@ fn refresh_direct_dashboard_widgets(ctx: &mut ProcessCtx, parent: NodeId) {
 
     for child_id in child_ids {
         refresh_dashboard_widget_dependencies(ctx, child_id);
-    }
-}
-
-/// Legacy placeholder retained because the node-enum macro still includes this built-in type.
-#[allow(missing_docs)]
-#[node("dashboard_node_widget_parameter_options")]
-pub struct DashboardNodeWidgetParameterOptionsNode {}
-
-#[node("dashboard_node_widget_parameter_options", from_struct)]
-impl Node for DashboardNodeWidgetParameterOptionsNode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
     }
 }
 
@@ -558,15 +539,6 @@ impl Node for DashboardWidgetContainerNode {
             label = "Locked",
             description = "Whether drag-and-drop rebinding is disabled for this widget.",
         );
-        label_placement: Enum = "inside" (
-            label = "Label Placement",
-            description = "Where the widget label is rendered. Disable to hide it.",
-            enum_options = ["left", "right", "top", "bottom", "inside"],
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_node_widget_type_uses_label_placement(node.id(), ctx),
-            can_be_disabled = true,
-        );
-    }
-    folder(parameter_options, label = "Parameter Options") {
     }
 )]
 pub struct DashboardNodeWidgetNode {}
@@ -636,9 +608,7 @@ impl DashboardNodeWidgetNode {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return;
         };
-        let Some(options_parent) = dashboard_node_widget_widget_options_parent(self.id(), ctx) else {
-            return;
-        };
+        let options_parent = self.id();
         let existing_node = snapshot.find_child(options_parent, "widget_options");
 
         match kind {
@@ -648,6 +618,7 @@ impl DashboardNodeWidgetNode {
                 if let Some(existing_node) = existing_node {
                     let existing_matches = snapshot.node(existing_node).map(|node| node.node_type == expected_type).unwrap_or(false);
                     if existing_matches {
+                        refresh_dashboard_widget_options_node(ctx, existing_node);
                         return;
                     }
 
@@ -988,14 +959,19 @@ mod tests {
         }
 
         let widget = direct_child_by_type(&engine, page, DASHBOARD_NODE_WIDGET_NODE_TYPE).expect("page should contain a node widget child");
-        assert_eq!(direct_child_decl_ids(&engine, widget), vec!["widget", "layout", "parameter_options"], "node widgets should expose widget, layout, and parameter options folders in declared order");
+        assert_eq!(direct_child_decl_ids(&engine, widget), vec!["widget", "layout", "widget_options"], "node widgets should expose widget, layout, and widget options nodes in direct-child order");
         let widget_type = find_descendant_by_decl(&engine, widget, "widget_type").expect("widget type parameter should exist");
         let target_node = find_descendant_by_decl(&engine, widget, "target_node").expect("target node parameter should exist");
+        let max_child_level = find_descendant_by_decl(&engine, widget, "max_child_level").expect("inspector widgets should expose max child level");
+        let label_placement = find_descendant_by_decl(&engine, widget, "label_placement").expect("inspector widgets should expose label placement inside widget options");
 
         let initial_widget_type = param_snapshot(&engine, widget_type);
         let initial_types = initial_widget_type.constraints.enum_options.iter().map(|option| option.variant_id.as_str()).collect::<Vec<_>>();
         assert_eq!(initial_types, vec!["inspector"], "unbound widgets should expose inspector only");
         assert_eq!(initial_widget_type.value, ParamValue::Enum("inspector".to_string()), "unbound widgets should default to inspector");
+        assert_eq!(param_snapshot(&engine, max_child_level).value, ParamValue::Int(2), "inspector widgets should default to a child depth of two levels");
+        assert_eq!(param_snapshot(&engine, label_placement).value, ParamValue::Enum("inside".to_string()), "node widget label placement should now live under widget options");
+        assert!(find_descendant_by_decl(&engine, widget, "include_children").is_none(), "legacy include children should be removed from inspector widget options");
 
         let float_uuid = engine.nodes.get(float_param).expect("float parameter should exist").node_data().meta.uuid;
         engine.edits.push(Edit::SetParam {
@@ -1019,7 +995,7 @@ mod tests {
         assert!(find_descendant_by_decl(&engine, widget, "slider_show_value_field").is_some(), "default numeric widgets should materialize slider option nodes",);
         assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "default numeric widgets should expose the custom range parameter",);
         assert!(find_descendant_by_decl(&engine, widget, "rotary_show_value_field").is_none(), "default numeric widgets should not materialize rotary options",);
-        assert!(find_descendant_by_decl(&engine, widget, "widget_options").is_some(), "widget options should mount under parameter options",);
+        assert!(find_descendant_by_decl(&engine, widget, "widget_options").is_some(), "widget options should remain mounted directly under the node widget",);
 
         engine.edits.push(Edit::SetParam {
             node: widget_type,
@@ -1065,6 +1041,7 @@ mod tests {
             engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
         }
 
+        assert!(find_descendant_by_decl(&engine, widget, "trail_time").is_some(), "vec2 pad widgets should expose trail time controls",);
         assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "vec2 pad widgets should keep the custom range folder available",);
         assert!(find_descendant_by_decl(&engine, widget, "custom_range/range_min").is_some(), "vec2 pad widgets should keep custom range bounds available",);
         assert!(find_descendant_by_decl(&engine, widget, "vector_layout").is_none(), "vec2 pad widgets should hide vector-editor-only layout options",);
@@ -1225,6 +1202,73 @@ mod tests {
         assert_eq!(param_snapshot(&engine, label_placement).value, ParamValue::Enum("top".to_string()));
         assert!(label_placement_node.node_data().meta.enabled, "label placement should start enabled");
         assert!(label_placement_node.node_data().meta.can_be_disabled, "label placement should be disableable so hidden remains available");
+    }
+
+    #[test]
+    fn dashboard_node_widget_inspector_options_follow_target_disable_capabilities() {
+        let root: DashboardTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        let mut target = Parameter::new("Toggleable", ParamValue::Str("Value".to_string()), ParameterChangeCheck::ValueChange);
+        target.node_data_mut().meta.can_be_disabled = true;
+        engine.add_node(target.into(), None);
+        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.apply_edits().expect("initial tree should apply");
+
+        let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+        let target_node = {
+            let mut child = engine.nodes.get(engine.root).and_then(|node| node.node_data().first_child);
+            let mut found = None;
+            while let Some(child_id) = child {
+                let child_node = engine.nodes.get(child_id).expect("child should exist");
+                if child_node.get_type() != DASHBOARD_NODE_TYPE {
+                    found = Some(child_id);
+                    break;
+                }
+                child = child_node.node_data().next_sibling;
+            }
+            found.expect("disableable target parameter should exist")
+        };
+        engine.queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None).expect("page creation should queue");
+        engine.apply_edits().expect("page creation should apply");
+
+        let page = first_child(&engine, dashboard);
+        engine.queue_catalog_create(page, DASHBOARD_NODE_WIDGET_NODE_TYPE, Some("Inspector".to_string()), None).expect("node widget creation should queue");
+        for _ in 0..3 {
+            engine.apply_edits().expect("widget creation should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        let widget = direct_child_by_type(&engine, page, DASHBOARD_NODE_WIDGET_NODE_TYPE).expect("page should contain a node widget child");
+        let widget_target = find_descendant_by_decl(&engine, widget, "target_node").expect("target node parameter should exist");
+        let widget_type = find_descendant_by_decl(&engine, widget, "widget_type").expect("widget type parameter should exist");
+        let target_uuid = engine.nodes.get(target_node).expect("target node should exist").node_data().meta.uuid;
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_target,
+            value: ParamValue::Reference(NodeReference::new(target_uuid)),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..4 {
+            engine.apply_edits().expect("binding inspector target should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        let show_enable_button = find_descendant_by_decl(&engine, widget, "show_enable_button").expect("disableable parameter widgets should expose the enable-button toggle in their default widget options");
+        assert_eq!(param_snapshot(&engine, show_enable_button).value, ParamValue::Bool(true), "disableable parameter widgets should show the enable button by default");
+
+        engine.edits.push(Edit::SetParam {
+            node: widget_type,
+            value: ParamValue::Enum("inspector".to_string()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        for _ in 0..4 {
+            engine.apply_edits().expect("switching widget to inspector should apply");
+            engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
+        }
+
+        let show_enable_button = find_descendant_by_decl(&engine, widget, "show_enable_button").expect("disableable inspector targets should expose the enable-button toggle");
+        assert_eq!(param_snapshot(&engine, show_enable_button).value, ParamValue::Bool(true), "disableable inspector targets should show the enable button by default");
     }
 
     #[test]

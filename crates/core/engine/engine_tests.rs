@@ -87,6 +87,48 @@ fn ui_snapshot_moves_type_descriptions_into_schema() {
 }
 
 #[test]
+fn ui_snapshot_moves_declared_children_descriptions_into_shared_schema() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(SharedDeclaredDescriptionNode::new("Key A").into(), None);
+    engine.add_node(SharedDeclaredDescriptionNode::new("Key B").into(), None);
+
+    for _ in 0..6 {
+        engine.apply_edits().expect("shared-description nodes should attach");
+        engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("shared-description stabilization should succeed");
+    }
+
+    let first_key = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("first shared-description node should exist");
+    let second_key = engine.nodes.get(first_key).and_then(|node| node.node_data().next_sibling).expect("second shared-description node should exist");
+    let first_position = find_child_by_decl(&engine, first_key, "position").expect("first position param should exist");
+    let second_position = find_child_by_decl(&engine, second_key, "position").expect("second position param should exist");
+
+    engine.edits.push(Edit::PatchMeta {
+        node: second_position,
+        patch: crate::node::NodeMetaPatch {
+            description: Some(Some("Manual position override".to_string())),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("manual description override should apply");
+
+    let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    let shared_position_description = snapshot.schema.declared_descriptions.iter().find(|descriptor| descriptor.key == "shared_declared_description_node::position").map(|descriptor| descriptor.description.as_str());
+    let shared_value_description = snapshot.schema.declared_descriptions.iter().find(|descriptor| descriptor.key == "shared_declared_description_node::value").map(|descriptor| descriptor.description.as_str());
+    let first_position_node = snapshot.nodes.iter().find(|node| node.node_id == first_position).expect("first position snapshot node should exist");
+    let second_position_node = snapshot.nodes.iter().find(|node| node.node_id == second_position).expect("second position snapshot node should exist");
+
+    assert_eq!(shared_position_description, Some("Shared key position description"));
+    assert_eq!(shared_value_description, Some("Shared key value description"));
+    assert_eq!(first_position_node.meta.declared_description_key.as_deref(), Some("shared_declared_description_node::position"));
+    assert!(first_position_node.meta.description.is_none(), "shared declared descriptions should stay in schema when not overridden");
+    assert!(!first_position_node.meta.description_overridden);
+    assert_eq!(second_position_node.meta.declared_description_key.as_deref(), Some("shared_declared_description_node::position"));
+    assert_eq!(second_position_node.meta.description.as_deref(), Some("Manual position override"));
+    assert!(second_position_node.meta.description_overridden, "manual description changes should stay instance-local");
+}
+
+#[test]
 fn add_node_infers_default_permissions_for_declared_item_nodes() {
     let root = ItemMacroAutoKindNode::new("Root");
     let mut engine = Engine::new(root);
@@ -509,6 +551,19 @@ struct DslNodeChildrenNode {}
 )]
 struct DslMetaParamsNode {}
 
+#[crate::node("shared_declared_description_node")]
+#[children(
+    position: f64 = 0.0 (
+        label = "Position",
+        description = "Shared key position description",
+    );
+    value: f64 = 0.0 (
+        label = "Value",
+        description = "Shared key value description",
+    );
+)]
+struct SharedDeclaredDescriptionNode {}
+
 #[crate::node("manual_inbox_params_node")]
 #[children(
     value: f64 = 0.5 [0.0..1.0] (label = "Value");
@@ -674,6 +729,9 @@ impl Node for DslNodeChildrenNode {}
 #[crate::node("dsl_meta_params_node", from_struct)]
 impl Node for DslMetaParamsNode {}
 
+#[crate::node("shared_declared_description_node", from_struct)]
+impl Node for SharedDeclaredDescriptionNode {}
+
 #[crate::node("manual_inbox_params_node", from_struct)]
 impl Node for ManualInboxParamsNode {
     fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
@@ -812,6 +870,7 @@ crate::define_node_enum!(
         ViaScriptHostNode,
         ViaContextHostNode,
         UiSchemaDescriptionNode,
+        SharedDeclaredDescriptionNode,
     }
 );
 

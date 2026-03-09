@@ -5,7 +5,9 @@ use proc_macro2::{Delimiter, Span, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote};
+use syn::{
+    Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote,
+};
 
 #[derive(Clone)]
 struct DelegatePath {
@@ -1537,6 +1539,20 @@ fn join_decl_path(path: &[String]) -> String {
     path.join("/")
 }
 
+fn build_declared_description_key_literal(owner_type_name: &LitStr, decl_id_lit: &LitStr) -> LitStr {
+    let key = format!("{}::{}", owner_type_name.value(), decl_id_lit.value());
+    LitStr::new(&key, decl_id_lit.span())
+}
+
+fn build_set_declared_description_tokens(target_expr: proc_macro2::TokenStream, owner_type_name: &LitStr, decl_id_lit: &LitStr, description_lit: &LitStr) -> proc_macro2::TokenStream {
+    let key_lit = build_declared_description_key_literal(owner_type_name, decl_id_lit);
+    quote! {
+        golden_core::node::Node::node_data_mut(&mut #target_expr)
+            .meta
+            .set_declared_description(#key_lit, ::std::string::String::from(#description_lit));
+    }
+}
+
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let NodeAttr {
@@ -1638,10 +1654,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         return Error::new_spanned(input, "`contextualizable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
     }
 
-    let generated_type_description = extract_doc_comment_literal(&input.attrs).map_or_else(
-        || quote!(None),
-        |description| quote!(Some(#description)),
-    );
+    let generated_type_description = extract_doc_comment_literal(&input.attrs).map_or_else(|| quote!(None), |description| quote!(Some(#description)));
     let mut params_dsl = None::<ParamsDsl>;
     let mut kept_attrs = Vec::with_capacity(input.attrs.len());
     for attr in input.attrs.drain(..) {
@@ -1749,12 +1762,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             let previous_decl_ids = field_param_prev_decl_ids.clone();
             field_param_prev_decl_ids.push(decl_id_lit.clone());
             let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids, quote!(__golden_node_owner_id));
-            let set_description = args.description.map(|description_lit| {
-                quote! {
-                    golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
-                        Some(::std::string::String::from(#description_lit));
-                }
-            });
+            let set_description = args.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__param_node), &resolved_type_name, &decl_id_lit, description_lit));
             let set_range = build_range_constraint_assignment(args.min.as_ref(), args.max.as_ref(), &param_value_ty);
             let set_read_only = args.read_only.map(|expr| {
                 quote! {
@@ -1996,13 +2004,13 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             });
         }
 
-        let root_materialize = materialize_children_tokens(plan, "", quote!(__golden_node_owner_id));
+        let root_materialize = materialize_children_tokens(plan, &resolved_type_name, "", quote!(__golden_node_owner_id));
         generated_init_statements.extend(root_materialize);
 
         for folder in &plan.folders {
             let decl_id_lit = &folder.decl_id;
             let folder_key = join_decl_path(&folder.path);
-            let materialize = materialize_children_tokens(plan, &folder_key, quote!(child));
+            let materialize = materialize_children_tokens(plan, &resolved_type_name, &folder_key, quote!(child));
             child_added_decl_statements.push(quote! {
                 if decl_id.0 == #decl_id_lit {
                     #(#materialize)*
@@ -2030,7 +2038,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
         for folder in &plan.folders {
             let decl_id_lit = &folder.decl_id;
             let folder_key = join_decl_path(&folder.path);
-            let materialize = materialize_children_tokens(plan, &folder_key, quote!(new));
+            let materialize = materialize_children_tokens(plan, &resolved_type_name, &folder_key, quote!(new));
             child_replaced_decl_statements.push(quote! {
                 if decl_id.0 == #decl_id_lit {
                     #(#materialize)*
@@ -2116,7 +2124,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 Ok(tokens) => tokens,
                 Err(err) => return err.to_compile_error(),
             };
-            let create_param = build_params_plan_param_create_tokens_with_insert_after(plan, quote!(__golden_parent), field_ident, expected_prev.clone());
+            let create_param = build_params_plan_param_create_tokens_with_insert_after(plan, &resolved_type_name, quote!(__golden_parent), field_ident, expected_prev.clone());
             let resolve_parent = if parent_path.is_empty() {
                 quote!(Some(__golden_node_owner_id))
             } else {
@@ -2586,11 +2594,7 @@ fn extract_doc_comment_literal(attrs: &[Attribute]) -> Option<LitStr> {
         let Meta::NameValue(meta) = &attr.meta else {
             continue;
         };
-        let Expr::Lit(ExprLit {
-            lit: Lit::Str(value),
-            ..
-        }) = &meta.value
-        else {
+        let Expr::Lit(ExprLit { lit: Lit::Str(value), .. }) = &meta.value else {
             continue;
         };
 
@@ -2806,17 +2810,12 @@ fn build_plan_prev_sibling_tokens(plan: &ParamsPlan, parent_key: &str, current: 
     })
 }
 
-fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, parent_expr: proc_macro2::TokenStream, field_ident: &Ident, insert_after: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, owner_type_name: &LitStr, parent_expr: proc_macro2::TokenStream, field_ident: &Ident, insert_after: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     let (_, param) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
     let ty = &param.ty;
     let label_lit = &param.label;
     let decl_id_lit = &param.decl_id;
-    let set_description = param.description.as_ref().map(|description_lit| {
-        quote! {
-            golden_core::node::Node::node_data_mut(&mut __param_node).meta.description =
-                Some(::std::string::String::from(#description_lit));
-        }
-    });
+    let set_description = param.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__param_node), owner_type_name, decl_id_lit, description_lit));
     let set_short_name = param.meta.short_name.as_ref().map(|short_name_lit| {
         quote! {
             golden_core::node::Node::node_data_mut(&mut __param_node).meta.short_name =
@@ -2988,13 +2987,13 @@ fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, pa
     }
 }
 
-fn build_params_plan_param_create_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream, field_ident: &Ident) -> proc_macro2::TokenStream {
+fn build_params_plan_param_create_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, parent_key: &str, parent_expr: proc_macro2::TokenStream, field_ident: &Ident) -> proc_macro2::TokenStream {
     let (param_index, _) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
     let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Param(param_index)), parent_expr.clone());
-    build_params_plan_param_create_tokens_with_insert_after(plan, parent_expr, field_ident, insert_after)
+    build_params_plan_param_create_tokens_with_insert_after(plan, owner_type_name, parent_expr, field_ident, insert_after)
 }
 
-fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
+fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
     let mut out = Vec::new();
     let Some(children) = plan.children_by_parent.get(parent_key) else {
         return out;
@@ -3009,12 +3008,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 let label_lit = &folder.label;
                 let decl_id_lit = &folder.decl_id;
                 let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)), parent_expr.clone());
-                let set_description = folder.description.as_ref().map(|description_lit| {
-                    quote! {
-                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.description =
-                            Some(::std::string::String::from(#description_lit));
-                    }
-                });
+                let set_description = folder.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__folder_node), owner_type_name, decl_id_lit, description_lit));
                 let set_short_name = folder.meta.short_name.as_ref().map(|short_name_lit| {
                     quote! {
                         golden_core::node::Node::node_data_mut(&mut __folder_node).meta.short_name =
@@ -3094,7 +3088,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
             ParamsChildRef::Param(param_index) => {
                 let param = &plan.params[param_index];
                 let field_ident = &param.field;
-                let create_param = build_params_plan_param_create_tokens(plan, parent_key, parent_expr.clone(), field_ident);
+                let create_param = build_params_plan_param_create_tokens(plan, owner_type_name, parent_key, parent_expr.clone(), field_ident);
                 if let Some(dependency_expr) = param.dependency.as_ref() {
                     let dependency_predicate = match build_param_dependency_eval_tokens(dependency_expr, &plan_param_fields) {
                         Ok(tokens) => tokens,
@@ -3122,12 +3116,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 let label_lit = &node.label;
                 let decl_id_lit = &node.decl_id;
                 let default_expr = &node.default;
-                let set_description = node.description.as_ref().map(|description_lit| {
-                    quote! {
-                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.description =
-                            Some(::std::string::String::from(#description_lit));
-                    }
-                });
+                let set_description = node.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__child_node), owner_type_name, decl_id_lit, description_lit));
                 let set_short_name = node.meta.short_name.as_ref().map(|short_name_lit| {
                     quote! {
                         golden_core::node::Node::node_data_mut(&mut __child_node).meta.short_name =
