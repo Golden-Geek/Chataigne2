@@ -90,40 +90,40 @@ impl Node for ModuleBase {
     }
 
     folder(parameters, label = "Parameters", reuse = true) {
-        trigger_param: ParamValue = ParamValue::Trigger() (label = "Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
-        bool_param: bool = true (label = "Boolean Parameter", description = "A boolean parameter");
-        int_param: i32 = 4  (label = "Integer Parameter", description = "An integer parameter with range", can_be_disabled = true, enabled = false);
-        float_param: f64 = 0.75 [0.0..10.0] (label = "Float Parameter", description = "A floating-point parameter with range");
-        string_param: String = "/example/address".to_string() (label = "String Parameter", description = "A string parameter");
+        trigger_param: ParamValue = ParamValue::Trigger() (label = "Test Trigger Parameter", description = "A trigger parameter using ParamValue::Trigger()");
+        bool_param: bool = true (label = "Test Boolean Parameter", description = "Test boolean parameter");
+        int_param: i32 = 4  (label = "Test Integer Parameter", description = "Test integer parameter with range", can_be_disabled = true, enabled = false);
+        float_param: f64 = 0.75 [0.0..10.0] (label = "Test Float Parameter", description = "Test floating-point parameter with range");
+        string_param: String = "/example/address".to_string() (label = "Test String Parameter", description = "Test string parameter");
         file_param: File = "" (
-            label = "File Parameter",
-            description = "A file path parameter",
+            label = "Test File Parameter",
+            description = "Test file path parameter",
             file_allowed_types = ["script"],
             file_allowed_extensions = ["js", "mjs", "cjs"],
         );
         node animation_curve: AnimationCurveNode = AnimationCurveNode::new() (
-            label = "Animation Curve",
-            description = "An animation curve parameter with predefined keyframes"
+            label = "Test Animation Curve",
+            description = "Test animation curve parameter with predefined keyframes"
         );
-        vec2_param: Vec2 = (0.5, 0.25) (label = "Vec2 Parameter", description = "A 2D vector parameter", read_only = false);
-        vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Vec2 Range Parameter", description = "A 2D vector parameter with component ranges", read_only = false);
+        vec2_param: Vec2 = (0.5, 0.25) (label = "Test Vec2 Parameter", description = "Test 2D vector parameter", read_only = false);
+        vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Test Vec2 Range Parameter", description = "Test 2D vector parameter with component ranges", read_only = false);
     }
     folder(values, label = "Values", reuse = true) {
        
-        vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
-        vec3_range_param: Vec3 = (0.1, 0.2, 0.3) [(0.0, -1.0, 0.2)..(1.0, 2.0, 0.8)] (label = "Vec3 Range Parameter", description = "A 3D vector parameter with component ranges");
-        color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
+        vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Test Vec3 Parameter", description = "Test 3D vector parameter");
+        vec3_range_param: Vec3 = (0.1, 0.2, 0.3) [(0.0, -1.0, 0.2)..(1.0, 2.0, 0.8)] (label = "Test Vec3 Range Parameter", description = "Test 3D vector parameter with component ranges");
+        color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Test Color Parameter", description = "Test RGBA color parameter");
         reference_param: NodeReference (
-            label = "Reference Parameter",
-            description = "A node reference parameter",
+            label = "Test Reference Parameter",
+            description = "Test node reference parameter",
             reference_root = golden_core::parameter::ReferenceRoot::Uuid(MODULE_MANAGER_UUID),
             // reference_default_search_filter = Some("values".to_string()),
             reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
             reference_custom_filter_key = Some("module_values_parameters".to_string()),
         );
         enum_param: Enum (
-            label = "Enum Parameter",
-            description = "An enum parameter with simple string-list options",
+            label = "Test Enum Parameter",
+            description = "Test enum parameter with simple string-list options",
             enum_options = ["off", "on", "auto (default)", "Super long option label"],
         );
     }

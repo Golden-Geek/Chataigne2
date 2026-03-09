@@ -4,10 +4,9 @@ use crate::nodes_module_demo::MODULE_MANAGER_UUID;
 use golden_core::{
     app::{run_app_with_project_codec, ProjectCodec},
     node::{
-        AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeNode, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, Folder, Node, NodeMeta,
-        ParameterAnimationControlNode, UserContextNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, FOLDER_NODE_TYPE,
-        PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_NODE_TYPE, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_NODE_TYPES,
-        USER_CONTEXT_NODE_TYPE,
+        AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeNode, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, Folder, Node, NodeMeta, ParameterAnimationControlNode, UserContextNode,
+        DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, FOLDER_NODE_TYPE, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_NODE_TYPE,
+        PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE,
     },
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterEventBehaviour, ParameterUiHints},
     script::{ScriptBudgets, ScriptNode, ScriptNodeConfig},
@@ -313,8 +312,7 @@ mod tests {
     #[test]
     fn decode_trigger_parameter_payload_accepts_encoded_null_values() {
         let meta = test_meta("Trigger");
-        let payload = encode_project_node(&AppNode::Parameter(Parameter::new("Trigger", ParamValue::Trigger(), ParameterChangeCheck::ValueChange).into()))
-            .expect("trigger parameter payload should encode");
+        let payload = encode_project_node(&AppNode::Parameter(Parameter::new("Trigger", ParamValue::Trigger(), ParameterChangeCheck::ValueChange).into())).expect("trigger parameter payload should encode");
 
         let node = decode_parameter_node_data("trigger", &payload, &meta).expect("trigger parameter payload should decode");
         assert!(matches!(node.value, ParamValue::Trigger()));
