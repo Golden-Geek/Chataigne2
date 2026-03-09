@@ -85,14 +85,6 @@ pub(crate) fn make_dashboard_widget_options_node(kind: &DashboardWidgetOptionsNo
     }
 }
 
-pub(crate) fn initialize_replaced_dashboard_widget_options_node(ctx: &mut ProcessCtx, node_id: NodeId) {
-    ctx.call_node_mutation(node_id, |node, child_ctx| {
-        node.engine_on_attached(child_ctx);
-        node.init(child_ctx);
-        Ok(())
-    });
-}
-
 pub(crate) fn refresh_dashboard_widget_options_node(ctx: &mut ProcessCtx, node_id: NodeId) {
     let Some(node_type) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(node_id)).map(|snapshot| snapshot.node_type.clone()) else {
         return;

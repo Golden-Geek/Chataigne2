@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::dashboard_widget_options::{dashboard_widget_options_node_type, initialize_replaced_dashboard_widget_options_node, make_dashboard_widget_options_node, refresh_dashboard_widget_options_node};
+use super::dashboard_widget_options::{dashboard_widget_options_node_type, make_dashboard_widget_options_node, refresh_dashboard_widget_options_node};
 use crate::events::Event;
 use crate::node::{DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
 use crate::parameter::{CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, Vec2};
@@ -622,11 +622,12 @@ impl DashboardNodeWidgetNode {
                         return;
                     }
 
-                    for child_id in snapshot.child_ids(existing_node) {
-                        ctx.edits.push(crate::edit::Edit::RemoveNode { node: child_id });
-                    }
-                    ctx.replace_node_boxed(existing_node, make_dashboard_widget_options_node(kind));
-                    initialize_replaced_dashboard_widget_options_node(ctx, existing_node);
+                    let previous_sibling = snapshot.previous_sibling(options_parent, existing_node);
+                    self.remove_child(ctx, existing_node);
+
+                    let mut new_node = make_dashboard_widget_options_node(kind);
+                    new_node.node_data_mut().meta.decl_id = DeclId("widget_options".to_string());
+                    ctx.add_child_boxed(options_parent, new_node, previous_sibling);
                 } else {
                     let mut new_node = make_dashboard_widget_options_node(kind);
                     new_node.node_data_mut().meta.decl_id = DeclId("widget_options".to_string());
@@ -867,6 +868,31 @@ mod tests {
         None
     }
 
+    fn count_descendants_by_decl<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> usize {
+        let mut count = 0usize;
+        let mut stack = vec![parent];
+        while let Some(node_id) = stack.pop() {
+            let Some(node) = engine.nodes.get(node_id) else {
+                continue;
+            };
+
+            let mut child = node.node_data().first_child;
+            while let Some(child_id) = child {
+                let Some(child_node) = engine.nodes.get(child_id) else {
+                    break;
+                };
+                let child_decl_id = child_node.node_data().meta.decl_id.0.as_str();
+                if child_decl_id == decl_id || child_decl_id.rsplit('/').next() == Some(decl_id) {
+                    count += 1;
+                }
+                stack.push(child_id);
+                child = child_node.node_data().next_sibling;
+            }
+        }
+
+        count
+    }
+
     fn param_snapshot<T: Node>(engine: &Engine<T>, node_id: NodeId) -> ParameterSnapshot {
         engine.nodes.get(node_id).and_then(Node::engine_param_snapshot).expect("node should expose a parameter snapshot")
     }
@@ -992,6 +1018,7 @@ mod tests {
             "numeric parameters should expose default, inspector, slider, and rotary widget types",
         );
         assert_eq!(float_widget_type.value, ParamValue::Enum("default".to_string()), "parameter widgets should default to the semantic default widget type when first bound",);
+        assert_eq!(count_descendants_by_decl(&engine, widget, "show_enable_button"), 1, "parameter widgets should expose only one enable-button option at a time");
         assert!(find_descendant_by_decl(&engine, widget, "slider_show_value_field").is_some(), "default numeric widgets should materialize slider option nodes",);
         assert!(find_descendant_by_decl(&engine, widget, "custom_range").is_some(), "default numeric widgets should expose the custom range parameter",);
         assert!(find_descendant_by_decl(&engine, widget, "rotary_show_value_field").is_none(), "default numeric widgets should not materialize rotary options",);
@@ -1267,6 +1294,7 @@ mod tests {
             engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
         }
 
+        assert_eq!(count_descendants_by_decl(&engine, widget, "show_enable_button"), 1, "inspector widgets should keep a single enable-button option after replacing parameter widget options");
         let show_enable_button = find_descendant_by_decl(&engine, widget, "show_enable_button").expect("disableable inspector targets should expose the enable-button toggle");
         assert_eq!(param_snapshot(&engine, show_enable_button).value, ParamValue::Bool(true), "disableable inspector targets should show the enable button by default");
     }
