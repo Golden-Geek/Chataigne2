@@ -90,17 +90,10 @@ impl Node for ModuleManager {
 )]
 pub struct ModuleBase {}
 
-impl ModuleBase {
-}
-
 #[node(from_struct, scriptable, contextualizable)]
 impl Node for ModuleBase {
     fn user_item_kind(&self) -> &str {
         "module"
-    }
-
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "module_base").then(|| Self::new(label))
     }
 }
 
@@ -223,9 +216,6 @@ impl Node for OscModule {
         }
     }
 
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "osc_module").then(|| Self::create(label))
-    }
 }
 
 #[node]
@@ -278,9 +268,6 @@ impl Node for MidiModule {
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
     }
 
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "midi_module").then(|| Self::create(label))
-    }
 }
 
 #[node]
@@ -323,9 +310,6 @@ impl Node for DmxModule {
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
     }
 
-    fn project_create(node_type: &str, label: &str) -> Option<Self> {
-        (node_type == "dmx_module").then(|| Self::create(label))
-    }
 }
 
 pub fn register_demo_reference_filters<T: Node>(engine: &mut Engine<T>) {

@@ -1,10 +1,14 @@
-use golden_core::node::Folder;
-
 use super::{AppEngine, AppNode};
 
-pub(super) fn build_engine() -> AppEngine {
-    let root: AppNode = Folder::new("Root").into();
-    let mut engine = AppEngine::new(root);
-    super::nodes_module_demo::register_demo_reference_filters(&mut engine);
-    engine
+impl golden_core::app::ProjectLifecycle for AppNode {
+    fn configure_engine(engine: &mut AppEngine) -> Result<(), String> {
+        super::nodes_module_demo::register_demo_reference_filters(engine);
+        Ok(())
+    }
+
+    fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
+        golden_core::app::add_default_project_nodes(engine);
+        
+        Ok(())
+    }
 }
