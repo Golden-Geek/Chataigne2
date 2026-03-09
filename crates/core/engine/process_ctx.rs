@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
-use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
+use crate::node::{DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use serde::Serialize;
 
@@ -37,6 +37,8 @@ pub struct ProcessTreeNodeSnapshot {
     pub param_value: Option<ParamValue>,
     /// Current parameter constraints when this node is a parameter.
     pub param_constraints: Option<ParameterConstraints>,
+    /// Dashboard widget capabilities exposed by this node.
+    pub dashboard_widget_target: DashboardWidgetTargetDescriptor,
     /// Additional script-facing properties exposed by this node instance.
     pub script_properties: HashMap<String, ParamValue>,
     /// Additional script-facing methods exposed by this node instance.
@@ -296,10 +298,7 @@ impl ProcessCtx {
     where
         F: FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send + 'static,
     {
-        self.edits.push(Edit::CallNodeMutation {
-            node,
-            callback: Box::new(callback),
-        });
+        self.edits.push(Edit::CallNodeMutation { node, callback: Box::new(callback) });
     }
 
     /// Sets or replaces the default warning on `node`.

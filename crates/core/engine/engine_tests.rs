@@ -2,8 +2,8 @@ use super::*;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-use crate::blueprints::{BlueprintDecl, BlueprintId};
 use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
+use crate::blueprints::{BlueprintDecl, BlueprintId};
 use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
@@ -1315,7 +1315,11 @@ fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "gated_simple", "mode", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "simple dependency should insert the parameter between its declared neighbors",);
+    assert_eq!(
+        child_decl_ids_any(&engine, owner),
+        ["driver", "gated_simple", "mode", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(),
+        "simple dependency should insert the parameter between its declared neighbors",
+    );
     assert_eq!(count_children_by_decl_any(&engine, owner, "gated_simple"), 1, "gated simple parameter should not duplicate");
 
     engine.edits.push(Edit::SetParam {
@@ -1328,7 +1332,11 @@ fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "gated_simple", "mode", "gated_text", "gated_complex", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "string comparison and closure dependencies should both materialize in declared order",);
+    assert_eq!(
+        child_decl_ids_any(&engine, owner),
+        ["driver", "gated_simple", "mode", "gated_text", "gated_complex", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(),
+        "string comparison and closure dependencies should both materialize in declared order",
+    );
 
     engine.edits.push(Edit::SetParam {
         node: driver,
@@ -1340,7 +1348,11 @@ fn params_macro_dependencies_create_remove_and_reinsert_in_declared_order() {
         engine.dispatch_inbox(ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
     }
 
-    assert_eq!(child_decl_ids_any(&engine, owner), ["driver", "mode", "gated_text", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(), "dependent removals should keep surviving params in their declared slots",);
+    assert_eq!(
+        child_decl_ids_any(&engine, owner),
+        ["driver", "mode", "gated_text", "tail"].into_iter().map(str::to_string).collect::<Vec<_>>(),
+        "dependent removals should keep surviving params in their declared slots",
+    );
     assert!(find_child_by_decl(&engine, owner, "gated_simple").is_none(), "simple dependency param should be removed again");
     assert!(find_child_by_decl(&engine, owner, "gated_complex").is_none(), "closure dependency param should be removed again");
 }
@@ -2599,14 +2611,7 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
     let group = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("group child should exist");
 
     engine.add_node(Parameter::new("target", ParamValue::Float(0.75), ParameterChangeCheck::None), Some(group));
-    engine.add_node(
-        Parameter::new(
-            "target_ref",
-            ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))),
-            ParameterChangeCheck::None,
-        ),
-        Some(group),
-    );
+    engine.add_node(Parameter::new("target_ref", ParamValue::Reference(NodeReference::new(NodeUuid(Uuid::new_v4()))), ParameterChangeCheck::None), Some(group));
     engine.apply_edits().expect("group children add should succeed");
 
     let target = engine.nodes.get(group).and_then(|node| node.node_data().first_child).expect("target child should exist");
@@ -2623,14 +2628,7 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
     engine.clear_ui_event_log();
 
     let duplicated_group = engine
-        .duplicate_subtree_with(
-            group,
-            engine.root,
-            Some(group),
-            Some("group Copy".to_string()),
-            encode_parameter_node,
-            decode_parameter_node,
-        )
+        .duplicate_subtree_with(group, engine.root, Some(group), Some("group Copy".to_string()), encode_parameter_node, decode_parameter_node)
         .expect("duplicate subtree should succeed");
 
     assert!(engine.inbox.events.is_empty(), "duplicate subtree should not enqueue structural inbox events like a live node add");
@@ -4283,7 +4281,12 @@ fn ui_set_param_stabilizes_animation_curve_easing_dependencies() {
     let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
 
     let initial_children = direct_child_decl_ids_any(&engine, easing_node);
-    assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID), 1, "default bezier easing should start with one out-position parameter; children were {:?}", initial_children);
+    assert_eq!(
+        count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID),
+        1,
+        "default bezier easing should start with one out-position parameter; children were {:?}",
+        initial_children
+    );
     assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID), 1, "default bezier easing should start with one out-value parameter");
     assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID), 1, "default bezier easing should start with one in-position parameter");
     assert_eq!(count_children_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID), 1, "default bezier easing should start with one in-value parameter");
@@ -4378,19 +4381,10 @@ fn animation_curve_user_created_key_defaults_to_bezier_easing() {
         .filter(|node_id| engine.nodes.get(*node_id).is_some_and(|node| node.get_type() == PARAMETER_ANIMATION_KEY_NODE_TYPE))
         .collect::<Vec<_>>();
 
-    let inserted_key = after_keys
-        .iter()
-        .copied()
-        .find(|key_id| !before_keys.contains(key_id))
-        .expect("inserted key should exist");
+    let inserted_key = after_keys.iter().copied().find(|key_id| !before_keys.contains(key_id)).expect("inserted key should exist");
     let easing_node = find_child_by_decl_any(&engine, inserted_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
     let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
-    let kind = engine
-        .nodes
-        .get(kind_param)
-        .and_then(|node| node.engine_param_snapshot())
-        .and_then(|snapshot| snapshot.value.as_enum())
-        .expect("easing kind should be enum");
+    let kind = engine.nodes.get(kind_param).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_enum()).expect("easing kind should be enum");
 
     assert_eq!(kind, "bezier", "UI-created keys should default to bezier easing");
 }
@@ -4432,22 +4426,14 @@ fn animation_curve_insert_keys_with_easing_uses_requested_kind() {
                 Some(node_id) => node_id,
                 None => return false,
             };
-            let position = snapshot
-                .node(position_param)
-                .and_then(|node| node.param_value.as_ref())
-                .and_then(ParamValue::as_float);
+            let position = snapshot.node(position_param).and_then(|node| node.param_value.as_ref()).and_then(ParamValue::as_float);
             position.is_some_and(|value| (value - 0.25).abs() < 1e-9)
         })
         .expect("inserted key should exist");
 
     let easing_node = find_child_by_decl_any(&engine, inserted_key, PARAMETER_ANIMATION_EASING_DECL_ID).expect("easing node should exist");
     let kind_param = find_child_by_decl_any(&engine, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("easing kind parameter should exist");
-    let kind = engine
-        .nodes
-        .get(kind_param)
-        .and_then(|node| node.engine_param_snapshot())
-        .and_then(|snapshot| snapshot.value.as_enum())
-        .expect("easing kind should be enum");
+    let kind = engine.nodes.get(kind_param).and_then(|node| node.engine_param_snapshot()).and_then(|snapshot| snapshot.value.as_enum()).expect("easing kind should be enum");
 
     assert_eq!(kind, "hold", "code insertion should honor the provided easing");
 }
@@ -4647,15 +4633,8 @@ fn ui_intent_fit_animation_curve_path_replaces_range_with_fitted_bezier_keys() {
 
     let ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
-        points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
-        ],
-        options: AnimationCurveBezierFitOptions {
-            max_value_error: 0.02,
-            max_keys: 8,
-        },
+        points: vec![AnimationCurveFitPoint::new(0.25, 0.2), AnimationCurveFitPoint::new(0.5, 0.92), AnimationCurveFitPoint::new(0.75, 0.15)],
+        options: AnimationCurveBezierFitOptions { max_value_error: 0.02, max_keys: 8 },
     });
     assert!(ack.success, "fit intent should succeed");
     assert!(engine.edits.pending.is_empty(), "fit intent should fully materialize its queued edits");
@@ -4694,24 +4673,15 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
 
     let fit_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
-        points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
-        ],
-        options: AnimationCurveBezierFitOptions {
-            max_value_error: 0.02,
-            max_keys: 8,
-        },
+        points: vec![AnimationCurveFitPoint::new(0.25, 0.2), AnimationCurveFitPoint::new(0.5, 0.92), AnimationCurveFitPoint::new(0.75, 0.15)],
+        options: AnimationCurveBezierFitOptions { max_value_error: 0.02, max_keys: 8 },
     });
     assert!(fit_ack.success, "fit intent should succeed inside the edit session");
 
     assert!(engine.edits.pending.is_empty(), "fit intent should fully materialize its queued edits before session end");
     assert_eq!(engine.undo_len(), 0, "open draw session should not commit undo history yet");
 
-    let end_ack = engine.apply_ui_intent(UiEditIntent::EndEdit {
-        client_edit_id: "curve-draw-1".to_string(),
-    });
+    let end_ack = engine.apply_ui_intent(UiEditIntent::EndEdit { client_edit_id: "curve-draw-1".to_string() });
     assert!(end_ack.success, "end edit should succeed");
     assert_eq!(engine.undo_len(), 1, "draw fit should commit as one undo step");
 
@@ -4749,15 +4719,8 @@ fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
 
     let first_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
-        points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
-        ],
-        options: AnimationCurveBezierFitOptions {
-            max_value_error: 0.02,
-            max_keys: 8,
-        },
+        points: vec![AnimationCurveFitPoint::new(0.25, 0.2), AnimationCurveFitPoint::new(0.5, 0.92), AnimationCurveFitPoint::new(0.75, 0.15)],
+        options: AnimationCurveBezierFitOptions { max_value_error: 0.02, max_keys: 8 },
     });
     assert!(first_ack.success, "initial fit intent should succeed");
 
@@ -4767,15 +4730,8 @@ fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
 
     let second_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
-        points: vec![
-            AnimationCurveFitPoint::new(0.2, 0.1),
-            AnimationCurveFitPoint::new(0.5, 0.7),
-            AnimationCurveFitPoint::new(0.8, 0.25),
-        ],
-        options: AnimationCurveBezierFitOptions {
-            max_value_error: 0.03,
-            max_keys: 8,
-        },
+        points: vec![AnimationCurveFitPoint::new(0.2, 0.1), AnimationCurveFitPoint::new(0.5, 0.7), AnimationCurveFitPoint::new(0.8, 0.25)],
+        options: AnimationCurveBezierFitOptions { max_value_error: 0.03, max_keys: 8 },
     });
     assert!(second_ack.success, "fit after undo should succeed without panicking");
     assert_eq!(engine.redo_len(), 0, "new fit should clear redo history");
@@ -4897,6 +4853,7 @@ fn ui_create_user_item_undo_redo_restores_same_node_id() {
         parent,
         node_type: "script".to_string(),
         label: Some("Script".to_string()),
+        initial_params: Vec::new(),
     });
     assert!(create_ack.success, "create user item intent should succeed");
     assert_eq!(create_ack.status, UiAckStatus::Applied);
@@ -4924,6 +4881,7 @@ fn ui_create_user_item_redo_survives_non_history_runtime_edits() {
         parent,
         node_type: "script".to_string(),
         label: Some("Script".to_string()),
+        initial_params: Vec::new(),
     });
     assert!(create_ack.success, "create user item intent should succeed");
 
@@ -4954,6 +4912,7 @@ fn ui_set_script_config_changes_are_undoable() {
         parent,
         node_type: "script".to_string(),
         label: Some("Script".to_string()),
+        initial_params: Vec::new(),
     });
     assert!(create_ack.success, "create user item intent should succeed");
 

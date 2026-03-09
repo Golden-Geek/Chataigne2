@@ -4,7 +4,10 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
+    node::{
+        DashboardWidgetDisplayModeSpec, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode,
+        UserContainerRules,
+    },
     process_ctx::ProcessCtx,
 };
 
@@ -116,9 +119,7 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
         }
     }
 
-    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
-        || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
-    {
+    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) {
         if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
             return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
         }
@@ -127,10 +128,7 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
     match operator {
         ParameterDependencyOperator::Eq => lhs == rhs,
         ParameterDependencyOperator::Ne => lhs != rhs,
-        ParameterDependencyOperator::Lt
-        | ParameterDependencyOperator::Le
-        | ParameterDependencyOperator::Gt
-        | ParameterDependencyOperator::Ge => false,
+        ParameterDependencyOperator::Lt | ParameterDependencyOperator::Le | ParameterDependencyOperator::Gt | ParameterDependencyOperator::Ge => false,
     }
 }
 
@@ -1956,6 +1954,10 @@ fn default_control_modes_enabled() -> bool {
     true
 }
 
+fn is_legacy_vec2_display_decl_id(decl_id: &str) -> bool {
+    matches!(decl_id, "display_mode" | "display_2d_trail_seconds" | "display_2d_unit_step" | "display_2d_view_span")
+}
+
 /// Built-in node type that stores a [`ParamValue`].
 ///
 /// # Examples
@@ -2085,6 +2087,33 @@ impl Parameter {
             ParamValue::Reference(_) => "parameter expects a reference value".to_string(),
         })
     }
+
+    fn remove_legacy_vec2_display_children(&mut self, ctx: &mut ProcessCtx) {
+        if !matches!(self.value, ParamValue::Vec2(_, _)) {
+            return;
+        }
+
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+
+        let mut child = snapshot.node(self.id()).and_then(|node| node.first_child);
+        let mut legacy_children = Vec::new();
+        while let Some(child_id) = child {
+            let Some(child_snapshot) = snapshot.node(child_id) else {
+                break;
+            };
+            child = child_snapshot.next_sibling;
+
+            if is_legacy_vec2_display_decl_id(child_snapshot.decl_id.as_str()) {
+                legacy_children.push(child_id);
+            }
+        }
+
+        for child_id in legacy_children {
+            self.remove_child(ctx, child_id);
+        }
+    }
 }
 
 impl Node for Parameter {
@@ -2121,6 +2150,10 @@ impl Node for Parameter {
         self
     }
 
+    fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
+        self.remove_legacy_vec2_display_children(ctx);
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[PARAMETER_CONTROL_ITEM_KIND]))
     }
@@ -2144,6 +2177,23 @@ impl Node for Parameter {
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
         Some(self.snapshot())
+    }
+
+    fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
+        let mut display_modes = vec![
+            DashboardWidgetDisplayModeSpec::new("inspector", "Inspector"),
+            DashboardWidgetDisplayModeSpec::new("editor", "Editor"),
+        ];
+
+        if matches!(self.value, ParamValue::Vec2(_, _)) {
+            display_modes.push(DashboardWidgetDisplayModeSpec::new("vec2Pad", "2D Pad"));
+        }
+
+        DashboardWidgetTargetDescriptor {
+            display_modes,
+            default_display_mode_id: "editor".to_string(),
+            options_node_kind: Some(DashboardWidgetOptionsNodeKind::ParameterEditor),
+        }
     }
 
     fn engine_param_control_state(&self) -> Option<crate::parameter::ParameterControlState> {

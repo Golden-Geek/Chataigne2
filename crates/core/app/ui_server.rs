@@ -59,12 +59,7 @@ fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec
     let before_len = engine.ui_event_log().len();
 
     match intent {
-        UiEditIntent::DuplicateNode {
-            source,
-            new_parent,
-            new_prev_sibling,
-            label,
-        } => {
+        UiEditIntent::DuplicateNode { source, new_parent, new_prev_sibling, label } => {
             let Some(project_codec) = project_codec else {
                 return UiAck {
                     success: false,
@@ -76,14 +71,7 @@ fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec
                 };
             };
 
-            match engine.duplicate_subtree_with(
-                source,
-                new_parent,
-                new_prev_sibling,
-                label,
-                |node| project_codec.encode_node(node),
-                |node_type, data, meta| project_codec.decode_node(node_type, data, meta),
-            ) {
+            match engine.duplicate_subtree_with(source, new_parent, new_prev_sibling, label, |node| project_codec.encode_node(node), |node_type, data, meta| project_codec.decode_node(node_type, data, meta)) {
                 Ok(_) => UiAck {
                     success: true,
                     status: UiAckStatus::Applied,
@@ -352,14 +340,7 @@ fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<Pro
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: Node>(
-    engine: &Arc<Mutex<Engine<T>>>,
-    project_codec: Option<&ProjectCodec<T>>,
-    clients: &mut HashMap<u64, WsClientState>,
-    origins: &mut HashMap<EngineTime, WsEventOrigin>,
-    command: WsHubCommand,
-    session_id: &str,
-) {
+fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec: Option<&ProjectCodec<T>>, clients: &mut HashMap<u64, WsClientState>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
             clients.insert(client_id, WsClientState { outbound, subscriptions: HashMap::new() });

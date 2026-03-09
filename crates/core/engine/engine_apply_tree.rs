@@ -403,10 +403,11 @@ impl<T: Node> Engine<T> {
         }
 
         // Run app init after declared/generated children are materialized and handles are bound.
+        let init_tree_snapshot = Some(self.build_process_tree_snapshot());
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         init_ctx.runtime_elapsed = self.runtime_elapsed;
-        if let Some(child_tree_snapshot) = &child_tree_snapshot {
-            init_ctx.set_tree_snapshot(Arc::clone(child_tree_snapshot));
+        if let Some(init_tree_snapshot) = &init_tree_snapshot {
+            init_ctx.set_tree_snapshot(Arc::clone(init_tree_snapshot));
         }
         if let Some(node) = self.nodes.get_mut(child_id) {
             crate::logger::with_node_origin(child_id, || {

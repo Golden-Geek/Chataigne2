@@ -297,15 +297,7 @@ impl<T: Node> Engine<T> {
         Self::from_project_json_with(&json, decode_node)
     }
 
-    pub(crate) fn duplicate_subtree_with<Encode, Decode>(
-        &mut self,
-        source: NodeId,
-        new_parent: NodeId,
-        new_prev_sibling: Option<NodeId>,
-        label: Option<String>,
-        mut encode_data: Encode,
-        mut decode_node: Decode,
-    ) -> Result<NodeId, ProjectPersistenceError>
+    pub(crate) fn duplicate_subtree_with<Encode, Decode>(&mut self, source: NodeId, new_parent: NodeId, new_prev_sibling: Option<NodeId>, label: Option<String>, mut encode_data: Encode, mut decode_node: Decode) -> Result<NodeId, ProjectPersistenceError>
     where
         Encode: FnMut(&T) -> Result<serde_json::Value, String>,
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
@@ -327,18 +319,16 @@ impl<T: Node> Engine<T> {
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
-        self.push_ui_custom_event(
-            "__transport.resync_required",
-            Some(duplicated_root),
-            serde_json::json!({ "reason": "duplicate_subtree_loaded" }),
+        self.push_ui_custom_event("__transport.resync_required", Some(duplicated_root), serde_json::json!({ "reason": "duplicate_subtree_loaded" }));
+        self.record_single_history_step(
+            AddNodeEffect {
+                node: duplicated_root,
+                parent: new_parent,
+                prev_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().prev_sibling),
+                next_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().next_sibling),
+            }
+            .into(),
         );
-        self.record_single_history_step(AddNodeEffect {
-            node: duplicated_root,
-            parent: new_parent,
-            prev_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().prev_sibling),
-            next_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().next_sibling),
-        }
-        .into());
 
         Ok(duplicated_root)
     }
@@ -415,14 +405,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn insert_duplicate_record_subtree_with<F>(
-        &mut self,
-        parent: NodeId,
-        prev_sibling: Option<NodeId>,
-        record: &ProjectNodeRecord,
-        uuid_map: &HashMap<NodeUuid, NodeUuid>,
-        decode_node: &mut F,
-    ) -> Result<NodeId, ProjectPersistenceError>
+    fn insert_duplicate_record_subtree_with<F>(&mut self, parent: NodeId, prev_sibling: Option<NodeId>, record: &ProjectNodeRecord, uuid_map: &HashMap<NodeUuid, NodeUuid>, decode_node: &mut F) -> Result<NodeId, ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {

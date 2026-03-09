@@ -213,13 +213,7 @@ impl<T: Node> Engine<T> {
         {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation: OP, node })?;
             let node_type = target.get_type().to_string();
-            callback(target as &mut dyn Node, &mut ctx).map_err(|message| EngineEditError::NodeMutationRejected {
-                edit_index,
-                operation: OP,
-                node,
-                node_type,
-                message,
-            })?;
+            callback(target as &mut dyn Node, &mut ctx).map_err(|message| EngineEditError::NodeMutationRejected { edit_index, operation: OP, node, node_type, message })?;
         }
 
         self.absorb_edits(&mut ctx)?;

@@ -3,8 +3,8 @@ use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::parameter::{CssUnit, CssValue, Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
-use std::path::PathBuf;
 use std::marker::PhantomData;
+use std::path::PathBuf;
 
 use super::{DeclId, Node, NodeId, NodeMetaPatch, NodeReference, NodeUuid};
 
@@ -480,12 +480,7 @@ impl NodeHandle {
         ctx.call_node_mutation(target, move |node, child_ctx| {
             let node_type = node.get_type().to_string();
             let Some(typed) = node.as_any_mut().downcast_mut::<N>() else {
-                return Err(format!(
-                    "node {:?} is type '{}' and cannot be downcast to {}",
-                    target,
-                    node_type,
-                    std::any::type_name::<N>()
-                ));
+                return Err(format!("node {:?} is type '{}' and cannot be downcast to {}", target, node_type, std::any::type_name::<N>()));
             };
             callback(typed, child_ctx);
             Ok(())

@@ -11,6 +11,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method(),
             Self::DashboardNodeWidget(node) => node.$method(),
             Self::DashboardGenericWidget(node) => node.$method(),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
             Self::AnimationCurve(node) => node.$method(),
             Self::AnimationCurveRange(node) => node.$method(),
@@ -30,6 +31,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method($arg1),
             Self::DashboardNodeWidget(node) => node.$method($arg1),
             Self::DashboardGenericWidget(node) => node.$method($arg1),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
             Self::AnimationCurve(node) => node.$method($arg1),
             Self::AnimationCurveRange(node) => node.$method($arg1),
@@ -49,6 +51,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2),
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2),
@@ -68,6 +71,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3),
@@ -87,6 +91,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
@@ -106,6 +111,7 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardWidgetContainer(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardNodeWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardGenericWidget(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::DashboardNodeWidgetParameterOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
@@ -331,6 +337,7 @@ macro_rules! define_user_item_factory_methods {
 /// - `DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode)`
 /// - `DashboardNodeWidget($crate::node::DashboardNodeWidgetNode)`
 /// - `DashboardGenericWidget($crate::node::DashboardGenericWidgetNode)`
+/// - `DashboardNodeWidgetParameterOptions($crate::node::DashboardNodeWidgetParameterOptionsNode)`
 /// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
 /// - `AnimationCurve($crate::node::AnimationCurveNode)`
 /// - `AnimationCurveRange($crate::node::AnimationCurveRangeNode)`
@@ -355,6 +362,7 @@ macro_rules! define_node_enum {
             DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode),
             DashboardNodeWidget($crate::node::DashboardNodeWidgetNode),
             DashboardGenericWidget($crate::node::DashboardGenericWidgetNode),
+            DashboardNodeWidgetParameterOptions($crate::node::DashboardNodeWidgetParameterOptionsNode),
             ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
             AnimationCurve($crate::node::AnimationCurveNode),
             AnimationCurveRange($crate::node::AnimationCurveRangeNode),
@@ -391,6 +399,7 @@ macro_rules! define_node_enum {
                     Self::DashboardWidgetContainer(node) => node,
                     Self::DashboardNodeWidget(node) => node,
                     Self::DashboardGenericWidget(node) => node,
+                    Self::DashboardNodeWidgetParameterOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -412,6 +421,7 @@ macro_rules! define_node_enum {
                     Self::DashboardWidgetContainer(node) => node,
                     Self::DashboardNodeWidget(node) => node,
                     Self::DashboardGenericWidget(node) => node,
+                    Self::DashboardNodeWidgetParameterOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
                     Self::AnimationCurve(node) => node,
                     Self::AnimationCurveRange(node) => node,
@@ -495,6 +505,11 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn engine_param_snapshot(&self) -> Option<$crate::parameter::ParameterSnapshot> {
                 $crate::__dispatch_node_enum!(self, engine_param_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_dashboard_widget_target_descriptor(&self) -> $crate::node::DashboardWidgetTargetDescriptor {
+                $crate::__dispatch_node_enum!(self, engine_dashboard_widget_target_descriptor; $($variant),*)
             }
 
             #[inline(always)]
@@ -689,6 +704,7 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, DashboardWidgetContainer, $crate::node::DashboardWidgetContainerNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidget, $crate::node::DashboardNodeWidgetNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardGenericWidget, $crate::node::DashboardGenericWidgetNode);
+                $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetParameterOptions, $crate::node::DashboardNodeWidgetParameterOptionsNode);
                 $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurve, $crate::node::AnimationCurveNode);
                 $crate::__downcast_node_enum_variant!(any, AnimationCurveRange, $crate::node::AnimationCurveRangeNode);
@@ -750,6 +766,12 @@ macro_rules! define_node_enum {
         impl From<$crate::node::DashboardGenericWidgetNode> for $enum_name {
             fn from(node: $crate::node::DashboardGenericWidgetNode) -> Self {
                 Self::DashboardGenericWidget(node)
+            }
+        }
+
+        impl From<$crate::node::DashboardNodeWidgetParameterOptionsNode> for $enum_name {
+            fn from(node: $crate::node::DashboardNodeWidgetParameterOptionsNode) -> Self {
+                Self::DashboardNodeWidgetParameterOptions(node)
             }
         }
 

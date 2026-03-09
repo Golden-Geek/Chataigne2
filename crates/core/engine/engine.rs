@@ -461,6 +461,7 @@ impl<T: Node> Engine<T> {
             let node_data = node.node_data();
             let descriptor = node.engine_script_descriptor();
             let parameter_snapshot = node.engine_param_snapshot();
+            let dashboard_widget_target = node.engine_dashboard_widget_target_descriptor();
             nodes.insert(
                 node_id,
                 ProcessTreeNodeSnapshot {
@@ -476,6 +477,7 @@ impl<T: Node> Engine<T> {
                     child_count: 0,
                     param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
                     param_constraints: parameter_snapshot.as_ref().map(|snapshot| snapshot.constraints.clone()),
+                    dashboard_widget_target,
                     script_properties: descriptor.properties,
                     script_methods: descriptor.methods,
                 },

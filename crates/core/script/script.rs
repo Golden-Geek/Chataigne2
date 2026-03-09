@@ -2677,14 +2677,11 @@ fn parameter_default_from_json_value(value_type: ScriptValueType, value: &JsonVa
         }
         ScriptValueType::CssValue => {
             let parsed = if let Some(raw) = value.as_str() {
-                CssValue::parse_with_default_unit(raw, Some(CssUnit::Rem))
-                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("invalid css_value default '{raw}'")))?
+                CssValue::parse_with_default_unit(raw, Some(CssUnit::Rem)).ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("invalid css_value default '{raw}'")))?
             } else if let Some(raw) = value.as_f64().or_else(|| value.as_i64().map(|raw| raw as f64)) {
                 CssValue::new(raw, CssUnit::Rem)
             } else {
-                serde_json::from_value::<CssValue>(value.clone()).map_err(|error| {
-                    ScriptRuntimeError::InvalidManifest(format!("expected css_value default as string, number, or object: {error}"))
-                })?
+                serde_json::from_value::<CssValue>(value.clone()).map_err(|error| ScriptRuntimeError::InvalidManifest(format!("expected css_value default as string, number, or object: {error}")))?
             };
             ParamValue::CssValue(parsed)
         }
@@ -3470,6 +3467,7 @@ mod tests {
                 child_count: 1,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: vec![
                     "setName".to_string(),
@@ -3506,6 +3504,7 @@ mod tests {
                 child_count: 1,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: vec![
                     "setName".to_string(),
@@ -3542,6 +3541,7 @@ mod tests {
                 child_count: 0,
                 param_value: Some(ParamValue::Float(0.5)),
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: vec![
                     "setName".to_string(),
@@ -3608,6 +3608,7 @@ mod tests {
                 child_count: 1,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: standard_methods.clone(),
             },
@@ -3627,6 +3628,7 @@ mod tests {
                 child_count: 2,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: standard_methods.clone(),
             },
@@ -3646,6 +3648,7 @@ mod tests {
                 child_count: 0,
                 param_value: Some(ParamValue::Float(0.5)),
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: standard_methods.clone(),
             },
@@ -3665,6 +3668,7 @@ mod tests {
                 child_count: 0,
                 param_value: Some(ParamValue::Float(0.25)),
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: standard_methods,
             },
@@ -3990,6 +3994,7 @@ script.setApiVersion(1);
                 child_count: 1,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: Vec::new(),
             },
@@ -4009,6 +4014,7 @@ script.setApiVersion(1);
                 child_count: 2,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: Vec::new(),
             },
@@ -4028,6 +4034,7 @@ script.setApiVersion(1);
                 child_count: 0,
                 param_value: Some(ParamValue::Float(1.0)),
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: Vec::new(),
             },
@@ -4047,6 +4054,7 @@ script.setApiVersion(1);
                 child_count: 0,
                 param_value: None,
                 param_constraints: None,
+                dashboard_widget_target: crate::node::DashboardWidgetTargetDescriptor::inspector_only(),
                 script_properties: HashMap::new(),
                 script_methods: Vec::new(),
             },

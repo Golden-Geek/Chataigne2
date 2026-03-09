@@ -1,10 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
 
-use crate::animation_curve::{
-    AnimationCurve, AnimationCurveBezierFitOptions, AnimationCurveFitPoint, AnimationCurveKey, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode, bezier_easing_from_endpoint_slopes,
-    fit_points_to_bezier_keys,
-};
+use crate::animation_curve::{AnimationCurve, AnimationCurveBezierFitOptions, AnimationCurveFitPoint, AnimationCurveKey, CurveEasing, CurveHandle, CurvePhaseMode, CurveShape, CurveStepMode, bezier_easing_from_endpoint_slopes, fit_points_to_bezier_keys};
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::NodeId;
@@ -13,11 +10,10 @@ use crate::process_ctx::{ProcessCtx, ProcessTreeSnapshot};
 
 use super::{
     DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_CURVE_DECL_ID, PARAMETER_ANIMATION_CURVE_ITEM_KIND, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_EASING_DECL_ID, PARAMETER_ANIMATION_EASING_FADE_IN_DECL_ID,
-    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
-    PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID, PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_PHASE_DECL_ID,
-    PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, PARAMETER_ANIMATION_EASING_SEED_DECL_ID, PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID,
-    PARAMETER_ANIMATION_KEY_ITEM_KIND, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID,
-    PARAMETER_ANIMATION_RANGE_Y_DECL_ID, UserContainerRules, UserCreatableItem, parameter_child_exists,
+    PARAMETER_ANIMATION_EASING_FADE_OUT_DECL_ID, PARAMETER_ANIMATION_EASING_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_IN_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, PARAMETER_ANIMATION_EASING_NUM_PHASES_DECL_ID,
+    PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID, PARAMETER_ANIMATION_EASING_OCTAVES_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID, PARAMETER_ANIMATION_EASING_OUT_VALUE_DECL_ID, PARAMETER_ANIMATION_EASING_PHASE_DECL_ID, PARAMETER_ANIMATION_EASING_PHASE_MODE_DECL_ID,
+    PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID, PARAMETER_ANIMATION_EASING_SEED_DECL_ID, PARAMETER_ANIMATION_EASING_SHAPE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID, PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID, PARAMETER_ANIMATION_KEY_ITEM_KIND, PARAMETER_ANIMATION_KEY_NODE_TYPE,
+    PARAMETER_ANIMATION_KEY_POSITION_DECL_ID, PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID, PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID, UserContainerRules, UserCreatableItem, parameter_child_exists,
 };
 
 const CURVE_RANGE_EPSILON: f64 = 1e-9;
@@ -40,7 +36,7 @@ fn make_vec2_parameter(label: &str, decl_id: &str, x: f64, y: f64) -> Parameter 
 fn default_curve_easing() -> CurveEasing {
     CurveEasing::Bezier {
         out_handle: CurveHandle::new(1.0 / 3.0, 0.0),
-        in_handle: CurveHandle::new(-1.0 / 3.0,  0.0),
+        in_handle: CurveHandle::new(-1.0 / 3.0, 0.0),
     }
 }
 
@@ -423,11 +419,7 @@ impl AnimationCurveNode {
         let child_range = self.initial_key_range_constraint();
         let mut created = Vec::<NodeId>::with_capacity(keys.len());
         for (position, value, easing) in keys {
-            let (position, value) = if let Some(range) = active_range {
-                (range.clamp_position(position), range.clamp_value(value))
-            } else {
-                (position, value)
-            };
+            let (position, value) = if let Some(range) = active_range { (range.clamp_position(position), range.clamp_value(value)) } else { (position, value) };
 
             let key_node = AnimationCurveKeyNode::new_with_values_and_range_and_easing(position, value, child_range, easing);
             let key_id = key_node.id();
@@ -444,9 +436,7 @@ impl AnimationCurveNode {
         if !position.is_finite() {
             return 0.0;
         }
-        curve_from_snapshot(snapshot, self.id())
-            .and_then(|curve| curve.sample(position))
-            .unwrap_or(0.0)
+        curve_from_snapshot(snapshot, self.id()).and_then(|curve| curve.sample(position)).unwrap_or(0.0)
     }
 
     /// Returns sorted `(key_id, position, value)` tuples inside `range`.
@@ -457,10 +447,7 @@ impl AnimationCurveNode {
             return Vec::new();
         }
         let (min_position, max_position) = if start <= end { (start, end) } else { (end, start) };
-        self.collect_sorted_key_data(snapshot)
-            .into_iter()
-            .filter(|(_, position, _)| *position >= min_position && *position <= max_position)
-            .collect()
+        self.collect_sorted_key_data(snapshot).into_iter().filter(|(_, position, _)| *position >= min_position && *position <= max_position).collect()
     }
 
     /// Returns the closest key to `position` as `(key_id, position, value)`.
@@ -472,10 +459,7 @@ impl AnimationCurveNode {
         self.collect_sorted_key_data(snapshot).into_iter().min_by(|left, right| {
             let left_distance = (left.1 - position).abs();
             let right_distance = (right.1 - position).abs();
-            left_distance
-                .total_cmp(&right_distance)
-                .then(left.1.total_cmp(&right.1))
-                .then(left.0 .0.cmp(&right.0 .0))
+            left_distance.total_cmp(&right_distance).then(left.1.total_cmp(&right.1)).then(left.0.0.cmp(&right.0.0))
         })
     }
 
@@ -502,9 +486,7 @@ impl AnimationCurveNode {
             return None;
         }
 
-        self.collect_sorted_key_data(snapshot)
-            .into_iter()
-            .find(|(_, key_position, _)| *key_position > position + KEY_ORDER_POSITION_EPSILON)
+        self.collect_sorted_key_data(snapshot).into_iter().find(|(_, key_position, _)| *key_position > position + KEY_ORDER_POSITION_EPSILON)
     }
 
     fn collect_sorted_key_records(&self, snapshot: &ProcessTreeSnapshot) -> Vec<(NodeId, AnimationCurveKey)> {
@@ -533,19 +515,9 @@ impl AnimationCurveNode {
         key_entries.into_iter().map(|(_, node_id, key)| (node_id, key)).collect()
     }
 
-    fn queue_key_easing_replace(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        key_node: NodeId,
-        easing: CurveEasing,
-    ) -> Result<Edit, String> {
-        let easing_node = snapshot
-            .find_child(key_node, PARAMETER_ANIMATION_EASING_DECL_ID)
-            .ok_or_else(|| format!("missing easing node for animation-curve key {}", key_node.0))?;
-        let label = snapshot
-            .node(easing_node)
-            .map(|node| node.label.clone())
-            .unwrap_or_else(|| "Easing".to_string());
+    fn queue_key_easing_replace(&self, snapshot: &ProcessTreeSnapshot, key_node: NodeId, easing: CurveEasing) -> Result<Edit, String> {
+        let easing_node = snapshot.find_child(key_node, PARAMETER_ANIMATION_EASING_DECL_ID).ok_or_else(|| format!("missing easing node for animation-curve key {}", key_node.0))?;
+        let label = snapshot.node(easing_node).map(|node| node.label.clone()).unwrap_or_else(|| "Easing".to_string());
         Ok(Edit::ReplaceNode {
             node: easing_node,
             new_node: Box::new(AnimationCurveEasingNode::new_with_easing(label, easing)),
@@ -553,12 +525,7 @@ impl AnimationCurveNode {
     }
 
     /// Replaces all keys inside the sampled x-range with a sparse bezier fit of `samples`.
-    pub fn replace_range_with_fitted_samples(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        samples: &[AnimationCurveFitPoint],
-        options: AnimationCurveBezierFitOptions,
-    ) -> Result<Vec<NodeId>, String> {
+    pub fn replace_range_with_fitted_samples(&mut self, ctx: &mut ProcessCtx, samples: &[AnimationCurveFitPoint], options: AnimationCurveBezierFitOptions) -> Result<Vec<NodeId>, String> {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return Err("animation curve fit requires an active tree snapshot".to_string());
         };
@@ -567,13 +534,7 @@ impl AnimationCurveNode {
         let normalized_samples = samples
             .iter()
             .copied()
-            .map(|point| {
-                if let Some(range) = active_range {
-                    AnimationCurveFitPoint::new(range.clamp_position(point.position), range.clamp_value(point.value))
-                } else {
-                    point
-                }
-            })
+            .map(|point| if let Some(range) = active_range { AnimationCurveFitPoint::new(range.clamp_position(point.position), range.clamp_value(point.value)) } else { point })
             .collect::<Vec<_>>();
         let mut fitted_keys = fit_points_to_bezier_keys(normalized_samples.as_slice(), options);
         if fitted_keys.len() < 2 {
@@ -585,61 +546,25 @@ impl AnimationCurveNode {
         let range_end = fitted_keys.last().map(|key| key.position).unwrap_or(range_start);
         let keys_to_remove = key_records
             .iter()
-            .filter(|(_, key)| {
-                key.position >= range_start - KEY_ORDER_POSITION_EPSILON
-                    && key.position <= range_end + KEY_ORDER_POSITION_EPSILON
-            })
+            .filter(|(_, key)| key.position >= range_start - KEY_ORDER_POSITION_EPSILON && key.position <= range_end + KEY_ORDER_POSITION_EPSILON)
             .map(|(node_id, _)| *node_id)
             .collect::<Vec<_>>();
-        let left_index = key_records
-            .iter()
-            .rposition(|(_, key)| key.position < range_start - KEY_ORDER_POSITION_EPSILON);
-        let right_index = key_records
-            .iter()
-            .position(|(_, key)| key.position > range_end + KEY_ORDER_POSITION_EPSILON);
+        let left_index = key_records.iter().rposition(|(_, key)| key.position < range_start - KEY_ORDER_POSITION_EPSILON);
+        let right_index = key_records.iter().position(|(_, key)| key.position > range_end + KEY_ORDER_POSITION_EPSILON);
 
-        let first_path_slope = outgoing_segment_slope(&fitted_keys[0], &fitted_keys[1]).unwrap_or_else(|| {
-            key_secant_slope(
-                fitted_keys[0].position,
-                fitted_keys[0].value,
-                fitted_keys[1].position,
-                fitted_keys[1].value,
-            )
-            .unwrap_or(0.0)
-        });
+        let first_path_slope = outgoing_segment_slope(&fitted_keys[0], &fitted_keys[1]).unwrap_or_else(|| key_secant_slope(fitted_keys[0].position, fitted_keys[0].value, fitted_keys[1].position, fitted_keys[1].value).unwrap_or(0.0));
         let fitted_len = fitted_keys.len();
-        let last_path_slope = incoming_segment_slope(&fitted_keys[fitted_len - 2], &fitted_keys[fitted_len - 1]).unwrap_or_else(|| {
-            key_secant_slope(
-                fitted_keys[fitted_len - 2].position,
-                fitted_keys[fitted_len - 2].value,
-                fitted_keys[fitted_len - 1].position,
-                fitted_keys[fitted_len - 1].value,
-            )
-            .unwrap_or(0.0)
-        });
+        let last_path_slope =
+            incoming_segment_slope(&fitted_keys[fitted_len - 2], &fitted_keys[fitted_len - 1]).unwrap_or_else(|| key_secant_slope(fitted_keys[fitted_len - 2].position, fitted_keys[fitted_len - 2].value, fitted_keys[fitted_len - 1].position, fitted_keys[fitted_len - 1].value).unwrap_or(0.0));
 
         if let Some(right_index) = right_index {
             let (_, right_key) = &key_records[right_index];
             let right_boundary_slope = key_records
                 .get(right_index + 1)
                 .and_then(|(_, next_key)| outgoing_segment_slope(right_key, next_key))
-                .or_else(|| {
-                    key_secant_slope(
-                        fitted_keys[fitted_len - 1].position,
-                        fitted_keys[fitted_len - 1].value,
-                        right_key.position,
-                        right_key.value,
-                    )
-                })
+                .or_else(|| key_secant_slope(fitted_keys[fitted_len - 1].position, fitted_keys[fitted_len - 1].value, right_key.position, right_key.value))
                 .unwrap_or(0.0);
-            if let Some(easing) = bezier_easing_from_endpoint_slopes(
-                fitted_keys[fitted_len - 1].position,
-                fitted_keys[fitted_len - 1].value,
-                right_key.position,
-                right_key.value,
-                last_path_slope,
-                right_boundary_slope,
-            ) {
+            if let Some(easing) = bezier_easing_from_endpoint_slopes(fitted_keys[fitted_len - 1].position, fitted_keys[fitted_len - 1].value, right_key.position, right_key.value, last_path_slope, right_boundary_slope) {
                 fitted_keys[fitted_len - 1].easing = easing;
             }
         }
@@ -650,23 +575,9 @@ impl AnimationCurveNode {
             let left_boundary_slope = key_records
                 .get(left_index + 1)
                 .and_then(|(_, next_key)| outgoing_segment_slope(left_key, next_key))
-                .or_else(|| {
-                    key_secant_slope(
-                        left_key.position,
-                        left_key.value,
-                        fitted_keys[0].position,
-                        fitted_keys[0].value,
-                    )
-                })
+                .or_else(|| key_secant_slope(left_key.position, left_key.value, fitted_keys[0].position, fitted_keys[0].value))
                 .unwrap_or(0.0);
-            if let Some(easing) = bezier_easing_from_endpoint_slopes(
-                left_key.position,
-                left_key.value,
-                fitted_keys[0].position,
-                fitted_keys[0].value,
-                left_boundary_slope,
-                first_path_slope,
-            ) {
+            if let Some(easing) = bezier_easing_from_endpoint_slopes(left_key.position, left_key.value, fitted_keys[0].position, fitted_keys[0].value, left_boundary_slope, first_path_slope) {
                 left_key_easing_replace = Some(self.queue_key_easing_replace(snapshot, *left_node_id, easing)?);
             }
         }
@@ -679,10 +590,7 @@ impl AnimationCurveNode {
             ctx.edits.push(Edit::RemoveNode { node: node_id });
         }
 
-        Ok(self.insert_keys_with_easing(
-            ctx,
-            fitted_keys.into_iter().map(|key| (key.position, key.value, key.easing)).collect(),
-        ))
+        Ok(self.insert_keys_with_easing(ctx, fitted_keys.into_iter().map(|key| (key.position, key.value, key.easing)).collect()))
     }
 
     fn collect_sorted_key_data(&self, snapshot: &ProcessTreeSnapshot) -> Vec<(NodeId, f64, f64)> {
@@ -705,13 +613,7 @@ impl AnimationCurveNode {
             key_entries.push((source_index, child, position, value));
         }
 
-        key_entries.sort_by(|left, right| {
-            if (left.2 - right.2).abs() <= KEY_ORDER_POSITION_EPSILON {
-                left.0.cmp(&right.0)
-            } else {
-                left.2.total_cmp(&right.2)
-            }
-        });
+        key_entries.sort_by(|left, right| if (left.2 - right.2).abs() <= KEY_ORDER_POSITION_EPSILON { left.0.cmp(&right.0) } else { left.2.total_cmp(&right.2) });
         key_entries.into_iter().map(|(_, key_id, position, value)| (key_id, position, value)).collect()
     }
 
@@ -846,13 +748,7 @@ impl AnimationCurveNode {
         }
 
         let mut sorted_key_entries = key_entries.clone();
-        sorted_key_entries.sort_by(|left, right| {
-            if (left.2 - right.2).abs() <= KEY_ORDER_POSITION_EPSILON {
-                left.0.cmp(&right.0)
-            } else {
-                left.2.total_cmp(&right.2)
-            }
-        });
+        sorted_key_entries.sort_by(|left, right| if (left.2 - right.2).abs() <= KEY_ORDER_POSITION_EPSILON { left.0.cmp(&right.0) } else { left.2.total_cmp(&right.2) });
 
         let current_key_order = key_entries.iter().map(|(_, key_id, _)| *key_id).collect::<Vec<_>>();
         let sorted_key_order = sorted_key_entries.iter().map(|(_, key_id, _)| *key_id).collect::<Vec<_>>();
@@ -1158,11 +1054,7 @@ impl Node for AnimationCurveNode {
 
             let mut clamp_updates: Vec<(NodeId, f64)> = clamp_updates.into_iter().collect();
             clamp_updates.sort_unstable_by_key(|(param, _)| param.0);
-            let reorder_moves = if should_reorder_keys {
-                self.collect_key_reorder_moves_by_position(snapshot)
-            } else {
-                Vec::new()
-            };
+            let reorder_moves = if should_reorder_keys { self.collect_key_reorder_moves_by_position(snapshot) } else { Vec::new() };
             (remove_children, add_range_node, clamp_updates, reorder_moves)
         };
 
@@ -1262,13 +1154,7 @@ impl AnimationCurveKeyNode {
         Self::new_with_label_and_values_and_range_and_easing("Key", position, value, range_constraint, easing)
     }
 
-    fn new_with_label_and_values_and_range_and_easing(
-        label: impl Into<String>,
-        position: f64,
-        value: f64,
-        range_constraint: Option<AnimationCurveRangeConstraint>,
-        default_easing: CurveEasing,
-    ) -> Self {
+    fn new_with_label_and_values_and_range_and_easing(label: impl Into<String>, position: f64, value: f64, range_constraint: Option<AnimationCurveRangeConstraint>, default_easing: CurveEasing) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         let (default_position, default_value) = if let Some(range_constraint) = range_constraint {
@@ -1435,8 +1321,7 @@ impl AnimationCurveEasingNode {
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_EASING_DECL_ID.to_string());
 
-        let (kind, out_position, out_value, in_position, in_value, step_mode, step_size, num_steps, shape, amplitude, phase_mode, frequency, num_phases, fade_in, fade_out, octaves, phase, seed, script_source) =
-            Self::defaults_from_easing(&default_easing);
+        let (kind, out_position, out_value, in_position, in_value, step_mode, step_size, num_steps, shape, amplitude, phase_mode, frequency, num_phases, fade_in, fade_out, octaves, phase, seed, script_source) = Self::defaults_from_easing(&default_easing);
 
         Self {
             node_data,
@@ -1672,7 +1557,9 @@ mod tests {
 
     use super::*;
 
-    define_node_enum!(enum AnimationCurveTestNode {});
+    define_node_enum!(
+        enum AnimationCurveTestNode {}
+    );
 
     fn first_child<T: Node>(engine: &Engine<T>, parent: NodeId) -> NodeId {
         engine.nodes.get(parent).and_then(|node| node.node_data().first_child).expect("parent should have one child")
@@ -1736,8 +1623,7 @@ mod tests {
 
         let easing = first_child(&engine, engine.root);
         let direct_children_after_create = direct_child_decl_ids(&engine, easing);
-        let step_mode = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID)
-            .unwrap_or_else(|| panic!("step mode should exist; children were {:?}", direct_children_after_create));
+        let step_mode = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID).unwrap_or_else(|| panic!("step mode should exist; children were {:?}", direct_children_after_create));
         let kind = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("kind should exist");
 
         assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(), "non-bezier easings should hide the out handle position");
@@ -1747,11 +1633,7 @@ mod tests {
 
         assert_eq!(
             direct_child_decl_ids(&engine, easing),
-            vec![
-                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
-                PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(),
-                PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID.to_string(),
-            ],
+            vec![PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(), PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(), PARAMETER_ANIMATION_EASING_STEP_SIZE_DECL_ID.to_string(),],
             "step-size easings should materialize only the active step parameter",
         );
 
@@ -1764,11 +1646,7 @@ mod tests {
 
         assert_eq!(
             direct_child_decl_ids(&engine, easing),
-            vec![
-                PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(),
-                PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(),
-                PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID.to_string(),
-            ],
+            vec![PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string(), PARAMETER_ANIMATION_EASING_STEP_MODE_DECL_ID.to_string(), PARAMETER_ANIMATION_EASING_NUM_STEPS_DECL_ID.to_string(),],
             "switching step mode should swap the dependent step parameter in place",
         );
 
@@ -1824,22 +1702,12 @@ mod tests {
         let mut engine = Engine::new(root);
         let expected_source = "return t * 0.5;".to_string();
 
-        engine.add_node(
-            AnimationCurveEasingNode::new_with_easing(
-                "Ease",
-                CurveEasing::Script {
-                    source: expected_source.clone(),
-                },
-            )
-            .into(),
-            None,
-        );
+        engine.add_node(AnimationCurveEasingNode::new_with_easing("Ease", CurveEasing::Script { source: expected_source.clone() }).into(), None);
         stabilize_dependency_updates(&mut engine, "script easing node creation should apply");
 
         let easing = first_child(&engine, engine.root);
         let direct_children_after_create = direct_child_decl_ids(&engine, easing);
-        let script_source = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID)
-            .unwrap_or_else(|| panic!("script easings should materialize script source; children were {:?}", direct_children_after_create));
+        let script_source = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID).unwrap_or_else(|| panic!("script easings should materialize script source; children were {:?}", direct_children_after_create));
         let script_source_snapshot = engine.nodes.get(script_source).and_then(Node::engine_param_snapshot).expect("script source should expose a parameter snapshot");
 
         assert!(find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(), "script easings should hide the out handle position");

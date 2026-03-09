@@ -283,11 +283,7 @@ fn normalize_curve_fit_options(options: AnimationCurveBezierFitOptions) -> Anima
 }
 
 fn normalize_curve_fit_points(points: &[AnimationCurveFitPoint]) -> Vec<AnimationCurveFitPoint> {
-    let mut normalized = points
-        .iter()
-        .copied()
-        .filter(|point| point.position.is_finite() && point.value.is_finite())
-        .collect::<Vec<_>>();
+    let mut normalized = points.iter().copied().filter(|point| point.position.is_finite() && point.value.is_finite()).collect::<Vec<_>>();
     normalized.sort_by(|left, right| left.position.total_cmp(&right.position));
 
     let mut deduplicated = Vec::<AnimationCurveFitPoint>::with_capacity(normalized.len());
@@ -328,13 +324,7 @@ fn estimate_curve_fit_slope(points: &[AnimationCurveFitPoint], index: usize) -> 
         .unwrap_or(0.0)
 }
 
-fn sample_hermite_segment(
-    start: AnimationCurveFitPoint,
-    end: AnimationCurveFitPoint,
-    start_slope: f64,
-    end_slope: f64,
-    position: f64,
-) -> f64 {
+fn sample_hermite_segment(start: AnimationCurveFitPoint, end: AnimationCurveFitPoint, start_slope: f64, end_slope: f64, position: f64) -> f64 {
     let span = end.position - start.position;
     if span.abs() <= CURVE_EPSILON {
         return start.value;
@@ -374,14 +364,7 @@ fn max_curve_fit_error(points: &[AnimationCurveFitPoint], start_index: usize, en
     split_index.map(|index| (index, max_error))
 }
 
-fn collect_curve_fit_breakpoints(
-    points: &[AnimationCurveFitPoint],
-    max_value_error: f64,
-    max_keys: usize,
-    start_index: usize,
-    end_index: usize,
-    breakpoints: &mut Vec<usize>,
-) {
+fn collect_curve_fit_breakpoints(points: &[AnimationCurveFitPoint], max_value_error: f64, max_keys: usize, start_index: usize, end_index: usize, breakpoints: &mut Vec<usize>) {
     if end_index <= start_index + 1 || breakpoints.len() >= max_keys {
         return;
     }
@@ -405,23 +388,9 @@ fn collect_curve_fit_breakpoints(
 }
 
 /// Builds one bezier easing segment from endpoint slopes.
-pub fn bezier_easing_from_endpoint_slopes(
-    start_position: f64,
-    start_value: f64,
-    end_position: f64,
-    end_value: f64,
-    start_slope: f64,
-    end_slope: f64,
-) -> Option<CurveEasing> {
+pub fn bezier_easing_from_endpoint_slopes(start_position: f64, start_value: f64, end_position: f64, end_value: f64, start_slope: f64, end_slope: f64) -> Option<CurveEasing> {
     let span = end_position - start_position;
-    if !start_position.is_finite()
-        || !start_value.is_finite()
-        || !end_position.is_finite()
-        || !end_value.is_finite()
-        || !start_slope.is_finite()
-        || !end_slope.is_finite()
-        || span <= CURVE_EPSILON
-    {
+    if !start_position.is_finite() || !start_value.is_finite() || !end_position.is_finite() || !end_value.is_finite() || !start_slope.is_finite() || !end_slope.is_finite() || span <= CURVE_EPSILON {
         return None;
     }
 
@@ -436,10 +405,7 @@ pub fn bezier_easing_from_endpoint_slopes(
 ///
 /// The fit keeps the first and last normalized sample and recursively inserts split keys until
 /// the maximum value error is below `options.max_value_error` or `options.max_keys` is reached.
-pub fn fit_points_to_bezier_keys(
-    points: &[AnimationCurveFitPoint],
-    options: AnimationCurveBezierFitOptions,
-) -> Vec<AnimationCurveKey> {
+pub fn fit_points_to_bezier_keys(points: &[AnimationCurveFitPoint], options: AnimationCurveBezierFitOptions) -> Vec<AnimationCurveKey> {
     let points = normalize_curve_fit_points(points);
     if points.is_empty() {
         return Vec::new();
@@ -450,14 +416,7 @@ pub fn fit_points_to_bezier_keys(
 
     let options = normalize_curve_fit_options(options);
     let mut breakpoints = vec![0usize, points.len() - 1];
-    collect_curve_fit_breakpoints(
-        points.as_slice(),
-        options.max_value_error,
-        options.max_keys,
-        0,
-        points.len() - 1,
-        &mut breakpoints,
-    );
+    collect_curve_fit_breakpoints(points.as_slice(), options.max_value_error, options.max_keys, 0, points.len() - 1, &mut breakpoints);
     breakpoints.sort_unstable();
     breakpoints.dedup();
 
@@ -469,15 +428,7 @@ pub fn fit_points_to_bezier_keys(
             let next_point = points[next_point_index];
             let start_slope = estimate_curve_fit_slope(points.as_slice(), point_index);
             let end_slope = estimate_curve_fit_slope(points.as_slice(), next_point_index);
-            bezier_easing_from_endpoint_slopes(
-                point.position,
-                point.value,
-                next_point.position,
-                next_point.value,
-                start_slope,
-                end_slope,
-            )
-            .unwrap_or(CurveEasing::Linear)
+            bezier_easing_from_endpoint_slopes(point.position, point.value, next_point.position, next_point.value, start_slope, end_slope).unwrap_or(CurveEasing::Linear)
         } else {
             CurveEasing::Linear
         };
@@ -1457,15 +1408,8 @@ mod tests {
     #[test]
     fn fit_points_to_bezier_keys_preserves_straight_line_with_two_keys() {
         let keys = fit_points_to_bezier_keys(
-            &[
-                AnimationCurveFitPoint::new(0.0, 0.0),
-                AnimationCurveFitPoint::new(0.5, 0.5),
-                AnimationCurveFitPoint::new(1.0, 1.0),
-            ],
-            AnimationCurveBezierFitOptions {
-                max_value_error: 1e-6,
-                max_keys: 8,
-            },
+            &[AnimationCurveFitPoint::new(0.0, 0.0), AnimationCurveFitPoint::new(0.5, 0.5), AnimationCurveFitPoint::new(1.0, 1.0)],
+            AnimationCurveBezierFitOptions { max_value_error: 1e-6, max_keys: 8 },
         );
 
         assert_eq!(keys.len(), 2, "straight line should fit into one segment");
@@ -1480,16 +1424,8 @@ mod tests {
     #[test]
     fn fit_points_to_bezier_keys_keeps_last_duplicate_position_sample() {
         let keys = fit_points_to_bezier_keys(
-            &[
-                AnimationCurveFitPoint::new(0.0, 0.0),
-                AnimationCurveFitPoint::new(0.5, 0.2),
-                AnimationCurveFitPoint::new(0.5, 0.8),
-                AnimationCurveFitPoint::new(1.0, 1.0),
-            ],
-            AnimationCurveBezierFitOptions {
-                max_value_error: 0.05,
-                max_keys: 8,
-            },
+            &[AnimationCurveFitPoint::new(0.0, 0.0), AnimationCurveFitPoint::new(0.5, 0.2), AnimationCurveFitPoint::new(0.5, 0.8), AnimationCurveFitPoint::new(1.0, 1.0)],
+            AnimationCurveBezierFitOptions { max_value_error: 0.05, max_keys: 8 },
         );
 
         let curve = AnimationCurve::new(keys);
@@ -1507,10 +1443,7 @@ mod tests {
                 AnimationCurveFitPoint::new(0.75, -1.0),
                 AnimationCurveFitPoint::new(1.0, 0.0),
             ],
-            AnimationCurveBezierFitOptions {
-                max_value_error: 0.02,
-                max_keys: 12,
-            },
+            AnimationCurveBezierFitOptions { max_value_error: 0.02, max_keys: 12 },
         );
 
         assert!(keys.len() > 2, "nonlinear path should split into multiple bezier keys");

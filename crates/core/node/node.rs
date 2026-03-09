@@ -18,8 +18,9 @@ mod handles;
 pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
 pub use control_animation::ParameterAnimationControlNode;
 pub use dashboard::{
-    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
-    DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode,
+    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_NODE_WIDGET_PARAMETER_OPTIONS_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+    DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardNodeWidgetParameterOptionsNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetDisplayModeSpec,
+    DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
@@ -257,6 +258,10 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
@@ -269,10 +274,6 @@ pub struct PresentationHint {
     /// If greater than zero, this node surfaces descendant warnings up to this depth.
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub show_child_warnings_max_depth: u32,
-}
-
-fn is_zero_u32(value: &u32) -> bool {
-    *value == 0
 }
 
 fn parameter_node_type_from_value(value: &ParamValue) -> &'static str {
@@ -1136,6 +1137,12 @@ pub trait Node: Send + Any {
         None
     }
 
+    /// Engine-internal hook used by dashboard widgets to resolve target display capabilities.
+    #[doc(hidden)]
+    fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
+        DashboardWidgetTargetDescriptor::inspector_only()
+    }
+
     /// Engine-internal hook used by UI/runtime layers to expose parameter control state.
     #[doc(hidden)]
     fn engine_param_control_state(&self) -> Option<ParameterControlState> {
@@ -1997,14 +2004,6 @@ impl Node for Folder {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Folder init {}", self.node_data.meta.label);
-    }
-
-    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-        println!("Folder destroy {}", self.node_data.meta.label);
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {

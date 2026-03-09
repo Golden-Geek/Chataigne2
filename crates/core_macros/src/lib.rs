@@ -763,7 +763,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `read_only` option"));
                 }
                 out.read_only = Some(input.parse::<Expr>()?);
-                } else if key == "dependency" {
+            } else if key == "dependency" {
                 if out.dependency.is_some() {
                     return Err(Error::new(key.span(), "duplicate `dependency` option"));
                 }
@@ -1833,7 +1833,7 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
 
             if let Some(predicate) = &dependency_predicate {
                 generated_init_statements.push(quote! {
-                    if #predicate {
+                    if #predicate && !self.#field_ident.is_bound() {
                         #create_param_node
                     }
                 });
@@ -2617,10 +2617,7 @@ fn build_param_dependency_closure_tokens(closure: &syn::ExprClosure) -> Result<p
     match closure.inputs.len() {
         1 => Ok(quote!((#closure)(self))),
         2 => Ok(quote!((#closure)(self, ctx))),
-        _ => Err(Error::new_spanned(
-            closure,
-            "dependency closures must accept `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`",
-        )),
+        _ => Err(Error::new_spanned(closure, "dependency closures must accept `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
     }
 }
 
@@ -2663,7 +2660,10 @@ fn build_param_dependency_eval_tokens(expr: &Expr, parameter_fields: &[Ident]) -
                     }
                 })
             }
-            _ => Err(Error::new_spanned(expr, "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
+            _ => Err(Error::new_spanned(
+                expr,
+                "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`",
+            )),
         },
         Expr::Path(_) => {
             let value_tokens = build_param_dependency_value_tokens(expr, parameter_fields);
@@ -2674,17 +2674,14 @@ fn build_param_dependency_eval_tokens(expr: &Expr, parameter_fields: &[Ident]) -
                 }
             })
         }
-        _ => Err(Error::new_spanned(expr, "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
+        _ => Err(Error::new_spanned(
+            expr,
+            "unsupported dependency expression; use comparison operators, boolean combinators, or a closure like `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`",
+        )),
     }
 }
 
-fn build_plan_prev_sibling_tokens(
-    plan: &ParamsPlan,
-    parent_key: &str,
-    current: ParamsChildRef,
-    parent_expr: proc_macro2::TokenStream,
-    parameter_fields: &[Ident],
-) -> Result<proc_macro2::TokenStream> {
+fn build_plan_prev_sibling_tokens(plan: &ParamsPlan, parent_key: &str, current: ParamsChildRef, parent_expr: proc_macro2::TokenStream, parameter_fields: &[Ident]) -> Result<proc_macro2::TokenStream> {
     let Some(children) = plan.children_by_parent.get(parent_key) else {
         return Ok(quote!(None));
     };
@@ -2746,12 +2743,7 @@ fn build_plan_prev_sibling_tokens(
     })
 }
 
-fn build_params_plan_param_create_tokens_with_insert_after(
-    plan: &ParamsPlan,
-    parent_expr: proc_macro2::TokenStream,
-    field_ident: &Ident,
-    insert_after: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
+fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, parent_expr: proc_macro2::TokenStream, field_ident: &Ident, insert_after: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     let (_, param) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
     let ty = &param.ty;
     let label_lit = &param.label;
@@ -2933,12 +2925,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
     }
 }
 
-fn build_params_plan_param_create_tokens(
-    plan: &ParamsPlan,
-    parent_key: &str,
-    parent_expr: proc_macro2::TokenStream,
-    field_ident: &Ident,
-) -> proc_macro2::TokenStream {
+fn build_params_plan_param_create_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr: proc_macro2::TokenStream, field_ident: &Ident) -> proc_macro2::TokenStream {
     let (param_index, _) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
     let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Param(param_index)), parent_expr.clone());
     build_params_plan_param_create_tokens_with_insert_after(plan, parent_expr, field_ident, insert_after)
@@ -2958,10 +2945,7 @@ fn materialize_children_tokens(plan: &ParamsPlan, parent_key: &str, parent_expr:
                 let folder = &plan.folders[folder_index];
                 let label_lit = &folder.label;
                 let decl_id_lit = &folder.decl_id;
-                let insert_after = build_declared_prev_sibling_tokens(
-                    &previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)),
-                    parent_expr.clone(),
-                );
+                let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)), parent_expr.clone());
                 let set_description = folder.description.as_ref().map(|description_lit| {
                     quote! {
                         golden_core::node::Node::node_data_mut(&mut __folder_node).meta.description =

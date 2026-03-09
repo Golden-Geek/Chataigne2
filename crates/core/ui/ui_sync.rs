@@ -10,8 +10,8 @@ use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{AnimationCurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
-    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_binding_values,
+    compatibility_for_values,
 };
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
@@ -34,6 +34,10 @@ fn is_default_event_behaviour(value: &ParameterEventBehaviour) -> bool {
 
 fn is_false(value: &bool) -> bool {
     !*value
+}
+
+fn is_empty_create_user_item_initial_params(value: &[UiCreateUserItemInitialParam]) -> bool {
+    value.is_empty()
 }
 
 fn is_default_parameter_constraints(value: &ParameterConstraints) -> bool {
@@ -416,6 +420,15 @@ fn is_default_user_contexts(value: &UiUserContextsDto) -> bool {
     *value == UiUserContextsDto::default()
 }
 
+/// Direct parameter initializer applied immediately after one user-item is created.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct UiCreateUserItemInitialParam {
+    /// Direct child decl id on the newly-created root node.
+    pub decl_id: DeclId,
+    /// Initial value to assign.
+    pub value: ParamValue,
+}
+
 /// UI-facing event kind.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -622,6 +635,9 @@ pub enum UiEditIntent {
         /// Optional explicit label for the new item.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         label: Option<String>,
+        /// Optional direct parameter values applied before the intent completes.
+        #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
+        initial_params: Vec<UiCreateUserItemInitialParam>,
     },
     /// Duplicates an existing node subtree under `new_parent`.
     DuplicateNode {
@@ -1021,6 +1037,95 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    fn ui_resolve_created_child(&self, parent: NodeId, known_children: &HashSet<NodeId>) -> Result<NodeId, crate::engine::EngineEditError> {
+        const OPERATION: &str = "CreateUserItem";
+
+        let snapshot = self.build_process_tree_snapshot();
+        let mut created_children = snapshot.child_ids(parent).into_iter().filter(|child_id| !known_children.contains(child_id));
+
+        let Some(created_child) = created_children.next() else {
+            return Err(crate::engine::EngineEditError::NodeMutationRejected {
+                edit_index: 0,
+                operation: OPERATION,
+                node: parent,
+                node_type: self.nodes.get(parent).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+                message: "createUserItem did not materialize a new direct child".to_string(),
+            });
+        };
+
+        if created_children.next().is_some() {
+            return Err(crate::engine::EngineEditError::NodeMutationRejected {
+                edit_index: 0,
+                operation: OPERATION,
+                node: parent,
+                node_type: self.nodes.get(parent).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+                message: "createUserItem materialized multiple new direct children".to_string(),
+            });
+        }
+
+        Ok(created_child)
+    }
+
+    fn ui_find_created_item_param_node(&self, created_child: NodeId, decl_id: &str) -> Option<NodeId> {
+        let snapshot = self.build_process_tree_snapshot();
+        if decl_id.contains('/') {
+            if let Some(node_id) = snapshot.resolve_path_from(created_child, decl_id) {
+                return snapshot.node(node_id).and_then(|node| node.is_parameter().then_some(node_id));
+            }
+        }
+
+        let mut stack = vec![created_child];
+        while let Some(node_id) = stack.pop() {
+            let mut child = snapshot.node(node_id).and_then(|node| node.first_child);
+            while let Some(child_id) = child {
+                let child_snapshot = snapshot.node(child_id)?;
+                if child_snapshot.is_parameter()
+                    && (child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id))
+                {
+                    return Some(child_id);
+                }
+                stack.push(child_id);
+                child = child_snapshot.next_sibling;
+            }
+        }
+
+        None
+    }
+
+    fn ui_apply_create_user_item(&mut self, parent: NodeId, node_type: String, label: Option<String>, initial_params: Vec<UiCreateUserItemInitialParam>) -> Result<(), crate::engine::EngineEditError> {
+        const OPERATION: &str = "CreateUserItem";
+
+        let known_children: HashSet<NodeId> = self.build_process_tree_snapshot().child_ids(parent).into_iter().collect();
+        self.queue_catalog_create(parent, node_type, label, None)?;
+        self.apply_ui_stabilization_to_fixed_point(16)?;
+
+        if initial_params.is_empty() {
+            return Ok(());
+        }
+
+        let created_child = self.ui_resolve_created_child(parent, &known_children)?;
+        for initial_param in initial_params {
+            let Some(param_node) = self.ui_find_created_item_param_node(created_child, initial_param.decl_id.0.as_str()) else {
+                return Err(crate::engine::EngineEditError::NodeMutationRejected {
+                    edit_index: 0,
+                    operation: OPERATION,
+                    node: created_child,
+                    node_type: self.nodes.get(created_child).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+                    message: format!("parameter '{}' is unavailable on the created item", initial_param.decl_id.0),
+                });
+            };
+
+            self.edits.push(Edit::SetParam {
+                node: param_node,
+                value: initial_param.value,
+                behaviour: ParameterEventBehaviour::Coalesce,
+            });
+            self.apply_ui_stabilization_to_fixed_point(16)?;
+        }
+
+        Ok(())
+    }
+
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
         let before_len = self.ui_event_log().len();
@@ -1070,19 +1175,11 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::CreateUserItem { parent, node_type, label } => {
-                if let Err(err) = self.queue_catalog_create(parent, node_type, label, None) {
-                    return self.finish_ui_apply_now(before_len, Err(err));
-                }
-                let result = self.apply_edits();
+            UiEditIntent::CreateUserItem { parent, node_type, label, initial_params } => {
+                let result = self.ui_apply_create_user_item(parent, node_type, label, initial_params);
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::DuplicateNode {
-                source,
-                new_parent,
-                new_prev_sibling,
-                label,
-            } => UiAck {
+            UiEditIntent::DuplicateNode { source, new_parent, new_prev_sibling, label } => UiAck {
                 success: false,
                 status: UiAckStatus::Rejected,
                 error_code: Some("duplicate_node_transport_required".to_string()),
