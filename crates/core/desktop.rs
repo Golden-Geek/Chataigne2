@@ -8,8 +8,7 @@ use std::time::{Duration, Instant};
 use tauri::window::Color;
 use tauri::{Url, WebviewUrl};
 
-use crate::app::{ProjectNode, UiServerConfig, run_with_ui_server_config};
-use crate::engine::Engine;
+use crate::app::{ProjectLifecycle, UiServerConfig, create_new_project_engine, run_with_ui_server_config};
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
@@ -29,14 +28,14 @@ struct UiEndpoint {
 /// Boots an engine and runs the default desktop host:
 /// - built-in UI/API server
 /// - optional Tauri desktop window (unless `--headless`)
-pub fn run_app<T: ProjectNode + 'static>(engine: Engine<T>) -> std::io::Result<()> {
+pub fn run_app<T: ProjectLifecycle + 'static>() -> std::io::Result<()> {
     let args = parse_launch_args()?;
     if args.show_help {
         print_usage();
         return Ok(());
     }
 
-    launch(engine, args)
+    launch::<T>(args)
 }
 
 fn parse_launch_args() -> std::io::Result<LaunchArgs> {
@@ -65,7 +64,7 @@ fn print_usage() {
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
 }
 
-fn launch<T: ProjectNode + 'static>(engine: Engine<T>, args: LaunchArgs) -> std::io::Result<()> {
+fn launch<T: ProjectLifecycle + 'static>(args: LaunchArgs) -> std::io::Result<()> {
     let mut config = UiServerConfig::default();
     if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
         if !bind_addr.trim().is_empty() {
@@ -81,9 +80,11 @@ fn launch<T: ProjectNode + 'static>(engine: Engine<T>, args: LaunchArgs) -> std:
 
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
     if args.headless {
+        let engine = create_new_project_engine::<T>().map_err(Error::other)?;
         return run_with_ui_server_config(engine, config);
     }
 
+    let engine = create_new_project_engine::<T>().map_err(Error::other)?;
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
     thread::spawn(move || {
         let result = run_with_ui_server_config(engine, config);

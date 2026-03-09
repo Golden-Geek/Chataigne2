@@ -2170,6 +2170,21 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
     }
 
     let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty));
+    let generated_project_create = if ctor_fields.is_empty() {
+        quote! {
+            if node_type == #resolved_type_name {
+                Some(Self::new(label))
+            } else {
+                None
+            }
+        }
+    } else {
+        quote! {
+            let _ = node_type;
+            let _ = label;
+            None
+        }
+    };
 
     let generated_user_item_kind = item_kind.as_ref().map(|item_kind| {
         quote! {
@@ -2267,6 +2282,11 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
             #[doc(hidden)]
             pub fn __golden_node_type_description() -> Option<&'static str> {
                 #generated_type_description
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_project_create(node_type: &str, label: &str) -> Option<Self> {
+                #generated_project_create
             }
 
             #[doc(hidden)]
@@ -2399,6 +2419,14 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         input.items.push(parse_quote! {
             fn type_description(&self) -> Option<&str> {
                 Self::__golden_node_type_description()
+            }
+        });
+    }
+
+    if from_struct && !has_method(&input, "project_create") {
+        input.items.push(parse_quote! {
+            fn project_create(node_type: &str, label: &str) -> Option<Self> {
+                Self::__golden_node_project_create(node_type, label)
             }
         });
     }

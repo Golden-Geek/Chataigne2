@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use super::ProjectNode;
+use super::{ProjectLifecycle, configure_loaded_engine, create_new_project_engine, prepare_engine_for_runtime};
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::script::ScriptUiConfig;
@@ -39,12 +39,12 @@ impl Default for UiServerConfig {
     }
 }
 
-struct ServerState<T: ProjectNode> {
+struct ServerState<T: ProjectLifecycle> {
     engine: Arc<Mutex<Engine<T>>>,
     ws_hub: WsHubHandle,
 }
 
-impl<T: ProjectNode> Clone for ServerState<T> {
+impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
             engine: self.engine.clone(),
@@ -53,7 +53,7 @@ impl<T: ProjectNode> Clone for ServerState<T> {
     }
 }
 
-fn apply_ui_intent_with_transport<T: ProjectNode>(engine: &mut Engine<T>, intent: UiEditIntent, ui_client_instance_id: Option<&str>) -> UiAck {
+fn apply_ui_intent_with_transport<T: ProjectLifecycle>(engine: &mut Engine<T>, intent: UiEditIntent, ui_client_instance_id: Option<&str>) -> UiAck {
     let before_len = engine.ui_event_log().len();
 
     match intent {
@@ -260,7 +260,7 @@ enum WsIncomingFrame {
 }
 
 /// Runs the built-in UI server and runtime loop for a shared engine.
-pub fn run_ui_server<T: ProjectNode + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig) -> std::io::Result<()> {
+pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>>>, config: UiServerConfig) -> std::io::Result<()> {
     spawn_runtime_loop(engine.clone(), config.tick_interval);
     let ws_hub = spawn_ws_hub(engine.clone(), config.tick_interval.max(WS_RETRY_INTERVAL), make_server_session_id());
 
@@ -318,13 +318,13 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
     });
 }
 
-fn spawn_ws_hub<T: ProjectNode + 'static>(engine: Arc<Mutex<Engine<T>>>, dispatch_interval: Duration, session_id: String) -> WsHubHandle {
+fn spawn_ws_hub<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>>>, dispatch_interval: Duration, session_id: String) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
     thread::spawn(move || ws_hub_loop(engine, cmd_rx, dispatch_interval, session_id));
     WsHubHandle { cmd_tx }
 }
 
-fn ws_hub_loop<T: ProjectNode>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
+fn ws_hub_loop<T: ProjectLifecycle>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut client_instances = HashMap::<String, u64>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
@@ -344,7 +344,7 @@ fn ws_hub_loop<T: ProjectNode>(engine: Arc<Mutex<Engine<T>>>, cmd_rx: Receiver<W
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: ProjectNode>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut HashMap<u64, WsClientState>, client_instances: &mut HashMap<String, u64>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
+fn handle_ws_hub_command<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, clients: &mut HashMap<u64, WsClientState>, client_instances: &mut HashMap<String, u64>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
             clients.insert(
@@ -591,7 +591,7 @@ fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &
     }
 }
 
-fn handle_connection<T: ProjectNode>(stream: &mut TcpStream, state: &ServerState<T>) -> std::io::Result<()> {
+fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &ServerState<T>) -> std::io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(3)))?;
     stream.set_write_timeout(Some(Duration::from_secs(3)))?;
 
@@ -788,6 +788,19 @@ fn handle_connection<T: ProjectNode>(stream: &mut TcpStream, state: &ServerState
                 }
             }
         }
+        ("POST", "/api/ui/project-new") => match create_new_project_engine::<T>() {
+            Ok(next_engine) => match replace_live_engine(state, next_engine, "project_new") {
+                Ok(()) => {
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
+                }
+            },
+            Err(err) => {
+                write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
+            }
+        },
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
             let Some(path) = normalize_project_path(&payload.path) else {
@@ -817,11 +830,20 @@ fn handle_connection<T: ProjectNode>(stream: &mut TcpStream, state: &ServerState
 
             let loaded = Engine::<T>::load_project_file_with(path.as_str(), T::project_decode_node);
             match loaded {
-                Ok(next_engine) => {
-                    let mut guard = lock_engine(&state.engine);
-                    *guard = next_engine;
-                    drop(guard);
-                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                Ok(mut next_engine) => {
+                    if let Err(err) = configure_loaded_engine(&mut next_engine) {
+                        write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
+                        return Ok(());
+                    }
+
+                    match replace_live_engine(state, next_engine, "project_loaded") {
+                        Ok(()) => {
+                            write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                        }
+                        Err(err) => {
+                            write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
+                        }
+                    }
                 }
                 Err(err) => {
                     write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
@@ -867,7 +889,17 @@ fn normalize_project_path(raw_path: &str) -> Option<String> {
     Some(path.to_string())
 }
 
-fn handle_ws_connection<T: ProjectNode>(stream: &mut TcpStream, state: &ServerState<T>, request: &HttpRequest) -> std::io::Result<()> {
+fn replace_live_engine<T: ProjectLifecycle>(state: &ServerState<T>, mut next_engine: Engine<T>, reason: &str) -> Result<(), String> {
+    prepare_engine_for_runtime(&mut next_engine).map_err(|err| err.to_string())?;
+    next_engine.clear_ui_event_log();
+    next_engine.push_ui_custom_event("__transport.resync_required", None, serde_json::json!({ "reason": reason }));
+
+    let mut guard = lock_engine(&state.engine);
+    *guard = next_engine;
+    Ok(())
+}
+
+fn handle_ws_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &ServerState<T>, request: &HttpRequest) -> std::io::Result<()> {
     let version = request.headers.get("sec-websocket-version").map(String::as_str).unwrap_or("");
     if version.trim() != "13" {
         write_json_error(stream, "426 Upgrade Required", "unsupported websocket version")?;

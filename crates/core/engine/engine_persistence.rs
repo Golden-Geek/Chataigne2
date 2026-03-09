@@ -258,7 +258,7 @@ impl<T: Node> Engine<T> {
             return Err(ProjectPersistenceError::UnsupportedVersion { found: project.version, expected: PROJECT_FILE_VERSION });
         }
 
-        let mut root = Self::decode_node_record_with(&project.root, &mut decode_node)?;
+        let mut root = Self::decode_node_record_with(None, &project.root, &mut decode_node)?;
         {
             let root_data = root.node_data_mut();
             root_data.parent = None;
@@ -378,13 +378,29 @@ impl<T: Node> Engine<T> {
         })
     }
 
-    fn decode_node_record_with<F>(record: &ProjectNodeRecord, decode_node: &mut F) -> Result<T, ProjectPersistenceError>
+    fn decode_node_record_with<F>(parent: Option<&T>, record: &ProjectNodeRecord, decode_node: &mut F) -> Result<T, ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
         let meta = record.meta.clone().into_runtime(record.uuid);
         let data = record.data.clone().unwrap_or(serde_json::Value::Null);
-        let mut node = decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?;
+        let mut node = if record.user_role == UserNodeRole::ItemRoot {
+            if let Some(parent) = parent {
+                if let Some(mut node) = parent.create_user_item(record.node_type.as_str(), meta.label.clone()) {
+                    node.project_decode_data(&data).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?;
+                    T::from_boxed_node(node).ok_or(ProjectPersistenceError::Codec {
+                        node_type: record.node_type.clone(),
+                        message: "parent item factory returned a node outside the engine node enum".to_string(),
+                    })?
+                } else {
+                    decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+                }
+            } else {
+                decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+            }
+        } else {
+            decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+        };
 
         let node_data = node.node_data_mut();
         node_data.parent = None;
@@ -405,7 +421,10 @@ impl<T: Node> Engine<T> {
         let mut prev_sibling = None;
 
         for child_record in children {
-            let child = Self::decode_node_record_with(child_record, decode_node)?;
+            let child = {
+                let parent_node = self.nodes.get(parent).ok_or(ProjectPersistenceError::MissingNode(parent))?;
+                Self::decode_node_record_with(Some(parent_node), child_record, decode_node)?
+            };
             let child_id = self.nodes.insert(child);
             self.attach_node(0, "LoadProject", child_id, parent, prev_sibling)?;
             self.load_children_records(child_id, &child_record.children, decode_node)?;
@@ -419,7 +438,10 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let mut node = Self::decode_node_record_with(record, decode_node)?;
+        let mut node = {
+            let parent_node = self.nodes.get(parent).ok_or(ProjectPersistenceError::MissingNode(parent))?;
+            Self::decode_node_record_with(Some(parent_node), record, decode_node)?
+        };
         remap_node_references(&mut node, uuid_map);
 
         let node_id = self.nodes.insert(node);
