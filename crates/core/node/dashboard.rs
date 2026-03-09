@@ -260,17 +260,13 @@ impl Node for DashboardNode {
 #[node("dashboard_page")]
 #[children(
     route: String = "".to_string() (label = "Route", description = "Stable route or slug used to address this page.");
-    page_width: CssValue = CssValue::new(1920.0, CssUnit::Px) (
-        label = "Page Width",
-        description = "Logical page width used by the dashboard panel viewer to preserve aspect ratio. Disable to let the page fill the panel.",
+    page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
+        label = "Page Size",
+        description = "Rendered page size in pixels. The dashboard viewer treats those values as the page render surface dimensions.",
         enabled = false,
         can_be_disabled = true,
-    );
-    page_height: CssValue = CssValue::new(1080.0, CssUnit::Px) (
-        label = "Page Height",
-        description = "Logical page height used by the dashboard panel viewer to preserve aspect ratio. Disable to let the page fill the panel.",
-        enabled = false,
-        can_be_disabled = true,
+        step = 1.0,
+        step_base = 0.0,
     );
     layout_kind: Enum = "free" (
         label = "Layout",
@@ -930,6 +926,37 @@ mod tests {
         assert!(page_creatable.iter().any(|item| item.node_type == DASHBOARD_WIDGET_CONTAINER_NODE_TYPE), "page should expose container widget creation");
         assert!(page_creatable.iter().any(|item| item.node_type == DASHBOARD_NODE_WIDGET_NODE_TYPE), "page should expose node widget creation");
         assert!(page_creatable.iter().any(|item| item.node_type == DASHBOARD_GENERIC_WIDGET_NODE_TYPE), "page should expose generic widget creation");
+    }
+
+    #[test]
+    fn dashboard_pages_expose_pixel_page_size_as_vec2() {
+        let root: DashboardTestNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+
+        engine.add_node(DashboardNode::new("Dashboard").into(), None);
+        engine.apply_edits().expect("dashboard creation should apply");
+
+        let dashboard = first_child(&engine, engine.root);
+        engine.queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None).expect("page creation should queue");
+        engine.apply_edits().expect("page creation should apply");
+
+        let page = first_child(&engine, dashboard);
+        let page_size = find_descendant_by_decl(&engine, page, "page_size").expect("page size parameter should exist");
+        let page_size_snapshot = param_snapshot(&engine, page_size);
+        let page_size_node = engine.nodes.get(page_size).expect("page size node should exist");
+
+        assert_eq!(page_size_snapshot.value, ParamValue::Vec2(1920.0, 1080.0));
+        assert_eq!(page_size_snapshot.constraints.step, Some(1.0));
+        assert_eq!(page_size_snapshot.constraints.step_base, Some(0.0));
+        assert_eq!(
+            page_size_snapshot.constraints.range,
+            RangeConstraint::components(Some(vec![1.0, 1.0]), None),
+            "page size should clamp both components to positive pixel dimensions"
+        );
+        assert!(!page_size_node.node_data().meta.enabled, "page size should stay opt-in by default");
+        assert!(page_size_node.node_data().meta.can_be_disabled, "page size should remain disableable");
+        assert!(find_descendant_by_decl(&engine, page, "page_width").is_none(), "legacy page width parameter should be removed");
+        assert!(find_descendant_by_decl(&engine, page, "page_height").is_none(), "legacy page height parameter should be removed");
     }
 
     #[test]
