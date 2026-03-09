@@ -24,23 +24,14 @@ impl Node for ModuleManager {
         accepts = ["module"];
         items = [
             {
-                node_type: "osc_module",
-                item_kind: "module",
-                label: OscModule::default_label(),
-                create: |_: &Self| OscModule::create(),
+                type: OscModule,
             },
             {
-                node_type: "midi_module",
-                item_kind: "module",
-                label: MidiModule::default_label(),
-                create: |_: &Self| MidiModule::create(),
+                type: MidiModule,
             },
             {
-                node_type: "dmx_module",
-                item_kind: "module",
-                label: DmxModule::default_label(),
+                type: DmxModule,
                 when: |this: &Self| this.allow_dmx,
-                create: |_: &Self| DmxModule::create(),
             },
         ];
     }
