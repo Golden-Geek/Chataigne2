@@ -189,22 +189,85 @@ macro_rules! __downcast_node_enum_variant {
 ///     accepts = ["module"];
 ///     items = [
 ///         {
-///             node_type: "osc_module",
-///             item_kind: "module",
-///             label: "OSC Module",
-///             create: |_: &Self| OscModule::create(),
+///             type: OscModule,
 ///         },
 ///         {
-///             node_type: "dmx_module",
-///             item_kind: "module",
-///             label: "DMX Module",
+///             type: DmxModule,
 ///             when: |this: &Self| this.allow_dmx,
-///             create: |_: &Self| DmxModule::create(),
 ///         },
 ///     ];
 /// }`
 #[macro_export]
 macro_rules! define_user_item_factory_methods {
+    (
+        accepts = [$($accepted_kind:literal),* $(,)?];
+        items = [
+            $(
+                {
+                    type: $node_ty:ty
+                    $(, node_type: $typed_node_type:expr)?
+                    $(, item_kind: $typed_item_kind:expr)?
+                    $(, label: $typed_label:expr)?
+                    $(, when: $typed_when:expr)?
+                    $(, create: $typed_create:expr)?
+                    $(,)?
+                }
+            ),* $(,)?
+        ];
+    ) => {
+        fn user_container_rules(&self) -> Option<$crate::node::UserContainerRules> {
+            Some($crate::node::UserContainerRules::new(&[$($accepted_kind),*]))
+        }
+
+        $crate::define_user_item_factory_methods! {
+            @shared_typed
+            items = [
+                $(
+                    {
+                        type: $node_ty
+                        $(, node_type: $typed_node_type)?
+                        $(, item_kind: $typed_item_kind)?
+                        $(, label: $typed_label)?
+                        $(, when: $typed_when)?
+                        $(, create: $typed_create)?
+                    }
+                ),*
+            ];
+        }
+    };
+
+    (
+        items = [
+            $(
+                {
+                    type: $node_ty:ty
+                    $(, node_type: $typed_node_type:expr)?
+                    $(, item_kind: $typed_item_kind:expr)?
+                    $(, label: $typed_label:expr)?
+                    $(, when: $typed_when:expr)?
+                    $(, create: $typed_create:expr)?
+                    $(,)?
+                }
+            ),* $(,)?
+        ];
+    ) => {
+        $crate::define_user_item_factory_methods! {
+            @shared_typed
+            items = [
+                $(
+                    {
+                        type: $node_ty
+                        $(, node_type: $typed_node_type)?
+                        $(, item_kind: $typed_item_kind)?
+                        $(, label: $typed_label)?
+                        $(, when: $typed_when)?
+                        $(, create: $typed_create)?
+                    }
+                ),*
+            ];
+        }
+    };
+
     (
         accepts = [$($accepted_kind:literal),* $(,)?];
         items = [
@@ -361,6 +424,136 @@ macro_rules! define_user_item_factory_methods {
                 _ => None,
             }
         }
+    };
+
+    (
+        @shared_typed
+        items = [
+            $(
+                {
+                    type: $node_ty:ty
+                    $(, node_type: $typed_node_type:expr)?
+                    $(, item_kind: $typed_item_kind:expr)?
+                    $(, label: $typed_label:expr)?
+                    $(, when: $typed_when:expr)?
+                    $(, create: $typed_create:expr)?
+                }
+            ),* $(,)?
+        ];
+    ) => {
+        fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+            if item_type == "script" && item_kind == "script" {
+                return self.script_host_policy().is_some_and(|policy| policy.enabled);
+            }
+            if (item_type == $crate::node::USER_CONTEXT_NODE_TYPE || item_type == "context")
+                && item_kind == $crate::node::USER_CONTEXT_ITEM_KIND
+            {
+                return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
+            }
+
+            if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
+                return false;
+            }
+
+            $(
+                if item_type == $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?) {
+                    return item_kind == $crate::define_user_item_factory_methods!(@typed_item_kind $node_ty $(, $typed_item_kind)?)
+                        && $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?);
+                }
+            )*
+
+            false
+        }
+
+        fn user_creatable_items(&self) -> Vec<$crate::node::UserCreatableItem> {
+            let mut items = Vec::new();
+
+            if self.script_host_policy().is_some_and(|policy| policy.enabled) {
+                items.push($crate::node::UserCreatableItem::new("script", "script", "Script"));
+            }
+            if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
+                items.push($crate::node::UserCreatableItem::new(
+                    $crate::node::USER_CONTEXT_NODE_TYPE,
+                    $crate::node::USER_CONTEXT_ITEM_KIND,
+                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                ));
+            }
+
+            $(
+                if $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?) {
+                    items.push($crate::node::UserCreatableItem::new(
+                        $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?),
+                        $crate::define_user_item_factory_methods!(@typed_item_kind $node_ty $(, $typed_item_kind)?),
+                        $crate::define_user_item_factory_methods!(@typed_label $node_ty $(, $typed_label)?),
+                    ));
+                }
+            )*
+            items
+        }
+
+        fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
+            if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
+                return Some(Box::new($crate::script::ScriptNode::new(
+                    "Script",
+                    $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
+                )));
+            }
+            if (node_type == $crate::node::USER_CONTEXT_NODE_TYPE || node_type == "context")
+                && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
+            {
+                return Some(Box::new($crate::node::UserContextNode::new(
+                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                )));
+            }
+
+            $(
+                if node_type == $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?) {
+                    if $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?) {
+                        let __golden_label = $crate::define_user_item_factory_methods!(@typed_label $node_ty $(, $typed_label)?);
+                        let mut node = $crate::define_user_item_factory_methods!(@typed_create self, $node_ty $(, $typed_create)?);
+                        if $crate::node::Node::node_data(&node).meta.label != __golden_label {
+                            $crate::node::Node::node_data_mut(&mut node).meta.label = __golden_label;
+                        }
+                        return Some(Box::new(node));
+                    }
+                    return None;
+                }
+            )*
+
+            None
+        }
+    };
+
+    (@typed_node_type $node_ty:ty, $node_type:expr) => {
+        $node_type
+    };
+
+    (@typed_node_type $node_ty:ty) => {
+        <$node_ty as $crate::node::DeclaredUserItemNode>::ITEM_NODE_TYPE
+    };
+
+    (@typed_item_kind $node_ty:ty, $item_kind:expr) => {
+        $item_kind
+    };
+
+    (@typed_item_kind $node_ty:ty) => {
+        <$node_ty as $crate::node::DeclaredUserItemNode>::ITEM_KIND
+    };
+
+    (@typed_label $node_ty:ty, $label:expr) => {
+        ($label).into()
+    };
+
+    (@typed_label $node_ty:ty) => {
+        <$node_ty as $crate::node::DeclaredUserItemNode>::item_default_label()
+    };
+
+    (@typed_create $self:expr, $node_ty:ty, $create:expr) => {
+        ($create)($self)
+    };
+
+    (@typed_create $self:expr, $node_ty:ty) => {
+        <$node_ty as $crate::node::DeclaredUserItemNode>::create_item()
     };
 
     (@cond $self:expr, $when:expr) => {

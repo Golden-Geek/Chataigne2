@@ -141,7 +141,7 @@ impl Parse for NodeAttr {
 }
 
 struct ItemAttr {
-    item_kind: LitStr,
+    item_kind: Option<LitStr>,
     node: NodeAttr,
 }
 
@@ -241,10 +241,6 @@ impl Parse for ItemAttr {
                 break;
             }
         }
-
-        let Some(item_kind) = item_kind else {
-            return Err(Error::new(input.span(), "missing item kind; use #[item(\"kind\", ...)] or `kind = \"kind\"`"));
-        };
 
         Ok(Self {
             item_kind,
@@ -1663,7 +1659,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     match input {
         Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
+        Item::Impl(input) => expand_impl(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
         other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -1684,9 +1680,19 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
+    let resolved_item_kind = match (&input, item_kind) {
+        (_, Some(item_kind)) => item_kind,
+        (Item::Struct(input), None) => make_type_name_literal(&input.ident.to_string()),
+        (Item::Impl(input), None) => match infer_type_name_from_impl(input) {
+            Ok(item_kind) => item_kind,
+            Err(err) => return err.to_compile_error().into(),
+        },
+        _ => unreachable!(),
+    };
+
     match input {
-        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
-        Item::Impl(input) => expand_impl(type_name, via, impl_node, from_struct, scriptable, contextualizable, Some(item_kind), input).into(),
+        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(resolved_item_kind), input).into(),
+        Item::Impl(input) => expand_impl(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(resolved_item_kind), input).into(),
         other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
     }
 }
@@ -2427,6 +2433,30 @@ fn expand_struct(
             }
         }
     });
+    let generated_create_alias = ctor_fields.is_empty().then(|| {
+        quote! {
+            /// Creates a new node instance using the declared default item construction path.
+            pub fn create() -> Self {
+                Self::new()
+            }
+        }
+    });
+    let generated_declared_user_item_node = item_kind.as_ref().map(|item_kind| {
+        quote! {
+            impl #impl_generics golden_core::node::DeclaredUserItemNode for #struct_name #ty_generics #where_clause {
+                const ITEM_NODE_TYPE: &'static str = #resolved_type_name;
+                const ITEM_KIND: &'static str = #item_kind;
+
+                fn item_default_label() -> ::std::string::String {
+                    Self::default_label()
+                }
+
+                fn create_item() -> Self {
+                    Self::create()
+                }
+            }
+        }
+    });
     let generated_script_host_policy = scriptable.as_ref().map(build_script_host_policy_method_tokens);
     let generated_user_context_host_policy = contextualizable.as_ref().map(build_user_context_host_policy_method_tokens);
 
@@ -2498,6 +2528,9 @@ fn expand_struct(
         #input
 
         impl #impl_generics #struct_name #ty_generics #where_clause {
+            /// Runtime node type identifier declared by the node macro.
+            pub const NODE_TYPE: &'static str = #resolved_type_name;
+
             /// Static fallback label exposed for catalog and schema code.
             pub const DEFAULT_LABEL: &'static str = #static_default_label;
 
@@ -2515,6 +2548,8 @@ fn expand_struct(
                     #(#ctor_inits),*
                 }
             }
+
+            #generated_create_alias
 
             #[doc(hidden)]
             pub fn __golden_node_type_description() -> Option<&'static str> {
@@ -2600,10 +2635,21 @@ fn expand_struct(
         }
 
         #generated_node_impl
+        #generated_declared_user_item_node
     }
 }
 
-fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: bool, from_struct: bool, scriptable: Option<ScriptableAttr>, contextualizable: Option<ContextualizableAttr>, item_kind: Option<LitStr>, mut input: ItemImpl) -> proc_macro2::TokenStream {
+fn expand_impl(
+    type_name: Option<LitStr>,
+    ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
+    via: Option<DelegatePath>,
+    impl_node: bool,
+    from_struct: bool,
+    scriptable: Option<ScriptableAttr>,
+    contextualizable: Option<ContextualizableAttr>,
+    item_kind: Option<LitStr>,
+    mut input: ItemImpl,
+) -> proc_macro2::TokenStream {
     if impl_node {
         return Error::new_spanned(input, "`impl_node` is only supported on struct declarations").to_compile_error();
     }
@@ -2616,6 +2662,19 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     if !is_node_impl {
         return Error::new_spanned(trait_path, "#[node] on impl can only be used with `Node` trait").to_compile_error();
     }
+
+    let resolved_type_name = match type_name.clone() {
+        Some(type_name) => type_name,
+        None => match infer_type_name_from_impl(&input) {
+            Ok(type_name) => type_name,
+            Err(err) => return err.to_compile_error(),
+        },
+    };
+    let fallback_default_label = make_label_literal(&resolved_type_name.value());
+    let generated_default_label = match ctor_meta_fields.get("label") {
+        Some((_, expr)) => quote! { (#expr).into() },
+        None => quote! { ::std::string::String::from(#fallback_default_label) },
+    };
 
     let node_data_body = if let Some(path) = via.as_ref() {
         let segments = &path.segments;
@@ -2648,13 +2707,6 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     }
 
     if !has_method(&input, "get_type") {
-        let resolved_type_name = match type_name.as_ref() {
-            Some(type_name) => type_name.clone(),
-            None => match infer_type_name_from_impl(&input) {
-                Ok(type_name) => type_name,
-                Err(err) => return err.to_compile_error(),
-            },
-        };
         input.items.push(parse_quote! {
             fn get_type(&self) -> &str {
                 #resolved_type_name
@@ -2712,13 +2764,6 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     if from_struct && !has_method(&input, "project_decode_data") {
         if let Some(path) = via.as_ref() {
             let segments = &path.segments;
-            let resolved_type_name = match type_name.clone() {
-                Some(type_name) => type_name,
-                None => match infer_type_name_from_impl(&input) {
-                    Ok(type_name) => type_name,
-                    Err(err) => return err.to_compile_error(),
-                },
-            };
             input.items.push(parse_quote! {
                 fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
                     if data.is_null() {
@@ -2762,7 +2807,7 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         });
     }
 
-    if let Some(item_kind) = item_kind {
+    if let Some(ref item_kind) = item_kind {
         if !has_method(&input, "user_item_kind") {
             input.items.push(parse_quote! {
                 fn user_item_kind(&self) -> &str {
@@ -2818,8 +2863,29 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         }
     }
 
+    let generated_declared_user_item_node = item_kind.as_ref().map(|item_kind| {
+        let self_ty = &input.self_ty;
+        let generics = &input.generics;
+        let (impl_generics, _, where_clause) = generics.split_for_impl();
+        quote! {
+            impl #impl_generics golden_core::node::DeclaredUserItemNode for #self_ty #where_clause {
+                const ITEM_NODE_TYPE: &'static str = #resolved_type_name;
+                const ITEM_KIND: &'static str = #item_kind;
+
+                fn item_default_label() -> ::std::string::String {
+                    #generated_default_label
+                }
+
+                fn create_item() -> Self {
+                    Self::create()
+                }
+            }
+        }
+    });
+
     quote! {
         #input
+        #generated_declared_user_item_node
     }
 }
 

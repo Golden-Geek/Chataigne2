@@ -234,10 +234,7 @@ impl Node for DashboardNode {
         accepts = ["dashboard_page"];
         items = [
             {
-                node_type: "dashboard_page",
-                item_kind: "dashboard_page",
-                label: DashboardPageNode::default_label(),
-                create: |_: &Self| DashboardPageNode::new(),
+                type: DashboardPageNode,
             },
         ];
     }
@@ -297,22 +294,13 @@ impl Node for DashboardPageNode {
         accepts = ["dashboard_widget"];
         items = [
             {
-                node_type: "dashboard_widget_container",
-                item_kind: "dashboard_widget",
-                label: DashboardWidgetContainerNode::default_label(),
-                create: |_: &Self| DashboardWidgetContainerNode::new(),
+                type: DashboardWidgetContainerNode,
             },
             {
-                node_type: "dashboard_node_widget",
-                item_kind: "dashboard_widget",
-                label: DashboardNodeWidgetNode::default_label(),
-                create: |_: &Self| DashboardNodeWidgetNode::new(),
+                type: DashboardNodeWidgetNode,
             },
             {
-                node_type: "dashboard_generic_widget",
-                item_kind: "dashboard_widget",
-                label: DashboardGenericWidgetNode::default_label(),
-                create: |_: &Self| DashboardGenericWidgetNode::new(),
+                type: DashboardGenericWidgetNode,
             },
         ];
     }
@@ -439,22 +427,13 @@ impl Node for DashboardWidgetContainerNode {
         accepts = ["dashboard_widget"];
         items = [
             {
-                node_type: "dashboard_widget_container",
-                item_kind: "dashboard_widget",
-                label: DashboardWidgetContainerNode::default_label(),
-                create: |_: &Self| DashboardWidgetContainerNode::new(),
+                type: DashboardWidgetContainerNode,
             },
             {
-                node_type: "dashboard_node_widget",
-                item_kind: "dashboard_widget",
-                label: DashboardNodeWidgetNode::default_label(),
-                create: |_: &Self| DashboardNodeWidgetNode::new(),
+                type: DashboardNodeWidgetNode,
             },
             {
-                node_type: "dashboard_generic_widget",
-                item_kind: "dashboard_widget",
-                label: DashboardGenericWidgetNode::default_label(),
-                create: |_: &Self| DashboardGenericWidgetNode::new(),
+                type: DashboardGenericWidgetNode,
             },
         ];
     }

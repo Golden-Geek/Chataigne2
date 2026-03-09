@@ -38,6 +38,12 @@ impl Node for ItemMacroOverrideKindNode {
     }
 }
 
+#[crate::node]
+struct ItemMacroDefaultKindNode {}
+
+#[crate::item(from_struct)]
+impl Node for ItemMacroDefaultKindNode {}
+
 /// Description surfaced once in the UI schema for all nodes of this type.
 #[crate::node("ui_schema_description_node")]
 struct UiSchemaDescriptionNode {}
@@ -63,6 +69,12 @@ fn item_macro_marks_nodes_as_declared_user_items() {
     let override_kind = ItemMacroOverrideKindNode::new();
     assert!(auto.is_declared_user_item());
     assert!(override_kind.is_declared_user_item());
+}
+
+#[test]
+fn item_macro_derives_item_kind_from_node_name_when_omitted() {
+    let node = ItemMacroDefaultKindNode::new();
+    assert_eq!(node.user_item_kind(), "item_macro_default_kind");
 }
 
 #[test]

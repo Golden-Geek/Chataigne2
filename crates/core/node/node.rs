@@ -542,6 +542,20 @@ impl UserCreatableItem {
     }
 }
 
+/// Compile-time metadata and construction hook for declared user-item node types.
+pub trait DeclaredUserItemNode: Node + Sized {
+    /// Runtime node type identifier exposed by the item declaration.
+    const ITEM_NODE_TYPE: &'static str;
+    /// Logical user-item kind used for container admission.
+    const ITEM_KIND: &'static str;
+
+    /// Default label shown for newly created instances of this item.
+    fn item_default_label() -> String;
+
+    /// Creates a new item instance using the item's own constructor policy.
+    fn create_item() -> Self;
+}
+
 /// Built-in node type id used for user-authored lexical context scopes.
 pub const USER_CONTEXT_NODE_TYPE: &str = "user_context";
 /// Built-in user-item kind used for user-authored lexical context scopes.

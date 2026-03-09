@@ -210,10 +210,7 @@ mod tests {
             accepts = ["managed_item"];
             items = [
                 {
-                    node_type: "managed_item_node",
-                    item_kind: "managed_item",
-                    label: ManagedItemNode::default_label(),
-                    create: |_: &Self| ManagedItemNode::create(),
+                    type: ManagedItemNode,
                 },
             ];
         }
