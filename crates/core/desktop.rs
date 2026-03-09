@@ -8,9 +8,8 @@ use std::time::{Duration, Instant};
 use tauri::window::Color;
 use tauri::{Url, WebviewUrl};
 
-use super::{ProjectCodec, UiServerConfig, run_app_with_config};
+use crate::app::{ProjectNode, UiServerConfig, run_with_ui_server_config};
 use crate::engine::Engine;
-use crate::node::Node;
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
@@ -27,28 +26,17 @@ struct UiEndpoint {
     connect_addr: String,
 }
 
-/// Boots an engine and runs the default app host:
+/// Boots an engine and runs the default desktop host:
 /// - built-in UI/API server
 /// - optional Tauri desktop window (unless `--headless`)
-pub fn run_app<T: Node + 'static>(engine: Engine<T>) -> std::io::Result<()> {
+pub fn run_app<T: ProjectNode + 'static>(engine: Engine<T>) -> std::io::Result<()> {
     let args = parse_launch_args()?;
     if args.show_help {
         print_usage();
         return Ok(());
     }
 
-    run_with_frontends(engine, args, None)
-}
-
-/// Boots an engine and runs the default app host with project save/load support.
-pub fn run_app_with_project_codec<T: Node + 'static>(engine: Engine<T>, project_codec: ProjectCodec<T>) -> std::io::Result<()> {
-    let args = parse_launch_args()?;
-    if args.show_help {
-        print_usage();
-        return Ok(());
-    }
-
-    run_with_frontends(engine, args, Some(project_codec))
+    launch(engine, args)
 }
 
 fn parse_launch_args() -> std::io::Result<LaunchArgs> {
@@ -77,7 +65,7 @@ fn print_usage() {
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
 }
 
-fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs, project_codec: Option<ProjectCodec<T>>) -> std::io::Result<()> {
+fn launch<T: ProjectNode + 'static>(engine: Engine<T>, args: LaunchArgs) -> std::io::Result<()> {
     let mut config = UiServerConfig::default();
     if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
         if !bind_addr.trim().is_empty() {
@@ -93,12 +81,12 @@ fn run_with_frontends<T: Node + 'static>(engine: Engine<T>, args: LaunchArgs, pr
 
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
     if args.headless {
-        return run_app_with_config(engine, config, project_codec);
+        return run_with_ui_server_config(engine, config);
     }
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
     thread::spawn(move || {
-        let result = run_app_with_config(engine, config, project_codec);
+        let result = run_with_ui_server_config(engine, config);
         let _ = startup_tx.send(result);
     });
 

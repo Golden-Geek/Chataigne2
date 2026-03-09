@@ -5,6 +5,7 @@ use crate::process_ctx::ProcessCtx;
 
 use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
 
+/// Runtime node type id for dashboard inspector widget options.
 pub const DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_inspector_options";
 
 #[allow(missing_docs)]

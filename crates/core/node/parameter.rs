@@ -2113,6 +2113,105 @@ impl Parameter {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ParameterProjectData {
+    value: ParamValue,
+    default_value: ParamValue,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+    read_only: bool,
+    constraints: ParameterConstraints,
+    ui_hints: ParameterUiHints,
+    control: ParameterControlState,
+    #[serde(default = "default_true")]
+    control_modes_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct RawParameterProjectData {
+    value: JsonValue,
+    default_value: JsonValue,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+    read_only: bool,
+    constraints: ParameterConstraints,
+    ui_hints: ParameterUiHints,
+    control: ParameterControlState,
+    #[serde(default = "default_true")]
+    control_modes_enabled: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct RawLegacyParameterProjectData {
+    value: JsonValue,
+    change_check: ParameterChangeCheck,
+    event_behaviour: ParameterEventBehaviour,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
+    if value.is_null() {
+        return Ok(ParamValue::Trigger());
+    }
+
+    if let Ok(decoded) = serde_json::from_value::<ParamValue>(value.clone()) {
+        return Ok(decoded);
+    }
+
+    if value.as_object().is_some_and(|object| object.len() == 1 && object.contains_key("Trigger")) {
+        return Ok(ParamValue::Trigger());
+    }
+
+    ParamValue::from_script_json(value)
+}
+
+fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<ParameterProjectData, String> {
+    if data.is_null() {
+        let fallback_value = crate::node::default_parameter_value_for_node_type(node_type).ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
+        return Ok(ParameterProjectData {
+            value: fallback_value.clone(),
+            default_value: fallback_value,
+            change_check: ParameterChangeCheck::ValueChange,
+            event_behaviour: ParameterEventBehaviour::Coalesce,
+            read_only: false,
+            constraints: ParameterConstraints::default(),
+            ui_hints: ParameterUiHints::default(),
+            control: ParameterControlState::default(),
+            control_modes_enabled: true,
+        });
+    }
+
+    if let Ok(full) = serde_json::from_value::<RawParameterProjectData>(data.clone()) {
+        return Ok(ParameterProjectData {
+            value: decode_project_param_value(&full.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            default_value: decode_project_param_value(&full.default_value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            change_check: full.change_check,
+            event_behaviour: full.event_behaviour,
+            read_only: full.read_only,
+            constraints: full.constraints,
+            ui_hints: full.ui_hints,
+            control: full.control,
+            control_modes_enabled: full.control_modes_enabled,
+        });
+    }
+
+    let legacy = serde_json::from_value::<RawLegacyParameterProjectData>(data.clone()).map_err(|err| format!("invalid parameter payload: {err}"))?;
+    Ok(ParameterProjectData {
+        value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+        default_value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+        change_check: legacy.change_check,
+        event_behaviour: legacy.event_behaviour,
+        read_only: false,
+        constraints: ParameterConstraints::default(),
+        ui_hints: ParameterUiHints::default(),
+        control: ParameterControlState::default(),
+        control_modes_enabled: true,
+    })
+}
+
 impl Node for Parameter {
     fn node_data(&self) -> &crate::node::NodeData {
         &self.node_data
@@ -2162,6 +2261,40 @@ impl Node for Parameter {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+
+    fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+        serde_json::to_value(ParameterProjectData {
+            value: self.value.clone(),
+            default_value: self.default_value.clone(),
+            change_check: self.change_check.clone(),
+            event_behaviour: self.event_behaviour,
+            read_only: self.read_only,
+            constraints: self.constraints.clone(),
+            ui_hints: self.ui_hints.clone(),
+            control: self.control.clone(),
+            control_modes_enabled: self.control_modes_enabled,
+        })
+        .map_err(|err| format!("failed to encode parameter node data: {err}"))
+    }
+
+    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        let parsed = decode_parameter_project_data(self.get_type(), data)?;
+        self.value = parsed.value;
+        self.default_value = parsed.default_value;
+        self.change_check = parsed.change_check;
+        self.event_behaviour = parsed.event_behaviour;
+        self.read_only = parsed.read_only;
+        self.constraints = parsed.constraints;
+        self.ui_hints = parsed.ui_hints;
+        self.control = parsed.control;
+        self.control_modes_enabled = parsed.control_modes_enabled;
+        Ok(())
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        let default_value = crate::node::default_parameter_value_for_node_type(node_type)?;
+        Some(Self::new(label, default_value, ParameterChangeCheck::ValueChange))
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {

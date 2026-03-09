@@ -948,11 +948,7 @@ mod tests {
         assert_eq!(page_size_snapshot.value, ParamValue::Vec2(1920.0, 1080.0));
         assert_eq!(page_size_snapshot.constraints.step, Some(1.0));
         assert_eq!(page_size_snapshot.constraints.step_base, Some(0.0));
-        assert_eq!(
-            page_size_snapshot.constraints.range,
-            RangeConstraint::components(Some(vec![1.0, 1.0]), None),
-            "page size should clamp both components to positive pixel dimensions"
-        );
+        assert_eq!(page_size_snapshot.constraints.range, RangeConstraint::components(Some(vec![1.0, 1.0]), None), "page size should clamp both components to positive pixel dimensions");
         assert!(!page_size_node.node_data().meta.enabled, "page size should stay opt-in by default");
         assert!(page_size_node.node_data().meta.can_be_disabled, "page size should remain disableable");
         assert!(find_descendant_by_decl(&engine, page, "page_width").is_none(), "legacy page width parameter should be removed");

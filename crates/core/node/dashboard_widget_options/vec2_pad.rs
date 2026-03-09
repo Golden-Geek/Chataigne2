@@ -5,6 +5,7 @@ use crate::process_ctx::ProcessCtx;
 
 use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
 
+/// Runtime node type id for dashboard vec2-pad widget options.
 pub const DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec2_pad_options";
 
 #[allow(missing_docs)]

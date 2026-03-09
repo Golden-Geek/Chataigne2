@@ -23,8 +23,9 @@ pub use dashboard::{
     DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec,
 };
 pub use dashboard_widget_options::{
-    DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode, DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetParameterEditorOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode,
-    DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
+    DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE,
+    DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE, DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode,
+    DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetParameterEditorOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode, DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
@@ -297,7 +298,7 @@ fn parameter_node_type_from_value(value: &ParamValue) -> &'static str {
     }
 }
 
-fn default_parameter_value_for_node_type(node_type: &str) -> Option<ParamValue> {
+pub(crate) fn default_parameter_value_for_node_type(node_type: &str) -> Option<ParamValue> {
     match node_type {
         "trigger" => Some(ParamValue::Trigger()),
         "int" => Some(ParamValue::Int(0)),
@@ -1106,6 +1107,31 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_request_script_reload(&mut self) -> Result<(), String> {
         Err(format!("node type '{}' does not support script reload", self.get_type()))
+    }
+
+    /// Engine-internal hook used by project persistence to encode node-specific data.
+    #[doc(hidden)]
+    fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+        Ok(serde_json::Value::Null)
+    }
+
+    /// Engine-internal hook used by project persistence to apply node-specific data.
+    #[doc(hidden)]
+    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        if data.is_null() {
+            return Ok(());
+        }
+
+        Err(format!("node type '{}' does not support persisted project data", self.get_type()))
+    }
+
+    /// Engine-internal constructor hook used by project persistence.
+    #[doc(hidden)]
+    fn project_create(_node_type: &str, _label: &str) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        None
     }
 
     /// Returns `true` when this container currently accepts `item_type` / `item_kind`.
@@ -1999,6 +2025,10 @@ impl Node for UserContextNode {
         Some(Box::new(Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange)))
     }
 
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == USER_CONTEXT_NODE_TYPE).then(|| Self::new(label))
+    }
+
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::PassOn
     }
@@ -2045,6 +2075,10 @@ impl Node for Folder {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == FOLDER_NODE_TYPE).then(|| Self::new(label))
     }
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {

@@ -3140,6 +3140,13 @@ impl ScriptNode {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ScriptProjectData {
+    config: ScriptNodeConfig,
+    #[serde(default)]
+    budgets: ScriptBudgets,
+}
+
 impl Node for ScriptNode {
     fn node_data(&self) -> &NodeData {
         &self.node_data
@@ -3163,6 +3170,37 @@ impl Node for ScriptNode {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+
+    fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+        serde_json::to_value(ScriptProjectData { config: self.config.clone(), budgets: self.budgets }).map_err(|err| format!("failed to encode script node data: {err}"))
+    }
+
+    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        let parsed = if data.is_null() {
+            ScriptProjectData {
+                config: ScriptNodeConfig::default(),
+                budgets: ScriptBudgets::default(),
+            }
+        } else {
+            serde_json::from_value::<ScriptProjectData>(data.clone()).map_err(|err| format!("invalid script payload: {err}"))?
+        };
+
+        self.config = parsed.config;
+        self.budgets = parsed.budgets;
+        self.runtime = None;
+        self.manifest = None;
+        self.source_stamp = None;
+        self.effective_update_rate_hz = None;
+        self.runtime_subscriptions.clear();
+        self.managed_load_children.clear();
+        self.reload_requested = false;
+        self.runtime_started_elapsed = Duration::ZERO;
+        Ok(())
+    }
+
+    fn project_create(node_type: &str, label: &str) -> Option<Self> {
+        (node_type == "script").then(|| Self::new(label, ScriptNodeConfig::default()))
     }
 
     fn engine_script_state(&self) -> Option<ScriptUiState> {

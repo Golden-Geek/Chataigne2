@@ -57,8 +57,11 @@ pub mod animation_curve;
 pub mod logger;
 
 #[path = "../app/mod.rs"]
-/// App-level runtime helpers.
+/// Runtime project persistence and UI-server helpers.
 pub mod app;
+
+#[path = "../desktop.rs"]
+mod desktop;
 
 #[path = "../ui/ui_sync.rs"]
 /// UI sync DTOs and transport-agnostic protocol helpers.
@@ -72,4 +75,4 @@ pub mod script;
 pub use golden_core_macros::{item, node, update};
 
 /// Canonical host entrypoint: boot a configured engine and run app services.
-pub use app::run_app;
+pub use desktop::run_app;
