@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::parameter::{Enum, Vec2, Vec3};
 use crate::process_ctx::ProcessCtx;
 
-use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
+use super::configure_dashboard_widget_options_node;
 
 /// Runtime node type id for dashboard vec2-editor widget options.
 pub const DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec2_editor_options";
@@ -22,7 +22,6 @@ pub const DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard
     show_enable_button: bool = true (
         label = "Show Enable Button",
         description = "Whether vector editor widgets expose the target enable toggle when the target supports disabling.",
-        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
     );
     vector_layout: Enum = "inline" (
         label = "Layout",
@@ -69,7 +68,6 @@ impl Node for DashboardNodeWidgetVec2EditorOptionsNode {
     show_enable_button: bool = true (
         label = "Show Enable Button",
         description = "Whether vector editor widgets expose the target enable toggle when the target supports disabling.",
-        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
     );
     vector_layout: Enum = "inline" (
         label = "Layout",

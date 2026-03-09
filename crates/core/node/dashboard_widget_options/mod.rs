@@ -1,5 +1,4 @@
 use crate::node::{DashboardWidgetOptionsNodeKind, Node, NodeData, NodeId, NodeUserPermissions};
-use crate::parameter::ParamValue;
 use crate::process_ctx::ProcessCtx;
 
 mod color_editor;
@@ -17,47 +16,6 @@ pub use number_slider::{DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE, D
 pub use parameter_editor::{DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE, DashboardNodeWidgetParameterEditorOptionsNode};
 pub use vec2_pad::{DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE, DashboardNodeWidgetVec2PadOptionsNode};
 pub use vector_editor::{DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE, DashboardNodeWidgetVec2EditorOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode};
-
-fn snapshot_find_descendant_by_decl(snapshot: &crate::process_ctx::ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-    let mut stack = vec![parent];
-    while let Some(node_id) = stack.pop() {
-        let mut child = snapshot.node(node_id)?.first_child;
-        while let Some(child_id) = child {
-            let child_snapshot = snapshot.node(child_id)?;
-            if child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id) {
-                return Some(child_id);
-            }
-            stack.push(child_id);
-            child = child_snapshot.next_sibling;
-        }
-    }
-
-    None
-}
-
-pub(super) fn widget_target_can_be_disabled(node_id: NodeId, ctx: &ProcessCtx) -> bool {
-    let Some(snapshot) = ctx.tree_snapshot() else {
-        return false;
-    };
-    let Some(widget_id) = snapshot.node(node_id).and_then(|node| node.parent) else {
-        return false;
-    };
-    let Some(target_param) = snapshot_find_descendant_by_decl(snapshot, widget_id, "target_node") else {
-        return false;
-    };
-    let Some(target_reference) = snapshot.node(target_param).and_then(|node| node.param_value.as_ref()).and_then(|value| match value {
-        ParamValue::Reference(reference) => Some(reference),
-        _ => None,
-    }) else {
-        return false;
-    };
-    let target_id = target_reference
-        .cached_id()
-        .filter(|target_id| snapshot.node(*target_id).is_some())
-        .or_else(|| (!target_reference.uuid().is_nil()).then(|| snapshot.node_id_by_uuid(target_reference.uuid())).flatten());
-
-    target_id.and_then(|target_id| snapshot.node(target_id)).map(|target| target.can_be_disabled).unwrap_or(false)
-}
 
 pub(crate) fn dashboard_widget_options_node_type(kind: &DashboardWidgetOptionsNodeKind) -> &'static str {
     match kind {

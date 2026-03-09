@@ -299,7 +299,10 @@ impl<T: Node> Engine<T> {
         let has_active_controls = self.nodes.values().any(|node| node.engine_param_control_state().is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()));
         if !has_active_controls {
             if !self.expression_runtime.is_empty() {
-                self.expression_runtime.clear();
+                let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
+                for consumer in consumers {
+                    self.clear_expression_runtime(consumer);
+                }
             }
             return false;
         }
@@ -307,6 +310,12 @@ impl<T: Node> Engine<T> {
         let param_snapshots = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot))).collect::<HashMap<_, _>>();
 
         if param_snapshots.is_empty() {
+            if !self.expression_runtime.is_empty() {
+                let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
+                for consumer in consumers {
+                    self.clear_expression_runtime(consumer);
+                }
+            }
             return false;
         }
 

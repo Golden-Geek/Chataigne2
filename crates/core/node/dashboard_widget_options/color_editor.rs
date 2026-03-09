@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::parameter::Enum;
 use crate::process_ctx::ProcessCtx;
 
-use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
+use super::configure_dashboard_widget_options_node;
 
 /// Runtime node type id for dashboard color-editor widget options.
 pub const DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_color_editor_options";
@@ -20,7 +20,6 @@ pub const DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE: &str = "dashboar
     show_enable_button: bool = true (
         label = "Show Enable Button",
         description = "Whether color editor widgets expose the target enable toggle when the target supports disabling.",
-        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
     );
     color_force_expanded: bool = true (
         label = "Always Expanded",

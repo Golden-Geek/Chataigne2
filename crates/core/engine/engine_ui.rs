@@ -54,10 +54,15 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn sync_logger_ui_events(&mut self) {
-        for record in crate::logger::drain_pending() {
+        let records = crate::logger::records_since_cursor(self.last_synced_logger_record_id, self.last_synced_logger_repeat_count);
+        for record in &records {
             if let Ok(payload) = serde_json::to_value(&record) {
                 self.push_ui_custom_event(crate::logger::UI_LOG_RECORD_TOPIC, record.origin, payload);
             }
+        }
+        if let Some(record) = records.last() {
+            self.last_synced_logger_record_id = record.id;
+            self.last_synced_logger_repeat_count = record.repeat_count;
         }
     }
 

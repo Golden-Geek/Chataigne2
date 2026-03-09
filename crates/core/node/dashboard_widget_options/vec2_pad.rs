@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::parameter::{Enum, Vec2};
 use crate::process_ctx::ProcessCtx;
 
-use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
+use super::configure_dashboard_widget_options_node;
 
 /// Runtime node type id for dashboard vec2-pad widget options.
 pub const DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_vec2_pad_options";
@@ -20,7 +20,6 @@ pub const DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE: &str = "dashboard_no
     show_enable_button: bool = true (
         label = "Show Enable Button",
         description = "Whether 2D pad widgets expose the target enable toggle when the target supports disabling.",
-        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
     );
     trail_time: f64 = 2.0 [0.0..60.0] (
         label = "Trail Time",

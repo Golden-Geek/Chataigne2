@@ -151,6 +151,15 @@ pub fn records() -> Vec<LogRecord> {
     state.retained.iter().cloned().collect()
 }
 
+/// Returns retained logger records newer than the provided sync cursor.
+///
+/// When the latest retained record was collapsed in place, the same `id` may be
+/// returned again with a higher `repeat_count`.
+pub fn records_since_cursor(last_id: u64, last_repeat_count: u32) -> Vec<LogRecord> {
+    let state = lock_logger_state();
+    state.retained.iter().filter(|record| record.id > last_id || (record.id == last_id && record.repeat_count > last_repeat_count)).cloned().collect()
+}
+
 /// Drains pending records that have not yet been streamed to the UI.
 pub fn drain_pending() -> Vec<LogRecord> {
     let mut state = lock_logger_state();
@@ -362,7 +371,7 @@ mod tests {
         let record = crate::log!("hello", 42, "world");
         assert_eq!(record.level, LogLevel::Info);
         assert_eq!(record.tag, "general");
-        assert_eq!(record.message, "hello 42 world");
+        assert_eq!(record.message, "hello\n42\nworld");
     }
 
     #[test]

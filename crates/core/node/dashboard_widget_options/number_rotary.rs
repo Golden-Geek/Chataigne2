@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::parameter::{Enum, Vec2};
 use crate::process_ctx::ProcessCtx;
 
-use super::{configure_dashboard_widget_options_node, widget_target_can_be_disabled};
+use super::configure_dashboard_widget_options_node;
 
 /// Runtime node type id for dashboard rotary widget options.
 pub const DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE: &str = "dashboard_node_widget_number_rotary_options";
@@ -20,7 +20,6 @@ pub const DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE: &str = "dashboa
     show_enable_button: bool = true (
         label = "Show Enable Button",
         description = "Whether rotary widgets expose the target enable toggle when the target supports disabling.",
-        dependency = |node: &Self, ctx: &ProcessCtx| widget_target_can_be_disabled(node.id(), ctx),
     );
     rotary_show_value_field: bool = true (
         label = "Show Value Field",

@@ -136,6 +136,10 @@ pub struct Engine<T: Node> {
     ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
+    /// Logger sync cursor for projecting retained logger state into UI events.
+    last_synced_logger_record_id: u64,
+    /// Last repeat count observed for the synced logger cursor record.
+    last_synced_logger_repeat_count: u32,
     /// Applied edit transactions available for undo.
     undo_stack: Vec<engine_history::HistoryTransaction<T>>,
     /// Undone edit transactions available for redo.
@@ -189,6 +193,8 @@ impl<T: Node> Engine<T> {
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: engine_ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
+            last_synced_logger_record_id: 0,
+            last_synced_logger_repeat_count: 0,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             active_edit_session: None,
