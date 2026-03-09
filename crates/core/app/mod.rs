@@ -178,6 +178,29 @@ mod tests {
     #[crate::node("persisted_state_node", from_struct)]
     impl Node for PersistedStateNode {}
 
+    #[crate::node("via_persisted_state_base_node")]
+    struct ViaPersistedStateBaseNode {
+        #[state(default = true, persist)]
+        base_flag: bool,
+    }
+
+    #[crate::node("via_persisted_state_base_node", from_struct)]
+    impl Node for ViaPersistedStateBaseNode {}
+
+    #[crate::node("via_persisted_state_wrapper_node")]
+    struct ViaPersistedStateWrapperNode {
+        base: ViaPersistedStateBaseNode,
+        #[state(default = false, persist)]
+        wrapper_flag: bool,
+    }
+
+    #[crate::node("via_persisted_state_wrapper_node", via = base, from_struct)]
+    impl Node for ViaPersistedStateWrapperNode {
+        fn project_create(node_type: &str, label: &str) -> Option<Self> {
+            (node_type == "via_persisted_state_wrapper_node").then(|| Self::new(label, ViaPersistedStateBaseNode::new(label)))
+        }
+    }
+
     #[crate::node("managed_item_manager_node")]
     struct ManagedItemManagerNode {}
 
@@ -228,6 +251,8 @@ mod tests {
             AutoLoadedNode,
             DefaultedLoadedNode,
             PersistedStateNode,
+            ViaPersistedStateBaseNode,
+            ViaPersistedStateWrapperNode,
             ManagedItemManagerNode,
             ManagedItemBaseNode,
             ManagedItemNode,
@@ -335,6 +360,32 @@ mod tests {
         };
 
         assert!(!node.flag, "persisted #[state(..., persist)] field should round-trip through project save/load");
+    }
+
+    #[test]
+    fn via_nodes_can_persist_wrapper_and_base_state_without_manual_codecs() {
+        let mut node = ViaPersistedStateWrapperNode::new("Via", ViaPersistedStateBaseNode::new("Via"));
+        assert!(node.base.base_flag, "via base should use generated default-backed constructor");
+        assert!(!node.wrapper_flag, "via wrapper should use generated default-backed constructor");
+
+        node.base.base_flag = false;
+        node.wrapper_flag = true;
+
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(node.into(), None);
+        engine.apply_edits().expect("via persisted-state node should attach");
+
+        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+
+        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("via persisted-state node should be restored under root");
+        let ProjectDecodeTestAppNode::ViaPersistedStateWrapperNode(node) = loaded.nodes.get(restored).expect("via persisted-state node should exist") else {
+            panic!("restored node should be a ViaPersistedStateWrapperNode");
+        };
+
+        assert!(!node.base.base_flag, "via base persisted state should round-trip through project save/load");
+        assert!(node.wrapper_flag, "via wrapper persisted state should round-trip through project save/load");
     }
 
     #[test]

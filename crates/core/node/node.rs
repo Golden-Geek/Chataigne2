@@ -1899,6 +1899,20 @@ pub trait ViaTarget {
     fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
         None
     }
+
+    /// Forwards generated project-data encoding to the via target when relevant.
+    fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {
+        Ok(serde_json::Value::Null)
+    }
+
+    /// Forwards generated project-data decoding to the via target when relevant.
+    fn via_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        if data.is_null() {
+            return Ok(());
+        }
+
+        Err("via target does not support persisted project data".to_string())
+    }
 }
 
 impl ViaTarget for NodeData {
@@ -1946,6 +1960,14 @@ impl<T: Node + ?Sized> ViaTarget for T {
 
     fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
         self.user_context_host_policy()
+    }
+
+    fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {
+        self.project_encode_data()
+    }
+
+    fn via_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        self.project_decode_data(data)
     }
 }
 

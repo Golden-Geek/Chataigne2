@@ -1834,9 +1834,6 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 Ok(args) => args,
                 Err(err) => return err.to_compile_error(),
             };
-            if args.persist.unwrap_or(false) && via.is_some() {
-                return Error::new_spanned(field, "#[state(..., persist)] is not supported on #[node(..., via = ...)] yet; implement project_encode_data/project_decode_data manually for this node").to_compile_error();
-            }
             Some(args)
         } else {
             None
@@ -2310,6 +2307,32 @@ fn expand_struct(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node
                 None
             }
         }
+    } else if let Some(path) = via.as_ref() {
+        let via_root = path.segments.first().expect("via path always has at least one segment");
+        if let Some((_, via_root_ty)) = ctor_fields.iter().find(|(ident, _)| ident == via_root) {
+            if ctor_fields.len() == 1 {
+                quote! {
+                    if node_type == #resolved_type_name {
+                        let __golden_label = ::std::string::ToString::to_string(label);
+                        Some(Self::new(__golden_label.clone(), <#via_root_ty>::new(__golden_label)))
+                    } else {
+                        None
+                    }
+                }
+            } else {
+                quote! {
+                    let _ = node_type;
+                    let _ = label;
+                    None
+                }
+            }
+        } else {
+            quote! {
+                let _ = node_type;
+                let _ = label;
+                None
+            }
+        }
     } else {
         quote! {
             let _ = node_type;
@@ -2592,8 +2615,8 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
     }
 
     if !has_method(&input, "get_type") {
-        let resolved_type_name = match type_name {
-            Some(type_name) => type_name,
+        let resolved_type_name = match type_name.as_ref() {
+            Some(type_name) => type_name.clone(),
             None => match infer_type_name_from_impl(&input) {
                 Ok(type_name) => type_name,
                 Err(err) => return err.to_compile_error(),
@@ -2622,20 +2645,72 @@ fn expand_impl(type_name: Option<LitStr>, via: Option<DelegatePath>, impl_node: 
         });
     }
 
-    if from_struct && via.is_none() && !has_method(&input, "project_encode_data") {
-        input.items.push(parse_quote! {
-            fn project_encode_data(&self) -> Result<serde_json::Value, String> {
-                Self::__golden_node_project_encode_data(self)
-            }
-        });
+    if from_struct && !has_method(&input, "project_encode_data") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+                    let __golden_via_data = golden_core::node::ViaTarget::via_project_encode_data(&self.#(#segments).*)?;
+                    let __golden_state_data = Self::__golden_node_project_encode_data(self)?;
+
+                    if __golden_via_data.is_null() && __golden_state_data.is_null() {
+                        return Ok(serde_json::Value::Null);
+                    }
+
+                    let mut __golden_data = serde_json::Map::new();
+                    if !__golden_via_data.is_null() {
+                        __golden_data.insert("__golden_via".to_string(), __golden_via_data);
+                    }
+                    if !__golden_state_data.is_null() {
+                        __golden_data.insert("__golden_state".to_string(), __golden_state_data);
+                    }
+                    Ok(serde_json::Value::Object(__golden_data))
+                }
+            });
+        } else {
+            input.items.push(parse_quote! {
+                fn project_encode_data(&self) -> Result<serde_json::Value, String> {
+                    Self::__golden_node_project_encode_data(self)
+                }
+            });
+        }
     }
 
-    if from_struct && via.is_none() && !has_method(&input, "project_decode_data") {
-        input.items.push(parse_quote! {
-            fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-                Self::__golden_node_project_decode_data(self, data)
-            }
-        });
+    if from_struct && !has_method(&input, "project_decode_data") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            let resolved_type_name = match type_name.clone() {
+                Some(type_name) => type_name,
+                None => match infer_type_name_from_impl(&input) {
+                    Ok(type_name) => type_name,
+                    Err(err) => return err.to_compile_error(),
+                },
+            };
+            input.items.push(parse_quote! {
+                fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                    if data.is_null() {
+                        golden_core::node::ViaTarget::via_project_decode_data(&mut self.#(#segments).*, &serde_json::Value::Null)?;
+                        return Self::__golden_node_project_decode_data(self, &serde_json::Value::Null);
+                    }
+
+                    let Some(__golden_object) = data.as_object() else {
+                        return Err(format!("node type '{}' expects persisted project data as an object", #resolved_type_name));
+                    };
+
+                    let __golden_via_data = __golden_object.get("__golden_via").cloned().unwrap_or(serde_json::Value::Null);
+                    let __golden_state_data = __golden_object.get("__golden_state").cloned().unwrap_or(serde_json::Value::Null);
+
+                    golden_core::node::ViaTarget::via_project_decode_data(&mut self.#(#segments).*, &__golden_via_data)?;
+                    Self::__golden_node_project_decode_data(self, &__golden_state_data)
+                }
+            });
+        } else {
+            input.items.push(parse_quote! {
+                fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+                    Self::__golden_node_project_decode_data(self, data)
+                }
+            });
+        }
     }
 
     if !has_method(&input, "as_any") {
