@@ -33,6 +33,17 @@ pub enum LogLevel {
     Error,
 }
 
+impl LogLevel {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Info => "info",
+            Self::Success => "success",
+            Self::Warning => "warning",
+            Self::Error => "error",
+        }
+    }
+}
+
 /// One logger entry stored and streamed to the UI.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LogRecord {
@@ -162,6 +173,7 @@ pub fn log_parts(level: LogLevel, tag: String, origin: Option<NodeId>, parts: Ve
 /// Pushes one logger message.
 pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message: String) -> LogRecord {
     let resolved_origin = origin.or_else(current_node_origin);
+    print_process_output(level, &tag, resolved_origin, &message);
     let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_millis() as u64).unwrap_or(0);
 
     let mut state = lock_logger_state();
@@ -200,6 +212,26 @@ pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message
     state.trim_to_capacity();
 
     record
+}
+
+fn process_output_prefix(level: LogLevel, tag: &str, origin: Option<NodeId>) -> String {
+    match origin {
+        Some(node) => format!("[golden][{}][{}][node={}]", level.label(), tag, node.0),
+        None => format!("[golden][{}][{}]", level.label(), tag),
+    }
+}
+
+fn print_process_output(level: LogLevel, tag: &str, origin: Option<NodeId>, message: &str) {
+    let prefix = process_output_prefix(level, tag, origin);
+    let mut emitted = false;
+    for line in message.lines() {
+        println!("{prefix} {line}");
+        emitted = true;
+    }
+
+    if !emitted {
+        println!("{prefix}");
+    }
 }
 
 fn lock_logger_state() -> std::sync::MutexGuard<'static, LoggerState> {
@@ -396,5 +428,10 @@ mod tests {
 
         clear();
         set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
+    }
+
+    #[test]
+    fn process_output_prefix_includes_origin_when_present() {
+        assert_eq!(process_output_prefix(LogLevel::Warning, "script", Some(NodeId(7))), "[golden][warning][script][node=7]");
     }
 }

@@ -96,17 +96,25 @@ pub(crate) struct ActiveEditSession<T: Node> {
     pub(crate) label: Option<String>,
     /// Client-provided id linking begin/end.
     pub(crate) client_edit_id: String,
+    /// Stable UI client instance id that owns this session, when available.
+    pub(crate) ui_client_instance_id: Option<String>,
     /// Accumulated history transaction for this session.
     pub(crate) transaction: HistoryTransaction<T>,
 }
 
 impl<T: Node> ActiveEditSession<T> {
     /// Creates a new empty active edit session.
-    pub(crate) fn new(origin: EditOrigin, label: Option<String>, client_edit_id: String) -> Self {
+    pub(crate) fn new(
+        origin: EditOrigin,
+        label: Option<String>,
+        client_edit_id: String,
+        ui_client_instance_id: Option<String>,
+    ) -> Self {
         Self {
             origin,
             label,
             client_edit_id,
+            ui_client_instance_id,
             transaction: HistoryTransaction::new(),
         }
     }
@@ -859,6 +867,20 @@ impl<T: Node> Engine<T> {
         active.transaction.dispose(self);
     }
 
+    /// Cancels the active UI edit session owned by `client_instance_id`, if any.
+    pub fn cancel_active_ui_edit_session_for_client(&mut self, client_instance_id: &str) -> bool {
+        let should_cancel = self.active_edit_session.as_ref().is_some_and(|active| {
+            active.origin == EditOrigin::Ui
+                && active.ui_client_instance_id.as_deref() == Some(client_instance_id)
+        });
+        if !should_cancel {
+            return false;
+        }
+
+        self.drop_active_edit_session_history();
+        true
+    }
+
     /// Drops all redo transactions and releases any detached payloads they own.
     pub(crate) fn clear_redo_history(&mut self) {
         while let Some(mut transaction) = self.redo_stack.pop() {
@@ -958,5 +980,12 @@ impl<T: Node> Engine<T> {
     /// Returns the label of the currently active edit session.
     pub fn active_edit_session_label(&self) -> Option<&str> {
         self.active_edit_session.as_ref().and_then(|session| session.label.as_deref())
+    }
+
+    /// Returns the stable UI client instance id that owns the active edit session.
+    pub fn active_edit_session_ui_client_instance_id(&self) -> Option<&str> {
+        self.active_edit_session
+            .as_ref()
+            .and_then(|session| session.ui_client_instance_id.as_deref())
     }
 }

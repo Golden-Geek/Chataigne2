@@ -37,10 +37,7 @@ pub struct DashboardWidgetDisplayModeSpec {
 impl DashboardWidgetDisplayModeSpec {
     /// Creates one display-mode descriptor.
     pub fn new(id: impl Into<String>, label: impl Into<String>) -> Self {
-        Self {
-            id: id.into(),
-            label: label.into(),
-        }
+        Self { id: id.into(), label: label.into() }
     }
 }
 
@@ -101,10 +98,7 @@ fn snapshot_find_descendant_by_decl(snapshot: &crate::process_ctx::ProcessTreeSn
 }
 
 fn snapshot_child_decl_matches(snapshot: &crate::process_ctx::ProcessTreeSnapshot, node_id: NodeId, decl_id: &str) -> bool {
-    snapshot
-        .node(node_id)
-        .map(|node| node.decl_id == decl_id || node.decl_id.rsplit('/').next() == Some(decl_id))
-        .unwrap_or(false)
+    snapshot.node(node_id).map(|node| node.decl_id == decl_id || node.decl_id.rsplit('/').next() == Some(decl_id)).unwrap_or(false)
 }
 
 fn snapshot_reference_target(snapshot: &crate::process_ctx::ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
@@ -153,35 +147,23 @@ fn dashboard_node_widget_target_descriptor(node_id: NodeId, ctx: &ProcessCtx) ->
     let Some(target_id) = snapshot_reference_target(snapshot, node_id, "target_node") else {
         return DashboardWidgetTargetDescriptor::inspector_only();
     };
-    snapshot
-        .node(target_id)
-        .map(|target| target.dashboard_widget_target.clone())
-        .unwrap_or_else(DashboardWidgetTargetDescriptor::inspector_only)
+    snapshot.node(target_id).map(|target| target.dashboard_widget_target.clone()).unwrap_or_else(DashboardWidgetTargetDescriptor::inspector_only)
 }
 
 fn dashboard_node_widget_current_display_mode(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
     let snapshot = ctx.tree_snapshot()?;
     let display_mode = snapshot_find_descendant_by_decl(snapshot, node_id, "display_mode")?;
-    snapshot
-        .node(display_mode)?
-        .param_value
-        .as_ref()
-        .and_then(|value| value.as_enum().or_else(|| value.as_str()))
+    snapshot.node(display_mode)?.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str()))
 }
 
 fn dashboard_node_widget_display_mode_uses_label_placement(node_id: NodeId, ctx: &ProcessCtx) -> bool {
-    dashboard_node_widget_current_display_mode(node_id, ctx)
-        .map(|mode| mode != "inspector")
-        .unwrap_or(false)
+    dashboard_node_widget_current_display_mode(node_id, ctx).map(|mode| mode != "inspector").unwrap_or(false)
 }
 
 fn dashboard_node_widget_parameter_options_parent(node_id: NodeId, ctx: &ProcessCtx) -> Option<NodeId> {
     let snapshot = ctx.tree_snapshot()?;
     let parent_id = snapshot.node(node_id)?.parent?;
-    snapshot
-        .node(parent_id)
-        .filter(|parent| parent.node_type == DASHBOARD_NODE_WIDGET_NODE_TYPE)
-        .map(|_| parent_id)
+    snapshot.node(parent_id).filter(|parent| parent.node_type == DASHBOARD_NODE_WIDGET_NODE_TYPE).map(|_| parent_id)
 }
 
 fn dashboard_node_widget_parameter_options_target_type(node_id: NodeId, ctx: &ProcessCtx) -> Option<String> {
@@ -218,98 +200,39 @@ fn make_dashboard_widget_enum_parameter(label: &str, decl_id: &str, description:
     let mut parameter = Parameter::new(label, ParamValue::Enum(value.to_string()), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
     parameter.node_data_mut().meta.description = Some(description.to_string());
-    parameter.constraints.enum_options = options
-        .iter()
-        .enumerate()
-        .map(|(index, (variant_id, option_label))| dashboard_widget_enum_option(variant_id, option_label, index as i32))
-        .collect();
+    parameter.constraints.enum_options = options.iter().enumerate().map(|(index, (variant_id, option_label))| dashboard_widget_enum_option(variant_id, option_label, index as i32)).collect();
     parameter
 }
 
 fn is_dashboard_node_widget_parameter_option_decl(decl_id: &str) -> bool {
     matches!(
         decl_id,
-        "number_show_value_field"
-            | "number_max_decimals"
-            | "vector_layout"
-            | "vector_show_value_fields"
-            | "vector_max_decimals"
-            | "color_force_expanded"
-            | "color_show_hex"
-            | "color_show_rgba_fields"
+        "number_show_value_field" | "number_max_decimals" | "vector_layout" | "vector_show_value_fields" | "vector_max_decimals" | "color_force_expanded" | "color_show_hex" | "color_show_rgba_fields"
     )
 }
 
 fn dashboard_node_widget_parameter_option_parameters(target_type: Option<&str>) -> Vec<Parameter> {
     match target_type {
         Some("int") | Some("float") => vec![
-            make_dashboard_widget_bool_parameter(
-                "Number Show Value Field",
-                "number_show_value_field",
-                "Whether number editor widgets keep the numeric value field visible next to the slider.",
-                true,
-            ),
-            make_dashboard_widget_int_parameter(
-                "Number Max Decimals",
-                "number_max_decimals",
-                "Maximum number of decimals shown by scalar number editor widgets.",
-                3,
-                0,
-                8,
-            ),
+            make_dashboard_widget_bool_parameter("Number Show Value Field", "number_show_value_field", "Whether number editor widgets keep the numeric value field visible next to the slider.", true),
+            make_dashboard_widget_int_parameter("Number Max Decimals", "number_max_decimals", "Maximum number of decimals shown by scalar number editor widgets.", 3, 0, 8),
         ],
         Some("vec2") | Some("vec3") => vec![
-            make_dashboard_widget_enum_parameter(
-                "Vector Layout",
-                "vector_layout",
-                "Arrangement used for vector editor widgets.",
-                "inline",
-                &[("inline", "Inline"), ("column", "Column")],
-            ),
-            make_dashboard_widget_bool_parameter(
-                "Vector Show Value Fields",
-                "vector_show_value_fields",
-                "Whether vector editor widgets keep per-component numeric fields visible.",
-                true,
-            ),
-            make_dashboard_widget_int_parameter(
-                "Vector Max Decimals",
-                "vector_max_decimals",
-                "Maximum number of decimals shown by vector editor widget fields.",
-                2,
-                0,
-                8,
-            ),
+            make_dashboard_widget_enum_parameter("Vector Layout", "vector_layout", "Arrangement used for vector editor widgets.", "inline", &[("inline", "Inline"), ("column", "Column")]),
+            make_dashboard_widget_bool_parameter("Vector Show Value Fields", "vector_show_value_fields", "Whether vector editor widgets keep per-component numeric fields visible.", true),
+            make_dashboard_widget_int_parameter("Vector Max Decimals", "vector_max_decimals", "Maximum number of decimals shown by vector editor widget fields.", 2, 0, 8),
         ],
         Some("color") => vec![
-            make_dashboard_widget_bool_parameter(
-                "Color Always Expanded",
-                "color_force_expanded",
-                "Whether color editor widgets stay expanded instead of collapsing to preview mode.",
-                false,
-            ),
-            make_dashboard_widget_bool_parameter(
-                "Color Show Hex",
-                "color_show_hex",
-                "Whether color editor widgets show the hexadecimal color input.",
-                true,
-            ),
-            make_dashboard_widget_bool_parameter(
-                "Color Show RGBA Fields",
-                "color_show_rgba_fields",
-                "Whether color editor widgets show the RGBA numeric controls.",
-                true,
-            ),
+            make_dashboard_widget_bool_parameter("Color Always Expanded", "color_force_expanded", "Whether color editor widgets stay expanded instead of collapsing to preview mode.", false),
+            make_dashboard_widget_bool_parameter("Color Show Hex", "color_show_hex", "Whether color editor widgets show the hexadecimal color input.", true),
+            make_dashboard_widget_bool_parameter("Color Show RGBA Fields", "color_show_rgba_fields", "Whether color editor widgets show the RGBA numeric controls.", true),
         ],
         _ => Vec::new(),
     }
 }
 
 fn dashboard_parameter_schema_matches(snapshot: &crate::process_ctx::ProcessTreeNodeSnapshot, parameter: &Parameter) -> bool {
-    snapshot.is_parameter()
-        && snapshot.node_type == parameter.get_type()
-        && snapshot.label == parameter.node_data().meta.label
-        && snapshot.param_constraints.as_ref() == Some(&parameter.constraints)
+    snapshot.is_parameter() && snapshot.node_type == parameter.get_type() && snapshot.label == parameter.node_data().meta.label && snapshot.param_constraints.as_ref() == Some(&parameter.constraints)
 }
 
 fn dashboard_widget_display_mode_enum_option(mode: &DashboardWidgetDisplayModeSpec, ordering: i32) -> ParameterEnumOption {
@@ -322,21 +245,12 @@ fn dashboard_widget_display_mode_enum_option(mode: &DashboardWidgetDisplayModeSp
     }
 }
 
-fn make_dashboard_node_widget_display_mode_parameter(
-    value: impl Into<String>,
-    descriptor: &DashboardWidgetTargetDescriptor,
-) -> Parameter {
+fn make_dashboard_node_widget_display_mode_parameter(value: impl Into<String>, descriptor: &DashboardWidgetTargetDescriptor) -> Parameter {
     let value = value.into();
     let mut parameter = Parameter::new("Display Mode", ParamValue::Enum(value), ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.decl_id = DeclId("display_mode".to_string());
-    parameter.node_data_mut().meta.description =
-        Some("Rendering strategy used for the generated node UI.".to_string());
-    parameter.constraints.enum_options = descriptor
-        .display_modes
-        .iter()
-        .enumerate()
-        .map(|(index, mode)| dashboard_widget_display_mode_enum_option(mode, index as i32))
-        .collect();
+    parameter.node_data_mut().meta.description = Some("Rendering strategy used for the generated node UI.".to_string());
+    parameter.constraints.enum_options = descriptor.display_modes.iter().enumerate().map(|(index, mode)| dashboard_widget_display_mode_enum_option(mode, index as i32)).collect();
     parameter
 }
 
@@ -650,10 +564,7 @@ pub struct DashboardNodeWidgetParameterOptionsNode {}
 impl DashboardNodeWidgetParameterOptionsNode {
     fn sync_children(&mut self, ctx: &mut ProcessCtx) {
         let desired_parameters = dashboard_node_widget_parameter_option_parameters(dashboard_node_widget_parameter_options_target_type(self.id(), ctx).as_deref());
-        let desired_decl_ids = desired_parameters
-            .iter()
-            .map(|parameter| parameter.node_data().meta.decl_id.0.clone())
-            .collect::<Vec<_>>();
+        let desired_decl_ids = desired_parameters.iter().map(|parameter| parameter.node_data().meta.decl_id.0.clone()).collect::<Vec<_>>();
 
         let (stale_children, existing_children) = {
             let Some(snapshot) = ctx.tree_snapshot() else {
@@ -825,23 +736,15 @@ impl DashboardNodeWidgetNode {
             return;
         };
 
-        let current_value = display_mode_snapshot
-            .param_value
-            .as_ref()
-            .and_then(|value| value.as_enum().or_else(|| value.as_str()))
-            .unwrap_or_default();
+        let current_value = display_mode_snapshot.param_value.as_ref().and_then(|value| value.as_enum().or_else(|| value.as_str())).unwrap_or_default();
 
-        let existing_options = display_mode_snapshot
-            .param_constraints
-            .as_ref()
-            .map(|constraints| constraints.enum_options.as_slice())
-            .unwrap_or(&[]);
+        let existing_options = display_mode_snapshot.param_constraints.as_ref().map(|constraints| constraints.enum_options.as_slice()).unwrap_or(&[]);
         let options_match = existing_options.len() == descriptor.display_modes.len()
-            && existing_options.iter().zip(descriptor.display_modes.iter()).all(|(option, mode)| {
-                option.variant_id == mode.id && option.label == mode.label && option.value == ParamValue::Enum(mode.id.clone())
-            });
-        let is_initial_placeholder_mode =
-            existing_options.len() == 1 && existing_options[0].variant_id == "inspector" && current_value == "inspector";
+            && existing_options
+                .iter()
+                .zip(descriptor.display_modes.iter())
+                .all(|(option, mode)| option.variant_id == mode.id && option.label == mode.label && option.value == ParamValue::Enum(mode.id.clone()));
+        let is_initial_placeholder_mode = existing_options.len() == 1 && existing_options[0].variant_id == "inspector" && current_value == "inspector";
         let resolved_value = if !options_match && is_initial_placeholder_mode {
             descriptor.default_display_mode_id.clone()
         } else if descriptor.display_modes.iter().any(|mode| mode.id == current_value) {
@@ -1240,12 +1143,7 @@ mod tests {
         }
 
         let vec2_display = param_snapshot(&engine, display_mode);
-        let vec2_modes = vec2_display
-            .constraints
-            .enum_options
-            .iter()
-            .map(|option| (option.variant_id.as_str(), option.label.as_str()))
-            .collect::<Vec<_>>();
+        let vec2_modes = vec2_display.constraints.enum_options.iter().map(|option| (option.variant_id.as_str(), option.label.as_str())).collect::<Vec<_>>();
         assert_eq!(vec2_modes, vec![("inspector", "Inspector"), ("editor", "Editor"), ("vec2Pad", "2D Pad")], "vec2 parameters should expose the 2D Pad display mode");
     }
 
@@ -1299,11 +1197,7 @@ mod tests {
             engine.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization).expect("dispatch should succeed");
         }
 
-        assert_eq!(
-            direct_child_decl_ids(&engine, widget),
-            vec!["binding", "appearance", "layout", "content"],
-            "reintroduced free-layout parameters should return to declared order",
-        );
+        assert_eq!(direct_child_decl_ids(&engine, widget), vec!["binding", "appearance", "layout", "content"], "reintroduced free-layout parameters should return to declared order",);
     }
 
     #[test]

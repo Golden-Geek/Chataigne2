@@ -42,7 +42,12 @@ impl<T: Node> Engine<T> {
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
             let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request.edit {
-                Edit::BeginEditSession { origin, label, client_edit_id } => {
+                Edit::BeginEditSession {
+                    origin,
+                    label,
+                    client_edit_id,
+                    ui_client_instance_id,
+                } => {
                     if let Some(active) = &self.active_edit_session {
                         (
                             Err(EngineEditError::EditSessionAlreadyActive {
@@ -53,7 +58,12 @@ impl<T: Node> Engine<T> {
                             false,
                         )
                     } else {
-                        self.active_edit_session = Some(super::engine_history::ActiveEditSession::new(origin, label, client_edit_id));
+                        self.active_edit_session = Some(super::engine_history::ActiveEditSession::new(
+                            origin,
+                            label,
+                            client_edit_id,
+                            ui_client_instance_id,
+                        ));
                         (Ok(None), false)
                     }
                 }

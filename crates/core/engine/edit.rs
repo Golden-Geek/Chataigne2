@@ -27,6 +27,8 @@ pub enum Edit {
         label: Option<String>,
         /// Client-provided id used to match begin/end.
         client_edit_id: String,
+        /// Stable UI client instance id when the session originates from a browser client.
+        ui_client_instance_id: Option<String>,
     },
     /// Ends a previously opened edit session.
     EndEditSession {

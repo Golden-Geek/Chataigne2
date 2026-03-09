@@ -55,7 +55,12 @@ impl<T: Node> Clone for ServerState<T> {
     }
 }
 
-fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec: Option<&ProjectCodec<T>>, intent: UiEditIntent) -> UiAck {
+fn apply_ui_intent_with_transport<T: Node>(
+    engine: &mut Engine<T>,
+    project_codec: Option<&ProjectCodec<T>>,
+    intent: UiEditIntent,
+    ui_client_instance_id: Option<&str>,
+) -> UiAck {
     let before_len = engine.ui_event_log().len();
 
     match intent {
@@ -90,8 +95,22 @@ fn apply_ui_intent_with_transport<T: Node>(engine: &mut Engine<T>, project_codec
                 },
             }
         }
-        other => engine.apply_ui_intent(other),
+        other => engine.apply_ui_intent_from_client(other, ui_client_instance_id),
     }
+}
+
+fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
+    let value = raw.trim();
+    if value.is_empty() || value.len() > 128 {
+        return None;
+    }
+    Some(value.to_string())
+}
+
+fn ui_client_instance_id_from_headers(headers: &HashMap<String, String>) -> Option<String> {
+    headers
+        .get("x-gc-ui-client-instance")
+        .and_then(|value| normalize_ui_client_instance_id(value))
 }
 
 #[derive(Clone)]
@@ -103,6 +122,8 @@ struct WsHubHandle {
 struct SnapshotRequest {
     #[serde(default)]
     scope: UiSubscriptionScope,
+    #[serde(default)]
+    cancel_active_edit_session: bool,
 }
 
 #[derive(Deserialize)]
@@ -161,6 +182,7 @@ struct HttpRequest {
 struct WsClientState {
     outbound: Sender<WsOutbound>,
     subscriptions: HashMap<String, WsSubscriptionState>,
+    client_instance_id: Option<String>,
 }
 
 struct WsSubscriptionState {
@@ -175,6 +197,7 @@ struct WsEventOrigin {
 
 enum WsHubCommand {
     RegisterClient { client_id: u64, outbound: Sender<WsOutbound> },
+    BindClientInstance { client_id: u64, client_instance_id: String },
     UnregisterClient { client_id: u64 },
     Subscribe { client_id: u64, subscription_id: String, scope: UiSubscriptionScope, from: Option<EngineTime> },
     Unsubscribe { client_id: u64, subscription_id: String },
@@ -225,6 +248,8 @@ enum WsServerMessage {
 enum WsClientMessage {
     Hello {
         protocol_version: String,
+        #[serde(default)]
+        client_instance_id: Option<String>,
     },
     Subscribe {
         subscription_id: String,
@@ -323,14 +348,31 @@ fn spawn_ws_hub<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, project_codec:
 
 fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<ProjectCodec<T>>, cmd_rx: Receiver<WsHubCommand>, dispatch_interval: Duration, session_id: String) {
     let mut clients = HashMap::<u64, WsClientState>::new();
+    let mut client_instances = HashMap::<String, u64>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
 
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
             Ok(command) => {
-                handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut origins, command, &session_id);
+                handle_ws_hub_command(
+                    &engine,
+                    project_codec.as_ref(),
+                    &mut clients,
+                    &mut client_instances,
+                    &mut origins,
+                    command,
+                    &session_id,
+                );
                 while let Ok(next) = cmd_rx.try_recv() {
-                    handle_ws_hub_command(&engine, project_codec.as_ref(), &mut clients, &mut origins, next, &session_id);
+                    handle_ws_hub_command(
+                        &engine,
+                        project_codec.as_ref(),
+                        &mut clients,
+                        &mut client_instances,
+                        &mut origins,
+                        next,
+                        &session_id,
+                    );
                 }
             }
             Err(RecvTimeoutError::Timeout) => {}
@@ -340,10 +382,25 @@ fn ws_hub_loop<T: Node>(engine: Arc<Mutex<Engine<T>>>, project_codec: Option<Pro
         dispatch_ws_batches(&engine, &mut clients, &mut origins);
     }
 }
-fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec: Option<&ProjectCodec<T>>, clients: &mut HashMap<u64, WsClientState>, origins: &mut HashMap<EngineTime, WsEventOrigin>, command: WsHubCommand, session_id: &str) {
+fn handle_ws_hub_command<T: Node>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    project_codec: Option<&ProjectCodec<T>>,
+    clients: &mut HashMap<u64, WsClientState>,
+    client_instances: &mut HashMap<String, u64>,
+    origins: &mut HashMap<EngineTime, WsEventOrigin>,
+    command: WsHubCommand,
+    session_id: &str,
+) {
     match command {
         WsHubCommand::RegisterClient { client_id, outbound } => {
-            clients.insert(client_id, WsClientState { outbound, subscriptions: HashMap::new() });
+            clients.insert(
+                client_id,
+                WsClientState {
+                    outbound,
+                    subscriptions: HashMap::new(),
+                    client_instance_id: None,
+                },
+            );
             eprintln!("[ui-ws] client {client_id} registered (connected_clients={})", clients.len());
 
             send_to_client(
@@ -356,9 +413,55 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec:
                 },
             );
         }
+        WsHubCommand::BindClientInstance {
+            client_id,
+            client_instance_id,
+        } => {
+            let previous_instance_id = {
+                let Some(client) = clients.get_mut(&client_id) else {
+                    return;
+                };
+                client.client_instance_id.replace(client_instance_id.clone())
+            };
+
+            if let Some(previous_instance_id) = previous_instance_id {
+                if client_instances
+                    .get(&previous_instance_id)
+                    .is_some_and(|mapped_client_id| *mapped_client_id == client_id)
+                {
+                    client_instances.remove(&previous_instance_id);
+                }
+            }
+
+            if let Some(previous_client_id) = client_instances.insert(client_instance_id.clone(), client_id)
+            {
+                if previous_client_id != client_id {
+                    if let Some(previous_client) = clients.remove(&previous_client_id) {
+                        let _ = previous_client.outbound.send(WsOutbound::Close);
+                    }
+
+                    let mut guard = lock_engine(engine);
+                    let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
+                }
+            }
+        }
         WsHubCommand::UnregisterClient { client_id } => {
             let removed = clients.remove(&client_id);
             let subscription_count = removed.as_ref().map_or(0, |client| client.subscriptions.len());
+            if let Some(client_instance_id) = removed
+                .as_ref()
+                .and_then(|client| client.client_instance_id.as_ref())
+            {
+                if client_instances
+                    .get(client_instance_id)
+                    .is_some_and(|mapped_client_id| *mapped_client_id == client_id)
+                {
+                    client_instances.remove(client_instance_id);
+                }
+
+                let mut guard = lock_engine(engine);
+                let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+            }
             eprintln!("[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})", clients.len());
         }
         WsHubCommand::Subscribe { client_id, subscription_id, scope, from } => {
@@ -384,7 +487,15 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec:
             let (ack, produced_times) = {
                 let mut guard = lock_engine(engine);
                 let before_len = guard.ui_event_log().len();
-                let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent);
+                let client_instance_id = clients
+                    .get(&client_id)
+                    .and_then(|client| client.client_instance_id.as_deref());
+                let ack = apply_ui_intent_with_transport(
+                    &mut guard,
+                    project_codec,
+                    intent,
+                    client_instance_id,
+                );
                 let produced_times = guard.ui_event_log().iter().skip(before_len).map(|event| event.time).collect::<Vec<_>>();
                 (ack, produced_times)
             };
@@ -400,10 +511,18 @@ fn handle_ws_hub_command<T: Node>(engine: &Arc<Mutex<Engine<T>>>, project_codec:
                 let mut guard = lock_engine(engine);
                 let mut acks = Vec::<UiAck>::with_capacity(intents.len());
                 let mut produced_times = Vec::<EngineTime>::new();
+                let client_instance_id = clients
+                    .get(&client_id)
+                    .and_then(|client| client.client_instance_id.as_deref());
 
                 for intent in intents {
                     let before_len = guard.ui_event_log().len();
-                    let ack = apply_ui_intent_with_transport(&mut guard, project_codec, intent);
+                    let ack = apply_ui_intent_with_transport(
+                        &mut guard,
+                        project_codec,
+                        intent,
+                        client_instance_id,
+                    );
                     acks.push(ack);
                     produced_times.extend(guard.ui_event_log().iter().skip(before_len).map(|event| event.time));
                 }
@@ -592,13 +711,23 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/snapshot") => {
             let payload: SnapshotRequest = if request.body.is_empty() {
-                SnapshotRequest { scope: UiSubscriptionScope::WholeGraph }
+                SnapshotRequest {
+                    scope: UiSubscriptionScope::WholeGraph,
+                    cancel_active_edit_session: false,
+                }
             } else {
                 serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?
             };
             let request_started = Instant::now();
             let scope = payload.scope;
+            let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
             let guard = lock_engine(&state.engine);
+            let mut guard = guard;
+            if payload.cancel_active_edit_session {
+                if let Some(client_instance_id) = client_instance_id.as_deref() {
+                    let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+                }
+            }
             let build_started = Instant::now();
             let snapshot = guard.ui_snapshot(scope.clone());
             let build_elapsed = build_started.elapsed();
@@ -646,7 +775,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/reference-targets") => {
             let payload: ReferenceTargetsRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid reference-targets payload: {err}")))?;
-            eprintln!("[ui-http] reference-targets param={:?}", payload.param);
+            // eprintln!("[ui-http] reference-targets param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);
             let targets = guard.ui_reference_targets_for_param(payload.param);
@@ -656,7 +785,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/context-candidates") => {
             let payload: ContextCandidatesRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid context-candidates payload: {err}")))?;
-            eprintln!("[ui-http] context-candidates param={:?}", payload.param);
+            // eprintln!("[ui-http] context-candidates param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);
             let candidates = guard.ui_context_candidates_for_param(payload.param);
@@ -666,7 +795,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/param-control-info") => {
             let payload: ParamControlInfoRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid param-control-info payload: {err}")))?;
-            eprintln!("[ui-http] param-control-info param={:?}", payload.param);
+            // eprintln!("[ui-http] param-control-info param={:?}", payload.param);
 
             let guard = lock_engine(&state.engine);
             let info_result = guard.ui_param_control_info(payload.param);
@@ -683,7 +812,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/script-state") => {
             let payload: ScriptStateRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-state payload: {err}")))?;
-            eprintln!("[ui-http] script-state node={:?}", payload.node);
+            // eprintln!("[ui-http] script-state node={:?}", payload.node);
 
             let guard = lock_engine(&state.engine);
             let state_result = guard.ui_script_state(payload.node);
@@ -700,7 +829,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/script-config") => {
             let payload: ScriptConfigRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
-            eprintln!("[ui-http] script-config node={:?} force_reload={}", payload.node, payload.force_reload);
+            // eprintln!("[ui-http] script-config node={:?} force_reload={}", payload.node, payload.force_reload);
 
             let mut guard = lock_engine(&state.engine);
             let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
@@ -717,7 +846,7 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/script-reload") => {
             let payload: ScriptReloadRequest = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
-            eprintln!("[ui-http] script-reload node={:?}", payload.node);
+            // eprintln!("[ui-http] script-reload node={:?}", payload.node);
 
             let mut guard = lock_engine(&state.engine);
             let reload_result = guard.ui_reload_script(payload.node);
@@ -782,20 +911,32 @@ fn handle_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>) ->
         }
         ("POST", "/api/ui/intent") => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
+            let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
             let mut guard = lock_engine(&state.engine);
-            let ack = apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent);
+            let ack = apply_ui_intent_with_transport(
+                &mut guard,
+                state.project_codec.as_ref(),
+                intent,
+                client_instance_id.as_deref(),
+            );
             drop(guard);
 
             write_json(stream, "200 OK", &ack)?;
         }
         ("POST", "/api/ui/intent/batch") => {
             let intents: Vec<UiEditIntent> = serde_json::from_slice(&request.body).map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent batch payload: {err}")))?;
+            let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
             let mut guard = lock_engine(&state.engine);
             let mut acks = Vec::<UiAck>::with_capacity(intents.len());
             for intent in intents {
-                acks.push(apply_ui_intent_with_transport(&mut guard, state.project_codec.as_ref(), intent));
+                acks.push(apply_ui_intent_with_transport(
+                    &mut guard,
+                    state.project_codec.as_ref(),
+                    intent,
+                    client_instance_id.as_deref(),
+                ));
             }
             drop(guard);
 
@@ -920,12 +1061,36 @@ fn handle_ws_connection<T: Node>(stream: &mut TcpStream, state: &ServerState<T>,
 
 fn handle_ws_client_message(message: WsClientMessage, client_id: u64, hub: &WsHubHandle, outbound: &Sender<WsOutbound>) -> bool {
     match message {
-        WsClientMessage::Hello { protocol_version } => {
+        WsClientMessage::Hello {
+            protocol_version,
+            client_instance_id,
+        } => {
             if protocol_version != UI_PROTOCOL_VERSION {
                 let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
                     message: format!("protocol mismatch: client={protocol_version}, server={UI_PROTOCOL_VERSION}"),
                     request_id: None,
                 }));
+            }
+
+            if let Some(client_instance_id) = client_instance_id {
+                let Some(client_instance_id) = normalize_ui_client_instance_id(&client_instance_id) else {
+                    let _ = outbound.send(WsOutbound::Message(WsServerMessage::Error {
+                        message: "client_instance_id is invalid".to_string(),
+                        request_id: None,
+                    }));
+                    return true;
+                };
+
+                if !hub
+                    .cmd_tx
+                    .send(WsHubCommand::BindClientInstance {
+                        client_id,
+                        client_instance_id,
+                    })
+                    .is_ok()
+                {
+                    return false;
+                }
             }
             true
         }
@@ -1294,7 +1459,7 @@ fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body
          Content-Length: {}\r\n\
          Access-Control-Allow-Origin: *\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type\r\n\
+         Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance\r\n\
          Connection: close\r\n\r\n",
         body.len()
     );

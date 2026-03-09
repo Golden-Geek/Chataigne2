@@ -1079,9 +1079,7 @@ impl<T: Node> Engine<T> {
             let mut child = snapshot.node(node_id).and_then(|node| node.first_child);
             while let Some(child_id) = child {
                 let child_snapshot = snapshot.node(child_id)?;
-                if child_snapshot.is_parameter()
-                    && (child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id))
-                {
+                if child_snapshot.is_parameter() && (child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id)) {
                     return Some(child_id);
                 }
                 stack.push(child_id);
@@ -1128,12 +1126,26 @@ impl<T: Node> Engine<T> {
 
     /// Applies one UI edit intent and returns an acknowledgement payload.
     pub fn apply_ui_intent(&mut self, intent: UiEditIntent) -> UiAck {
+        self.apply_ui_intent_from_client(intent, None)
+    }
+
+    /// Applies one UI edit intent while attributing any opened edit session to a stable client.
+    pub fn apply_ui_intent_from_client(
+        &mut self,
+        intent: UiEditIntent,
+        ui_client_instance_id: Option<&str>,
+    ) -> UiAck {
         let before_len = self.ui_event_log().len();
         // eprintln!("[gc-ui] intent recv: {intent:?} | undo_len={} redo_len={} active_session={}", self.undo_len(), self.redo_len(), self.has_active_edit_session());
 
         let ack = match intent {
             UiEditIntent::BeginEdit { client_edit_id, label } => {
-                self.edits.push(Edit::BeginEditSession { origin: EditOrigin::Ui, label, client_edit_id });
+                self.edits.push(Edit::BeginEditSession {
+                    origin: EditOrigin::Ui,
+                    label,
+                    client_edit_id,
+                    ui_client_instance_id: ui_client_instance_id.map(str::to_owned),
+                });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }

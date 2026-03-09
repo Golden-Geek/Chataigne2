@@ -4,10 +4,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    node::{
-        DashboardWidgetDisplayModeSpec, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode,
-        UserContainerRules,
-    },
+    node::{DashboardWidgetDisplayModeSpec, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
     process_ctx::ProcessCtx,
 };
 
@@ -2180,10 +2177,7 @@ impl Node for Parameter {
     }
 
     fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
-        let mut display_modes = vec![
-            DashboardWidgetDisplayModeSpec::new("inspector", "Inspector"),
-            DashboardWidgetDisplayModeSpec::new("editor", "Editor"),
-        ];
+        let mut display_modes = vec![DashboardWidgetDisplayModeSpec::new("inspector", "Inspector"), DashboardWidgetDisplayModeSpec::new("editor", "Editor")];
 
         if matches!(self.value, ParamValue::Vec2(_, _)) {
             display_modes.push(DashboardWidgetDisplayModeSpec::new("vec2Pad", "2D Pad"));

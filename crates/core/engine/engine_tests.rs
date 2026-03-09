@@ -3022,6 +3022,7 @@ fn begin_end_edit_session_groups_multiple_queue_drains_into_one_undo() {
         origin: crate::edit::EditOrigin::Ui,
         label: Some("Slider drag".to_string()),
         client_edit_id: "drag-1".to_string(),
+        ui_client_instance_id: None,
     });
     engine.edits.push(Edit::SetParam {
         node: engine.root,
@@ -3060,6 +3061,7 @@ fn clear_history_drops_active_edit_session_state() {
         origin: crate::edit::EditOrigin::Ui,
         label: Some("bootstrap".to_string()),
         client_edit_id: "bootstrap-1".to_string(),
+        ui_client_instance_id: None,
     });
     engine.edits.push(Edit::SetParam {
         node: engine.root,
@@ -3297,6 +3299,62 @@ fn ui_set_param_ack_applies_immediately() {
     });
     assert_eq!(ack.status, UiAckStatus::Applied);
     assert_eq!(engine.nodes.get(engine.root).expect("root parameter should exist").value, ParamValue::Int(7));
+}
+
+#[test]
+fn cancel_active_ui_edit_session_only_cancels_matching_client_owner() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    let begin_ack = engine.apply_ui_intent_from_client(
+        UiEditIntent::BeginEdit {
+            client_edit_id: "drag-1".to_string(),
+            label: Some("Slider drag".to_string()),
+        },
+        Some("browser-client-a"),
+    );
+    assert!(begin_ack.success, "begin edit should succeed");
+    assert_eq!(
+        engine.active_edit_session_ui_client_instance_id(),
+        Some("browser-client-a")
+    );
+
+    let set_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(10),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(set_ack.success, "set param should succeed inside the open session");
+
+    assert!(
+        !engine.cancel_active_ui_edit_session_for_client("browser-client-b"),
+        "different clients must not cancel another client's edit session"
+    );
+    assert!(engine.has_active_edit_session(), "session should remain active after mismatched cancel");
+
+    assert!(
+        engine.cancel_active_ui_edit_session_for_client("browser-client-a"),
+        "matching client should cancel the active session"
+    );
+    assert!(!engine.has_active_edit_session(), "session should be cleared after cancel");
+    assert_eq!(engine.undo_len(), 0, "canceled session history must be discarded");
+
+    let post_cancel_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(25),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(post_cancel_ack.success, "post-cancel edit should succeed");
+    assert!(engine.undo().expect("undo should succeed after cancel"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .expect("root parameter should exist")
+            .value,
+        ParamValue::Int(10),
+        "undo should restore the live value at cancel time, not the discarded session baseline"
+    );
 }
 
 #[test]

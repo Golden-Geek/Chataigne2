@@ -268,7 +268,12 @@ impl ProcessCtx {
 
     /// Begins an edit session for grouping subsequent intents into one undo boundary.
     pub fn begin_edit_session(&mut self, origin: EditOrigin, client_edit_id: impl Into<String>, label: Option<String>) {
-        self.edits.push(Edit::BeginEditSession { origin, label, client_edit_id: client_edit_id.into() });
+        self.edits.push(Edit::BeginEditSession {
+            origin,
+            label,
+            client_edit_id: client_edit_id.into(),
+            ui_client_instance_id: None,
+        });
     }
 
     /// Ends an edit session previously opened with [`Self::begin_edit_session`].
