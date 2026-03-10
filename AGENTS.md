@@ -18,14 +18,16 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ### Chataigne2 App Shell
 - `Chataigne2` stays a thin app shell.
-- App code should focus on bootstrap, composition, and product-level wiring.
-- Reusable engine, protocol, persistence, and UI logic belongs in reusable workspace crates or packages, not in the shell.
+- App code should focus on app node registration, lifecycle initialization, composition, and product-level wiring.
+- By default, apps should launch through the reusable ready-to-run runtime provided by `golden_core` rather than reimplement desktop, headless, or transport bootstrap locally.
+- Reusable engine, default host runtime, protocol, persistence, and UI logic belongs in reusable workspace crates or packages, not in the shell.
 - Avoid touching `src/main.rs` unless the task is specifically about app-shell startup.
 
 ### Core And Host Separation
-- `golden_core` must stay core, not core plus desktop host plus transport server plus native dialogs.
-- Pure engine logic must remain usable without desktop-only dependencies.
-- Desktop concerns, browser/headless concerns, native dialogs, and transport servers belong in dedicated host or transport layers.
+- `golden_core` should provide the default ready-to-launch runtime stack: desktop/Tauri startup, headless startup, built-in transport server, and native dialogs.
+- Pure engine logic inside `golden_core` must still remain usable without going through desktop-only code paths.
+- Desktop concerns, browser/headless concerns, native dialogs, and transport servers belong in explicit host or transport modules in `golden_core` or sibling workspace crates, not in `src/app`.
+- Do not move the default Tauri/headless/file-dialog host path back into the app shell.
 - Persistence must not be hidden inside host/bootstrap code.
 
 ### Public Boundaries Only

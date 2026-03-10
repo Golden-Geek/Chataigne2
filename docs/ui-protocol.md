@@ -18,6 +18,6 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 
 ## Current Consumers
 
-- The built-in HTTP and WebSocket host in `src/app/ui_server.rs`.
+- The built-in HTTP and WebSocket host in `submodules/golden_core/crates/core/app/ui_server.rs`.
 - The UI transport client in `src-ui/src/lib/golden_ui/transport/`.
 - The UI workbench/session stores through the normalized types in `src-ui/src/lib/golden_ui/types.ts`.

@@ -4,9 +4,9 @@ This repository is being refactored toward a clean long-term architecture. Optim
 
 ## Repo Map
 
-- `src/`: thin app-shell bootstrap, desktop host glue, built-in UI server host glue, and app-specific wiring.
+- `src/`: thin app-shell bootstrap, app-specific nodes, and minimal shell wiring.
 - `src-ui/`: Svelte 5 UI, transport clients, and state/store composition.
-- `submodules/golden_core/crates/core/`: engine and shared runtime layers being cleaned toward pure core responsibilities.
+- `submodules/golden_core/crates/core/`: engine, default ready-to-launch host runtime, protocol, and shared runtime layers.
 - `submodules/golden_core/crates/core_macros/`: proc macros used by the engine and app nodes.
 - `submodules/golden_core/crates/codegen_support/`: build-script support APIs intended for app/workspace consumers.
 
@@ -31,7 +31,8 @@ npm run format
 - Do not import submodule internals by filesystem path from app crates or build scripts.
 - Do not use `#[path = "..."]` to reach into another crate's private files.
 - If shared build logic is needed, expose it through a dedicated public crate or module.
-- Keep `Chataigne2` thin. Reusable engine, protocol, persistence, and UI logic belongs in shared workspaces.
+- Keep `Chataigne2` thin. Reusable engine, default desktop/headless host runtime, protocol, persistence, and UI logic belongs in shared workspaces.
+- Do not reimplement the default Tauri/headless launch path in the app shell; override it only when the app genuinely needs custom bootstrap.
 
 ## Protocol Rules
 

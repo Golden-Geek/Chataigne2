@@ -5,13 +5,14 @@ Chataigne2 is the desktop shell and integration layer for the Golden engine and 
 This repository is being actively refactored toward a clean long-term architecture:
 
 - `Chataigne2` stays a thin application shell.
-- `golden_core` is being pushed toward pure engine and protocol responsibilities.
+- `golden_core` provides the default ready-to-launch desktop/headless runtime plus the shared engine and protocol layers.
+- Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
 - UI state and transport boundaries are being normalized in `src-ui`.
 - protocol declarations and code generation are moving toward a single source of truth.
 
 ## Repository Map
 
-- `src/`: app-shell bootstrap, app-specific nodes, and shell wiring.
+- `src/`: app-shell bootstrap, app-specific nodes, and minimal shell wiring.
 - `src-ui/`: Svelte 5 UI application and UI transport/client layers.
 - `submodules/golden_core/`: shared engine, macros, and deeper design docs.
 - `build.rs`: app node registry generation through a public codegen support crate.

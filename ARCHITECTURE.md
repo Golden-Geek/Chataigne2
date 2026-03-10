@@ -6,11 +6,11 @@ This repository is converging on a layered workspace with a thin shell, shared e
 
 ### App Shell
 
-`Chataigne2` owns app bootstrap, composition, and product-level wiring. It now also owns the desktop and built-in UI server host glue that was previously embedded inside `golden_core`. It should not become the home for reusable engine logic, protocol declarations, or persistence formats.
+`Chataigne2` owns app bootstrap, composition, product-level wiring, and app-specific node registration. It should not become the home for reusable engine logic, default desktop/headless startup, protocol declarations, or persistence formats.
 
 ### Core Engine
 
-`golden_core` currently hosts the shared runtime, node model, macros, and several mixed concerns that are being split apart. The desired end state is a pure engine/core layer that remains usable without desktop-only dependencies.
+`golden_core` hosts the shared runtime, default ready-to-launch desktop/headless host flow, node model, macros, and protocol layers. Pure engine modules inside `golden_core` should remain usable without invoking the desktop host path, but the default application runtime belongs in the reusable core workspace rather than each app shell.
 
 ### Protocol Boundary
 
@@ -22,7 +22,7 @@ UI request, response, event, snapshot, and version types must have one source of
 
 ### Host Layers
 
-Desktop startup, browser/headless hosting, native dialogs, and transport servers are host concerns. They should live outside the pure engine boundary. The current refactor state keeps those responsibilities in the app shell instead of `golden_core`, with the long-term direction still pointing toward dedicated host or transport crates.
+Desktop startup, browser/headless hosting, native dialogs, and transport servers are host concerns. They should live outside the pure engine modules, but they should still be provided by reusable `golden_core` host layers by default. Apps may override command-line parsing or bootstrap when needed, but they should not need local `src/app/desktop.rs`-style host implementations just to launch.
 
 ## Build And Codegen Boundary
 

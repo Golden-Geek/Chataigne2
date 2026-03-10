@@ -9,7 +9,6 @@ dependencies = [
  "golden_codegen_support",
  "golden_core",
  "rand 0.10.0",
- "rfd",
  "serde",
  "serde_json",
  "tauri",
@@ -1431,10 +1430,12 @@ name = "golden_core"
 version = "0.1.0"
 dependencies = [
  "golden_core_macros",
+ "rfd",
  "rquickjs",
  "serde",
  "serde_json",
  "slotmap",
+ "tauri",
  "ts-rs",
  "uuid",
 ]
