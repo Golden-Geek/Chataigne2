@@ -6,7 +6,9 @@ use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
-    Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote,
+    Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary,
+    Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta,
+    PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote,
 };
 
 #[derive(Clone)]
@@ -164,7 +166,10 @@ impl Parse for ItemAttr {
                 } else if type_name.is_none() {
                     type_name = Some(lit);
                 } else {
-                    return Err(Error::new(input.span(), "unexpected extra string literal; expected at most item kind and optional node type"));
+                    return Err(Error::new(
+                        input.span(),
+                        "unexpected extra string literal; expected at most item kind and optional node type",
+                    ));
                 }
             } else if input.peek(Ident) {
                 let key = input.parse::<Ident>()?;
@@ -265,7 +270,10 @@ impl Parse for UpdateAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let rate_hz = input.parse::<LitInt>()?;
         if !input.is_empty() {
-            return Err(Error::new(input.span(), "unexpected tokens, expected a single integer like #[update(60)]"));
+            return Err(Error::new(
+                input.span(),
+                "unexpected tokens, expected a single integer like #[update(60)]",
+            ));
         }
         Ok(Self { rate_hz })
     }
@@ -397,12 +405,20 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `enum_options`"));
                     }
                     out.enum_options = Some(input.parse::<Expr>()?);
-                } else if key == "file_allowed_types" || key == "fileAllowedTypes" || key == "allowed_types" || key == "allowedTypes" {
+                } else if key == "file_allowed_types"
+                    || key == "fileAllowedTypes"
+                    || key == "allowed_types"
+                    || key == "allowedTypes"
+                {
                     if out.file_allowed_types.is_some() {
                         return Err(Error::new(key.span(), "duplicate `file_allowed_types`"));
                     }
                     out.file_allowed_types = Some(input.parse::<Expr>()?);
-                } else if key == "file_allowed_extensions" || key == "fileAllowedExtensions" || key == "allowed_extensions" || key == "allowedExtensions" {
+                } else if key == "file_allowed_extensions"
+                    || key == "fileAllowedExtensions"
+                    || key == "allowed_extensions"
+                    || key == "allowedExtensions"
+                {
                     if out.file_allowed_extensions.is_some() {
                         return Err(Error::new(key.span(), "duplicate `file_allowed_extensions`"));
                     }
@@ -433,7 +449,10 @@ impl Parse for ParamFieldArgs {
         }
 
         if out.default_callback && out.callback.is_some() {
-            return Err(Error::new(input.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
+            return Err(Error::new(
+                input.span(),
+                "cannot combine `default_callback` and `callback`; choose one callback style",
+            ));
         }
 
         Ok(out)
@@ -459,7 +478,10 @@ impl Parse for PotentialNodeFieldArgs {
                 }
                 out.decl_id = Some(input.parse::<LitStr>()?);
             } else {
-                return Err(Error::new(key.span(), "unsupported #[potential_node(...)] argument (supported: decl_id)"));
+                return Err(Error::new(
+                    key.span(),
+                    "unsupported #[potential_node(...)] argument (supported: decl_id)",
+                ));
             }
 
             if input.is_empty() {
@@ -504,7 +526,10 @@ impl Parse for StateFieldArgs {
                     }
                     out.default = Some(input.parse::<Expr>()?);
                 } else {
-                    return Err(Error::new(key.span(), "unsupported #[state(...)] argument (supported: default, persist)"));
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported #[state(...)] argument (supported: default, persist)",
+                    ));
                 }
             }
 
@@ -615,7 +640,9 @@ impl Parse for ParamsDslNodeOptionsOnly {
 
 impl Parse for ParamsDsl {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Self { items: parse_params_dsl_items(input)? })
+        Ok(Self {
+            items: parse_params_dsl_items(input)?,
+        })
     }
 }
 
@@ -700,7 +727,10 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                     content.parse::<Token![=]>()?;
                     folder_meta.presentation = Some(content.parse::<Expr>()?);
                 } else {
-                    return Err(Error::new(key.span(), "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)"));
+                    return Err(Error::new(
+                        key.span(),
+                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
+                    ));
                 }
             }
 
@@ -736,7 +766,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
             let (default, options) = parse_node_tail(tail)?;
 
-            items.push(ParamsDslItem::Node(ParamsDslNode { field, ty, default, options }));
+            items.push(ParamsDslItem::Node(ParamsDslNode {
+                field,
+                ty,
+                default,
+                options,
+            }));
             continue;
         }
 
@@ -751,7 +786,12 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
         let (default, options) = parse_param_tail(tail)?;
 
-        items.push(ParamsDslItem::Param(ParamsDslParam { field: ident, ty, default, options }));
+        items.push(ParamsDslItem::Param(ParamsDslParam {
+            field: ident,
+            ty,
+            default,
+            options,
+        }));
     }
 
     Ok(items)
@@ -763,7 +803,10 @@ fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
     while !input.is_empty() {
         let key = input.parse::<Ident>()?;
         if !input.peek(Token![=]) {
-            return Err(Error::new(key.span(), "unsupported node child option flag; expected `key = value`"));
+            return Err(Error::new(
+                key.span(),
+                "unsupported node child option flag; expected `key = value`",
+            ));
         }
 
         input.parse::<Token![=]>()?;
@@ -809,7 +852,10 @@ fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
             }
             out.meta.presentation = Some(input.parse::<Expr>()?);
         } else {
-            return Err(Error::new(key.span(), "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation)"));
+            return Err(Error::new(
+                key.span(),
+                "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
+            ));
         }
 
         if input.is_empty() {
@@ -931,12 +977,20 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `enum_default` option"));
                 }
                 out.enum_default = Some(input.parse::<LitStr>()?);
-            } else if key == "file_allowed_types" || key == "fileAllowedTypes" || key == "allowed_types" || key == "allowedTypes" {
+            } else if key == "file_allowed_types"
+                || key == "fileAllowedTypes"
+                || key == "allowed_types"
+                || key == "allowedTypes"
+            {
                 if out.file_allowed_types.is_some() {
                     return Err(Error::new(key.span(), "duplicate `file_allowed_types` option"));
                 }
                 out.file_allowed_types = Some(input.parse::<Expr>()?);
-            } else if key == "file_allowed_extensions" || key == "fileAllowedExtensions" || key == "allowed_extensions" || key == "allowedExtensions" {
+            } else if key == "file_allowed_extensions"
+                || key == "fileAllowedExtensions"
+                || key == "allowed_extensions"
+                || key == "allowedExtensions"
+            {
                 if out.file_allowed_extensions.is_some() {
                     return Err(Error::new(key.span(), "duplicate `file_allowed_extensions` option"));
                 }
@@ -953,15 +1007,25 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                 out.reference_target_kind = Some(input.parse::<Expr>()?);
             } else if key == "reference_allowed_node_types" || key == "referenceAllowedNodeTypes" {
                 if out.reference_allowed_node_types.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `reference_allowed_node_types` option"));
+                    return Err(Error::new(
+                        key.span(),
+                        "duplicate `reference_allowed_node_types` option",
+                    ));
                 }
                 out.reference_allowed_node_types = Some(input.parse::<Expr>()?);
             } else if key == "reference_allowed_parameter_types" || key == "referenceAllowedParameterTypes" {
                 if out.reference_allowed_parameter_types.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `reference_allowed_parameter_types` option"));
+                    return Err(Error::new(
+                        key.span(),
+                        "duplicate `reference_allowed_parameter_types` option",
+                    ));
                 }
                 out.reference_allowed_parameter_types = Some(input.parse::<Expr>()?);
-            } else if key == "reference_allow_projections" || key == "referenceAllowProjections" || key == "reference_allow_projection" || key == "referenceAllowProjection" {
+            } else if key == "reference_allow_projections"
+                || key == "referenceAllowProjections"
+                || key == "reference_allow_projection"
+                || key == "referenceAllowProjection"
+            {
                 if out.reference_allow_projections.is_some() {
                     return Err(Error::new(key.span(), "duplicate `reference_allow_projections` option"));
                 }
@@ -973,7 +1037,10 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                 out.reference_custom_filter_key = Some(input.parse::<Expr>()?);
             } else if key == "reference_default_search_filter" || key == "referenceDefaultSearchFilter" {
                 if out.reference_default_search_filter.is_some() {
-                    return Err(Error::new(key.span(), "duplicate `reference_default_search_filter` option"));
+                    return Err(Error::new(
+                        key.span(),
+                        "duplicate `reference_default_search_filter` option",
+                    ));
                 }
                 out.reference_default_search_filter = Some(input.parse::<Expr>()?);
             } else if key == "callback" {
@@ -988,7 +1055,10 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                 ));
             }
         } else {
-            return Err(Error::new(key.span(), "unsupported flag option; expected `default_callback`"));
+            return Err(Error::new(
+                key.span(),
+                "unsupported flag option; expected `default_callback`",
+            ));
         }
 
         if input.is_empty() {
@@ -999,7 +1069,10 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
     }
 
     if out.default_callback && out.callback.is_some() {
-        return Err(Error::new(input.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
+        return Err(Error::new(
+            input.span(),
+            "cannot combine `default_callback` and `callback`; choose one callback style",
+        ));
     }
 
     Ok(out)
@@ -1021,10 +1094,16 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
         if group.delimiter() == Delimiter::Bracket {
             if let Some(range) = parse_param_range_group(group)? {
                 if range.min.is_some() && options.min.is_some() {
-                    return Err(Error::new(group.span(), "duplicate `min`; provided by both `[...]` and options"));
+                    return Err(Error::new(
+                        group.span(),
+                        "duplicate `min`; provided by both `[...]` and options",
+                    ));
                 }
                 if range.max.is_some() && options.max.is_some() {
-                    return Err(Error::new(group.span(), "duplicate `max`; provided by both `[...]` and options"));
+                    return Err(Error::new(
+                        group.span(),
+                        "duplicate `max`; provided by both `[...]` and options",
+                    ));
                 }
                 options.min = options.min.or(range.min);
                 options.max = options.max.or(range.max);
@@ -1038,16 +1117,25 @@ fn parse_param_tail(mut tail: Vec<TokenTree>) -> Result<(Option<Expr>, ParamsDsl
     }
 
     let Some(TokenTree::Punct(prefix)) = tail.first() else {
-        return Err(Error::new(proc_macro2::Span::call_site(), "expected `=` before parameter default expression"));
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "expected `=` before parameter default expression",
+        ));
     };
 
     if prefix.as_char() != '=' {
-        return Err(Error::new(prefix.span(), "expected `=` before parameter default expression"));
+        return Err(Error::new(
+            prefix.span(),
+            "expected `=` before parameter default expression",
+        ));
     }
 
     let default_tokens: proc_macro2::TokenStream = tail.into_iter().skip(1).collect();
     if default_tokens.is_empty() {
-        return Err(Error::new(proc_macro2::Span::call_site(), "missing parameter default expression after `=`"));
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "missing parameter default expression after `=`",
+        ));
     }
 
     let default_expr = syn::parse2::<Expr>(default_tokens)?;
@@ -1067,11 +1155,17 @@ fn parse_node_tail(mut tail: Vec<TokenTree>) -> Result<(Expr, ParamsDslNodeOptio
     }
 
     if tail.is_empty() {
-        return Err(Error::new(proc_macro2::Span::call_site(), "node child declaration requires `= ...` to construct the child node"));
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "node child declaration requires `= ...` to construct the child node",
+        ));
     }
 
     let Some(TokenTree::Punct(prefix)) = tail.first() else {
-        return Err(Error::new(proc_macro2::Span::call_site(), "expected `=` before node child expression"));
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "expected `=` before node child expression",
+        ));
     };
 
     if prefix.as_char() != '=' {
@@ -1080,7 +1174,10 @@ fn parse_node_tail(mut tail: Vec<TokenTree>) -> Result<(Expr, ParamsDslNodeOptio
 
     let default_tokens: proc_macro2::TokenStream = tail.into_iter().skip(1).collect();
     if default_tokens.is_empty() {
-        return Err(Error::new(proc_macro2::Span::call_site(), "missing node child expression after `=`"));
+        return Err(Error::new(
+            proc_macro2::Span::call_site(),
+            "missing node child expression after `=`",
+        ));
     }
 
     let default_expr = syn::parse2::<Expr>(default_tokens)?;
@@ -1102,10 +1199,14 @@ fn parse_param_range_group(group: &proc_macro2::Group) -> Result<Option<ParamsDs
     let mut i = 0usize;
 
     while i < tokens.len() {
-        let two_dots = matches!(tokens.get(i), Some(TokenTree::Punct(p)) if p.as_char() == '.') && matches!(tokens.get(i + 1), Some(TokenTree::Punct(p)) if p.as_char() == '.');
+        let two_dots = matches!(tokens.get(i), Some(TokenTree::Punct(p)) if p.as_char() == '.')
+            && matches!(tokens.get(i + 1), Some(TokenTree::Punct(p)) if p.as_char() == '.');
         if two_dots {
             if separator.is_some() {
-                return Err(Error::new(group.span(), "invalid `[...]` range: expected a single `..` separator"));
+                return Err(Error::new(
+                    group.span(),
+                    "invalid `[...]` range: expected a single `..` separator",
+                ));
             }
             if matches!(tokens.get(i + 2), Some(TokenTree::Punct(p)) if p.as_char() == '=') {
                 separator = Some((i, 3));
@@ -1124,22 +1225,32 @@ fn parse_param_range_group(group: &proc_macro2::Group) -> Result<Option<ParamsDs
     };
 
     let left_tokens: proc_macro2::TokenStream = tokens.iter().take(separator_start).cloned().collect();
-    let right_tokens: proc_macro2::TokenStream = tokens.iter().skip(separator_start + separator_width).cloned().collect();
+    let right_tokens: proc_macro2::TokenStream =
+        tokens.iter().skip(separator_start + separator_width).cloned().collect();
 
     let min = if left_tokens.is_empty() {
         None
     } else {
-        Some(syn::parse2::<Expr>(left_tokens).map_err(|err| Error::new(group.span(), format!("invalid min expression in `[...]`: {err}")))?)
+        Some(
+            syn::parse2::<Expr>(left_tokens)
+                .map_err(|err| Error::new(group.span(), format!("invalid min expression in `[...]`: {err}")))?,
+        )
     };
 
     let max = if right_tokens.is_empty() {
         None
     } else {
-        Some(syn::parse2::<Expr>(right_tokens).map_err(|err| Error::new(group.span(), format!("invalid max expression in `[...]`: {err}")))?)
+        Some(
+            syn::parse2::<Expr>(right_tokens)
+                .map_err(|err| Error::new(group.span(), format!("invalid max expression in `[...]`: {err}")))?,
+        )
     };
 
     if min.is_none() && max.is_none() {
-        return Err(Error::new(group.span(), "invalid `[...]` range: expected at least one bound"));
+        return Err(Error::new(
+            group.span(),
+            "invalid `[...]` range: expected at least one bound",
+        ));
     }
 
     Ok(Some(ParamsDslRange { min, max }))
@@ -1164,7 +1275,10 @@ fn parse_simple_enum_options_expr(expr: &Expr) -> Result<Option<SimpleEnumOption
 
     let mut options = Vec::<SimpleEnumOptionSpec>::new();
     for elem in elems {
-        let Expr::Lit(ExprLit { lit: Lit::Str(raw_lit), .. }) = elem else {
+        let Expr::Lit(ExprLit {
+            lit: Lit::Str(raw_lit), ..
+        }) = elem
+        else {
             return Ok(None);
         };
 
@@ -1226,7 +1340,11 @@ fn enum_label_from_variant_id(variant_id: &str) -> String {
         }
     }
 
-    if words.is_empty() { variant_id.to_string() } else { words.join(" ") }
+    if words.is_empty() {
+        variant_id.to_string()
+    } else {
+        words.join(" ")
+    }
 }
 
 fn build_simple_enum_options_expr(spec: &SimpleEnumOptionsSpec) -> Expr {
@@ -1283,7 +1401,12 @@ fn build_file_allowed_types_assignment(expr: &Expr) -> Result<proc_macro2::Token
                 "video" => quote!(golden_core::parameter::FileTypeGroup::Video),
                 "script" => quote!(golden_core::parameter::FileTypeGroup::Script),
                 other => {
-                    return Err(Error::new(value.span(), format!("unsupported file type group `{other}`; expected one of: \"audio\", \"video\", \"script\"")));
+                    return Err(Error::new(
+                        value.span(),
+                        format!(
+                            "unsupported file type group `{other}`; expected one of: \"audio\", \"video\", \"script\""
+                        ),
+                    ));
                 }
             };
             parsed.push(group);
@@ -1446,7 +1569,10 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 path.push(folder.name.to_string());
                 let decl_id_str = join_decl_path(&path);
                 let decl_id_lit = LitStr::new(&decl_id_str, folder.name.span());
-                let label_lit = folder.label.clone().unwrap_or_else(|| LitStr::new(&folder.name.to_string(), folder.name.span()));
+                let label_lit = folder
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| LitStr::new(&folder.name.to_string(), folder.name.span()));
 
                 let folder_index = plan.folders.len();
                 plan.folders.push(ParamsFolderSpec {
@@ -1469,14 +1595,21 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 path.push(param.field.to_string());
                 let decl_id_str = join_decl_path(&path);
                 let decl_id_lit = LitStr::new(&decl_id_str, param.field.span());
-                let label_lit = param.options.label.clone().unwrap_or_else(|| LitStr::new(&param.field.to_string(), param.field.span()));
+                let label_lit = param
+                    .options
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| LitStr::new(&param.field.to_string(), param.field.span()));
 
                 let behaviour = if let Some(value) = param.options.behaviour.clone() {
                     match value.value().to_ascii_lowercase().as_str() {
                         "append" => Some(ParamEventBehaviourSpec::Append),
                         "coalesce" => Some(ParamEventBehaviourSpec::Coalesce),
                         _ => {
-                            return Err(Error::new(value.span(), "unsupported `behavior`; expected \"Append\" or \"Coalesce\""));
+                            return Err(Error::new(
+                                value.span(),
+                                "unsupported `behavior`; expected \"Append\" or \"Coalesce\"",
+                            ));
                         }
                     }
                 } else {
@@ -1485,10 +1618,15 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
 
                 let constraint_policy = if let Some(value) = param.options.policy.clone() {
                     match value.value().to_ascii_lowercase().as_str() {
-                        "clampadapt" | "clamp_adapt" | "clamp-adapt" | "clamp" => Some(ParamConstraintPolicySpec::ClampAdapt),
+                        "clampadapt" | "clamp_adapt" | "clamp-adapt" | "clamp" => {
+                            Some(ParamConstraintPolicySpec::ClampAdapt)
+                        }
                         "reject" => Some(ParamConstraintPolicySpec::Reject),
                         _ => {
-                            return Err(Error::new(value.span(), "unsupported `policy`; expected \"ClampAdapt\" or \"Reject\""));
+                            return Err(Error::new(
+                                value.span(),
+                                "unsupported `policy`; expected \"ClampAdapt\" or \"Reject\"",
+                            ));
                         }
                     }
                 } else {
@@ -1497,7 +1635,10 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
 
                 let callback = match (param.options.default_callback, param.options.callback.clone()) {
                     (true, Some(_)) => {
-                        return Err(Error::new(param.field.span(), "cannot combine `default_callback` and `callback`; choose one callback style"));
+                        return Err(Error::new(
+                            param.field.span(),
+                            "cannot combine `default_callback` and `callback`; choose one callback style",
+                        ));
                     }
                     (true, None) => Some(ParamCallbackSpec::Default),
                     (false, Some(expr)) => Some(ParamCallbackSpec::Custom(expr)),
@@ -1519,11 +1660,17 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                         for option in &simple_spec.options {
                             let variant = option.variant_id.value();
                             if !seen_variants.insert(variant.clone()) {
-                                return Err(Error::new(option.variant_id.span(), format!("duplicate enum option `{variant}`")));
+                                return Err(Error::new(
+                                    option.variant_id.span(),
+                                    format!("duplicate enum option `{variant}`"),
+                                ));
                             }
                             if option.is_default {
                                 if marked_default.is_some() {
-                                    return Err(Error::new(option.variant_id.span(), "multiple enum options are marked as default; only one is allowed"));
+                                    return Err(Error::new(
+                                        option.variant_id.span(),
+                                        "multiple enum options are marked as default; only one is allowed",
+                                    ));
                                 }
                                 marked_default = Some(variant);
                             }
@@ -1531,34 +1678,74 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
 
                         if let Some(override_variant) = &enum_default_override {
                             if !seen_variants.contains(override_variant) {
-                                return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), format!("`enum_default = \"{override_variant}\"` is not present in enum_options")));
+                                return Err(Error::new(
+                                    param
+                                        .options
+                                        .enum_default
+                                        .as_ref()
+                                        .expect("enum_default present")
+                                        .span(),
+                                    format!("`enum_default = \"{override_variant}\"` is not present in enum_options"),
+                                ));
                             }
                         }
 
                         if let Some(default_expr) = param.default.as_ref() {
                             if let Some(default_variant) = infer_enum_default_variant_from_expr(default_expr) {
                                 if !seen_variants.contains(&default_variant) {
-                                    return Err(Error::new(default_expr.span(), format!("default enum value `{default_variant}` is not present in enum_options")));
+                                    return Err(Error::new(
+                                        default_expr.span(),
+                                        format!(
+                                            "default enum value `{default_variant}` is not present in enum_options"
+                                        ),
+                                    ));
                                 }
                             }
                         }
 
                         if param.default.is_some() && enum_default_override.is_some() {
-                            return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), "cannot combine an explicit enum default (`= ...`) with `enum_default`; choose one"));
+                            return Err(Error::new(
+                                param
+                                    .options
+                                    .enum_default
+                                    .as_ref()
+                                    .expect("enum_default present")
+                                    .span(),
+                                "cannot combine an explicit enum default (`= ...`) with `enum_default`; choose one",
+                            ));
                         }
 
                         if param.default.is_none() {
-                            let selected_default = enum_default_override.clone().or(marked_default).unwrap_or_else(|| simple_spec.options.first().expect("enum options are non-empty").variant_id.value());
+                            let selected_default =
+                                enum_default_override.clone().or(marked_default).unwrap_or_else(|| {
+                                    simple_spec
+                                        .options
+                                        .first()
+                                        .expect("enum options are non-empty")
+                                        .variant_id
+                                        .value()
+                                });
                             let selected_default_lit = LitStr::new(&selected_default, param.field.span());
                             resolved_default = Some(parse_quote!(#selected_default_lit));
                         }
 
                         resolved_enum_options = Some(build_simple_enum_options_expr(&simple_spec));
                     } else if enum_default_override.is_some() {
-                        return Err(Error::new(enum_options_expr.span(), "`enum_default` currently requires simple string-list enum options like `enum_options = [\"off\", \"on\", \"auto\"]`"));
+                        return Err(Error::new(
+                            enum_options_expr.span(),
+                            "`enum_default` currently requires simple string-list enum options like `enum_options = [\"off\", \"on\", \"auto\"]`",
+                        ));
                     }
                 } else if enum_default_override.is_some() {
-                    return Err(Error::new(param.options.enum_default.as_ref().expect("enum_default present").span(), "`enum_default` requires `enum_options`"));
+                    return Err(Error::new(
+                        param
+                            .options
+                            .enum_default
+                            .as_ref()
+                            .expect("enum_default present")
+                            .span(),
+                        "`enum_default` requires `enum_options`",
+                    ));
                 }
 
                 let param_index = plan.params.len();
@@ -1602,7 +1789,11 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 path.push(node.field.to_string());
                 let decl_id_str = join_decl_path(&path);
                 let decl_id_lit = LitStr::new(&decl_id_str, node.field.span());
-                let label_lit = node.options.label.clone().unwrap_or_else(|| LitStr::new(&node.field.to_string(), node.field.span()));
+                let label_lit = node
+                    .options
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| LitStr::new(&node.field.to_string(), node.field.span()));
 
                 let node_index = plan.nodes.len();
                 plan.nodes.push(ParamsNodeSpec {
@@ -1635,7 +1826,12 @@ fn build_declared_description_key_literal(owner_type_name: &LitStr, decl_id_lit:
     LitStr::new(&key, decl_id_lit.span())
 }
 
-fn build_set_declared_description_tokens(target_expr: proc_macro2::TokenStream, owner_type_name: &LitStr, decl_id_lit: &LitStr, description_lit: &LitStr) -> proc_macro2::TokenStream {
+fn build_set_declared_description_tokens(
+    target_expr: proc_macro2::TokenStream,
+    owner_type_name: &LitStr,
+    decl_id_lit: &LitStr,
+    description_lit: &LitStr,
+) -> proc_macro2::TokenStream {
     let key_lit = build_declared_description_key_literal(owner_type_name, decl_id_lit);
     quote! {
         golden_core::node::Node::node_data_mut(&mut #target_expr)
@@ -1658,17 +1854,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
-        Item::Impl(input) => expand_impl(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, None, input).into(),
-        other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
-    }
-}
-
-#[proc_macro_attribute]
-pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let ItemAttr {
-        item_kind,
-        node: NodeAttr {
+        Item::Struct(input) => expand_struct(
             type_name,
             ctor_meta_fields,
             via,
@@ -1676,7 +1862,42 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
             from_struct,
             scriptable,
             contextualizable,
-        },
+            None,
+            input,
+        )
+        .into(),
+        Item::Impl(input) => expand_impl(
+            type_name,
+            ctor_meta_fields,
+            via,
+            impl_node,
+            from_struct,
+            scriptable,
+            contextualizable,
+            None,
+            input,
+        )
+        .into(),
+        other => Error::new_spanned(other, "#[node] supports only structs and `impl Node for ...` blocks")
+            .to_compile_error()
+            .into(),
+    }
+}
+
+#[proc_macro_attribute]
+pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let ItemAttr {
+        item_kind,
+        node:
+            NodeAttr {
+                type_name,
+                ctor_meta_fields,
+                via,
+                impl_node,
+                from_struct,
+                scriptable,
+                contextualizable,
+            },
     } = parse_macro_input!(attr as ItemAttr);
     let input = parse_macro_input!(item as Item);
 
@@ -1691,9 +1912,33 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     match input {
-        Item::Struct(input) => expand_struct(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(resolved_item_kind), input).into(),
-        Item::Impl(input) => expand_impl(type_name, ctor_meta_fields, via, impl_node, from_struct, scriptable, contextualizable, Some(resolved_item_kind), input).into(),
-        other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks").to_compile_error().into(),
+        Item::Struct(input) => expand_struct(
+            type_name,
+            ctor_meta_fields,
+            via,
+            impl_node,
+            from_struct,
+            scriptable,
+            contextualizable,
+            Some(resolved_item_kind),
+            input,
+        )
+        .into(),
+        Item::Impl(input) => expand_impl(
+            type_name,
+            ctor_meta_fields,
+            via,
+            impl_node,
+            from_struct,
+            scriptable,
+            contextualizable,
+            Some(resolved_item_kind),
+            input,
+        )
+        .into(),
+        other => Error::new_spanned(other, "#[item] supports only structs and `impl Node for ...` blocks")
+            .to_compile_error()
+            .into(),
     }
 }
 
@@ -1705,27 +1950,40 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
     let rate = match rate_hz.base10_parse::<u32>() {
         Ok(rate) => rate,
         Err(err) => {
-            return Error::new(rate_hz.span(), format!("invalid update rate: {err}")).to_compile_error().into();
+            return Error::new(rate_hz.span(), format!("invalid update rate: {err}"))
+                .to_compile_error()
+                .into();
         }
     };
 
     if rate == 0 {
-        return Error::new(rate_hz.span(), "update rate must be greater than zero").to_compile_error().into();
+        return Error::new(rate_hz.span(), "update rate must be greater than zero")
+            .to_compile_error()
+            .into();
     }
 
     match input {
         Item::Impl(mut input) => {
             let Some((_, trait_path, _)) = &input.trait_ else {
-                return Error::new_spanned(input, "#[update(...)] requires a trait impl: `impl Node for Type`").to_compile_error().into();
+                return Error::new_spanned(input, "#[update(...)] requires a trait impl: `impl Node for Type`")
+                    .to_compile_error()
+                    .into();
             };
 
             let is_node_impl = trait_path.segments.last().is_some_and(|seg| seg.ident == "Node");
             if !is_node_impl {
-                return Error::new_spanned(trait_path, "#[update(...)] can only be used with `Node` trait impls").to_compile_error().into();
+                return Error::new_spanned(trait_path, "#[update(...)] can only be used with `Node` trait impls")
+                    .to_compile_error()
+                    .into();
             }
 
             if has_method(&input, "execution_rule") {
-                return Error::new_spanned(input, "impl already defines `execution_rule`; remove #[update(...)] or the method").to_compile_error().into();
+                return Error::new_spanned(
+                    input,
+                    "impl already defines `execution_rule`; remove #[update(...)] or the method",
+                )
+                .to_compile_error()
+                .into();
             }
 
             input.items.push(parse_quote! {
@@ -1736,7 +1994,9 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             quote!(#input).into()
         }
-        other => Error::new_spanned(other, "#[update(...)] supports only `impl Node for ...` blocks").to_compile_error().into(),
+        other => Error::new_spanned(other, "#[update(...)] supports only `impl Node for ...` blocks")
+            .to_compile_error()
+            .into(),
     }
 }
 
@@ -1752,38 +2012,65 @@ fn expand_struct(
     mut input: ItemStruct,
 ) -> proc_macro2::TokenStream {
     if via.is_some() {
-        return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks").to_compile_error();
+        return Error::new_spanned(input, "`via = ...` is only supported on `impl Node for ...` blocks")
+            .to_compile_error();
     }
     if from_struct {
-        return Error::new_spanned(input, "`from_struct` is only supported on `impl Node for ...` blocks").to_compile_error();
+        return Error::new_spanned(input, "`from_struct` is only supported on `impl Node for ...` blocks")
+            .to_compile_error();
     }
     if item_kind.is_some() && !impl_node {
-        return Error::new_spanned(input, "`#[item(...)]` on a struct requires `impl_node`, or apply `#[item(...)]` on `impl Node for ...`").to_compile_error();
+        return Error::new_spanned(
+            input,
+            "`#[item(...)]` on a struct requires `impl_node`, or apply `#[item(...)]` on `impl Node for ...`",
+        )
+        .to_compile_error();
     }
     if scriptable.is_some() && !impl_node {
-        return Error::new_spanned(input, "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
+        return Error::new_spanned(
+            input,
+            "`scriptable` on a struct requires `impl_node`, or apply it on `impl Node for ...`",
+        )
+        .to_compile_error();
     }
     if contextualizable.is_some() && !impl_node {
-        return Error::new_spanned(input, "`contextualizable` on a struct requires `impl_node`, or apply it on `impl Node for ...`").to_compile_error();
+        return Error::new_spanned(
+            input,
+            "`contextualizable` on a struct requires `impl_node`, or apply it on `impl Node for ...`",
+        )
+        .to_compile_error();
     }
 
-    let generated_type_description = extract_doc_comment_literal(&input.attrs).map_or_else(|| quote!(None), |description| quote!(Some(#description)));
+    let generated_type_description = extract_doc_comment_literal(&input.attrs)
+        .map_or_else(|| quote!(None), |description| quote!(Some(#description)));
     let mut params_dsl = None::<ParamsDsl>;
     let mut struct_defaults = BTreeMap::<String, (Ident, Expr)>::new();
     let mut kept_attrs = Vec::with_capacity(input.attrs.len());
     for attr in input.attrs.drain(..) {
-        if attr.path().segments.last().is_some_and(|segment| segment.ident == "children") {
+        if attr
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "children")
+        {
             if params_dsl.is_some() {
-                return Error::new_spanned(attr, "only one #[children(...)] attribute is supported per struct").to_compile_error();
+                return Error::new_spanned(attr, "only one #[children(...)] attribute is supported per struct")
+                    .to_compile_error();
             }
             let parsed = match attr.parse_args::<ParamsDsl>() {
                 Ok(parsed) => parsed,
                 Err(err) => return err.to_compile_error(),
             };
             params_dsl = Some(parsed);
-        } else if attr.path().segments.last().is_some_and(|segment| segment.ident == "defaults") {
+        } else if attr
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "defaults")
+        {
             if !struct_defaults.is_empty() {
-                return Error::new_spanned(attr, "only one #[defaults(...)] attribute is supported per struct").to_compile_error();
+                return Error::new_spanned(attr, "only one #[defaults(...)] attribute is supported per struct")
+                    .to_compile_error();
             }
             let parsed = match attr.parse_args::<StructDefaultsAttr>() {
                 Ok(parsed) => parsed,
@@ -1799,7 +2086,10 @@ fn expand_struct(
     let struct_name = input.ident.clone();
     let resolved_type_name = type_name.unwrap_or_else(|| make_type_name_literal(&struct_name.to_string()));
     let fallback_default_label = make_label_literal(&resolved_type_name.value());
-    let static_default_label = ctor_meta_fields.get("label").and_then(|(_, expr)| expr_string_literal(expr)).unwrap_or_else(|| fallback_default_label.clone());
+    let static_default_label = ctor_meta_fields
+        .get("label")
+        .and_then(|(_, expr)| expr_string_literal(expr))
+        .unwrap_or_else(|| fallback_default_label.clone());
     let generics = input.generics.clone();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -1815,11 +2105,15 @@ fn expand_struct(
     let fields = match &mut input.fields {
         Fields::Named(named) => &mut named.named,
         _ => {
-            return Error::new_spanned(input, "#[node(\"...\")] supports only structs with named fields").to_compile_error().into();
+            return Error::new_spanned(input, "#[node(\"...\")] supports only structs with named fields")
+                .to_compile_error()
+                .into();
         }
     };
 
-    let has_node_data = fields.iter().any(|f| f.ident.as_ref().is_some_and(|ident| ident == "node_data"));
+    let has_node_data = fields
+        .iter()
+        .any(|f| f.ident.as_ref().is_some_and(|ident| ident == "node_data"));
     if !has_node_data {
         fields.insert(0, parse_quote!(node_data: golden_core::node::NodeData));
     }
@@ -1840,7 +2134,11 @@ fn expand_struct(
         .iter()
         .filter_map(|field| {
             let ident = field.ident.clone()?;
-            field.attrs.iter().any(|attr| attr.path().is_ident("param")).then_some(ident)
+            field
+                .attrs
+                .iter()
+                .any(|attr| attr.path().is_ident("param"))
+                .then_some(ident)
         })
         .collect::<Vec<_>>();
     let mut field_param_prev_decl_ids = Vec::<LitStr>::new();
@@ -1860,10 +2158,12 @@ fn expand_struct(
             Err(err) => return err.to_compile_error(),
         };
         if param_attr.is_some() && potential_attr.is_some() {
-            return Error::new_spanned(field, "field cannot have both #[param(...)] and #[potential_node(...)]").to_compile_error();
+            return Error::new_spanned(field, "field cannot have both #[param(...)] and #[potential_node(...)]")
+                .to_compile_error();
         }
         if state_attr.is_some() && (param_attr.is_some() || potential_attr.is_some()) {
-            return Error::new_spanned(field, "#[state(...)] is only supported on plain node fields").to_compile_error();
+            return Error::new_spanned(field, "#[state(...)] is only supported on plain node fields")
+                .to_compile_error();
         }
 
         let state_args = if let Some(state_attr) = state_attr {
@@ -1878,7 +2178,11 @@ fn expand_struct(
 
         if let Some(param_attr) = param_attr {
             if field_default.is_some() {
-                return Error::new_spanned(field, "cannot combine #[defaults(...)] with #[param(...)] field declarations").to_compile_error();
+                return Error::new_spanned(
+                    field,
+                    "cannot combine #[defaults(...)] with #[param(...)] field declarations",
+                )
+                .to_compile_error();
             }
             if params_plan.is_some() {
                 return Error::new_spanned(param_attr, "cannot combine field-level #[param(...)] with struct-level #[children(...)]; choose one parameter declaration style").to_compile_error();
@@ -1893,11 +2197,16 @@ fn expand_struct(
             };
 
             let Some(param_value_ty) = extract_handle_inner_type(&field.ty, "ParameterHandle") else {
-                return Error::new_spanned(&field.ty, "#[param(...)] requires field type ParameterHandle<T>").to_compile_error();
+                return Error::new_spanned(&field.ty, "#[param(...)] requires field type ParameterHandle<T>")
+                    .to_compile_error();
             };
 
-            let decl_id_lit = args.decl_id.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
-            let label_lit = args.label.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
+            let decl_id_lit = args
+                .decl_id
+                .unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
+            let label_lit = args
+                .label
+                .unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
             let dependency_predicate = match args.dependency.as_ref() {
                 Some(expr) => match build_param_dependency_eval_tokens(expr, &field_param_order) {
                     Ok(tokens) => Some(tokens),
@@ -1908,7 +2217,14 @@ fn expand_struct(
             let previous_decl_ids = field_param_prev_decl_ids.clone();
             field_param_prev_decl_ids.push(decl_id_lit.clone());
             let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids, quote!(__golden_node_owner_id));
-            let set_description = args.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__param_node), &resolved_type_name, &decl_id_lit, description_lit));
+            let set_description = args.description.as_ref().map(|description_lit| {
+                build_set_declared_description_tokens(
+                    quote!(__param_node),
+                    &resolved_type_name,
+                    &decl_id_lit,
+                    description_lit,
+                )
+            });
             let set_range = build_range_constraint_assignment(args.min.as_ref(), args.max.as_ref(), &param_value_ty);
             let set_read_only = args.read_only.map(|expr| {
                 quote! {
@@ -1953,13 +2269,21 @@ fn expand_struct(
                         __param_node.constraints.policy = golden_core::parameter::ParameterConstraintPolicy::Reject;
                     }),
                     _ => {
-                        return Error::new(value.span(), "unsupported #[param(...)] `policy`; expected \"ClampAdapt\" or \"Reject\"").to_compile_error();
+                        return Error::new(
+                            value.span(),
+                            "unsupported #[param(...)] `policy`; expected \"ClampAdapt\" or \"Reject\"",
+                        )
+                        .to_compile_error();
                     }
                 }
             } else {
                 None
             };
-            let callback = if args.default_callback { Some(ParamCallbackSpec::Default) } else { args.callback.map(ParamCallbackSpec::Custom) };
+            let callback = if args.default_callback {
+                Some(ParamCallbackSpec::Default)
+            } else {
+                args.callback.map(ParamCallbackSpec::Custom)
+            };
             let create_param_node = quote! {
                 {
                     let mut __param_node = golden_core::parameter::Parameter::new(
@@ -2051,7 +2375,8 @@ fn expand_struct(
             });
 
             if let Some(callback_spec) = &callback {
-                param_change_callback_statements.push(build_param_callback_dispatch(field_ident.clone(), callback_spec));
+                param_change_callback_statements
+                    .push(build_param_callback_dispatch(field_ident.clone(), callback_spec));
             }
 
             param_refresh_bindings.push(quote! {
@@ -2067,7 +2392,11 @@ fn expand_struct(
 
         if let Some(potential_attr) = potential_attr {
             if field_default.is_some() {
-                return Error::new_spanned(field, "cannot combine #[defaults(...)] with #[potential_node(...)] field declarations").to_compile_error();
+                return Error::new_spanned(
+                    field,
+                    "cannot combine #[defaults(...)] with #[potential_node(...)] field declarations",
+                )
+                .to_compile_error();
             }
             let args = match potential_attr.parse_args::<PotentialNodeFieldArgs>() {
                 Ok(args) => args,
@@ -2075,10 +2404,16 @@ fn expand_struct(
             };
 
             if !is_named_type(&field.ty, "PotentialNodeHandle") {
-                return Error::new_spanned(&field.ty, "#[potential_node(...)] requires field type PotentialNodeHandle").to_compile_error();
+                return Error::new_spanned(
+                    &field.ty,
+                    "#[potential_node(...)] requires field type PotentialNodeHandle",
+                )
+                .to_compile_error();
             }
 
-            let decl_id_lit = args.decl_id.unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
+            let decl_id_lit = args
+                .decl_id
+                .unwrap_or_else(|| LitStr::new(&field_ident.to_string(), field_ident.span()));
 
             ctor_inits.push(quote! {
                 #field_ident: golden_core::node::PotentialNodeHandle::new(
@@ -2108,11 +2443,18 @@ fn expand_struct(
 
         let state_default = state_args.as_ref().and_then(|args| args.default.clone());
         if field_default.is_some() && state_default.is_some() {
-            return Error::new_spanned(field, "cannot define both #[defaults(...)] and #[state(default = ...)] for the same field").to_compile_error();
+            return Error::new_spanned(
+                field,
+                "cannot define both #[defaults(...)] and #[state(default = ...)] for the same field",
+            )
+            .to_compile_error();
         }
 
         if state_args.as_ref().and_then(|args| args.persist).unwrap_or(false) {
-            persisted_state_fields.push((field_ident.clone(), LitStr::new(&field_ident.to_string(), field_ident.span())));
+            persisted_state_fields.push((
+                field_ident.clone(),
+                LitStr::new(&field_ident.to_string(), field_ident.span()),
+            ));
         }
 
         if let Some(default_expr) = state_default.or(field_default) {
@@ -2127,13 +2469,27 @@ fn expand_struct(
         return Error::new(field.span(), format!("unknown #[defaults(...)] field `{}`", field)).to_compile_error();
     }
 
-    let mut generated_child_interest_depth = if child_added_decl_statements.is_empty() && child_replaced_decl_statements.is_empty() && child_removed_statements.is_empty() { 0u32 } else { 1u32 };
+    let mut generated_child_interest_depth = if child_added_decl_statements.is_empty()
+        && child_replaced_decl_statements.is_empty()
+        && child_removed_statements.is_empty()
+    {
+        0u32
+    } else {
+        1u32
+    };
 
     if let Some(plan) = &params_plan {
         let plan_param_fields = plan.params.iter().map(|param| param.field.clone()).collect::<Vec<_>>();
         for param in &plan.params {
-            if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &param.field)) {
-                return Error::new(param.field.span(), format!("duplicate field `{}` generated by #[children(...)]", param.field)).to_compile_error();
+            if fields
+                .iter()
+                .any(|field| field.ident.as_ref().is_some_and(|ident| ident == &param.field))
+            {
+                return Error::new(
+                    param.field.span(),
+                    format!("duplicate field `{}` generated by #[children(...)]", param.field),
+                )
+                .to_compile_error();
             }
             let field_ident = &param.field;
             let ty = &param.ty;
@@ -2152,8 +2508,15 @@ fn expand_struct(
         }
 
         for node in &plan.nodes {
-            if fields.iter().any(|field| field.ident.as_ref().is_some_and(|ident| ident == &node.field)) {
-                return Error::new(node.field.span(), format!("duplicate field `{}` generated by #[children(...)]", node.field)).to_compile_error();
+            if fields
+                .iter()
+                .any(|field| field.ident.as_ref().is_some_and(|ident| ident == &node.field))
+            {
+                return Error::new(
+                    node.field.span(),
+                    format!("duplicate field `{}` generated by #[children(...)]", node.field),
+                )
+                .to_compile_error();
             }
 
             let field_ident = &node.field;
@@ -2170,7 +2533,8 @@ fn expand_struct(
             });
         }
 
-        let root_materialize = materialize_children_tokens(plan, &resolved_type_name, "", quote!(__golden_node_owner_id));
+        let root_materialize =
+            materialize_children_tokens(plan, &resolved_type_name, "", quote!(__golden_node_owner_id));
         generated_init_statements.extend(root_materialize);
 
         for folder in &plan.folders {
@@ -2286,11 +2650,23 @@ fn expand_struct(
             let field_ident = &param.field;
             let parent_path = join_decl_path(&param.path[..param.path.len().saturating_sub(1)]);
             let parent_path_lit = LitStr::new(&parent_path, proc_macro2::Span::call_site());
-            let expected_prev = match build_plan_prev_sibling_tokens(plan, &parent_path, ParamsChildRef::Param(param_index), quote!(__golden_parent), &plan_param_fields) {
+            let expected_prev = match build_plan_prev_sibling_tokens(
+                plan,
+                &parent_path,
+                ParamsChildRef::Param(param_index),
+                quote!(__golden_parent),
+                &plan_param_fields,
+            ) {
                 Ok(tokens) => tokens,
                 Err(err) => return err.to_compile_error(),
             };
-            let create_param = build_params_plan_param_create_tokens_with_insert_after(plan, &resolved_type_name, quote!(__golden_parent), field_ident, expected_prev.clone());
+            let create_param = build_params_plan_param_create_tokens_with_insert_after(
+                plan,
+                &resolved_type_name,
+                quote!(__golden_parent),
+                field_ident,
+                expected_prev.clone(),
+            );
             let resolve_parent = if parent_path.is_empty() {
                 quote!(Some(__golden_node_owner_id))
             } else {
@@ -2335,7 +2711,10 @@ fn expand_struct(
         generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
     }
 
-    let ctor_args = ctor_fields.iter().map(|(ident, ty)| quote!(#ident: #ty)).collect::<Vec<_>>();
+    let ctor_args = ctor_fields
+        .iter()
+        .map(|(ident, ty)| quote!(#ident: #ty))
+        .collect::<Vec<_>>();
     let generated_default_label = match ctor_meta_fields.get("label") {
         Some((_, expr)) => quote! { (#expr).into() },
         None => quote! { ::std::string::String::from(Self::DEFAULT_LABEL) },
@@ -2458,7 +2837,9 @@ fn expand_struct(
         }
     });
     let generated_script_host_policy = scriptable.as_ref().map(build_script_host_policy_method_tokens);
-    let generated_user_context_host_policy = contextualizable.as_ref().map(build_user_context_host_policy_method_tokens);
+    let generated_user_context_host_policy = contextualizable
+        .as_ref()
+        .map(build_user_context_host_policy_method_tokens);
 
     let generated_node_impl = if impl_node {
         quote! {
@@ -2655,7 +3036,8 @@ fn expand_impl(
     }
 
     let Some((_, trait_path, _)) = &input.trait_ else {
-        return Error::new_spanned(input, "#[node] on impl requires a trait impl: `impl Node for Type`").to_compile_error();
+        return Error::new_spanned(input, "#[node] on impl requires a trait impl: `impl Node for Type`")
+            .to_compile_error();
     };
 
     let is_node_impl = trait_path.segments.last().is_some_and(|seg| seg.ident == "Node");
@@ -2890,9 +3272,18 @@ fn expand_impl(
 }
 
 fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&DelegatePath>) -> Result<()> {
-    for method_name in ["engine_child_event_interest_depth", "engine_sync_param_handle_cache", "engine_on_attached", "engine_sync_bound_param_handles", "engine_preprocess_inbox"] {
+    for method_name in [
+        "engine_child_event_interest_depth",
+        "engine_sync_param_handle_cache",
+        "engine_on_attached",
+        "engine_sync_bound_param_handles",
+        "engine_preprocess_inbox",
+    ] {
         if has_method(input, method_name) {
-            return Err(Error::new_spanned(&*input, format!("`from_struct` generates `{method_name}`; remove the manual method or `from_struct`")));
+            return Err(Error::new_spanned(
+                &*input,
+                format!("`from_struct` generates `{method_name}`; remove the manual method or `from_struct`"),
+            ));
         }
     }
 
@@ -3003,7 +3394,10 @@ fn extract_doc_comment_literal(attrs: &[Attribute]) -> Option<LitStr> {
         let Meta::NameValue(meta) = &attr.meta else {
             continue;
         };
-        let Expr::Lit(ExprLit { lit: Lit::Str(value), .. }) = &meta.value else {
+        let Expr::Lit(ExprLit {
+            lit: Lit::Str(value), ..
+        }) = &meta.value
+        else {
             continue;
         };
 
@@ -3053,7 +3447,10 @@ fn previous_decl_ids_for_child(plan: &ParamsPlan, parent_key: &str, current: Par
     out
 }
 
-fn build_declared_prev_sibling_tokens(prev_decl_ids: &[LitStr], parent_expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+fn build_declared_prev_sibling_tokens(
+    prev_decl_ids: &[LitStr],
+    parent_expr: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
     if prev_decl_ids.is_empty() {
         return quote!(None);
     }
@@ -3078,7 +3475,10 @@ fn extract_dependency_field_ident(expr: &Expr, parameter_fields: &[Ident]) -> Op
         return None;
     };
     let ident = path.get_ident()?.clone();
-    parameter_fields.iter().any(|candidate| candidate == &ident).then_some(ident)
+    parameter_fields
+        .iter()
+        .any(|candidate| candidate == &ident)
+        .then_some(ident)
 }
 
 fn build_param_dependency_value_tokens(expr: &Expr, parameter_fields: &[Ident]) -> proc_macro2::TokenStream {
@@ -3093,7 +3493,10 @@ fn build_param_dependency_closure_tokens(closure: &syn::ExprClosure) -> Result<p
     match closure.inputs.len() {
         1 => Ok(quote!((#closure)(self))),
         2 => Ok(quote!((#closure)(self, ctx))),
-        _ => Err(Error::new_spanned(closure, "dependency closures must accept `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`")),
+        _ => Err(Error::new_spanned(
+            closure,
+            "dependency closures must accept `|node: &Self| ...` or `|node: &Self, ctx: &ProcessCtx| ...`",
+        )),
     }
 }
 
@@ -3101,7 +3504,9 @@ fn build_param_dependency_eval_tokens(expr: &Expr, parameter_fields: &[Ident]) -
     match expr {
         Expr::Closure(closure) => build_param_dependency_closure_tokens(closure),
         Expr::Paren(inner) => build_param_dependency_eval_tokens(&inner.expr, parameter_fields),
-        Expr::Unary(ExprUnary { op: UnOp::Not(_), expr, .. }) => {
+        Expr::Unary(ExprUnary {
+            op: UnOp::Not(_), expr, ..
+        }) => {
             let inner = build_param_dependency_eval_tokens(expr, parameter_fields)?;
             Ok(quote!(!(#inner)))
         }
@@ -3157,7 +3562,13 @@ fn build_param_dependency_eval_tokens(expr: &Expr, parameter_fields: &[Ident]) -
     }
 }
 
-fn build_plan_prev_sibling_tokens(plan: &ParamsPlan, parent_key: &str, current: ParamsChildRef, parent_expr: proc_macro2::TokenStream, parameter_fields: &[Ident]) -> Result<proc_macro2::TokenStream> {
+fn build_plan_prev_sibling_tokens(
+    plan: &ParamsPlan,
+    parent_key: &str,
+    current: ParamsChildRef,
+    parent_expr: proc_macro2::TokenStream,
+    parameter_fields: &[Ident],
+) -> Result<proc_macro2::TokenStream> {
     let Some(children) = plan.children_by_parent.get(parent_key) else {
         return Ok(quote!(None));
     };
@@ -3219,12 +3630,25 @@ fn build_plan_prev_sibling_tokens(plan: &ParamsPlan, parent_key: &str, current: 
     })
 }
 
-fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, owner_type_name: &LitStr, parent_expr: proc_macro2::TokenStream, field_ident: &Ident, insert_after: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-    let (_, param) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
+fn build_params_plan_param_create_tokens_with_insert_after(
+    plan: &ParamsPlan,
+    owner_type_name: &LitStr,
+    parent_expr: proc_macro2::TokenStream,
+    field_ident: &Ident,
+    insert_after: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    let (_, param) = plan
+        .params
+        .iter()
+        .enumerate()
+        .find(|(_, param)| &param.field == field_ident)
+        .expect("parameter field should exist in params plan");
     let ty = &param.ty;
     let label_lit = &param.label;
     let decl_id_lit = &param.decl_id;
-    let set_description = param.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__param_node), owner_type_name, decl_id_lit, description_lit));
+    let set_description = param.description.as_ref().map(|description_lit| {
+        build_set_declared_description_tokens(quote!(__param_node), owner_type_name, decl_id_lit, description_lit)
+    });
     let set_short_name = param.meta.short_name.as_ref().map(|short_name_lit| {
         quote! {
             golden_core::node::Node::node_data_mut(&mut __param_node).meta.short_name =
@@ -3396,13 +3820,38 @@ fn build_params_plan_param_create_tokens_with_insert_after(plan: &ParamsPlan, ow
     }
 }
 
-fn build_params_plan_param_create_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, parent_key: &str, parent_expr: proc_macro2::TokenStream, field_ident: &Ident) -> proc_macro2::TokenStream {
-    let (param_index, _) = plan.params.iter().enumerate().find(|(_, param)| &param.field == field_ident).expect("parameter field should exist in params plan");
-    let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Param(param_index)), parent_expr.clone());
-    build_params_plan_param_create_tokens_with_insert_after(plan, owner_type_name, parent_expr, field_ident, insert_after)
+fn build_params_plan_param_create_tokens(
+    plan: &ParamsPlan,
+    owner_type_name: &LitStr,
+    parent_key: &str,
+    parent_expr: proc_macro2::TokenStream,
+    field_ident: &Ident,
+) -> proc_macro2::TokenStream {
+    let (param_index, _) = plan
+        .params
+        .iter()
+        .enumerate()
+        .find(|(_, param)| &param.field == field_ident)
+        .expect("parameter field should exist in params plan");
+    let insert_after = build_declared_prev_sibling_tokens(
+        &previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Param(param_index)),
+        parent_expr.clone(),
+    );
+    build_params_plan_param_create_tokens_with_insert_after(
+        plan,
+        owner_type_name,
+        parent_expr,
+        field_ident,
+        insert_after,
+    )
 }
 
-fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, parent_key: &str, parent_expr: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
+fn materialize_children_tokens(
+    plan: &ParamsPlan,
+    owner_type_name: &LitStr,
+    parent_key: &str,
+    parent_expr: proc_macro2::TokenStream,
+) -> Vec<proc_macro2::TokenStream> {
     let mut out = Vec::new();
     let Some(children) = plan.children_by_parent.get(parent_key) else {
         return out;
@@ -3416,8 +3865,18 @@ fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, pare
                 let folder = &plan.folders[folder_index];
                 let label_lit = &folder.label;
                 let decl_id_lit = &folder.decl_id;
-                let insert_after = build_declared_prev_sibling_tokens(&previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)), parent_expr.clone());
-                let set_description = folder.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__folder_node), owner_type_name, decl_id_lit, description_lit));
+                let insert_after = build_declared_prev_sibling_tokens(
+                    &previous_decl_ids_for_child(plan, parent_key, ParamsChildRef::Folder(folder_index)),
+                    parent_expr.clone(),
+                );
+                let set_description = folder.description.as_ref().map(|description_lit| {
+                    build_set_declared_description_tokens(
+                        quote!(__folder_node),
+                        owner_type_name,
+                        decl_id_lit,
+                        description_lit,
+                    )
+                });
                 let set_short_name = folder.meta.short_name.as_ref().map(|short_name_lit| {
                     quote! {
                         golden_core::node::Node::node_data_mut(&mut __folder_node).meta.short_name =
@@ -3497,12 +3956,19 @@ fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, pare
             ParamsChildRef::Param(param_index) => {
                 let param = &plan.params[param_index];
                 let field_ident = &param.field;
-                let create_param = build_params_plan_param_create_tokens(plan, owner_type_name, parent_key, parent_expr.clone(), field_ident);
+                let create_param = build_params_plan_param_create_tokens(
+                    plan,
+                    owner_type_name,
+                    parent_key,
+                    parent_expr.clone(),
+                    field_ident,
+                );
                 if let Some(dependency_expr) = param.dependency.as_ref() {
-                    let dependency_predicate = match build_param_dependency_eval_tokens(dependency_expr, &plan_param_fields) {
-                        Ok(tokens) => tokens,
-                        Err(err) => return vec![err.to_compile_error()],
-                    };
+                    let dependency_predicate =
+                        match build_param_dependency_eval_tokens(dependency_expr, &plan_param_fields) {
+                            Ok(tokens) => tokens,
+                            Err(err) => return vec![err.to_compile_error()],
+                        };
                     out.push(quote! {
                         if #dependency_predicate {
                             if !self.#field_ident.is_bound() {
@@ -3525,7 +3991,14 @@ fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, pare
                 let label_lit = &node.label;
                 let decl_id_lit = &node.decl_id;
                 let default_expr = &node.default;
-                let set_description = node.description.as_ref().map(|description_lit| build_set_declared_description_tokens(quote!(__child_node), owner_type_name, decl_id_lit, description_lit));
+                let set_description = node.description.as_ref().map(|description_lit| {
+                    build_set_declared_description_tokens(
+                        quote!(__child_node),
+                        owner_type_name,
+                        decl_id_lit,
+                        description_lit,
+                    )
+                });
                 let set_short_name = node.meta.short_name.as_ref().map(|short_name_lit| {
                     quote! {
                         golden_core::node::Node::node_data_mut(&mut __child_node).meta.short_name =
@@ -3596,8 +4069,18 @@ fn materialize_children_tokens(plan: &ParamsPlan, owner_type_name: &LitStr, pare
 
 fn folder_materialization_guard(plan: &ParamsPlan, folder_index: usize) -> proc_macro2::TokenStream {
     let folder = &plan.folders[folder_index];
-    let descendant_params = plan.params.iter().filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path)).map(|param| param.field.clone()).collect::<Vec<_>>();
-    let descendant_nodes = plan.nodes.iter().filter(|node| node.path.len() > folder.path.len() && node.path.starts_with(&folder.path)).map(|node| node.field.clone()).collect::<Vec<_>>();
+    let descendant_params = plan
+        .params
+        .iter()
+        .filter(|param| param.path.len() > folder.path.len() && param.path.starts_with(&folder.path))
+        .map(|param| param.field.clone())
+        .collect::<Vec<_>>();
+    let descendant_nodes = plan
+        .nodes
+        .iter()
+        .filter(|node| node.path.len() > folder.path.len() && node.path.starts_with(&folder.path))
+        .map(|node| node.field.clone())
+        .collect::<Vec<_>>();
 
     let mut bound_guards = Vec::<proc_macro2::TokenStream>::new();
     for field_ident in descendant_params {
@@ -3607,7 +4090,11 @@ fn folder_materialization_guard(plan: &ParamsPlan, folder_index: usize) -> proc_
         bound_guards.push(quote!(self.#field_ident.is_present() || self.#field_ident.is_pending_create()));
     }
 
-    if bound_guards.is_empty() { quote!(true) } else { quote!(!(#(#bound_guards)||*)) }
+    if bound_guards.is_empty() {
+        quote!(true)
+    } else {
+        quote!(!(#(#bound_guards)||*))
+    }
 }
 
 fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallbackSpec) -> proc_macro2::TokenStream {
@@ -3632,7 +4119,11 @@ fn build_param_callback_dispatch(field_ident: Ident, callback_spec: &ParamCallba
     }
 }
 
-fn build_range_constraint_assignment(min_expr: Option<&Expr>, max_expr: Option<&Expr>, ty: &Type) -> Option<proc_macro2::TokenStream> {
+fn build_range_constraint_assignment(
+    min_expr: Option<&Expr>,
+    max_expr: Option<&Expr>,
+    ty: &Type,
+) -> Option<proc_macro2::TokenStream> {
     if min_expr.is_none() && max_expr.is_none() {
         return None;
     }
@@ -3644,7 +4135,13 @@ fn build_range_constraint_assignment(min_expr: Option<&Expr>, max_expr: Option<&
 
     if vector_arity.is_none() && has_component_shape {
         let source_expr = min_expr.or(max_expr)?;
-        return Some(Error::new_spanned(source_expr, "tuple/array range bounds are only supported for Vec2/Vec3 parameter types").to_compile_error());
+        return Some(
+            Error::new_spanned(
+                source_expr,
+                "tuple/array range bounds are only supported for Vec2/Vec3 parameter types",
+            )
+            .to_compile_error(),
+        );
     }
 
     if let Some(arity) = vector_arity {
@@ -3671,13 +4168,25 @@ fn build_range_constraint_assignment(min_expr: Option<&Expr>, max_expr: Option<&
 
             if let Some(values) = &min_components {
                 if values.len() != arity {
-                    return Some(Error::new_spanned(min_expr.expect("min expression should exist"), format!("expected {arity} values for Vec{arity} min bound")).to_compile_error());
+                    return Some(
+                        Error::new_spanned(
+                            min_expr.expect("min expression should exist"),
+                            format!("expected {arity} values for Vec{arity} min bound"),
+                        )
+                        .to_compile_error(),
+                    );
                 }
             }
 
             if let Some(values) = &max_components {
                 if values.len() != arity {
-                    return Some(Error::new_spanned(max_expr.expect("max expression should exist"), format!("expected {arity} values for Vec{arity} max bound")).to_compile_error());
+                    return Some(
+                        Error::new_spanned(
+                            max_expr.expect("max expression should exist"),
+                            format!("expected {arity} values for Vec{arity} max bound"),
+                        )
+                        .to_compile_error(),
+                    );
                 }
             }
 
@@ -3746,7 +4255,9 @@ fn extract_vector_components(expr: &Expr) -> Option<Vec<Expr>> {
     }
 }
 
-fn take_handle_attrs(field: &mut Field) -> Result<(Option<syn::Attribute>, Option<syn::Attribute>, Option<syn::Attribute>)> {
+fn take_handle_attrs(
+    field: &mut Field,
+) -> Result<(Option<syn::Attribute>, Option<syn::Attribute>, Option<syn::Attribute>)> {
     let mut param_attr = None;
     let mut potential_attr = None;
     let mut state_attr = None;
@@ -3814,7 +4325,10 @@ fn infer_type_name_from_impl(input: &ItemImpl) -> Result<LitStr> {
     };
 
     let Some(ident) = ident else {
-        return Err(Error::new_spanned(&input.self_ty, "cannot infer node type name from impl target; use #[node(\"your_type\")]"));
+        return Err(Error::new_spanned(
+            &input.self_ty,
+            "cannot infer node type name from impl target; use #[node(\"your_type\")]",
+        ));
     };
 
     Ok(make_type_name_literal(&ident))
@@ -3833,7 +4347,10 @@ fn make_label_literal(node_type: &str) -> LitStr {
 }
 
 fn expr_string_literal(expr: &Expr) -> Option<LitStr> {
-    let Expr::Lit(ExprLit { lit: Lit::Str(value), .. }) = expr else {
+    let Expr::Lit(ExprLit {
+        lit: Lit::Str(value), ..
+    }) = expr
+    else {
         return None;
     };
     Some(value.clone())

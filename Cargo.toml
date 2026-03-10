@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "crates/core_macros"]
+members = ["crates/codegen_support", "crates/core", "crates/core_macros"]
 resolver = "2"
 
 [workspace.package]
@@ -8,6 +8,9 @@ edition = "2024"
 authors = ["Golden Geek <contact@goldengeek.com>"]
 license = "MIT"
 repository = "https://github.com/Golden-Geek/golden_core"
+
+[workspace.dependencies]
+ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl"] }
 
 [[workspace.metadata.docs.rs]]
 all-features = true

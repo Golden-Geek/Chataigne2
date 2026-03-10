@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::node::NodeId;
 use crate::parameter::{ParamValue, ParamValueProjection};
 
 /// Typed value family used by `UserContext` entries and lookups.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UserContextValueType {
     /// Trigger pulse.
@@ -57,7 +58,7 @@ impl UserContextValueType {
 }
 
 /// One owned `UserContext` entry.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserContextEntry {
     /// Symbol name used in lexical lookups.
     pub symbol: String,
@@ -68,7 +69,7 @@ pub struct UserContextEntry {
 }
 
 /// One `UserContext` scope owned by a node.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserContextScope {
     /// Scope owner node id.
     pub owner: NodeId,
@@ -81,12 +82,16 @@ pub struct UserContextScope {
 impl UserContextScope {
     /// Creates an empty scope for `owner`.
     pub fn new(owner: NodeId) -> Self {
-        Self { owner, generation: 0, entries: HashMap::new() }
+        Self {
+            owner,
+            generation: 0,
+            entries: HashMap::new(),
+        }
     }
 }
 
 /// Successful lexical resolution result.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserContextResolution {
     /// Requested symbol.
     pub symbol: String,
@@ -101,7 +106,7 @@ pub struct UserContextResolution {
 }
 
 /// Type mismatch details for lexical resolution.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserContextTypeMismatch {
     /// Requested symbol.
     pub symbol: String,
@@ -118,7 +123,7 @@ pub struct UserContextTypeMismatch {
 }
 
 /// Lexical lookup result for one `UserContext` symbol.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum UserContextLookup {
     /// Symbol resolved successfully.
@@ -133,7 +138,7 @@ pub enum UserContextLookup {
 }
 
 /// UI/query candidate entry returned for one consumer.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserContextCandidate {
     /// Entry symbol.
     pub symbol: String,
@@ -155,7 +160,7 @@ pub struct UserContextCandidate {
 }
 
 /// UI payload returned by per-parameter context-candidate queries.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiUserContextCandidatesDto {
     /// Target parameter node.
     pub param: NodeId,
@@ -168,7 +173,7 @@ pub struct UiUserContextCandidatesDto {
 }
 
 /// UI payload for one context entry.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiUserContextEntryDto {
     /// Symbol name.
     pub symbol: String,
@@ -179,7 +184,7 @@ pub struct UiUserContextEntryDto {
 }
 
 /// UI payload for one scope owned by one node.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiUserContextScopeDto {
     /// Scope owner node id.
     pub owner: NodeId,
@@ -191,7 +196,7 @@ pub struct UiUserContextScopeDto {
 }
 
 /// UI payload for all user context scopes.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiUserContextsDto {
     /// Registered scopes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -263,7 +268,13 @@ impl UserContextRegistry {
     /// Adds or replaces one entry in `owner` scope.
     ///
     /// Returns `true` when the scope schema changed.
-    pub fn upsert_entry(&mut self, owner: NodeId, symbol: impl Into<String>, param: NodeId, value_type: UserContextValueType) -> Result<bool, String> {
+    pub fn upsert_entry(
+        &mut self,
+        owner: NodeId,
+        symbol: impl Into<String>,
+        param: NodeId,
+        value_type: UserContextValueType,
+    ) -> Result<bool, String> {
         let symbol = symbol.into().trim().to_string();
         if symbol.is_empty() {
             return Err("context symbol cannot be empty".to_string());
@@ -273,7 +284,11 @@ impl UserContextRegistry {
             return Err(format!("context scope for owner {:?} does not exist", owner));
         };
 
-        let next_entry = UserContextEntry { symbol: symbol.clone(), param, value_type };
+        let next_entry = UserContextEntry {
+            symbol: symbol.clone(),
+            param,
+            value_type,
+        };
         if scope.entries.get(&symbol) == Some(&next_entry) {
             return Ok(false);
         }
@@ -316,7 +331,12 @@ impl UserContextRegistry {
     {
         let mut changed = false;
 
-        let owners_to_remove = self.scopes_by_owner.keys().copied().filter(|owner| !owner_exists(*owner)).collect::<Vec<_>>();
+        let owners_to_remove = self
+            .scopes_by_owner
+            .keys()
+            .copied()
+            .filter(|owner| !owner_exists(*owner))
+            .collect::<Vec<_>>();
         for owner in owners_to_remove {
             self.scopes_by_owner.remove(&owner);
             changed = true;
@@ -345,7 +365,13 @@ impl UserContextRegistry {
     }
 
     /// Resolves one symbol lexically from `consumer`.
-    pub fn resolve_symbol<F>(&mut self, consumer: NodeId, symbol: &str, expected: Option<UserContextValueType>, mut parent_of: F) -> UserContextLookup
+    pub fn resolve_symbol<F>(
+        &mut self,
+        consumer: NodeId,
+        symbol: &str,
+        expected: Option<UserContextValueType>,
+        mut parent_of: F,
+    ) -> UserContextLookup
     where
         F: FnMut(NodeId) -> Option<NodeId>,
     {
@@ -354,7 +380,11 @@ impl UserContextRegistry {
             return UserContextLookup::Missing { symbol: String::new() };
         }
 
-        let key = UserContextCacheKey { consumer, symbol: symbol.clone(), expected };
+        let key = UserContextCacheKey {
+            consumer,
+            symbol: symbol.clone(),
+            expected,
+        };
         if let Some(cached) = self.cache.get(&key) {
             if cached.graph_generation == self.graph_generation && cached.schema_generation == self.schema_generation {
                 return cached.lookup.clone();
@@ -369,14 +399,16 @@ impl UserContextRegistry {
             if let Some(scope) = self.scopes_by_owner.get(&node_id) {
                 if let Some(entry) = scope.entries.get(&symbol) {
                     lookup = match expected {
-                        Some(expected) if expected != entry.value_type => UserContextLookup::TypeMismatch(UserContextTypeMismatch {
-                            symbol: symbol.clone(),
-                            expected,
-                            found: entry.value_type,
-                            entry_param: entry.param,
-                            scope_owner: scope.owner,
-                            lexical_depth: depth,
-                        }),
+                        Some(expected) if expected != entry.value_type => {
+                            UserContextLookup::TypeMismatch(UserContextTypeMismatch {
+                                symbol: symbol.clone(),
+                                expected,
+                                found: entry.value_type,
+                                entry_param: entry.param,
+                                scope_owner: scope.owner,
+                                lexical_depth: depth,
+                            })
+                        }
                         _ => UserContextLookup::Resolved(UserContextResolution {
                             symbol: symbol.clone(),
                             entry_param: entry.param,
@@ -406,7 +438,12 @@ impl UserContextRegistry {
     }
 
     /// Collects all visible candidate entries for one consumer.
-    pub fn collect_candidates<F>(&self, consumer: NodeId, expected: Option<UserContextValueType>, mut parent_of: F) -> Vec<UserContextCandidate>
+    pub fn collect_candidates<F>(
+        &self,
+        consumer: NodeId,
+        expected: Option<UserContextValueType>,
+        mut parent_of: F,
+    ) -> Vec<UserContextCandidate>
     where
         F: FnMut(NodeId) -> Option<NodeId>,
     {
@@ -444,7 +481,12 @@ impl UserContextRegistry {
             depth = depth.saturating_add(1);
         }
 
-        out.sort_by(|left, right| left.lexical_depth.cmp(&right.lexical_depth).then_with(|| left.symbol.cmp(&right.symbol)).then_with(|| left.entry_param.0.cmp(&right.entry_param.0)));
+        out.sort_by(|left, right| {
+            left.lexical_depth
+                .cmp(&right.lexical_depth)
+                .then_with(|| left.symbol.cmp(&right.symbol))
+                .then_with(|| left.entry_param.0.cmp(&right.entry_param.0))
+        });
         out
     }
 
@@ -500,7 +542,12 @@ impl DynamicContext {
 
     /// Pushes one dimension frame.
     pub fn push_dim(&mut self, dim: DynamicContextDimId, index: u32, extent: u32, instance: Option<u64>) {
-        self.dim_stack.push(DynamicContextFrame { dim, index, extent, instance });
+        self.dim_stack.push(DynamicContextFrame {
+            dim,
+            index,
+            extent,
+            instance,
+        });
     }
 
     /// Pops the innermost frame.
@@ -527,7 +574,11 @@ impl DynamicContext {
 /// Computes dense lane index for one dynamic-context state dependency set.
 ///
 /// Returns `None` when dimensions are missing, extents are invalid, or overflow occurs.
-pub fn compute_dynamic_context_lane_index(state_dims: &[DynamicContextDimId], state_extents: &[u32], dynamic: &DynamicContext) -> Option<usize> {
+pub fn compute_dynamic_context_lane_index(
+    state_dims: &[DynamicContextDimId],
+    state_extents: &[u32],
+    dynamic: &DynamicContext,
+) -> Option<usize> {
     if state_dims.len() != state_extents.len() {
         return None;
     }
@@ -566,8 +617,12 @@ mod tests {
 
         contexts.ensure_scope(owner_outer);
         contexts.ensure_scope(owner_inner);
-        contexts.upsert_entry(owner_outer, "tempo", NodeId(10), UserContextValueType::Float).expect("outer entry should be inserted");
-        contexts.upsert_entry(owner_inner, "tempo", NodeId(11), UserContextValueType::Int).expect("inner entry should be inserted");
+        contexts
+            .upsert_entry(owner_outer, "tempo", NodeId(10), UserContextValueType::Float)
+            .expect("outer entry should be inserted");
+        contexts
+            .upsert_entry(owner_inner, "tempo", NodeId(11), UserContextValueType::Int)
+            .expect("inner entry should be inserted");
 
         let mut parents = HashMap::<NodeId, Option<NodeId>>::new();
         parents.insert(consumer, Some(owner_inner));
@@ -575,9 +630,13 @@ mod tests {
         parents.insert(owner_outer, None);
 
         let resolved = contexts.resolve_symbol(consumer, "tempo", None, |node| parents.get(&node).copied().flatten());
-        assert!(matches!(resolved, UserContextLookup::Resolved(UserContextResolution { entry_param, lexical_depth: 1, .. }) if entry_param == NodeId(11)));
+        assert!(
+            matches!(resolved, UserContextLookup::Resolved(UserContextResolution { entry_param, lexical_depth: 1, .. }) if entry_param == NodeId(11))
+        );
 
-        let mismatch = contexts.resolve_symbol(consumer, "tempo", Some(UserContextValueType::Float), |node| parents.get(&node).copied().flatten());
+        let mismatch = contexts.resolve_symbol(consumer, "tempo", Some(UserContextValueType::Float), |node| {
+            parents.get(&node).copied().flatten()
+        });
         assert!(matches!(
             mismatch,
             UserContextLookup::TypeMismatch(UserContextTypeMismatch {

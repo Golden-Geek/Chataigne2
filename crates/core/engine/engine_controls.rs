@@ -5,10 +5,15 @@ use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
-use crate::node::{DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, ParameterAnimationControlNode};
+use crate::node::{
+    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE,
+    PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID, ParameterAnimationControlNode,
+};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind, available_control_modes_for_parameter,
-    coerce_param_value_for_target, coerce_param_value_for_target_reverse,
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlDiagnostic,
+    ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEventBehaviour, ParameterSnapshot,
+    ReferenceTargetKind, available_control_modes_for_parameter, coerce_param_value_for_target,
+    coerce_param_value_for_target_reverse,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{QuickJsRuntime, ScriptBudgets, ScriptHostBridge, ScriptLogLevel, ScriptRuntime, ScriptValue};
@@ -49,7 +54,14 @@ struct ExpressionControlConfig {
 const EXPRESSION_EXPORT_NAME: &str = "__gc_eval_expression";
 const EXPRESSION_RUNTIME_SOURCE_NAME: &str = "expression_control.js";
 const CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX: &str = "control-diagnostic:";
-const EXPRESSION_ERROR_WRAPPER_PREFIXES: [&str; 6] = ["failed to compile expression:", "failed to create quickjs runtime:", "expression evaluation failed:", "quickjs runtime error:", "script load:", "export callback:"];
+const EXPRESSION_ERROR_WRAPPER_PREFIXES: [&str; 6] = [
+    "failed to compile expression:",
+    "failed to create quickjs runtime:",
+    "expression evaluation failed:",
+    "quickjs runtime error:",
+    "script load:",
+    "export callback:",
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ExpressionErrorStage {
@@ -103,7 +115,10 @@ fn reference_target_is_unset(reference: &NodeReference) -> bool {
 
 fn strip_prefix_case_insensitive<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
     let candidate = value.get(..prefix.len())?;
-    candidate.eq_ignore_ascii_case(prefix).then(|| value.get(prefix.len()..)).flatten()
+    candidate
+        .eq_ignore_ascii_case(prefix)
+        .then(|| value.get(prefix.len()..))
+        .flatten()
 }
 
 fn compact_whitespace(value: &str) -> String {
@@ -145,7 +160,10 @@ fn looks_like_location(value: &str) -> bool {
     let Some(line) = segments.next() else {
         return false;
     };
-    !column.is_empty() && !line.is_empty() && column.chars().all(|ch| ch.is_ascii_digit()) && line.chars().all(|ch| ch.is_ascii_digit())
+    !column.is_empty()
+        && !line.is_empty()
+        && column.chars().all(|ch| ch.is_ascii_digit())
+        && line.chars().all(|ch| ch.is_ascii_digit())
 }
 
 fn split_expression_error_payload(value: &str) -> (String, Option<String>, Vec<String>) {
@@ -158,7 +176,12 @@ fn split_expression_error_payload(value: &str) -> (String, Option<String>, Vec<S
         return (compact, None, Vec::new());
     };
 
-    let mut stack = tail.split(" at ").map(str::trim).filter(|segment| !segment.is_empty()).map(|segment| format!("at {segment}")).collect::<Vec<_>>();
+    let mut stack = tail
+        .split(" at ")
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| format!("at {segment}"))
+        .collect::<Vec<_>>();
 
     let mut location = None;
     if let Some(first) = stack.first() {
@@ -172,7 +195,13 @@ fn split_expression_error_payload(value: &str) -> (String, Option<String>, Vec<S
     (head.trim().to_string(), location, stack)
 }
 
-fn format_expression_error_detail(stage: ExpressionErrorStage, summary: &str, location: Option<&str>, stack: &[String], raw_detail: &str) -> String {
+fn format_expression_error_detail(
+    stage: ExpressionErrorStage,
+    summary: &str,
+    location: Option<&str>,
+    stack: &[String],
+    raw_detail: &str,
+) -> String {
     let mut lines = vec![format!("error: {summary}"), format!("stage: {}", stage.label())];
     if let Some(location) = location {
         lines.push(format!("location: {location}"));
@@ -182,7 +211,11 @@ fn format_expression_error_detail(stage: ExpressionErrorStage, summary: &str, lo
         lines.extend(stack.iter().map(|entry| format!("  {entry}")));
     }
 
-    let raw_lines = raw_detail.lines().map(str::trim).filter(|line| !line.is_empty()).collect::<Vec<_>>();
+    let raw_lines = raw_detail
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
     if !raw_lines.is_empty() {
         lines.push("raw:".to_string());
         lines.extend(raw_lines.into_iter().map(|line| format!("  {line}")));
@@ -195,11 +228,25 @@ fn expression_error_diagnostic(stage: ExpressionErrorStage, detail: String) -> P
     let raw_detail = detail.trim();
     let peeled = peel_expression_error_wrappers(raw_detail);
     let (parsed_summary, location, stack) = split_expression_error_payload(peeled.as_str());
-    let summary = if parsed_summary.is_empty() { stage.fallback_summary().to_string() } else { parsed_summary };
+    let summary = if parsed_summary.is_empty() {
+        stage.fallback_summary().to_string()
+    } else {
+        parsed_summary
+    };
 
     let diagnostic = ParameterControlDiagnostic::new("expression_error", format!("Expression error: {summary}"));
-    let formatted_detail = format_expression_error_detail(stage, summary.as_str(), location.as_deref(), stack.as_slice(), raw_detail);
-    if formatted_detail.trim().is_empty() { diagnostic } else { diagnostic.with_detail(formatted_detail) }
+    let formatted_detail = format_expression_error_detail(
+        stage,
+        summary.as_str(),
+        location.as_deref(),
+        stack.as_slice(),
+        raw_detail,
+    );
+    if formatted_detail.trim().is_empty() {
+        diagnostic
+    } else {
+        diagnostic.with_detail(formatted_detail)
+    }
 }
 
 struct ExpressionScriptHostBridge {
@@ -211,7 +258,13 @@ struct ExpressionScriptHostBridge {
 }
 
 impl ExpressionScriptHostBridge {
-    fn new(consumer: NodeId, local_node: Option<NodeId>, tree_snapshot: Arc<ProcessTreeSnapshot>, time_seconds: f64, delta_seconds: f64) -> Self {
+    fn new(
+        consumer: NodeId,
+        local_node: Option<NodeId>,
+        tree_snapshot: Arc<ProcessTreeSnapshot>,
+        time_seconds: f64,
+        delta_seconds: f64,
+    ) -> Self {
         Self {
             consumer,
             local_node,
@@ -246,7 +299,12 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
             ScriptLogLevel::Warning => LogLevel::Warning,
             ScriptLogLevel::Error => LogLevel::Error,
         };
-        let _ = logger::log_message(level, "expression".to_string(), Some(self.consumer), message.to_string());
+        let _ = logger::log_message(
+            level,
+            "expression".to_string(),
+            Some(self.consumer),
+            message.to_string(),
+        );
     }
 
     fn emit_custom(&mut self, _topic: &str, _payload: JsonValue) -> Result<(), String> {
@@ -261,7 +319,12 @@ impl ScriptHostBridge for ExpressionScriptHostBridge {
         Err("expression mode cannot mutate node script properties".to_string())
     }
 
-    fn call_node_script_method(&mut self, _node: NodeId, _method: String, _args: Vec<ParamValue>) -> Result<(), String> {
+    fn call_node_script_method(
+        &mut self,
+        _node: NodeId,
+        _method: String,
+        _args: Vec<ParamValue>,
+    ) -> Result<(), String> {
         Err("expression mode cannot call node script methods".to_string())
     }
 
@@ -296,7 +359,10 @@ impl<T: Node> Engine<T> {
     ///
     /// Returns `true` when it changed queued edits or updated control diagnostics.
     pub(crate) fn evaluate_parameter_controls(&mut self) -> bool {
-        let has_active_controls = self.nodes.values().any(|node| node.engine_param_control_state().is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()));
+        let has_active_controls = self.nodes.values().any(|node| {
+            node.engine_param_control_state()
+                .is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty())
+        });
         if !has_active_controls {
             if !self.expression_runtime.is_empty() {
                 let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
@@ -307,7 +373,11 @@ impl<T: Node> Engine<T> {
             return false;
         }
 
-        let param_snapshots = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot))).collect::<HashMap<_, _>>();
+        let param_snapshots = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot)))
+            .collect::<HashMap<_, _>>();
 
         if param_snapshots.is_empty() {
             if !self.expression_runtime.is_empty() {
@@ -323,7 +393,12 @@ impl<T: Node> Engine<T> {
         let change_set = self.collect_control_change_set();
         let expression_tree_snapshot = param_snapshots
             .values()
-            .any(|snapshot| matches!((&snapshot.control.mode, &snapshot.control.spec), (ParameterControlMode::Expression, ParameterControlSpec::Expression)))
+            .any(|snapshot| {
+                matches!(
+                    (&snapshot.control.mode, &snapshot.control.spec),
+                    (ParameterControlMode::Expression, ParameterControlSpec::Expression)
+                )
+            })
             .then(|| self.build_process_tree_snapshot());
 
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
@@ -337,23 +412,52 @@ impl<T: Node> Engine<T> {
             let maybe_value = match control.mode {
                 ParameterControlMode::Manual => None,
                 ParameterControlMode::ContextLink => match &control.spec {
-                    ParameterControlSpec::ContextLink { symbol, projection } => self.evaluate_context_link(*param, snapshot, symbol.as_str(), *projection, &param_snapshots, &mut diagnostics),
+                    ParameterControlSpec::ContextLink { symbol, projection } => self.evaluate_context_link(
+                        *param,
+                        snapshot,
+                        symbol.as_str(),
+                        *projection,
+                        &param_snapshots,
+                        &mut diagnostics,
+                    ),
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/context-link mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/context-link mismatch",
+                        ));
                         None
                     }
                 },
                 ParameterControlMode::TemplateText => match &control.spec {
-                    ParameterControlSpec::TemplateText { template } => self.evaluate_template_text(*param, snapshot, template.as_str(), &param_snapshots, &mut diagnostics),
+                    ParameterControlSpec::TemplateText { template } => self.evaluate_template_text(
+                        *param,
+                        snapshot,
+                        template.as_str(),
+                        &param_snapshots,
+                        &mut diagnostics,
+                    ),
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/template-text mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/template-text mismatch",
+                        ));
                         None
                     }
                 },
                 ParameterControlMode::Expression => match &control.spec {
-                    ParameterControlSpec::Expression => self.evaluate_expression(*param, snapshot, &param_snapshots, expression_tree_snapshot.as_ref(), &change_set, &mut diagnostics),
+                    ParameterControlSpec::Expression => self.evaluate_expression(
+                        *param,
+                        snapshot,
+                        &param_snapshots,
+                        expression_tree_snapshot.as_ref(),
+                        &change_set,
+                        &mut diagnostics,
+                    ),
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/expression mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/expression mismatch",
+                        ));
                         None
                     }
                 },
@@ -362,10 +466,22 @@ impl<T: Node> Engine<T> {
                         if let Some(config) = self.read_reference_control_config(*param, "proxy", &mut diagnostics) {
                             if reference_target_is_unset(&config.target) {
                                 None
-                            } else if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
-                                self.evaluate_proxy_one_way(*param, snapshot, target_param, config.projection, &param_snapshots, &mut diagnostics)
+                            } else if let Some(target_param) =
+                                self.resolve_control_target_param(&config.target, &param_snapshots)
+                            {
+                                self.evaluate_proxy_one_way(
+                                    *param,
+                                    snapshot,
+                                    target_param,
+                                    config.projection,
+                                    &param_snapshots,
+                                    &mut diagnostics,
+                                )
                             } else {
-                                diagnostics.push(ParameterControlDiagnostic::new("proxy_target_missing", "proxy target parameter could not be resolved"));
+                                diagnostics.push(ParameterControlDiagnostic::new(
+                                    "proxy_target_missing",
+                                    "proxy target parameter could not be resolved",
+                                ));
                                 None
                             }
                         } else {
@@ -373,7 +489,10 @@ impl<T: Node> Engine<T> {
                         }
                     }
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/proxy mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/proxy mismatch",
+                        ));
                         None
                     }
                 },
@@ -382,11 +501,22 @@ impl<T: Node> Engine<T> {
                         if let Some(config) = self.read_reference_control_config(*param, "binding", &mut diagnostics) {
                             if reference_target_is_unset(&config.target) {
                                 None
-                            } else if let Some(target_param) = self.resolve_control_target_param(&config.target, &param_snapshots) {
-                                binding_targets.insert(*param, BindingTargetConfig { target: target_param, projection: config.projection });
+                            } else if let Some(target_param) =
+                                self.resolve_control_target_param(&config.target, &param_snapshots)
+                            {
+                                binding_targets.insert(
+                                    *param,
+                                    BindingTargetConfig {
+                                        target: target_param,
+                                        projection: config.projection,
+                                    },
+                                );
                                 None
                             } else {
-                                diagnostics.push(ParameterControlDiagnostic::new("binding_target_missing", "binding target parameter could not be resolved"));
+                                diagnostics.push(ParameterControlDiagnostic::new(
+                                    "binding_target_missing",
+                                    "binding target parameter could not be resolved",
+                                ));
                                 None
                             }
                         } else {
@@ -394,14 +524,20 @@ impl<T: Node> Engine<T> {
                         }
                     }
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/binding mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/binding mismatch",
+                        ));
                         None
                     }
                 },
                 ParameterControlMode::Animation => match &control.spec {
                     ParameterControlSpec::Animation => None,
                     _ => {
-                        diagnostics.push(ParameterControlDiagnostic::new("invalid_control_spec", "control mode/animation mismatch"));
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "invalid_control_spec",
+                            "control mode/animation mismatch",
+                        ));
                         None
                     }
                 },
@@ -418,7 +554,10 @@ impl<T: Node> Engine<T> {
 
         let binding_result = self.evaluate_bindings(&binding_targets, &param_snapshots);
         for (node, value) in binding_result.pending_writes {
-            if param_snapshots.get(&node).is_some_and(|snapshot| snapshot.value != value) {
+            if param_snapshots
+                .get(&node)
+                .is_some_and(|snapshot| snapshot.value != value)
+            {
                 queued_writes.push((node, value));
             }
         }
@@ -441,7 +580,11 @@ impl<T: Node> Engine<T> {
         queued_any || diagnostics_changed || warning_sync_changed
     }
 
-    fn set_param_control_state_impl(&mut self, param: NodeId, mut state: ParameterControlState) -> Result<bool, String> {
+    fn set_param_control_state_impl(
+        &mut self,
+        param: NodeId,
+        mut state: ParameterControlState,
+    ) -> Result<bool, String> {
         if !control_spec_matches_mode(state.mode, &state.spec) {
             return Err("parameter control state has a mode/spec mismatch".to_string());
         }
@@ -452,10 +595,17 @@ impl<T: Node> Engine<T> {
         let Some(snapshot) = node.engine_param_snapshot() else {
             return Err(format!("node {} is not a parameter node", param.0));
         };
-        if !available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled).contains(&state.mode) {
-            return Err(format!("control mode '{:?}' is not supported for parameter type '{}'", state.mode, node.get_type()));
+        if !available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled).contains(&state.mode)
+        {
+            return Err(format!(
+                "control mode '{:?}' is not supported for parameter type '{}'",
+                state.mode,
+                node.get_type()
+            ));
         }
-        if matches!(state.mode, ParameterControlMode::TemplateText) && self.ui_context_candidates_for_param(param).candidates.is_empty() {
+        if matches!(state.mode, ParameterControlMode::TemplateText)
+            && self.ui_context_candidates_for_param(param).candidates.is_empty()
+        {
             return Err("control mode 'templateText' requires at least one visible context entry".to_string());
         }
 
@@ -473,7 +623,11 @@ impl<T: Node> Engine<T> {
             return Err(format!("parameter node {} was not found", param.0));
         };
         node.engine_set_param_control_state(state)?;
-        self.emit_event(EventKind::ParamControlChanged { param, old_state: current_state, new_state: next_state });
+        self.emit_event(EventKind::ParamControlChanged {
+            param,
+            old_state: current_state,
+            new_state: next_state,
+        });
         Ok(true)
     }
 
@@ -484,21 +638,61 @@ impl<T: Node> Engine<T> {
         self.set_param_control_state_impl(param, state)
     }
 
-    fn param_control_rejected_error(&self, edit_index: usize, operation: &'static str, node: NodeId, message: String) -> EngineEditError {
-        let node_type = self.nodes.get(node).map(|entry| entry.get_type().to_string()).unwrap_or_else(|| "unknown".to_string());
-        EngineEditError::ParamControlStateRejected { edit_index, operation, node, node_type, message }
+    fn param_control_rejected_error(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+        message: String,
+    ) -> EngineEditError {
+        let node_type = self
+            .nodes
+            .get(node)
+            .map(|entry| entry.get_type().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        EngineEditError::ParamControlStateRejected {
+            edit_index,
+            operation,
+            node,
+            node_type,
+            message,
+        }
     }
 
-    fn read_param_control_state_for_edit(&self, edit_index: usize, operation: &'static str, node: NodeId) -> Result<ParameterControlState, EngineEditError> {
+    fn read_param_control_state_for_edit(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+    ) -> Result<ParameterControlState, EngineEditError> {
         let Some(target) = self.nodes.get(node) else {
-            return Err(EngineEditError::NodeNotFound { edit_index, operation, node });
+            return Err(EngineEditError::NodeNotFound {
+                edit_index,
+                operation,
+                node,
+            });
         };
-        target.engine_param_control_state().ok_or_else(|| self.param_control_rejected_error(edit_index, operation, node, "target node does not expose parameter control state".to_string()))
+        target.engine_param_control_state().ok_or_else(|| {
+            self.param_control_rejected_error(
+                edit_index,
+                operation,
+                node,
+                "target node does not expose parameter control state".to_string(),
+            )
+        })
     }
 
-    fn apply_set_param_control_state_internal(&mut self, edit_index: usize, operation: &'static str, node: NodeId, state: ParameterControlState) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+    fn apply_set_param_control_state_internal(
+        &mut self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
         let old_state = self.read_param_control_state_for_edit(edit_index, operation, node)?;
-        let changed = self.set_param_control_state_impl(node, state).map_err(|message| self.param_control_rejected_error(edit_index, operation, node, message))?;
+        let changed = self
+            .set_param_control_state_impl(node, state)
+            .map_err(|message| self.param_control_rejected_error(edit_index, operation, node, message))?;
         if !changed {
             return Ok(None);
         }
@@ -509,20 +703,38 @@ impl<T: Node> Engine<T> {
             self.apply_edits_without_history()?;
         }
 
-        Ok(Some(SetParamControlStateEffect { node, old_state, new_state }))
+        Ok(Some(SetParamControlStateEffect {
+            node,
+            old_state,
+            new_state,
+        }))
     }
 
-    pub(crate) fn apply_set_param_control_state(&mut self, edit_index: usize, node: NodeId, state: ParameterControlState) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
+    pub(crate) fn apply_set_param_control_state(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<Option<SetParamControlStateEffect>, EngineEditError> {
         self.apply_set_param_control_state_internal(edit_index, "SetParamControlState", node, state)
     }
 
-    pub(crate) fn apply_set_param_control_state_for_history(&mut self, operation: &'static str, node: NodeId, state: ParameterControlState) -> Result<(), EngineEditError> {
+    pub(crate) fn apply_set_param_control_state_for_history(
+        &mut self,
+        operation: &'static str,
+        node: NodeId,
+        state: ParameterControlState,
+    ) -> Result<(), EngineEditError> {
         let _ = self.apply_set_param_control_state_internal(0, operation, node, state)?;
         Ok(())
     }
 
     fn make_expression_source_parameter(initial_expression: String) -> Parameter {
-        let mut source = Parameter::new("Expression", ParamValue::Str(initial_expression), ParameterChangeCheck::ValueChange);
+        let mut source = Parameter::new(
+            "Expression",
+            ParamValue::Str(initial_expression),
+            ParameterChangeCheck::ValueChange,
+        );
         source.node_data_mut().meta.decl_id = DeclId(PARAMETER_EXPRESSION_SOURCE_DECL_ID.to_string());
         source.node_data_mut().meta.can_be_disabled = false;
         source.control_modes_enabled = false;
@@ -530,7 +742,11 @@ impl<T: Node> Engine<T> {
     }
 
     fn make_control_reference_parameter() -> Parameter {
-        let mut reference = Parameter::new("Reference", ParamValue::Reference(NodeReference::default()), ParameterChangeCheck::ValueChange);
+        let mut reference = Parameter::new(
+            "Reference",
+            ParamValue::Reference(NodeReference::default()),
+            ParameterChangeCheck::ValueChange,
+        );
         reference.node_data_mut().meta.decl_id = DeclId(PARAMETER_CONTROL_REFERENCE_DECL_ID.to_string());
         reference.node_data_mut().meta.can_be_disabled = false;
         reference.control_modes_enabled = false;
@@ -553,11 +769,15 @@ impl<T: Node> Engine<T> {
                 animation_nodes.push(child);
                 continue;
             }
-            if child_node.node_data().meta.decl_id.0 == PARAMETER_EXPRESSION_SOURCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
+            if child_node.node_data().meta.decl_id.0 == PARAMETER_EXPRESSION_SOURCE_DECL_ID
+                && child_node.engine_param_snapshot().is_some()
+            {
                 expression_source_params.push(child);
                 continue;
             }
-            if child_node.node_data().meta.decl_id.0 == PARAMETER_CONTROL_REFERENCE_DECL_ID && child_node.engine_param_snapshot().is_some() {
+            if child_node.node_data().meta.decl_id.0 == PARAMETER_CONTROL_REFERENCE_DECL_ID
+                && child_node.engine_param_snapshot().is_some()
+            {
                 control_reference_params.push(child);
             }
         }
@@ -621,7 +841,8 @@ impl<T: Node> Engine<T> {
         }
 
         if changed {
-            self.apply_edits_without_history().map_err(|err| format!("failed to sync control nodes for parameter {}: {err}", param.0))?;
+            self.apply_edits_without_history()
+                .map_err(|err| format!("failed to sync control nodes for parameter {}: {err}", param.0))?;
         }
 
         Ok(())
@@ -638,52 +859,101 @@ impl<T: Node> Engine<T> {
     }
 
     fn find_direct_child_by_decl_id(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-        self.direct_children(parent).into_iter().find(|child| self.nodes.get(*child).is_some_and(|node| node.node_data().meta.decl_id.0 == decl_id))
+        self.direct_children(parent).into_iter().find(|child| {
+            self.nodes
+                .get(*child)
+                .is_some_and(|node| node.node_data().meta.decl_id.0 == decl_id)
+        })
     }
 
     fn read_parameter_value(&self, param: NodeId) -> Option<ParamValue> {
-        self.nodes.get(param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value)
+        self.nodes
+            .get(param)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value)
     }
 
-    fn read_reference_control_config(&self, param: NodeId, mode_code: &str, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ReferenceControlConfig> {
-        let Some(reference_param) = self.find_direct_child_by_decl_id(param, PARAMETER_CONTROL_REFERENCE_DECL_ID) else {
-            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_missing"), format!("{mode_code} reference parameter is missing")));
+    fn read_reference_control_config(
+        &self,
+        param: NodeId,
+        mode_code: &str,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ReferenceControlConfig> {
+        let Some(reference_param) = self.find_direct_child_by_decl_id(param, PARAMETER_CONTROL_REFERENCE_DECL_ID)
+        else {
+            diagnostics.push(ParameterControlDiagnostic::new(
+                format!("{mode_code}_reference_missing"),
+                format!("{mode_code} reference parameter is missing"),
+            ));
             return None;
         };
 
         let Some(reference_value) = self.read_parameter_value(reference_param) else {
-            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_invalid"), format!("{mode_code} reference node is not a parameter")));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                format!("{mode_code}_reference_invalid"),
+                format!("{mode_code} reference node is not a parameter"),
+            ));
             return None;
         };
 
         let ParamValue::Reference(target) = reference_value else {
-            diagnostics.push(ParameterControlDiagnostic::new(format!("{mode_code}_reference_type_mismatch"), format!("{mode_code} reference parameter must be a reference parameter")));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                format!("{mode_code}_reference_type_mismatch"),
+                format!("{mode_code} reference parameter must be a reference parameter"),
+            ));
             return None;
         };
 
-        Some(ReferenceControlConfig { projection: target.projection(), target })
+        Some(ReferenceControlConfig {
+            projection: target.projection(),
+            target,
+        })
     }
 
-    fn read_expression_control_config(&self, param: NodeId, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ExpressionControlConfig> {
+    fn read_expression_control_config(
+        &self,
+        param: NodeId,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ExpressionControlConfig> {
         let Some(source_param) = self.find_direct_child_by_decl_id(param, PARAMETER_EXPRESSION_SOURCE_DECL_ID) else {
-            diagnostics.push(ParameterControlDiagnostic::new("expression_source_missing", "expression source parameter is missing"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "expression_source_missing",
+                "expression source parameter is missing",
+            ));
             return None;
         };
 
         let Some(source_value) = self.read_parameter_value(source_param) else {
-            diagnostics.push(ParameterControlDiagnostic::new("expression_source_invalid", "expression source node is not a parameter"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "expression_source_invalid",
+                "expression source node is not a parameter",
+            ));
             return None;
         };
 
         let Some(expression) = source_value.as_str() else {
-            diagnostics.push(ParameterControlDiagnostic::new("expression_source_type_mismatch", "expression source parameter must be string-compatible"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "expression_source_type_mismatch",
+                "expression source parameter must be string-compatible",
+            ));
             return None;
         };
 
-        Some(ExpressionControlConfig { source_param, expression })
+        Some(ExpressionControlConfig {
+            source_param,
+            expression,
+        })
     }
 
-    fn evaluate_context_link(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, symbol: &str, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_context_link(
+        &mut self,
+        consumer: NodeId,
+        target_snapshot: &ParameterSnapshot,
+        symbol: &str,
+        projection: Option<ParamValueProjection>,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         let symbol = symbol.trim();
         if symbol.is_empty() {
             return None;
@@ -692,20 +962,35 @@ impl<T: Node> Engine<T> {
         self.convert_for_target(&source, target_snapshot, "context_link", projection, diagnostics)
     }
 
-    fn evaluate_template_text(&mut self, consumer: NodeId, target_snapshot: &ParameterSnapshot, template: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_template_text(
+        &mut self,
+        consumer: NodeId,
+        target_snapshot: &ParameterSnapshot,
+        template: &str,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         let mut output = String::new();
         for segment in parse_template_segments(template) {
             match segment {
                 TemplateSegment::Literal(text) => output.push_str(text.as_str()),
                 TemplateSegment::Token(token) => {
-                    if let Some(resolved) = self.resolve_template_token(consumer, token.as_str(), param_snapshots, diagnostics) {
+                    if let Some(resolved) =
+                        self.resolve_template_token(consumer, token.as_str(), param_snapshots, diagnostics)
+                    {
                         output.push_str(resolved.as_str());
                     }
                 }
             }
         }
 
-        self.convert_for_target(&ParamValue::Str(output), target_snapshot, "template_text", None, diagnostics)
+        self.convert_for_target(
+            &ParamValue::Str(output),
+            target_snapshot,
+            "template_text",
+            None,
+            diagnostics,
+        )
     }
 
     fn evaluate_expression(
@@ -726,7 +1011,10 @@ impl<T: Node> Engine<T> {
             return None;
         }
         let Some(tree_snapshot) = tree_snapshot.cloned() else {
-            diagnostics.push(ParameterControlDiagnostic::new("expression_runtime_error", "expression runtime tree snapshot is unavailable"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "expression_runtime_error",
+                "expression runtime tree snapshot is unavailable",
+            ));
             return None;
         };
 
@@ -737,9 +1025,16 @@ impl<T: Node> Engine<T> {
         }
 
         let time_seconds = self.runtime_elapsed.as_secs_f64();
-        let delta_seconds = if previous_runtime.source_param.is_some() { self.runtime_elapsed.saturating_sub(previous_runtime.last_eval_elapsed).as_secs_f64() } else { 0.0 };
+        let delta_seconds = if previous_runtime.source_param.is_some() {
+            self.runtime_elapsed
+                .saturating_sub(previous_runtime.last_eval_elapsed)
+                .as_secs_f64()
+        } else {
+            0.0
+        };
         let local_node = self.nodes.get(consumer).and_then(|node| node.node_data().parent);
-        let (symbols, dependencies) = self.expression_symbols_and_dependencies(consumer, config.expression.as_str(), param_snapshots);
+        let (symbols, dependencies) =
+            self.expression_symbols_and_dependencies(consumer, config.expression.as_str(), param_snapshots);
         let continuous = expression_should_run_continuously(config.expression.as_str());
 
         let script_runtime = match self.ensure_expression_script_runtime(
@@ -759,7 +1054,15 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        let value = match self.evaluate_expression_script(consumer, local_node, tree_snapshot, script_runtime.clone(), symbols, time_seconds, delta_seconds) {
+        let value = match self.evaluate_expression_script(
+            consumer,
+            local_node,
+            tree_snapshot,
+            script_runtime.clone(),
+            symbols,
+            time_seconds,
+            delta_seconds,
+        ) {
             Ok(value) => value,
             Err(message) => {
                 diagnostics.push(expression_error_diagnostic(ExpressionErrorStage::Evaluation, message));
@@ -784,21 +1087,38 @@ impl<T: Node> Engine<T> {
         self.convert_for_target(&value, target_snapshot, "expression", None, diagnostics)
     }
 
-    fn evaluate_proxy_one_way(&mut self, param: NodeId, target_snapshot: &ParameterSnapshot, target_param: NodeId, projection: Option<ParamValueProjection>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn evaluate_proxy_one_way(
+        &mut self,
+        param: NodeId,
+        target_snapshot: &ParameterSnapshot,
+        target_param: NodeId,
+        projection: Option<ParamValueProjection>,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         if target_param == param {
-            diagnostics.push(ParameterControlDiagnostic::new("proxy_cycle", "proxy target cannot reference the same parameter"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "proxy_cycle",
+                "proxy target cannot reference the same parameter",
+            ));
             return None;
         }
 
         if self.proxy_chain_contains(param, target_param, param_snapshots) {
-            diagnostics.push(ParameterControlDiagnostic::new("proxy_cycle", "proxy chain contains a cycle"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "proxy_cycle",
+                "proxy chain contains a cycle",
+            ));
             return None;
         }
 
         let source = match param_snapshots.get(&target_param) {
             Some(snapshot) => snapshot.value.clone(),
             None => {
-                diagnostics.push(ParameterControlDiagnostic::new("proxy_target_not_parameter", "proxy target is not a parameter node"));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "proxy_target_not_parameter",
+                    "proxy target is not a parameter node",
+                ));
                 return None;
             }
         };
@@ -806,10 +1126,17 @@ impl<T: Node> Engine<T> {
         self.convert_for_target(&source, target_snapshot, "proxy", projection, diagnostics)
     }
 
-    fn evaluate_bindings(&self, binding_targets: &HashMap<NodeId, BindingTargetConfig>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> BindingEvaluation {
+    fn evaluate_bindings(
+        &self,
+        binding_targets: &HashMap<NodeId, BindingTargetConfig>,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+    ) -> BindingEvaluation {
         let mut diagnostics_by_param = HashMap::<NodeId, Vec<ParameterControlDiagnostic>>::new();
         if binding_targets.is_empty() {
-            return BindingEvaluation { pending_writes: Vec::new(), diagnostics_by_param };
+            return BindingEvaluation {
+                pending_writes: Vec::new(),
+                diagnostics_by_param,
+            };
         }
 
         let mut pairs = HashSet::<(NodeId, NodeId)>::new();
@@ -819,24 +1146,37 @@ impl<T: Node> Engine<T> {
             let target_param = config.target;
             let mut diagnostics = Vec::<ParameterControlDiagnostic>::new();
             let Some(_) = param_snapshots.get(&param) else {
-                diagnostics.push(ParameterControlDiagnostic::new("binding_param_missing", "binding parameter snapshot is missing"));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "binding_param_missing",
+                    "binding parameter snapshot is missing",
+                ));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             };
 
             if !param_snapshots.contains_key(&target_param) {
-                diagnostics.push(ParameterControlDiagnostic::new("binding_target_missing", "binding target parameter could not be resolved"));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "binding_target_missing",
+                    "binding target parameter could not be resolved",
+                ));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             }
 
             if target_param == param {
-                diagnostics.push(ParameterControlDiagnostic::new("binding_cycle", "binding target cannot reference the same parameter"));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "binding_cycle",
+                    "binding target cannot reference the same parameter",
+                ));
                 diagnostics_by_param.insert(param, diagnostics);
                 continue;
             }
 
-            let key = if param.0 <= target_param.0 { (param, target_param) } else { (target_param, param) };
+            let key = if param.0 <= target_param.0 {
+                (param, target_param)
+            } else {
+                (target_param, param)
+            };
             pairs.insert(key);
             diagnostics_by_param.insert(param, diagnostics);
         }
@@ -853,16 +1193,27 @@ impl<T: Node> Engine<T> {
             let a_counter = self.param_last_change_counter.get(&a).copied().unwrap_or(0);
             let b_counter = self.param_last_change_counter.get(&b).copied().unwrap_or(0);
 
-            let (source, source_snapshot, source_counter, target, target_snapshot) = if a_counter > b_counter || (a_counter == b_counter && a.0 <= b.0) {
-                (a, a_snapshot, a_counter, b, b_snapshot)
-            } else {
-                (b, b_snapshot, b_counter, a, a_snapshot)
-            };
+            let (source, source_snapshot, source_counter, target, target_snapshot) =
+                if a_counter > b_counter || (a_counter == b_counter && a.0 <= b.0) {
+                    (a, a_snapshot, a_counter, b, b_snapshot)
+                } else {
+                    (b, b_snapshot, b_counter, a, a_snapshot)
+                };
 
             let mut target_diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(converted) = self.convert_binding_for_target(source, &source_snapshot.value, target, target_snapshot, binding_targets, &mut target_diagnostics) else {
+            let Some(converted) = self.convert_binding_for_target(
+                source,
+                &source_snapshot.value,
+                target,
+                target_snapshot,
+                binding_targets,
+                &mut target_diagnostics,
+            ) else {
                 if !target_diagnostics.is_empty() {
-                    diagnostics_by_param.entry(target).or_default().extend(target_diagnostics);
+                    diagnostics_by_param
+                        .entry(target)
+                        .or_default()
+                        .extend(target_diagnostics);
                 }
                 continue;
             };
@@ -873,7 +1224,11 @@ impl<T: Node> Engine<T> {
 
             let score = BindingWriteScore { source_counter, source };
             let replace = match best_write_by_target.get(&target) {
-                Some((existing_score, _)) => score.source_counter > existing_score.source_counter || (score.source_counter == existing_score.source_counter && score.source.0 < existing_score.source.0),
+                Some((existing_score, _)) => {
+                    score.source_counter > existing_score.source_counter
+                        || (score.source_counter == existing_score.source_counter
+                            && score.source.0 < existing_score.source.0)
+                }
                 None => true,
             };
             if replace {
@@ -881,28 +1236,55 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let mut pending_writes = best_write_by_target.into_iter().map(|(target, (_, value))| (target, value)).collect::<Vec<_>>();
+        let mut pending_writes = best_write_by_target
+            .into_iter()
+            .map(|(target, (_, value))| (target, value))
+            .collect::<Vec<_>>();
         pending_writes.sort_by_key(|(node, _)| node.0);
 
-        BindingEvaluation { pending_writes, diagnostics_by_param }
+        BindingEvaluation {
+            pending_writes,
+            diagnostics_by_param,
+        }
     }
 
-    fn convert_binding_for_target(&self, source: NodeId, source_value: &ParamValue, target: NodeId, target_snapshot: &ParameterSnapshot, binding_targets: &HashMap<NodeId, BindingTargetConfig>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn convert_binding_for_target(
+        &self,
+        source: NodeId,
+        source_value: &ParamValue,
+        target: NodeId,
+        target_snapshot: &ParameterSnapshot,
+        binding_targets: &HashMap<NodeId, BindingTargetConfig>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         if let Some(config) = binding_targets.get(&target).filter(|config| config.target == source) {
             return self.convert_for_target(source_value, target_snapshot, "binding", config.projection, diagnostics);
         }
 
         if let Some(config) = binding_targets.get(&source).filter(|config| config.target == target) {
-            return self.convert_for_target_reverse(source_value, target_snapshot, "binding", config.projection, diagnostics);
+            return self.convert_for_target_reverse(
+                source_value,
+                target_snapshot,
+                "binding",
+                config.projection,
+                diagnostics,
+            );
         }
 
         self.convert_for_target(source_value, target_snapshot, "binding", None, diagnostics)
     }
 
-    fn expression_symbols_and_dependencies(&self, consumer: NodeId, expression: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
+    fn expression_symbols_and_dependencies(
+        &self,
+        consumer: NodeId,
+        expression: &str,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+    ) -> (JsonMap<String, JsonValue>, HashSet<NodeId>) {
         let mut symbols = JsonMap::<String, JsonValue>::new();
         let mut dependencies = HashSet::<NodeId>::new();
-        let candidates = self.user_contexts.collect_candidates(consumer, None, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
+        let candidates = self.user_contexts.collect_candidates(consumer, None, |node| {
+            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
+        });
 
         for candidate in candidates {
             if candidate.shadowed || symbols.contains_key(candidate.symbol.as_str()) {
@@ -940,32 +1322,68 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let mut runtime: Box<dyn ScriptRuntime> = Box::new(QuickJsRuntime::new(ScriptBudgets::default()).map_err(|error| format!("failed to create QuickJS runtime: {error}"))?);
+        let mut runtime: Box<dyn ScriptRuntime> = Box::new(
+            QuickJsRuntime::new(ScriptBudgets::default())
+                .map_err(|error| format!("failed to create QuickJS runtime: {error}"))?,
+        );
         let source = build_expression_runtime_source(expression);
         let source_name = format!("{EXPRESSION_RUNTIME_SOURCE_NAME}#{}", consumer.0);
-        let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
-        runtime.load(source.as_str(), source_name.as_str(), Some(&mut host)).map_err(|error| format!("failed to compile expression: {error}"))?;
+        let mut host =
+            ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        runtime
+            .load(source.as_str(), source_name.as_str(), Some(&mut host))
+            .map_err(|error| format!("failed to compile expression: {error}"))?;
 
         Ok(Arc::new(Mutex::new(runtime)))
     }
 
-    fn evaluate_expression_script(&self, consumer: NodeId, local_node: Option<NodeId>, tree_snapshot: Arc<ProcessTreeSnapshot>, runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>, symbols: JsonMap<String, JsonValue>, time_seconds: f64, delta_seconds: f64) -> Result<ParamValue, String> {
-        let mut host = ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
-        let mut runtime_guard = runtime.lock().map_err(|_| "expression runtime lock poisoned".to_string())?;
-        let result = runtime_guard.call_export(EXPRESSION_EXPORT_NAME, &[ScriptValue::Json(JsonValue::Object(symbols))], &mut host).map_err(|error| format!("expression evaluation failed: {error}"))?;
+    fn evaluate_expression_script(
+        &self,
+        consumer: NodeId,
+        local_node: Option<NodeId>,
+        tree_snapshot: Arc<ProcessTreeSnapshot>,
+        runtime: Arc<Mutex<Box<dyn ScriptRuntime>>>,
+        symbols: JsonMap<String, JsonValue>,
+        time_seconds: f64,
+        delta_seconds: f64,
+    ) -> Result<ParamValue, String> {
+        let mut host =
+            ExpressionScriptHostBridge::new(consumer, local_node, tree_snapshot, time_seconds, delta_seconds);
+        let mut runtime_guard = runtime
+            .lock()
+            .map_err(|_| "expression runtime lock poisoned".to_string())?;
+        let result = runtime_guard
+            .call_export(
+                EXPRESSION_EXPORT_NAME,
+                &[ScriptValue::Json(JsonValue::Object(symbols))],
+                &mut host,
+            )
+            .map_err(|error| format!("expression evaluation failed: {error}"))?;
         script_value_to_param_value(result)
     }
 
-    fn resolve_template_token(&mut self, consumer: NodeId, token: &str, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<String> {
+    fn resolve_template_token(
+        &mut self,
+        consumer: NodeId,
+        token: &str,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<String> {
         let token = token.trim();
         if token.is_empty() {
-            diagnostics.push(ParameterControlDiagnostic::new("template_token_empty", "template token cannot be empty"));
+            diagnostics.push(ParameterControlDiagnostic::new(
+                "template_token_empty",
+                "template token cannot be empty",
+            ));
             return None;
         }
 
         if let Some(stripped) = token.strip_prefix('$') {
             return self.node_metadata_value(consumer, stripped).or_else(|| {
-                diagnostics.push(ParameterControlDiagnostic::new("template_meta_field_unknown", format!("unknown metadata field '${stripped}'")));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "template_meta_field_unknown",
+                    format!("unknown metadata field '${stripped}'"),
+                ));
                 None
             });
         }
@@ -973,16 +1391,25 @@ impl<T: Node> Engine<T> {
         if let Some((symbol, field)) = token.split_once(".$") {
             let source = self.resolve_context_symbol_value(consumer, symbol, None, param_snapshots, diagnostics)?;
             let ParamValue::Reference(reference) = source else {
-                diagnostics.push(ParameterControlDiagnostic::new("template_meta_requires_reference", format!("symbol '{}' does not resolve to a reference parameter", symbol.trim())));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "template_meta_requires_reference",
+                    format!("symbol '{}' does not resolve to a reference parameter", symbol.trim()),
+                ));
                 return None;
             };
             let Some(target_node) = self.resolve_reference_target_node(&reference) else {
-                diagnostics.push(ParameterControlDiagnostic::new("template_meta_target_missing", format!("symbol '{}' references a missing node", symbol.trim())));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "template_meta_target_missing",
+                    format!("symbol '{}' references a missing node", symbol.trim()),
+                ));
                 return None;
             };
 
             return self.node_metadata_value(target_node, field).or_else(|| {
-                diagnostics.push(ParameterControlDiagnostic::new("template_meta_field_unknown", format!("unknown metadata field '${field}'")));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "template_meta_field_unknown",
+                    format!("unknown metadata field '${field}'"),
+                ));
                 None
             });
         }
@@ -991,27 +1418,64 @@ impl<T: Node> Engine<T> {
         source.as_str().or_else(|| Some(source.to_string()))
     }
 
-    fn resolve_context_symbol_value(&mut self, consumer: NodeId, symbol: &str, expected: Option<UserContextValueType>, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn resolve_context_symbol_value(
+        &mut self,
+        consumer: NodeId,
+        symbol: &str,
+        expected: Option<UserContextValueType>,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         let lookup = self.resolve_user_context_symbol(consumer, symbol, expected);
         match lookup {
-            UserContextLookup::Resolved(resolution) => param_snapshots.get(&resolution.entry_param).map(|snapshot| snapshot.value.clone()).or_else(|| {
-                diagnostics.push(ParameterControlDiagnostic::new("context_target_missing", format!("symbol '{}' resolved to missing parameter node {}", resolution.symbol, resolution.entry_param.0)));
-                None
-            }),
+            UserContextLookup::Resolved(resolution) => param_snapshots
+                .get(&resolution.entry_param)
+                .map(|snapshot| snapshot.value.clone())
+                .or_else(|| {
+                    diagnostics.push(ParameterControlDiagnostic::new(
+                        "context_target_missing",
+                        format!(
+                            "symbol '{}' resolved to missing parameter node {}",
+                            resolution.symbol, resolution.entry_param.0
+                        ),
+                    ));
+                    None
+                }),
             UserContextLookup::TypeMismatch(mismatch) => {
-                diagnostics
-                    .push(ParameterControlDiagnostic::new("context_type_mismatch", format!("symbol '{}' resolved to {:?} but expected {:?}", mismatch.symbol, mismatch.found, mismatch.expected)).with_detail(format!("scope_owner={}, lexical_depth={}", mismatch.scope_owner.0, mismatch.lexical_depth)));
+                diagnostics.push(
+                    ParameterControlDiagnostic::new(
+                        "context_type_mismatch",
+                        format!(
+                            "symbol '{}' resolved to {:?} but expected {:?}",
+                            mismatch.symbol, mismatch.found, mismatch.expected
+                        ),
+                    )
+                    .with_detail(format!(
+                        "scope_owner={}, lexical_depth={}",
+                        mismatch.scope_owner.0, mismatch.lexical_depth
+                    )),
+                );
                 None
             }
             UserContextLookup::Missing { symbol } => {
-                diagnostics.push(ParameterControlDiagnostic::new("context_symbol_missing", format!("context symbol '{symbol}' was not found")));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "context_symbol_missing",
+                    format!("context symbol '{symbol}' was not found"),
+                ));
                 None
             }
         }
     }
 
     fn resolve_reference_target_node(&self, reference: &NodeReference) -> Option<NodeId> {
-        reference.cached_id().filter(|node_id| self.nodes.contains(*node_id)).or_else(|| (!reference.uuid().is_nil()).then(|| self.node_id_by_uuid(reference.uuid())).flatten())
+        reference
+            .cached_id()
+            .filter(|node_id| self.nodes.contains(*node_id))
+            .or_else(|| {
+                (!reference.uuid().is_nil())
+                    .then(|| self.node_id_by_uuid(reference.uuid()))
+                    .flatten()
+            })
     }
 
     fn node_metadata_value(&self, node: NodeId, field: &str) -> Option<String> {
@@ -1026,12 +1490,21 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn resolve_control_target_param(&self, target: &NodeReference, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> Option<NodeId> {
+    fn resolve_control_target_param(
+        &self,
+        target: &NodeReference,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+    ) -> Option<NodeId> {
         let target_node = self.resolve_reference_target_node(target)?;
         param_snapshots.contains_key(&target_node).then_some(target_node)
     }
 
-    fn proxy_chain_contains(&self, needle: NodeId, mut start: NodeId, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) -> bool {
+    fn proxy_chain_contains(
+        &self,
+        needle: NodeId,
+        mut start: NodeId,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+    ) -> bool {
         let mut visited = HashSet::<NodeId>::new();
 
         loop {
@@ -1064,15 +1537,37 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn convert_for_target(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn convert_for_target(
+        &self,
+        source: &ParamValue,
+        target_snapshot: &ParameterSnapshot,
+        mode: &str,
+        projection: Option<ParamValueProjection>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         self.convert_for_target_with_direction(source, target_snapshot, mode, projection, false, diagnostics)
     }
 
-    fn convert_for_target_reverse(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn convert_for_target_reverse(
+        &self,
+        source: &ParamValue,
+        target_snapshot: &ParameterSnapshot,
+        mode: &str,
+        projection: Option<ParamValueProjection>,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         self.convert_for_target_with_direction(source, target_snapshot, mode, projection, true, diagnostics)
     }
 
-    fn convert_for_target_with_direction(&self, source: &ParamValue, target_snapshot: &ParameterSnapshot, mode: &str, projection: Option<ParamValueProjection>, reverse_projection: bool, diagnostics: &mut Vec<ParameterControlDiagnostic>) -> Option<ParamValue> {
+    fn convert_for_target_with_direction(
+        &self,
+        source: &ParamValue,
+        target_snapshot: &ParameterSnapshot,
+        mode: &str,
+        projection: Option<ParamValueProjection>,
+        reverse_projection: bool,
+        diagnostics: &mut Vec<ParameterControlDiagnostic>,
+    ) -> Option<ParamValue> {
         let converted = if reverse_projection {
             coerce_param_value_for_target_reverse(source, &target_snapshot.value, projection)
         } else {
@@ -1091,7 +1586,10 @@ impl<T: Node> Engine<T> {
                 .unwrap_or_default();
             diagnostics.push(ParameterControlDiagnostic::new(
                 "control_type_incompatible",
-                format!("control mode '{}' cannot convert value {:?}{} for target {:?}", mode, source, projection_label, target_snapshot.value),
+                format!(
+                    "control mode '{}' cannot convert value {:?}{} for target {:?}",
+                    mode, source, projection_label, target_snapshot.value
+                ),
             ));
             return None;
         };
@@ -1099,7 +1597,10 @@ impl<T: Node> Engine<T> {
         match target_snapshot.constraints.normalize(converted) {
             Ok(normalized) => Some(normalized),
             Err(message) => {
-                diagnostics.push(ParameterControlDiagnostic::new("control_constraints_violation", format!("control mode '{}' produced an invalid value: {message}", mode)));
+                diagnostics.push(ParameterControlDiagnostic::new(
+                    "control_constraints_violation",
+                    format!("control mode '{}' produced an invalid value: {message}", mode),
+                ));
                 None
             }
         }
@@ -1125,16 +1626,40 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        ControlChangeSet { changed_params, changed_controls, structural }
+        ControlChangeSet {
+            changed_params,
+            changed_controls,
+            structural,
+        }
     }
 
-    fn expression_should_evaluate(&self, consumer: NodeId, config: &ExpressionControlConfig, previous: &ExpressionControlRuntime, change_set: &ControlChangeSet) -> bool {
+    fn expression_should_evaluate(
+        &self,
+        consumer: NodeId,
+        config: &ExpressionControlConfig,
+        previous: &ExpressionControlRuntime,
+        change_set: &ControlChangeSet,
+    ) -> bool {
         let continuous_tick_advanced = previous.continuous && self.runtime_elapsed > previous.last_eval_elapsed;
-        continuous_tick_advanced || previous.source_param != Some(config.source_param) || change_set.changed_controls.contains(&consumer) || change_set.changed_params.contains(&config.source_param) || !change_set.changed_params.is_disjoint(&previous.dependencies) || change_set.structural
+        continuous_tick_advanced
+            || previous.source_param != Some(config.source_param)
+            || change_set.changed_controls.contains(&consumer)
+            || change_set.changed_params.contains(&config.source_param)
+            || !change_set.changed_params.is_disjoint(&previous.dependencies)
+            || change_set.structural
     }
 
-    fn reconcile_expression_runtime(&mut self, consumer: NodeId, previous: &ExpressionControlRuntime, next: &ExpressionControlRuntime) {
-        let mut removed = previous.subscriptions.difference(&next.subscriptions).copied().collect::<Vec<_>>();
+    fn reconcile_expression_runtime(
+        &mut self,
+        consumer: NodeId,
+        previous: &ExpressionControlRuntime,
+        next: &ExpressionControlRuntime,
+    ) {
+        let mut removed = previous
+            .subscriptions
+            .difference(&next.subscriptions)
+            .copied()
+            .collect::<Vec<_>>();
         removed.sort_by_key(|node| node.0);
         for target in removed {
             self.edits.push(Edit::RemoveEventListener {
@@ -1143,7 +1668,11 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        let mut added = next.subscriptions.difference(&previous.subscriptions).copied().collect::<Vec<_>>();
+        let mut added = next
+            .subscriptions
+            .difference(&previous.subscriptions)
+            .copied()
+            .collect::<Vec<_>>();
         added.sort_by_key(|node| node.0);
         for target in added {
             self.edits.push(Edit::AddEventListener {
@@ -1171,17 +1700,32 @@ impl<T: Node> Engine<T> {
     fn prune_expression_runtimes(&mut self, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) {
         let active = param_snapshots
             .iter()
-            .filter_map(|(param, snapshot)| matches!((&snapshot.control.mode, &snapshot.control.spec), (ParameterControlMode::Expression, ParameterControlSpec::Expression)).then_some(*param))
+            .filter_map(|(param, snapshot)| {
+                matches!(
+                    (&snapshot.control.mode, &snapshot.control.spec),
+                    (ParameterControlMode::Expression, ParameterControlSpec::Expression)
+                )
+                .then_some(*param)
+            })
             .collect::<HashSet<_>>();
 
-        let stale = self.expression_runtime.keys().copied().filter(|consumer| !active.contains(consumer) || !self.nodes.contains(*consumer)).collect::<Vec<_>>();
+        let stale = self
+            .expression_runtime
+            .keys()
+            .copied()
+            .filter(|consumer| !active.contains(consumer) || !self.nodes.contains(*consumer))
+            .collect::<Vec<_>>();
 
         for consumer in stale {
             self.clear_expression_runtime(consumer);
         }
     }
 
-    fn apply_parameter_control_diagnostics(&mut self, param_snapshots: &HashMap<NodeId, ParameterSnapshot>, mut diagnostics_by_param: HashMap<NodeId, Vec<ParameterControlDiagnostic>>) -> bool {
+    fn apply_parameter_control_diagnostics(
+        &mut self,
+        param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
+        mut diagnostics_by_param: HashMap<NodeId, Vec<ParameterControlDiagnostic>>,
+    ) -> bool {
         let mut updates = Vec::<(NodeId, ParameterControlState, ParameterControlState)>::new();
 
         let mut params = param_snapshots.keys().copied().collect::<Vec<_>>();
@@ -1211,7 +1755,11 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             if node.engine_set_param_control_state(new_state.clone()).is_ok() {
-                self.emit_event(EventKind::ParamControlChanged { param, old_state, new_state });
+                self.emit_event(EventKind::ParamControlChanged {
+                    param,
+                    old_state,
+                    new_state,
+                });
                 changed = true;
             }
         }
@@ -1233,16 +1781,26 @@ impl<T: Node> Engine<T> {
             };
 
             let mut next_presentation = node.node_data().meta.presentation.clone();
-            next_presentation.warnings.retain(|warning| !warning.id.starts_with(CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX));
+            next_presentation
+                .warnings
+                .retain(|warning| !warning.id.starts_with(CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX));
 
             let mut warning_id_occurrences = HashMap::<String, usize>::new();
             for diagnostic in &control_state.diagnostics {
                 let diagnostic_code = diagnostic.code.trim();
-                let normalized_code = if diagnostic_code.is_empty() { "unknown" } else { diagnostic_code };
+                let normalized_code = if diagnostic_code.is_empty() {
+                    "unknown"
+                } else {
+                    diagnostic_code
+                };
                 let mode_id = control_mode_id(control_state.mode);
                 let base_warning_id = format!("{CONTROL_DIAGNOSTIC_WARNING_ID_PREFIX}{mode_id}:{normalized_code}");
                 let occurrence = warning_id_occurrences.entry(base_warning_id.clone()).or_insert(0usize);
-                let warning_id = if *occurrence == 0 { base_warning_id } else { format!("{base_warning_id}:{}", *occurrence + 1) };
+                let warning_id = if *occurrence == 0 {
+                    base_warning_id
+                } else {
+                    format!("{base_warning_id}:{}", *occurrence + 1)
+                };
                 *occurrence += 1;
 
                 let mut detail_lines = vec![format!("code: {normalized_code}")];
@@ -1255,12 +1813,22 @@ impl<T: Node> Engine<T> {
                 let detail = Some(detail_lines.join("\n"));
 
                 let diagnostic_message = diagnostic.message.trim();
-                let message = if control_state.mode == ParameterControlMode::Expression && normalized_code == "expression_error" {
-                    if diagnostic_message.is_empty() { "Expression error".to_string() } else { diagnostic_message.to_string() }
+                let message = if control_state.mode == ParameterControlMode::Expression
+                    && normalized_code == "expression_error"
+                {
+                    if diagnostic_message.is_empty() {
+                        "Expression error".to_string()
+                    } else {
+                        diagnostic_message.to_string()
+                    }
                 } else if diagnostic_message.is_empty() {
                     format!("{} control diagnostic", control_mode_label(control_state.mode))
                 } else {
-                    format!("{} control: {}", control_mode_label(control_state.mode), diagnostic_message)
+                    format!(
+                        "{} control: {}",
+                        control_mode_label(control_state.mode),
+                        diagnostic_message
+                    )
                 };
 
                 next_presentation.set_warning_message(Some(warning_id.as_str()), message, detail);
@@ -1394,7 +1962,12 @@ fn expression_mentions_symbol(expression: &str, symbol: &str) -> bool {
 }
 
 fn expression_should_run_continuously(expression: &str) -> bool {
-    expression.contains("time(") || expression_mentions_symbol(expression, "deltaTime") || expression_mentions_symbol(expression, "root") || expression_mentions_symbol(expression, "local") || expression_mentions_symbol(expression, "script") || expression_mentions_symbol(expression, "gc")
+    expression.contains("time(")
+        || expression_mentions_symbol(expression, "deltaTime")
+        || expression_mentions_symbol(expression, "root")
+        || expression_mentions_symbol(expression, "local")
+        || expression_mentions_symbol(expression, "script")
+        || expression_mentions_symbol(expression, "gc")
 }
 
 fn parse_template_segments(template: &str) -> Vec<TemplateSegment> {
@@ -1458,8 +2031,14 @@ fn control_spec_matches_mode(mode: ParameterControlMode, spec: &ParameterControl
     matches!(
         (mode, spec),
         (ParameterControlMode::Manual, ParameterControlSpec::Manual)
-            | (ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { .. })
-            | (ParameterControlMode::TemplateText, ParameterControlSpec::TemplateText { .. })
+            | (
+                ParameterControlMode::ContextLink,
+                ParameterControlSpec::ContextLink { .. }
+            )
+            | (
+                ParameterControlMode::TemplateText,
+                ParameterControlSpec::TemplateText { .. }
+            )
             | (ParameterControlMode::Expression, ParameterControlSpec::Expression)
             | (ParameterControlMode::Proxy, ParameterControlSpec::Proxy)
             | (ParameterControlMode::Binding, ParameterControlSpec::Binding)

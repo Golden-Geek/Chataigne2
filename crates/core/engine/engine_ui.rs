@@ -44,7 +44,13 @@ impl<T: Node> Engine<T> {
         self.ui_event_log_start = 0;
     }
 
-    pub(crate) fn push_ui_custom_event(&mut self, topic: impl Into<String>, origin: Option<crate::node::NodeId>, payload: serde_json::Value) {
+    /// Pushes a custom UI event into the replay log.
+    pub fn push_ui_custom_event(
+        &mut self,
+        topic: impl Into<String>,
+        origin: Option<crate::node::NodeId>,
+        payload: serde_json::Value,
+    ) {
         let event = Event {
             time: self.time,
             kind: EventKind::Custom(CustomEvent::new(topic, origin, payload)),
@@ -53,8 +59,12 @@ impl<T: Node> Engine<T> {
         self.time.seq = self.time.seq.saturating_add(1);
     }
 
-    pub(crate) fn sync_logger_ui_events(&mut self) {
-        let records = crate::logger::records_since_cursor(self.last_synced_logger_record_id, self.last_synced_logger_repeat_count);
+    /// Flushes newly buffered logger records into the UI event replay log.
+    pub fn sync_logger_ui_events(&mut self) {
+        let records = crate::logger::records_since_cursor(
+            self.last_synced_logger_record_id,
+            self.last_synced_logger_repeat_count,
+        );
         for record in &records {
             if let Ok(payload) = serde_json::to_value(&record) {
                 self.push_ui_custom_event(crate::logger::UI_LOG_RECORD_TOPIC, record.origin, payload);
@@ -82,7 +92,9 @@ impl<T: Node> Engine<T> {
             return;
         }
 
-        if self.ui_event_log_start >= UI_EVENT_LOG_COMPACT_THRESHOLD || self.ui_event_log_start * 2 >= self.ui_event_log.len() {
+        if self.ui_event_log_start >= UI_EVENT_LOG_COMPACT_THRESHOLD
+            || self.ui_event_log_start * 2 >= self.ui_event_log.len()
+        {
             self.ui_event_log.drain(0..self.ui_event_log_start);
             self.ui_event_log_start = 0;
         }

@@ -5,10 +5,13 @@ use crate::color::Color;
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::parameter::{ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot};
+use crate::parameter::{
+    ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot,
+};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 mod animation_curve_nodes;
@@ -16,25 +19,36 @@ mod control_animation;
 mod dashboard;
 mod dashboard_widget_options;
 mod handles;
-pub use animation_curve_nodes::{AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, AnimationCurveRangeNode, curve_from_snapshot};
+pub use animation_curve_nodes::{
+    AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint,
+    AnimationCurveRangeNode, curve_from_snapshot,
+};
 pub use control_animation::ParameterAnimationControlNode;
 pub use dashboard::{
-    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode,
-    DashboardNodeWidgetNode, DashboardPageNode, DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec,
+    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE,
+    DASHBOARD_PAGE_ITEM_KIND, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+    DASHBOARD_WIDGET_ITEM_KIND, DashboardGenericWidgetNode, DashboardNode, DashboardNodeWidgetNode, DashboardPageNode,
+    DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor,
+    DashboardWidgetTypeSpec,
 };
 pub use dashboard_widget_options::{
-    DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE,
-    DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE, DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode, DashboardNodeWidgetNumberRotaryOptionsNode,
-    DashboardNodeWidgetNumberSliderOptionsNode, DashboardNodeWidgetParameterEditorOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode, DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
+    DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE,
+    DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE,
+    DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE,
+    DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE,
+    DashboardNodeWidgetColorEditorOptionsNode, DashboardNodeWidgetInspectorOptionsNode,
+    DashboardNodeWidgetNumberRotaryOptionsNode, DashboardNodeWidgetNumberSliderOptionsNode,
+    DashboardNodeWidgetParameterEditorOptionsNode, DashboardNodeWidgetVec2EditorOptionsNode,
+    DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
 
 /// Stable engine identifier for a node stored in [`crate::engine::node_store::NodeStore`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct NodeId(pub u64);
 
 /// Persistent UUID assigned to node metadata.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct NodeUuid(pub Uuid);
 
 impl NodeUuid {
@@ -60,7 +74,7 @@ impl Default for NodeUuid {
 /// The UUID is the source of truth and persists on disk.
 /// The cached runtime id is optional and never serialized.
 /// A cached display name is persisted to keep dangling references user-readable.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct NodeReference {
     /// Persistent target identity.
     pub uuid: NodeUuid,
@@ -205,11 +219,11 @@ impl PartialEq for NodeReference {
 impl Eq for NodeReference {}
 
 /// Declaration identifier used to refer to node definitions.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct DeclId(pub String);
 
 /// Semantic hints used for tooling, UX, and interpretation.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct SemanticsHint {
     /// Optional high-level intent of the node.
     pub intent: Option<String>,
@@ -218,7 +232,7 @@ pub struct SemanticsHint {
 }
 
 /// Warning message shown in UI for a node.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct NodeWarning {
     /// Warning identifier. Empty string is the default id.
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -267,7 +281,7 @@ fn is_zero_u32(value: &u32) -> bool {
     *value == 0
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
     /// Preferred UI color.
@@ -328,10 +342,17 @@ fn script_child_matches_key(node: &ProcessTreeNodeSnapshot, key: &str) -> bool {
         return false;
     }
 
-    node.decl_id.eq_ignore_ascii_case(key) || node.short_name.eq_ignore_ascii_case(key) || node.label.eq_ignore_ascii_case(key)
+    node.decl_id.eq_ignore_ascii_case(key)
+        || node.short_name.eq_ignore_ascii_case(key)
+        || node.label.eq_ignore_ascii_case(key)
 }
 
-fn lookup_script_child_by_key_and_type(ctx: &ProcessCtx, parent: NodeId, key: &str, expected_node_type: &str) -> ScriptChildLookup {
+fn lookup_script_child_by_key_and_type(
+    ctx: &ProcessCtx,
+    parent: NodeId,
+    key: &str,
+    expected_node_type: &str,
+) -> ScriptChildLookup {
     let mut matches = Vec::new();
     let mut same_type_matches = Vec::new();
 
@@ -361,8 +382,15 @@ fn lookup_script_child_by_key_and_type(ctx: &ProcessCtx, parent: NodeId, key: &s
         (None, false)
     };
 
-    let duplicates = matches.into_iter().filter(|candidate| Some(*candidate) != primary).collect::<Vec<_>>();
-    ScriptChildLookup { primary, primary_matches_type, duplicates }
+    let duplicates = matches
+        .into_iter()
+        .filter(|candidate| Some(*candidate) != primary)
+        .collect::<Vec<_>>();
+    ScriptChildLookup {
+        primary,
+        primary_matches_type,
+        duplicates,
+    }
 }
 
 impl PresentationHint {
@@ -383,7 +411,12 @@ impl PresentationHint {
     /// Convenience wrapper for setting/replacing a warning by `warning_id`.
     ///
     /// `None` uses the default empty warning id.
-    pub fn set_warning_message(&mut self, warning_id: Option<&str>, message: impl Into<String>, detail: Option<String>) {
+    pub fn set_warning_message(
+        &mut self,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<String>,
+    ) {
         let warning = NodeWarning {
             id: warning_id.unwrap_or_default().to_string(),
             message: message.into(),
@@ -445,7 +478,7 @@ impl PresentationHint {
 }
 
 /// User-edit permissions for UI tooling and editor workflows.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct NodeUserPermissions {
     /// Whether the node label can be edited by users.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -489,7 +522,7 @@ impl NodeUserPermissions {
 }
 
 /// Classification for user-managed structure inside the runtime tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UserNodeRole {
     /// Regular runtime node (internal/generated or non-curated).
@@ -516,12 +549,14 @@ impl UserContainerRules {
     ///
     /// The wildcard `"*"` accepts any item kind.
     pub fn accepts(&self, item_kind: &str) -> bool {
-        self.accepts_item_kinds.iter().any(|kind| *kind == "*" || *kind == item_kind)
+        self.accepts_item_kinds
+            .iter()
+            .any(|kind| *kind == "*" || *kind == item_kind)
     }
 }
 
 /// UI-facing descriptor for a user-creatable item node type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UserCreatableItem {
     /// Runtime node type identifier.
     pub node_type: String,
@@ -651,8 +686,34 @@ pub const PARAMETER_ANIMATION_PHASE_DECL_ID: &str = "phase";
 /// Built-in child `decl_id` for animation node local update rate in hertz.
 pub const PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID: &str = "update_rate_hz";
 /// All built-in parameter node type ids.
-pub const PARAMETER_NODE_TYPES: [&str; 11] = ["trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference"];
-const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 13] = [FOLDER_NODE_TYPE, "trigger", "int", "float", "str", "file", "enum", "bool", "vec2", "vec3", "color", "reference", "*"];
+pub const PARAMETER_NODE_TYPES: [&str; 11] = [
+    "trigger",
+    "int",
+    "float",
+    "str",
+    "file",
+    "enum",
+    "bool",
+    "vec2",
+    "vec3",
+    "color",
+    "reference",
+];
+const USER_CONTEXT_ALLOWED_ITEM_KINDS: [&str; 13] = [
+    FOLDER_NODE_TYPE,
+    "trigger",
+    "int",
+    "float",
+    "str",
+    "file",
+    "enum",
+    "bool",
+    "vec2",
+    "vec3",
+    "color",
+    "reference",
+    "*",
+];
 
 /// Runtime node links and metadata.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -804,7 +865,8 @@ impl NodeMeta {
     ///
     /// `warning_id = None` uses the default empty warning id.
     pub fn set_warning(&mut self, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
-        self.presentation.set_warning_message(warning_id, message, detail.map(str::to_string));
+        self.presentation
+            .set_warning_message(warning_id, message, detail.map(str::to_string));
     }
 
     /// Clears one warning by id.
@@ -853,7 +915,7 @@ impl NodeMeta {
 }
 
 /// Patch payload for metadata updates.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct NodeMetaPatch {
     /// Optional short name replacement.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -904,10 +966,18 @@ fn push_unique_script_method(methods: &mut Vec<String>, method: &str) {
 
 pub(crate) fn core_node_script_descriptor(node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
     let mut descriptor = NodeScriptDescriptor::default();
-    descriptor.properties.insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
-    descriptor.properties.insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
-    descriptor.properties.insert("type".to_string(), ParamValue::Str(node_type.to_string()));
-    descriptor.properties.insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
+    descriptor
+        .properties
+        .insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
+    descriptor
+        .properties
+        .insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
+    descriptor
+        .properties
+        .insert("type".to_string(), ParamValue::Str(node_type.to_string()));
+    descriptor
+        .properties
+        .insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
 
     for method in [
         "setName",
@@ -1114,13 +1184,19 @@ pub trait Node: Send + Any {
     /// Engine-internal hook used by UI tooling to replace script configuration.
     #[doc(hidden)]
     fn engine_set_script_config(&mut self, _config: ScriptNodeConfig, _force_reload: bool) -> Result<(), String> {
-        Err(format!("node type '{}' does not support script configuration", self.get_type()))
+        Err(format!(
+            "node type '{}' does not support script configuration",
+            self.get_type()
+        ))
     }
 
     /// Engine-internal hook used by UI tooling to request script runtime reload.
     #[doc(hidden)]
     fn engine_request_script_reload(&mut self) -> Result<(), String> {
-        Err(format!("node type '{}' does not support script reload", self.get_type()))
+        Err(format!(
+            "node type '{}' does not support script reload",
+            self.get_type()
+        ))
     }
 
     /// Engine-internal hook used by project persistence to encode node-specific data.
@@ -1136,7 +1212,10 @@ pub trait Node: Send + Any {
             return Ok(());
         }
 
-        Err(format!("node type '{}' does not support persisted project data", self.get_type()))
+        Err(format!(
+            "node type '{}' does not support persisted project data",
+            self.get_type()
+        ))
     }
 
     /// Engine-internal constructor hook used by project persistence when
@@ -1161,7 +1240,8 @@ pub trait Node: Send + Any {
             return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
         }
         let _ = item_type;
-        self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind))
+        self.user_container_rules()
+            .is_some_and(|rules| rules.accepts(item_kind))
     }
 
     /// Returns user-creatable item descriptors for this node instance.
@@ -1173,7 +1253,11 @@ pub trait Node: Send + Any {
             items.push(UserCreatableItem::new("script", "script", "Script"));
         }
         if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-            items.push(UserCreatableItem::new(USER_CONTEXT_NODE_TYPE, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_DEFAULT_LABEL));
+            items.push(UserCreatableItem::new(
+                USER_CONTEXT_NODE_TYPE,
+                USER_CONTEXT_ITEM_KIND,
+                USER_CONTEXT_DEFAULT_LABEL,
+            ));
         }
         items
     }
@@ -1183,9 +1267,14 @@ pub trait Node: Send + Any {
     /// Containers that do not support creation return `None`.
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            return Some(Box::new(ScriptNode::new("Script", ScriptNodeConfig::for_host_node_type(self.get_type()))));
+            return Some(Box::new(ScriptNode::new(
+                "Script",
+                ScriptNodeConfig::for_host_node_type(self.get_type()),
+            )));
         }
-        if (node_type == USER_CONTEXT_NODE_TYPE || node_type == "context") && self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
+        if (node_type == USER_CONTEXT_NODE_TYPE || node_type == "context")
+            && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
+        {
             return Some(Box::new(UserContextNode::new(USER_CONTEXT_DEFAULT_LABEL)));
         }
         None
@@ -1240,20 +1329,37 @@ pub trait Node: Send + Any {
     ///
     /// Returns `Ok(true)` when the property was handled by this node.
     #[doc(hidden)]
-    fn engine_set_script_property(&mut self, ctx: &mut ProcessCtx, property: &str, value: ParamValue) -> Result<bool, String> {
+    fn engine_set_script_property(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        property: &str,
+        value: ParamValue,
+    ) -> Result<bool, String> {
         match property {
             "name" | "label" => {
                 let Some(label) = value.as_str() else {
                     return Err(format!("property '{property}' expects a string value"));
                 };
-                ctx.patch_node_meta(self.id(), NodeMetaPatch { label: Some(label), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        label: Some(label),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             "enabled" => {
                 let Some(enabled) = value.as_bool() else {
                     return Err("property 'enabled' expects a boolean value".to_string());
                 };
-                ctx.patch_node_meta(self.id(), NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             _ => Ok(false),
@@ -1264,20 +1370,37 @@ pub trait Node: Send + Any {
     ///
     /// Returns `Ok(true)` when the method was handled by this node.
     #[doc(hidden)]
-    fn engine_call_script_method(&mut self, ctx: &mut ProcessCtx, method: &str, args: &[ParamValue]) -> Result<bool, String> {
+    fn engine_call_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
         match method {
             "setName" => {
                 let Some(label) = args.first().and_then(ParamValue::as_str) else {
                     return Err("method 'setName' expects one string argument".to_string());
                 };
-                ctx.patch_node_meta(self.id(), NodeMetaPatch { label: Some(label), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        label: Some(label),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             "setEnabled" => {
                 let Some(enabled) = args.first().and_then(ParamValue::as_bool) else {
                     return Err("method 'setEnabled' expects one boolean argument".to_string());
                 };
-                ctx.patch_node_meta(self.id(), NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             "setDescription" => {
@@ -1319,7 +1442,11 @@ pub trait Node: Send + Any {
                 Ok(true)
             }
             "addFolder" => {
-                let label = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "Folder".to_string());
+                let label = args
+                    .first()
+                    .and_then(ParamValue::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| "Folder".to_string());
                 let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), "folder");
                 for duplicate in lookup.duplicates {
                     ctx.edits.push(Edit::RemoveNode { node: duplicate });
@@ -1327,9 +1454,19 @@ pub trait Node: Send + Any {
 
                 if let Some(existing_node) = lookup.primary {
                     if lookup.primary_matches_type {
-                        if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                        if let Some(existing_label) = ctx
+                            .tree_snapshot()
+                            .and_then(|snapshot| snapshot.node(existing_node))
+                            .map(|snapshot| snapshot.label.clone())
+                        {
                             if existing_label != label {
-                                ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label),
+                                        ..Default::default()
+                                    },
+                                );
                             }
                         }
                         return Ok(true);
@@ -1343,7 +1480,11 @@ pub trait Node: Send + Any {
                 Ok(true)
             }
             "addParameter" => {
-                let parameter_id = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "parameter".to_string());
+                let parameter_id = args
+                    .first()
+                    .and_then(ParamValue::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| "parameter".to_string());
                 let default_value = args.get(1).cloned().unwrap_or(ParamValue::Float(0.0));
                 let expected_type = parameter_node_type_from_value(&default_value);
 
@@ -1356,10 +1497,18 @@ pub trait Node: Send + Any {
                     let existing_snapshot = ctx
                         .tree_snapshot()
                         .and_then(|snapshot| snapshot.node(existing_node))
-                        .map(|snapshot| (snapshot.is_parameter(), snapshot.node_type.clone(), snapshot.label.clone(), snapshot.param_value.clone()));
+                        .map(|snapshot| {
+                            (
+                                snapshot.is_parameter(),
+                                snapshot.node_type.clone(),
+                                snapshot.label.clone(),
+                                snapshot.param_value.clone(),
+                            )
+                        });
 
                     if let Some((is_parameter, node_type, label, param_value)) = existing_snapshot {
-                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type) {
+                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type)
+                        {
                             if label != parameter_id {
                                 ctx.patch_node_meta(
                                     existing_node,
@@ -1376,13 +1525,15 @@ pub trait Node: Send + Any {
                         }
                     }
 
-                    let mut parameter = Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                    let mut parameter =
+                        Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
                     parameter.node_data_mut().meta.decl_id = DeclId(parameter_id);
                     ctx.replace_node_boxed(existing_node, Box::new(parameter));
                     return Ok(true);
                 }
 
-                let mut parameter = Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                let mut parameter =
+                    Parameter::new(parameter_id.as_str(), default_value, ParameterChangeCheck::ValueChange);
                 parameter.node_data_mut().meta.decl_id = DeclId(parameter_id);
                 ctx.add_child_boxed(self.id(), Box::new(parameter), None);
                 Ok(true)
@@ -1414,7 +1565,10 @@ pub trait Node: Send + Any {
                 let Some(key) = args.first().and_then(ParamValue::as_str) else {
                     return Err("method 'setParam' expects (name, value) arguments".to_string());
                 };
-                let value = args.get(1).cloned().ok_or_else(|| "method 'setParam' expects (name, value) arguments".to_string())?;
+                let value = args
+                    .get(1)
+                    .cloned()
+                    .ok_or_else(|| "method 'setParam' expects (name, value) arguments".to_string())?;
                 let key = key.trim();
                 if key.is_empty() {
                     return Err("method 'setParam' expects a non-empty parameter key".to_string());
@@ -1435,9 +1589,17 @@ pub trait Node: Send + Any {
                 Ok(true)
             }
             "addNode" => {
-                let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
+                let node_type = args
+                    .first()
+                    .and_then(ParamValue::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| "folder".to_string());
                 let normalized_node_type = node_type.trim().to_ascii_lowercase();
-                let resolved_node_type = if normalized_node_type == "context" { USER_CONTEXT_NODE_TYPE } else { node_type.as_str() };
+                let resolved_node_type = if normalized_node_type == "context" {
+                    USER_CONTEXT_NODE_TYPE
+                } else {
+                    node_type.as_str()
+                };
 
                 let default_label = match normalized_node_type.as_str() {
                     "parameter" | "param" => "parameter".to_string(),
@@ -1445,7 +1607,11 @@ pub trait Node: Send + Any {
                     "user_context" | "context" => USER_CONTEXT_DEFAULT_LABEL.to_string(),
                     _ => node_type.clone(),
                 };
-                let label = args.get(1).and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or(default_label);
+                let label = args
+                    .get(1)
+                    .and_then(ParamValue::as_str)
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(default_label);
 
                 if normalized_node_type.is_empty() || normalized_node_type == "folder" {
                     let lookup = lookup_script_child_by_key_and_type(ctx, self.id(), label.as_str(), "folder");
@@ -1455,9 +1621,19 @@ pub trait Node: Send + Any {
 
                     if let Some(existing_node) = lookup.primary {
                         if lookup.primary_matches_type {
-                            if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                            if let Some(existing_label) = ctx
+                                .tree_snapshot()
+                                .and_then(|snapshot| snapshot.node(existing_node))
+                                .map(|snapshot| snapshot.label.clone())
+                            {
                                 if existing_label != label {
-                                    ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
+                                    ctx.patch_node_meta(
+                                        existing_node,
+                                        NodeMetaPatch {
+                                            label: Some(label),
+                                            ..Default::default()
+                                        },
+                                    );
                                 }
                             }
                             return Ok(true);
@@ -1480,12 +1656,27 @@ pub trait Node: Send + Any {
                     }
 
                     if let Some(existing_node) = lookup.primary {
-                        let existing_snapshot = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| (snapshot.is_parameter(), snapshot.label.clone(), snapshot.param_value.clone()));
+                        let existing_snapshot = ctx
+                            .tree_snapshot()
+                            .and_then(|snapshot| snapshot.node(existing_node))
+                            .map(|snapshot| {
+                                (
+                                    snapshot.is_parameter(),
+                                    snapshot.label.clone(),
+                                    snapshot.param_value.clone(),
+                                )
+                            });
 
                         if let Some((is_parameter, existing_label, param_value)) = existing_snapshot {
                             if is_parameter && lookup.primary_matches_type {
                                 if existing_label != label {
-                                    ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label.clone()), ..Default::default() });
+                                    ctx.patch_node_meta(
+                                        existing_node,
+                                        NodeMetaPatch {
+                                            label: Some(label.clone()),
+                                            ..Default::default()
+                                        },
+                                    );
                                 }
                                 if param_value.as_ref() != Some(&default_value) {
                                     ctx.set_param(existing_node, default_value);
@@ -1494,13 +1685,15 @@ pub trait Node: Send + Any {
                             }
                         }
 
-                        let mut parameter = Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                        let mut parameter =
+                            Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
                         parameter.node_data_mut().meta.decl_id = DeclId(label.clone());
                         ctx.replace_node_boxed(existing_node, Box::new(parameter));
                         return Ok(true);
                     }
 
-                    let mut parameter = Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
+                    let mut parameter =
+                        Parameter::new(label.as_str(), default_value, ParameterChangeCheck::ValueChange);
                     parameter.node_data_mut().meta.decl_id = DeclId(label.clone());
                     ctx.add_child_boxed(self.id(), Box::new(parameter), None);
                     return Ok(true);
@@ -1513,9 +1706,19 @@ pub trait Node: Send + Any {
 
                 if let Some(existing_node) = lookup.primary {
                     if lookup.primary_matches_type {
-                        if let Some(existing_label) = ctx.tree_snapshot().and_then(|snapshot| snapshot.node(existing_node)).map(|snapshot| snapshot.label.clone()) {
+                        if let Some(existing_label) = ctx
+                            .tree_snapshot()
+                            .and_then(|snapshot| snapshot.node(existing_node))
+                            .map(|snapshot| snapshot.label.clone())
+                        {
                             if existing_label != label {
-                                ctx.patch_node_meta(existing_node, NodeMetaPatch { label: Some(label), ..Default::default() });
+                                ctx.patch_node_meta(
+                                    existing_node,
+                                    NodeMetaPatch {
+                                        label: Some(label),
+                                        ..Default::default()
+                                    },
+                                );
                             }
                         }
                         return Ok(true);
@@ -1532,7 +1735,10 @@ pub trait Node: Send + Any {
                     return Ok(true);
                 }
 
-                Err(format!("method 'addNode' cannot create node type '{node_type}' under '{}'", self.get_type()))
+                Err(format!(
+                    "method 'addNode' cannot create node type '{node_type}' under '{}'",
+                    self.get_type()
+                ))
             }
             _ => Ok(false),
         }
@@ -1701,7 +1907,11 @@ pub trait Node: Send + Any {
     }
     /// Queues move of an existing child.
     fn move_child(&mut self, ctx: &mut ProcessCtx, child: NodeId, new_parent: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode { node: child, new_parent, new_prev_sibling: after });
+        ctx.edits.push(Edit::MoveNode {
+            node: child,
+            new_parent,
+            new_prev_sibling: after,
+        });
     }
     /// Subscribes this node to direct events originating from `target`.
     fn add_listener(&mut self, ctx: &mut ProcessCtx, target: NodeId) {
@@ -1750,7 +1960,13 @@ pub trait Node: Send + Any {
     /// Sets or replaces a warning on this node.
     ///
     /// `warning_id = None` uses the default empty warning id.
-    fn set_warning_with(&mut self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: &str, detail: Option<&str>) {
+    fn set_warning_with(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        warning_id: Option<&str>,
+        message: &str,
+        detail: Option<&str>,
+    ) {
         ctx.set_node_warning_with(self.id(), warning_id, message, detail);
     }
 
@@ -1764,7 +1980,14 @@ pub trait Node: Send + Any {
     /// Sets or replaces a warning on any `target` node.
     ///
     /// This is useful when a child node wants to surface problems on a parent.
-    fn set_warning_for_node_with(&mut self, ctx: &mut ProcessCtx, target: NodeId, warning_id: Option<&str>, message: &str, detail: Option<&str>) {
+    fn set_warning_for_node_with(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        target: NodeId,
+        warning_id: Option<&str>,
+        message: &str,
+        detail: Option<&str>,
+    ) {
         ctx.set_node_warning_with(target, warning_id, message, detail);
     }
 
@@ -1813,7 +2036,11 @@ pub trait Node: Send + Any {
                 EventKind::ParamChanged { param, old_value, .. } => {
                     self.on_param_change(ctx, param, old_value);
                 }
-                EventKind::ParamControlChanged { param, old_state, new_state } => {
+                EventKind::ParamControlChanged {
+                    param,
+                    old_state,
+                    new_state,
+                } => {
                     self.on_param_control_changed(ctx, param, old_state, new_state);
                 }
                 EventKind::ChildAdded { parent, child, decl_id } => {
@@ -1822,10 +2049,19 @@ pub trait Node: Send + Any {
                 EventKind::ChildRemoved { parent, child } => {
                     self.on_child_removed(ctx, parent, child);
                 }
-                EventKind::ChildReplaced { parent, old, new, decl_id } => {
+                EventKind::ChildReplaced {
+                    parent,
+                    old,
+                    new,
+                    decl_id,
+                } => {
                     self.on_child_replaced_decl(ctx, parent, old, new, &decl_id);
                 }
-                EventKind::ChildMoved { child, old_parent, new_parent } => {
+                EventKind::ChildMoved {
+                    child,
+                    old_parent,
+                    new_parent,
+                } => {
                     self.on_child_moved(ctx, child, old_parent, new_parent);
                 }
                 EventKind::ChildReordered { parent, child } => {
@@ -1850,7 +2086,14 @@ pub trait Node: Send + Any {
     /// Called when a parameter has changed.
     fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {}
     /// Called when a parameter control state has changed.
-    fn on_param_control_changed(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_state: ParameterControlState, _new_state: ParameterControlState) {}
+    fn on_param_control_changed(
+        &mut self,
+        _ctx: &mut ProcessCtx,
+        _param: NodeId,
+        _old_state: ParameterControlState,
+        _new_state: ParameterControlState,
+    ) {
+    }
     /// Called once when any structural event is present in the current callback frame.
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {}
     /// Called when a child is added.
@@ -1864,7 +2107,14 @@ pub trait Node: Send + Any {
     /// Called when a child is replaced.
     fn on_child_replaced(&mut self, _ctx: &mut ProcessCtx, _parent: NodeId, _old: NodeId, _new: NodeId) {}
     /// Called when a child is replaced, including the replacement slot id.
-    fn on_child_replaced_decl(&mut self, ctx: &mut ProcessCtx, parent: NodeId, old: NodeId, new: NodeId, _decl_id: &DeclId) {
+    fn on_child_replaced_decl(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        parent: NodeId,
+        old: NodeId,
+        new: NodeId,
+        _decl_id: &DeclId,
+    ) {
         self.on_child_replaced(ctx, parent, old, new);
     }
     /// Called when a child is moved to another parent.
@@ -2018,7 +2268,9 @@ impl Node for UserContextNode {
     }
 
     fn type_description(&self) -> Option<&str> {
-        Some("Internal scope node used to host user-authored lexical context entries.\n\nContext entries are regular descendant parameter nodes. Symbols are derived from parameter decl_id values during resolver indexing.")
+        Some(
+            "Internal scope node used to host user-authored lexical context entries.\n\nContext entries are regular descendant parameter nodes. Symbols are derived from parameter decl_id values during resolver indexing.",
+        )
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -2058,7 +2310,11 @@ impl Node for UserContextNode {
         }
 
         if node_type == "param" || node_type == "parameter" {
-            return Some(Box::new(Parameter::new("Parameter", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange)));
+            return Some(Box::new(Parameter::new(
+                "Parameter",
+                ParamValue::Float(0.0),
+                ParameterChangeCheck::ValueChange,
+            )));
         }
 
         let default_value = default_parameter_value_for_node_type(node_type.as_str())?;
@@ -2076,7 +2332,11 @@ impl Node for UserContextNode {
             "reference" => "Reference",
             _ => node_type.as_str(),
         };
-        Some(Box::new(Parameter::new(default_label, default_value, ParameterChangeCheck::ValueChange)))
+        Some(Box::new(Parameter::new(
+            default_label,
+            default_value,
+            ParameterChangeCheck::ValueChange,
+        )))
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -2089,7 +2349,9 @@ impl Node for UserContextNode {
 }
 
 pub(super) fn parameter_child_exists(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
-    ctx.tree_snapshot().and_then(|snapshot| snapshot.find_child(parent, decl_id)).is_some()
+    ctx.tree_snapshot()
+        .and_then(|snapshot| snapshot.find_child(parent, decl_id))
+        .is_some()
 }
 
 /// Internal Folder-like node used as empty organizational structure and root for user content without process or bubbling.
@@ -2120,7 +2382,9 @@ impl Node for Folder {
     }
 
     fn type_description(&self) -> Option<&str> {
-        Some("Internal folder-like node used as empty organizational structure and root for user content without process or bubbling.")
+        Some(
+            "Internal folder-like node used as empty organizational structure and root for user content without process or bubbling.",
+        )
     }
 
     fn as_any(&self) -> &dyn Any {

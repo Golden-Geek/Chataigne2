@@ -36,7 +36,10 @@ impl NodeExecutionRule {
 
     /// Returns a periodic rule with `rate_hz` and no dependencies.
     pub fn periodic(rate_hz: NodeUpdateRate) -> Self {
-        Self { dependencies: Vec::new(), update_rate: Some(rate_hz) }
+        Self {
+            dependencies: Vec::new(),
+            update_rate: Some(rate_hz),
+        }
     }
 
     /// Replaces dependencies on this rule.
@@ -51,7 +54,10 @@ impl NodeExecutionRule {
 
 impl Default for NodeExecutionRule {
     fn default() -> Self {
-        Self { dependencies: Vec::new(), update_rate: None }
+        Self {
+            dependencies: Vec::new(),
+            update_rate: None,
+        }
     }
 }
 
@@ -132,10 +138,16 @@ impl fmt::Display for EngineRuntimeError {
                 write!(f, "node {:?} declared invalid update rate {}hz", node, rate_hz)
             }
             Self::InfiniteEventEditCycle { tick, passes } => {
-                write!(f, "runtime aborted at tick {tick} after {passes} stabilization passes (possible event/edit cycle)")
+                write!(
+                    f,
+                    "runtime aborted at tick {tick} after {passes} stabilization passes (possible event/edit cycle)"
+                )
             }
             Self::UpdateBudgetExceeded { tick, callbacks, limit } => {
-                write!(f, "runtime aborted at tick {tick}: update callbacks {callbacks} exceeded limit {limit}")
+                write!(
+                    f,
+                    "runtime aborted at tick {tick}: update callbacks {callbacks} exceeded limit {limit}"
+                )
             }
         }
     }
@@ -185,7 +197,11 @@ impl ScheduleBucket {
 }
 
 impl ScheduleMgr {
-    fn rebuild(&mut self, topo_order: Vec<NodeId>, rules: &HashMap<NodeId, NodeExecutionRule>) -> Result<(), EngineRuntimeError> {
+    fn rebuild(
+        &mut self,
+        topo_order: Vec<NodeId>,
+        rules: &HashMap<NodeId, NodeExecutionRule>,
+    ) -> Result<(), EngineRuntimeError> {
         self.topo_order = topo_order;
         self.bucket_by_node.clear();
         self.buckets.clear();
@@ -201,7 +217,10 @@ impl ScheduleMgr {
             };
 
             if rate_hz == 0 {
-                return Err(EngineRuntimeError::InvalidUpdateRate { node: *node_id, rate_hz });
+                return Err(EngineRuntimeError::InvalidUpdateRate {
+                    node: *node_id,
+                    rate_hz,
+                });
             }
 
             buckets_by_rate.entry(rate_hz).or_default().push(*node_id);
@@ -262,7 +281,10 @@ impl ScheduleMgr {
     }
 
     fn bucket_nodes(&self, rate_hz: NodeUpdateRate) -> Option<&[NodeId]> {
-        self.buckets.iter().find(|bucket| bucket.rate_hz == rate_hz).map(|bucket| bucket.nodes.as_slice())
+        self.buckets
+            .iter()
+            .find(|bucket| bucket.rate_hz == rate_hz)
+            .map(|bucket| bucket.nodes.as_slice())
     }
 }
 
@@ -305,7 +327,8 @@ impl<T: Node> Engine<T> {
 
     /// Rebuilds runtime scheduling from current node execution rules.
     pub fn resolve(&mut self) -> Result<(), EngineRuntimeError> {
-        let previously_scheduled_nodes: HashSet<NodeId> = self.runtime_schedule.bucket_by_node.keys().copied().collect();
+        let previously_scheduled_nodes: HashSet<NodeId> =
+            self.runtime_schedule.bucket_by_node.keys().copied().collect();
         let rules = self.collect_execution_rules();
         let topo_order = self.topological_sort(&rules)?;
         self.runtime_schedule.rebuild(topo_order, &rules)?;
@@ -431,7 +454,13 @@ impl<T: Node> Engine<T> {
     }
 
     fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
-        self.nodes.iter().filter_map(|(node_id, node)| self.is_enabled(node_id, true).then_some((node_id, node.execution_rule()))).collect()
+        self.nodes
+            .iter()
+            .filter_map(|(node_id, node)| {
+                self.is_enabled(node_id, true)
+                    .then_some((node_id, node.execution_rule()))
+            })
+            .collect()
     }
 
     fn topological_sort(&self, rules: &HashMap<NodeId, NodeExecutionRule>) -> Result<Vec<NodeId>, EngineRuntimeError> {
@@ -442,7 +471,10 @@ impl<T: Node> Engine<T> {
             let mut dedupe = HashSet::new();
             for dependency in &rule.dependencies {
                 if !indegree.contains_key(dependency) {
-                    return Err(EngineRuntimeError::MissingDependency { node: *node_id, dependency: *dependency });
+                    return Err(EngineRuntimeError::MissingDependency {
+                        node: *node_id,
+                        dependency: *dependency,
+                    });
                 }
                 if !dedupe.insert(*dependency) {
                     continue;
@@ -455,7 +487,10 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let mut ready: BTreeSet<u64> = indegree.iter().filter_map(|(node_id, indegree)| (*indegree == 0).then_some(node_id.0)).collect();
+        let mut ready: BTreeSet<u64> = indegree
+            .iter()
+            .filter_map(|(node_id, indegree)| (*indegree == 0).then_some(node_id.0))
+            .collect();
 
         let mut sorted = Vec::with_capacity(indegree.len());
 
@@ -480,21 +515,32 @@ impl<T: Node> Engine<T> {
             return Ok(sorted);
         }
 
-        let mut cycle_nodes: Vec<NodeId> = indegree.into_iter().filter_map(|(node, indegree)| (indegree > 0).then_some(node)).collect();
+        let mut cycle_nodes: Vec<NodeId> = indegree
+            .into_iter()
+            .filter_map(|(node, indegree)| (indegree > 0).then_some(node))
+            .collect();
         cycle_nodes.sort_by_key(|node| node.0);
 
         Err(EngineRuntimeError::DependencyCycle { nodes: cycle_nodes })
     }
 
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
-        let due_nodes = self.runtime_schedule.collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        let due_nodes = self
+            .runtime_schedule
+            .collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
         if due_nodes.is_empty() {
             return Ok(());
         }
 
-        let needs_tree_snapshot = due_nodes.iter().any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
+        let needs_tree_snapshot = due_nodes
+            .iter()
+            .any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
         let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
-        let mut parameter_values = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect::<HashMap<_, _>>();
+        let mut parameter_values = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
+            .collect::<HashMap<_, _>>();
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
         let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
@@ -505,7 +551,11 @@ impl<T: Node> Engine<T> {
         }
 
         for node_id in due_counts.keys() {
-            let previous = self.last_update_elapsed_by_node.get(node_id).copied().unwrap_or(Duration::ZERO);
+            let previous = self
+                .last_update_elapsed_by_node
+                .get(node_id)
+                .copied()
+                .unwrap_or(Duration::ZERO);
             remaining_delta_by_node.insert(*node_id, self.runtime_elapsed.saturating_sub(previous));
         }
 
@@ -565,7 +615,10 @@ impl<T: Node> Engine<T> {
             }
 
             if did_update {
-                let last = self.last_update_elapsed_by_node.entry(node_id).or_insert(Duration::ZERO);
+                let last = self
+                    .last_update_elapsed_by_node
+                    .entry(node_id)
+                    .or_insert(Duration::ZERO);
                 *last = last.saturating_add(delta_time);
             }
         }
@@ -585,7 +638,10 @@ impl<T: Node> Engine<T> {
             }
 
             if pass >= self.runtime_limits.max_stabilization_passes_per_tick {
-                return Err(EngineRuntimeError::InfiniteEventEditCycle { tick: self.time.tick, passes: pass });
+                return Err(EngineRuntimeError::InfiniteEventEditCycle {
+                    tick: self.time.tick,
+                    passes: pass,
+                });
             }
 
             self.time.micro = (pass as u32).saturating_add(1);

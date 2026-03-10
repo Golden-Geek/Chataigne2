@@ -35,7 +35,8 @@ impl<T: Node> HistoryTransaction<T> {
                 continue;
             };
 
-            if existing.behaviour == ParameterEventBehaviour::Coalesce && existing.node == node && existing.tick == tick {
+            if existing.behaviour == ParameterEventBehaviour::Coalesce && existing.node == node && existing.tick == tick
+            {
                 existing.new_value = new_value;
                 return true;
             }
@@ -51,7 +52,12 @@ impl<T: Node> HistoryTransaction<T> {
         for step in self.steps.drain(..) {
             match step {
                 HistoryStep::SetParam(incoming) => {
-                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce && previous.try_update_coalesced_set_param(incoming.node, incoming.tick, incoming.new_value.clone());
+                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce
+                        && previous.try_update_coalesced_set_param(
+                            incoming.node,
+                            incoming.tick,
+                            incoming.new_value.clone(),
+                        );
 
                     if !merged {
                         remaining_steps.push(HistoryStep::SetParam(incoming));
@@ -104,7 +110,12 @@ pub(crate) struct ActiveEditSession<T: Node> {
 
 impl<T: Node> ActiveEditSession<T> {
     /// Creates a new empty active edit session.
-    pub(crate) fn new(origin: EditOrigin, label: Option<String>, client_edit_id: String, ui_client_instance_id: Option<String>) -> Self {
+    pub(crate) fn new(
+        origin: EditOrigin,
+        label: Option<String>,
+        client_edit_id: String,
+        ui_client_instance_id: Option<String>,
+    ) -> Self {
         Self {
             origin,
             label,
@@ -143,7 +154,11 @@ impl<T: Node> HistoryStep<T> {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone())?;
             }
             Self::SetParamControlState(step) => {
-                engine.apply_set_param_control_state_for_history("UndoSetParamControlState", step.node, step.old_state.clone())?;
+                engine.apply_set_param_control_state_for_history(
+                    "UndoSetParamControlState",
+                    step.node,
+                    step.old_state.clone(),
+                )?;
             }
             Self::PatchMeta(step) => {
                 let enabled_changed = {
@@ -161,14 +176,22 @@ impl<T: Node> HistoryStep<T> {
                     node: step.node,
                 })?;
                 target.node_data_mut().meta = step.old_meta.clone();
-                engine.emit_event(EventKind::MetaChanged { node: step.node, patch: meta_to_patch(&step.old_meta) });
+                engine.emit_event(EventKind::MetaChanged {
+                    node: step.node,
+                    patch: meta_to_patch(&step.old_meta),
+                });
 
                 if enabled_changed {
                     engine.mark_schedule_dirty();
                 }
             }
             Self::SetScriptConfig(step) => {
-                engine.apply_script_config_for_history("UndoSetScriptConfig", step.node, step.old_config.clone(), step.force_reload)?;
+                engine.apply_script_config_for_history(
+                    "UndoSetScriptConfig",
+                    step.node,
+                    step.old_config.clone(),
+                    step.force_reload,
+                )?;
             }
             Self::AddNode(step) => {
                 const OP: &str = "UndoAddNode";
@@ -183,7 +206,11 @@ impl<T: Node> HistoryStep<T> {
 
                 let mut detached_nodes = Vec::with_capacity(subtree.len());
                 for removed in subtree.into_iter().rev() {
-                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: removed })?;
+                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: removed,
+                    })?;
                     detached_nodes.push((removed, detached));
                     engine.emit_event(EventKind::NodeDeleted { node: removed });
                 }
@@ -193,7 +220,10 @@ impl<T: Node> HistoryStep<T> {
                 step.next_sibling = next_sibling;
                 step.detached_nodes = Some(detached_nodes);
 
-                engine.emit_event(EventKind::ChildRemoved { parent, child: step.node });
+                engine.emit_event(EventKind::ChildRemoved {
+                    parent,
+                    child: step.node,
+                });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "UndoRemoveNode";
@@ -213,7 +243,11 @@ impl<T: Node> HistoryStep<T> {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
-                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node, decl_id });
+                engine.emit_event(EventKind::ChildAdded {
+                    parent: step.parent,
+                    child: step.node,
+                    decl_id,
+                });
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -223,10 +257,20 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(0, OP, step.node, step.old_parent, step.old_prev_sibling, step.old_next_sibling)?;
+                engine.attach_node_between(
+                    0,
+                    OP,
+                    step.node,
+                    step.old_parent,
+                    step.old_prev_sibling,
+                    step.old_next_sibling,
+                )?;
 
                 if current_parent == step.old_parent {
-                    engine.emit_event(EventKind::ChildReordered { parent: step.old_parent, child: step.node });
+                    engine.emit_event(EventKind::ChildReordered {
+                        parent: step.old_parent,
+                        child: step.node,
+                    });
                 } else {
                     engine.emit_event(EventKind::ChildMoved {
                         child: step.node,
@@ -245,7 +289,16 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 if step.old_id == step.new_id {
-                    let live_node_data = engine.nodes.get(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?.node_data().clone();
+                    let live_node_data = engine
+                        .nodes
+                        .get(step.new_id)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: OP,
+                            node: step.new_id,
+                        })?
+                        .node_data()
+                        .clone();
 
                     let mut old_node = old_node;
                     {
@@ -258,7 +311,11 @@ impl<T: Node> HistoryStep<T> {
                         old_data.next_sibling = live_node_data.next_sibling;
                     }
 
-                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?;
+                    let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.new_id,
+                    })?;
                     engine.nodes.reattach(step.old_id, old_node);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
@@ -274,12 +331,25 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 engine.detach_node(0, OP, step.new_id)?;
-                let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?;
+                let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
+                    edit_index: 0,
+                    operation: OP,
+                    node: step.new_id,
+                })?;
 
                 engine.nodes.reattach(step.old_id, old_node);
                 engine.attach_node_between(0, OP, step.old_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                let first_child = engine.nodes.get(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?.node_data().first_child;
+                let first_child = engine
+                    .nodes
+                    .get(step.old_id)
+                    .ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.old_id,
+                    })?
+                    .node_data()
+                    .first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.old_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.old_id });
@@ -306,7 +376,11 @@ impl<T: Node> HistoryStep<T> {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone())?;
             }
             Self::SetParamControlState(step) => {
-                engine.apply_set_param_control_state_for_history("RedoSetParamControlState", step.node, step.new_state.clone())?;
+                engine.apply_set_param_control_state_for_history(
+                    "RedoSetParamControlState",
+                    step.node,
+                    step.new_state.clone(),
+                )?;
             }
             Self::PatchMeta(step) => {
                 let enabled_changed = {
@@ -324,14 +398,22 @@ impl<T: Node> HistoryStep<T> {
                     node: step.node,
                 })?;
                 target.node_data_mut().meta = step.new_meta.clone();
-                engine.emit_event(EventKind::MetaChanged { node: step.node, patch: meta_to_patch(&step.new_meta) });
+                engine.emit_event(EventKind::MetaChanged {
+                    node: step.node,
+                    patch: meta_to_patch(&step.new_meta),
+                });
 
                 if enabled_changed {
                     engine.mark_schedule_dirty();
                 }
             }
             Self::SetScriptConfig(step) => {
-                engine.apply_script_config_for_history("RedoSetScriptConfig", step.node, step.new_config.clone(), step.force_reload)?;
+                engine.apply_script_config_for_history(
+                    "RedoSetScriptConfig",
+                    step.node,
+                    step.new_config.clone(),
+                    step.force_reload,
+                )?;
             }
             Self::AddNode(step) => {
                 const OP: &str = "RedoAddNode";
@@ -350,7 +432,11 @@ impl<T: Node> HistoryStep<T> {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
-                engine.emit_event(EventKind::ChildAdded { parent: step.parent, child: step.node, decl_id });
+                engine.emit_event(EventKind::ChildAdded {
+                    parent: step.parent,
+                    child: step.node,
+                    decl_id,
+                });
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "RedoRemoveNode";
@@ -365,12 +451,19 @@ impl<T: Node> HistoryStep<T> {
 
                 let mut detached_nodes = Vec::with_capacity(subtree.len());
                 for removed in subtree.into_iter().rev() {
-                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: removed })?;
+                    let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: removed,
+                    })?;
                     detached_nodes.push((removed, detached));
                     engine.emit_event(EventKind::NodeDeleted { node: removed });
                 }
 
-                engine.emit_event(EventKind::ChildRemoved { parent, child: step.node });
+                engine.emit_event(EventKind::ChildRemoved {
+                    parent,
+                    child: step.node,
+                });
 
                 step.parent = parent;
                 step.prev_sibling = prev_sibling;
@@ -385,10 +478,20 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let current_parent = engine.detach_node(0, OP, step.node)?;
-                engine.attach_node_between(0, OP, step.node, step.new_parent, step.new_prev_sibling, step.new_next_sibling)?;
+                engine.attach_node_between(
+                    0,
+                    OP,
+                    step.node,
+                    step.new_parent,
+                    step.new_prev_sibling,
+                    step.new_next_sibling,
+                )?;
 
                 if current_parent == step.new_parent {
-                    engine.emit_event(EventKind::ChildReordered { parent: step.new_parent, child: step.node });
+                    engine.emit_event(EventKind::ChildReordered {
+                        parent: step.new_parent,
+                        child: step.node,
+                    });
                 } else {
                     engine.emit_event(EventKind::ChildMoved {
                         child: step.node,
@@ -407,7 +510,16 @@ impl<T: Node> HistoryStep<T> {
                 };
 
                 if step.old_id == step.new_id {
-                    let live_node_data = engine.nodes.get(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?.node_data().clone();
+                    let live_node_data = engine
+                        .nodes
+                        .get(step.old_id)
+                        .ok_or(EngineEditError::NodeNotFound {
+                            edit_index: 0,
+                            operation: OP,
+                            node: step.old_id,
+                        })?
+                        .node_data()
+                        .clone();
 
                     let mut new_node = new_node;
                     {
@@ -420,7 +532,11 @@ impl<T: Node> HistoryStep<T> {
                         new_data.next_sibling = live_node_data.next_sibling;
                     }
 
-                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?;
+                    let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.old_id,
+                    })?;
                     engine.nodes.reattach(step.new_id, new_node);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
@@ -436,12 +552,25 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 engine.detach_node(0, OP, step.old_id)?;
-                let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.old_id })?;
+                let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
+                    edit_index: 0,
+                    operation: OP,
+                    node: step.old_id,
+                })?;
 
                 engine.nodes.reattach(step.new_id, new_node);
                 engine.attach_node_between(0, OP, step.new_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                let first_child = engine.nodes.get(step.new_id).ok_or(EngineEditError::NodeNotFound { edit_index: 0, operation: OP, node: step.new_id })?.node_data().first_child;
+                let first_child = engine
+                    .nodes
+                    .get(step.new_id)
+                    .ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: OP,
+                        node: step.new_id,
+                    })?
+                    .node_data()
+                    .first_child;
                 engine.reparent_child_chain(0, OP, first_child, step.new_id)?;
 
                 engine.emit_event(EventKind::NodeCreated { node: step.new_id });
@@ -464,7 +593,11 @@ impl<T: Node> HistoryStep<T> {
     /// Releases detached node payloads owned by this step, if any.
     fn dispose(&mut self, engine: &mut Engine<T>) {
         match self {
-            Self::SetParam(_) | Self::SetParamControlState(_) | Self::PatchMeta(_) | Self::SetScriptConfig(_) | Self::MoveNode(_) => {}
+            Self::SetParam(_)
+            | Self::SetParamControlState(_)
+            | Self::PatchMeta(_)
+            | Self::SetScriptConfig(_)
+            | Self::MoveNode(_) => {}
             Self::AddNode(step) => {
                 if let Some(nodes) = step.detached_nodes.take() {
                     for (id, node) in nodes {
@@ -500,8 +633,24 @@ fn purge_detached_node<T: Node>(engine: &mut Engine<T>, id: NodeId, node: T) {
     let _ = engine.nodes.remove(id);
 }
 
-fn child_decl_id<T: Node>(engine: &Engine<T>, edit_index: usize, operation: &'static str, node: NodeId) -> Result<crate::node::DeclId, EngineEditError> {
-    Ok(engine.nodes.get(node).ok_or(EngineEditError::NodeNotFound { edit_index, operation, node })?.node_data().meta.decl_id.clone())
+fn child_decl_id<T: Node>(
+    engine: &Engine<T>,
+    edit_index: usize,
+    operation: &'static str,
+    node: NodeId,
+) -> Result<crate::node::DeclId, EngineEditError> {
+    Ok(engine
+        .nodes
+        .get(node)
+        .ok_or(EngineEditError::NodeNotFound {
+            edit_index,
+            operation,
+            node,
+        })?
+        .node_data()
+        .meta
+        .decl_id
+        .clone())
 }
 
 fn meta_to_patch(meta: &NodeMeta) -> NodeMetaPatch {
@@ -857,14 +1006,19 @@ impl<T: Node> Engine<T> {
 
         let dropped_steps = active.transaction.steps.len();
         if dropped_steps > 0 {
-            eprintln!("[gc-history] drop active edit session during history clear: client_edit_id='{}' steps={}", active.client_edit_id, dropped_steps);
+            eprintln!(
+                "[gc-history] drop active edit session during history clear: client_edit_id='{}' steps={}",
+                active.client_edit_id, dropped_steps
+            );
         }
         active.transaction.dispose(self);
     }
 
     /// Cancels the active UI edit session owned by `client_instance_id`, if any.
     pub fn cancel_active_ui_edit_session_for_client(&mut self, client_instance_id: &str) -> bool {
-        let should_cancel = self.active_edit_session.as_ref().is_some_and(|active| active.origin == EditOrigin::Ui && active.ui_client_instance_id.as_deref() == Some(client_instance_id));
+        let should_cancel = self.active_edit_session.as_ref().is_some_and(|active| {
+            active.origin == EditOrigin::Ui && active.ui_client_instance_id.as_deref() == Some(client_instance_id)
+        });
         if !should_cancel {
             return false;
         }
@@ -961,7 +1115,9 @@ impl<T: Node> Engine<T> {
 
     /// Returns the currently active client edit id, when present.
     pub fn active_edit_session_id(&self) -> Option<&str> {
-        self.active_edit_session.as_ref().map(|session| session.client_edit_id.as_str())
+        self.active_edit_session
+            .as_ref()
+            .map(|session| session.client_edit_id.as_str())
     }
 
     /// Returns the origin of the currently active edit session.
@@ -971,11 +1127,15 @@ impl<T: Node> Engine<T> {
 
     /// Returns the label of the currently active edit session.
     pub fn active_edit_session_label(&self) -> Option<&str> {
-        self.active_edit_session.as_ref().and_then(|session| session.label.as_deref())
+        self.active_edit_session
+            .as_ref()
+            .and_then(|session| session.label.as_deref())
     }
 
     /// Returns the stable UI client instance id that owns the active edit session.
     pub fn active_edit_session_ui_client_instance_id(&self) -> Option<&str> {
-        self.active_edit_session.as_ref().and_then(|session| session.ui_client_instance_id.as_deref())
+        self.active_edit_session
+            .as_ref()
+            .and_then(|session| session.ui_client_instance_id.as_deref())
     }
 }

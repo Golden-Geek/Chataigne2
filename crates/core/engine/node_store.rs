@@ -15,7 +15,9 @@ pub struct NodeStore<T: Node> {
 impl<T: Node> NodeStore<T> {
     /// Creates an empty node store.
     pub fn new() -> Self {
-        Self { inner: SlotMap::with_key() }
+        Self {
+            inner: SlotMap::with_key(),
+        }
     }
 
     /// Inserts a node and returns its assigned id.

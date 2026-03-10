@@ -41,8 +41,15 @@ impl<T: Node> Engine<T> {
         let mut user_context_graph_dirty = false;
 
         for (edit_index, request) in self.edits.drain().into_iter().enumerate() {
-            let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request.edit {
-                Edit::BeginEditSession { origin, label, client_edit_id, ui_client_instance_id } => {
+            let (outcome, should_clear_redo): (Result<Option<HistoryStep<T>>, EngineEditError>, bool) = match request
+                .edit
+            {
+                Edit::BeginEditSession {
+                    origin,
+                    label,
+                    client_edit_id,
+                    ui_client_instance_id,
+                } => {
                     if let Some(active) = &self.active_edit_session {
                         (
                             Err(EngineEditError::EditSessionAlreadyActive {
@@ -53,7 +60,12 @@ impl<T: Node> Engine<T> {
                             false,
                         )
                     } else {
-                        self.active_edit_session = Some(super::engine_history::ActiveEditSession::new(origin, label, client_edit_id, ui_client_instance_id));
+                        self.active_edit_session = Some(super::engine_history::ActiveEditSession::new(
+                            origin,
+                            label,
+                            client_edit_id,
+                            ui_client_instance_id,
+                        ));
                         (Ok(None), false)
                     }
                 }
@@ -77,13 +89,22 @@ impl<T: Node> Engine<T> {
                             (Ok(None), false)
                         }
                     } else {
-                        (Err(EngineEditError::EditSessionNotActive { edit_index, requested_client_edit_id: client_edit_id }), false)
+                        (
+                            Err(EngineEditError::EditSessionNotActive {
+                                edit_index,
+                                requested_client_edit_id: client_edit_id,
+                            }),
+                            false,
+                        )
                     }
                 }
                 Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
                     Some(mut effect) => {
                         missing_reference_warning_dirty = true;
-                        if UserContextValueType::from_param_value(&effect.old_value) != UserContextValueType::from_param_value(&effect.new_value) && self.node_within_user_context_scope(effect.node) {
+                        if UserContextValueType::from_param_value(&effect.old_value)
+                            != UserContextValueType::from_param_value(&effect.new_value)
+                            && self.node_within_user_context_scope(effect.node)
+                        {
                             user_context_graph_dirty = true;
                         }
                         effect.behaviour = behaviour;
@@ -104,22 +125,36 @@ impl<T: Node> Engine<T> {
                     self.apply_call_node_mutation(edit_index, node, callback)?;
                     (Ok(None), true)
                 }
-                Edit::AddNode { node, parent, prev_sibling } => {
+                Edit::AddNode {
+                    node,
+                    parent,
+                    prev_sibling,
+                } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::AddUserItem { node, parent, prev_sibling } => {
+                Edit::AddUserItem {
+                    node,
+                    parent,
+                    prev_sibling,
+                } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::CreateBlueprintInstance { blueprint_id, parent, prev_sibling, label } => {
+                Edit::CreateBlueprintInstance {
+                    blueprint_id,
+                    parent,
+                    prev_sibling,
+                    label,
+                } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect = self.apply_create_blueprint_instance(edit_index, blueprint_id, parent, prev_sibling, label)?;
+                    let effect =
+                        self.apply_create_blueprint_instance(edit_index, blueprint_id, parent, prev_sibling, label)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::ReplaceNode { node, new_node } => {
@@ -134,7 +169,11 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_remove_node(edit_index, node)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::MoveNode { node, new_parent, new_prev_sibling } => {
+                Edit::MoveNode {
+                    node,
+                    new_parent,
+                    new_prev_sibling,
+                } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_move_node(edit_index, node, new_parent, new_prev_sibling)?;
@@ -145,7 +184,11 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_patch_meta(edit_index, node, patch)?;
                     (Ok(Some(effect.into())), true)
                 }
-                Edit::SetScriptConfig { node, config, force_reload } => {
+                Edit::SetScriptConfig {
+                    node,
+                    config,
+                    force_reload,
+                } => {
                     let effect = self.apply_set_script_config(edit_index, node, config, force_reload)?;
                     let should_clear_redo = effect.is_some();
                     (Ok(effect.map(Into::into)), should_clear_redo)
@@ -173,11 +216,17 @@ impl<T: Node> Engine<T> {
                     self.mark_schedule_dirty();
                     (Ok(None), true)
                 }
-                Edit::AddEventListener { subscriber, subscription } => {
+                Edit::AddEventListener {
+                    subscriber,
+                    subscription,
+                } => {
                     self.apply_add_event_listener(edit_index, subscriber, subscription)?;
                     (Ok(None), true)
                 }
-                Edit::RemoveEventListener { subscriber, subscription } => {
+                Edit::RemoveEventListener {
+                    subscriber,
+                    subscription,
+                } => {
                     self.apply_remove_event_listener(subscriber, subscription);
                     (Ok(None), true)
                 }
@@ -226,7 +275,12 @@ impl<T: Node> Engine<T> {
     /// Validates and downcasts a dynamically provided node to the engine node type `T`.
     ///
     /// Returns [`EngineEditError::NodeTypeMismatch`] when the node cannot be coerced.
-    pub(crate) fn coerce_node_for_engine(&self, edit_index: usize, operation: &'static str, node: Box<dyn Node>) -> Result<T, EngineEditError> {
+    pub(crate) fn coerce_node_for_engine(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: Box<dyn Node>,
+    ) -> Result<T, EngineEditError> {
         let provided_node_type = node.get_type().to_string();
         T::from_boxed_node(node).ok_or(EngineEditError::NodeTypeMismatch {
             edit_index,
@@ -240,7 +294,9 @@ impl<T: Node> Engine<T> {
     pub(crate) fn emit_event(&mut self, kind: EventKind) {
         match &kind {
             EventKind::NodeCreated { node } => {
-                self.last_update_elapsed_by_node.entry(*node).or_insert(self.runtime_elapsed);
+                self.last_update_elapsed_by_node
+                    .entry(*node)
+                    .or_insert(self.runtime_elapsed);
             }
             EventKind::NodeDeleted { node } => {
                 self.purge_event_listeners_for_node(*node);

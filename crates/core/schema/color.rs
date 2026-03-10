@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// RGBA color value with normalized channel components.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct Color {
     /// Red component in the `[0.0, 1.0]` range.
     r: f64,

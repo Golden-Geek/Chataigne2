@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use crate::contexts::{UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup, UserContextValueType};
+use crate::contexts::{
+    UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup,
+    UserContextValueType,
+};
 use crate::node::{Node, NodeId, USER_CONTEXT_NODE_TYPE};
 use crate::parameter::compatibility_for_values;
 
@@ -25,10 +28,18 @@ impl<T: Node> Engine<T> {
     /// Adds or replaces one entry in a `UserContext` scope.
     ///
     /// `param` must be a parameter node inside a direct `UserContextNode` child scope of `owner`.
-    pub fn upsert_user_context_entry(&mut self, owner: NodeId, symbol: impl Into<String>, param: NodeId) -> Result<bool, String> {
+    pub fn upsert_user_context_entry(
+        &mut self,
+        owner: NodeId,
+        symbol: impl Into<String>,
+        param: NodeId,
+    ) -> Result<bool, String> {
         let scope_owner = self.resolve_user_context_scope_owner(owner)?;
         if !self.param_within_user_context_owner_scope(param, scope_owner) {
-            return Err(format!("context entry param {:?} must be under a direct '{}' child scope of owner {:?}", param, USER_CONTEXT_NODE_TYPE, scope_owner));
+            return Err(format!(
+                "context entry param {:?} must be under a direct '{}' child scope of owner {:?}",
+                param, USER_CONTEXT_NODE_TYPE, scope_owner
+            ));
         }
 
         let value_type = self.infer_user_context_value_type_for_param(param)?;
@@ -45,23 +56,42 @@ impl<T: Node> Engine<T> {
     }
 
     /// Resolves one symbol lexically from `consumer`.
-    pub fn resolve_user_context_symbol(&mut self, consumer: NodeId, symbol: &str, expected: Option<UserContextValueType>) -> UserContextLookup {
+    pub fn resolve_user_context_symbol(
+        &mut self,
+        consumer: NodeId,
+        symbol: &str,
+        expected: Option<UserContextValueType>,
+    ) -> UserContextLookup {
         if !self.nodes.contains(consumer) {
-            return UserContextLookup::Missing { symbol: symbol.trim().to_string() };
+            return UserContextLookup::Missing {
+                symbol: symbol.trim().to_string(),
+            };
         }
 
-        self.user_contexts.resolve_symbol(consumer, symbol, expected, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent))
+        self.user_contexts.resolve_symbol(consumer, symbol, expected, |node| {
+            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
+        })
     }
 
     /// Returns lexical context candidates for one parameter node.
     pub fn ui_context_candidates_for_param(&self, param: NodeId) -> UiUserContextCandidatesDto {
         let expected = self.expected_user_context_type_for_param(param);
         if !self.nodes.contains(param) {
-            return UiUserContextCandidatesDto { param, expected, candidates: Vec::new() };
+            return UiUserContextCandidatesDto {
+                param,
+                expected,
+                candidates: Vec::new(),
+            };
         }
 
-        let target_value = self.nodes.get(param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value);
-        let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| self.nodes.get(node).and_then(|entry| entry.node_data().parent));
+        let target_value = self
+            .nodes
+            .get(param)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value);
+        let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| {
+            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
+        });
         candidates.retain(|candidate| candidate.entry_param != param);
         for candidate in &mut candidates {
             let Some(target_value) = &target_value else {
@@ -69,7 +99,12 @@ impl<T: Node> Engine<T> {
                 candidate.projections.clear();
                 continue;
             };
-            let Some(source_value) = self.nodes.get(candidate.entry_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.value) else {
+            let Some(source_value) = self
+                .nodes
+                .get(candidate.entry_param)
+                .and_then(|node| node.engine_param_snapshot())
+                .map(|snapshot| snapshot.value)
+            else {
                 candidate.compatible = false;
                 candidate.projections.clear();
                 continue;
@@ -80,7 +115,11 @@ impl<T: Node> Engine<T> {
             candidate.projections = compatibility.projections;
         }
 
-        UiUserContextCandidatesDto { param, expected, candidates }
+        UiUserContextCandidatesDto {
+            param,
+            expected,
+            candidates,
+        }
     }
 
     /// Returns all current `UserContext` scopes for UI editors.
@@ -104,9 +143,17 @@ impl<T: Node> Engine<T> {
                     value_type: entry.value_type,
                 })
                 .collect::<Vec<_>>();
-            entries.sort_by(|left, right| left.symbol.cmp(&right.symbol).then_with(|| left.param.0.cmp(&right.param.0)));
+            entries.sort_by(|left, right| {
+                left.symbol
+                    .cmp(&right.symbol)
+                    .then_with(|| left.param.0.cmp(&right.param.0))
+            });
 
-            scopes.push(UiUserContextScopeDto { owner, generation: scope.generation, entries });
+            scopes.push(UiUserContextScopeDto {
+                owner,
+                generation: scope.generation,
+                entries,
+            });
         }
 
         UiUserContextsDto { scopes }
@@ -119,7 +166,11 @@ impl<T: Node> Engine<T> {
     pub(crate) fn rebuild_user_context_registry_from_nodes(&mut self) {
         let mut rebuilt = crate::contexts::UserContextRegistry::new();
 
-        let mut scope_nodes = self.nodes.iter().filter_map(|(node_id, node)| (node.get_type() == USER_CONTEXT_NODE_TYPE).then_some(node_id)).collect::<Vec<_>>();
+        let mut scope_nodes = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| (node.get_type() == USER_CONTEXT_NODE_TYPE).then_some(node_id))
+            .collect::<Vec<_>>();
         scope_nodes.sort_by_key(|node_id| node_id.0);
 
         for scope_node in scope_nodes {
@@ -156,7 +207,11 @@ impl<T: Node> Engine<T> {
             return Err(format!("context entry param {:?} was not found", param));
         };
         let Some(snapshot) = node.engine_param_snapshot() else {
-            return Err(format!("context entry param {:?} is not a parameter node (type='{}')", param, node.get_type()));
+            return Err(format!(
+                "context entry param {:?} is not a parameter node (type='{}')",
+                param,
+                node.get_type()
+            ));
         };
         Ok(UserContextValueType::from_param_value(&snapshot.value))
     }
@@ -177,7 +232,10 @@ impl<T: Node> Engine<T> {
     }
 
     fn user_context_scope_owner_for_scope_node(&self, scope_node: NodeId) -> NodeId {
-        self.nodes.get(scope_node).and_then(|entry| entry.node_data().parent).unwrap_or(scope_node)
+        self.nodes
+            .get(scope_node)
+            .and_then(|entry| entry.node_data().parent)
+            .unwrap_or(scope_node)
     }
 
     fn param_within_user_context_owner_scope(&self, param: NodeId, scope_owner: NodeId) -> bool {
@@ -197,7 +255,12 @@ impl<T: Node> Engine<T> {
         false
     }
 
-    fn collect_user_context_scope_entries(&self, scope_node: NodeId, scope_owner: NodeId, registry: &mut crate::contexts::UserContextRegistry) {
+    fn collect_user_context_scope_entries(
+        &self,
+        scope_node: NodeId,
+        scope_owner: NodeId,
+        registry: &mut crate::contexts::UserContextRegistry,
+    ) {
         let mut seen_symbols = HashSet::<String>::new();
         let mut stack = Vec::<NodeId>::new();
         self.push_children_reverse(scope_node, &mut stack);

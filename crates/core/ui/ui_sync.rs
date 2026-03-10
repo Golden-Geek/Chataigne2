@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
@@ -8,10 +9,14 @@ use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
-use crate::node::{AnimationCurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole};
+use crate::node::{
+    AnimationCurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid,
+    PresentationHint, UserCreatableItem, UserNodeRole,
+};
 use crate::parameter::{
-    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints, available_control_modes_for_parameter, compatibility_for_binding_values,
-    compatibility_for_values,
+    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
+    ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
+    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
 };
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
@@ -49,7 +54,7 @@ fn is_default_parameter_ui_hints(value: &ParameterUiHints) -> bool {
 }
 
 /// Scope used by snapshot/event subscriptions.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UiSubscriptionScope {
     /// Full graph scope.
@@ -65,7 +70,7 @@ pub enum UiSubscriptionScope {
 }
 
 /// UI hello handshake.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiHello {
     /// Requested UI protocol version.
     pub protocol_version: String,
@@ -77,8 +82,84 @@ pub struct UiHello {
     pub from: Option<EngineTime>,
 }
 
+/// HTTP snapshot request payload.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiSnapshotRequest {
+    /// Requested snapshot scope.
+    #[serde(default)]
+    pub scope: UiSubscriptionScope,
+    /// Whether any active grouped edit should be cancelled before snapshotting.
+    #[serde(default)]
+    pub cancel_active_edit_session: bool,
+}
+
+/// HTTP replay request payload.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiReplayRequest {
+    /// Requested replay scope.
+    #[serde(default)]
+    pub scope: UiSubscriptionScope,
+    /// Optional replay cursor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<EngineTime>,
+}
+
+/// HTTP request payload for reference-target queries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiReferenceTargetsRequest {
+    /// Target reference parameter node id.
+    pub param: NodeId,
+}
+
+/// HTTP request payload for user-context candidate queries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiContextCandidatesRequest {
+    /// Target parameter node id.
+    pub param: NodeId,
+}
+
+/// HTTP request payload for parameter-control info queries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiParamControlInfoRequest {
+    /// Target parameter node id.
+    pub param: NodeId,
+}
+
+/// HTTP request payload for script-state queries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiScriptStateRequest {
+    /// Target script node id.
+    pub node: NodeId,
+}
+
+/// HTTP request payload for script-config updates.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiScriptConfigRequest {
+    /// Target script node id.
+    pub node: NodeId,
+    /// Replacement config payload.
+    pub config: ScriptUiConfig,
+    /// Whether the runtime should force an immediate reload.
+    #[serde(default)]
+    pub force_reload: bool,
+}
+
+/// HTTP request payload for script reloads.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiScriptReloadRequest {
+    /// Target script node id.
+    pub node: NodeId,
+}
+
+/// HTTP request payload carrying a project path.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectPathRequest {
+    /// Project path selected by the host.
+    pub path: String,
+}
+
 /// UI-facing node metadata payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiNodeMetaDto {
     /// Generated short name.
     pub short_name: String,
@@ -109,7 +190,7 @@ pub struct UiNodeMetaDto {
 }
 
 /// UI-facing parameter payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiParamDto {
     /// Current value.
     pub value: ParamValue,
@@ -144,7 +225,11 @@ pub struct UiParamDto {
 
 impl From<ParameterSnapshot> for UiParamDto {
     fn from(snapshot: ParameterSnapshot) -> Self {
-        let default_value = if snapshot.default_value == snapshot.value { None } else { Some(snapshot.default_value) };
+        let default_value = if snapshot.default_value == snapshot.value {
+            None
+        } else {
+            Some(snapshot.default_value)
+        };
         Self {
             value: snapshot.value,
             default_value,
@@ -161,7 +246,7 @@ impl From<ParameterSnapshot> for UiParamDto {
 }
 
 /// UI-facing parameter control state.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiParameterControlStateDto {
     /// Active control mode.
     #[serde(default)]
@@ -186,7 +271,10 @@ fn is_default_ui_parameter_control_state(value: &UiParameterControlStateDto) -> 
 
 impl From<ParameterControlState> for UiParameterControlStateDto {
     fn from(state: ParameterControlState) -> Self {
-        Self { mode: state.mode, spec: state.spec }
+        Self {
+            mode: state.mode,
+            spec: state.spec,
+        }
     }
 }
 
@@ -197,7 +285,7 @@ impl From<UiParameterControlStateDto> for ParameterControlState {
 }
 
 /// UI payload for on-demand reference picker target resolution.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
 pub struct UiReferenceTargetsDto {
     /// Selectable targets for the requested reference parameter.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -211,7 +299,7 @@ pub struct UiReferenceTargetsDto {
 }
 
 /// UI-facing compatibility details for one selectable reference target.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiReferenceTargetCandidateDto {
     /// Candidate node id.
     pub target: NodeId,
@@ -223,7 +311,7 @@ pub struct UiReferenceTargetCandidateDto {
 }
 
 /// UI-facing control candidate for proxy/binding target pickers.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiParamCandidateDto {
     /// Candidate parameter node id.
     pub param: NodeId,
@@ -235,14 +323,14 @@ pub struct UiParamCandidateDto {
 }
 
 /// UI-facing token suggestion for template/expression editors.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiTokenSuggestionDto {
     /// Suggested token string.
     pub token: String,
 }
 
 /// UI-facing per-parameter control info payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiParamControlInfoDto {
     /// Parameter node id.
     pub param: NodeId,
@@ -265,7 +353,7 @@ pub struct UiParamControlInfoDto {
 }
 
 /// UI-facing node data summary.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UiNodeDataDto {
     /// Parameter node payload.
@@ -281,7 +369,7 @@ pub enum UiNodeDataDto {
 }
 
 /// UI-facing node DTO.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiNodeDto {
     /// Runtime node id.
     pub node_id: NodeId,
@@ -311,7 +399,7 @@ pub struct UiNodeDto {
 }
 
 /// UI-facing descriptor of a user-creatable item type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiCreatableUserItemDto {
     /// Runtime node type identifier.
     pub node_type: String,
@@ -332,7 +420,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
 }
 
 /// UI-facing node-type descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiNodeTypeDescriptor {
     /// Runtime node type identifier.
     pub node_type: String,
@@ -342,7 +430,7 @@ pub struct UiNodeTypeDescriptor {
 }
 
 /// UI-facing shared declaration-description descriptor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiDeclaredDescriptionDescriptor {
     /// Stable key used by nodes that share this declared description.
     pub key: String,
@@ -351,7 +439,7 @@ pub struct UiDeclaredDescriptionDescriptor {
 }
 
 /// UI-facing enum descriptor.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiEnumDefinition {
     /// Stable enum id.
     pub enum_id: String,
@@ -360,7 +448,7 @@ pub struct UiEnumDefinition {
 }
 
 /// UI-facing enum variant descriptor.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiEnumVariantDefinition {
     /// Stable variant id.
     pub variant_id: String,
@@ -377,7 +465,7 @@ pub struct UiEnumVariantDefinition {
 }
 
 /// UI-facing schema payload needed by editors.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
 pub struct UiSchemaView {
     /// Known node types within the snapshot scope.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -391,7 +479,7 @@ pub struct UiSchemaView {
 }
 
 /// UI-facing history status payload.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub struct UiHistoryState {
     /// Whether undo is currently possible.
     pub can_undo: bool,
@@ -406,7 +494,7 @@ pub struct UiHistoryState {
 }
 
 /// UI-facing logger state included in snapshots.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, TS)]
 pub struct UiLoggerState {
     /// Maximum number of logger records retained server-side.
     pub max_entries: usize,
@@ -416,7 +504,7 @@ pub struct UiLoggerState {
 }
 
 /// Snapshot payload for initial sync.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiSnapshot {
     /// Protocol version.
     pub protocol_version: String,
@@ -442,7 +530,7 @@ fn is_default_user_contexts(value: &UiUserContextsDto) -> bool {
 }
 
 /// Direct parameter initializer applied immediately after one user-item is created.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiCreateUserItemInitialParam {
     /// Direct child decl id on the newly-created root node.
     pub decl_id: DeclId,
@@ -451,7 +539,7 @@ pub struct UiCreateUserItemInitialParam {
 }
 
 /// UI-facing event kind.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UiEventKind {
     /// Parameter changed.
@@ -544,7 +632,7 @@ pub enum UiEventKind {
 }
 
 /// UI-facing event payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiEventDto {
     /// Event time.
     pub time: EngineTime,
@@ -556,16 +644,46 @@ pub struct UiEventDto {
 impl From<Event> for UiEventDto {
     fn from(event: Event) -> Self {
         let kind = match event.kind {
-            EventKind::ParamChanged { param, old_value, new_value } => UiEventKind::ParamChanged { param, old_value, new_value },
-            EventKind::ParamControlChanged { param, old_state, new_state } => UiEventKind::ParamControlChanged {
+            EventKind::ParamChanged {
+                param,
+                old_value,
+                new_value,
+            } => UiEventKind::ParamChanged {
+                param,
+                old_value,
+                new_value,
+            },
+            EventKind::ParamControlChanged {
+                param,
+                old_state,
+                new_state,
+            } => UiEventKind::ParamControlChanged {
                 param,
                 old_state: old_state.into(),
                 new_state: new_state.into(),
             },
             EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded { parent, child, decl_id },
             EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved { parent, child },
-            EventKind::ChildReplaced { parent, old, new, decl_id } => UiEventKind::ChildReplaced { parent, old, new, decl_id },
-            EventKind::ChildMoved { child, old_parent, new_parent } => UiEventKind::ChildMoved { child, old_parent, new_parent },
+            EventKind::ChildReplaced {
+                parent,
+                old,
+                new,
+                decl_id,
+            } => UiEventKind::ChildReplaced {
+                parent,
+                old,
+                new,
+                decl_id,
+            },
+            EventKind::ChildMoved {
+                child,
+                old_parent,
+                new_parent,
+            } => UiEventKind::ChildMoved {
+                child,
+                old_parent,
+                new_parent,
+            },
             EventKind::ChildReordered { parent, child } => UiEventKind::ChildReordered { parent, child },
             EventKind::NodeCreated { node } => UiEventKind::NodeCreated { node },
             EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node },
@@ -582,7 +700,7 @@ impl From<Event> for UiEventDto {
 }
 
 /// Event replay batch.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiEventBatch {
     /// Replay cursor used by the request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -595,7 +713,7 @@ pub struct UiEventBatch {
 }
 
 /// UI-originated edit intent.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UiEditIntent {
     /// Begin a grouped edit session.
@@ -732,7 +850,7 @@ pub enum UiEditIntent {
 }
 
 /// Ack status for a UI edit intent.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UiAckStatus {
     /// Accepted and applied now.
@@ -744,7 +862,7 @@ pub enum UiAckStatus {
 }
 
 /// Acknowledgement payload for UI edit intents.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiAck {
     /// Success flag.
     pub success: bool,
@@ -838,12 +956,17 @@ impl<T: Node> Engine<T> {
                 dto.enum_options_id = enum_options_id;
                 UiNodeDataDto::Parameter { param: dto }
             } else {
-                UiNodeDataDto::Node { node_type: node.get_type().to_string() }
+                UiNodeDataDto::Node {
+                    node_type: node.get_type().to_string(),
+                }
             };
 
             let script_host_enabled = node.script_host_policy().is_some_and(|policy| policy.enabled);
             let user_context_host_enabled = node.user_context_host_policy().is_some_and(|policy| policy.enabled);
-            let can_query_creatable_items = node.get_type() == FOLDER_NODE_TYPE || node.user_container_rules().is_some() || script_host_enabled || user_context_host_enabled;
+            let can_query_creatable_items = node.get_type() == FOLDER_NODE_TYPE
+                || node.user_container_rules().is_some()
+                || script_host_enabled
+                || user_context_host_enabled;
 
             let mut creatable_user_items = Vec::new();
             if can_query_creatable_items {
@@ -852,29 +975,59 @@ impl<T: Node> Engine<T> {
                 }
             }
 
-            let mut accepted_user_item_kinds: Vec<String> = node.user_container_rules().map(|rules| rules.accepts_item_kinds.iter().map(|kind| (*kind).to_string()).collect()).unwrap_or_default();
+            let mut accepted_user_item_kinds: Vec<String> = node
+                .user_container_rules()
+                .map(|rules| {
+                    rules
+                        .accepts_item_kinds
+                        .iter()
+                        .map(|kind| (*kind).to_string())
+                        .collect()
+                })
+                .unwrap_or_default();
             if script_host_enabled && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
                 accepted_user_item_kinds.push("script".to_string());
             }
 
-            let declared_description_key = node_data.meta.declared_description_key.as_deref().filter(|key| !key.trim().is_empty());
-            let declared_description = node_data.meta.declared_description.as_deref().filter(|description| !description.trim().is_empty());
+            let declared_description_key = node_data
+                .meta
+                .declared_description_key
+                .as_deref()
+                .filter(|key| !key.trim().is_empty());
+            let declared_description = node_data
+                .meta
+                .declared_description
+                .as_deref()
+                .filter(|description| !description.trim().is_empty());
             let effective_description = node_data.meta.description.as_deref();
 
-            let (description, declared_description_key, description_overridden) = if let (Some(key), Some(description)) = (declared_description_key, declared_description) {
-                known_declared_descriptions.entry(key.to_string()).or_insert_with(|| description.to_string());
-                let overridden = effective_description != Some(description);
-                (if overridden { effective_description.map(str::to_string) } else { None }, Some(key.to_string()), overridden)
-            } else {
-                (
-                    match effective_description {
-                        Some(description) if Some(description) != node.type_description() => Some(description.to_string()),
-                        _ => None,
-                    },
-                    None,
-                    false,
-                )
-            };
+            let (description, declared_description_key, description_overridden) =
+                if let (Some(key), Some(description)) = (declared_description_key, declared_description) {
+                    known_declared_descriptions
+                        .entry(key.to_string())
+                        .or_insert_with(|| description.to_string());
+                    let overridden = effective_description != Some(description);
+                    (
+                        if overridden {
+                            effective_description.map(str::to_string)
+                        } else {
+                            None
+                        },
+                        Some(key.to_string()),
+                        overridden,
+                    )
+                } else {
+                    (
+                        match effective_description {
+                            Some(description) if Some(description) != node.type_description() => {
+                                Some(description.to_string())
+                            }
+                            _ => None,
+                        },
+                        None,
+                        false,
+                    )
+                };
 
             nodes.push(UiNodeDto {
                 node_id,
@@ -902,9 +1055,15 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        let mut node_types: Vec<UiNodeTypeDescriptor> = known_node_types.into_iter().map(|(node_type, description)| UiNodeTypeDescriptor { node_type, description }).collect();
+        let mut node_types: Vec<UiNodeTypeDescriptor> = known_node_types
+            .into_iter()
+            .map(|(node_type, description)| UiNodeTypeDescriptor { node_type, description })
+            .collect();
         node_types.sort_by(|left, right| left.node_type.cmp(&right.node_type));
-        let mut declared_descriptions: Vec<UiDeclaredDescriptionDescriptor> = known_declared_descriptions.into_iter().map(|(key, description)| UiDeclaredDescriptionDescriptor { key, description }).collect();
+        let mut declared_descriptions: Vec<UiDeclaredDescriptionDescriptor> = known_declared_descriptions
+            .into_iter()
+            .map(|(key, description)| UiDeclaredDescriptionDescriptor { key, description })
+            .collect();
         declared_descriptions.sort_by(|left, right| left.key.cmp(&right.key));
 
         UiSnapshot {
@@ -912,7 +1071,11 @@ impl<T: Node> Engine<T> {
             scope,
             at: self.time,
             nodes,
-            schema: UiSchemaView { node_types, declared_descriptions, enums },
+            schema: UiSchemaView {
+                node_types,
+                declared_descriptions,
+                enums,
+            },
             history: self.ui_history_state(),
             logger: UiLoggerState {
                 max_entries: crate::logger::max_entries(),
@@ -962,14 +1125,23 @@ impl<T: Node> Engine<T> {
         let mut candidates = allowed_targets
             .iter()
             .map(|target| {
-                if let Some(compatibility) = self.reference_candidate_compatibility_for_expected_values(param_node, *target, expected_parameter_values.as_slice(), &constraints) {
+                if let Some(compatibility) = self.reference_candidate_compatibility_for_expected_values(
+                    param_node,
+                    *target,
+                    expected_parameter_values.as_slice(),
+                    &constraints,
+                ) {
                     UiReferenceTargetCandidateDto {
                         target: *target,
                         direct: compatibility.direct,
                         projections: compatibility.projections,
                     }
                 } else {
-                    UiReferenceTargetCandidateDto { target: *target, direct: true, projections: Vec::new() }
+                    UiReferenceTargetCandidateDto {
+                        target: *target,
+                        direct: true,
+                        projections: Vec::new(),
+                    }
                 }
             })
             .collect::<Vec<_>>();
@@ -992,7 +1164,8 @@ impl<T: Node> Engine<T> {
         };
 
         let context_candidates = self.ui_context_candidates_for_param(param_node).candidates;
-        let mut available_modes = available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled);
+        let mut available_modes =
+            available_control_modes_for_parameter(&snapshot.value, snapshot.control_modes_enabled);
         if context_candidates.is_empty() {
             available_modes.retain(|mode| *mode != ParameterControlMode::TemplateText);
         }
@@ -1011,7 +1184,10 @@ impl<T: Node> Engine<T> {
                 token_set.insert(format!("{}.$uuid", candidate.symbol));
             }
         }
-        let mut token_suggestions = token_set.into_iter().map(|token| UiTokenSuggestionDto { token }).collect::<Vec<_>>();
+        let mut token_suggestions = token_set
+            .into_iter()
+            .map(|token| UiTokenSuggestionDto { token })
+            .collect::<Vec<_>>();
         token_suggestions.sort_by(|left, right| left.token.cmp(&right.token));
 
         let mut proxy_candidates = Vec::<UiParamCandidateDto>::new();
@@ -1056,11 +1232,18 @@ impl<T: Node> Engine<T> {
             return Err(format!("node {} not found", node.0));
         };
 
-        target.engine_script_state().ok_or_else(|| format!("node {} does not expose script runtime state", node.0))
+        target
+            .engine_script_state()
+            .ok_or_else(|| format!("node {} does not expose script runtime state", node.0))
     }
 
     /// Replaces script configuration for `node`.
-    pub fn ui_set_script_config(&mut self, node: NodeId, config: ScriptUiConfig, force_reload: bool) -> Result<(), String> {
+    pub fn ui_set_script_config(
+        &mut self,
+        node: NodeId,
+        config: ScriptUiConfig,
+        force_reload: bool,
+    ) -> Result<(), String> {
         self.edits.push(Edit::SetScriptConfig {
             node,
             config: ScriptNodeConfig::from(config),
@@ -1091,18 +1274,29 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn ui_resolve_created_child(&self, parent: NodeId, known_children: &HashSet<NodeId>) -> Result<NodeId, crate::engine::EngineEditError> {
+    fn ui_resolve_created_child(
+        &self,
+        parent: NodeId,
+        known_children: &HashSet<NodeId>,
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
         const OPERATION: &str = "CreateUserItem";
 
         let snapshot = self.build_process_tree_snapshot();
-        let mut created_children = snapshot.child_ids(parent).into_iter().filter(|child_id| !known_children.contains(child_id));
+        let mut created_children = snapshot
+            .child_ids(parent)
+            .into_iter()
+            .filter(|child_id| !known_children.contains(child_id));
 
         let Some(created_child) = created_children.next() else {
             return Err(crate::engine::EngineEditError::NodeMutationRejected {
                 edit_index: 0,
                 operation: OPERATION,
                 node: parent,
-                node_type: self.nodes.get(parent).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+                node_type: self
+                    .nodes
+                    .get(parent)
+                    .map(|node| node.get_type().to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
                 message: "createUserItem did not materialize a new direct child".to_string(),
             });
         };
@@ -1112,7 +1306,11 @@ impl<T: Node> Engine<T> {
                 edit_index: 0,
                 operation: OPERATION,
                 node: parent,
-                node_type: self.nodes.get(parent).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+                node_type: self
+                    .nodes
+                    .get(parent)
+                    .map(|node| node.get_type().to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
                 message: "createUserItem materialized multiple new direct children".to_string(),
             });
         }
@@ -1124,7 +1322,9 @@ impl<T: Node> Engine<T> {
         let snapshot = self.build_process_tree_snapshot();
         if decl_id.contains('/') {
             if let Some(node_id) = snapshot.resolve_path_from(created_child, decl_id) {
-                return snapshot.node(node_id).and_then(|node| node.is_parameter().then_some(node_id));
+                return snapshot
+                    .node(node_id)
+                    .and_then(|node| node.is_parameter().then_some(node_id));
             }
         }
 
@@ -1133,7 +1333,9 @@ impl<T: Node> Engine<T> {
             let mut child = snapshot.node(node_id).and_then(|node| node.first_child);
             while let Some(child_id) = child {
                 let child_snapshot = snapshot.node(child_id)?;
-                if child_snapshot.is_parameter() && (child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id)) {
+                if child_snapshot.is_parameter()
+                    && (child_snapshot.decl_id == decl_id || child_snapshot.decl_id.rsplit('/').next() == Some(decl_id))
+                {
                     return Some(child_id);
                 }
                 stack.push(child_id);
@@ -1144,10 +1346,20 @@ impl<T: Node> Engine<T> {
         None
     }
 
-    fn ui_apply_create_user_item(&mut self, parent: NodeId, node_type: String, label: Option<String>, initial_params: Vec<UiCreateUserItemInitialParam>) -> Result<(), crate::engine::EngineEditError> {
+    fn ui_apply_create_user_item(
+        &mut self,
+        parent: NodeId,
+        node_type: String,
+        label: Option<String>,
+        initial_params: Vec<UiCreateUserItemInitialParam>,
+    ) -> Result<(), crate::engine::EngineEditError> {
         const OPERATION: &str = "CreateUserItem";
 
-        let known_children: HashSet<NodeId> = self.build_process_tree_snapshot().child_ids(parent).into_iter().collect();
+        let known_children: HashSet<NodeId> = self
+            .build_process_tree_snapshot()
+            .child_ids(parent)
+            .into_iter()
+            .collect();
         self.queue_catalog_create(parent, node_type, label, None)?;
         self.apply_ui_stabilization_to_fixed_point(16)?;
 
@@ -1157,13 +1369,22 @@ impl<T: Node> Engine<T> {
 
         let created_child = self.ui_resolve_created_child(parent, &known_children)?;
         for initial_param in initial_params {
-            let Some(param_node) = self.ui_find_created_item_param_node(created_child, initial_param.decl_id.0.as_str()) else {
+            let Some(param_node) =
+                self.ui_find_created_item_param_node(created_child, initial_param.decl_id.0.as_str())
+            else {
                 return Err(crate::engine::EngineEditError::NodeMutationRejected {
                     edit_index: 0,
                     operation: OPERATION,
                     node: created_child,
-                    node_type: self.nodes.get(created_child).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
-                    message: format!("parameter '{}' is unavailable on the created item", initial_param.decl_id.0),
+                    node_type: self
+                        .nodes
+                        .get(created_child)
+                        .map(|node| node.get_type().to_string())
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    message: format!(
+                        "parameter '{}' is unavailable on the created item",
+                        initial_param.decl_id.0
+                    ),
                 });
             };
 
@@ -1209,16 +1430,26 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_ui_stabilization_to_fixed_point(16);
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::SetParamControlState { node, state } => match self.apply_set_param_control_state(0, node, state.into()) {
-                Ok(Some(effect)) => {
-                    self.record_set_param_control_state_history(effect);
-                    self.finish_ui_apply_now(before_len, Ok(()))
+            UiEditIntent::SetParamControlState { node, state } => {
+                match self.apply_set_param_control_state(0, node, state.into()) {
+                    Ok(Some(effect)) => {
+                        self.record_set_param_control_state_history(effect);
+                        self.finish_ui_apply_now(before_len, Ok(()))
+                    }
+                    Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
+                    Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
                 }
-                Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
-                Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
-            },
-            UiEditIntent::MoveNode { node, new_parent, new_prev_sibling } => {
-                self.edits.push(Edit::MoveNode { node, new_parent, new_prev_sibling });
+            }
+            UiEditIntent::MoveNode {
+                node,
+                new_parent,
+                new_prev_sibling,
+            } => {
+                self.edits.push(Edit::MoveNode {
+                    node,
+                    new_parent,
+                    new_prev_sibling,
+                });
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
@@ -1237,11 +1468,21 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_edits();
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::CreateUserItem { parent, node_type, label, initial_params } => {
+            UiEditIntent::CreateUserItem {
+                parent,
+                node_type,
+                label,
+                initial_params,
+            } => {
                 let result = self.ui_apply_create_user_item(parent, node_type, label, initial_params);
                 self.finish_ui_apply_now(before_len, result)
             }
-            UiEditIntent::DuplicateNode { source, new_parent, new_prev_sibling, label } => UiAck {
+            UiEditIntent::DuplicateNode {
+                source,
+                new_parent,
+                new_prev_sibling,
+                label,
+            } => UiAck {
                 success: false,
                 status: UiAckStatus::Rejected,
                 error_code: Some("duplicate_node_transport_required".to_string()),
@@ -1322,38 +1563,40 @@ impl<T: Node> Engine<T> {
                     history: self.ui_history_state(),
                 }
             }
-            UiEditIntent::UpsertUserContextEntry { owner, symbol, param } => match self.upsert_user_context_entry(owner, symbol.as_str(), param) {
-                Ok(changed) => {
-                    if changed {
-                        self.push_ui_custom_event(
-                            UI_USER_CONTEXT_ENTRY_TOPIC,
-                            Some(owner),
-                            serde_json::json!({
-                                "action": "upsert_entry",
-                                "owner": owner.0,
-                                "symbol": symbol,
-                                "param": param.0,
-                            }),
-                        );
+            UiEditIntent::UpsertUserContextEntry { owner, symbol, param } => {
+                match self.upsert_user_context_entry(owner, symbol.as_str(), param) {
+                    Ok(changed) => {
+                        if changed {
+                            self.push_ui_custom_event(
+                                UI_USER_CONTEXT_ENTRY_TOPIC,
+                                Some(owner),
+                                serde_json::json!({
+                                    "action": "upsert_entry",
+                                    "owner": owner.0,
+                                    "symbol": symbol,
+                                    "param": param.0,
+                                }),
+                            );
+                        }
+                        UiAck {
+                            success: true,
+                            status: UiAckStatus::Applied,
+                            error_code: None,
+                            error_message: None,
+                            earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                            history: self.ui_history_state(),
+                        }
                     }
-                    UiAck {
-                        success: true,
-                        status: UiAckStatus::Applied,
-                        error_code: None,
-                        error_message: None,
-                        earliest_event_time: self.ui_event_log().get(before_len).map(|event| event.time),
+                    Err(message) => UiAck {
+                        success: false,
+                        status: UiAckStatus::Rejected,
+                        error_code: Some("user_context_entry_error".to_string()),
+                        error_message: Some(message),
+                        earliest_event_time: None,
                         history: self.ui_history_state(),
-                    }
+                    },
                 }
-                Err(message) => UiAck {
-                    success: false,
-                    status: UiAckStatus::Rejected,
-                    error_code: Some("user_context_entry_error".to_string()),
-                    error_message: Some(message),
-                    earliest_event_time: None,
-                    history: self.ui_history_state(),
-                },
-            },
+            }
             UiEditIntent::RemoveUserContextEntry { owner, symbol } => {
                 let removed = self.remove_user_context_entry(owner, symbol.as_str());
                 if removed {
@@ -1395,7 +1638,11 @@ impl<T: Node> Engine<T> {
             }
             UiEditIntent::SetLogMaxEntries { max_entries } => {
                 let applied_max_entries = crate::logger::set_max_entries(max_entries);
-                self.push_ui_custom_event(crate::logger::UI_LOG_MAX_ENTRIES_TOPIC, None, serde_json::json!({ "max_entries": applied_max_entries }));
+                self.push_ui_custom_event(
+                    crate::logger::UI_LOG_MAX_ENTRIES_TOPIC,
+                    None,
+                    serde_json::json!({ "max_entries": applied_max_entries }),
+                );
                 UiAck {
                     success: true,
                     status: UiAckStatus::Applied,
@@ -1485,12 +1732,19 @@ impl<T: Node> Engine<T> {
             edit_index: 0,
             operation: "UiApplyFixedPoint",
             node: self.root,
-            node_type: self.nodes.get(self.root).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+            node_type: self
+                .nodes
+                .get(self.root)
+                .map(|node| node.get_type().to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
             message: format!("ui intent left pending edits after {pass_limit} stabilization passes"),
         })
     }
 
-    fn apply_ui_stabilization_to_fixed_point(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
+    fn apply_ui_stabilization_to_fixed_point(
+        &mut self,
+        max_passes: usize,
+    ) -> Result<(), crate::engine::EngineEditError> {
         let pass_limit = max_passes.max(1);
         for _ in 0..pass_limit {
             if !self.edits.pending.is_empty() {
@@ -1510,12 +1764,17 @@ impl<T: Node> Engine<T> {
             edit_index: 0,
             operation: "UiApplyStabilizationFixedPoint",
             node: self.root,
-            node_type: self.nodes.get(self.root).map(|node| node.get_type().to_string()).unwrap_or_else(|| "unknown".to_string()),
+            node_type: self
+                .nodes
+                .get(self.root)
+                .map(|node| node.get_type().to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
             message: format!("ui intent left pending edits or inbox events after {pass_limit} stabilization passes"),
         })
     }
 
-    pub(crate) fn ui_history_state(&self) -> UiHistoryState {
+    /// Returns the current UI history summary for transport acknowledgements.
+    pub fn ui_history_state(&self) -> UiHistoryState {
         UiHistoryState {
             can_undo: self.undo_len() > 0,
             can_redo: self.redo_len() > 0,
@@ -1567,7 +1826,13 @@ impl<T: Node> Engine<T> {
             UiSubscriptionScope::Subtree { root, max_depth } => {
                 if matches!(
                     event.kind,
-                    EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } | EventKind::ChildReplaced { .. } | EventKind::ChildMoved { .. } | EventKind::ChildReordered { .. } | EventKind::NodeCreated { .. } | EventKind::NodeDeleted { .. }
+                    EventKind::ChildAdded { .. }
+                        | EventKind::ChildRemoved { .. }
+                        | EventKind::ChildReplaced { .. }
+                        | EventKind::ChildMoved { .. }
+                        | EventKind::ChildReordered { .. }
+                        | EventKind::NodeCreated { .. }
+                        | EventKind::NodeDeleted { .. }
                 ) {
                     return true;
                 }
@@ -1578,7 +1843,11 @@ impl<T: Node> Engine<T> {
                     EventKind::ChildAdded { parent, child, .. } => vec![*parent, *child],
                     EventKind::ChildRemoved { parent, child } => vec![*parent, *child],
                     EventKind::ChildReplaced { parent, old, new, .. } => vec![*parent, *old, *new],
-                    EventKind::ChildMoved { child, old_parent, new_parent } => vec![*child, *old_parent, *new_parent],
+                    EventKind::ChildMoved {
+                        child,
+                        old_parent,
+                        new_parent,
+                    } => vec![*child, *old_parent, *new_parent],
                     EventKind::ChildReordered { parent, child } => vec![*parent, *child],
                     EventKind::NodeCreated { node } => vec![*node],
                     EventKind::NodeDeleted { node } => vec![*node],
@@ -1586,7 +1855,9 @@ impl<T: Node> Engine<T> {
                     EventKind::Custom(custom) => custom.origin.into_iter().collect(),
                 };
 
-                candidate_nodes.into_iter().any(|node| self.node_within_subtree(node, *root, *max_depth))
+                candidate_nodes
+                    .into_iter()
+                    .any(|node| self.node_within_subtree(node, *root, *max_depth))
             }
         }
     }

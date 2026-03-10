@@ -1,14 +1,9 @@
 //! Runtime project persistence and UI-server integration.
 
 use std::io::Error;
-use std::sync::{Arc, Mutex};
 
 use crate::engine::{Engine, EngineRuntimeError};
 use crate::node::{DashboardNode, Folder, Node, NodeMeta};
-
-mod ui_server;
-
-pub use ui_server::{UiServerConfig, run_ui_server};
 
 /// App node contract required by the default runtime host.
 pub trait ProjectNode: Node {
@@ -88,9 +83,14 @@ where
     T::project_opened(engine)
 }
 
-pub(crate) fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
-    engine.apply_edits().map_err(|err| Error::other(format!("initial apply_edits failed: {err}")))?;
-    engine.resolve_if_needed().map_err(|err| Error::other(format!("initial resolve failed: {err}")))?;
+/// Applies startup edits, resolves scheduling, and clears bootstrap-only runtime state.
+pub fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::Result<()> {
+    engine
+        .apply_edits()
+        .map_err(|err| Error::other(format!("initial apply_edits failed: {err}")))?;
+    engine
+        .resolve_if_needed()
+        .map_err(|err| Error::other(format!("initial resolve failed: {err}")))?;
     // Startup shape is already reflected by the in-memory graph and initial snapshot.
     // Dropping bootstrap inbox events avoids a very expensive first runtime tick for large graphs.
     engine.inbox.clear();
@@ -134,13 +134,6 @@ impl<T: Node> GoldenApp<T> {
         self.engine.clear_history();
         self.engine.run_loop()
     }
-}
-
-/// Boots an engine and starts the UI/API runtime with explicit server config.
-pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(mut engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
-    prepare_engine_for_runtime(&mut engine)?;
-    let shared_engine = Arc::new(Mutex::new(engine));
-    run_ui_server(shared_engine, config)
 }
 
 #[cfg(test)]
@@ -275,30 +268,64 @@ mod tests {
 
     #[test]
     fn create_new_project_engine_runs_app_lifecycle_hooks() {
-        let mut engine = create_new_project_engine::<LifecycleTestAppNode>().expect("new project engine should be created");
-        assert_eq!(engine.ui_event_log_capacity(), 42, "configure_engine should run during new-project creation");
+        let mut engine =
+            create_new_project_engine::<LifecycleTestAppNode>().expect("new project engine should be created");
+        assert_eq!(
+            engine.ui_event_log_capacity(),
+            42,
+            "configure_engine should run during new-project creation"
+        );
 
         prepare_engine_for_runtime(&mut engine).expect("new project engine should prepare");
 
-        let first_child = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("dashboard should exist under root");
-        let second_child = engine.nodes.get(first_child).and_then(|node| node.node_data().next_sibling).expect("marker node should exist under root");
+        let first_child = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("dashboard should exist under root");
+        let second_child = engine
+            .nodes
+            .get(first_child)
+            .and_then(|node| node.node_data().next_sibling)
+            .expect("marker node should exist under root");
 
-        assert_eq!(engine.nodes.get(first_child).map(Node::get_type), Some(crate::node::DASHBOARD_NODE_TYPE));
-        assert_eq!(engine.nodes.get(second_child).map(Node::get_type), Some("lifecycle_marker_node"));
+        assert_eq!(
+            engine.nodes.get(first_child).map(Node::get_type),
+            Some(crate::node::DASHBOARD_NODE_TYPE)
+        );
+        assert_eq!(
+            engine.nodes.get(second_child).map(Node::get_type),
+            Some("lifecycle_marker_node")
+        );
     }
 
     #[test]
     fn configure_loaded_engine_reapplies_runtime_setup_after_deserialize() {
-        let mut engine = create_new_project_engine::<LifecycleTestAppNode>().expect("new project engine should be created");
+        let mut engine =
+            create_new_project_engine::<LifecycleTestAppNode>().expect("new project engine should be created");
         prepare_engine_for_runtime(&mut engine).expect("new project engine should prepare");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let mut loaded = Engine::<LifecycleTestAppNode>::from_project_json_with(&json, <LifecycleTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let mut loaded = Engine::<LifecycleTestAppNode>::from_project_json_with(
+            &json,
+            <LifecycleTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        assert_eq!(loaded.ui_event_log_capacity(), 8192, "deserialized engine should start with default runtime settings");
+        assert_eq!(
+            loaded.ui_event_log_capacity(),
+            8192,
+            "deserialized engine should start with default runtime settings"
+        );
 
         configure_loaded_engine(&mut loaded).expect("loaded engine should accept runtime configuration");
-        assert_eq!(loaded.ui_event_log_capacity(), 7, "project_opened should run after loading");
+        assert_eq!(
+            loaded.ui_event_log_capacity(),
+            7,
+            "project_opened should run after loading"
+        );
     }
 
     #[test]
@@ -308,10 +335,20 @@ mod tests {
         engine.add_node(AutoLoadedNode::new().into(), None);
         engine.apply_edits().expect("simple node should attach");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        let simple = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("simple node should be restored under root");
+        let simple = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("simple node should be restored under root");
         assert_eq!(loaded.nodes.get(simple).map(Node::get_type), Some("auto_loaded_node"));
     }
 
@@ -325,21 +362,39 @@ mod tests {
         engine.add_node(node.into(), None);
         engine.apply_edits().expect("defaulted node should attach");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("defaulted node should be restored under root");
-        let ProjectDecodeTestAppNode::DefaultedLoadedNode(node) = loaded.nodes.get(restored).expect("defaulted node should exist") else {
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("defaulted node should be restored under root");
+        let ProjectDecodeTestAppNode::DefaultedLoadedNode(node) =
+            loaded.nodes.get(restored).expect("defaulted node should exist")
+        else {
             panic!("restored node should be a DefaultedLoadedNode");
         };
 
-        assert!(node.flag, "autoloaded node should preserve generated default-backed constructor state");
+        assert!(
+            node.flag,
+            "autoloaded node should preserve generated default-backed constructor state"
+        );
     }
 
     #[test]
     fn state_fields_can_define_default_and_persistence_in_one_place() {
         let mut node = PersistedStateNode::new();
-        assert!(node.flag, "generated constructor should apply #[state(default = ...)] values");
+        assert!(
+            node.flag,
+            "generated constructor should apply #[state(default = ...)] values"
+        );
         node.flag = false;
 
         let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
@@ -347,22 +402,43 @@ mod tests {
         engine.add_node(node.into(), None);
         engine.apply_edits().expect("persisted-state node should attach");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("persisted-state node should be restored under root");
-        let ProjectDecodeTestAppNode::PersistedStateNode(node) = loaded.nodes.get(restored).expect("persisted-state node should exist") else {
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("persisted-state node should be restored under root");
+        let ProjectDecodeTestAppNode::PersistedStateNode(node) =
+            loaded.nodes.get(restored).expect("persisted-state node should exist")
+        else {
             panic!("restored node should be a PersistedStateNode");
         };
 
-        assert!(!node.flag, "persisted #[state(..., persist)] field should round-trip through project save/load");
+        assert!(
+            !node.flag,
+            "persisted #[state(..., persist)] field should round-trip through project save/load"
+        );
     }
 
     #[test]
     fn via_nodes_can_persist_wrapper_and_base_state_without_manual_codecs() {
         let mut node = ViaPersistedStateWrapperNode::new(ViaPersistedStateBaseNode::new());
-        assert!(node.base.base_flag, "via base should use generated default-backed constructor");
-        assert!(!node.wrapper_flag, "via wrapper should use generated default-backed constructor");
+        assert!(
+            node.base.base_flag,
+            "via base should use generated default-backed constructor"
+        );
+        assert!(
+            !node.wrapper_flag,
+            "via wrapper should use generated default-backed constructor"
+        );
 
         node.base.base_flag = false;
         node.wrapper_flag = true;
@@ -372,16 +448,36 @@ mod tests {
         engine.add_node(node.into(), None);
         engine.apply_edits().expect("via persisted-state node should attach");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        let restored = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("via persisted-state node should be restored under root");
-        let ProjectDecodeTestAppNode::ViaPersistedStateWrapperNode(node) = loaded.nodes.get(restored).expect("via persisted-state node should exist") else {
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("via persisted-state node should be restored under root");
+        let ProjectDecodeTestAppNode::ViaPersistedStateWrapperNode(node) = loaded
+            .nodes
+            .get(restored)
+            .expect("via persisted-state node should exist")
+        else {
             panic!("restored node should be a ViaPersistedStateWrapperNode");
         };
 
-        assert!(!node.base.base_flag, "via base persisted state should round-trip through project save/load");
-        assert!(node.wrapper_flag, "via wrapper persisted state should round-trip through project save/load");
+        assert!(
+            !node.base.base_flag,
+            "via base persisted state should round-trip through project save/load"
+        );
+        assert!(
+            node.wrapper_flag,
+            "via wrapper persisted state should round-trip through project save/load"
+        );
     }
 
     #[test]
@@ -391,18 +487,47 @@ mod tests {
         engine.add_node(ManagedItemManagerNode::new().into(), None);
         engine.apply_edits().expect("manager should attach");
 
-        let manager = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("manager should exist under root");
+        let manager = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("manager should exist under root");
         engine.add_user_item(ManagedItemNode::create().into(), Some(manager));
         engine.apply_edits().expect("managed item should attach");
 
-        let json = engine.to_project_json_with(|node| node.project_encode_data()).expect("project should encode");
-        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(&json, <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node).expect("project should decode");
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
 
-        let loaded_manager = loaded.nodes.get(loaded.root).and_then(|root| root.node_data().first_child).expect("manager should be restored");
-        let loaded_item = loaded.nodes.get(loaded_manager).and_then(|node| node.node_data().first_child).expect("managed item should be restored");
+        let loaded_manager = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("manager should be restored");
+        let loaded_item = loaded
+            .nodes
+            .get(loaded_manager)
+            .and_then(|node| node.node_data().first_child)
+            .expect("managed item should be restored");
 
-        assert_eq!(loaded.nodes.get(loaded_item).map(Node::get_type), Some("managed_item_node"));
-        assert_eq!(loaded.nodes.get(loaded_item).expect("managed item should exist").node_data().user_role, crate::node::UserNodeRole::ItemRoot);
+        assert_eq!(
+            loaded.nodes.get(loaded_item).map(Node::get_type),
+            Some("managed_item_node")
+        );
+        assert_eq!(
+            loaded
+                .nodes
+                .get(loaded_item)
+                .expect("managed item should exist")
+                .node_data()
+                .user_role,
+            crate::node::UserNodeRole::ItemRoot
+        );
     }
 
     #[test]
@@ -412,17 +537,52 @@ mod tests {
         engine.add_node(ManagedItemManagerNode::new().into(), None);
         engine.apply_edits().expect("manager should attach");
 
-        let manager = engine.nodes.get(engine.root).and_then(|root| root.node_data().first_child).expect("manager should exist under root");
+        let manager = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("manager should exist under root");
         engine.add_user_item(ManagedItemNode::create().into(), Some(manager));
         engine.apply_edits().expect("managed item should attach");
 
-        let item = engine.nodes.get(manager).and_then(|node| node.node_data().first_child).expect("managed item should exist under manager");
+        let item = engine
+            .nodes
+            .get(manager)
+            .and_then(|node| node.node_data().first_child)
+            .expect("managed item should exist under manager");
         let duplicated = engine
-            .duplicate_subtree_with(item, manager, Some(item), Some("Item Copy".to_string()), |node| node.project_encode_data(), <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node)
+            .duplicate_subtree_with(
+                item,
+                manager,
+                Some(item),
+                Some("Item Copy".to_string()),
+                |node| node.project_encode_data(),
+                <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+            )
             .expect("managed item should duplicate");
 
-        assert_eq!(engine.nodes.get(duplicated).map(Node::get_type), Some("managed_item_node"));
-        assert_eq!(engine.nodes.get(duplicated).expect("duplicated managed item should exist").node_data().meta.label, "Item Copy");
-        assert_eq!(engine.nodes.get(duplicated).expect("duplicated managed item should exist").node_data().user_role, crate::node::UserNodeRole::ItemRoot);
+        assert_eq!(
+            engine.nodes.get(duplicated).map(Node::get_type),
+            Some("managed_item_node")
+        );
+        assert_eq!(
+            engine
+                .nodes
+                .get(duplicated)
+                .expect("duplicated managed item should exist")
+                .node_data()
+                .meta
+                .label,
+            "Item Copy"
+        );
+        assert_eq!(
+            engine
+                .nodes
+                .get(duplicated)
+                .expect("duplicated managed item should exist")
+                .node_data()
+                .user_role,
+            crate::node::UserNodeRole::ItemRoot
+        );
     }
 }

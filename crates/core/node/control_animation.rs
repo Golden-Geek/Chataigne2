@@ -3,18 +3,26 @@ use std::f64::consts::PI;
 use crate::engine::NodeExecutionRule;
 use crate::events::{Event, EventKind};
 use crate::node::NodeId;
-use crate::parameter::{AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint};
+use crate::parameter::{
+    AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
+};
 use crate::process_ctx::ProcessCtx;
 
 use super::{
-    AnimationCurveNode, DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
-    PARAMETER_ANIMATION_PHASE_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
+    AnimationCurveNode, DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID,
+    PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
+    PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
 };
 
 const DEFAULT_ANIMATION_UPDATE_RATE_HZ: u32 = 60;
 
 fn make_animation_waveform_parameter() -> Parameter {
-    let mut waveform = Parameter::new("Waveform", ParamValue::Enum("sine".to_string()), ParameterChangeCheck::ValueChange);
+    let mut waveform = Parameter::new(
+        "Waveform",
+        ParamValue::Enum("sine".to_string()),
+        ParameterChangeCheck::ValueChange,
+    );
     waveform.node_data_mut().meta.decl_id = DeclId(PARAMETER_ANIMATION_WAVEFORM_DECL_ID.to_string());
     waveform.node_data_mut().meta.can_be_disabled = false;
     waveform.constraints.enum_options = vec![
@@ -51,10 +59,17 @@ fn make_animation_waveform_parameter() -> Parameter {
 }
 
 fn make_animation_frequency_parameter() -> Parameter {
-    let mut frequency = Parameter::new("Frequency (Hz)", ParamValue::Float(1.0), ParameterChangeCheck::ValueChange);
+    let mut frequency = Parameter::new(
+        "Frequency (Hz)",
+        ParamValue::Float(1.0),
+        ParameterChangeCheck::ValueChange,
+    );
     frequency.node_data_mut().meta.decl_id = DeclId(PARAMETER_ANIMATION_FREQUENCY_DECL_ID.to_string());
     frequency.node_data_mut().meta.can_be_disabled = false;
-    frequency.constraints.range = Some(RangeConstraint::Uniform { min: Some(0.0), max: None });
+    frequency.constraints.range = Some(RangeConstraint::Uniform {
+        min: Some(0.0),
+        max: None,
+    });
     frequency
 }
 
@@ -80,15 +95,28 @@ fn make_animation_phase_parameter() -> Parameter {
 }
 
 fn make_animation_update_rate_parameter() -> Parameter {
-    let mut update_rate = Parameter::new("Update Rate (Hz)", ParamValue::Int(DEFAULT_ANIMATION_UPDATE_RATE_HZ as i32), ParameterChangeCheck::ValueChange);
+    let mut update_rate = Parameter::new(
+        "Update Rate (Hz)",
+        ParamValue::Int(DEFAULT_ANIMATION_UPDATE_RATE_HZ as i32),
+        ParameterChangeCheck::ValueChange,
+    );
     update_rate.node_data_mut().meta.decl_id = DeclId(PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID.to_string());
     update_rate.node_data_mut().meta.can_be_disabled = false;
-    update_rate.constraints.range = Some(RangeConstraint::Uniform { min: Some(1.0), max: None });
+    update_rate.constraints.range = Some(RangeConstraint::Uniform {
+        min: Some(1.0),
+        max: None,
+    });
     update_rate
 }
 
 fn parse_waveform(value: &ParamValue) -> AnimationWaveform {
-    match value.as_enum().unwrap_or_else(|| "sine".to_string()).trim().to_ascii_lowercase().as_str() {
+    match value
+        .as_enum()
+        .unwrap_or_else(|| "sine".to_string())
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "sine" => AnimationWaveform::Sine,
         "triangle" => AnimationWaveform::Triangle,
         "saw" => AnimationWaveform::Saw,
@@ -98,7 +126,11 @@ fn parse_waveform(value: &ParamValue) -> AnimationWaveform {
 }
 
 fn parse_update_rate_hz(value: &ParamValue) -> u32 {
-    let parsed = value.as_int().map(|rate| rate as f64).or_else(|| value.as_float()).unwrap_or(DEFAULT_ANIMATION_UPDATE_RATE_HZ as f64);
+    let parsed = value
+        .as_int()
+        .map(|rate| rate as f64)
+        .or_else(|| value.as_float())
+        .unwrap_or(DEFAULT_ANIMATION_UPDATE_RATE_HZ as f64);
 
     let rounded = parsed.round().clamp(1.0, u32::MAX as f64);
     rounded as u32
@@ -329,7 +361,12 @@ impl Node for ParameterAnimationControlNode {
                 EventKind::ChildAdded { parent, child, decl_id } if *parent == self.id() => {
                     self.bind_decl_child(decl_id.0.as_str(), *child);
                 }
-                EventKind::ChildReplaced { parent, old, new, decl_id } if *parent == self.id() => {
+                EventKind::ChildReplaced {
+                    parent,
+                    old,
+                    new,
+                    decl_id,
+                } if *parent == self.id() => {
                     self.unbind_child(*old);
                     self.bind_decl_child(decl_id.0.as_str(), *new);
                 }
@@ -364,7 +401,14 @@ impl Node for ParameterAnimationControlNode {
         self.bind_decl_child(decl_id.0.as_str(), child);
     }
 
-    fn on_child_replaced_decl(&mut self, _ctx: &mut ProcessCtx, parent: NodeId, old: NodeId, new: NodeId, decl_id: &DeclId) {
+    fn on_child_replaced_decl(
+        &mut self,
+        _ctx: &mut ProcessCtx,
+        parent: NodeId,
+        old: NodeId,
+        new: NodeId,
+        decl_id: &DeclId,
+    ) {
         if parent != self.id() {
             return;
         }

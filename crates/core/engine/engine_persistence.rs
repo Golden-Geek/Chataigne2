@@ -6,7 +6,10 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::node::{DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint, UserNodeRole};
+use crate::node::{
+    DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint,
+    UserNodeRole,
+};
 
 use super::engine_history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -178,7 +181,9 @@ impl fmt::Display for ProjectPersistenceError {
             Self::Json(err) => write!(f, "project JSON error: {err}"),
             Self::Engine(err) => write!(f, "engine rebuild error: {err}"),
             Self::MissingNode(node) => write!(f, "project graph references missing node id {:?}", node),
-            Self::UnsupportedVersion { found, expected } => write!(f, "unsupported project version '{found}' (expected '{expected}')"),
+            Self::UnsupportedVersion { found, expected } => {
+                write!(f, "unsupported project version '{found}' (expected '{expected}')")
+            }
             Self::Codec { node_type, message } => write!(f, "node codec error for '{node_type}': {message}"),
         }
     }
@@ -214,7 +219,10 @@ impl<T: Node> Engine<T> {
         F: FnMut(&T) -> Result<serde_json::Value, String>,
     {
         let root = self.encode_node_record_with(self.root, &mut encode_data)?;
-        Ok(ProjectFile { version: PROJECT_FILE_VERSION.to_string(), root })
+        Ok(ProjectFile {
+            version: PROJECT_FILE_VERSION.to_string(),
+            root,
+        })
     }
 
     /// Serializes a project snapshot to compact JSON.
@@ -255,7 +263,10 @@ impl<T: Node> Engine<T> {
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
         if project.version != PROJECT_FILE_VERSION {
-            return Err(ProjectPersistenceError::UnsupportedVersion { found: project.version, expected: PROJECT_FILE_VERSION });
+            return Err(ProjectPersistenceError::UnsupportedVersion {
+                found: project.version,
+                expected: PROJECT_FILE_VERSION,
+            });
         }
 
         let mut root = Self::decode_node_record_with(None, &project.root, &mut decode_node)?;
@@ -283,7 +294,11 @@ impl<T: Node> Engine<T> {
         engine.clear_history();
         engine.event_listeners.clear();
         engine.expression_runtime.clear();
-        engine.time = super::EngineTime { tick: 0, micro: 0, seq: 0 };
+        engine.time = super::EngineTime {
+            tick: 0,
+            micro: 0,
+            seq: 0,
+        };
 
         Ok(engine)
     }
@@ -307,7 +322,16 @@ impl<T: Node> Engine<T> {
         Self::from_project_json_with(&json, decode_node)
     }
 
-    pub(crate) fn duplicate_subtree_with<Encode, Decode>(&mut self, source: NodeId, new_parent: NodeId, new_prev_sibling: Option<NodeId>, label: Option<String>, mut encode_data: Encode, mut decode_node: Decode) -> Result<NodeId, ProjectPersistenceError>
+    /// Duplicates a persisted subtree by round-tripping through the project codec hooks.
+    pub fn duplicate_subtree_with<Encode, Decode>(
+        &mut self,
+        source: NodeId,
+        new_parent: NodeId,
+        new_prev_sibling: Option<NodeId>,
+        label: Option<String>,
+        mut encode_data: Encode,
+        mut decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
     where
         Encode: FnMut(&T) -> Result<serde_json::Value, String>,
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
@@ -323,19 +347,35 @@ impl<T: Node> Engine<T> {
         let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
         remap_record_uuids(&mut record, &mut uuid_map);
 
-        let duplicated_root = self.insert_duplicate_record_subtree_with(new_parent, new_prev_sibling, &record, &uuid_map, &mut decode_node)?;
+        let duplicated_root = self.insert_duplicate_record_subtree_with(
+            new_parent,
+            new_prev_sibling,
+            &record,
+            &uuid_map,
+            &mut decode_node,
+        )?;
 
         self.resolve_reference_caches();
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
-        self.push_ui_custom_event("__transport.resync_required", Some(duplicated_root), serde_json::json!({ "reason": "duplicate_subtree_loaded" }));
+        self.push_ui_custom_event(
+            "__transport.resync_required",
+            Some(duplicated_root),
+            serde_json::json!({ "reason": "duplicate_subtree_loaded" }),
+        );
         self.record_single_history_step(
             AddNodeEffect {
                 node: duplicated_root,
                 parent: new_parent,
-                prev_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().prev_sibling),
-                next_sibling: self.nodes.get(duplicated_root).and_then(|node| node.node_data().next_sibling),
+                prev_sibling: self
+                    .nodes
+                    .get(duplicated_root)
+                    .and_then(|node| node.node_data().prev_sibling),
+                next_sibling: self
+                    .nodes
+                    .get(duplicated_root)
+                    .and_then(|node| node.node_data().next_sibling),
             }
             .into(),
         );
@@ -343,24 +383,39 @@ impl<T: Node> Engine<T> {
         Ok(duplicated_root)
     }
 
-    fn encode_node_record_with<F>(&self, node_id: NodeId, encode_data: &mut F) -> Result<ProjectNodeRecord, ProjectPersistenceError>
+    fn encode_node_record_with<F>(
+        &self,
+        node_id: NodeId,
+        encode_data: &mut F,
+    ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
     where
         F: FnMut(&T) -> Result<serde_json::Value, String>,
     {
-        let node = self.nodes.get(node_id).ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+        let node = self
+            .nodes
+            .get(node_id)
+            .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
 
         let node_type = node.get_type().to_string();
         let meta = ProjectNodeMeta::from_runtime(&node.node_data().meta);
         let uuid = node.node_data().meta.uuid;
 
-        let data_value = encode_data(node).map_err(|message| ProjectPersistenceError::Codec { node_type: node_type.clone(), message })?;
+        let data_value = encode_data(node).map_err(|message| ProjectPersistenceError::Codec {
+            node_type: node_type.clone(),
+            message,
+        })?;
         let data = (!data_value.is_null()).then_some(data_value);
 
         let mut child_ids = Vec::new();
         let mut child = node.node_data().first_child;
         while let Some(child_id) = child {
             child_ids.push(child_id);
-            child = self.nodes.get(child_id).ok_or(ProjectPersistenceError::MissingNode(child_id))?.node_data().next_sibling;
+            child = self
+                .nodes
+                .get(child_id)
+                .ok_or(ProjectPersistenceError::MissingNode(child_id))?
+                .node_data()
+                .next_sibling;
         }
 
         let mut children = Vec::with_capacity(child_ids.len());
@@ -378,7 +433,11 @@ impl<T: Node> Engine<T> {
         })
     }
 
-    fn decode_node_record_with<F>(parent: Option<&T>, record: &ProjectNodeRecord, decode_node: &mut F) -> Result<T, ProjectPersistenceError>
+    fn decode_node_record_with<F>(
+        parent: Option<&T>,
+        record: &ProjectNodeRecord,
+        decode_node: &mut F,
+    ) -> Result<T, ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
@@ -388,19 +447,32 @@ impl<T: Node> Engine<T> {
             if let Some(parent) = parent {
                 if let Some(mut node) = parent.create_user_item(record.node_type.as_str()) {
                     node.node_data_mut().meta.label = meta.label.clone();
-                    node.project_decode_data(&data).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?;
+                    node.project_decode_data(&data)
+                        .map_err(|message| ProjectPersistenceError::Codec {
+                            node_type: record.node_type.clone(),
+                            message,
+                        })?;
                     T::from_boxed_node(node).ok_or(ProjectPersistenceError::Codec {
                         node_type: record.node_type.clone(),
                         message: "parent item factory returned a node outside the engine node enum".to_string(),
                     })?
                 } else {
-                    decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+                    decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
+                        node_type: record.node_type.clone(),
+                        message,
+                    })?
                 }
             } else {
-                decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+                decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
+                    node_type: record.node_type.clone(),
+                    message,
+                })?
             }
         } else {
-            decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec { node_type: record.node_type.clone(), message })?
+            decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
+                node_type: record.node_type.clone(),
+                message,
+            })?
         };
 
         let node_data = node.node_data_mut();
@@ -415,7 +487,12 @@ impl<T: Node> Engine<T> {
         Ok(node)
     }
 
-    fn load_children_records<F>(&mut self, parent: NodeId, children: &[ProjectNodeRecord], decode_node: &mut F) -> Result<(), ProjectPersistenceError>
+    fn load_children_records<F>(
+        &mut self,
+        parent: NodeId,
+        children: &[ProjectNodeRecord],
+        decode_node: &mut F,
+    ) -> Result<(), ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
@@ -423,7 +500,10 @@ impl<T: Node> Engine<T> {
 
         for child_record in children {
             let child = {
-                let parent_node = self.nodes.get(parent).ok_or(ProjectPersistenceError::MissingNode(parent))?;
+                let parent_node = self
+                    .nodes
+                    .get(parent)
+                    .ok_or(ProjectPersistenceError::MissingNode(parent))?;
                 Self::decode_node_record_with(Some(parent_node), child_record, decode_node)?
             };
             let child_id = self.nodes.insert(child);
@@ -435,12 +515,22 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn insert_duplicate_record_subtree_with<F>(&mut self, parent: NodeId, prev_sibling: Option<NodeId>, record: &ProjectNodeRecord, uuid_map: &HashMap<NodeUuid, NodeUuid>, decode_node: &mut F) -> Result<NodeId, ProjectPersistenceError>
+    fn insert_duplicate_record_subtree_with<F>(
+        &mut self,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        record: &ProjectNodeRecord,
+        uuid_map: &HashMap<NodeUuid, NodeUuid>,
+        decode_node: &mut F,
+    ) -> Result<NodeId, ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
         let mut node = {
-            let parent_node = self.nodes.get(parent).ok_or(ProjectPersistenceError::MissingNode(parent))?;
+            let parent_node = self
+                .nodes
+                .get(parent)
+                .ok_or(ProjectPersistenceError::MissingNode(parent))?;
             Self::decode_node_record_with(Some(parent_node), record, decode_node)?
         };
         remap_node_references(&mut node, uuid_map);
@@ -450,7 +540,13 @@ impl<T: Node> Engine<T> {
 
         let mut child_prev_sibling = None;
         for child_record in &record.children {
-            let child_id = self.insert_duplicate_record_subtree_with(node_id, child_prev_sibling, child_record, uuid_map, decode_node)?;
+            let child_id = self.insert_duplicate_record_subtree_with(
+                node_id,
+                child_prev_sibling,
+                child_record,
+                uuid_map,
+                decode_node,
+            )?;
             child_prev_sibling = Some(child_id);
         }
 

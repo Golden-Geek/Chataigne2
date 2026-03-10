@@ -28,11 +28,19 @@ pub struct CustomEvent {
 impl CustomEvent {
     /// Creates a custom event from raw JSON payload.
     pub fn new(topic: impl Into<String>, origin: Option<NodeId>, payload: serde_json::Value) -> Self {
-        Self { topic: topic.into(), origin, payload }
+        Self {
+            topic: topic.into(),
+            origin,
+            payload,
+        }
     }
 
     /// Creates a custom event by serializing a typed payload into JSON.
-    pub fn from_payload<T: Serialize>(topic: impl Into<String>, origin: Option<NodeId>, payload: &T) -> serde_json::Result<Self> {
+    pub fn from_payload<T: Serialize>(
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &T,
+    ) -> serde_json::Result<Self> {
         Ok(Self::new(topic, origin, serde_json::to_value(payload)?))
     }
 
@@ -45,7 +53,10 @@ impl CustomEvent {
 impl Event {
     /// Convenience constructor for a [`EventKind::Custom`] event.
     pub fn custom(time: EngineTime, event: CustomEvent) -> Self {
-        Self { time, kind: EventKind::Custom(event) }
+        Self {
+            time,
+            kind: EventKind::Custom(event),
+        }
     }
 }
 

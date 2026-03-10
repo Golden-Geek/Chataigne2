@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::node::NodeId;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Topic emitted through UI custom events when a new logger record arrives.
 pub const UI_LOG_RECORD_TOPIC: &str = "__logger.record";
@@ -20,7 +21,7 @@ fn is_default_repeat_count(value: &u32) -> bool {
 }
 
 /// Severity level for a logger record.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     /// Informational message.
@@ -45,7 +46,7 @@ impl LogLevel {
 }
 
 /// One logger entry stored and streamed to the UI.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct LogRecord {
     /// Monotonic record id.
     pub id: u64,
@@ -157,7 +158,12 @@ pub fn records() -> Vec<LogRecord> {
 /// returned again with a higher `repeat_count`.
 pub fn records_since_cursor(last_id: u64, last_repeat_count: u32) -> Vec<LogRecord> {
     let state = lock_logger_state();
-    state.retained.iter().filter(|record| record.id > last_id || (record.id == last_id && record.repeat_count > last_repeat_count)).cloned().collect()
+    state
+        .retained
+        .iter()
+        .filter(|record| record.id > last_id || (record.id == last_id && record.repeat_count > last_repeat_count))
+        .cloned()
+        .collect()
 }
 
 /// Drains pending records that have not yet been streamed to the UI.
@@ -183,7 +189,10 @@ pub fn log_parts(level: LogLevel, tag: String, origin: Option<NodeId>, parts: Ve
 pub fn log_message(level: LogLevel, tag: String, origin: Option<NodeId>, message: String) -> LogRecord {
     let resolved_origin = origin.or_else(current_node_origin);
     print_process_output(level, &tag, resolved_origin, &message);
-    let timestamp_ms = SystemTime::now().duration_since(UNIX_EPOCH).map(|duration| duration.as_millis() as u64).unwrap_or(0);
+    let timestamp_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
 
     let mut state = lock_logger_state();
     if let Some(last) = state.retained.back_mut() {
@@ -441,6 +450,9 @@ mod tests {
 
     #[test]
     fn process_output_prefix_includes_origin_when_present() {
-        assert_eq!(process_output_prefix(LogLevel::Warning, "script", Some(NodeId(7))), "[golden][warning][script][node=7]");
+        assert_eq!(
+            process_output_prefix(LogLevel::Warning, "script", Some(NodeId(7))),
+            "[golden][warning][script][node=7]"
+        );
     }
 }

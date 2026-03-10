@@ -244,39 +244,181 @@ impl fmt::Display for EngineEditError {
                 provided_node_type,
                 expected_engine_node_type,
             } => {
-                write!(f, "edit #{edit_index} ({operation}) carries node type '{provided_node_type}', expected engine node type {expected_engine_node_type}")
+                write!(
+                    f,
+                    "edit #{edit_index} ({operation}) carries node type '{provided_node_type}', expected engine node type {expected_engine_node_type}"
+                )
             }
-            Self::ParamEditTargetMismatch { edit_index, node, node_type } => {
-                write!(f, "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node", node)
+            Self::ParamEditTargetMismatch {
+                edit_index,
+                node,
+                node_type,
+            } => {
+                write!(
+                    f,
+                    "edit #{edit_index} (SetParam) targets node {:?} of type '{node_type}', expected parameter node",
+                    node
+                )
             }
-            Self::ParamConstraintViolation { edit_index, node, node_type, message } => write!(f, "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::ParamControlStateRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::ScriptConfigRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::ScriptPropertyRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::ScriptMethodRejected { edit_index, operation, node, node_type, message } => write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node),
-            Self::NodeMutationRejected { edit_index, operation, node, node_type, message } => {
-                write!(f, "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}", node)
+            Self::ParamConstraintViolation {
+                edit_index,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::ParamControlStateRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::ScriptConfigRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::ScriptPropertyRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::ScriptMethodRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::NodeMutationRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => {
+                write!(
+                    f,
+                    "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
+                    node
+                )
             }
-            Self::NodeNotFound { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
-            Self::ParentNotFound { edit_index, operation, parent } => write!(f, "edit #{edit_index} ({operation}) references missing parent {:?}", parent),
-            Self::SiblingNotFound { edit_index, operation, sibling } => write!(f, "edit #{edit_index} ({operation}) references missing sibling {:?}", sibling),
-            Self::InvalidSiblingParent { edit_index, operation, parent, sibling, sibling_parent } => write!(f, "edit #{edit_index} ({operation}) uses sibling {:?} under parent {:?}, but sibling parent is {:?}", sibling, parent, sibling_parent),
-            Self::InvalidSiblingReference { edit_index, operation, node, sibling } => write!(f, "edit #{edit_index} ({operation}) has invalid sibling reference: node {:?} cannot use itself as sibling {:?}", node, sibling),
-            Self::CannotMutateRoot { edit_index, operation, node } => write!(f, "edit #{edit_index} ({operation}) cannot target root node {:?}", node),
-            Self::CycleDetected { edit_index, operation, node, new_parent } => write!(f, "edit #{edit_index} ({operation}) would create a cycle by moving node {:?} under {:?}", node, new_parent),
+            Self::NodeNotFound {
+                edit_index,
+                operation,
+                node,
+            } => write!(f, "edit #{edit_index} ({operation}) references missing node {:?}", node),
+            Self::ParentNotFound {
+                edit_index,
+                operation,
+                parent,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) references missing parent {:?}",
+                parent
+            ),
+            Self::SiblingNotFound {
+                edit_index,
+                operation,
+                sibling,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) references missing sibling {:?}",
+                sibling
+            ),
+            Self::InvalidSiblingParent {
+                edit_index,
+                operation,
+                parent,
+                sibling,
+                sibling_parent,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) uses sibling {:?} under parent {:?}, but sibling parent is {:?}",
+                sibling, parent, sibling_parent
+            ),
+            Self::InvalidSiblingReference {
+                edit_index,
+                operation,
+                node,
+                sibling,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) has invalid sibling reference: node {:?} cannot use itself as sibling {:?}",
+                node, sibling
+            ),
+            Self::CannotMutateRoot {
+                edit_index,
+                operation,
+                node,
+            } => write!(f, "edit #{edit_index} ({operation}) cannot target root node {:?}", node),
+            Self::CycleDetected {
+                edit_index,
+                operation,
+                node,
+                new_parent,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) would create a cycle by moving node {:?} under {:?}",
+                node, new_parent
+            ),
             Self::EditSessionAlreadyActive {
                 edit_index,
                 requested_client_edit_id,
                 active_client_edit_id,
-            } => write!(f, "edit #{edit_index} (BeginEditSession) requested session '{requested_client_edit_id}' but '{active_client_edit_id}' is already active"),
-            Self::EditSessionNotActive { edit_index, requested_client_edit_id } => write!(f, "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but no session is active"),
+            } => write!(
+                f,
+                "edit #{edit_index} (BeginEditSession) requested session '{requested_client_edit_id}' but '{active_client_edit_id}' is already active"
+            ),
+            Self::EditSessionNotActive {
+                edit_index,
+                requested_client_edit_id,
+            } => write!(
+                f,
+                "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but no session is active"
+            ),
             Self::EditSessionIdMismatch {
                 edit_index,
                 requested_client_edit_id,
                 active_client_edit_id,
-            } => write!(f, "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but active session is '{active_client_edit_id}'"),
-            Self::UserItemContainerRequired { edit_index, operation, parent } => {
-                write!(f, "edit #{edit_index} ({operation}) requires a container target, but parent {:?} has no container in its ancestry", parent)
+            } => write!(
+                f,
+                "edit #{edit_index} (EndEditSession) requested session '{requested_client_edit_id}' but active session is '{active_client_edit_id}'"
+            ),
+            Self::UserItemContainerRequired {
+                edit_index,
+                operation,
+                parent,
+            } => {
+                write!(
+                    f,
+                    "edit #{edit_index} ({operation}) requires a container target, but parent {:?} has no container in its ancestry",
+                    parent
+                )
             }
             Self::UserItemKindRejected {
                 edit_index,
@@ -285,8 +427,21 @@ impl fmt::Display for EngineEditError {
                 container_type,
                 item_type,
                 item_kind,
-            } => write!(f, "edit #{edit_index} ({operation}) rejected item type '{}' kind '{}' for container {:?} ('{}')", item_type, item_kind, container, container_type),
-            Self::UserItemTypeUnavailable { edit_index, operation, parent, node_type } => write!(f, "edit #{edit_index} ({operation}) cannot create item type '{}' under parent {:?}", node_type, parent),
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected item type '{}' kind '{}' for container {:?} ('{}')",
+                item_type, item_kind, container, container_type
+            ),
+            Self::UserItemTypeUnavailable {
+                edit_index,
+                operation,
+                parent,
+                node_type,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) cannot create item type '{}' under parent {:?}",
+                node_type, parent
+            ),
         }
     }
 }

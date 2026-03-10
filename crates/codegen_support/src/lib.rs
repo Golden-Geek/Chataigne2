@@ -1,8 +1,17 @@
-//! Code-generation helpers used to build an application node registry.
+//! Build-script support helpers for Golden workspaces.
 
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use golden_core::script::ScriptUiState;
+use golden_core::ui_sync::{
+    UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto,
+    UiParamControlInfoRequest, UiProjectPathRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
+    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot,
+    UiSnapshotRequest,
+};
+use ts_rs::{Config, TS};
 
 #[derive(Debug, Clone)]
 struct NodeEntry {
@@ -12,8 +21,6 @@ struct NodeEntry {
 }
 
 /// Scans `src_root` for node declarations and writes a generated node registry file.
-///
-/// This function is intended to be called from `build.rs`.
 pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
     println!("cargo:rerun-if-changed={}", src_root.display());
 
@@ -25,21 +32,26 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
     for path in rust_files {
         println!("cargo:rerun-if-changed={}", path.display());
 
-        let source_raw = fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+        let source_raw =
+            fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
         let source = strip_for_scanning(&source_raw);
 
-        // Only files declaring node types through supported node declaration macros
-        // are auto-registered.
         if !declares_node_type(&source) {
             continue;
         }
 
         let module = module_name_from_relative(src_root, &path);
-        let source_path = normalize_absolute_path(path.canonicalize().unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", path.display(), err)));
+        let source_path = normalize_absolute_path(
+            path.canonicalize()
+                .unwrap_or_else(|err| panic!("failed to canonicalize {}: {}", path.display(), err)),
+        );
 
         let type_names = extract_struct_names(&source);
         if type_names.is_empty() {
-            panic!("could not find any `struct <Type>` in {} (expected node type declaration)", path.display());
+            panic!(
+                "could not find any `struct <Type>` in {} (expected node type declaration)",
+                path.display()
+            );
         }
 
         for type_name in type_names {
@@ -56,6 +68,48 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
 
     let generated = render_registry(&entries);
     fs::write(out_file, generated).unwrap_or_else(|err| panic!("failed to write {}: {}", out_file.display(), err));
+}
+
+/// Exports Rust-owned UI transport bindings into the TypeScript workspace.
+pub fn generate_ui_protocol_bindings(out_dir: &Path) {
+    let core_src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("core").join("src");
+    println!("cargo:rerun-if-changed={}", core_src_root.display());
+
+    let mut rust_files = Vec::new();
+    collect_rs_files(&core_src_root, &mut rust_files);
+    rust_files.sort();
+    for path in rust_files {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+
+    if out_dir.exists() {
+        fs::remove_dir_all(out_dir)
+            .unwrap_or_else(|err| panic!("failed to clear {}: {}", out_dir.display(), err));
+    }
+    fs::create_dir_all(out_dir).unwrap_or_else(|err| panic!("failed to create {}: {}", out_dir.display(), err));
+
+    let config = Config::new().with_out_dir(out_dir).with_large_int("number");
+
+    export_binding::<UiSnapshot>(&config, "UiSnapshot");
+    export_binding::<UiEventBatch>(&config, "UiEventBatch");
+    export_binding::<UiAck>(&config, "UiAck");
+    export_binding::<UiEditIntent>(&config, "UiEditIntent");
+    export_binding::<UiReferenceTargetsDto>(&config, "UiReferenceTargetsDto");
+    export_binding::<UiParamControlInfoDto>(&config, "UiParamControlInfoDto");
+    export_binding::<ScriptUiState>(&config, "ScriptUiState");
+    export_binding::<UiSnapshotRequest>(&config, "UiSnapshotRequest");
+    export_binding::<UiReplayRequest>(&config, "UiReplayRequest");
+    export_binding::<UiReferenceTargetsRequest>(&config, "UiReferenceTargetsRequest");
+    export_binding::<UiContextCandidatesRequest>(&config, "UiContextCandidatesRequest");
+    export_binding::<UiParamControlInfoRequest>(&config, "UiParamControlInfoRequest");
+    export_binding::<UiScriptStateRequest>(&config, "UiScriptStateRequest");
+    export_binding::<UiScriptConfigRequest>(&config, "UiScriptConfigRequest");
+    export_binding::<UiScriptReloadRequest>(&config, "UiScriptReloadRequest");
+    export_binding::<UiProjectPathRequest>(&config, "UiProjectPathRequest");
+}
+
+fn export_binding<T: TS + 'static>(config: &Config, name: &str) {
+    T::export_all(config).unwrap_or_else(|err| panic!("failed to export {name}: {err}"));
 }
 
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -101,7 +155,10 @@ fn extract_all_after_marker(source: &str, marker: &str) -> Vec<String> {
     while let Some(found) = source[offset..].find(marker) {
         let start = offset + found + marker.len();
         let tail = &source[start..];
-        let ident: String = tail.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+        let ident: String = tail
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
 
         if !ident.is_empty() {
             out.push(ident);
@@ -114,7 +171,13 @@ fn extract_all_after_marker(source: &str, marker: &str) -> Vec<String> {
 }
 
 fn module_name_from_relative(src_root: &Path, file: &Path) -> String {
-    let relative = file.strip_prefix(src_root).unwrap_or_else(|_| panic!("failed to compute relative path for {} from {}", file.display(), src_root.display()));
+    let relative = file.strip_prefix(src_root).unwrap_or_else(|_| {
+        panic!(
+            "failed to compute relative path for {} from {}",
+            file.display(),
+            src_root.display()
+        )
+    });
 
     let mut module = String::new();
     for component in relative.components() {
@@ -157,18 +220,26 @@ fn ensure_unique_type_names(entries: &[NodeEntry]) {
     let mut seen = HashSet::new();
     for entry in entries {
         if !seen.insert(entry.type_name.clone()) {
-            panic!("duplicate node type `{}` detected; node type names must be unique", entry.type_name);
+            panic!(
+                "duplicate node type `{}` detected; node type names must be unique",
+                entry.type_name
+            );
         }
     }
 }
 
 fn declares_node_type(source: &str) -> bool {
-    source.contains("#[node(") || source.contains("#[node]") || source.contains("#[golden_core::node(") || source.contains("#[golden_core::node]") || source.contains("#[::golden_core::node(") || source.contains("#[::golden_core::node]")
+    source.contains("#[node(")
+        || source.contains("#[node]")
+        || source.contains("#[golden_core::node(")
+        || source.contains("#[golden_core::node]")
+        || source.contains("#[::golden_core::node(")
+        || source.contains("#[::golden_core::node]")
 }
 
 fn render_registry(entries: &[NodeEntry]) -> String {
     let mut out = String::new();
-    out.push_str("// @generated by build.rs via golden_core/node/node_codegen.rs. Do not edit.\n");
+    out.push_str("// @generated by build.rs via golden_codegen_support. Do not edit.\n");
     out.push_str("use golden_core::define_node_enum;\n\n");
 
     let mut emitted_modules = HashSet::new();

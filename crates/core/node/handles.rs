@@ -1,7 +1,9 @@
 use crate::color::Color;
 use crate::edit::Edit;
 use crate::events::EventKind;
-use crate::parameter::{CssUnit, CssValue, Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3};
+use crate::parameter::{
+    CssUnit, CssValue, Enum, File, ParamValue, ParameterChangeCheck, ParameterEventBehaviour, Vec2, Vec3,
+};
 use crate::process_ctx::ProcessCtx;
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -180,7 +182,11 @@ impl ParameterValueType for NodeReference {
     }
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
-        if let ParamValue::Reference(reference) = value { Some(reference.clone()) } else { None }
+        if let ParamValue::Reference(reference) = value {
+            Some(reference.clone())
+        } else {
+            None
+        }
     }
 }
 
@@ -190,7 +196,11 @@ impl ParameterValueType for NodeUuid {
     }
 
     fn from_param_value(value: &ParamValue) -> Option<Self> {
-        if let ParamValue::Reference(reference) = value { Some(reference.uuid()) } else { None }
+        if let ParamValue::Reference(reference) = value {
+            Some(reference.uuid())
+        } else {
+            None
+        }
     }
 }
 
@@ -229,7 +239,11 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
     /// Creates an unbound typed parameter handle with explicit policies.
     ///
     /// The runtime node id is assigned later by the engine.
-    pub fn with_policies(initial: T, change_check: ParameterChangeCheck, event_behaviour: ParameterEventBehaviour) -> Self {
+    pub fn with_policies(
+        initial: T,
+        change_check: ParameterChangeCheck,
+        event_behaviour: ParameterEventBehaviour,
+    ) -> Self {
         Self {
             node: NodeId(0),
             cached: initial,
@@ -335,7 +349,13 @@ impl<T: ParameterValueType + PartialEq> ParameterHandle<T> {
     ///
     /// `warning_id = None` uses the default empty warning id.
     /// No-op when the handle is not bound yet.
-    pub fn set_warning_with(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+    pub fn set_warning_with(
+        &self,
+        ctx: &mut ProcessCtx,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<&str>,
+    ) {
         if !self.is_bound() {
             return;
         }
@@ -420,7 +440,11 @@ impl NodeHandle {
 
     /// Queues movement of this node under a new parent.
     pub fn move_to(&self, ctx: &mut ProcessCtx, new_parent: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode { node: self.node, new_parent, new_prev_sibling: after });
+        ctx.edits.push(Edit::MoveNode {
+            node: self.node,
+            new_parent,
+            new_prev_sibling: after,
+        });
     }
 
     /// Queues replacement of this node id by a typed node value.
@@ -441,7 +465,13 @@ impl NodeHandle {
     /// Sets or replaces one warning on this node.
     ///
     /// `warning_id = None` uses the default empty warning id.
-    pub fn set_warning_with(&self, ctx: &mut ProcessCtx, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+    pub fn set_warning_with(
+        &self,
+        ctx: &mut ProcessCtx,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<&str>,
+    ) {
         ctx.set_node_warning_with(self.node, warning_id, message, detail);
     }
 
@@ -480,7 +510,12 @@ impl NodeHandle {
         ctx.call_node_mutation(target, move |node, child_ctx| {
             let node_type = node.get_type().to_string();
             let Some(typed) = node.as_any_mut().downcast_mut::<N>() else {
-                return Err(format!("node {:?} is type '{}' and cannot be downcast to {}", target, node_type, std::any::type_name::<N>()));
+                return Err(format!(
+                    "node {:?} is type '{}' and cannot be downcast to {}",
+                    target,
+                    node_type,
+                    std::any::type_name::<N>()
+                ));
             };
             callback(typed, child_ctx);
             Ok(())
@@ -585,7 +620,11 @@ impl PotentialNodeHandle {
 
     /// Moves an existing node under this slot parent and marks it as current.
     pub fn attach_existing(&mut self, ctx: &mut ProcessCtx, node: NodeId, after: Option<NodeId>) {
-        ctx.edits.push(Edit::MoveNode { node, new_parent: self.parent, new_prev_sibling: after });
+        ctx.edits.push(Edit::MoveNode {
+            node,
+            new_parent: self.parent,
+            new_prev_sibling: after,
+        });
         self.current = Some(node);
         self.pending_create = false;
     }
@@ -659,7 +698,12 @@ impl PotentialNodeHandle {
     pub fn reconcile_event(&mut self, event: &EventKind) -> bool {
         match event {
             EventKind::ChildAdded { parent, child, decl_id } => self.reconcile_child_added(*parent, *child, decl_id),
-            EventKind::ChildReplaced { parent, old, new, decl_id } => self.reconcile_child_replaced(*parent, *old, *new, decl_id),
+            EventKind::ChildReplaced {
+                parent,
+                old,
+                new,
+                decl_id,
+            } => self.reconcile_child_replaced(*parent, *old, *new, decl_id),
             EventKind::ChildRemoved { parent, child } => self.reconcile_child_removed(*parent, *child),
             _ => false,
         }
@@ -797,7 +841,14 @@ mod tests {
     fn parameter_handle_set_queues_coalesced_set_param_and_updates_cache() {
         let mut handle = ParameterHandle::new(0.5f64);
         handle.set_node_id(NodeId(10));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.set(&mut ctx, 0.75);
 
@@ -815,9 +866,20 @@ mod tests {
 
     #[test]
     fn parameter_handle_value_change_policy_skips_unchanged_values() {
-        let mut handle = ParameterHandle::with_policies(1.0f64, ParameterChangeCheck::ValueChange, ParameterEventBehaviour::Coalesce);
+        let mut handle = ParameterHandle::with_policies(
+            1.0f64,
+            ParameterChangeCheck::ValueChange,
+            ParameterEventBehaviour::Coalesce,
+        );
         handle.set_node_id(NodeId(11));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.set(&mut ctx, 1.0);
         assert!(ctx.edits.pending.is_empty());
@@ -839,14 +901,25 @@ mod tests {
     #[test]
     fn node_handle_helpers_queue_structural_edits() {
         let handle = NodeHandle::new(NodeId(20));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.move_to(&mut ctx, NodeId(30), Some(NodeId(31)));
         handle.remove(&mut ctx);
 
         assert_eq!(ctx.edits.pending.len(), 2);
         match &ctx.edits.pending[0].edit {
-            Edit::MoveNode { node, new_parent, new_prev_sibling } => {
+            Edit::MoveNode {
+                node,
+                new_parent,
+                new_prev_sibling,
+            } => {
                 assert_eq!(*node, NodeId(20));
                 assert_eq!(*new_parent, NodeId(30));
                 assert_eq!(*new_prev_sibling, Some(NodeId(31)));
@@ -863,7 +936,14 @@ mod tests {
     #[test]
     fn node_handle_patch_meta_queues_patch_meta_edit() {
         let handle = NodeHandle::new(NodeId(21));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.patch_meta(
             &mut ctx,
@@ -887,10 +967,22 @@ mod tests {
     fn parameter_handle_warning_helpers_queue_meta_edits() {
         let mut handle = ParameterHandle::new(0.5f64);
         handle.set_node_id(NodeId(50));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.set_warning(&mut ctx, "default warning");
-        handle.set_warning_with(&mut ctx, Some("port"), "invalid port", Some("port must be in [1..65535]"));
+        handle.set_warning_with(
+            &mut ctx,
+            Some("port"),
+            "invalid port",
+            Some("port must be in [1..65535]"),
+        );
         handle.clear_warning(&mut ctx, Some("port"));
         handle.clear_warnings(&mut ctx);
         handle.set_child_warning_depth(&mut ctx, 2);
@@ -932,7 +1024,14 @@ mod tests {
     #[test]
     fn unbound_parameter_handle_warning_helpers_skip_edits() {
         let handle = ParameterHandle::new(0.5f64);
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.set_warning(&mut ctx, "default warning");
         handle.set_warning_with(&mut ctx, Some("port"), "invalid port", Some("detail"));
@@ -946,7 +1045,14 @@ mod tests {
     #[test]
     fn potential_handle_clear_removes_bound_node() {
         let mut handle = PotentialNodeHandle::with_current(NodeId(1), "value", NodeId(2));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         let removed = handle.clear(&mut ctx);
         assert_eq!(removed, Some(NodeId(2)));
@@ -961,7 +1067,14 @@ mod tests {
     #[test]
     fn potential_handle_replace_without_current_adds_node_under_parent() {
         let mut handle = PotentialNodeHandle::new(NodeId(5), "value");
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.replace_with(&mut ctx, crate::node::Folder::new("slot-value"));
         assert!(!handle.is_present());
@@ -979,7 +1092,14 @@ mod tests {
     #[test]
     fn potential_handle_replace_with_current_queues_replace() {
         let mut handle = PotentialNodeHandle::with_current(NodeId(5), "value", NodeId(6));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.replace_with(&mut ctx, crate::node::Folder::new("slot-value"));
         assert!(handle.is_present());
@@ -994,13 +1114,24 @@ mod tests {
     #[test]
     fn potential_handle_attach_existing_moves_and_binds() {
         let mut handle = PotentialNodeHandle::new(NodeId(8), "target");
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.attach_existing(&mut ctx, NodeId(42), None);
         assert_eq!(handle.current_id(), Some(NodeId(42)));
         assert_eq!(ctx.edits.pending.len(), 1);
         match &ctx.edits.pending[0].edit {
-            Edit::MoveNode { node, new_parent, new_prev_sibling } => {
+            Edit::MoveNode {
+                node,
+                new_parent,
+                new_prev_sibling,
+            } => {
                 assert_eq!(*node, NodeId(42));
                 assert_eq!(*new_parent, NodeId(8));
                 assert_eq!(*new_prev_sibling, None);
@@ -1012,7 +1143,14 @@ mod tests {
     #[test]
     fn potential_handle_reconcile_child_added_binds_pending_slot() {
         let mut handle = PotentialNodeHandle::new(NodeId(9), "value");
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         handle.replace_with(&mut ctx, crate::node::Folder::new("slot-value"));
         assert!(handle.is_pending_create());

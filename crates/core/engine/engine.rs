@@ -9,6 +9,7 @@ use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Engine callback signature used to evaluate custom reference filters.
 pub type ReferenceFilterFn<T> = dyn Fn(&Engine<T>, NodeId, NodeId, NodeId) -> bool + Send + Sync;
@@ -82,7 +83,7 @@ pub use engine_runtime::NodeUpdateRate;
 pub use engine_runtime::RuntimeLimits;
 
 /// Logical time tracked by the engine.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 pub struct EngineTime {
     /// Monotonic engine tick counter. Increments only on EngineTick.
     pub tick: u64,
@@ -181,7 +182,11 @@ impl<T: Node> Engine<T> {
         let mut engine = Self {
             nodes,
             root,
-            time: EngineTime { tick: 0, micro: 0, seq: 0 },
+            time: EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
             inbox: Inbox::new(),
             edits: EditQueue::new(),
             external_edits_tx,
@@ -233,7 +238,11 @@ impl<T: Node> Engine<T> {
 
     /// Queues insertion of a node after an existing sibling.
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
-        let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
+        let parent = self
+            .nodes
+            .get(sibling)
+            .and_then(|n| n.node_data().parent)
+            .unwrap_or(self.root);
         self.edits.push(Edit::AddNode {
             parent,
             prev_sibling: Some(sibling),
@@ -243,7 +252,11 @@ impl<T: Node> Engine<T> {
 
     /// Queues insertion of a user-curated item after an existing sibling.
     pub fn add_user_item_after(&mut self, node: T, sibling: NodeId) {
-        let parent = self.nodes.get(sibling).and_then(|n| n.node_data().parent).unwrap_or(self.root);
+        let parent = self
+            .nodes
+            .get(sibling)
+            .and_then(|n| n.node_data().parent)
+            .unwrap_or(self.root);
         self.edits.push(Edit::AddUserItem {
             parent,
             prev_sibling: Some(sibling),
@@ -253,7 +266,10 @@ impl<T: Node> Engine<T> {
 
     /// Queues replacement of an existing node.
     pub fn replace_node(&mut self, node: NodeId, new_node: T) {
-        self.edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
+        self.edits.push(Edit::ReplaceNode {
+            node,
+            new_node: Box::new(new_node),
+        });
     }
 
     /// Sets or replaces the default warning on `node`.
@@ -264,14 +280,24 @@ impl<T: Node> Engine<T> {
     /// Sets or replaces one warning by id on `node`.
     ///
     /// `warning_id = None` uses the default empty warning id.
-    pub fn set_node_warning_with(&mut self, node: NodeId, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+    pub fn set_node_warning_with(
+        &mut self,
+        node: NodeId,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<&str>,
+    ) {
         let warning = NodeWarning {
             id: warning_id.unwrap_or_default().to_string(),
             message: message.into(),
             detail: detail.map(str::to_string),
         };
 
-        if let Some(existing_warning) = self.nodes.get(node).and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str()))) {
+        if let Some(existing_warning) = self
+            .nodes
+            .get(node)
+            .and_then(|entry| entry.node_data().meta.presentation.warning(Some(warning.id.as_str())))
+        {
             if existing_warning == &warning {
                 return;
             }
@@ -295,7 +321,10 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        self.edits.push(Edit::ClearNodeWarning { node, warning_id: warning_id.map(str::to_string) });
+        self.edits.push(Edit::ClearNodeWarning {
+            node,
+            warning_id: warning_id.map(str::to_string),
+        });
     }
 
     /// Clears all warnings on `node`.
@@ -364,7 +393,11 @@ impl<T: Node> Engine<T> {
 
         for (edit_index, request) in requests.into_iter().enumerate() {
             match request.edit {
-                Edit::AddNode { node, parent, prev_sibling } => {
+                Edit::AddNode {
+                    node,
+                    parent,
+                    prev_sibling,
+                } => {
                     let provided_node_type = node.get_type().to_string();
                     let Some(node) = T::from_boxed_node(node) else {
                         return Err(EngineEditError::NodeTypeMismatch {
@@ -375,9 +408,17 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::AddNode { node: Box::new(node), parent, prev_sibling });
+                    validated_edits.push(Edit::AddNode {
+                        node: Box::new(node),
+                        parent,
+                        prev_sibling,
+                    });
                 }
-                Edit::AddUserItem { node, parent, prev_sibling } => {
+                Edit::AddUserItem {
+                    node,
+                    parent,
+                    prev_sibling,
+                } => {
                     let provided_node_type = node.get_type().to_string();
                     let Some(node) = T::from_boxed_node(node) else {
                         return Err(EngineEditError::NodeTypeMismatch {
@@ -388,7 +429,11 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::AddUserItem { node: Box::new(node), parent, prev_sibling });
+                    validated_edits.push(Edit::AddUserItem {
+                        node: Box::new(node),
+                        parent,
+                        prev_sibling,
+                    });
                 }
                 Edit::ReplaceNode { node, new_node } => {
                     let provided_node_type = new_node.get_type().to_string();
@@ -401,10 +446,17 @@ impl<T: Node> Engine<T> {
                         });
                     };
 
-                    validated_edits.push(Edit::ReplaceNode { node, new_node: Box::new(new_node) });
+                    validated_edits.push(Edit::ReplaceNode {
+                        node,
+                        new_node: Box::new(new_node),
+                    });
                 }
                 Edit::SetNodeWarning { node, warning } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
+                        self.nodes
+                            .get(node)
+                            .map(|entry| entry.node_data().meta.presentation.clone())
+                    }) else {
                         validated_edits.push(Edit::SetNodeWarning { node, warning });
                         continue;
                     };
@@ -419,7 +471,11 @@ impl<T: Node> Engine<T> {
                     validated_edits.push(Edit::SetNodeWarning { node, warning });
                 }
                 Edit::ClearNodeWarning { node, warning_id } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
+                        self.nodes
+                            .get(node)
+                            .map(|entry| entry.node_data().meta.presentation.clone())
+                    }) else {
                         validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
                         continue;
                     };
@@ -437,7 +493,11 @@ impl<T: Node> Engine<T> {
                     validated_edits.push(Edit::ClearNodeWarning { node, warning_id });
                 }
                 Edit::SetNodeChildWarningDepth { node, max_depth } => {
-                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| self.nodes.get(node).map(|entry| entry.node_data().meta.presentation.clone())) else {
+                    let Some(current_presentation) = staged_presentations.get(&node).cloned().or_else(|| {
+                        self.nodes
+                            .get(node)
+                            .map(|entry| entry.node_data().meta.presentation.clone())
+                    }) else {
                         validated_edits.push(Edit::SetNodeChildWarningDepth { node, max_depth });
                         continue;
                     };

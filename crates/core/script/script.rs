@@ -7,9 +7,13 @@ use std::time::{Duration, Instant, SystemTime};
 
 use rquickjs::context::EvalOptions as QuickJsEvalOptions;
 use rquickjs::function::{Args as QuickJsArgs, Func as QuickJsFunc, MutFn as QuickJsMutFn};
-use rquickjs::{Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError, Function as QuickJsFunction, IntoJs as _, Object as QuickJsObject, Runtime as QuickJsRuntimeHandle, Value as QuickJsValue};
+use rquickjs::{
+    Context as QuickJsContext, Ctx as QuickJsCtx, Error as QuickJsError, Function as QuickJsFunction, IntoJs as _,
+    Object as QuickJsObject, Runtime as QuickJsRuntimeHandle, Value as QuickJsValue,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use ts_rs::TS;
 
 use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
@@ -18,7 +22,10 @@ use crate::logger;
 #[cfg(test)]
 use crate::node::NodeUuid;
 use crate::node::{DeclId, Node, NodeData, NodeId};
-use crate::parameter::{CssUnit, CssValue, FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints, ParameterEnumOption, ParameterUiHints, RangeConstraint};
+use crate::parameter::{
+    CssUnit, CssValue, FileConstraints, FileTypeGroup, ParamValue, ParameterConstraintPolicy, ParameterConstraints,
+    ParameterEnumOption, ParameterUiHints, RangeConstraint,
+};
 use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 
 /// Script-host policy for one node type.
@@ -96,7 +103,9 @@ impl ScriptSource {
             Self::Inline(text) => Ok(text.clone()),
             Self::ProjectFile(path) => {
                 let resolved = self.resolve_path().unwrap_or_else(|| PathBuf::from(path));
-                std::fs::read_to_string(&resolved).map_err(|err| ScriptRuntimeError::Io(format!("failed to read script file '{}': {err}", resolved.display())))
+                std::fs::read_to_string(&resolved).map_err(|err| {
+                    ScriptRuntimeError::Io(format!("failed to read script file '{}': {err}", resolved.display()))
+                })
             }
         }
     }
@@ -211,14 +220,23 @@ fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec
 
         let include_path = &after_prefix[..end_index];
         let include_relative_path = normalize_include_path(include_path)?;
-        let include_key = include_relative_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+        let include_key = include_relative_path
+            .to_string_lossy()
+            .replace('\\', "/")
+            .to_ascii_lowercase();
         if include_stack_contains(include_stack, &include_key) {
-            let cycle = include_stack.iter().cloned().chain(std::iter::once(include_key.clone())).collect::<Vec<_>>().join(" -> ");
+            let cycle = include_stack
+                .iter()
+                .cloned()
+                .chain(std::iter::once(include_key.clone()))
+                .collect::<Vec<_>>()
+                .join(" -> ");
             return Err(format!("template include cycle detected: {cycle}"));
         }
 
         let include_path = root_dir.join(&include_relative_path);
-        let include_source = std::fs::read_to_string(&include_path).map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
+        let include_source = std::fs::read_to_string(&include_path)
+            .map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
         include_stack.push(include_key);
         let expanded = expand_template_source(&include_source, root_dir, include_stack);
         include_stack.pop();
@@ -231,7 +249,8 @@ fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec
 }
 
 fn read_template_from_path(path: &Path, root_dir: &Path) -> Result<String, String> {
-    let source = std::fs::read_to_string(path).map_err(|err| format!("failed to read script template '{}': {err}", path.display()))?;
+    let source = std::fs::read_to_string(path)
+        .map_err(|err| format!("failed to read script template '{}': {err}", path.display()))?;
     let mut stack = Vec::new();
     let relative = path
         .strip_prefix(root_dir)
@@ -244,7 +263,8 @@ fn read_template_from_path(path: &Path, root_dir: &Path) -> Result<String, Strin
 fn default_embedded_template() -> String {
     let root_dir = script_template_root_dir();
     let mut stack = vec!["default.js".to_string()];
-    expand_template_source(SCRIPT_TEMPLATE_DEFAULT_SOURCE, &root_dir, &mut stack).unwrap_or_else(|_| SCRIPT_TEMPLATE_DEFAULT_SOURCE.to_string())
+    expand_template_source(SCRIPT_TEMPLATE_DEFAULT_SOURCE, &root_dir, &mut stack)
+        .unwrap_or_else(|_| SCRIPT_TEMPLATE_DEFAULT_SOURCE.to_string())
 }
 
 fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
@@ -261,13 +281,20 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
                     return ScriptTemplateResolved { source };
                 }
                 Err(error) => {
-                    let _ = logger::log_message(logger::LogLevel::Warning, "script".to_string(), None, format!("failed to load script template '{}': {error}", path.display()));
+                    let _ = logger::log_message(
+                        logger::LogLevel::Warning,
+                        "script".to_string(),
+                        None,
+                        format!("failed to load script template '{}': {error}", path.display()),
+                    );
                 }
             }
         }
     }
 
-    ScriptTemplateResolved { source: default_embedded_template() }
+    ScriptTemplateResolved {
+        source: default_embedded_template(),
+    }
 }
 
 /// Runtime script node configuration.
@@ -281,7 +308,9 @@ impl ScriptNodeConfig {
     /// Creates default script config for a host node type using script templates.
     pub fn for_host_node_type(host_node_type: &str) -> Self {
         let template = resolve_template_for_host(host_node_type);
-        Self { source: ScriptSource::Inline(template.source) }
+        Self {
+            source: ScriptSource::Inline(template.source),
+        }
     }
 
     fn validate_source_kind(&self) -> Result<(), ScriptRuntimeError> {
@@ -289,7 +318,10 @@ impl ScriptNodeConfig {
             return Ok(());
         };
 
-        let ext = path.extension().and_then(|raw| raw.to_str()).map(|raw| raw.trim().to_ascii_lowercase());
+        let ext = path
+            .extension()
+            .and_then(|raw| raw.to_str())
+            .map(|raw| raw.trim().to_ascii_lowercase());
         if matches!(ext.as_deref(), Some("js" | "mjs" | "cjs")) {
             return Ok(());
         }
@@ -297,7 +329,9 @@ impl ScriptNodeConfig {
         let ScriptSource::ProjectFile(raw_path) = &self.source else {
             return Ok(());
         };
-        Err(ScriptRuntimeError::InvalidManifest(format!("unsupported script file '{raw_path}', expected one of: .js, .mjs, .cjs")))
+        Err(ScriptRuntimeError::InvalidManifest(format!(
+            "unsupported script file '{raw_path}', expected one of: .js, .mjs, .cjs"
+        )))
     }
 }
 
@@ -308,7 +342,7 @@ impl Default for ScriptNodeConfig {
 }
 
 /// UI payload for script source configuration.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ScriptUiSource {
     /// Inline source text stored in node state.
@@ -342,7 +376,7 @@ impl From<ScriptUiSource> for ScriptSource {
 }
 
 /// UI payload for script source configuration.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ScriptUiConfig {
     /// Script source selector.
     pub source: ScriptUiSource,
@@ -350,18 +384,22 @@ pub struct ScriptUiConfig {
 
 impl From<&ScriptNodeConfig> for ScriptUiConfig {
     fn from(value: &ScriptNodeConfig) -> Self {
-        Self { source: ScriptUiSource::from(&value.source) }
+        Self {
+            source: ScriptUiSource::from(&value.source),
+        }
     }
 }
 
 impl From<ScriptUiConfig> for ScriptNodeConfig {
     fn from(value: ScriptUiConfig) -> Self {
-        Self { source: value.source.into() }
+        Self {
+            source: value.source.into(),
+        }
     }
 }
 
 /// UI-facing script node runtime state payload.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ScriptUiState {
     /// Current script configuration.
     pub config: ScriptUiConfig,
@@ -377,7 +415,7 @@ pub struct ScriptUiState {
 }
 
 /// Supported script parameter value families.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ScriptValueType {
     /// Trigger pulse.
@@ -428,7 +466,7 @@ impl ScriptValueType {
 }
 
 /// Script selector for target nodes.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ScriptNodeSelector {
     /// Select by runtime node id.
@@ -442,7 +480,7 @@ pub enum ScriptNodeSelector {
 }
 
 /// One subscription entry declared by a script.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ScriptSubscriptionSpec {
     /// Target selector.
     pub node: ScriptNodeSelector,
@@ -451,7 +489,7 @@ pub struct ScriptSubscriptionSpec {
 }
 
 /// One exported function signature descriptor.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ScriptFnSignature {
     /// Named argument labels for tooling.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -462,7 +500,7 @@ pub struct ScriptFnSignature {
 }
 
 /// One exported Rust-callable script function.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ScriptExportSpec {
     /// Exported function name.
     pub name: String,
@@ -472,7 +510,7 @@ pub struct ScriptExportSpec {
 }
 
 /// Script-defined parameter descriptor.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ScriptParameterSpec {
     /// Script-local stable name.
     pub name: String,
@@ -497,7 +535,7 @@ pub struct ScriptParameterSpec {
 }
 
 /// Parsed script manifest.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ScriptManifest {
     /// Manifest schema version.
     pub api_version: u32,
@@ -598,7 +636,9 @@ pub struct ScriptEvent {
 impl From<&Event> for ScriptEvent {
     fn from(event: &Event) -> Self {
         let (kind, origin, old_value) = match &event.kind {
-            EventKind::ParamChanged { param, old_value, .. } => ("paramChanged".to_string(), Some(*param), Some(old_value.clone())),
+            EventKind::ParamChanged { param, old_value, .. } => {
+                ("paramChanged".to_string(), Some(*param), Some(old_value.clone()))
+            }
             EventKind::ParamControlChanged { param, .. } => ("paramControlChanged".to_string(), Some(*param), None),
             EventKind::ChildAdded { child, .. } => ("childAdded".to_string(), Some(*child), None),
             EventKind::ChildRemoved { parent, .. } => ("childRemoved".to_string(), Some(*parent), None),
@@ -611,7 +651,12 @@ impl From<&Event> for ScriptEvent {
             EventKind::Custom(custom) => ("custom".to_string(), custom.origin, None),
         };
         let payload = serde_json::to_value(&event.kind).unwrap_or(JsonValue::Null);
-        Self { kind, origin, old_value, payload }
+        Self {
+            kind,
+            origin,
+            old_value,
+            payload,
+        }
     }
 }
 
@@ -657,7 +702,12 @@ pub trait ScriptHostBridge {
     }
 
     /// Queues one script-exposed method call on `node`.
-    fn call_node_script_method(&mut self, _node: NodeId, _method: String, _args: Vec<ParamValue>) -> Result<(), String> {
+    fn call_node_script_method(
+        &mut self,
+        _node: NodeId,
+        _method: String,
+        _args: Vec<ParamValue>,
+    ) -> Result<(), String> {
         Err("node script-method invocation is unavailable for this script host".to_string())
     }
 
@@ -743,21 +793,37 @@ impl From<QuickJsError> for ScriptRuntimeError {
 /// Runtime trait contract for embeddable scripting engines.
 pub trait ScriptRuntime: Send {
     /// Loads script source and returns parsed manifest.
-    fn load(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError>;
+    fn load(
+        &mut self,
+        source: &str,
+        source_name: &str,
+        host: Option<&mut dyn ScriptHostBridge>,
+    ) -> Result<ScriptManifest, ScriptRuntimeError>;
     /// Reloads script source and returns parsed manifest.
-    fn reload(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError>;
+    fn reload(
+        &mut self,
+        source: &str,
+        source_name: &str,
+        host: Option<&mut dyn ScriptHostBridge>,
+    ) -> Result<ScriptManifest, ScriptRuntimeError>;
     /// Returns current manifest when loaded.
     fn manifest(&self) -> Option<&ScriptManifest>;
     /// Returns exported function names.
     fn export_names(&self) -> Vec<String>;
     /// Calls one exported function.
-    fn call_export(&mut self, export_name: &str, args: &[ScriptValue], host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError>;
+    fn call_export(
+        &mut self,
+        export_name: &str,
+        args: &[ScriptValue],
+        host: &mut dyn ScriptHostBridge,
+    ) -> Result<ScriptValue, ScriptRuntimeError>;
     /// Calls `init` if declared.
     fn call_on_init(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
     /// Calls `update` if declared.
     fn call_on_update(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
     /// Calls `event`/`paramChanged` if declared.
-    fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
+    fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge)
+    -> Result<(), ScriptRuntimeError>;
     /// Calls `destroy` if declared.
     fn call_on_destroy(&mut self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError>;
     /// Returns `true` when an update hook is declared by the script.
@@ -765,12 +831,31 @@ pub trait ScriptRuntime: Send {
 }
 
 enum ScriptHostOp {
-    Log { level: ScriptLogLevel, message: String },
-    EmitCustom { topic: String, payload: JsonValue },
-    SetNodeScriptProperty { node: NodeId, property: String, value: ParamValue },
-    CallNodeScriptMethod { node: NodeId, method: String, args: Vec<ParamValue> },
-    SetEventListener { target: NodeId, level: u32 },
-    RemoveEventListener { target: NodeId },
+    Log {
+        level: ScriptLogLevel,
+        message: String,
+    },
+    EmitCustom {
+        topic: String,
+        payload: JsonValue,
+    },
+    SetNodeScriptProperty {
+        node: NodeId,
+        property: String,
+        value: ParamValue,
+    },
+    CallNodeScriptMethod {
+        node: NodeId,
+        method: String,
+        args: Vec<ParamValue>,
+    },
+    SetEventListener {
+        target: NodeId,
+        level: u32,
+    },
+    RemoveEventListener {
+        target: NodeId,
+    },
     ClearEventListeners,
 }
 
@@ -1635,9 +1720,15 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
 
     fn reset_host_callback_state(&self) -> Result<(), ScriptRuntimeError> {
         self.host_call_counter.store(0, Ordering::Relaxed);
-        let mut guard = self.host_ops.lock().map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
+        let mut guard = self
+            .host_ops
+            .lock()
+            .map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
         guard.clear();
-        let mut tree_guard = self.tree_bridge_state.lock().map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
+        let mut tree_guard = self
+            .tree_bridge_state
+            .lock()
+            .map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
         tree_guard.snapshot = None;
         tree_guard.host = None;
         tree_guard.script = None;
@@ -1647,7 +1738,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
     }
 
     fn sync_tree_bridge_state(&self, host: &dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
-        let mut tree_guard = self.tree_bridge_state.lock().map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
+        let mut tree_guard = self
+            .tree_bridge_state
+            .lock()
+            .map_err(|_| ScriptRuntimeError::Host("script tree bridge lock poisoned".to_string()))?;
         tree_guard.snapshot = host.tree_snapshot();
         tree_guard.host = host.owner_node();
         tree_guard.script = host.script_node();
@@ -1659,7 +1753,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
     fn flush_host_ops(&self, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
         let mut drained = Vec::new();
         {
-            let mut guard = self.host_ops.lock().map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
+            let mut guard = self
+                .host_ops
+                .lock()
+                .map_err(|_| ScriptRuntimeError::Host("script host-op queue lock poisoned".to_string()))?;
             std::mem::swap(&mut drained, &mut *guard);
         }
 
@@ -1672,13 +1769,16 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
                     host.emit_custom(&topic, payload).map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::SetNodeScriptProperty { node, property, value } => {
-                    host.set_node_script_property(node, property, value).map_err(ScriptRuntimeError::Host)?;
+                    host.set_node_script_property(node, property, value)
+                        .map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::CallNodeScriptMethod { node, method, args } => {
-                    host.call_node_script_method(node, method, args).map_err(ScriptRuntimeError::Host)?;
+                    host.call_node_script_method(node, method, args)
+                        .map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::SetEventListener { target, level } => {
-                    host.set_event_listener(target, level).map_err(ScriptRuntimeError::Host)?;
+                    host.set_event_listener(target, level)
+                        .map_err(ScriptRuntimeError::Host)?;
                 }
                 ScriptHostOp::RemoveEventListener { target } => {
                     host.remove_event_listener(target).map_err(ScriptRuntimeError::Host)?;
@@ -1700,7 +1800,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let elapsed = started_at.elapsed();
         let elapsed_limit = Duration::from_micros(self.budgets.max_wall_time_us_per_callback.max(1));
         if elapsed > elapsed_limit {
-            return Err(ScriptRuntimeError::BudgetViolation(format!("{phase_label} callback exceeded wall-time budget: {:?} > {:?}", elapsed, elapsed_limit)));
+            return Err(ScriptRuntimeError::BudgetViolation(format!(
+                "{phase_label} callback exceeded wall-time budget: {:?} > {:?}",
+                elapsed, elapsed_limit
+            )));
         }
         Ok(output)
     }
@@ -1715,9 +1818,12 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         };
 
         let type_label = spec.get("type").and_then(JsonValue::as_str).unwrap_or("float");
-        let value_type = ScriptValueType::from_manifest_label(type_label).ok_or_else(|| format!("unsupported parameter type '{type_label}'"))?;
+        let value_type = ScriptValueType::from_manifest_label(type_label)
+            .ok_or_else(|| format!("unsupported parameter type '{type_label}'"))?;
         match spec.get("default") {
-            Some(raw_default) => parameter_default_from_json_value(value_type, raw_default).map_err(|error| error.to_string()),
+            Some(raw_default) => {
+                parameter_default_from_json_value(value_type, raw_default).map_err(|error| error.to_string())
+            }
             None => Ok(default_param_value(value_type)),
         }
     }
@@ -1729,7 +1835,11 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
                 args.push(Self::param_value_from_json(value)?);
             }
             if let Some(value) = args_values.get(1) {
-                let converted = if value.is_object() { Self::param_value_from_parameter_spec_json(value)? } else { Self::param_value_from_json(value)? };
+                let converted = if value.is_object() {
+                    Self::param_value_from_parameter_spec_json(value)?
+                } else {
+                    Self::param_value_from_json(value)?
+                };
                 args.push(converted);
             }
             for value in args_values.iter().skip(2) {
@@ -1741,7 +1851,11 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         if method == "addNode" {
             let mut args = Vec::with_capacity(args_values.len());
             for (index, value) in args_values.iter().enumerate() {
-                let converted = if index == 2 && value.is_object() { Self::param_value_from_parameter_spec_json(value)? } else { Self::param_value_from_json(value)? };
+                let converted = if index == 2 && value.is_object() {
+                    Self::param_value_from_parameter_spec_json(value)?
+                } else {
+                    Self::param_value_from_json(value)?
+                };
                 args.push(converted);
             }
             return Ok(args);
@@ -1790,7 +1904,11 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let mut exported_names: Vec<String> = Vec::new();
 
         for segment in source.split_inclusive('\n') {
-            let (line, line_break) = if let Some(stripped) = segment.strip_suffix('\n') { (stripped, "\n") } else { (segment, "") };
+            let (line, line_break) = if let Some(stripped) = segment.strip_suffix('\n') {
+                (stripped, "\n")
+            } else {
+                (segment, "")
+            };
 
             let trimmed = line.trim_start();
             let indent_len = line.len().saturating_sub(trimmed.len());
@@ -1840,7 +1958,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         transformed
     }
 
-    fn first_function_name<'js>(object: &QuickJsObject<'js>, candidates: &[&str]) -> Result<Option<String>, QuickJsError> {
+    fn first_function_name<'js>(
+        object: &QuickJsObject<'js>,
+        candidates: &[&str],
+    ) -> Result<Option<String>, QuickJsError> {
         for candidate in candidates {
             if object.get::<_, Option<QuickJsFunction>>(*candidate)?.is_some() {
                 return Ok(Some((*candidate).to_string()));
@@ -1862,7 +1983,10 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         Ok(exports)
     }
 
-    fn lookup_export_callback<'js>(globals: &QuickJsObject<'js>, export_name: &str) -> Result<Option<QuickJsFunction<'js>>, QuickJsError> {
+    fn lookup_export_callback<'js>(
+        globals: &QuickJsObject<'js>,
+        export_name: &str,
+    ) -> Result<Option<QuickJsFunction<'js>>, QuickJsError> {
         if let Some(export_table) = globals.get::<_, Option<QuickJsObject>>("__gc_script_exports")? {
             if let Some(callback) = export_table.get::<_, Option<QuickJsFunction>>(export_name)? {
                 return Ok(Some(callback));
@@ -1871,7 +1995,11 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         Ok(None)
     }
 
-    fn to_quickjs_value<'js>(&self, ctx: &QuickJsCtx<'js>, value: &ScriptValue) -> Result<QuickJsValue<'js>, ScriptRuntimeError> {
+    fn to_quickjs_value<'js>(
+        &self,
+        ctx: &QuickJsCtx<'js>,
+        value: &ScriptValue,
+    ) -> Result<QuickJsValue<'js>, ScriptRuntimeError> {
         let js_value = match value {
             ScriptValue::Nil => QuickJsValue::new_null(ctx.clone()),
             ScriptValue::Bool(value) => value.into_js(ctx)?,
@@ -1885,14 +2013,20 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
             ScriptValue::Float(value) => value.into_js(ctx)?,
             ScriptValue::Str(value) => value.as_str().into_js(ctx)?,
             ScriptValue::Json(value) => {
-                let json = serde_json::to_string(value).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to serialize JSON argument: {err}")))?;
+                let json = serde_json::to_string(value).map_err(|err| {
+                    ScriptRuntimeError::InvalidManifest(format!("failed to serialize JSON argument: {err}"))
+                })?;
                 ctx.json_parse(json)?
             }
         };
         Ok(js_value)
     }
 
-    fn from_quickjs_value<'js>(&self, ctx: &QuickJsCtx<'js>, value: QuickJsValue<'js>) -> Result<ScriptValue, ScriptRuntimeError> {
+    fn from_quickjs_value<'js>(
+        &self,
+        ctx: &QuickJsCtx<'js>,
+        value: QuickJsValue<'js>,
+    ) -> Result<ScriptValue, ScriptRuntimeError> {
         if value.is_null() || value.is_undefined() {
             return Ok(ScriptValue::Nil);
         }
@@ -1917,7 +2051,8 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         let Some(payload_text) = ctx.json_stringify(&value)?.and_then(|raw| raw.to_string().ok()) else {
             return Ok(ScriptValue::Nil);
         };
-        let payload = serde_json::from_str::<JsonValue>(&payload_text).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse JSON return value: {err}")))?;
+        let payload = serde_json::from_str::<JsonValue>(&payload_text)
+            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse JSON return value: {err}")))?;
         Ok(ScriptValue::Json(payload))
     }
 
@@ -2003,7 +2138,11 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         ScriptRuntimeError::QuickJs(format!("{phase}: {error}"))
     }
 
-    fn enrich_runtime_error_with_context<'js>(ctx: &QuickJsCtx<'js>, phase: &str, error: ScriptRuntimeError) -> ScriptRuntimeError {
+    fn enrich_runtime_error_with_context<'js>(
+        ctx: &QuickJsCtx<'js>,
+        phase: &str,
+        error: ScriptRuntimeError,
+    ) -> ScriptRuntimeError {
         match error {
             ScriptRuntimeError::QuickJs(message) => {
                 if Self::is_exception_placeholder(&message) {
@@ -2018,7 +2157,12 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
 }
 
 impl ScriptRuntime for QuickJsRuntime {
-    fn load(&mut self, source: &str, source_name: &str, mut host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
+    fn load(
+        &mut self,
+        source: &str,
+        source_name: &str,
+        mut host: Option<&mut dyn ScriptHostBridge>,
+    ) -> Result<ScriptManifest, ScriptRuntimeError> {
         self.entrypoints = QuickJsEntrypoints::default();
         self.manifest = None;
         self.reset_host_callback_state()?;
@@ -2249,7 +2393,8 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
             self.flush_host_ops(host_ref)?;
         }
 
-        let manifest_payload = serde_json::from_str::<JsonValue>(&manifest_json).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))?;
+        let manifest_payload = serde_json::from_str::<JsonValue>(&manifest_json)
+            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to parse manifest JSON: {err}")))?;
         let manifest = parse_manifest_from_json(&manifest_payload, entrypoints.exports.clone())?;
 
         self.entrypoints = entrypoints;
@@ -2257,7 +2402,12 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         Ok(manifest)
     }
 
-    fn reload(&mut self, source: &str, source_name: &str, host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
+    fn reload(
+        &mut self,
+        source: &str,
+        source_name: &str,
+        host: Option<&mut dyn ScriptHostBridge>,
+    ) -> Result<ScriptManifest, ScriptRuntimeError> {
         let budgets = self.budgets;
         *self = Self::new(budgets)?;
         self.load(source, source_name, host)
@@ -2271,7 +2421,12 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         self.entrypoints.exports.clone()
     }
 
-    fn call_export(&mut self, export_name: &str, args: &[ScriptValue], host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError> {
+    fn call_export(
+        &mut self,
+        export_name: &str,
+        args: &[ScriptValue],
+        host: &mut dyn ScriptHostBridge,
+    ) -> Result<ScriptValue, ScriptRuntimeError> {
         if !self.entrypoints.exports.iter().any(|name| name == export_name) {
             return Err(ScriptRuntimeError::MissingExport(export_name.to_string()));
         }
@@ -2282,7 +2437,8 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
             self.context.with(|ctx| -> Result<ScriptValue, ScriptRuntimeError> {
                 let result = (|| -> Result<ScriptValue, ScriptRuntimeError> {
                     let globals = ctx.globals();
-                    let callback = Self::lookup_export_callback(&globals, export_name)?.ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
+                    let callback = Self::lookup_export_callback(&globals, export_name)?
+                        .ok_or_else(|| ScriptRuntimeError::MissingExport(export_name.to_string()))?;
 
                     let mut call_args = QuickJsArgs::new(ctx.clone(), args.len());
                     for argument in args {
@@ -2348,16 +2504,25 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         result
     }
 
-    fn call_on_event(&mut self, event: &ScriptEvent, host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+    fn call_on_event(
+        &mut self,
+        event: &ScriptEvent,
+        host: &mut dyn ScriptHostBridge,
+    ) -> Result<(), ScriptRuntimeError> {
         let event_callback_name = self.entrypoints.event.clone();
-        let param_changed_callback_name = if event.kind == "paramChanged" { self.entrypoints.param_changed.clone() } else { None };
+        let param_changed_callback_name = if event.kind == "paramChanged" {
+            self.entrypoints.param_changed.clone()
+        } else {
+            None
+        };
         if event_callback_name.is_none() && param_changed_callback_name.is_none() {
             return Ok(());
         }
 
         self.reset_host_callback_state()?;
         self.sync_tree_bridge_state(host)?;
-        let event_payload = serde_json::to_string(event).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode event payload: {err}")))?;
+        let event_payload = serde_json::to_string(event)
+            .map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode event payload: {err}")))?;
         let result = self.callback_timed("on_event", || {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
@@ -2367,20 +2532,32 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
                         if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {
                             let param_value = if let Some(param_node) = event.origin {
                                 if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
-                                    let factory = if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
+                                    let factory = if let Some(factory) =
+                                        gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")?
+                                    {
                                         Some(factory)
                                     } else {
                                         gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
                                     };
-                                    if let Some(factory) = factory { factory.call::<_, QuickJsValue>((param_node.0 as f64,))? } else { ctx.json_parse("null")? }
+                                    if let Some(factory) = factory {
+                                        factory.call::<_, QuickJsValue>((param_node.0 as f64,))?
+                                    } else {
+                                        ctx.json_parse("null")?
+                                    }
                                 } else {
                                     ctx.json_parse("null")?
                                 }
                             } else {
                                 ctx.json_parse("null")?
                             };
-                            let old_value_payload = event.old_value.as_ref().map(Self::param_value_to_tree_json).unwrap_or(JsonValue::Null);
-                            let old_value_json = serde_json::to_string(&old_value_payload).map_err(|err| ScriptRuntimeError::InvalidManifest(format!("failed to encode oldValue payload: {err}")))?;
+                            let old_value_payload = event
+                                .old_value
+                                .as_ref()
+                                .map(Self::param_value_to_tree_json)
+                                .unwrap_or(JsonValue::Null);
+                            let old_value_json = serde_json::to_string(&old_value_payload).map_err(|err| {
+                                ScriptRuntimeError::InvalidManifest(format!("failed to encode oldValue payload: {err}"))
+                            })?;
                             let old_value_value = ctx.json_parse(old_value_json.as_str())?;
                             let event_value = ctx.json_parse(event_payload.as_str())?;
                             callback.call::<_, ()>((param_value, old_value_value, event_value))?;
@@ -2432,20 +2609,37 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
     }
 }
 
-fn parse_manifest_from_json(payload: &JsonValue, export_names: Vec<String>) -> Result<ScriptManifest, ScriptRuntimeError> {
+fn parse_manifest_from_json(
+    payload: &JsonValue,
+    export_names: Vec<String>,
+) -> Result<ScriptManifest, ScriptRuntimeError> {
     let Some(root) = payload.as_object() else {
-        return Err(ScriptRuntimeError::InvalidManifest("manifest JSON root must be an object".to_string()));
+        return Err(ScriptRuntimeError::InvalidManifest(
+            "manifest JSON root must be an object".to_string(),
+        ));
     };
 
-    let api_version = json_object_get(root, &["apiVersion"]).and_then(JsonValue::as_u64).unwrap_or(1) as u32;
+    let api_version = json_object_get(root, &["apiVersion"])
+        .and_then(JsonValue::as_u64)
+        .unwrap_or(1) as u32;
     if api_version == 0 {
-        return Err(ScriptRuntimeError::InvalidManifest("apiVersion must be >= 1".to_string()));
+        return Err(ScriptRuntimeError::InvalidManifest(
+            "apiVersion must be >= 1".to_string(),
+        ));
     }
 
-    let update_rate_hz = json_object_get(root, &["updateRateHz"]).and_then(JsonValue::as_u64).map(|value| value as u32);
+    let update_rate_hz = json_object_get(root, &["updateRateHz"])
+        .and_then(JsonValue::as_u64)
+        .map(|value| value as u32);
     let parameters = parse_parameter_specs_json(json_object_get(root, &["parameters"]))?;
     let subscriptions = parse_subscription_specs_json(json_object_get(root, &["subscriptions"]))?;
-    let exports = export_names.into_iter().map(|name| ScriptExportSpec { name, signature: ScriptFnSignature::default() }).collect();
+    let exports = export_names
+        .into_iter()
+        .map(|name| ScriptExportSpec {
+            name,
+            signature: ScriptFnSignature::default(),
+        })
+        .collect();
 
     Ok(ScriptManifest {
         api_version,
@@ -2471,17 +2665,25 @@ fn parse_subscription_specs_json(value: Option<&JsonValue>) -> Result<Vec<Script
     };
 
     let Some(items) = value.as_array() else {
-        return Err(ScriptRuntimeError::InvalidManifest("subscriptions must be an array".to_string()));
+        return Err(ScriptRuntimeError::InvalidManifest(
+            "subscriptions must be an array".to_string(),
+        ));
     };
 
     let mut specs = Vec::new();
     for item in items {
         let Some(entry) = item.as_object() else {
-            return Err(ScriptRuntimeError::InvalidManifest("subscription entry must be an object".to_string()));
+            return Err(ScriptRuntimeError::InvalidManifest(
+                "subscription entry must be an object".to_string(),
+            ));
         };
 
-        let selector_raw = entry.get("node").and_then(JsonValue::as_str).ok_or_else(|| ScriptRuntimeError::InvalidManifest("subscription entry must define string field 'node'".to_string()))?;
-        let max_depth = json_object_get(entry, &["maxDepth"]).and_then(JsonValue::as_u64).unwrap_or(0) as u32;
+        let selector_raw = entry.get("node").and_then(JsonValue::as_str).ok_or_else(|| {
+            ScriptRuntimeError::InvalidManifest("subscription entry must define string field 'node'".to_string())
+        })?;
+        let max_depth = json_object_get(entry, &["maxDepth"])
+            .and_then(JsonValue::as_u64)
+            .unwrap_or(0) as u32;
         let selector = if selector_raw == "@host" {
             ScriptNodeSelector::HostPath(String::new())
         } else if selector_raw == "@root" {
@@ -2494,7 +2696,10 @@ fn parse_subscription_specs_json(value: Option<&JsonValue>) -> Result<Vec<Script
             ScriptNodeSelector::Path(selector_raw.to_string())
         };
 
-        specs.push(ScriptSubscriptionSpec { node: selector, max_depth });
+        specs.push(ScriptSubscriptionSpec {
+            node: selector,
+            max_depth,
+        });
     }
 
     Ok(specs)
@@ -2506,17 +2711,23 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
     };
 
     let Some(parameters) = value.as_object() else {
-        return Err(ScriptRuntimeError::InvalidManifest("parameters must be an object map".to_string()));
+        return Err(ScriptRuntimeError::InvalidManifest(
+            "parameters must be an object map".to_string(),
+        ));
     };
 
     let mut specs = Vec::new();
     for (name, raw_entry) in parameters {
         let Some(entry) = raw_entry.as_object() else {
-            return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' must be an object")));
+            return Err(ScriptRuntimeError::InvalidManifest(format!(
+                "parameter '{name}' must be an object"
+            )));
         };
 
         let value_type_label = entry.get("type").and_then(JsonValue::as_str).unwrap_or("float");
-        let value_type = ScriptValueType::from_manifest_label(value_type_label).ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported type '{value_type_label}'")))?;
+        let value_type = ScriptValueType::from_manifest_label(value_type_label).ok_or_else(|| {
+            ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported type '{value_type_label}'"))
+        })?;
 
         let default_value = match entry.get("default") {
             Some(raw) => parameter_default_from_json_value(value_type, raw)?,
@@ -2530,7 +2741,11 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
             constraints.policy = match policy_label.trim().to_ascii_lowercase().as_str() {
                 "clampadapt" | "clamp_adapt" | "clamp-adapt" => ParameterConstraintPolicy::ClampAdapt,
                 "reject" => ParameterConstraintPolicy::Reject,
-                _ => return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' has unsupported policy '{policy_label}'"))),
+                _ => {
+                    return Err(ScriptRuntimeError::InvalidManifest(format!(
+                        "parameter '{name}' has unsupported policy '{policy_label}'"
+                    )));
+                }
             };
         }
 
@@ -2538,13 +2753,17 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
 
         if let Some(enum_options) = json_object_get(entry, &["enumOptions"]) {
             let Some(options) = enum_options.as_array() else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' enum_options must be an array")));
+                return Err(ScriptRuntimeError::InvalidManifest(format!(
+                    "parameter '{name}' enum_options must be an array"
+                )));
             };
 
             let mut mapped = Vec::new();
             for option in options {
                 let Some(variant_id) = option.as_str() else {
-                    return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{name}' enum_options entries must be strings")));
+                    return Err(ScriptRuntimeError::InvalidManifest(format!(
+                        "parameter '{name}' enum_options entries must be strings"
+                    )));
                 };
                 mapped.push(ParameterEnumOption {
                     variant_id: variant_id.to_string(),
@@ -2563,9 +2782,13 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
             unit: entry.get("unit").and_then(JsonValue::as_str).map(ToString::to_string),
         };
 
-        let decl_id = json_object_get(entry, &["declId"]).and_then(JsonValue::as_str).unwrap_or(name);
+        let decl_id = json_object_get(entry, &["declId"])
+            .and_then(JsonValue::as_str)
+            .unwrap_or(name);
         let label = entry.get("label").and_then(JsonValue::as_str).map(ToString::to_string);
-        let read_only = json_object_get(entry, &["readOnly"]).and_then(JsonValue::as_bool).unwrap_or(false);
+        let read_only = json_object_get(entry, &["readOnly"])
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
 
         specs.push(ScriptParameterSpec {
             name: name.to_string(),
@@ -2583,20 +2806,29 @@ fn parse_parameter_specs_json(value: Option<&JsonValue>) -> Result<Vec<ScriptPar
     Ok(specs)
 }
 
-fn parse_file_constraints_json(entry: &serde_json::Map<String, JsonValue>, param_name: &str) -> Result<FileConstraints, ScriptRuntimeError> {
+fn parse_file_constraints_json(
+    entry: &serde_json::Map<String, JsonValue>,
+    param_name: &str,
+) -> Result<FileConstraints, ScriptRuntimeError> {
     let mut constraints = FileConstraints::default();
 
     if let Some(allowed_types) = json_object_get(entry, &["allowedTypes"]) {
         let Some(values) = allowed_types.as_array() else {
-            return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_types must be an array")));
+            return Err(ScriptRuntimeError::InvalidManifest(format!(
+                "parameter '{param_name}' allowed_types must be an array"
+            )));
         };
         let mut parsed = Vec::new();
         for value in values {
             let Some(value) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_types entries must be strings")));
+                return Err(ScriptRuntimeError::InvalidManifest(format!(
+                    "parameter '{param_name}' allowed_types entries must be strings"
+                )));
             };
             let Some(group) = FileTypeGroup::from_label(value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' has unknown file group '{value}' in allowed_types")));
+                return Err(ScriptRuntimeError::InvalidManifest(format!(
+                    "parameter '{param_name}' has unknown file group '{value}' in allowed_types"
+                )));
             };
             parsed.push(group);
         }
@@ -2605,15 +2837,21 @@ fn parse_file_constraints_json(entry: &serde_json::Map<String, JsonValue>, param
 
     if let Some(allowed_extensions) = json_object_get(entry, &["allowedExtensions"]) {
         let Some(values) = allowed_extensions.as_array() else {
-            return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_extensions must be an array")));
+            return Err(ScriptRuntimeError::InvalidManifest(format!(
+                "parameter '{param_name}' allowed_extensions must be an array"
+            )));
         };
         let mut parsed = Vec::new();
         for value in values {
             let Some(value) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' allowed_extensions entries must be strings")));
+                return Err(ScriptRuntimeError::InvalidManifest(format!(
+                    "parameter '{param_name}' allowed_extensions entries must be strings"
+                )));
             };
             let Some(extension) = FileConstraints::normalize_extension_label(value) else {
-                return Err(ScriptRuntimeError::InvalidManifest(format!("parameter '{param_name}' has invalid extension '{value}' in allowed_extensions")));
+                return Err(ScriptRuntimeError::InvalidManifest(format!(
+                    "parameter '{param_name}' has invalid extension '{value}' in allowed_extensions"
+                )));
             };
             parsed.push(extension);
         }
@@ -2623,9 +2861,21 @@ fn parse_file_constraints_json(entry: &serde_json::Map<String, JsonValue>, param
     Ok(constraints)
 }
 
-fn parse_range_constraint_json(value_type: ScriptValueType, min: Option<&JsonValue>, max: Option<&JsonValue>) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
+fn parse_range_constraint_json(
+    value_type: ScriptValueType,
+    min: Option<&JsonValue>,
+    max: Option<&JsonValue>,
+) -> Result<Option<RangeConstraint>, ScriptRuntimeError> {
     match value_type {
-        ScriptValueType::Int | ScriptValueType::Float | ScriptValueType::Enum | ScriptValueType::Bool | ScriptValueType::Str | ScriptValueType::File | ScriptValueType::Trigger | ScriptValueType::Reference | ScriptValueType::CssValue => {
+        ScriptValueType::Int
+        | ScriptValueType::Float
+        | ScriptValueType::Enum
+        | ScriptValueType::Bool
+        | ScriptValueType::Str
+        | ScriptValueType::File
+        | ScriptValueType::Trigger
+        | ScriptValueType::Reference
+        | ScriptValueType::CssValue => {
             let min = min.and_then(json_as_f64);
             let max = max.and_then(json_as_f64);
             Ok(RangeConstraint::uniform(min, max))
@@ -2638,90 +2888,134 @@ fn parse_range_constraint_json(value_type: ScriptValueType, min: Option<&JsonVal
     }
 }
 
-fn parameter_default_from_json_value(value_type: ScriptValueType, value: &JsonValue) -> Result<ParamValue, ScriptRuntimeError> {
+fn parameter_default_from_json_value(
+    value_type: ScriptValueType,
+    value: &JsonValue,
+) -> Result<ParamValue, ScriptRuntimeError> {
     let parsed = match value_type {
         ScriptValueType::Trigger => ParamValue::Trigger(),
         ScriptValueType::Int => {
             let Some(raw) = value.as_i64().or_else(|| value.as_f64().map(|value| value as i64)) else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected numeric default for int parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected numeric default for int parameter".to_string(),
+                ));
             };
-            ParamValue::Int(i32::try_from(raw).map_err(|_| ScriptRuntimeError::InvalidManifest(format!("int default {raw} is outside i32 range")))?)
+            ParamValue::Int(
+                i32::try_from(raw).map_err(|_| {
+                    ScriptRuntimeError::InvalidManifest(format!("int default {raw} is outside i32 range"))
+                })?,
+            )
         }
         ScriptValueType::Float => {
             let Some(raw) = value.as_f64().or_else(|| value.as_i64().map(|value| value as f64)) else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected numeric default for float parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected numeric default for float parameter".to_string(),
+                ));
             };
             ParamValue::Float(raw)
         }
         ScriptValueType::Str => {
             let Some(raw) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected string default for str parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected string default for str parameter".to_string(),
+                ));
             };
             ParamValue::Str(raw.to_string())
         }
         ScriptValueType::File => {
             let Some(raw) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected string default for file parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected string default for file parameter".to_string(),
+                ));
             };
             ParamValue::File(raw.to_string())
         }
         ScriptValueType::Enum => {
             let Some(raw) = value.as_str() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected string default for enum parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected string default for enum parameter".to_string(),
+                ));
             };
             ParamValue::Enum(raw.to_string())
         }
         ScriptValueType::Bool => {
             let Some(raw) = value.as_bool() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected boolean default for bool parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected boolean default for bool parameter".to_string(),
+                ));
             };
             ParamValue::Bool(raw)
         }
         ScriptValueType::CssValue => {
             let parsed = if let Some(raw) = value.as_str() {
-                CssValue::parse_with_default_unit(raw, Some(CssUnit::Rem)).ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("invalid css_value default '{raw}'")))?
+                CssValue::parse_with_default_unit(raw, Some(CssUnit::Rem))
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest(format!("invalid css_value default '{raw}'")))?
             } else if let Some(raw) = value.as_f64().or_else(|| value.as_i64().map(|raw| raw as f64)) {
                 CssValue::new(raw, CssUnit::Rem)
             } else {
-                serde_json::from_value::<CssValue>(value.clone()).map_err(|error| ScriptRuntimeError::InvalidManifest(format!("expected css_value default as string, number, or object: {error}")))?
+                serde_json::from_value::<CssValue>(value.clone()).map_err(|error| {
+                    ScriptRuntimeError::InvalidManifest(format!(
+                        "expected css_value default as string, number, or object: {error}"
+                    ))
+                })?
             };
             ParamValue::CssValue(parsed)
         }
         ScriptValueType::Vec2 => {
             let Some(raw) = value.as_array() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [x,y] array default for vec2 parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected [x,y] array default for vec2 parameter".to_string(),
+                ));
             };
             if raw.len() != 2 {
-                return Err(ScriptRuntimeError::InvalidManifest("vec2 default must have exactly 2 components".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "vec2 default must have exactly 2 components".to_string(),
+                ));
             }
             ParamValue::Vec2(
-                json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[0] must be numeric".to_string()))?,
-                json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[1] must be numeric".to_string()))?,
+                json_as_f64(&raw[0])
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[0] must be numeric".to_string()))?,
+                json_as_f64(&raw[1])
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec2[1] must be numeric".to_string()))?,
             )
         }
         ScriptValueType::Vec3 => {
             let Some(raw) = value.as_array() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [x,y,z] array default for vec3 parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected [x,y,z] array default for vec3 parameter".to_string(),
+                ));
             };
             if raw.len() != 3 {
-                return Err(ScriptRuntimeError::InvalidManifest("vec3 default must have exactly 3 components".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "vec3 default must have exactly 3 components".to_string(),
+                ));
             }
             ParamValue::Vec3(
-                json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[0] must be numeric".to_string()))?,
-                json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[1] must be numeric".to_string()))?,
-                json_as_f64(&raw[2]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[2] must be numeric".to_string()))?,
+                json_as_f64(&raw[0])
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[0] must be numeric".to_string()))?,
+                json_as_f64(&raw[1])
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[1] must be numeric".to_string()))?,
+                json_as_f64(&raw[2])
+                    .ok_or_else(|| ScriptRuntimeError::InvalidManifest("vec3[2] must be numeric".to_string()))?,
             )
         }
         ScriptValueType::Color => {
             let Some(raw) = value.as_array() else {
-                return Err(ScriptRuntimeError::InvalidManifest("expected [r,g,b,a] array default for color parameter".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "expected [r,g,b,a] array default for color parameter".to_string(),
+                ));
             };
             if raw.len() < 3 || raw.len() > 4 {
-                return Err(ScriptRuntimeError::InvalidManifest("color default must have 3 or 4 components".to_string()));
+                return Err(ScriptRuntimeError::InvalidManifest(
+                    "color default must have 3 or 4 components".to_string(),
+                ));
             }
-            let r = json_as_f64(&raw[0]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[0] must be numeric".to_string()))?;
-            let g = json_as_f64(&raw[1]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[1] must be numeric".to_string()))?;
-            let b = json_as_f64(&raw[2]).ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[2] must be numeric".to_string()))?;
+            let r = json_as_f64(&raw[0])
+                .ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[0] must be numeric".to_string()))?;
+            let g = json_as_f64(&raw[1])
+                .ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[1] must be numeric".to_string()))?;
+            let b = json_as_f64(&raw[2])
+                .ok_or_else(|| ScriptRuntimeError::InvalidManifest("color[2] must be numeric".to_string()))?;
             let a = raw.get(3).and_then(json_as_f64).unwrap_or(1.0);
             ParamValue::Color(r, g, b, a)
         }
@@ -2770,7 +3064,14 @@ struct NodeScriptHostBridge<'a> {
 }
 
 impl<'a> NodeScriptHostBridge<'a> {
-    fn new(script_node: NodeId, host_node: Option<NodeId>, started_elapsed: Duration, runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>, load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>, ctx: &'a mut ProcessCtx) -> Self {
+    fn new(
+        script_node: NodeId,
+        host_node: Option<NodeId>,
+        started_elapsed: Duration,
+        runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
+        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
+        ctx: &'a mut ProcessCtx,
+    ) -> Self {
         Self {
             script_node,
             host_node,
@@ -2792,7 +3093,10 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn time_seconds(&self) -> f64 {
-        self.ctx.runtime_elapsed.saturating_sub(self.started_elapsed).as_secs_f64()
+        self.ctx
+            .runtime_elapsed
+            .saturating_sub(self.started_elapsed)
+            .as_secs_f64()
     }
 
     fn delta_seconds(&self) -> f64 {
@@ -2800,11 +3104,17 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn log(&mut self, level: ScriptLogLevel, message: &str) {
-        let _ = logger::log_message(level.to_logger_level(), "script".to_string(), Some(self.script_node), message.to_string());
+        let _ = logger::log_message(
+            level.to_logger_level(),
+            "script".to_string(),
+            Some(self.script_node),
+            message.to_string(),
+        );
     }
 
     fn emit_custom(&mut self, topic: &str, payload: JsonValue) -> Result<(), String> {
-        self.ctx.emit_custom_event(CustomEvent::new(topic, Some(self.script_node), payload));
+        self.ctx
+            .emit_custom_event(CustomEvent::new(topic, Some(self.script_node), payload));
         Ok(())
     }
 
@@ -2829,27 +3139,40 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     }
 
     fn set_event_listener(&mut self, target: NodeId, level: u32) -> Result<(), String> {
-        let previous_levels = self.runtime_subscriptions.iter().filter(|entry| entry.node == target).map(|entry| entry.max_depth).collect::<Vec<_>>();
+        let previous_levels = self
+            .runtime_subscriptions
+            .iter()
+            .filter(|entry| entry.node == target)
+            .map(|entry| entry.max_depth)
+            .collect::<Vec<_>>();
 
         if previous_levels.len() == 1 && previous_levels[0] == level {
             return Ok(());
         }
 
         for previous in previous_levels {
-            self.ctx.remove_event_listener_subtree(self.script_node, target, previous);
+            self.ctx
+                .remove_event_listener_subtree(self.script_node, target, previous);
         }
         self.runtime_subscriptions.retain(|entry| entry.node != target);
 
         self.ctx.add_event_listener_subtree(self.script_node, target, level);
-        self.runtime_subscriptions.push(crate::node::EventSubscription::subtree(target, level));
+        self.runtime_subscriptions
+            .push(crate::node::EventSubscription::subtree(target, level));
         Ok(())
     }
 
     fn remove_event_listener(&mut self, target: NodeId) -> Result<(), String> {
-        let previous_levels = self.runtime_subscriptions.iter().filter(|entry| entry.node == target).map(|entry| entry.max_depth).collect::<Vec<_>>();
+        let previous_levels = self
+            .runtime_subscriptions
+            .iter()
+            .filter(|entry| entry.node == target)
+            .map(|entry| entry.max_depth)
+            .collect::<Vec<_>>();
 
         for previous in previous_levels {
-            self.ctx.remove_event_listener_subtree(self.script_node, target, previous);
+            self.ctx
+                .remove_event_listener_subtree(self.script_node, target, previous);
         }
         self.runtime_subscriptions.retain(|entry| entry.node != target);
         Ok(())
@@ -2858,7 +3181,8 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     fn clear_event_listeners(&mut self) -> Result<(), String> {
         let script_node = self.script_node;
         for subscription in self.runtime_subscriptions.drain(..) {
-            self.ctx.remove_event_listener_subtree(script_node, subscription.node, subscription.max_depth);
+            self.ctx
+                .remove_event_listener_subtree(script_node, subscription.node, subscription.max_depth);
         }
         Ok(())
     }
@@ -2895,22 +3219,39 @@ fn managed_child_key_matches(snapshot: &ProcessTreeNodeSnapshot, key: &str) -> b
         return false;
     }
 
-    snapshot.decl_id.eq_ignore_ascii_case(key) || snapshot.short_name.eq_ignore_ascii_case(key) || snapshot.label.eq_ignore_ascii_case(key)
+    snapshot.decl_id.eq_ignore_ascii_case(key)
+        || snapshot.short_name.eq_ignore_ascii_case(key)
+        || snapshot.label.eq_ignore_ascii_case(key)
 }
 
 fn managed_child_from_script_call(parent: NodeId, method: &str, args: &[ParamValue]) -> Option<ManagedLoadChild> {
     let key = match method {
-        "addParameter" => args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "parameter".to_string()),
-        "addFolder" => args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "Folder".to_string()),
+        "addParameter" => args
+            .first()
+            .and_then(ParamValue::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "parameter".to_string()),
+        "addFolder" => args
+            .first()
+            .and_then(ParamValue::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "Folder".to_string()),
         "addNode" => {
-            let node_type = args.first().and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "folder".to_string());
+            let node_type = args
+                .first()
+                .and_then(ParamValue::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "folder".to_string());
             let normalized_node_type = node_type.trim().to_ascii_lowercase();
             let default_label = match normalized_node_type.as_str() {
                 "parameter" | "param" => "parameter".to_string(),
                 "folder" | "" => "Folder".to_string(),
                 _ => node_type.clone(),
             };
-            args.get(1).and_then(ParamValue::as_str).filter(|value| !value.trim().is_empty()).unwrap_or(default_label)
+            args.get(1)
+                .and_then(ParamValue::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or(default_label)
         }
         _ => return None,
     };
@@ -2965,7 +3306,10 @@ impl ScriptNode {
 
     /// Returns currently detected script export names.
     pub fn export_names(&self) -> Vec<String> {
-        self.runtime.as_ref().map(|runtime| runtime.runtime.export_names()).unwrap_or_default()
+        self.runtime
+            .as_ref()
+            .map(|runtime| runtime.runtime.export_names())
+            .unwrap_or_default()
     }
 
     /// Returns UI-facing script state.
@@ -3014,7 +3358,11 @@ impl ScriptNode {
     }
 
     fn reconcile_load_declared_children(&mut self, ctx: &mut ProcessCtx, declared: &HashSet<ManagedLoadChild>) {
-        let stale_entries = self.managed_load_children.difference(declared).cloned().collect::<Vec<_>>();
+        let stale_entries = self
+            .managed_load_children
+            .difference(declared)
+            .cloned()
+            .collect::<Vec<_>>();
         if stale_entries.is_empty() {
             self.managed_load_children = declared.clone();
             return;
@@ -3049,7 +3397,14 @@ impl ScriptNode {
         let script_node = self.id();
         let host_node = self.node_data.parent;
         if let Some(mut active) = self.runtime.take() {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                None,
+                ctx,
+            );
             if let Err(error) = active.runtime.call_on_destroy(&mut host) {
                 self.handle_runtime_error(ctx, &error);
             }
@@ -3061,7 +3416,9 @@ impl ScriptNode {
 
     fn source_file_modified(&self) -> Option<SystemTime> {
         let path = self.config.source.resolve_path()?;
-        std::fs::metadata(path).ok().and_then(|metadata| metadata.modified().ok())
+        std::fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok())
     }
 
     fn source_stamp_from_text(&self, source_text: &str) -> ScriptSourceStamp {
@@ -3116,11 +3473,25 @@ impl ScriptNode {
         let host_node = self.node_data.parent;
         let mut declared_load_children = HashSet::new();
         let manifest = {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                Some(&mut declared_load_children),
+                ctx,
+            );
             runtime.load(&script_source, &source_name, Some(&mut host))?
         };
         {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, Some(&mut declared_load_children), ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                Some(&mut declared_load_children),
+                ctx,
+            );
             runtime.call_on_init(&mut host)?;
         }
         self.reconcile_load_declared_children(ctx, &declared_load_children);
@@ -3136,7 +3507,12 @@ impl ScriptNode {
     }
 
     fn handle_runtime_error(&self, ctx: &mut ProcessCtx, error: &ScriptRuntimeError) {
-        ctx.set_node_warning_with(self.id(), Some("script"), format!("Script runtime error: {error}"), None);
+        ctx.set_node_warning_with(
+            self.id(),
+            Some("script"),
+            format!("Script runtime error: {error}"),
+            None,
+        );
     }
 }
 
@@ -3173,7 +3549,11 @@ impl Node for ScriptNode {
     }
 
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
-        serde_json::to_value(ScriptProjectData { config: self.config.clone(), budgets: self.budgets }).map_err(|err| format!("failed to encode script node data: {err}"))
+        serde_json::to_value(ScriptProjectData {
+            config: self.config.clone(),
+            budgets: self.budgets,
+        })
+        .map_err(|err| format!("failed to encode script node data: {err}"))
     }
 
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
@@ -3183,7 +3563,8 @@ impl Node for ScriptNode {
                 budgets: ScriptBudgets::default(),
             }
         } else {
-            serde_json::from_value::<ScriptProjectData>(data.clone()).map_err(|err| format!("invalid script payload: {err}"))?
+            serde_json::from_value::<ScriptProjectData>(data.clone())
+                .map_err(|err| format!("invalid script payload: {err}"))?
         };
 
         self.config = parsed.config;
@@ -3254,7 +3635,14 @@ impl Node for ScriptNode {
         let host_node = self.node_data.parent;
         let mut runtime_error = None;
         if let Some(runtime) = self.runtime.as_mut() {
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                None,
+                ctx,
+            );
             if let Err(error) = runtime.runtime.call_on_update(&mut host) {
                 runtime_error = Some(error);
             }
@@ -3279,7 +3667,14 @@ impl Node for ScriptNode {
 
         for event in &events {
             let script_event = ScriptEvent::from(event);
-            let mut host = NodeScriptHostBridge::new(script_node, host_node, self.runtime_started_elapsed, &mut self.runtime_subscriptions, None, ctx);
+            let mut host = NodeScriptHostBridge::new(
+                script_node,
+                host_node,
+                self.runtime_started_elapsed,
+                &mut self.runtime_subscriptions,
+                None,
+                ctx,
+            );
             if let Err(error) = runtime.runtime.call_on_event(&script_event, &mut host) {
                 runtime_error = Some(error);
                 break;
@@ -3308,7 +3703,10 @@ impl Node for ScriptNode {
             return NodeExecutionRule::periodic(SCRIPT_BOOTSTRAP_UPDATE_RATE_HZ);
         }
 
-        let has_on_update = self.runtime.as_ref().is_some_and(|active| active.runtime.has_on_update());
+        let has_on_update = self
+            .runtime
+            .as_ref()
+            .is_some_and(|active| active.runtime.has_on_update());
         if !has_on_update {
             if self.config.source.is_file_backed() {
                 return NodeExecutionRule::periodic(SCRIPT_FILE_RELOAD_POLL_HZ);
@@ -3410,12 +3808,22 @@ mod tests {
             self.tree_snapshot.clone()
         }
 
-        fn set_node_script_property(&mut self, node: NodeId, property: String, value: ParamValue) -> Result<(), String> {
+        fn set_node_script_property(
+            &mut self,
+            node: NodeId,
+            property: String,
+            value: ParamValue,
+        ) -> Result<(), String> {
             self.set_property_calls.push((node, property, value));
             Ok(())
         }
 
-        fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
+        fn call_node_script_method(
+            &mut self,
+            node: NodeId,
+            method: String,
+            args: Vec<ParamValue>,
+        ) -> Result<(), String> {
             self.call_method_calls.push((node, method, args));
             Ok(())
         }
@@ -3443,16 +3851,29 @@ mod tests {
 
     impl MockRuntime {
         fn new(has_on_update: bool, destroy_counter: Arc<AtomicUsize>) -> Self {
-            Self { has_on_update, destroy_counter }
+            Self {
+                has_on_update,
+                destroy_counter,
+            }
         }
     }
 
     impl ScriptRuntime for MockRuntime {
-        fn load(&mut self, _source: &str, _source_name: &str, _host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
+        fn load(
+            &mut self,
+            _source: &str,
+            _source_name: &str,
+            _host: Option<&mut dyn ScriptHostBridge>,
+        ) -> Result<ScriptManifest, ScriptRuntimeError> {
             Ok(ScriptManifest::default())
         }
 
-        fn reload(&mut self, _source: &str, _source_name: &str, _host: Option<&mut dyn ScriptHostBridge>) -> Result<ScriptManifest, ScriptRuntimeError> {
+        fn reload(
+            &mut self,
+            _source: &str,
+            _source_name: &str,
+            _host: Option<&mut dyn ScriptHostBridge>,
+        ) -> Result<ScriptManifest, ScriptRuntimeError> {
             Ok(ScriptManifest::default())
         }
 
@@ -3464,7 +3885,12 @@ mod tests {
             Vec::new()
         }
 
-        fn call_export(&mut self, _export_name: &str, _args: &[ScriptValue], _host: &mut dyn ScriptHostBridge) -> Result<ScriptValue, ScriptRuntimeError> {
+        fn call_export(
+            &mut self,
+            _export_name: &str,
+            _args: &[ScriptValue],
+            _host: &mut dyn ScriptHostBridge,
+        ) -> Result<ScriptValue, ScriptRuntimeError> {
             Ok(ScriptValue::Nil)
         }
 
@@ -3476,7 +3902,11 @@ mod tests {
             Ok(())
         }
 
-        fn call_on_event(&mut self, _event: &ScriptEvent, _host: &mut dyn ScriptHostBridge) -> Result<(), ScriptRuntimeError> {
+        fn call_on_event(
+            &mut self,
+            _event: &ScriptEvent,
+            _host: &mut dyn ScriptHostBridge,
+        ) -> Result<(), ScriptRuntimeError> {
             Ok(())
         }
 
@@ -3748,13 +4178,17 @@ export function ping(value) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load(source, "quickjs_runtime_loads_manifest_and_exports.js", None).expect("manifest should parse");
+        let manifest = runtime
+            .load(source, "quickjs_runtime_loads_manifest_and_exports.js", None)
+            .expect("manifest should parse");
         assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.update_rate_hz, Some(30));
         assert_eq!(runtime.export_names(), vec!["ping".to_string()]);
 
         let mut host = TestHostBridge::new();
-        let output = runtime.call_export("ping", &[ScriptValue::Int(7)], &mut host).expect("export should run");
+        let output = runtime
+            .call_export("ping", &[ScriptValue::Int(7)], &mut host)
+            .expect("export should run");
         assert_eq!(output, ScriptValue::Int(7));
         assert_eq!(host.logs.len(), 1);
         assert_eq!(host.logs[0].0, ScriptLogLevel::Info);
@@ -3765,7 +4199,9 @@ export function ping(value) {
     #[test]
     fn quickjs_runtime_accepts_empty_script() {
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load("", "empty_script.js", None).expect("empty script should parse");
+        let manifest = runtime
+            .load("", "empty_script.js", None)
+            .expect("empty script should parse");
         assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.update_rate_hz, None);
         assert!(manifest.parameters.is_empty());
@@ -3782,7 +4218,9 @@ script.addParameter("gain", { type: "float", default: 0.5, readOnly: true });
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let manifest = runtime.load(source, "manifest_methods_test.js", None).expect("manifest should parse");
+        let manifest = runtime
+            .load(source, "manifest_methods_test.js", None)
+            .expect("manifest should parse");
         assert_eq!(manifest.api_version, 2);
         assert_eq!(manifest.update_rate_hz, Some(24));
         assert_eq!(manifest.parameters.len(), 1);
@@ -3805,10 +4243,14 @@ function update(delta) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "time_helpers_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "time_helpers_test.js", None)
+            .expect("script should parse");
 
         let mut host = TestHostBridge::new();
-        runtime.call_on_update(&mut host).expect("update callback should execute");
+        runtime
+            .call_on_update(&mut host)
+            .expect("update callback should execute");
     }
 
     #[test]
@@ -3824,10 +4266,14 @@ function paramChanged(param, oldValue) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "param_changed_callback_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "param_changed_callback_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
         let event = ScriptEvent {
@@ -3836,9 +4282,22 @@ function paramChanged(param, oldValue) {
             old_value: Some(ParamValue::Float(0.25)),
             payload: JsonValue::Null,
         };
-        runtime.call_on_event(&event, &mut host).expect("paramChanged callback should execute");
-        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "changed true 0.25"));
-        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)])]);
+        runtime
+            .call_on_event(&event, &mut host)
+            .expect("paramChanged callback should execute");
+        assert!(
+            host.logs
+                .iter()
+                .any(|(level, message)| *level == ScriptLogLevel::Info && message == "changed true 0.25")
+        );
+        assert_eq!(
+            host.call_method_calls,
+            vec![(
+                NodeId(101),
+                "addParameter".to_string(),
+                vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)]
+            )]
+        );
     }
 
     #[test]
@@ -3860,16 +4319,26 @@ function update() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "tree_proxy_mutations_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "tree_proxy_mutations_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
-        runtime.call_on_update(&mut host).expect("update callback should execute");
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
+        runtime
+            .call_on_update(&mut host)
+            .expect("update callback should execute");
 
         assert_eq!(
             host.set_property_calls,
             vec![
-                (NodeId(101), "name".to_string(), ParamValue::Str("Renamed Host".to_string())),
+                (
+                    NodeId(101),
+                    "name".to_string(),
+                    ParamValue::Str("Renamed Host".to_string())
+                ),
                 (NodeId(101), "enabled".to_string(), ParamValue::Bool(false)),
                 (NodeId(102), "value".to_string(), ParamValue::Float(0.75)),
             ],
@@ -3877,9 +4346,21 @@ function update() {
         assert_eq!(
             host.call_method_calls,
             vec![
-                (NodeId(101), "addFolder".to_string(), vec![ParamValue::Str("Utilities".to_string())]),
-                (NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]),
-                (NodeId(101), "removeParameter".to_string(), vec![ParamValue::Str("gain".to_string())]),
+                (
+                    NodeId(101),
+                    "addFolder".to_string(),
+                    vec![ParamValue::Str("Utilities".to_string())]
+                ),
+                (
+                    NodeId(101),
+                    "addParameter".to_string(),
+                    vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]
+                ),
+                (
+                    NodeId(101),
+                    "removeParameter".to_string(),
+                    vec![ParamValue::Str("gain".to_string())]
+                ),
             ],
         );
     }
@@ -3897,13 +4378,20 @@ function init() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "runtime_listen_helpers_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "runtime_listen_helpers_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
-        assert_eq!(host.set_listener_calls, vec![(NodeId(101), 1), (NodeId(101), 2), (NodeId(100), 3)],);
+        assert_eq!(
+            host.set_listener_calls,
+            vec![(NodeId(101), 1), (NodeId(101), 2), (NodeId(100), 3)],
+        );
         assert_eq!(host.remove_listener_calls, vec![NodeId(100)]);
         assert_eq!(host.clear_listener_calls, 1);
     }
@@ -3921,13 +4409,26 @@ function update() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "tree_proxy_add_parameter_spec_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "tree_proxy_add_parameter_spec_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
-        runtime.call_on_update(&mut host).expect("update callback should execute");
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
+        runtime
+            .call_on_update(&mut host)
+            .expect("update callback should execute");
 
-        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)],)],);
+        assert_eq!(
+            host.call_method_calls,
+            vec![(
+                NodeId(101),
+                "addParameter".to_string(),
+                vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)],
+            )],
+        );
     }
 
     #[test]
@@ -3941,19 +4442,37 @@ function update() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "script_add_parameter_runtime_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "script_add_parameter_runtime_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
-        runtime.call_on_update(&mut host).expect("update callback should execute");
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
+        runtime
+            .call_on_update(&mut host)
+            .expect("update callback should execute");
 
-        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "paramHandle true true"));
+        assert!(
+            host.logs
+                .iter()
+                .any(|(level, message)| *level == ScriptLogLevel::Info && message == "paramHandle true true")
+        );
         assert_eq!(host.set_property_calls, Vec::<(NodeId, String, ParamValue)>::new());
         assert_eq!(
             host.call_method_calls,
             vec![
-                (NodeId(101), "addParameter".to_string(), vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]),
-                (NodeId(101), "removeParameter".to_string(), vec![ParamValue::Str("gain".to_string())]),
+                (
+                    NodeId(101),
+                    "addParameter".to_string(),
+                    vec![ParamValue::Str("depth".to_string()), ParamValue::Float(0.25)]
+                ),
+                (
+                    NodeId(101),
+                    "removeParameter".to_string(),
+                    vec![ParamValue::Str("gain".to_string())]
+                ),
             ],
         );
     }
@@ -3968,14 +4487,34 @@ function update() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "script_add_node_runtime_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "script_add_node_runtime_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
-        runtime.call_on_update(&mut host).expect("update callback should execute");
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
+        runtime
+            .call_on_update(&mut host)
+            .expect("update callback should execute");
 
-        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "nodeHandle true true"));
-        assert_eq!(host.call_method_calls, vec![(NodeId(101), "addNode".to_string(), vec![ParamValue::Str("folder".to_string()), ParamValue::Str("Utilities".to_string())])]);
+        assert!(
+            host.logs
+                .iter()
+                .any(|(level, message)| *level == ScriptLogLevel::Info && message == "nodeHandle true true")
+        );
+        assert_eq!(
+            host.call_method_calls,
+            vec![(
+                NodeId(101),
+                "addNode".to_string(),
+                vec![
+                    ParamValue::Str("folder".to_string()),
+                    ParamValue::Str("Utilities".to_string())
+                ]
+            )]
+        );
     }
 
     #[test]
@@ -3991,10 +4530,14 @@ function paramChanged(param, oldValue) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "param_selector_identity_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "param_selector_identity_test.js", None)
+            .expect("script should parse");
 
         let initial_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(initial_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(initial_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
         host.tree_snapshot = Some(tree_snapshot_with_depth_for_script_tests());
@@ -4004,9 +4547,15 @@ function paramChanged(param, oldValue) {
             old_value: Some(ParamValue::Float(0.0)),
             payload: JsonValue::Null,
         };
-        runtime.call_on_event(&event, &mut host).expect("paramChanged callback should execute");
+        runtime
+            .call_on_event(&event, &mut host)
+            .expect("paramChanged callback should execute");
 
-        assert!(host.logs.iter().any(|(level, message)| *level == ScriptLogLevel::Info && message == "eq true true 0"));
+        assert!(
+            host.logs
+                .iter()
+                .any(|(level, message)| *level == ScriptLogLevel::Info && message == "eq true true 0")
+        );
     }
 
     #[test]
@@ -4017,11 +4566,27 @@ script.addParameter("gain", { type: "float", default: 0.5 });
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_script_node(NodeId(201)).with_tree_snapshot(tree_snapshot);
-        runtime.load(source, "script_top_level_add_parameter_runtime_test.js", Some(&mut host)).expect("script should parse");
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_script_node(NodeId(201))
+            .with_tree_snapshot(tree_snapshot);
+        runtime
+            .load(
+                source,
+                "script_top_level_add_parameter_runtime_test.js",
+                Some(&mut host),
+            )
+            .expect("script should parse");
 
         assert_eq!(host.set_property_calls, Vec::<(NodeId, String, ParamValue)>::new());
-        assert_eq!(host.call_method_calls, vec![(NodeId(201), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)],)],);
+        assert_eq!(
+            host.call_method_calls,
+            vec![(
+                NodeId(201),
+                "addParameter".to_string(),
+                vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)],
+            )],
+        );
     }
 
     #[test]
@@ -4030,11 +4595,22 @@ script.addParameter("gain", { type: "float", default: 0.5 });
 script.setApiVersion(1);
 "#;
 
-        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
+        let mut script = ScriptNode::new(
+            "Script",
+            ScriptNodeConfig {
+                source: ScriptSource::Inline(source.to_string()),
+            },
+        );
         script.node_data_mut().id = NodeId(101);
         script.node_data_mut().parent = Some(NodeId(100));
-        script.managed_load_children.insert(ManagedLoadChild { parent: NodeId(101), key: "gain".to_string() });
-        script.managed_load_children.insert(ManagedLoadChild { parent: NodeId(101), key: "utilities".to_string() });
+        script.managed_load_children.insert(ManagedLoadChild {
+            parent: NodeId(101),
+            key: "gain".to_string(),
+        });
+        script.managed_load_children.insert(ManagedLoadChild {
+            parent: NodeId(101),
+            key: "utilities".to_string(),
+        });
 
         let mut nodes = HashMap::new();
         nodes.insert(
@@ -4127,13 +4703,30 @@ script.setApiVersion(1);
         );
 
         let snapshot = Arc::new(ProcessTreeSnapshot::new(NodeId(100), nodes));
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
         ctx.set_tree_snapshot(snapshot);
 
         script.init(&mut ctx);
 
-        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(102))));
-        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(103))));
+        assert!(
+            ctx.edits
+                .pending
+                .iter()
+                .any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(102)))
+        );
+        assert!(
+            ctx.edits
+                .pending
+                .iter()
+                .any(|request| matches!(request.edit, Edit::RemoveNode { node } if node == NodeId(103)))
+        );
     }
 
     #[test]
@@ -4146,10 +4739,14 @@ function init() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "tree_globals_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "tree_globals_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
         assert_eq!(host.logs.len(), 2);
@@ -4169,17 +4766,30 @@ function init() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "local_parent_and_script_node_target_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "local_parent_and_script_node_target_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_script_node(NodeId(201)).with_tree_snapshot(tree_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_script_node(NodeId(201))
+            .with_tree_snapshot(tree_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
         assert_eq!(
             host.call_method_calls,
             vec![
-                (NodeId(101), "setName".to_string(), vec![ParamValue::Str("Parent Host".to_string())]),
-                (NodeId(201), "addParameter".to_string(), vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)]),
+                (
+                    NodeId(101),
+                    "setName".to_string(),
+                    vec![ParamValue::Str("Parent Host".to_string())]
+                ),
+                (
+                    NodeId(201),
+                    "addParameter".to_string(),
+                    vec![ParamValue::Str("gain".to_string()), ParamValue::Float(0.5)]
+                ),
             ],
         );
     }
@@ -4201,17 +4811,33 @@ function init() {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "tree_proxy_human_readable_test.js", None).expect("script should parse");
+        runtime
+            .load(source, "tree_proxy_human_readable_test.js", None)
+            .expect("script should parse");
 
         let tree_snapshot = tree_snapshot_for_script_tests();
-        let mut host = TestHostBridge::new().with_owner(NodeId(101)).with_tree_snapshot(tree_snapshot);
+        let mut host = TestHostBridge::new()
+            .with_owner(NodeId(101))
+            .with_tree_snapshot(tree_snapshot);
         runtime.call_on_init(&mut host).expect("init callback should execute");
 
-        assert!(host.logs.iter().any(|(_, message)| message == "[Host (<folder>), 1 child]"));
+        assert!(
+            host.logs
+                .iter()
+                .any(|(_, message)| message == "[Host (<folder>), 1 child]")
+        );
         assert!(host.logs.iter().any(|(_, message)| message == "1"));
         assert!(host.logs.iter().any(|(_, message)| message == "true"));
-        assert!(host.logs.iter().any(|(_, message)| message.starts_with("[Gain <float> 0.5 (")));
-        assert!(host.logs.iter().any(|(_, message)| message.contains("\"childCount\":1")));
+        assert!(
+            host.logs
+                .iter()
+                .any(|(_, message)| message.starts_with("[Gain <float> 0.5 ("))
+        );
+        assert!(
+            host.logs
+                .iter()
+                .any(|(_, message)| message.contains("\"childCount\":1"))
+        );
     }
 
     #[test]
@@ -4224,7 +4850,9 @@ function update(delta) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        let error = runtime.load(source, "parse_error_test.js", None).expect_err("invalid script should fail to parse");
+        let error = runtime
+            .load(source, "parse_error_test.js", None)
+            .expect_err("invalid script should fail to parse");
         let ScriptRuntimeError::QuickJs(message) = error else {
             panic!("expected quickjs error");
         };
@@ -4244,10 +4872,14 @@ function update(delta) {
 "#;
 
         let mut runtime = QuickJsRuntime::new(ScriptBudgets::default()).expect("runtime should initialize");
-        runtime.load(source, "callback_error_test.js", None).expect("manifest should parse");
+        runtime
+            .load(source, "callback_error_test.js", None)
+            .expect("manifest should parse");
 
         let mut host = TestHostBridge::new();
-        let error = runtime.call_on_update(&mut host).expect_err("on_update should surface thrown exception");
+        let error = runtime
+            .call_on_update(&mut host)
+            .expect_err("on_update should surface thrown exception");
         let ScriptRuntimeError::QuickJs(message) = error else {
             panic!("expected quickjs error");
         };
@@ -4263,8 +4895,14 @@ function update(delta) {
             ScriptSource::Inline(source) => source,
             ScriptSource::ProjectFile(path) => panic!("expected inline source, got project file: {path}"),
         };
-        assert!(source.contains("script.setApiVersion(1);"), "template source:\n{source}");
-        assert!(source.contains("script.addParameter(\"gain\""), "template source:\n{source}");
+        assert!(
+            source.contains("script.setApiVersion(1);"),
+            "template source:\n{source}"
+        );
+        assert!(
+            source.contains("script.addParameter(\"gain\""),
+            "template source:\n{source}"
+        );
         assert!(source.contains("function update(delta)"), "template source:\n{source}");
     }
 
@@ -4295,17 +4933,37 @@ function init() {
 }
 "#;
 
-        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
+        let mut script = ScriptNode::new(
+            "Script",
+            ScriptNodeConfig {
+                source: ScriptSource::Inline(source.to_string()),
+            },
+        );
         script.node_data.id = NodeId(201);
         script.node_data.parent = Some(NodeId(101));
 
         let snapshot = tree_snapshot_for_script_tests();
-        let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut init_ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
         init_ctx.set_tree_snapshot(snapshot);
         script.init(&mut init_ctx);
 
-        assert!(script.runtime_subscriptions.contains(&crate::node::EventSubscription::subtree(NodeId(101), 4)));
-        assert!(script.runtime_subscriptions.contains(&crate::node::EventSubscription::subtree(NodeId(100), 1)));
+        assert!(
+            script
+                .runtime_subscriptions
+                .contains(&crate::node::EventSubscription::subtree(NodeId(101), 4))
+        );
+        assert!(
+            script
+                .runtime_subscriptions
+                .contains(&crate::node::EventSubscription::subtree(NodeId(100), 1))
+        );
         assert_eq!(script.runtime_subscriptions.len(), 2);
         assert!(init_ctx.edits.pending.iter().any(|request| matches!(
             &request.edit,
@@ -4318,7 +4976,14 @@ function init() {
                 if *subscriber == NodeId(201) && *subscription == crate::node::EventSubscription::subtree(NodeId(101), 2)
         )));
 
-        let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 1, micro: 0, seq: 1 });
+        let mut destroy_ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 1,
+                micro: 0,
+                seq: 1,
+            },
+        );
         script.destroy(&mut destroy_ctx);
 
         assert!(script.runtime_subscriptions.is_empty());
@@ -4376,7 +5041,14 @@ function init() {
         script.request_reload();
         assert!(script.runtime.is_some(), "runtime should stay alive until teardown");
 
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
         script.destroy(&mut ctx);
         assert_eq!(destroy_counter.load(AtomicOrdering::SeqCst), 1);
     }
@@ -4389,13 +5061,30 @@ function update(delta) {
   void delta;
 }
 "#;
-        let mut script = ScriptNode::new("Script", ScriptNodeConfig { source: ScriptSource::Inline(source.to_string()) });
+        let mut script = ScriptNode::new(
+            "Script",
+            ScriptNodeConfig {
+                source: ScriptSource::Inline(source.to_string()),
+            },
+        );
 
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, EngineTime { tick: 0, micro: 0, seq: 0 });
+        let mut ctx = ProcessCtx::new(
+            ExecutionPhase::EngineTick,
+            EngineTime {
+                tick: 0,
+                micro: 0,
+                seq: 0,
+            },
+        );
 
         script.init(&mut ctx);
         let rule = script.execution_rule();
         assert_eq!(rule.update_rate, Some(12));
-        assert!(ctx.edits.pending.iter().any(|request| matches!(request.edit, Edit::ReevaluateGraph)));
+        assert!(
+            ctx.edits
+                .pending
+                .iter()
+                .any(|request| matches!(request.edit, Edit::ReevaluateGraph))
+        );
     }
 }

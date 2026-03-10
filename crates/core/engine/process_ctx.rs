@@ -6,7 +6,9 @@ use std::time::Duration;
 use crate::edit::{Edit, EditOrigin, EditQueue};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
-use crate::node::{DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning};
+use crate::node::{
+    DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
+};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use serde::Serialize;
 
@@ -73,15 +75,27 @@ impl ProcessTreeNodeSnapshot {
 impl fmt::Display for ProcessTreeNodeSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(value) = &self.param_value {
-            let constraints_text = self.param_constraints.as_ref().map(ToString::to_string).unwrap_or_else(|| "no constraints".to_string());
-            return write!(f, "[{} <{}> {} ({})]", self.label, self.node_type, value, constraints_text);
+            let constraints_text = self
+                .param_constraints
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "no constraints".to_string());
+            return write!(
+                f,
+                "[{} <{}> {} ({})]",
+                self.label, self.node_type, value, constraints_text
+            );
         }
 
         if self.child_count == 0 {
             return write!(f, "[{} (<{}>)]", self.label, self.node_type);
         }
 
-        let children_text = if self.child_count == 1 { "1 child".to_string() } else { format!("{} children", self.child_count) };
+        let children_text = if self.child_count == 1 {
+            "1 child".to_string()
+        } else {
+            format!("{} children", self.child_count)
+        };
         write!(f, "[{} (<{}>), {}]", self.label, self.node_type, children_text)
     }
 }
@@ -166,7 +180,9 @@ impl ProcessTreeSnapshot {
 
     /// Returns the current runtime node id for `uuid`, when present in this snapshot.
     pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
-        self.nodes.iter().find_map(|(node_id, node)| (node.uuid == uuid).then_some(*node_id))
+        self.nodes
+            .iter()
+            .find_map(|(node_id, node)| (node.uuid == uuid).then_some(*node_id))
     }
 
     /// Resolves a slash-separated child path from `start`.
@@ -287,7 +303,9 @@ impl ProcessCtx {
 
     /// Ends an edit session previously opened with [`Self::begin_edit_session`].
     pub fn end_edit_session(&mut self, client_edit_id: impl Into<String>) {
-        self.edits.push(Edit::EndEditSession { client_edit_id: client_edit_id.into() });
+        self.edits.push(Edit::EndEditSession {
+            client_edit_id: client_edit_id.into(),
+        });
     }
 
     /// Queues a parameter update edit with an explicit coalescing strategy.
@@ -297,12 +315,20 @@ impl ProcessCtx {
 
     /// Queues one script-property update on `node`.
     pub fn set_node_script_property(&mut self, node: NodeId, property: impl Into<String>, value: ParamValue) {
-        self.edits.push(Edit::SetNodeScriptProperty { node, property: property.into(), value });
+        self.edits.push(Edit::SetNodeScriptProperty {
+            node,
+            property: property.into(),
+            value,
+        });
     }
 
     /// Queues one script-method invocation on `node`.
     pub fn call_node_script_method(&mut self, node: NodeId, method: impl Into<String>, args: Vec<ParamValue>) {
-        self.edits.push(Edit::CallNodeScriptMethod { node, method: method.into(), args });
+        self.edits.push(Edit::CallNodeScriptMethod {
+            node,
+            method: method.into(),
+            args,
+        });
     }
 
     /// Queues one runtime Rust callback invocation on `node`.
@@ -312,7 +338,10 @@ impl ProcessCtx {
     where
         F: FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send + 'static,
     {
-        self.edits.push(Edit::CallNodeMutation { node, callback: Box::new(callback) });
+        self.edits.push(Edit::CallNodeMutation {
+            node,
+            callback: Box::new(callback),
+        });
     }
 
     /// Sets or replaces the default warning on `node`.
@@ -323,7 +352,13 @@ impl ProcessCtx {
     /// Sets or replaces one warning by id on `node`.
     ///
     /// `warning_id = None` uses the default empty warning id.
-    pub fn set_node_warning_with(&mut self, node: NodeId, warning_id: Option<&str>, message: impl Into<String>, detail: Option<&str>) {
+    pub fn set_node_warning_with(
+        &mut self,
+        node: NodeId,
+        warning_id: Option<&str>,
+        message: impl Into<String>,
+        detail: Option<&str>,
+    ) {
         self.edits.push(Edit::SetNodeWarning {
             node,
             warning: NodeWarning {
@@ -338,7 +373,10 @@ impl ProcessCtx {
     ///
     /// `warning_id = None` clears all warnings on `node`.
     pub fn clear_node_warning(&mut self, node: NodeId, warning_id: Option<&str>) {
-        self.edits.push(Edit::ClearNodeWarning { node, warning_id: warning_id.map(str::to_string) });
+        self.edits.push(Edit::ClearNodeWarning {
+            node,
+            warning_id: warning_id.map(str::to_string),
+        });
     }
 
     /// Clears all warnings on `node`.
@@ -363,7 +401,11 @@ impl ProcessCtx {
 
     /// Queues insertion of a boxed child node.
     pub fn add_child_boxed(&mut self, parent: NodeId, child: Box<dyn Node>, after: Option<NodeId>) {
-        self.edits.push(Edit::AddNode { parent, prev_sibling: after, node: child });
+        self.edits.push(Edit::AddNode {
+            parent,
+            prev_sibling: after,
+            node: child,
+        });
     }
 
     /// Queues insertion of a typed user-curated item node.
@@ -373,11 +415,21 @@ impl ProcessCtx {
 
     /// Queues insertion of a boxed user-curated item node.
     pub fn add_user_item_boxed(&mut self, parent: NodeId, child: Box<dyn Node>, after: Option<NodeId>) {
-        self.edits.push(Edit::AddUserItem { parent, prev_sibling: after, node: child });
+        self.edits.push(Edit::AddUserItem {
+            parent,
+            prev_sibling: after,
+            node: child,
+        });
     }
 
     /// Queues insertion of a blueprint-backed user-curated item.
-    pub fn add_blueprint_item(&mut self, parent: NodeId, blueprint_id: impl Into<String>, label: Option<String>, after: Option<NodeId>) {
+    pub fn add_blueprint_item(
+        &mut self,
+        parent: NodeId,
+        blueprint_id: impl Into<String>,
+        label: Option<String>,
+        after: Option<NodeId>,
+    ) {
         self.edits.push(Edit::CreateBlueprintInstance {
             blueprint_id: blueprint_id.into(),
             parent,
@@ -449,7 +501,12 @@ impl ProcessCtx {
     ///
     /// assert_eq!(ctx.edits.pending.len(), 1);
     /// ```
-    pub fn emit_custom_payload<U: Serialize>(&mut self, topic: impl Into<String>, origin: Option<NodeId>, payload: &U) -> serde_json::Result<()> {
+    pub fn emit_custom_payload<U: Serialize>(
+        &mut self,
+        topic: impl Into<String>,
+        origin: Option<NodeId>,
+        payload: &U,
+    ) -> serde_json::Result<()> {
         let event = CustomEvent::from_payload(topic, origin, payload)?;
         self.emit_custom_event(event);
         Ok(())

@@ -2,6 +2,7 @@ use std::cell::OnceCell;
 use std::f64::consts::TAU;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 const CURVE_EPSILON: f64 = 1e-12;
 const MAX_PERLIN_OCTAVES: u32 = 12;
@@ -24,7 +25,10 @@ impl CurveHandle {
 
 impl Default for CurveHandle {
     fn default() -> Self {
-        Self { position: 0.0, value: 0.0 }
+        Self {
+            position: 0.0,
+            value: 0.0,
+        }
     }
 }
 
@@ -223,12 +227,16 @@ pub struct AnimationCurveKey {
 impl AnimationCurveKey {
     /// Creates one key with `position`, `value`, and `easing`.
     pub fn new(position: f64, value: f64, easing: CurveEasing) -> Self {
-        Self { position, value, easing }
+        Self {
+            position,
+            value,
+            easing,
+        }
     }
 }
 
 /// One recorded sample used when fitting a curve to bezier keys.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct AnimationCurveFitPoint {
     /// Sample position on the curve domain axis.
     pub position: f64,
@@ -244,7 +252,7 @@ impl AnimationCurveFitPoint {
 }
 
 /// Tuning parameters for sample-to-bezier fitting.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct AnimationCurveBezierFitOptions {
     /// Maximum tolerated absolute value error between the source samples and the fitted bezier curve.
     #[serde(default = "default_curve_fit_max_value_error")]
@@ -283,7 +291,11 @@ fn normalize_curve_fit_options(options: AnimationCurveBezierFitOptions) -> Anima
 }
 
 fn normalize_curve_fit_points(points: &[AnimationCurveFitPoint]) -> Vec<AnimationCurveFitPoint> {
-    let mut normalized = points.iter().copied().filter(|point| point.position.is_finite() && point.value.is_finite()).collect::<Vec<_>>();
+    let mut normalized = points
+        .iter()
+        .copied()
+        .filter(|point| point.position.is_finite() && point.value.is_finite())
+        .collect::<Vec<_>>();
     normalized.sort_by(|left, right| left.position.total_cmp(&right.position));
 
     let mut deduplicated = Vec::<AnimationCurveFitPoint>::with_capacity(normalized.len());
@@ -324,7 +336,13 @@ fn estimate_curve_fit_slope(points: &[AnimationCurveFitPoint], index: usize) -> 
         .unwrap_or(0.0)
 }
 
-fn sample_hermite_segment(start: AnimationCurveFitPoint, end: AnimationCurveFitPoint, start_slope: f64, end_slope: f64, position: f64) -> f64 {
+fn sample_hermite_segment(
+    start: AnimationCurveFitPoint,
+    end: AnimationCurveFitPoint,
+    start_slope: f64,
+    end_slope: f64,
+    position: f64,
+) -> f64 {
     let span = end.position - start.position;
     if span.abs() <= CURVE_EPSILON {
         return start.value;
@@ -339,7 +357,11 @@ fn sample_hermite_segment(start: AnimationCurveFitPoint, end: AnimationCurveFitP
     (h00 * start.value) + (h10 * span * start_slope) + (h01 * end.value) + (h11 * span * end_slope)
 }
 
-fn max_curve_fit_error(points: &[AnimationCurveFitPoint], start_index: usize, end_index: usize) -> Option<(usize, f64)> {
+fn max_curve_fit_error(
+    points: &[AnimationCurveFitPoint],
+    start_index: usize,
+    end_index: usize,
+) -> Option<(usize, f64)> {
     if end_index <= start_index + 1 {
         return None;
     }
@@ -364,7 +386,14 @@ fn max_curve_fit_error(points: &[AnimationCurveFitPoint], start_index: usize, en
     split_index.map(|index| (index, max_error))
 }
 
-fn collect_curve_fit_breakpoints(points: &[AnimationCurveFitPoint], max_value_error: f64, max_keys: usize, start_index: usize, end_index: usize, breakpoints: &mut Vec<usize>) {
+fn collect_curve_fit_breakpoints(
+    points: &[AnimationCurveFitPoint],
+    max_value_error: f64,
+    max_keys: usize,
+    start_index: usize,
+    end_index: usize,
+    breakpoints: &mut Vec<usize>,
+) {
     if end_index <= start_index + 1 || breakpoints.len() >= max_keys {
         return;
     }
@@ -388,9 +417,23 @@ fn collect_curve_fit_breakpoints(points: &[AnimationCurveFitPoint], max_value_er
 }
 
 /// Builds one bezier easing segment from endpoint slopes.
-pub fn bezier_easing_from_endpoint_slopes(start_position: f64, start_value: f64, end_position: f64, end_value: f64, start_slope: f64, end_slope: f64) -> Option<CurveEasing> {
+pub fn bezier_easing_from_endpoint_slopes(
+    start_position: f64,
+    start_value: f64,
+    end_position: f64,
+    end_value: f64,
+    start_slope: f64,
+    end_slope: f64,
+) -> Option<CurveEasing> {
     let span = end_position - start_position;
-    if !start_position.is_finite() || !start_value.is_finite() || !end_position.is_finite() || !end_value.is_finite() || !start_slope.is_finite() || !end_slope.is_finite() || span <= CURVE_EPSILON {
+    if !start_position.is_finite()
+        || !start_value.is_finite()
+        || !end_position.is_finite()
+        || !end_value.is_finite()
+        || !start_slope.is_finite()
+        || !end_slope.is_finite()
+        || span <= CURVE_EPSILON
+    {
         return None;
     }
 
@@ -405,18 +448,32 @@ pub fn bezier_easing_from_endpoint_slopes(start_position: f64, start_value: f64,
 ///
 /// The fit keeps the first and last normalized sample and recursively inserts split keys until
 /// the maximum value error is below `options.max_value_error` or `options.max_keys` is reached.
-pub fn fit_points_to_bezier_keys(points: &[AnimationCurveFitPoint], options: AnimationCurveBezierFitOptions) -> Vec<AnimationCurveKey> {
+pub fn fit_points_to_bezier_keys(
+    points: &[AnimationCurveFitPoint],
+    options: AnimationCurveBezierFitOptions,
+) -> Vec<AnimationCurveKey> {
     let points = normalize_curve_fit_points(points);
     if points.is_empty() {
         return Vec::new();
     }
     if points.len() == 1 {
-        return vec![AnimationCurveKey::new(points[0].position, points[0].value, CurveEasing::Linear)];
+        return vec![AnimationCurveKey::new(
+            points[0].position,
+            points[0].value,
+            CurveEasing::Linear,
+        )];
     }
 
     let options = normalize_curve_fit_options(options);
     let mut breakpoints = vec![0usize, points.len() - 1];
-    collect_curve_fit_breakpoints(points.as_slice(), options.max_value_error, options.max_keys, 0, points.len() - 1, &mut breakpoints);
+    collect_curve_fit_breakpoints(
+        points.as_slice(),
+        options.max_value_error,
+        options.max_keys,
+        0,
+        points.len() - 1,
+        &mut breakpoints,
+    );
     breakpoints.sort_unstable();
     breakpoints.dedup();
 
@@ -428,7 +485,15 @@ pub fn fit_points_to_bezier_keys(points: &[AnimationCurveFitPoint], options: Ani
             let next_point = points[next_point_index];
             let start_slope = estimate_curve_fit_slope(points.as_slice(), point_index);
             let end_slope = estimate_curve_fit_slope(points.as_slice(), next_point_index);
-            bezier_easing_from_endpoint_slopes(point.position, point.value, next_point.position, next_point.value, start_slope, end_slope).unwrap_or(CurveEasing::Linear)
+            bezier_easing_from_endpoint_slopes(
+                point.position,
+                point.value,
+                next_point.position,
+                next_point.value,
+                start_slope,
+                end_slope,
+            )
+            .unwrap_or(CurveEasing::Linear)
         } else {
             CurveEasing::Linear
         };
@@ -604,7 +669,12 @@ impl AnimationCurve {
     }
 
     /// Samples one value at `position` with cursor acceleration and script easing support.
-    pub fn sample_with_cursor_and_script(&self, position: f64, cursor: &mut AnimationCurveCursor, script_sampler: &mut dyn CurveScriptSampler) -> Option<f64> {
+    pub fn sample_with_cursor_and_script(
+        &self,
+        position: f64,
+        cursor: &mut AnimationCurveCursor,
+        script_sampler: &mut dyn CurveScriptSampler,
+    ) -> Option<f64> {
         let mut script_sampler = Some(script_sampler);
         self.sample_internal(position, Some(cursor), &mut script_sampler)
     }
@@ -621,12 +691,24 @@ impl AnimationCurve {
     ///
     /// Script easings are resolved with `script_sampler`.
     /// Returns the number of written samples.
-    pub fn sample_range_with_script(&self, start_position: f64, end_position: f64, output: &mut [f64], script_sampler: &mut dyn CurveScriptSampler) -> usize {
+    pub fn sample_range_with_script(
+        &self,
+        start_position: f64,
+        end_position: f64,
+        output: &mut [f64],
+        script_sampler: &mut dyn CurveScriptSampler,
+    ) -> usize {
         let mut script_sampler = Some(script_sampler);
         self.sample_range_internal(start_position, end_position, output, &mut script_sampler)
     }
 
-    fn sample_range_internal(&self, start_position: f64, end_position: f64, output: &mut [f64], script_sampler: &mut Option<&mut dyn CurveScriptSampler>) -> usize {
+    fn sample_range_internal(
+        &self,
+        start_position: f64,
+        end_position: f64,
+        output: &mut [f64],
+        script_sampler: &mut Option<&mut dyn CurveScriptSampler>,
+    ) -> usize {
         if output.is_empty() || !start_position.is_finite() || !end_position.is_finite() {
             return 0;
         }
@@ -652,7 +734,11 @@ impl AnimationCurve {
         let step = (end_position - start_position) / (output_len.saturating_sub(1) as f64);
         let mut cursor = AnimationCurveCursor::new();
         for (index, slot) in output.iter_mut().enumerate() {
-            let position = if index + 1 == output_len { end_position } else { start_position + step * (index as f64) };
+            let position = if index + 1 == output_len {
+                end_position
+            } else {
+                start_position + step * (index as f64)
+            };
             if let Some(sampled) = self.sample_internal(position, Some(&mut cursor), script_sampler) {
                 *slot = sampled;
             } else {
@@ -663,7 +749,12 @@ impl AnimationCurve {
         output.len()
     }
 
-    fn sample_internal(&self, position: f64, cursor: Option<&mut AnimationCurveCursor>, script_sampler: &mut Option<&mut dyn CurveScriptSampler>) -> Option<f64> {
+    fn sample_internal(
+        &self,
+        position: f64,
+        cursor: Option<&mut AnimationCurveCursor>,
+        script_sampler: &mut Option<&mut dyn CurveScriptSampler>,
+    ) -> Option<f64> {
         if !position.is_finite() || self.keys.is_empty() {
             return None;
         }
@@ -686,14 +777,20 @@ impl AnimationCurve {
             return Some(self.clamp_sampled_value(first.value));
         }
 
-        let segment_index = if let Some(cursor) = cursor { resolve_segment_index_with_cursor(position, segments, cursor) } else { resolve_segment_index(position, segments) };
+        let segment_index = if let Some(cursor) = cursor {
+            resolve_segment_index_with_cursor(position, segments, cursor)
+        } else {
+            resolve_segment_index(position, segments)
+        };
 
         let segment = segments.get(segment_index)?;
         Some(self.clamp_sampled_value(sample_compiled_segment(segment, position, script_sampler)))
     }
 
     fn compiled_segments(&self) -> &[CompiledCurveSegment] {
-        self.compiled_segments.get_or_init(|| compile_segments(self.keys.as_slice())).as_slice()
+        self.compiled_segments
+            .get_or_init(|| compile_segments(self.keys.as_slice()))
+            .as_slice()
     }
 
     fn clamp_sampled_value(&self, value: f64) -> f64 {
@@ -748,11 +845,34 @@ enum CompiledCurveEasing {
     Linear,
     Hold,
     Bezier(CompiledBezierSegment),
-    Steps { steps: f64 },
-    Shape { shape: CurveShape, amplitude: f64, phase_cycles: f64, fade_in: f64, fade_out: f64 },
-    PerlinNoise { frequency: f64, amplitude: f64, octaves: u32, fade_in: f64, fade_out: f64, phase: f64, seed: u64 },
-    Random { frequency: f64, fade_in: f64, fade_out: f64, seed: u64 },
-    Script { source: String },
+    Steps {
+        steps: f64,
+    },
+    Shape {
+        shape: CurveShape,
+        amplitude: f64,
+        phase_cycles: f64,
+        fade_in: f64,
+        fade_out: f64,
+    },
+    PerlinNoise {
+        frequency: f64,
+        amplitude: f64,
+        octaves: u32,
+        fade_in: f64,
+        fade_out: f64,
+        phase: f64,
+        seed: u64,
+    },
+    Random {
+        frequency: f64,
+        fade_in: f64,
+        fade_out: f64,
+        seed: u64,
+    },
+    Script {
+        source: String,
+    },
 }
 
 impl CompiledCurveEasing {
@@ -766,7 +886,11 @@ impl CompiledCurveEasing {
                 let in_handle = sanitize_handle(*in_handle, default_bezier_in_handle());
                 Self::Bezier(CompiledBezierSegment::new(out_handle, in_handle, start, end))
             }
-            CurveEasing::Steps { step_mode, step_size, num_steps } => {
+            CurveEasing::Steps {
+                step_mode,
+                step_size,
+                num_steps,
+            } => {
                 let steps = match step_mode {
                     CurveStepMode::StepSize => {
                         let size = finite_or(*step_size, default_step_size()).abs().max(CURVE_EPSILON);
@@ -813,7 +937,12 @@ impl CompiledCurveEasing {
                 phase: finite_or(*phase, 0.0),
                 seed: stable_mix_u64(start.position.to_bits() ^ end.position.to_bits().rotate_left(17)),
             },
-            CurveEasing::Random { frequency, fade_in, fade_out, seed } => Self::Random {
+            CurveEasing::Random {
+                frequency,
+                fade_in,
+                fade_out,
+                seed,
+            } => Self::Random {
                 frequency: finite_or(*frequency, default_random_frequency()).abs(),
                 fade_in: finite_or(*fade_in, 0.0).max(0.0),
                 fade_out: finite_or(*fade_out, 0.0).max(0.0),
@@ -860,7 +989,12 @@ struct CompiledBezierSegment {
 }
 
 impl CompiledBezierSegment {
-    fn new(out_handle: CurveHandle, in_handle: CurveHandle, start: &AnimationCurveKey, end: &AnimationCurveKey) -> Self {
+    fn new(
+        out_handle: CurveHandle,
+        in_handle: CurveHandle,
+        start: &AnimationCurveKey,
+        end: &AnimationCurveKey,
+    ) -> Self {
         let span = (end.position - start.position).max(CURVE_EPSILON);
         let value_span = end.value - start.value;
 
@@ -925,7 +1059,11 @@ impl CompiledBezierSegment {
     }
 }
 
-fn sample_compiled_segment(segment: &CompiledCurveSegment, position: f64, script_sampler: &mut Option<&mut dyn CurveScriptSampler>) -> f64 {
+fn sample_compiled_segment(
+    segment: &CompiledCurveSegment,
+    position: f64,
+    script_sampler: &mut Option<&mut dyn CurveScriptSampler>,
+) -> f64 {
     if position <= segment.start_position {
         return segment.start_value;
     }
@@ -946,7 +1084,13 @@ fn sample_compiled_segment(segment: &CompiledCurveSegment, position: f64, script
             let stepped_progress = (step_index / steps).clamp(0.0, 1.0);
             segment.start_value + segment.value_delta * stepped_progress
         }
-        CompiledCurveEasing::Shape { shape, amplitude, phase_cycles, fade_in, fade_out } => {
+        CompiledCurveEasing::Shape {
+            shape,
+            amplitude,
+            phase_cycles,
+            fade_in,
+            fade_out,
+        } => {
             let envelope = fade_envelope(progress, *fade_in, *fade_out);
             let resolved_amplitude = amplitude * segment.value_delta.abs();
             let wave = sample_shape_wave(*shape, phase_cycles * progress);
@@ -970,7 +1114,12 @@ fn sample_compiled_segment(segment: &CompiledCurveSegment, position: f64, script
             let noise = fractal_noise_1d(noise_position, *octaves, *seed);
             linear_value + noise * *amplitude * envelope
         }
-        CompiledCurveEasing::Random { frequency, fade_in, fade_out, seed } => {
+        CompiledCurveEasing::Random {
+            frequency,
+            fade_in,
+            fade_out,
+            seed,
+        } => {
             if *frequency <= CURVE_EPSILON {
                 return linear_value;
             }
@@ -1056,10 +1205,16 @@ fn normalize_keys(keys: &mut Vec<AnimationCurveKey>) {
 }
 
 fn resolve_segment_index(position: f64, segments: &[CompiledCurveSegment]) -> usize {
-    segments.partition_point(|segment| segment.end_position <= position).min(segments.len().saturating_sub(1))
+    segments
+        .partition_point(|segment| segment.end_position <= position)
+        .min(segments.len().saturating_sub(1))
 }
 
-fn resolve_segment_index_with_cursor(position: f64, segments: &[CompiledCurveSegment], cursor: &mut AnimationCurveCursor) -> usize {
+fn resolve_segment_index_with_cursor(
+    position: f64,
+    segments: &[CompiledCurveSegment],
+    cursor: &mut AnimationCurveCursor,
+) -> usize {
     if segments.is_empty() {
         return 0;
     }
@@ -1127,7 +1282,11 @@ fn fractal_noise_1d(position: f64, octaves: u32, seed: u64) -> f64 {
         amplitude *= 0.5;
     }
 
-    if normalization <= CURVE_EPSILON { 0.0 } else { total / normalization }
+    if normalization <= CURVE_EPSILON {
+        0.0
+    } else {
+        total / normalization
+    }
 }
 
 fn value_noise_1d(position: f64, seed: u64) -> f64 {
@@ -1180,12 +1339,19 @@ mod tests {
     use super::*;
 
     fn assert_close(actual: f64, expected: f64) {
-        assert!((actual - expected).abs() <= 1e-6, "expected {expected}, got {actual} (delta={})", (actual - expected).abs());
+        assert!(
+            (actual - expected).abs() <= 1e-6,
+            "expected {expected}, got {actual} (delta={})",
+            (actual - expected).abs()
+        );
     }
 
     #[test]
     fn linear_curve_samples_expected_values() {
-        let curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Linear), AnimationCurveKey::new(10.0, 10.0, CurveEasing::Linear)]);
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(0.0, 0.0, CurveEasing::Linear),
+            AnimationCurveKey::new(10.0, 10.0, CurveEasing::Linear),
+        ]);
 
         assert_close(curve.sample(-1.0).expect("sample should exist"), 0.0);
         assert_close(curve.sample(5.0).expect("sample should exist"), 5.0);
@@ -1194,7 +1360,10 @@ mod tests {
 
     #[test]
     fn value_range_constraint_clamps_sampled_output() {
-        let mut curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, -10.0, CurveEasing::Linear), AnimationCurveKey::new(1.0, 10.0, CurveEasing::Linear)]);
+        let mut curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(0.0, -10.0, CurveEasing::Linear),
+            AnimationCurveKey::new(1.0, 10.0, CurveEasing::Linear),
+        ]);
         curve.set_value_range_constraint(Some(-2.0), Some(3.0));
 
         assert_close(curve.sample(0.0).expect("sample should exist"), -2.0);
@@ -1204,7 +1373,10 @@ mod tests {
 
     #[test]
     fn hold_easing_keeps_start_value_until_boundary() {
-        let curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 3.0, CurveEasing::Hold), AnimationCurveKey::new(2.0, 9.0, CurveEasing::Linear)]);
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(0.0, 3.0, CurveEasing::Hold),
+            AnimationCurveKey::new(2.0, 9.0, CurveEasing::Linear),
+        ]);
 
         assert_close(curve.sample(0.5).expect("sample should exist"), 3.0);
         assert_close(curve.sample(1.9).expect("sample should exist"), 3.0);
@@ -1269,8 +1441,14 @@ mod tests {
         let three_quarter = curve.sample(0.75).expect("sample should exist");
 
         assert!(quarter < 0.2, "expected strong ease-in shape, got {quarter}");
-        assert!((half - 0.5).abs() < 0.01, "expected midpoint to stay near 0.5, got {half}");
-        assert!(three_quarter > 0.8, "expected strong ease-out shape, got {three_quarter}");
+        assert!(
+            (half - 0.5).abs() < 0.01,
+            "expected midpoint to stay near 0.5, got {half}"
+        );
+        assert!(
+            three_quarter > 0.8,
+            "expected strong ease-out shape, got {three_quarter}"
+        );
     }
 
     #[test]
@@ -1320,9 +1498,45 @@ mod tests {
 
     #[test]
     fn random_mode_uses_seed() {
-        let curve_a = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Random { frequency: 10.0, fade_in: 0.0, fade_out: 0.0, seed: 12 }), AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear)]);
-        let curve_b = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Random { frequency: 10.0, fade_in: 0.0, fade_out: 0.0, seed: 12 }), AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear)]);
-        let curve_c = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Random { frequency: 10.0, fade_in: 0.0, fade_out: 0.0, seed: 42 }), AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear)]);
+        let curve_a = AnimationCurve::new(vec![
+            AnimationCurveKey::new(
+                0.0,
+                0.0,
+                CurveEasing::Random {
+                    frequency: 10.0,
+                    fade_in: 0.0,
+                    fade_out: 0.0,
+                    seed: 12,
+                },
+            ),
+            AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear),
+        ]);
+        let curve_b = AnimationCurve::new(vec![
+            AnimationCurveKey::new(
+                0.0,
+                0.0,
+                CurveEasing::Random {
+                    frequency: 10.0,
+                    fade_in: 0.0,
+                    fade_out: 0.0,
+                    seed: 12,
+                },
+            ),
+            AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear),
+        ]);
+        let curve_c = AnimationCurve::new(vec![
+            AnimationCurveKey::new(
+                0.0,
+                0.0,
+                CurveEasing::Random {
+                    frequency: 10.0,
+                    fade_in: 0.0,
+                    fade_out: 0.0,
+                    seed: 42,
+                },
+            ),
+            AnimationCurveKey::new(1.0, 1.0, CurveEasing::Linear),
+        ]);
 
         let a = curve_a.sample(0.43).expect("sample should exist");
         let b = curve_b.sample(0.43).expect("sample should exist");
@@ -1333,7 +1547,11 @@ mod tests {
 
     #[test]
     fn sample_range_matches_single_point_sampling() {
-        let curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Linear), AnimationCurveKey::new(1.0, 1.0, CurveEasing::Hold), AnimationCurveKey::new(2.0, 0.0, CurveEasing::Linear)]);
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(0.0, 0.0, CurveEasing::Linear),
+            AnimationCurveKey::new(1.0, 1.0, CurveEasing::Hold),
+            AnimationCurveKey::new(2.0, 0.0, CurveEasing::Linear),
+        ]);
 
         let mut sampled = vec![0.0; 257];
         let written = curve.sample_range(0.0, 2.0, sampled.as_mut_slice());
@@ -1341,7 +1559,11 @@ mod tests {
 
         let step = 2.0 / ((sampled.len() - 1) as f64);
         for (index, value) in sampled.iter().enumerate() {
-            let position = if index + 1 == sampled.len() { 2.0 } else { step * (index as f64) };
+            let position = if index + 1 == sampled.len() {
+                2.0
+            } else {
+                step * (index as f64)
+            };
             let expected = curve.sample(position).expect("sample should exist");
             assert_close(*value, expected);
         }
@@ -1349,19 +1571,27 @@ mod tests {
 
     #[test]
     fn cursor_sampling_matches_regular_sampling_in_both_directions() {
-        let curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 1.0, CurveEasing::Linear), AnimationCurveKey::new(1.0, 5.0, CurveEasing::Linear), AnimationCurveKey::new(2.0, 2.0, CurveEasing::Linear)]);
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(0.0, 1.0, CurveEasing::Linear),
+            AnimationCurveKey::new(1.0, 5.0, CurveEasing::Linear),
+            AnimationCurveKey::new(2.0, 2.0, CurveEasing::Linear),
+        ]);
 
         let mut cursor = AnimationCurveCursor::new();
         for index in 0..200 {
             let position = index as f64 / 100.0;
-            let with_cursor = curve.sample_with_cursor(position, &mut cursor).expect("sample should exist");
+            let with_cursor = curve
+                .sample_with_cursor(position, &mut cursor)
+                .expect("sample should exist");
             let without_cursor = curve.sample(position).expect("sample should exist");
             assert_close(with_cursor, without_cursor);
         }
 
         for index in (0..200).rev() {
             let position = index as f64 / 100.0;
-            let with_cursor = curve.sample_with_cursor(position, &mut cursor).expect("sample should exist");
+            let with_cursor = curve
+                .sample_with_cursor(position, &mut cursor)
+                .expect("sample should exist");
             let without_cursor = curve.sample(position).expect("sample should exist");
             assert_close(with_cursor, without_cursor);
         }
@@ -1374,16 +1604,31 @@ mod tests {
     impl CurveScriptSampler for ScriptSampler {
         fn sample(&mut self, source: &str, context: CurveSampleContext) -> Option<f64> {
             self.calls += 1;
-            if source == "offset+2" { Some(context.linear_value + 2.0) } else { None }
+            if source == "offset+2" {
+                Some(context.linear_value + 2.0)
+            } else {
+                None
+            }
         }
     }
 
     #[test]
     fn script_easing_uses_host_callback() {
-        let curve = AnimationCurve::new(vec![AnimationCurveKey::new(0.0, 0.0, CurveEasing::Script { source: "offset+2".to_string() }), AnimationCurveKey::new(10.0, 10.0, CurveEasing::Linear)]);
+        let curve = AnimationCurve::new(vec![
+            AnimationCurveKey::new(
+                0.0,
+                0.0,
+                CurveEasing::Script {
+                    source: "offset+2".to_string(),
+                },
+            ),
+            AnimationCurveKey::new(10.0, 10.0, CurveEasing::Linear),
+        ]);
 
         let mut sampler = ScriptSampler { calls: 0 };
-        let sampled = curve.sample_with_script(5.0, &mut sampler).expect("sample should exist");
+        let sampled = curve
+            .sample_with_script(5.0, &mut sampler)
+            .expect("sample should exist");
         assert_close(sampled, 7.0);
         assert_eq!(sampler.calls, 1);
     }
@@ -1408,8 +1653,15 @@ mod tests {
     #[test]
     fn fit_points_to_bezier_keys_preserves_straight_line_with_two_keys() {
         let keys = fit_points_to_bezier_keys(
-            &[AnimationCurveFitPoint::new(0.0, 0.0), AnimationCurveFitPoint::new(0.5, 0.5), AnimationCurveFitPoint::new(1.0, 1.0)],
-            AnimationCurveBezierFitOptions { max_value_error: 1e-6, max_keys: 8 },
+            &[
+                AnimationCurveFitPoint::new(0.0, 0.0),
+                AnimationCurveFitPoint::new(0.5, 0.5),
+                AnimationCurveFitPoint::new(1.0, 1.0),
+            ],
+            AnimationCurveBezierFitOptions {
+                max_value_error: 1e-6,
+                max_keys: 8,
+            },
         );
 
         assert_eq!(keys.len(), 2, "straight line should fit into one segment");
@@ -1424,13 +1676,24 @@ mod tests {
     #[test]
     fn fit_points_to_bezier_keys_keeps_last_duplicate_position_sample() {
         let keys = fit_points_to_bezier_keys(
-            &[AnimationCurveFitPoint::new(0.0, 0.0), AnimationCurveFitPoint::new(0.5, 0.2), AnimationCurveFitPoint::new(0.5, 0.8), AnimationCurveFitPoint::new(1.0, 1.0)],
-            AnimationCurveBezierFitOptions { max_value_error: 0.05, max_keys: 8 },
+            &[
+                AnimationCurveFitPoint::new(0.0, 0.0),
+                AnimationCurveFitPoint::new(0.5, 0.2),
+                AnimationCurveFitPoint::new(0.5, 0.8),
+                AnimationCurveFitPoint::new(1.0, 1.0),
+            ],
+            AnimationCurveBezierFitOptions {
+                max_value_error: 0.05,
+                max_keys: 8,
+            },
         );
 
         let curve = AnimationCurve::new(keys);
         let sample = curve.sample(0.5).expect("sample should exist");
-        assert!((sample - 0.8).abs() < 0.12, "fit should honor the last sample at a duplicated position");
+        assert!(
+            (sample - 0.8).abs() < 0.12,
+            "fit should honor the last sample at a duplicated position"
+        );
     }
 
     #[test]
@@ -1443,7 +1706,10 @@ mod tests {
                 AnimationCurveFitPoint::new(0.75, -1.0),
                 AnimationCurveFitPoint::new(1.0, 0.0),
             ],
-            AnimationCurveBezierFitOptions { max_value_error: 0.02, max_keys: 12 },
+            AnimationCurveBezierFitOptions {
+                max_value_error: 0.02,
+                max_keys: 12,
+            },
         );
 
         assert!(keys.len() > 2, "nonlinear path should split into multiple bezier keys");

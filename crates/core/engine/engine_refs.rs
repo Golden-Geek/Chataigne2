@@ -3,7 +3,10 @@ use std::collections::HashSet;
 
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeUuid, PARAMETER_CONTROL_REFERENCE_DECL_ID};
-use crate::parameter::{ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind, compatibility_for_binding_values, compatibility_for_values, default_param_value_for_type_id};
+use crate::parameter::{
+    ParamValue, ParamValueCompatibility, ParameterControlMode, ReferenceConstraints, ReferenceRoot,
+    ReferenceTargetKind, compatibility_for_binding_values, compatibility_for_values, default_param_value_for_type_id,
+};
 
 use super::Engine;
 
@@ -12,19 +15,28 @@ pub(crate) const MISSING_REFERENCE_WARNING_ID: &str = "missing-reference";
 impl<T: Node> Engine<T> {
     /// Builds a runtime lookup map from persistent UUID to current node id.
     pub fn uuid_to_node_id_map(&self) -> HashMap<NodeUuid, NodeId> {
-        self.nodes.iter().map(|(id, node)| (node.node_data().meta.uuid, id)).collect()
+        self.nodes
+            .iter()
+            .map(|(id, node)| (node.node_data().meta.uuid, id))
+            .collect()
     }
 
     /// Returns the current runtime node id for a persistent UUID, when present.
     pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
-        self.nodes.iter().find_map(|(id, node)| (node.node_data().meta.uuid == uuid).then_some(id))
+        self.nodes
+            .iter()
+            .find_map(|(id, node)| (node.node_data().meta.uuid == uuid).then_some(id))
     }
 
     /// Rebuilds cached runtime ids inside all reference parameter values.
     ///
     /// Returns how many cached entries were updated.
     pub fn resolve_reference_caches(&mut self) -> usize {
-        let uuid_map: HashMap<NodeUuid, (NodeId, String)> = self.nodes.iter().map(|(id, node)| (node.node_data().meta.uuid, (id, node.node_data().meta.label.clone()))).collect();
+        let uuid_map: HashMap<NodeUuid, (NodeId, String)> = self
+            .nodes
+            .iter()
+            .map(|(id, node)| (node.node_data().meta.uuid, (id, node.node_data().meta.label.clone())))
+            .collect();
         let node_ids: Vec<NodeId> = self.nodes.keys().collect();
         let mut updated = 0usize;
 
@@ -94,8 +106,13 @@ impl<T: Node> Engine<T> {
 
             let mut next_presentation = node.node_data().meta.presentation.clone();
             match snapshot.value {
-                ParamValue::Reference(reference) if !reference.uuid().is_nil() && !uuid_map.contains_key(&reference.uuid()) => {
-                    let detail = reference.cached_name().map(|name| format!("Target '{name}' is missing")).unwrap_or_else(|| format!("Target UUID {} is missing", reference.uuid().0));
+                ParamValue::Reference(reference)
+                    if !reference.uuid().is_nil() && !uuid_map.contains_key(&reference.uuid()) =>
+                {
+                    let detail = reference
+                        .cached_name()
+                        .map(|name| format!("Target '{name}' is missing"))
+                        .unwrap_or_else(|| format!("Target UUID {} is missing", reference.uuid().0));
                     next_presentation.set_warning(crate::node::NodeWarning {
                         id: MISSING_REFERENCE_WARNING_ID.to_string(),
                         message: "Missing reference".to_string(),
@@ -131,7 +148,11 @@ impl<T: Node> Engine<T> {
         pending.len()
     }
 
-    pub(crate) fn normalize_reference_value_for_param(&self, param_node: NodeId, mut reference: crate::node::NodeReference) -> Result<crate::node::NodeReference, String> {
+    pub(crate) fn normalize_reference_value_for_param(
+        &self,
+        param_node: NodeId,
+        mut reference: crate::node::NodeReference,
+    ) -> Result<crate::node::NodeReference, String> {
         if reference.uuid().is_nil() && reference.relative_path_from_root().is_empty() {
             reference.clear_cached_id();
             reference.clear_relative_path_from_root();
@@ -141,7 +162,9 @@ impl<T: Node> Engine<T> {
         }
 
         let constraints = self.reference_constraints_for_param(param_node);
-        let root = self.resolve_reference_root(param_node, &constraints).ok_or_else(|| "reference root could not be resolved".to_string())?;
+        let root = self
+            .resolve_reference_root(param_node, &constraints)
+            .ok_or_else(|| "reference root could not be resolved".to_string())?;
 
         let mut resolved = None;
         let mut resolved_but_rejected = false;
@@ -188,16 +211,22 @@ impl<T: Node> Engine<T> {
             return Err("reference projections are disabled by constraints".to_string());
         }
 
-        if let Some(compatibility) = self.reference_candidate_compatibility_for_param(param_node, target, &constraints) {
+        if let Some(compatibility) = self.reference_candidate_compatibility_for_param(param_node, target, &constraints)
+        {
             if let Some(projection) = reference.projection() {
                 if !compatibility.projections.contains(&projection) {
-                    return Err(format!("reference projection '{}' is not compatible with selected target", projection.variant_id()));
+                    return Err(format!(
+                        "reference projection '{}' is not compatible with selected target",
+                        projection.variant_id()
+                    ));
                 }
             } else if !compatibility.direct && !compatibility.projections.is_empty() {
                 return Err("reference target requires selecting a projection".to_string());
             }
         } else if reference.projection().is_some() {
-            return Err("reference projection is only valid for parameter targets with a typed expectation".to_string());
+            return Err(
+                "reference projection is only valid for parameter targets with a typed expectation".to_string(),
+            );
         }
 
         reference.set_cached_id(Some(target));
@@ -213,10 +242,18 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn reference_constraints_for_param(&self, param_node: NodeId) -> ReferenceConstraints {
-        self.nodes.get(param_node).and_then(|node| node.engine_param_snapshot()).map(|snapshot| snapshot.constraints.reference).unwrap_or_default()
+        self.nodes
+            .get(param_node)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.constraints.reference)
+            .unwrap_or_default()
     }
 
-    pub(crate) fn resolve_reference_root(&self, param_node: NodeId, constraints: &ReferenceConstraints) -> Option<NodeId> {
+    pub(crate) fn resolve_reference_root(
+        &self,
+        param_node: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Option<NodeId> {
         match &constraints.root {
             ReferenceRoot::EngineRoot => Some(self.root),
             ReferenceRoot::Uuid(uuid) => self.node_id_by_uuid(*uuid),
@@ -234,7 +271,10 @@ impl<T: Node> Engine<T> {
             let mut found = None;
 
             while let Some(child_id) = child {
-                let matches = self.nodes.get(child_id).is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
+                let matches = self
+                    .nodes
+                    .get(child_id)
+                    .is_some_and(|node| node.node_data().meta.decl_id.0 == *segment);
                 if matches {
                     found = Some(child_id);
                     break;
@@ -286,14 +326,24 @@ impl<T: Node> Engine<T> {
             return None;
         }
         let controlled_param = param_entry.node_data().parent?;
-        let Some(control_state) = self.nodes.get(controlled_param).and_then(|node| node.engine_param_control_state()) else {
+        let Some(control_state) = self
+            .nodes
+            .get(controlled_param)
+            .and_then(|node| node.engine_param_control_state())
+        else {
             return None;
         };
-        if !matches!(control_state.mode, ParameterControlMode::Proxy | ParameterControlMode::Binding) {
+        if !matches!(
+            control_state.mode,
+            ParameterControlMode::Proxy | ParameterControlMode::Binding
+        ) {
             return None;
         }
 
-        self.nodes.get(controlled_param).and_then(|node| node.engine_param_snapshot()).map(|snapshot| (control_state.mode, snapshot.value))
+        self.nodes
+            .get(controlled_param)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| (control_state.mode, snapshot.value))
     }
 
     fn control_reference_expected_value(&self, param_node: NodeId) -> Option<ParamValue> {
@@ -301,11 +351,20 @@ impl<T: Node> Engine<T> {
     }
 
     fn control_reference_uses_binding_compatibility(&self, param_node: NodeId) -> bool {
-        self.control_reference_context(param_node).is_some_and(|(mode, _)| mode == ParameterControlMode::Binding)
+        self.control_reference_context(param_node)
+            .is_some_and(|(mode, _)| mode == ParameterControlMode::Binding)
     }
 
-    pub(crate) fn expected_reference_parameter_values(&self, param_node: NodeId, constraints: &ReferenceConstraints) -> Vec<ParamValue> {
-        let mut expected_values = constraints.allowed_parameter_types.iter().filter_map(|allowed| default_param_value_for_type_id(allowed)).collect::<Vec<_>>();
+    pub(crate) fn expected_reference_parameter_values(
+        &self,
+        param_node: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Vec<ParamValue> {
+        let mut expected_values = constraints
+            .allowed_parameter_types
+            .iter()
+            .filter_map(|allowed| default_param_value_for_type_id(allowed))
+            .collect::<Vec<_>>();
 
         if expected_values.is_empty() {
             if let Some(control_reference_value) = self.control_reference_expected_value(param_node) {
@@ -316,10 +375,19 @@ impl<T: Node> Engine<T> {
         expected_values
     }
 
-    fn compatibility_for_expected_values(&self, candidate_value: &ParamValue, expected_values: &[ParamValue], binding_semantics: bool) -> ParamValueCompatibility {
+    fn compatibility_for_expected_values(
+        &self,
+        candidate_value: &ParamValue,
+        expected_values: &[ParamValue],
+        binding_semantics: bool,
+    ) -> ParamValueCompatibility {
         let mut combined = ParamValueCompatibility::default();
         for expected in expected_values {
-            let compatibility = if binding_semantics { compatibility_for_binding_values(candidate_value, expected) } else { compatibility_for_values(candidate_value, expected) };
+            let compatibility = if binding_semantics {
+                compatibility_for_binding_values(candidate_value, expected)
+            } else {
+                compatibility_for_values(candidate_value, expected)
+            };
             combined.direct |= compatibility.direct;
             combined.projections.extend(compatibility.projections);
         }
@@ -328,28 +396,61 @@ impl<T: Node> Engine<T> {
         combined
     }
 
-    fn apply_projection_policy(&self, mut compatibility: ParamValueCompatibility, constraints: &ReferenceConstraints) -> ParamValueCompatibility {
+    fn apply_projection_policy(
+        &self,
+        mut compatibility: ParamValueCompatibility,
+        constraints: &ReferenceConstraints,
+    ) -> ParamValueCompatibility {
         if !constraints.allow_projections {
             compatibility.projections.clear();
         }
         compatibility
     }
 
-    pub(crate) fn reference_candidate_compatibility_for_expected_values(&self, param_node: NodeId, candidate: NodeId, expected_parameter_values: &[ParamValue], constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
+    pub(crate) fn reference_candidate_compatibility_for_expected_values(
+        &self,
+        param_node: NodeId,
+        candidate: NodeId,
+        expected_parameter_values: &[ParamValue],
+        constraints: &ReferenceConstraints,
+    ) -> Option<ParamValueCompatibility> {
         if expected_parameter_values.is_empty() {
             return None;
         }
         let candidate_snapshot = self.nodes.get(candidate)?.engine_param_snapshot()?;
         let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
-        Some(self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values, binding_semantics), constraints))
+        Some(self.apply_projection_policy(
+            self.compatibility_for_expected_values(
+                &candidate_snapshot.value,
+                expected_parameter_values,
+                binding_semantics,
+            ),
+            constraints,
+        ))
     }
 
-    pub(crate) fn reference_candidate_compatibility_for_param(&self, param_node: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Option<ParamValueCompatibility> {
+    pub(crate) fn reference_candidate_compatibility_for_param(
+        &self,
+        param_node: NodeId,
+        candidate: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Option<ParamValueCompatibility> {
         let expected_parameter_values = self.expected_reference_parameter_values(param_node, constraints);
-        self.reference_candidate_compatibility_for_expected_values(param_node, candidate, expected_parameter_values.as_slice(), constraints)
+        self.reference_candidate_compatibility_for_expected_values(
+            param_node,
+            candidate,
+            expected_parameter_values.as_slice(),
+            constraints,
+        )
     }
 
-    pub(crate) fn reference_candidate_allowed(&self, param_node: NodeId, root: NodeId, candidate: NodeId, constraints: &ReferenceConstraints) -> Result<bool, String> {
+    pub(crate) fn reference_candidate_allowed(
+        &self,
+        param_node: NodeId,
+        root: NodeId,
+        candidate: NodeId,
+        constraints: &ReferenceConstraints,
+    ) -> Result<bool, String> {
         if !self.nodes.contains(candidate) {
             return Ok(false);
         }
@@ -368,7 +469,12 @@ impl<T: Node> Engine<T> {
             return Ok(false);
         }
 
-        if !constraints.allowed_node_types.is_empty() && !constraints.allowed_node_types.iter().any(|allowed| allowed == candidate_type) {
+        if !constraints.allowed_node_types.is_empty()
+            && !constraints
+                .allowed_node_types
+                .iter()
+                .any(|allowed| allowed == candidate_type)
+        {
             return Ok(false);
         }
 
@@ -381,7 +487,14 @@ impl<T: Node> Engine<T> {
                 return Ok(false);
             };
             let binding_semantics = self.control_reference_uses_binding_compatibility(param_node);
-            let compatibility = self.apply_projection_policy(self.compatibility_for_expected_values(&candidate_snapshot.value, expected_parameter_values.as_slice(), binding_semantics), constraints);
+            let compatibility = self.apply_projection_policy(
+                self.compatibility_for_expected_values(
+                    &candidate_snapshot.value,
+                    expected_parameter_values.as_slice(),
+                    binding_semantics,
+                ),
+                constraints,
+            );
             if !compatibility.is_compatible() {
                 return Ok(false);
             }
@@ -389,7 +502,11 @@ impl<T: Node> Engine<T> {
             if !is_parameter {
                 return Ok(false);
             }
-            if !constraints.allowed_parameter_types.iter().any(|allowed| allowed == candidate_type) {
+            if !constraints
+                .allowed_parameter_types
+                .iter()
+                .any(|allowed| allowed == candidate_type)
+            {
                 return Ok(false);
             }
         }

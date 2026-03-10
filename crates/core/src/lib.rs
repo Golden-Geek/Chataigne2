@@ -60,9 +60,6 @@ pub mod logger;
 /// Runtime project persistence and UI-server helpers.
 pub mod app;
 
-#[path = "../desktop.rs"]
-mod desktop;
-
 #[path = "../ui/ui_sync.rs"]
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
@@ -73,6 +70,3 @@ pub mod script;
 
 /// Attribute macros used to declare node types, item kinds, and runtime update rates.
 pub use golden_core_macros::{item, node, update};
-
-/// Canonical host entrypoint: boot a configured engine and run app services.
-pub use desktop::run_app;

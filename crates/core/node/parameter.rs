@@ -2,16 +2,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use ts_rs::TS;
 
 use crate::{
-    node::{DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData, NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, ParameterAnimationControlNode, UserContainerRules},
+    node::{
+        DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData,
+        NodeReference, NodeUuid, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND,
+        ParameterAnimationControlNode, UserContainerRules,
+    },
     process_ctx::ProcessCtx,
 };
 
 pub use crate::color::Color;
 
 /// Runtime value variants used by parameter nodes.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub enum ParamValue {
     /// Trigger-like pulse with no payload.
     Trigger(),
@@ -70,7 +75,9 @@ pub fn dependency_truthy(value: &ParamValue) -> bool {
         ParamValue::CssValue(value) => value.value.abs() > f64::EPSILON,
         ParamValue::Vec2(x, y) => x.abs() > f64::EPSILON || y.abs() > f64::EPSILON,
         ParamValue::Vec3(x, y, z) => x.abs() > f64::EPSILON || y.abs() > f64::EPSILON || z.abs() > f64::EPSILON,
-        ParamValue::Color(r, g, b, a) => r.abs() > f64::EPSILON || g.abs() > f64::EPSILON || b.abs() > f64::EPSILON || a.abs() > f64::EPSILON,
+        ParamValue::Color(r, g, b, a) => {
+            r.abs() > f64::EPSILON || g.abs() > f64::EPSILON || b.abs() > f64::EPSILON || a.abs() > f64::EPSILON
+        }
         ParamValue::Reference(reference) => !reference.is_empty(),
     }
 }
@@ -95,7 +102,10 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
             _ => {}
         }
 
-        if matches!(operator, ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne) {
+        if matches!(
+            operator,
+            ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne
+        ) {
             if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
                 return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
             }
@@ -104,7 +114,9 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
         return false;
     }
 
-    if matches!(lhs, ParamValue::Int(_) | ParamValue::Float(_)) || matches!(rhs, ParamValue::Int(_) | ParamValue::Float(_)) {
+    if matches!(lhs, ParamValue::Int(_) | ParamValue::Float(_))
+        || matches!(rhs, ParamValue::Int(_) | ParamValue::Float(_))
+    {
         if let (Some(lhs), Some(rhs)) = (lhs.as_float(), rhs.as_float()) {
             return compare_partial_ord(lhs, rhs, operator);
         }
@@ -116,7 +128,9 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
         }
     }
 
-    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_)) {
+    if matches!(lhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+        || matches!(rhs, ParamValue::Str(_) | ParamValue::File(_) | ParamValue::Enum(_))
+    {
         if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
             return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
         }
@@ -125,7 +139,10 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
     match operator {
         ParameterDependencyOperator::Eq => lhs == rhs,
         ParameterDependencyOperator::Ne => lhs != rhs,
-        ParameterDependencyOperator::Lt | ParameterDependencyOperator::Le | ParameterDependencyOperator::Gt | ParameterDependencyOperator::Ge => false,
+        ParameterDependencyOperator::Lt
+        | ParameterDependencyOperator::Le
+        | ParameterDependencyOperator::Gt
+        | ParameterDependencyOperator::Ge => false,
     }
 }
 
@@ -172,7 +189,7 @@ impl fmt::Display for ParamValue {
 ///
 /// Projections are intentionally explicit so non-trivial coercions
 /// (component picks, reshapes, color-space mappings) stay user-controlled.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ParamValueProjection {
     /// Expand one float to `(v, 0)`.
@@ -235,11 +252,42 @@ impl ParamValueProjection {
     /// Returns all projections valid for `source`.
     pub fn available_for_source(source: &ParamValue) -> Vec<Self> {
         match source {
-            ParamValue::Float(_) => vec![Self::FloatToVec2X0, Self::FloatToVec20Y, Self::FloatToVec2XX, Self::FloatToVec3X00, Self::FloatToVec30Y0, Self::FloatToVec300Z, Self::FloatToVec3XXX],
-            ParamValue::Vec2(_, _) => vec![Self::Vec2X, Self::Vec2Y, Self::Vec2ToVec3XY0, Self::Vec2ToVec3X0Y, Self::Vec2ToColorHs],
-            ParamValue::Vec3(_, _, _) => vec![Self::Vec3X, Self::Vec3Y, Self::Vec3Z, Self::Vec3ToVec2XY, Self::Vec3ToVec2XZ, Self::Vec3ToVec2YZ, Self::Vec3ToColorRgb, Self::Vec3ToColorHsv],
+            ParamValue::Float(_) => vec![
+                Self::FloatToVec2X0,
+                Self::FloatToVec20Y,
+                Self::FloatToVec2XX,
+                Self::FloatToVec3X00,
+                Self::FloatToVec30Y0,
+                Self::FloatToVec300Z,
+                Self::FloatToVec3XXX,
+            ],
+            ParamValue::Vec2(_, _) => vec![
+                Self::Vec2X,
+                Self::Vec2Y,
+                Self::Vec2ToVec3XY0,
+                Self::Vec2ToVec3X0Y,
+                Self::Vec2ToColorHs,
+            ],
+            ParamValue::Vec3(_, _, _) => vec![
+                Self::Vec3X,
+                Self::Vec3Y,
+                Self::Vec3Z,
+                Self::Vec3ToVec2XY,
+                Self::Vec3ToVec2XZ,
+                Self::Vec3ToVec2YZ,
+                Self::Vec3ToColorRgb,
+                Self::Vec3ToColorHsv,
+            ],
             ParamValue::Color(_, _, _, _) => {
-                vec![Self::ColorR, Self::ColorG, Self::ColorB, Self::ColorA, Self::ColorToVec3Rgb, Self::ColorToVec3Hsv, Self::ColorToVec2Hs]
+                vec![
+                    Self::ColorR,
+                    Self::ColorG,
+                    Self::ColorB,
+                    Self::ColorA,
+                    Self::ColorToVec3Rgb,
+                    Self::ColorToVec3Hsv,
+                    Self::ColorToVec2Hs,
+                ]
             }
             _ => Vec::new(),
         }
@@ -439,21 +487,45 @@ pub fn project_param_value(source: &ParamValue, projection: ParamValueProjection
     Some(projected)
 }
 
-fn project_param_value_for_target(source: &ParamValue, target: &ParamValue, projection: ParamValueProjection) -> Option<ParamValue> {
+fn project_param_value_for_target(
+    source: &ParamValue,
+    target: &ParamValue,
+    projection: ParamValueProjection,
+) -> Option<ParamValue> {
     let projected = match (source, target, projection) {
-        (ParamValue::Float(value), ParamValue::Vec2(_, y), ParamValueProjection::FloatToVec2X0) => ParamValue::Vec2(*value, *y),
-        (ParamValue::Float(value), ParamValue::Vec2(x, _), ParamValueProjection::FloatToVec20Y) => ParamValue::Vec2(*x, *value),
-        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::FloatToVec3X00) => ParamValue::Vec3(*value, *y, *z),
-        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::FloatToVec30Y0) => ParamValue::Vec3(*x, *value, *z),
-        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::FloatToVec300Z) => ParamValue::Vec3(*x, *y, *value),
-        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec2ToVec3XY0) => ParamValue::Vec3(*x, *y, *z),
-        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec2ToVec3X0Y) => ParamValue::Vec3(*x, *y, *z),
-        (ParamValue::Vec2(h, s), ParamValue::Color(target_r, target_g, target_b, target_a), ParamValueProjection::Vec2ToColorHs) => {
+        (ParamValue::Float(value), ParamValue::Vec2(_, y), ParamValueProjection::FloatToVec2X0) => {
+            ParamValue::Vec2(*value, *y)
+        }
+        (ParamValue::Float(value), ParamValue::Vec2(x, _), ParamValueProjection::FloatToVec20Y) => {
+            ParamValue::Vec2(*x, *value)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::FloatToVec3X00) => {
+            ParamValue::Vec3(*value, *y, *z)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::FloatToVec30Y0) => {
+            ParamValue::Vec3(*x, *value, *z)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::FloatToVec300Z) => {
+            ParamValue::Vec3(*x, *y, *value)
+        }
+        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec2ToVec3XY0) => {
+            ParamValue::Vec3(*x, *y, *z)
+        }
+        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec2ToVec3X0Y) => {
+            ParamValue::Vec3(*x, *y, *z)
+        }
+        (
+            ParamValue::Vec2(h, s),
+            ParamValue::Color(target_r, target_g, target_b, target_a),
+            ParamValueProjection::Vec2ToColorHs,
+        ) => {
             let (_, _, value) = rgb_to_hsv(*target_r, *target_g, *target_b);
             let (r, g, b) = hsv_to_rgb(*h, *s, value);
             ParamValue::Color(r, g, b, *target_a)
         }
-        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::Vec3ToColorRgb) => ParamValue::Color(*r, *g, *b, *target_a),
+        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::Vec3ToColorRgb) => {
+            ParamValue::Color(*r, *g, *b, *target_a)
+        }
         (ParamValue::Vec3(h, s, v), ParamValue::Color(_, _, _, target_a), ParamValueProjection::Vec3ToColorHsv) => {
             let (r, g, b) = hsv_to_rgb(*h, *s, *v);
             ParamValue::Color(r, g, b, *target_a)
@@ -463,44 +535,90 @@ fn project_param_value_for_target(source: &ParamValue, target: &ParamValue, proj
     Some(projected)
 }
 
-fn project_param_value_for_target_reverse(source: &ParamValue, target: &ParamValue, projection: ParamValueProjection) -> Option<ParamValue> {
+fn project_param_value_for_target_reverse(
+    source: &ParamValue,
+    target: &ParamValue,
+    projection: ParamValueProjection,
+) -> Option<ParamValue> {
     let projected = match (source, target, projection) {
         (ParamValue::Vec2(x, _), ParamValue::Float(_), ParamValueProjection::FloatToVec2X0) => ParamValue::Float(*x),
         (ParamValue::Vec2(_, y), ParamValue::Float(_), ParamValueProjection::FloatToVec20Y) => ParamValue::Float(*y),
-        (ParamValue::Vec2(x, y), ParamValue::Float(_), ParamValueProjection::FloatToVec2XX) => ParamValue::Float((*x + *y) * 0.5),
-        (ParamValue::Vec3(x, _, _), ParamValue::Float(_), ParamValueProjection::FloatToVec3X00) => ParamValue::Float(*x),
-        (ParamValue::Vec3(_, y, _), ParamValue::Float(_), ParamValueProjection::FloatToVec30Y0) => ParamValue::Float(*y),
-        (ParamValue::Vec3(_, _, z), ParamValue::Float(_), ParamValueProjection::FloatToVec300Z) => ParamValue::Float(*z),
-        (ParamValue::Vec3(x, y, z), ParamValue::Float(_), ParamValueProjection::FloatToVec3XXX) => ParamValue::Float((*x + *y + *z) / 3.0),
+        (ParamValue::Vec2(x, y), ParamValue::Float(_), ParamValueProjection::FloatToVec2XX) => {
+            ParamValue::Float((*x + *y) * 0.5)
+        }
+        (ParamValue::Vec3(x, _, _), ParamValue::Float(_), ParamValueProjection::FloatToVec3X00) => {
+            ParamValue::Float(*x)
+        }
+        (ParamValue::Vec3(_, y, _), ParamValue::Float(_), ParamValueProjection::FloatToVec30Y0) => {
+            ParamValue::Float(*y)
+        }
+        (ParamValue::Vec3(_, _, z), ParamValue::Float(_), ParamValueProjection::FloatToVec300Z) => {
+            ParamValue::Float(*z)
+        }
+        (ParamValue::Vec3(x, y, z), ParamValue::Float(_), ParamValueProjection::FloatToVec3XXX) => {
+            ParamValue::Float((*x + *y + *z) / 3.0)
+        }
         (ParamValue::Float(value), ParamValue::Vec2(_, y), ParamValueProjection::Vec2X) => ParamValue::Vec2(*value, *y),
         (ParamValue::Float(value), ParamValue::Vec2(x, _), ParamValueProjection::Vec2Y) => ParamValue::Vec2(*x, *value),
-        (ParamValue::Vec3(x, y, _), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3XY0) => ParamValue::Vec2(*x, *y),
-        (ParamValue::Vec3(x, _, z), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3X0Y) => ParamValue::Vec2(*x, *z),
+        (ParamValue::Vec3(x, y, _), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3XY0) => {
+            ParamValue::Vec2(*x, *y)
+        }
+        (ParamValue::Vec3(x, _, z), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToVec3X0Y) => {
+            ParamValue::Vec2(*x, *z)
+        }
         (ParamValue::Color(r, g, b, _), ParamValue::Vec2(_, _), ParamValueProjection::Vec2ToColorHs) => {
             let (h, s, _) = rgb_to_hsv(*r, *g, *b);
             ParamValue::Vec2(h, s)
         }
-        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::Vec3X) => ParamValue::Vec3(*value, *y, *z),
-        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::Vec3Y) => ParamValue::Vec3(*x, *value, *z),
-        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::Vec3Z) => ParamValue::Vec3(*x, *y, *value),
-        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec3ToVec2XY) => ParamValue::Vec3(*x, *y, *z),
-        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec3ToVec2XZ) => ParamValue::Vec3(*x, *y, *z),
-        (ParamValue::Vec2(y, z), ParamValue::Vec3(x, _, _), ParamValueProjection::Vec3ToVec2YZ) => ParamValue::Vec3(*x, *y, *z),
-        (ParamValue::Color(r, g, b, _), ParamValue::Vec3(_, _, _), ParamValueProjection::Vec3ToColorRgb) => ParamValue::Vec3(*r, *g, *b),
+        (ParamValue::Float(value), ParamValue::Vec3(_, y, z), ParamValueProjection::Vec3X) => {
+            ParamValue::Vec3(*value, *y, *z)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(x, _, z), ParamValueProjection::Vec3Y) => {
+            ParamValue::Vec3(*x, *value, *z)
+        }
+        (ParamValue::Float(value), ParamValue::Vec3(x, y, _), ParamValueProjection::Vec3Z) => {
+            ParamValue::Vec3(*x, *y, *value)
+        }
+        (ParamValue::Vec2(x, y), ParamValue::Vec3(_, _, z), ParamValueProjection::Vec3ToVec2XY) => {
+            ParamValue::Vec3(*x, *y, *z)
+        }
+        (ParamValue::Vec2(x, z), ParamValue::Vec3(_, y, _), ParamValueProjection::Vec3ToVec2XZ) => {
+            ParamValue::Vec3(*x, *y, *z)
+        }
+        (ParamValue::Vec2(y, z), ParamValue::Vec3(x, _, _), ParamValueProjection::Vec3ToVec2YZ) => {
+            ParamValue::Vec3(*x, *y, *z)
+        }
+        (ParamValue::Color(r, g, b, _), ParamValue::Vec3(_, _, _), ParamValueProjection::Vec3ToColorRgb) => {
+            ParamValue::Vec3(*r, *g, *b)
+        }
         (ParamValue::Color(r, g, b, _), ParamValue::Vec3(_, _, _), ParamValueProjection::Vec3ToColorHsv) => {
             let (h, s, v) = rgb_to_hsv(*r, *g, *b);
             ParamValue::Vec3(h, s, v)
         }
-        (ParamValue::Float(value), ParamValue::Color(_, g, b, a), ParamValueProjection::ColorR) => ParamValue::Color(*value, *g, *b, *a),
-        (ParamValue::Float(value), ParamValue::Color(r, _, b, a), ParamValueProjection::ColorG) => ParamValue::Color(*r, *value, *b, *a),
-        (ParamValue::Float(value), ParamValue::Color(r, g, _, a), ParamValueProjection::ColorB) => ParamValue::Color(*r, *g, *value, *a),
-        (ParamValue::Float(value), ParamValue::Color(r, g, b, _), ParamValueProjection::ColorA) => ParamValue::Color(*r, *g, *b, *value),
-        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::ColorToVec3Rgb) => ParamValue::Color(*r, *g, *b, *target_a),
+        (ParamValue::Float(value), ParamValue::Color(_, g, b, a), ParamValueProjection::ColorR) => {
+            ParamValue::Color(*value, *g, *b, *a)
+        }
+        (ParamValue::Float(value), ParamValue::Color(r, _, b, a), ParamValueProjection::ColorG) => {
+            ParamValue::Color(*r, *value, *b, *a)
+        }
+        (ParamValue::Float(value), ParamValue::Color(r, g, _, a), ParamValueProjection::ColorB) => {
+            ParamValue::Color(*r, *g, *value, *a)
+        }
+        (ParamValue::Float(value), ParamValue::Color(r, g, b, _), ParamValueProjection::ColorA) => {
+            ParamValue::Color(*r, *g, *b, *value)
+        }
+        (ParamValue::Vec3(r, g, b), ParamValue::Color(_, _, _, target_a), ParamValueProjection::ColorToVec3Rgb) => {
+            ParamValue::Color(*r, *g, *b, *target_a)
+        }
         (ParamValue::Vec3(h, s, v), ParamValue::Color(_, _, _, target_a), ParamValueProjection::ColorToVec3Hsv) => {
             let (r, g, b) = hsv_to_rgb(*h, *s, *v);
             ParamValue::Color(r, g, b, *target_a)
         }
-        (ParamValue::Vec2(h, s), ParamValue::Color(target_r, target_g, target_b, target_a), ParamValueProjection::ColorToVec2Hs) => {
+        (
+            ParamValue::Vec2(h, s),
+            ParamValue::Color(target_r, target_g, target_b, target_a),
+            ParamValueProjection::ColorToVec2Hs,
+        ) => {
             let (_, _, value) = rgb_to_hsv(*target_r, *target_g, *target_b);
             let (r, g, b) = hsv_to_rgb(*h, *s, value);
             ParamValue::Color(r, g, b, *target_a)
@@ -525,7 +643,9 @@ fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) 
         ParamValue::File(_) => source.as_str().map(ParamValue::File),
         ParamValue::Enum(_) => source.as_enum().map(ParamValue::Enum),
         ParamValue::Bool(_) => source.as_bool().map(ParamValue::Bool),
-        ParamValue::CssValue(target_value) => source.as_css_value_with_unit(target_value.unit).map(ParamValue::CssValue),
+        ParamValue::CssValue(target_value) => source
+            .as_css_value_with_unit(target_value.unit)
+            .map(ParamValue::CssValue),
         ParamValue::Vec2(_, _) => source.as_vec2().map(|(x, y)| ParamValue::Vec2(x, y)),
         ParamValue::Vec3(_, _, _) => source.as_vec3().map(|(x, y, z)| ParamValue::Vec3(x, y, z)),
         ParamValue::Color(_, _, _, _) => source.as_color().map(|(r, g, b, a)| ParamValue::Color(r, g, b, a)),
@@ -539,8 +659,16 @@ fn coerce_param_value_for_target_kind(source: &ParamValue, target: &ParamValue) 
 /// Coerces `source` to the value kind represented by `target`.
 ///
 /// When `projection` is provided, it is applied before coercion.
-pub fn coerce_param_value_for_target(source: &ParamValue, target: &ParamValue, projection: Option<ParamValueProjection>) -> Option<ParamValue> {
-    let projected = if let Some(projection) = projection { project_param_value_for_target(source, target, projection)? } else { source.clone() };
+pub fn coerce_param_value_for_target(
+    source: &ParamValue,
+    target: &ParamValue,
+    projection: Option<ParamValueProjection>,
+) -> Option<ParamValue> {
+    let projected = if let Some(projection) = projection {
+        project_param_value_for_target(source, target, projection)?
+    } else {
+        source.clone()
+    };
 
     coerce_param_value_for_target_kind(&projected, target)
 }
@@ -549,8 +677,16 @@ pub fn coerce_param_value_for_target(source: &ParamValue, target: &ParamValue, p
 ///
 /// This is primarily used by bidirectional binding so one selected projection
 /// can be applied in both write directions.
-pub fn coerce_param_value_for_target_reverse(source: &ParamValue, target: &ParamValue, projection: Option<ParamValueProjection>) -> Option<ParamValue> {
-    let projected = if let Some(projection) = projection { project_param_value_for_target_reverse(source, target, projection)? } else { source.clone() };
+pub fn coerce_param_value_for_target_reverse(
+    source: &ParamValue,
+    target: &ParamValue,
+    projection: Option<ParamValueProjection>,
+) -> Option<ParamValue> {
+    let projected = if let Some(projection) = projection {
+        project_param_value_for_target_reverse(source, target, projection)?
+    } else {
+        source.clone()
+    };
 
     coerce_param_value_for_target_kind(&projected, target)
 }
@@ -558,7 +694,10 @@ pub fn coerce_param_value_for_target_reverse(source: &ParamValue, target: &Param
 /// Computes compatibility between `source` and `target`.
 pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
     let direct = coerce_param_value_for_target(source, target, None).is_some();
-    let projections = ParamValueProjection::available_for_source(source).into_iter().filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some()).collect();
+    let projections = ParamValueProjection::available_for_source(source)
+        .into_iter()
+        .filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some())
+        .collect();
 
     ParamValueCompatibility { direct, projections }
 }
@@ -568,17 +707,21 @@ pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> Par
 /// Binding is bidirectional, so direct/projection compatibility is only
 /// considered valid when conversion succeeds in both directions.
 pub fn compatibility_for_binding_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
-    let direct = coerce_param_value_for_target(source, target, None).is_some() && coerce_param_value_for_target(target, source, None).is_some();
+    let direct = coerce_param_value_for_target(source, target, None).is_some()
+        && coerce_param_value_for_target(target, source, None).is_some();
     let projections = ParamValueProjection::available_for_source(source)
         .into_iter()
-        .filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some() && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some())
+        .filter(|projection| {
+            coerce_param_value_for_target(source, target, Some(*projection)).is_some()
+                && coerce_param_value_for_target_reverse(target, source, Some(*projection)).is_some()
+        })
         .collect();
 
     ParamValueCompatibility { direct, projections }
 }
 
 /// Strongly-typed file path wrapper for parameter handles and params DSL.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct File(pub String);
 
 impl File {
@@ -628,7 +771,7 @@ impl From<File> for String {
 }
 
 /// CSS unit used by [`CssValue`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum CssUnit {
     /// CSS pixels.
@@ -667,7 +810,7 @@ impl fmt::Display for CssUnit {
 }
 
 /// CSS scalar value with an explicit unit.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct CssValue {
     /// Numeric component.
     pub value: f64,
@@ -694,7 +837,14 @@ impl CssValue {
         }
 
         let lowercase = trimmed.to_ascii_lowercase();
-        for (suffix, unit) in [("rem", CssUnit::Rem), ("px", CssUnit::Px), ("em", CssUnit::Em), ("vw", CssUnit::Vw), ("vh", CssUnit::Vh), ("%", CssUnit::Percent)] {
+        for (suffix, unit) in [
+            ("rem", CssUnit::Rem),
+            ("px", CssUnit::Px),
+            ("em", CssUnit::Em),
+            ("vw", CssUnit::Vw),
+            ("vh", CssUnit::Vh),
+            ("%", CssUnit::Percent),
+        ] {
             if lowercase.ends_with(suffix) {
                 let number_text = trimmed[..trimmed.len() - suffix.len()].trim();
                 let parsed = number_text.parse::<f64>().ok()?;
@@ -737,7 +887,7 @@ impl From<File> for PathBuf {
 }
 
 /// Strongly-typed 2D vector value for parameter handles and params DSL.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct Vec2 {
     /// X component.
     pub x: f64,
@@ -765,7 +915,7 @@ impl From<Vec2> for (f64, f64) {
 }
 
 /// Strongly-typed 3D vector value for parameter handles and params DSL.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct Vec3 {
     /// X component.
     pub x: f64,
@@ -795,7 +945,7 @@ impl From<Vec3> for (f64, f64, f64) {
 }
 
 /// Strongly-typed enum variant wrapper for parameter handles and params DSL.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct Enum(pub String);
 
 impl Enum {
@@ -980,7 +1130,12 @@ impl ParamValue {
             ParamValue::Vec2(x, y) => Some(format!("{x},{y}")),
             ParamValue::Vec3(x, y, z) => Some(format!("{x},{y},{z}")),
             ParamValue::Color(r, g, b, a) => Some(format!("{r},{g},{b},{a}")),
-            ParamValue::Reference(reference) => Some(reference.cached_name().map(|name| name.to_string()).unwrap_or_else(|| reference.uuid().0.to_string())),
+            ParamValue::Reference(reference) => Some(
+                reference
+                    .cached_name()
+                    .map(|name| name.to_string())
+                    .unwrap_or_else(|| reference.uuid().0.to_string()),
+            ),
         }
     }
 
@@ -1015,7 +1170,9 @@ impl ParamValue {
         match self {
             ParamValue::Int(i) => Some(CssValue::new(*i as f64, default_unit)),
             ParamValue::Float(f) => Some(CssValue::new(*f, default_unit)),
-            ParamValue::Str(s) | ParamValue::Enum(s) | ParamValue::File(s) => CssValue::parse_with_default_unit(s, Some(default_unit)),
+            ParamValue::Str(s) | ParamValue::Enum(s) | ParamValue::File(s) => {
+                CssValue::parse_with_default_unit(s, Some(default_unit))
+            }
             ParamValue::Bool(b) => Some(CssValue::new(if *b { 1.0 } else { 0.0 }, default_unit)),
             ParamValue::CssValue(value) => Some(*value),
             _ => None,
@@ -1049,7 +1206,11 @@ impl ParamValue {
             ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
                 if parts.len() == 3 {
-                    if let (Ok(x), Ok(y), Ok(z)) = (parts[0].trim().parse(), parts[1].trim().parse(), parts[2].trim().parse()) {
+                    if let (Ok(x), Ok(y), Ok(z)) = (
+                        parts[0].trim().parse(),
+                        parts[1].trim().parse(),
+                        parts[2].trim().parse(),
+                    ) {
                         return Some((x, y, z));
                     }
                 }
@@ -1069,7 +1230,12 @@ impl ParamValue {
             ParamValue::Str(s) | ParamValue::Enum(s) => {
                 let parts: Vec<&str> = s.split(',').collect();
                 if parts.len() == 4 {
-                    if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (parts[0].trim().parse(), parts[1].trim().parse(), parts[2].trim().parse(), parts[3].trim().parse()) {
+                    if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
+                        parts[0].trim().parse(),
+                        parts[1].trim().parse(),
+                        parts[2].trim().parse(),
+                        parts[3].trim().parse(),
+                    ) {
                         return Some((r, g, b, a));
                     }
                 }
@@ -1103,21 +1269,39 @@ impl ParamValue {
             JsonValue::String(value) => Ok(ParamValue::Str(value.clone())),
             JsonValue::Array(values) => {
                 if values.len() == 2 {
-                    let x = values[0].as_f64().ok_or_else(|| "vec2 value expects numeric components".to_string())?;
-                    let y = values[1].as_f64().ok_or_else(|| "vec2 value expects numeric components".to_string())?;
+                    let x = values[0]
+                        .as_f64()
+                        .ok_or_else(|| "vec2 value expects numeric components".to_string())?;
+                    let y = values[1]
+                        .as_f64()
+                        .ok_or_else(|| "vec2 value expects numeric components".to_string())?;
                     return Ok(ParamValue::Vec2(x, y));
                 }
                 if values.len() == 3 {
-                    let x = values[0].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
-                    let y = values[1].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
-                    let z = values[2].as_f64().ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    let x = values[0]
+                        .as_f64()
+                        .ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    let y = values[1]
+                        .as_f64()
+                        .ok_or_else(|| "vec3 value expects numeric components".to_string())?;
+                    let z = values[2]
+                        .as_f64()
+                        .ok_or_else(|| "vec3 value expects numeric components".to_string())?;
                     return Ok(ParamValue::Vec3(x, y, z));
                 }
                 if values.len() == 4 {
-                    let r = values[0].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
-                    let g = values[1].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
-                    let b = values[2].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
-                    let a = values[3].as_f64().ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let r = values[0]
+                        .as_f64()
+                        .ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let g = values[1]
+                        .as_f64()
+                        .ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let b = values[2]
+                        .as_f64()
+                        .ok_or_else(|| "color value expects numeric components".to_string())?;
+                    let a = values[3]
+                        .as_f64()
+                        .ok_or_else(|| "color value expects numeric components".to_string())?;
                     return Ok(ParamValue::Color(r, g, b, a));
                 }
                 Err("array value must contain 2, 3, or 4 numeric components".to_string())
@@ -1161,7 +1345,7 @@ pub enum ParameterChangeCheck {
 }
 
 /// Strategy for handling multiple parameter changes within the same process tick.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Default, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Default, Deserialize, TS)]
 pub enum ParameterEventBehaviour {
     /// Keep only the latest pending set for this parameter within a queue drain.
     #[default]
@@ -1171,7 +1355,7 @@ pub enum ParameterEventBehaviour {
 }
 
 /// Runtime control mode used to drive one parameter value.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ParameterControlMode {
     /// Parameter uses its locally stored value.
@@ -1216,7 +1400,10 @@ pub fn available_control_modes_for_value(value: &ParamValue) -> Vec<ParameterCon
 }
 
 /// Returns the supported control modes for one parameter, accounting for local policy.
-pub fn available_control_modes_for_parameter(value: &ParamValue, control_modes_enabled: bool) -> Vec<ParameterControlMode> {
+pub fn available_control_modes_for_parameter(
+    value: &ParamValue,
+    control_modes_enabled: bool,
+) -> Vec<ParameterControlMode> {
     if !control_modes_enabled {
         return vec![ParameterControlMode::Manual];
     }
@@ -1225,7 +1412,7 @@ pub fn available_control_modes_for_parameter(value: &ParamValue, control_modes_e
 }
 
 /// Animation waveform used by [`AnimationControlSpec`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum AnimationWaveform {
     /// Smooth sinus wave in range `[-1, 1]`.
@@ -1280,7 +1467,7 @@ impl Default for AnimationControlSpec {
 }
 
 /// Persisted authoring intent for one parameter control mode.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "mode", rename_all = "camelCase")]
 pub enum ParameterControlSpec {
     /// Manual value editing with no external source.
@@ -1375,7 +1562,11 @@ impl ParameterControlState {
 
     /// Creates a state with explicit `mode` and `spec`.
     pub fn new(mode: ParameterControlMode, spec: ParameterControlSpec) -> Self {
-        Self { mode, spec, diagnostics: Vec::new() }
+        Self {
+            mode,
+            spec,
+            diagnostics: Vec::new(),
+        }
     }
 }
 
@@ -1388,7 +1579,7 @@ fn is_true(value: &bool) -> bool {
 }
 
 /// Data-level enum option descriptor used by validation and UI rendering.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ParameterEnumOption {
     /// Stable enum variant id.
     pub variant_id: String,
@@ -1405,7 +1596,7 @@ pub struct ParameterEnumOption {
 }
 
 /// Policy used when incoming values do not match constraints.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum ParameterConstraintPolicy {
     /// Clamp to min/max and snap to step when relevant.
     #[default]
@@ -1415,7 +1606,7 @@ pub enum ParameterConstraintPolicy {
 }
 
 /// Root scope used to validate and recover reference parameters.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum ReferenceRoot {
     /// Use engine root as reference root.
     #[default]
@@ -1431,7 +1622,7 @@ pub enum ReferenceRoot {
 }
 
 /// Target family accepted by a reference parameter.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum ReferenceTargetKind {
     /// Any node type can be targeted.
     #[default]
@@ -1441,7 +1632,7 @@ pub enum ReferenceTargetKind {
 }
 
 /// Additional constraints specific to `ParamValue::Reference`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ReferenceConstraints {
     /// Root scope used by target validation and relative recovery.
     #[serde(default)]
@@ -1462,7 +1653,10 @@ pub struct ReferenceConstraints {
     /// Whether projection-based compatibility is accepted for typed references.
     ///
     /// When `false`, only direct type compatibility is accepted.
-    #[serde(default = "reference_constraints_default_true", skip_serializing_if = "is_reference_constraints_true")]
+    #[serde(
+        default = "reference_constraints_default_true",
+        skip_serializing_if = "is_reference_constraints_true"
+    )]
     pub allow_projections: bool,
     /// Optional app-defined runtime filter key looked up in the engine registry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1499,7 +1693,7 @@ fn is_default_reference_constraints(value: &ReferenceConstraints) -> bool {
 }
 
 /// Named groups of allowed file extensions for `ParamValue::File`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum FileTypeGroup {
     /// Common audio formats.
@@ -1526,15 +1720,21 @@ impl FileTypeGroup {
     pub fn matches_extension(self, extension: &str) -> bool {
         let extension = extension.trim().to_ascii_lowercase();
         match self {
-            Self::Audio => matches!(extension.as_str(), "wav" | "wave" | "aif" | "aiff" | "flac" | "mp3" | "ogg" | "opus" | "m4a" | "aac" | "wma"),
-            Self::Video => matches!(extension.as_str(), "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"),
+            Self::Audio => matches!(
+                extension.as_str(),
+                "wav" | "wave" | "aif" | "aiff" | "flac" | "mp3" | "ogg" | "opus" | "m4a" | "aac" | "wma"
+            ),
+            Self::Video => matches!(
+                extension.as_str(),
+                "mp4" | "m4v" | "mov" | "avi" | "mkv" | "webm" | "mpg" | "mpeg" | "ts" | "m2ts" | "flv"
+            ),
             Self::Script => matches!(extension.as_str(), "js" | "mjs" | "cjs"),
         }
     }
 }
 
 /// Additional constraints specific to `ParamValue::File`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub struct FileConstraints {
     /// Optional extension groups accepted by this file parameter.
     ///
@@ -1571,7 +1771,11 @@ impl FileConstraints {
     fn accepts_extension(&self, extension: &str) -> bool {
         let extension = extension.to_ascii_lowercase();
 
-        let group_match = self.allowed_types.is_empty() || self.allowed_types.iter().any(|group| group.matches_extension(&extension));
+        let group_match = self.allowed_types.is_empty()
+            || self
+                .allowed_types
+                .iter()
+                .any(|group| group.matches_extension(&extension));
         if !group_match {
             return false;
         }
@@ -1586,7 +1790,7 @@ fn is_default_file_constraints(value: &FileConstraints) -> bool {
 }
 
 /// Numeric range constraints for scalar and vector-like parameter values.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RangeConstraint {
     /// One min/max pair applied uniformly.
@@ -1612,19 +1816,27 @@ pub enum RangeConstraint {
 impl RangeConstraint {
     /// Builds a uniform range constraint when at least one bound is provided.
     pub fn uniform(min: Option<f64>, max: Option<f64>) -> Option<Self> {
-        if min.is_none() && max.is_none() { None } else { Some(Self::Uniform { min, max }) }
+        if min.is_none() && max.is_none() {
+            None
+        } else {
+            Some(Self::Uniform { min, max })
+        }
     }
 
     /// Builds a component-wise range constraint when at least one bound list is provided.
     pub fn components(min: Option<Vec<f64>>, max: Option<Vec<f64>>) -> Option<Self> {
         let min = min.filter(|values| !values.is_empty());
         let max = max.filter(|values| !values.is_empty());
-        if min.is_none() && max.is_none() { None } else { Some(Self::Components { min, max }) }
+        if min.is_none() && max.is_none() {
+            None
+        } else {
+            Some(Self::Components { min, max })
+        }
     }
 }
 
 /// Runtime data constraints for parameter values.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct ParameterConstraints {
     /// Optional numeric range constraints.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1665,8 +1877,28 @@ impl fmt::Display for ParameterConstraints {
                     sections.push(format!("range={min_text}..{max_text}"));
                 }
                 RangeConstraint::Components { min, max } => {
-                    let min_text = min.as_ref().map(|values| values.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(",")).map(|value| format!("[{value}]")).unwrap_or_else(|| "[]".to_string());
-                    let max_text = max.as_ref().map(|values| values.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(",")).map(|value| format!("[{value}]")).unwrap_or_else(|| "[]".to_string());
+                    let min_text = min
+                        .as_ref()
+                        .map(|values| {
+                            values
+                                .iter()
+                                .map(|value| value.to_string())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                        })
+                        .map(|value| format!("[{value}]"))
+                        .unwrap_or_else(|| "[]".to_string());
+                    let max_text = max
+                        .as_ref()
+                        .map(|values| {
+                            values
+                                .iter()
+                                .map(|value| value.to_string())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                        })
+                        .map(|value| format!("[{value}]"))
+                        .unwrap_or_else(|| "[]".to_string());
                     sections.push(format!("components={min_text}..{max_text}"));
                 }
             }
@@ -1685,7 +1917,11 @@ impl fmt::Display for ParameterConstraints {
             sections.push("fileConstraints".to_string());
         }
 
-        if sections.is_empty() { write!(f, "no constraints") } else { write!(f, "{}", sections.join(", ")) }
+        if sections.is_empty() {
+            write!(f, "no constraints")
+        } else {
+            write!(f, "{}", sections.join(", "))
+        }
     }
 }
 
@@ -1711,7 +1947,11 @@ impl ParameterConstraints {
             });
 
             if !matches_value && !matches_variant_id {
-                let allowed: Vec<String> = self.enum_options.iter().map(|option| option.variant_id.clone()).collect();
+                let allowed: Vec<String> = self
+                    .enum_options
+                    .iter()
+                    .map(|option| option.variant_id.clone())
+                    .collect();
                 return Err(format!("value is not in enum options: allowed variants {:?}", allowed));
             }
 
@@ -1745,21 +1985,34 @@ impl ParameterConstraints {
     }
 
     fn normalize_css_value(&self, value: CssValue) -> Result<ParamValue, String> {
-        Ok(ParamValue::CssValue(CssValue::new(self.normalize_numeric(value.value)?, value.unit)))
+        Ok(ParamValue::CssValue(CssValue::new(
+            self.normalize_numeric(value.value)?,
+            value.unit,
+        )))
     }
 
     fn normalize_vec2(&self, x: f64, y: f64) -> Result<ParamValue, String> {
         let bounds = self.vector_component_bounds(2, "vec2")?;
-        let x = self.normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1).map_err(|message| format!("vec2.x: {message}"))?;
-        let y = self.normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1).map_err(|message| format!("vec2.y: {message}"))?;
+        let x = self
+            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
+            .map_err(|message| format!("vec2.x: {message}"))?;
+        let y = self
+            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
+            .map_err(|message| format!("vec2.y: {message}"))?;
         Ok(ParamValue::Vec2(x, y))
     }
 
     fn normalize_vec3(&self, x: f64, y: f64, z: f64) -> Result<ParamValue, String> {
         let bounds = self.vector_component_bounds(3, "vec3")?;
-        let x = self.normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1).map_err(|message| format!("vec3.x: {message}"))?;
-        let y = self.normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1).map_err(|message| format!("vec3.y: {message}"))?;
-        let z = self.normalize_numeric_with_bounds(z, bounds[2].0, bounds[2].1).map_err(|message| format!("vec3.z: {message}"))?;
+        let x = self
+            .normalize_numeric_with_bounds(x, bounds[0].0, bounds[0].1)
+            .map_err(|message| format!("vec3.x: {message}"))?;
+        let y = self
+            .normalize_numeric_with_bounds(y, bounds[1].0, bounds[1].1)
+            .map_err(|message| format!("vec3.y: {message}"))?;
+        let z = self
+            .normalize_numeric_with_bounds(z, bounds[2].0, bounds[2].1)
+            .map_err(|message| format!("vec3.z: {message}"))?;
         Ok(ParamValue::Vec3(x, y, z))
     }
 
@@ -1779,11 +2032,17 @@ impl ParameterConstraints {
                 }
                 Ok((*min, *max))
             }
-            Some(RangeConstraint::Components { .. }) => Err("component range constraints cannot be applied to scalar values".to_string()),
+            Some(RangeConstraint::Components { .. }) => {
+                Err("component range constraints cannot be applied to scalar values".to_string())
+            }
         }
     }
 
-    fn vector_component_bounds(&self, dimensions: usize, value_kind: &str) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
+    fn vector_component_bounds(
+        &self,
+        dimensions: usize,
+        value_kind: &str,
+    ) -> Result<Vec<(Option<f64>, Option<f64>)>, String> {
         match &self.range {
             None => Ok(vec![(None, None); dimensions]),
             Some(RangeConstraint::Uniform { min, max }) => {
@@ -1797,13 +2056,23 @@ impl ParameterConstraints {
             Some(RangeConstraint::Components { min, max }) => {
                 if let Some(min_values) = min {
                     if min_values.len() != dimensions {
-                        return Err(format!("invalid range: min has {} components but {} expects {}", min_values.len(), value_kind, dimensions));
+                        return Err(format!(
+                            "invalid range: min has {} components but {} expects {}",
+                            min_values.len(),
+                            value_kind,
+                            dimensions
+                        ));
                     }
                 }
 
                 if let Some(max_values) = max {
                     if max_values.len() != dimensions {
-                        return Err(format!("invalid range: max has {} components but {} expects {}", max_values.len(), value_kind, dimensions));
+                        return Err(format!(
+                            "invalid range: max has {} components but {} expects {}",
+                            max_values.len(),
+                            value_kind,
+                            dimensions
+                        ));
                     }
                 }
 
@@ -1813,7 +2082,9 @@ impl ParameterConstraints {
                     let max_value = max.as_ref().and_then(|values| values.get(index)).copied();
                     if let (Some(min_value), Some(max_value)) = (min_value, max_value) {
                         if min_value > max_value {
-                            return Err(format!("invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"));
+                            return Err(format!(
+                                "invalid range: {value_kind}[{index}] min {min_value} is greater than max {max_value}"
+                            ));
                         }
                     }
                     out.push((min_value, max_value));
@@ -1863,7 +2134,9 @@ impl ParameterConstraints {
                 }
                 ParameterConstraintPolicy::Reject => {
                     if (scaled - nearest).abs() > 1e-9 {
-                        return Err(format!("value {value} does not align with step {step} from base {base}"));
+                        return Err(format!(
+                            "value {value} does not align with step {step} from base {base}"
+                        ));
                     }
                 }
             }
@@ -1904,7 +2177,9 @@ impl ParameterConstraints {
                 })
                 .collect();
             let allowed_extensions = self.file.normalized_allowed_extensions();
-            return Err(format!("file extension '.{extension}' is not allowed (allowed_types={allowed_types:?}, allowed_extensions={allowed_extensions:?})"));
+            return Err(format!(
+                "file extension '.{extension}' is not allowed (allowed_types={allowed_types:?}, allowed_extensions={allowed_extensions:?})"
+            ));
         }
 
         Ok(ParamValue::File(path))
@@ -1912,7 +2187,7 @@ impl ParameterConstraints {
 }
 
 /// UI presentation hints for parameter editors.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct ParameterUiHints {
     /// Preferred widget id (for example `slider`, `toggle`, `text`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1952,7 +2227,10 @@ fn default_control_modes_enabled() -> bool {
 }
 
 fn is_legacy_vec2_display_decl_id(decl_id: &str) -> bool {
-    matches!(decl_id, "display_mode" | "display_2d_trail_seconds" | "display_2d_unit_step" | "display_2d_view_span")
+    matches!(
+        decl_id,
+        "display_mode" | "display_2d_trail_seconds" | "display_2d_unit_step" | "display_2d_view_span"
+    )
 }
 
 /// Built-in node type that stores a [`ParamValue`].
@@ -2026,7 +2304,10 @@ impl Parameter {
         let normalized = match self.constraints.normalize(new_value) {
             Ok(value) => value,
             Err(message) => {
-                eprintln!("Attempted to set invalid value for parameter '{}': {message}", self.node_data().meta.label);
+                eprintln!(
+                    "Attempted to set invalid value for parameter '{}': {message}",
+                    self.node_data().meta.label
+                );
                 return;
             }
         };
@@ -2042,7 +2323,10 @@ impl Parameter {
     pub fn fire(&mut self, ctx: &mut ProcessCtx) {
         // verify that it's a trigger
         if !matches!(self.value, ParamValue::Trigger()) {
-            eprintln!("Attempted to fire a non-trigger parameter '{}'", self.node_data().meta.label);
+            eprintln!(
+                "Attempted to fire a non-trigger parameter '{}'",
+                self.node_data().meta.label
+            );
             return;
         }
         self.set(ctx, ParamValue::Trigger());
@@ -2161,7 +2445,10 @@ fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
         return Ok(decoded);
     }
 
-    if value.as_object().is_some_and(|object| object.len() == 1 && object.contains_key("Trigger")) {
+    if value
+        .as_object()
+        .is_some_and(|object| object.len() == 1 && object.contains_key("Trigger"))
+    {
         return Ok(ParamValue::Trigger());
     }
 
@@ -2170,7 +2457,8 @@ fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
 
 fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<ParameterProjectData, String> {
     if data.is_null() {
-        let fallback_value = crate::node::default_parameter_value_for_node_type(node_type).ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
+        let fallback_value = crate::node::default_parameter_value_for_node_type(node_type)
+            .ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
         return Ok(ParameterProjectData {
             value: fallback_value.clone(),
             default_value: fallback_value,
@@ -2186,8 +2474,10 @@ fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<Pa
 
     if let Ok(full) = serde_json::from_value::<RawParameterProjectData>(data.clone()) {
         return Ok(ParameterProjectData {
-            value: decode_project_param_value(&full.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
-            default_value: decode_project_param_value(&full.default_value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+            value: decode_project_param_value(&full.value)
+                .map_err(|err| format!("invalid parameter payload: {err}"))?,
+            default_value: decode_project_param_value(&full.default_value)
+                .map_err(|err| format!("invalid parameter payload: {err}"))?,
             change_check: full.change_check,
             event_behaviour: full.event_behaviour,
             read_only: full.read_only,
@@ -2198,10 +2488,12 @@ fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<Pa
         });
     }
 
-    let legacy = serde_json::from_value::<RawLegacyParameterProjectData>(data.clone()).map_err(|err| format!("invalid parameter payload: {err}"))?;
+    let legacy = serde_json::from_value::<RawLegacyParameterProjectData>(data.clone())
+        .map_err(|err| format!("invalid parameter payload: {err}"))?;
     Ok(ParameterProjectData {
         value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
-        default_value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
+        default_value: decode_project_param_value(&legacy.value)
+            .map_err(|err| format!("invalid parameter payload: {err}"))?,
         change_check: legacy.change_check,
         event_behaviour: legacy.event_behaviour,
         read_only: false,
@@ -2327,27 +2619,58 @@ impl Node for Parameter {
     }
 
     fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
-        let mut widget_types = vec![DashboardWidgetTypeSpec::new("inspector", "Inspector").with_options_node_kind(DashboardWidgetOptionsNodeKind::Inspector)];
+        let mut widget_types = vec![
+            DashboardWidgetTypeSpec::new("inspector", "Inspector")
+                .with_options_node_kind(DashboardWidgetOptionsNodeKind::Inspector),
+        ];
 
         match &self.value {
             ParamValue::Int(_) | ParamValue::Float(_) => {
-                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider));
-                widget_types.push(DashboardWidgetTypeSpec::new("slider", "Slider").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider));
-                widget_types.push(DashboardWidgetTypeSpec::new("rotary", "Rotary").with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberRotary));
+                widget_types.insert(
+                    0,
+                    DashboardWidgetTypeSpec::new("default", "Default")
+                        .with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider),
+                );
+                widget_types.push(
+                    DashboardWidgetTypeSpec::new("slider", "Slider")
+                        .with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberSlider),
+                );
+                widget_types.push(
+                    DashboardWidgetTypeSpec::new("rotary", "Rotary")
+                        .with_options_node_kind(DashboardWidgetOptionsNodeKind::NumberRotary),
+                );
             }
             ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) => {
-                let default_kind = if matches!(&self.value, ParamValue::Vec2(_, _)) { DashboardWidgetOptionsNodeKind::Vec2Editor } else { DashboardWidgetOptionsNodeKind::Vec3Editor };
-                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(default_kind));
+                let default_kind = if matches!(&self.value, ParamValue::Vec2(_, _)) {
+                    DashboardWidgetOptionsNodeKind::Vec2Editor
+                } else {
+                    DashboardWidgetOptionsNodeKind::Vec3Editor
+                };
+                widget_types.insert(
+                    0,
+                    DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(default_kind),
+                );
 
                 if matches!(&self.value, ParamValue::Vec2(_, _)) {
-                    widget_types.push(DashboardWidgetTypeSpec::new("vec2Pad", "2D Pad").with_options_node_kind(DashboardWidgetOptionsNodeKind::Vec2Pad));
+                    widget_types.push(
+                        DashboardWidgetTypeSpec::new("vec2Pad", "2D Pad")
+                            .with_options_node_kind(DashboardWidgetOptionsNodeKind::Vec2Pad),
+                    );
                 }
             }
             ParamValue::Color(_, _, _, _) => {
-                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::ColorEditor));
+                widget_types.insert(
+                    0,
+                    DashboardWidgetTypeSpec::new("default", "Default")
+                        .with_options_node_kind(DashboardWidgetOptionsNodeKind::ColorEditor),
+                );
             }
             _ => {
-                widget_types.insert(0, DashboardWidgetTypeSpec::new("default", "Default").with_options_node_kind(DashboardWidgetOptionsNodeKind::ParameterEditor));
+                widget_types.insert(
+                    0,
+                    DashboardWidgetTypeSpec::new("default", "Default")
+                        .with_options_node_kind(DashboardWidgetOptionsNodeKind::ParameterEditor),
+                );
             }
         }
 
@@ -2372,7 +2695,12 @@ impl Node for Parameter {
         descriptor
     }
 
-    fn engine_set_script_property(&mut self, ctx: &mut ProcessCtx, property: &str, value: ParamValue) -> Result<bool, String> {
+    fn engine_set_script_property(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        property: &str,
+        value: ParamValue,
+    ) -> Result<bool, String> {
         match property {
             "value" => {
                 let normalized = self.constraints.normalize(value)?;
@@ -2383,14 +2711,26 @@ impl Node for Parameter {
                 let Some(label) = value.as_str() else {
                     return Err(format!("property '{property}' expects a string value"));
                 };
-                ctx.patch_node_meta(self.id(), crate::node::NodeMetaPatch { label: Some(label), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    crate::node::NodeMetaPatch {
+                        label: Some(label),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             "enabled" => {
                 let Some(enabled) = value.as_bool() else {
                     return Err("property 'enabled' expects a boolean value".to_string());
                 };
-                ctx.patch_node_meta(self.id(), crate::node::NodeMetaPatch { enabled: Some(enabled), ..Default::default() });
+                ctx.patch_node_meta(
+                    self.id(),
+                    crate::node::NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                );
                 Ok(true)
             }
             _ => Ok(false),
@@ -2429,7 +2769,9 @@ mod tests {
             ..Default::default()
         };
 
-        let normalized = constraints.normalize(ParamValue::File("C:/tmp/kick.wav".to_string())).expect("wav should pass file constraints");
+        let normalized = constraints
+            .normalize(ParamValue::File("C:/tmp/kick.wav".to_string()))
+            .expect("wav should pass file constraints");
         assert_eq!(normalized, ParamValue::File("C:/tmp/kick.wav".to_string()));
     }
 
@@ -2443,7 +2785,9 @@ mod tests {
             ..Default::default()
         };
 
-        let error = constraints.normalize(ParamValue::File("C:/tmp/clip.mp4".to_string())).expect_err("mp4 should fail audio constraints");
+        let error = constraints
+            .normalize(ParamValue::File("C:/tmp/clip.mp4".to_string()))
+            .expect_err("mp4 should fail audio constraints");
         assert!(error.contains("not allowed"));
     }
 
@@ -2452,8 +2796,14 @@ mod tests {
         let string_value = ParamValue::Str("demo".to_string());
         let int_value = ParamValue::Int(42);
 
-        assert!(control_mode_supported_for_value(ParameterControlMode::TemplateText, &string_value));
-        assert!(!control_mode_supported_for_value(ParameterControlMode::TemplateText, &int_value));
+        assert!(control_mode_supported_for_value(
+            ParameterControlMode::TemplateText,
+            &string_value
+        ));
+        assert!(!control_mode_supported_for_value(
+            ParameterControlMode::TemplateText,
+            &int_value
+        ));
 
         let string_modes = available_control_modes_for_value(&string_value);
         assert!(string_modes.contains(&ParameterControlMode::TemplateText));
@@ -2466,13 +2816,34 @@ mod tests {
     fn projection_supports_float_expansions() {
         let source = ParamValue::Float(2.5);
 
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec2X0), Some(ParamValue::Vec2(2.5, 0.0)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec20Y), Some(ParamValue::Vec2(0.0, 2.5)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec2XX), Some(ParamValue::Vec2(2.5, 2.5)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec3X00), Some(ParamValue::Vec3(2.5, 0.0, 0.0)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec30Y0), Some(ParamValue::Vec3(0.0, 2.5, 0.0)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec300Z), Some(ParamValue::Vec3(0.0, 0.0, 2.5)));
-        assert_eq!(project_param_value(&source, ParamValueProjection::FloatToVec3XXX), Some(ParamValue::Vec3(2.5, 2.5, 2.5)));
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec2X0),
+            Some(ParamValue::Vec2(2.5, 0.0))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec20Y),
+            Some(ParamValue::Vec2(0.0, 2.5))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec2XX),
+            Some(ParamValue::Vec2(2.5, 2.5))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec3X00),
+            Some(ParamValue::Vec3(2.5, 0.0, 0.0))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec30Y0),
+            Some(ParamValue::Vec3(0.0, 2.5, 0.0))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec300Z),
+            Some(ParamValue::Vec3(0.0, 0.0, 2.5))
+        );
+        assert_eq!(
+            project_param_value(&source, ParamValueProjection::FloatToVec3XXX),
+            Some(ParamValue::Vec3(2.5, 2.5, 2.5))
+        );
     }
 
     #[test]
@@ -2480,11 +2851,26 @@ mod tests {
         let vec3 = ParamValue::Vec3(1.0, 2.0, 3.0);
         let vec2 = ParamValue::Vec2(4.0, 5.0);
 
-        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XY), Some(ParamValue::Vec2(1.0, 2.0)));
-        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XZ), Some(ParamValue::Vec2(1.0, 3.0)));
-        assert_eq!(project_param_value(&vec3, ParamValueProjection::Vec3ToVec2YZ), Some(ParamValue::Vec2(2.0, 3.0)));
-        assert_eq!(project_param_value(&vec2, ParamValueProjection::Vec2ToVec3XY0), Some(ParamValue::Vec3(4.0, 5.0, 0.0)));
-        assert_eq!(project_param_value(&vec2, ParamValueProjection::Vec2ToVec3X0Y), Some(ParamValue::Vec3(4.0, 0.0, 5.0)));
+        assert_eq!(
+            project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XY),
+            Some(ParamValue::Vec2(1.0, 2.0))
+        );
+        assert_eq!(
+            project_param_value(&vec3, ParamValueProjection::Vec3ToVec2XZ),
+            Some(ParamValue::Vec2(1.0, 3.0))
+        );
+        assert_eq!(
+            project_param_value(&vec3, ParamValueProjection::Vec3ToVec2YZ),
+            Some(ParamValue::Vec2(2.0, 3.0))
+        );
+        assert_eq!(
+            project_param_value(&vec2, ParamValueProjection::Vec2ToVec3XY0),
+            Some(ParamValue::Vec3(4.0, 5.0, 0.0))
+        );
+        assert_eq!(
+            project_param_value(&vec2, ParamValueProjection::Vec2ToVec3X0Y),
+            Some(ParamValue::Vec3(4.0, 0.0, 5.0))
+        );
     }
 
     #[test]
@@ -2494,8 +2880,12 @@ mod tests {
         let vec_hsv = ParamValue::Vec3(1.0 / 3.0, 1.0, 1.0);
         let vec_rgb = ParamValue::Vec3(0.1, 0.2, 0.3);
 
-        assert_eq!(project_param_value(&color, ParamValueProjection::ColorToVec3Rgb), Some(ParamValue::Vec3(1.0, 0.0, 0.0)));
-        let hsv = project_param_value(&color, ParamValueProjection::ColorToVec3Hsv).expect("color->hsv projection should succeed");
+        assert_eq!(
+            project_param_value(&color, ParamValueProjection::ColorToVec3Rgb),
+            Some(ParamValue::Vec3(1.0, 0.0, 0.0))
+        );
+        let hsv = project_param_value(&color, ParamValueProjection::ColorToVec3Hsv)
+            .expect("color->hsv projection should succeed");
         let ParamValue::Vec3(h, s, v) = hsv else {
             panic!("expected vec3 hsv result");
         };
@@ -2503,14 +2893,16 @@ mod tests {
         approx_eq(s, 1.0);
         approx_eq(v, 1.0);
 
-        let hs = project_param_value(&color, ParamValueProjection::ColorToVec2Hs).expect("color->hs projection should succeed");
+        let hs = project_param_value(&color, ParamValueProjection::ColorToVec2Hs)
+            .expect("color->hs projection should succeed");
         let ParamValue::Vec2(h, s) = hs else {
             panic!("expected vec2 hs result");
         };
         approx_eq(h, 0.0);
         approx_eq(s, 1.0);
 
-        let color_from_hs = project_param_value(&vec_hs, ParamValueProjection::Vec2ToColorHs).expect("vec2 hs->color projection should succeed");
+        let color_from_hs = project_param_value(&vec_hs, ParamValueProjection::Vec2ToColorHs)
+            .expect("vec2 hs->color projection should succeed");
         let ParamValue::Color(r, g, b, a) = color_from_hs else {
             panic!("expected color result");
         };
@@ -2519,7 +2911,8 @@ mod tests {
         approx_eq(b, 0.0);
         approx_eq(a, 1.0);
 
-        let color_from_hsv = project_param_value(&vec_hsv, ParamValueProjection::Vec3ToColorHsv).expect("vec3 hsv->color projection should succeed");
+        let color_from_hsv = project_param_value(&vec_hsv, ParamValueProjection::Vec3ToColorHsv)
+            .expect("vec3 hsv->color projection should succeed");
         let ParamValue::Color(r, g, b, a) = color_from_hsv else {
             panic!("expected color result");
         };
@@ -2528,7 +2921,10 @@ mod tests {
         approx_eq(b, 0.0);
         approx_eq(a, 1.0);
 
-        assert_eq!(project_param_value(&vec_rgb, ParamValueProjection::Vec3ToColorRgb), Some(ParamValue::Color(0.1, 0.2, 0.3, 1.0)));
+        assert_eq!(
+            project_param_value(&vec_rgb, ParamValueProjection::Vec3ToColorRgb),
+            Some(ParamValue::Color(0.1, 0.2, 0.3, 1.0))
+        );
     }
 
     #[test]
@@ -2542,21 +2938,51 @@ mod tests {
 
     #[test]
     fn projected_expansions_preserve_target_components() {
-        assert_eq!(coerce_param_value_for_target(&ParamValue::Float(2.5), &ParamValue::Vec2(9.0, 8.0), Some(ParamValueProjection::FloatToVec20Y),), Some(ParamValue::Vec2(9.0, 2.5)));
+        assert_eq!(
+            coerce_param_value_for_target(
+                &ParamValue::Float(2.5),
+                &ParamValue::Vec2(9.0, 8.0),
+                Some(ParamValueProjection::FloatToVec20Y),
+            ),
+            Some(ParamValue::Vec2(9.0, 2.5))
+        );
 
-        assert_eq!(coerce_param_value_for_target(&ParamValue::Float(2.5), &ParamValue::Vec3(9.0, 8.0, 7.0), Some(ParamValueProjection::FloatToVec3X00),), Some(ParamValue::Vec3(2.5, 8.0, 7.0)));
+        assert_eq!(
+            coerce_param_value_for_target(
+                &ParamValue::Float(2.5),
+                &ParamValue::Vec3(9.0, 8.0, 7.0),
+                Some(ParamValueProjection::FloatToVec3X00),
+            ),
+            Some(ParamValue::Vec3(2.5, 8.0, 7.0))
+        );
 
-        assert_eq!(coerce_param_value_for_target(&ParamValue::Vec2(4.0, 5.0), &ParamValue::Vec3(9.0, 8.0, 7.0), Some(ParamValueProjection::Vec2ToVec3X0Y),), Some(ParamValue::Vec3(4.0, 8.0, 5.0)));
+        assert_eq!(
+            coerce_param_value_for_target(
+                &ParamValue::Vec2(4.0, 5.0),
+                &ParamValue::Vec3(9.0, 8.0, 7.0),
+                Some(ParamValueProjection::Vec2ToVec3X0Y),
+            ),
+            Some(ParamValue::Vec3(4.0, 8.0, 5.0))
+        );
     }
 
     #[test]
     fn projected_color_expansions_preserve_existing_channels() {
         assert_eq!(
-            coerce_param_value_for_target(&ParamValue::Vec3(0.1, 0.2, 0.3), &ParamValue::Color(0.0, 0.0, 0.0, 0.7), Some(ParamValueProjection::Vec3ToColorRgb),),
+            coerce_param_value_for_target(
+                &ParamValue::Vec3(0.1, 0.2, 0.3),
+                &ParamValue::Color(0.0, 0.0, 0.0, 0.7),
+                Some(ParamValueProjection::Vec3ToColorRgb),
+            ),
             Some(ParamValue::Color(0.1, 0.2, 0.3, 0.7))
         );
 
-        let converted = coerce_param_value_for_target(&ParamValue::Vec2(0.0, 1.0), &ParamValue::Color(0.2, 0.4, 0.6, 0.25), Some(ParamValueProjection::Vec2ToColorHs)).expect("vec2 hs projection should convert against color target");
+        let converted = coerce_param_value_for_target(
+            &ParamValue::Vec2(0.0, 1.0),
+            &ParamValue::Color(0.2, 0.4, 0.6, 0.25),
+            Some(ParamValueProjection::Vec2ToColorHs),
+        )
+        .expect("vec2 hs projection should convert against color target");
         let ParamValue::Color(r, g, b, a) = converted else {
             panic!("expected color result");
         };
@@ -2568,27 +2994,60 @@ mod tests {
 
     #[test]
     fn reverse_projection_preserves_target_components() {
-        assert_eq!(coerce_param_value_for_target_reverse(&ParamValue::Float(3.5), &ParamValue::Vec2(1.0, 2.0), Some(ParamValueProjection::Vec2X)), Some(ParamValue::Vec2(3.5, 2.0)));
-        assert_eq!(coerce_param_value_for_target_reverse(&ParamValue::Float(9.0), &ParamValue::Vec3(1.0, 2.0, 3.0), Some(ParamValueProjection::Vec3Y)), Some(ParamValue::Vec3(1.0, 9.0, 3.0)));
         assert_eq!(
-            coerce_param_value_for_target_reverse(&ParamValue::Float(0.6), &ParamValue::Color(0.1, 0.2, 0.3, 0.4), Some(ParamValueProjection::ColorB)),
+            coerce_param_value_for_target_reverse(
+                &ParamValue::Float(3.5),
+                &ParamValue::Vec2(1.0, 2.0),
+                Some(ParamValueProjection::Vec2X)
+            ),
+            Some(ParamValue::Vec2(3.5, 2.0))
+        );
+        assert_eq!(
+            coerce_param_value_for_target_reverse(
+                &ParamValue::Float(9.0),
+                &ParamValue::Vec3(1.0, 2.0, 3.0),
+                Some(ParamValueProjection::Vec3Y)
+            ),
+            Some(ParamValue::Vec3(1.0, 9.0, 3.0))
+        );
+        assert_eq!(
+            coerce_param_value_for_target_reverse(
+                &ParamValue::Float(0.6),
+                &ParamValue::Color(0.1, 0.2, 0.3, 0.4),
+                Some(ParamValueProjection::ColorB)
+            ),
             Some(ParamValue::Color(0.1, 0.2, 0.6, 0.4))
         );
     }
 
     #[test]
     fn binding_compatibility_requires_bidirectional_direct_conversion() {
-        let compatibility = compatibility_for_binding_values(&ParamValue::Color(0.1, 0.2, 0.3, 1.0), &ParamValue::Vec3(0.0, 0.0, 0.0));
+        let compatibility =
+            compatibility_for_binding_values(&ParamValue::Color(0.1, 0.2, 0.3, 1.0), &ParamValue::Vec3(0.0, 0.0, 0.0));
         assert!(!compatibility.direct, "color->vec3 is direct, but vec3->color is not");
-        assert!(compatibility.projections.contains(&ParamValueProjection::ColorToVec3Rgb));
+        assert!(
+            compatibility
+                .projections
+                .contains(&ParamValueProjection::ColorToVec3Rgb)
+        );
     }
 
     #[test]
     fn binding_projection_roundtrips_vec2_x_to_float() {
-        let forward = coerce_param_value_for_target(&ParamValue::Vec2(8.0, 4.0), &ParamValue::Float(0.0), Some(ParamValueProjection::Vec2X)).expect("vec2 x projection should produce float");
+        let forward = coerce_param_value_for_target(
+            &ParamValue::Vec2(8.0, 4.0),
+            &ParamValue::Float(0.0),
+            Some(ParamValueProjection::Vec2X),
+        )
+        .expect("vec2 x projection should produce float");
         assert_eq!(forward, ParamValue::Float(8.0));
 
-        let reverse = coerce_param_value_for_target_reverse(&ParamValue::Float(6.0), &ParamValue::Vec2(8.0, 4.0), Some(ParamValueProjection::Vec2X)).expect("reverse vec2 x projection should update vec2");
+        let reverse = coerce_param_value_for_target_reverse(
+            &ParamValue::Float(6.0),
+            &ParamValue::Vec2(8.0, 4.0),
+            Some(ParamValueProjection::Vec2X),
+        )
+        .expect("reverse vec2 x projection should update vec2");
         assert_eq!(reverse, ParamValue::Vec2(6.0, 4.0));
     }
 }

@@ -8,14 +8,27 @@ use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
-    pub(crate) fn apply_add_event_listener(&mut self, edit_index: usize, subscriber: NodeId, subscription: EventSubscription) -> Result<(), EngineEditError> {
+    pub(crate) fn apply_add_event_listener(
+        &mut self,
+        edit_index: usize,
+        subscriber: NodeId,
+        subscription: EventSubscription,
+    ) -> Result<(), EngineEditError> {
         const OP: &str = "AddEventListener";
 
         if !self.nodes.contains(subscriber) {
-            return Err(EngineEditError::NodeNotFound { edit_index, operation: OP, node: subscriber });
+            return Err(EngineEditError::NodeNotFound {
+                edit_index,
+                operation: OP,
+                node: subscriber,
+            });
         }
         if !self.nodes.contains(subscription.node) {
-            return Err(EngineEditError::NodeNotFound { edit_index, operation: OP, node: subscription.node });
+            return Err(EngineEditError::NodeNotFound {
+                edit_index,
+                operation: OP,
+                node: subscription.node,
+            });
         }
 
         self.event_listeners.entry(subscriber).or_default().insert(subscription);
@@ -36,7 +49,8 @@ impl<T: Node> Engine<T> {
         for subscriptions in self.event_listeners.values_mut() {
             subscriptions.retain(|subscription| subscription.node != node);
         }
-        self.event_listeners.retain(|_, subscriptions| !subscriptions.is_empty());
+        self.event_listeners
+            .retain(|_, subscriptions| !subscriptions.is_empty());
     }
 
     /// Precomputes per-node inbox payloads from currently buffered engine events.
@@ -74,19 +88,36 @@ impl<T: Node> Engine<T> {
     }
 
     /// Runs only internal inbox preprocessing (no app-level `on_inbox`) for a precomputed batch.
-    pub(crate) fn preprocess_precomputed_inbox(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>) -> Result<(), EngineEditError> {
+    pub(crate) fn preprocess_precomputed_inbox(
+        &mut self,
+        phase: ExecutionPhase,
+        per_node_events: Vec<(NodeId, Vec<Event>)>,
+    ) -> Result<(), EngineEditError> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, false)
     }
 
     /// Dispatches a precomputed per-node inbox batch.
     ///
     /// Edits requested by node callbacks are absorbed into the engine queue.
-    pub fn dispatch_precomputed_inbox(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>) -> Result<(), EngineEditError> {
+    pub fn dispatch_precomputed_inbox(
+        &mut self,
+        phase: ExecutionPhase,
+        per_node_events: Vec<(NodeId, Vec<Event>)>,
+    ) -> Result<(), EngineEditError> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, true)
     }
 
-    fn dispatch_precomputed_inbox_internal(&mut self, phase: ExecutionPhase, per_node_events: Vec<(NodeId, Vec<Event>)>, run_app_callbacks: bool) -> Result<(), EngineEditError> {
-        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self.nodes.iter().filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value))).collect();
+    fn dispatch_precomputed_inbox_internal(
+        &mut self,
+        phase: ExecutionPhase,
+        per_node_events: Vec<(NodeId, Vec<Event>)>,
+        run_app_callbacks: bool,
+    ) -> Result<(), EngineEditError> {
+        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
+            .collect();
         let tree_snapshot = (!per_node_events.is_empty()).then(|| self.build_process_tree_snapshot());
 
         for (node_id, events) in per_node_events {
@@ -163,7 +194,13 @@ impl<T: Node> Engine<T> {
         out
     }
 
-    fn collect_bubbling_recipients(&self, event: &Event, origin: NodeId, recipients: &mut Vec<NodeId>, dedupe: &mut HashSet<NodeId>) {
+    fn collect_bubbling_recipients(
+        &self,
+        event: &Event,
+        origin: NodeId,
+        recipients: &mut Vec<NodeId>,
+        dedupe: &mut HashSet<NodeId>,
+    ) {
         let mut current = origin;
         let mut depth = 0u32;
         let mut remaining_bubble = 0u32;
@@ -173,11 +210,16 @@ impl<T: Node> Engine<T> {
                 break;
             };
 
-            let effective_interest_depth = node.child_event_interest_depth(event).max(node.engine_child_event_interest_depth(event));
+            let effective_interest_depth = node
+                .child_event_interest_depth(event)
+                .max(node.engine_child_event_interest_depth(event));
             let interested = depth == 0 || effective_interest_depth >= depth;
             let propagation = node.event_propagation(event, depth);
 
-            if interested && matches!(propagation, EventPropagation::Notify | EventPropagation::Stop) && dedupe.insert(current) {
+            if interested
+                && matches!(propagation, EventPropagation::Notify | EventPropagation::Stop)
+                && dedupe.insert(current)
+            {
                 recipients.push(current);
             }
 
@@ -191,7 +233,16 @@ impl<T: Node> Engine<T> {
                 break;
             };
             let next_depth = depth.saturating_add(1);
-            let parent_is_interested = self.nodes.get(parent).map(|parent| parent.child_event_interest_depth(event).max(parent.engine_child_event_interest_depth(event)) >= next_depth).unwrap_or(false);
+            let parent_is_interested = self
+                .nodes
+                .get(parent)
+                .map(|parent| {
+                    parent
+                        .child_event_interest_depth(event)
+                        .max(parent.engine_child_event_interest_depth(event))
+                        >= next_depth
+                })
+                .unwrap_or(false);
 
             if remaining_bubble == 0 && !parent_is_interested {
                 break;
@@ -206,7 +257,13 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn collect_subscription_recipients(&self, event: &Event, ancestry_depths: &HashMap<NodeId, u32>, recipients: &mut Vec<NodeId>, dedupe: &mut HashSet<NodeId>) {
+    fn collect_subscription_recipients(
+        &self,
+        event: &Event,
+        ancestry_depths: &HashMap<NodeId, u32>,
+        recipients: &mut Vec<NodeId>,
+        dedupe: &mut HashSet<NodeId>,
+    ) {
         if self.event_listeners.is_empty() {
             return;
         }
@@ -220,7 +277,10 @@ impl<T: Node> Engine<T> {
                 continue;
             }
 
-            let matches_runtime = subscriptions.iter().copied().any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription));
+            let matches_runtime = subscriptions
+                .iter()
+                .copied()
+                .any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription));
             let matches_subscription = matches_runtime;
 
             if matches_subscription && dedupe.insert(*subscriber_id) {
@@ -230,6 +290,8 @@ impl<T: Node> Engine<T> {
     }
 
     fn subscription_matches_origin(ancestry_depths: &HashMap<NodeId, u32>, subscription: EventSubscription) -> bool {
-        ancestry_depths.get(&subscription.node).is_some_and(|depth| *depth <= subscription.max_depth)
+        ancestry_depths
+            .get(&subscription.node)
+            .is_some_and(|depth| *depth <= subscription.max_depth)
     }
 }
