@@ -10,7 +10,6 @@ declare global {
 	}
 
 	interface Window {
-		
 		__TAURI__?: {
 			window: {
 				getCurrentWindow: () => {
@@ -24,10 +23,7 @@ declare global {
 			};
 		};
 		__TAURI_INTERNALS__?: {
-			invoke?: (
-				command: string,
-				args?: Record<string, unknown>,
-			) => Promise<unknown>;
+			invoke?: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
 			metadata?: {
 				currentWindow?: {
 					label?: string;

@@ -67,7 +67,7 @@ const matchesIgnoredPattern = (value, patterns) => {
 
 const toSerializableError = (error) => ({
 	message: error instanceof Error ? error.message : String(error),
-	stack: error instanceof Error ? error.stack ?? null : null
+	stack: error instanceof Error ? (error.stack ?? null) : null
 });
 
 const resolveBrowserLaunchOptions = () => {
@@ -136,12 +136,24 @@ const readRuntimeProbeEntries = async (page) => {
 	}
 };
 
-const filterIssues = (issues, ignoreConsolePatterns, ignorePagePatterns, ignoreRequestPatterns) => ({
-	consoleErrors: issues.consoleErrors.filter((issue) => !matchesIgnoredPattern(issue.text, ignoreConsolePatterns)),
-	pageErrors: issues.pageErrors.filter((issue) => !matchesIgnoredPattern(issue.message, ignorePagePatterns)),
+const filterIssues = (
+	issues,
+	ignoreConsolePatterns,
+	ignorePagePatterns,
+	ignoreRequestPatterns
+) => ({
+	consoleErrors: issues.consoleErrors.filter(
+		(issue) => !matchesIgnoredPattern(issue.text, ignoreConsolePatterns)
+	),
+	pageErrors: issues.pageErrors.filter(
+		(issue) => !matchesIgnoredPattern(issue.message, ignorePagePatterns)
+	),
 	requestFailures: issues.requestFailures.filter(
 		(issue) =>
-			!matchesIgnoredPattern(`${issue.method} ${issue.url} ${issue.errorText}`, ignoreRequestPatterns)
+			!matchesIgnoredPattern(
+				`${issue.method} ${issue.url} ${issue.errorText}`,
+				ignoreRequestPatterns
+			)
 	)
 });
 
@@ -214,7 +226,13 @@ const runInspect = async () => {
 	const maxElements = getNumberArg('limit', 10);
 	const maxTextLength = getNumberArg('text-limit', 200);
 	const styleNames = getCsvArg('style', defaultInspectStyles);
-	const attributeNames = getCsvArg('attribute', ['id', 'class', 'role', 'aria-label', 'data-node-id']);
+	const attributeNames = getCsvArg('attribute', [
+		'id',
+		'class',
+		'role',
+		'aria-label',
+		'data-node-id'
+	]);
 
 	const browser = await chromium.launch(resolveBrowserLaunchOptions());
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
@@ -233,10 +251,7 @@ const runInspect = async () => {
 				attributeNames: resolvedAttributeNames
 			}) => {
 				const normalizeText = (value, limit) =>
-					(value ?? '')
-						.replace(/\s+/g, ' ')
-						.trim()
-						.slice(0, limit);
+					(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
 				return Array.from(document.querySelectorAll(resolvedSelector))
 					.slice(0, resolvedMaxElements)
 					.map((element) => {
@@ -256,7 +271,10 @@ const runInspect = async () => {
 								height: Number(rect.height.toFixed(2))
 							},
 							styles: Object.fromEntries(
-								resolvedStyleNames.map((name) => [name, computedStyle.getPropertyValue(name).trim()])
+								resolvedStyleNames.map((name) => [
+									name,
+									computedStyle.getPropertyValue(name).trim()
+								])
 							)
 						};
 					});

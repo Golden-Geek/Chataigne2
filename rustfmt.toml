@@ -1,2 +1,2 @@
-fn_args_layout = "Tall"
-max_width= 300
+fn_params_layout = "Tall"
+max_width = 120

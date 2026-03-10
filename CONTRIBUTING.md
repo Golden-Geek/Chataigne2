@@ -1,0 +1,47 @@
+# Contributing
+
+This repository is being refactored toward a clean long-term architecture. Optimize for correct boundaries, readable diffs, and stable ownership, not short-term compatibility.
+
+## Repo Map
+
+- `src/`: thin app-shell bootstrap, desktop host glue, built-in UI server host glue, and app-specific wiring.
+- `src-ui/`: Svelte 5 UI, transport clients, and state/store composition.
+- `submodules/golden_core/crates/core/`: engine and shared runtime layers being cleaned toward pure core responsibilities.
+- `submodules/golden_core/crates/core_macros/`: proc macros used by the engine and app nodes.
+- `submodules/golden_core/crates/codegen_support/`: build-script support APIs intended for app/workspace consumers.
+
+## Formatting
+
+Rust:
+
+```sh
+cargo fmt --all
+cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all
+```
+
+UI:
+
+```sh
+cd src-ui
+npm run format
+```
+
+## Hard Boundary Rules
+
+- Do not import submodule internals by filesystem path from app crates or build scripts.
+- Do not use `#[path = "..."]` to reach into another crate's private files.
+- If shared build logic is needed, expose it through a dedicated public crate or module.
+- Keep `Chataigne2` thin. Reusable engine, protocol, persistence, and UI logic belongs in shared workspaces.
+
+## Protocol Rules
+
+- Do not duplicate protocol declarations across Rust and TypeScript.
+- Request, response, event, snapshot, and protocol-version types must have one source of truth.
+- When code generation exists, update generator inputs, generated output, and consumers together.
+
+## Documentation Expectations
+
+- Update docs in the same change when responsibilities or architecture move.
+- Keep docs short and architectural.
+- Link to deeper design docs in `submodules/golden_core/crates/core/docs/` instead of duplicating them.
+- Update architecture docs when host/runtime responsibilities move across the app shell and shared crates.
