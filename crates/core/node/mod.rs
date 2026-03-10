@@ -28,6 +28,7 @@ pub use dashboard_widget_options::{
     DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE,
     DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE,
 };
-pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, ParameterValueType, PotentialNodeHandle};
+pub use crate::parameter::ParameterValueType;
+pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, PotentialNodeHandle};
 
 pub(crate) use core::parameter_child_exists;
