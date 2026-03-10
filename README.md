@@ -2,11 +2,11 @@
 
 `golden_core` is the shared runtime workspace for the Golden engine and related tooling.
 
-The current refactor direction is to keep pure engine and protocol logic separate from desktop host and transport concerns. Desktop and built-in server glue now live in the Chataigne2 app shell instead of the core crate.
+The current architecture keeps the default ready-to-launch desktop/headless runtime in `golden_core` so apps do not need to rebuild that bootstrap themselves. Apps can still override command-line parsing or startup when needed, but the shared default host path lives here.
 
 ## Workspace Crates
 
-- `crates/core`: engine, node model, runtime scheduling, UI DTOs, and app lifecycle helpers still being split into cleaner boundaries.
+- `crates/core`: engine, node model, runtime scheduling, default desktop/headless host runtime, UI DTOs, and app lifecycle helpers.
 - `crates/core_macros`: proc macros for node and item declarations.
 - `crates/codegen_support`: public build-time helpers intended for app/workspace consumers.
 

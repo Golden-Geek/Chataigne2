@@ -57,7 +57,7 @@ pub mod animation_curve;
 pub mod logger;
 
 #[path = "../app/mod.rs"]
-/// Runtime project persistence and UI-server helpers.
+/// App lifecycle hooks plus the default ready-to-launch desktop and headless host.
 pub mod app;
 
 #[path = "../ui/ui_sync.rs"]
