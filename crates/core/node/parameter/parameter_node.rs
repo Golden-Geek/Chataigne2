@@ -4,8 +4,8 @@ use serde_json::Value as JsonValue;
 use crate::{
     node::{
         DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData,
-        NodeReference, UserContainerRules, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND,
-        ParameterAnimationControlNode,
+        NodeReference, ParameterAnimationControlNode, UserContainerRules, PARAMETER_ANIMATION_CONTROL_NODE_TYPE,
+        PARAMETER_CONTROL_ITEM_KIND,
     },
     process_ctx::ProcessCtx,
 };

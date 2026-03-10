@@ -7,9 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::app::{
-    configure_loaded_engine, create_new_project_engine, prepare_engine_for_runtime, ProjectLifecycle,
-};
+use crate::app::{prepare_engine_for_runtime, project_host, ProjectLifecycle};
 use crate::engine::{Engine, EngineTime};
 use crate::node::Node;
 use crate::ui_sync::{
@@ -912,15 +910,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 }
             }
         }
-        ("POST", "/api/ui/project-new") => match create_new_project_engine::<T>() {
-            Ok(next_engine) => match replace_live_engine(state, next_engine, "project_new") {
-                Ok(()) => {
-                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
-                }
-                Err(err) => {
-                    write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
-                }
-            },
+        ("POST", "/api/ui/project-new") => match project_host::create_new_project(&state.engine) {
+            Ok(()) => {
+                write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+            }
             Err(err) => {
                 write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
             }
@@ -928,16 +921,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
-            let Some(path) = normalize_project_path(&payload.path) else {
-                write_json_error(stream, "400 Bad Request", "project-save path cannot be empty")?;
-                return Ok(());
-            };
-
-            let guard = lock_engine(&state.engine);
-            let save_result = guard.save_project_file_with(path.as_str(), |node| node.project_encode_data());
-            drop(guard);
-
-            match save_result {
+            match project_host::save_project(&state.engine, &payload.path) {
                 Ok(()) => {
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
@@ -949,27 +933,9 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-load") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
-            let Some(path) = normalize_project_path(&payload.path) else {
-                write_json_error(stream, "400 Bad Request", "project-load path cannot be empty")?;
-                return Ok(());
-            };
-
-            let loaded = Engine::<T>::load_project_file_with(path.as_str(), T::project_decode_node);
-            match loaded {
-                Ok(mut next_engine) => {
-                    if let Err(err) = configure_loaded_engine(&mut next_engine) {
-                        write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
-                        return Ok(());
-                    }
-
-                    match replace_live_engine(state, next_engine, "project_loaded") {
-                        Ok(()) => {
-                            write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
-                        }
-                        Err(err) => {
-                            write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
-                        }
-                    }
+            match project_host::load_project(&state.engine, &payload.path) {
+                Ok(()) => {
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
                     write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
@@ -1010,32 +976,6 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         }
     }
 
-    Ok(())
-}
-
-fn normalize_project_path(raw_path: &str) -> Option<String> {
-    let path = raw_path.trim();
-    if path.is_empty() {
-        return None;
-    }
-    Some(path.to_string())
-}
-
-fn replace_live_engine<T: ProjectLifecycle>(
-    state: &ServerState<T>,
-    mut next_engine: Engine<T>,
-    reason: &str,
-) -> Result<(), String> {
-    prepare_engine_for_runtime(&mut next_engine).map_err(|err| err.to_string())?;
-    next_engine.clear_ui_event_log();
-    next_engine.push_ui_custom_event(
-        "__transport.resync_required",
-        None,
-        serde_json::json!({ "reason": reason }),
-    );
-
-    let mut guard = lock_engine(&state.engine);
-    *guard = next_engine;
     Ok(())
 }
 

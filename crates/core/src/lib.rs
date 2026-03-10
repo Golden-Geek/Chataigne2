@@ -16,7 +16,7 @@ pub mod color;
 /// Engine data model and edit-application entry points.
 pub mod engine;
 
-#[path = "../node/node.rs"]
+#[path = "../node/mod.rs"]
 /// Node identity, metadata, and trait implementations.
 pub mod node;
 
@@ -24,7 +24,7 @@ pub mod node;
 /// Declarative helper macros for defining nodes and node enums.
 pub mod node_macros;
 
-#[path = "../node/parameter.rs"]
+#[path = "../node/parameter/mod.rs"]
 /// Parameter node implementations and value conversions.
 pub mod parameter;
 

@@ -7,6 +7,7 @@ use crate::node::{DashboardNode, Folder, Node, NodeMeta};
 
 mod desktop;
 mod desktop_commands;
+pub(crate) mod project_host;
 /// Built-in HTTP and WebSocket runtime host used by the default launch flow.
 pub mod ui_server;
 
