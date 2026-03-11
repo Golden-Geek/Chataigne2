@@ -4,7 +4,8 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 
 ## Current State
 
-- Rust DTOs are defined in `submodules/golden_core/crates/core/ui/ui_sync.rs`.
+- Rust DTOs are currently defined in `submodules/golden_core/crates/core/src/ui_sync.rs`.
+- The public boundary for those DTOs is `submodules/golden_core/crates/protocol/src/lib.rs`.
 - Raw transport bindings are generated into `src-ui/src/lib/golden_ui/generated/rust_protocol/` during `cargo check` and other normal Rust builds.
 - The HTTP transport adapter in `src-ui/src/lib/golden_ui/transport/http.ts` converts those generated Rust-wire types into the UI-local model types in `src-ui/src/lib/golden_ui/types.ts`.
 - `types.ts` is now a frontend model layer, not a second source of truth for the wire protocol.
@@ -18,6 +19,6 @@ The current UI protocol source lives on the Rust side in `golden_core` UI DTOs a
 
 ## Current Consumers
 
-- The built-in HTTP and WebSocket host in `submodules/golden_core/crates/core/app/ui_server.rs`.
+- The built-in HTTP and WebSocket host in `submodules/golden_core/crates/transport_server/src/ui_server.rs`.
 - The UI transport client in `src-ui/src/lib/golden_ui/transport/`.
 - The UI workbench/session stores through the normalized types in `src-ui/src/lib/golden_ui/types.ts`.

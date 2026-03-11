@@ -3,8 +3,9 @@
 ## Where To Work
 
 - Add app-specific nodes under `src/nodes/`.
-- Add reusable engine-level nodes only when they truly belong in the shared runtime workspace.
+- Add reusable engine-level nodes only when they truly belong in `submodules/golden_core/crates/core/src/node/`.
 - Keep app shell registration minimal; the node registry is generated from supported node declaration macros.
+- Follow the `golden_engine` layout rules in `submodules/golden_core/crates/core/docs/source_layout.md` when adding or moving shared runtime code.
 
 ## Flow
 

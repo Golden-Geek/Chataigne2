@@ -16,13 +16,22 @@
 
 ## golden_core Workspace
 
-- `crates/core/`: engine, node system, scripting, default desktop/headless host runtime, UI DTOs, and app lifecycle helpers.
-- `crates/core/app/desktop.rs`: reusable default launch flow, CLI parsing, and Tauri bootstrap.
-- `crates/core/app/desktop_commands.rs`: Tauri window commands and native file-dialog commands used by the default host.
-- `crates/core/app/ui_server.rs`: built-in HTTP and WebSocket host for the current UI runtime.
+- `crates/core_facade/`: stable `golden_core` facade crate used by apps.
+- `crates/core/`: implementation crate (`golden_engine` package).
+- `crates/core/src/`: canonical source tree for engine/runtime implementation.
+- `crates/core/src/engine/`: engine state, edit application, runtime scheduling, persistence helpers, UI event log helpers, and tests.
+- `crates/core/src/node/`: node traits, built-in node families, dashboard nodes, animation-curve nodes, and typed handles.
+- `crates/core/src/parameter/`: parameter values, constraints, control state, and the parameter node type.
+- `crates/core/src/script/`: script runtime plus checked-in default script templates.
+- `crates/core/docs/source_layout.md`: filesystem and module-ownership rules for `golden_engine`.
 - `crates/core_macros/`: proc macros.
 - `crates/codegen_support/`: build-time node registry generation support.
-- `crates/core/docs/`: deeper engine and protocol design notes.
+- `crates/protocol/`: public UI protocol boundary.
+- `crates/persistence/`: public persistence boundary.
+- `crates/script/`: public scripting boundary.
+- `crates/transport_server/`: built-in HTTP and WebSocket host.
+- `crates/host_desktop/`: default desktop/headless launch path and native-dialog integration.
+- `crates/core/docs/`: deeper engine/runtime design notes.
 
 ## UI Package
 
