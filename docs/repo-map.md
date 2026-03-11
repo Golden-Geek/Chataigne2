@@ -37,8 +37,8 @@
 
 - `src-ui/src/lib/golden_ui/components/`: panels and reusable UI components.
 - `src-ui/src/lib/golden_ui/store/`: workbench and focused state stores.
-- `src-ui/src/lib/golden_ui/store/session/`: focused workbench helpers for selection, warnings, and
-  command/file orchestration.
+- `src-ui/src/lib/golden_ui/store/session/`: focused workbench helpers for selection, warnings,
+  descriptions, footer hover, history, logger, and command/file orchestration.
 - `src-ui/src/lib/golden_ui/transport/`: UI transport clients.
 - `src-ui/src/lib/golden_ui/dockview/`: panel registration and layout persistence.
 - `src-ui/src/lib/golden_ui/docs/source_layout.md`: canonical UI package layout and boundary rules.

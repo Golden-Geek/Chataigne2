@@ -7,7 +7,7 @@ This package contains the Svelte 5 client for Chataigne2. It owns the workbench 
 - `src/lib/golden_ui/components/`: panel and reusable UI components.
 - `src/lib/golden_ui/store/`: session state, panel state, graph state, and UI-specific stores.
 - `src/lib/golden_ui/store/session/`: focused workbench session helpers for selection, warnings,
-  and command/file actions.
+  descriptions, footer hover, history, logger, and command/file actions.
 - `src/lib/golden_ui/transport/`: transport facade plus HTTP and WebSocket transport clients.
 - `src/lib/golden_ui/host/`: browser-vs-desktop host bridges for Tauri-specific behavior.
 - `src/lib/golden_ui/generated/rust_protocol/`: generated raw wire bindings exported from Rust DTOs.
@@ -27,7 +27,8 @@ This package contains the Svelte 5 client for Chataigne2. It owns the workbench 
 - Do not introduce new `$app/*` dependencies inside `golden_ui`.
 - Keep internal imports relative so the package stays ready to move out of `src/lib/`.
 - Keep `store/workbench.svelte.ts` as a thin facade over `store/session/` instead of letting it
-  absorb new concerns.
+  absorb new concerns; transport/bootstrap and intent-queue orchestration are the remaining split
+  candidates there.
 
 ## Development
 
