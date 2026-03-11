@@ -60,7 +60,7 @@ Runtime behavior:
 
 Script creation uses template files under:
 
-`crates/core/script/templates/`
+`crates/core/src/script/templates/`
 
 Template selection order when creating a script under host node type `X`:
 

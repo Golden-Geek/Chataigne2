@@ -26,7 +26,9 @@
 - Filenames should match the primary exported concept or a tight concept family.
 - Folder context should remove redundant prefixes. Inside `src/engine/`, use `runtime.rs`, not `engine_runtime.rs`.
 - `mod.rs` should stay thin: declare children, re-export the public surface, and keep only parent-level orchestration that genuinely belongs there.
-- Tests live inside the concept folder they validate as `tests.rs`.
+- Folder modules keep tests in `tests.rs`.
+- Single-file leaf modules may keep inline `mod tests { ... }` until they are promoted to folders for real code-ownership reasons.
+- When a leaf module becomes large enough to justify a folder, move its tests out of the runtime body at the same time.
 
 ## Lookup Examples
 
