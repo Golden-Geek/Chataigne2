@@ -2,12 +2,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use golden_core::{
     engine::Engine,
-    // animation_curve::{CurveEasing, CurveHandle},
+    // curve::{CurveEasing, CurveHandle},
     color::Color,
     item,
     log,
     node,
-    node::{AnimationCurveNode, Node, NodeId, NodeReference},
+    node::{CurveNode, Node, NodeId, NodeReference},
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
@@ -71,7 +71,7 @@ impl Node for ModuleBase {
             file_allowed_types = ["script"],
             file_allowed_extensions = ["js", "mjs", "cjs"],
         );
-        node animation_curve: AnimationCurveNode = AnimationCurveNode::new() (
+        node animation_curve: CurveNode = CurveNode::new() (
             label = "Test Animation Curve",
             description = "Test animation curve parameter with predefined keyframes"
         );
