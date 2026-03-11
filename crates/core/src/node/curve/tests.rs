@@ -5,10 +5,12 @@ use crate::node::{Folder, Node, NodeId};
 use crate::parameter::ParameterEventBehaviour;
 use crate::process_ctx::ExecutionPhase;
 
+use super::helpers::{parse_phase_mode, parse_shape, parse_step_mode};
+use super::prelude::*;
 use super::*;
 
 define_node_enum!(
-    enum AnimationCurveTestNode {}
+    enum CurveTestNode {}
 );
 
 fn first_child<T: Node>(engine: &Engine<T>, parent: NodeId) -> NodeId {
@@ -60,11 +62,11 @@ fn parse_helpers_map_variants() {
 
 #[test]
 fn easing_node_dependencies_follow_kind_and_mode() {
-    let root: AnimationCurveTestNode = Folder::new("Root").into();
+    let root: CurveTestNode = Folder::new("Root").into();
     let mut engine = Engine::new(root);
 
     engine.add_node(
-        AnimationCurveEasingNode::new_with_easing(
+        CurveEasingNode::new_with_easing(
             "Ease",
             CurveEasing::Steps {
                 step_mode: CurveStepMode::StepSize,
@@ -193,12 +195,12 @@ fn easing_node_dependencies_follow_kind_and_mode() {
 
 #[test]
 fn easing_node_preserves_script_source_default() {
-    let root: AnimationCurveTestNode = Folder::new("Root").into();
+    let root: CurveTestNode = Folder::new("Root").into();
     let mut engine = Engine::new(root);
     let expected_source = "return t * 0.5;".to_string();
 
     engine.add_node(
-        AnimationCurveEasingNode::new_with_easing(
+        CurveEasingNode::new_with_easing(
             "Ease",
             CurveEasing::Script {
                 source: expected_source.clone(),

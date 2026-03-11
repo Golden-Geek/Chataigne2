@@ -2,15 +2,14 @@ use super::*;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
 use crate::blueprints::{BlueprintDecl, BlueprintId};
 use crate::contexts::{UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
 use crate::node::{
-    AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint, EventPropagation, EventSubscription,
-    FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid,
+    CurveBezierFitOptions, CurveEasing, CurveFitPoint, CurveKeyNode, CurveNode, CurveRangeConstraint, EventPropagation,
+    EventSubscription, FOLDER_NODE_TYPE, Folder, Node, NodeData, NodeId, NodeMeta, NodeReference, NodeUuid,
     PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
     PARAMETER_ANIMATION_CURVE_NODE_TYPE, PARAMETER_ANIMATION_EASING_DECL_ID, PARAMETER_ANIMATION_EASING_KIND_DECL_ID,
     PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_KEY_NODE_TYPE, PARAMETER_ANIMATION_KEY_POSITION_DECL_ID,
@@ -686,7 +685,7 @@ struct DslReferenceDefaultNode {}
 #[crate::node("dsl_node_children_node")]
 #[children(
     folder(output, label = "Output") {
-        node curve: AnimationCurveNode = AnimationCurveNode::new_with_label("Curve") (
+        node curve: CurveNode = CurveNode::new_with_label("Curve") (
             label = "Curve",
             description = "Declared curve child",
         );
@@ -7361,10 +7360,7 @@ fn animation_curve_accepts_user_created_key_items() {
         })
         .count();
 
-    engine.add_user_item(
-        AnimationCurveKeyNode::new_with_label("Inserted Key").into(),
-        Some(curve_node),
-    );
+    engine.add_user_item(CurveKeyNode::new_with_label("Inserted Key").into(), Some(curve_node));
     engine.apply_edits().expect("user key add should succeed");
 
     let after = engine
@@ -7414,10 +7410,7 @@ fn animation_curve_user_created_key_defaults_to_bezier_easing() {
         })
         .collect::<Vec<_>>();
 
-    engine.add_user_item(
-        AnimationCurveKeyNode::new_with_label("Inserted Key").into(),
-        Some(curve_node),
-    );
+    engine.add_user_item(CurveKeyNode::new_with_label("Inserted Key").into(), Some(curve_node));
     engine.apply_edits().expect("user key add should succeed");
 
     let after_keys = engine
@@ -7474,10 +7467,10 @@ fn animation_curve_insert_keys_with_easing_uses_requested_kind() {
     engine.edits.push(Edit::CallNodeMutation {
         node: curve_node,
         callback: Box::new(|node, ctx| {
-            let Some(curve) = node.as_any_mut().downcast_mut::<AnimationCurveNode>() else {
-                return Err("curve mutation target should be AnimationCurveNode".to_string());
+            let Some(curve) = node.as_any_mut().downcast_mut::<CurveNode>() else {
+                return Err("curve mutation target should be CurveNode".to_string());
             };
-            curve.insert_keys_with_easing(ctx, vec![(0.25, 0.75, crate::animation_curve::CurveEasing::Hold)]);
+            curve.insert_keys_with_easing(ctx, vec![(0.25, 0.75, CurveEasing::Hold)]);
             Ok(())
         }),
     });
@@ -7749,12 +7742,11 @@ fn animation_curve_disabled_range_allows_values_outside_previous_bounds() {
 
 #[test]
 fn animation_curve_code_range_applies_without_materializing_user_range_node() {
-    let range_constraint =
-        AnimationCurveRangeConstraint::new(0.0, 2.0, -1.0, 1.0).expect("range constraint should be valid");
+    let range_constraint = CurveRangeConstraint::new(0.0, 2.0, -1.0, 1.0).expect("range constraint should be valid");
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
     engine.add_node(
-        AnimationCurveNode::new()
+        CurveNode::new()
             .with_user_editable_range(false)
             .with_range_constraint(Some(range_constraint))
             .into(),
@@ -7851,11 +7843,11 @@ fn ui_intent_fit_animation_curve_path_replaces_range_with_fitted_bezier_keys() {
     let ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
         points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
+            CurveFitPoint::new(0.25, 0.2),
+            CurveFitPoint::new(0.5, 0.92),
+            CurveFitPoint::new(0.75, 0.15),
         ],
-        options: AnimationCurveBezierFitOptions {
+        options: CurveBezierFitOptions {
             max_value_error: 0.02,
             max_keys: 8,
         },
@@ -7914,11 +7906,11 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
     let fit_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
         points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
+            CurveFitPoint::new(0.25, 0.2),
+            CurveFitPoint::new(0.5, 0.92),
+            CurveFitPoint::new(0.75, 0.15),
         ],
-        options: AnimationCurveBezierFitOptions {
+        options: CurveBezierFitOptions {
             max_value_error: 0.02,
             max_keys: 8,
         },
@@ -7997,11 +7989,11 @@ fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
     let first_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
         points: vec![
-            AnimationCurveFitPoint::new(0.25, 0.2),
-            AnimationCurveFitPoint::new(0.5, 0.92),
-            AnimationCurveFitPoint::new(0.75, 0.15),
+            CurveFitPoint::new(0.25, 0.2),
+            CurveFitPoint::new(0.5, 0.92),
+            CurveFitPoint::new(0.75, 0.15),
         ],
-        options: AnimationCurveBezierFitOptions {
+        options: CurveBezierFitOptions {
             max_value_error: 0.02,
             max_keys: 8,
         },
@@ -8015,11 +8007,11 @@ fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
     let second_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
         points: vec![
-            AnimationCurveFitPoint::new(0.2, 0.1),
-            AnimationCurveFitPoint::new(0.5, 0.7),
-            AnimationCurveFitPoint::new(0.8, 0.25),
+            CurveFitPoint::new(0.2, 0.1),
+            CurveFitPoint::new(0.5, 0.7),
+            CurveFitPoint::new(0.8, 0.25),
         ],
-        options: AnimationCurveBezierFitOptions {
+        options: CurveBezierFitOptions {
             max_value_error: 0.03,
             max_keys: 8,
         },

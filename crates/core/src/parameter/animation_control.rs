@@ -2,18 +2,17 @@ use std::f64::consts::PI;
 
 use crate::engine::NodeExecutionRule;
 use crate::events::{Event, EventKind};
-use crate::node::NodeId;
+use crate::node::{
+    CurveNode, DeclId, EventPropagation, Node, NodeData, NodeId, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID,
+    PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
+    PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
+    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
+    parameter_child_exists,
+};
 use crate::parameter::{
     AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
 };
 use crate::process_ctx::ProcessCtx;
-
-use super::{
-    AnimationCurveNode, DeclId, EventPropagation, Node, NodeData, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID,
-    PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
-    PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
-};
 
 const DEFAULT_ANIMATION_UPDATE_RATE_HZ: u32 = 60;
 
@@ -311,25 +310,25 @@ impl Node for ParameterAnimationControlNode {
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(AnimationCurveNode::new()), None);
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID) {
+            ctx.add_child_boxed(self.id(), Box::new(CurveNode::new()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_waveform_parameter()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_FREQUENCY_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_FREQUENCY_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_frequency_parameter()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_AMPLITUDE_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_AMPLITUDE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_amplitude_parameter()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_OFFSET_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_OFFSET_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_offset_parameter()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_PHASE_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_PHASE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_phase_parameter()), None);
         }
-        if !super::parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID) {
+        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_update_rate_parameter()), None);
         }
     }

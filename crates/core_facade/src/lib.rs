@@ -56,9 +56,9 @@ pub mod contexts {
     pub use golden_engine::contexts::*;
 }
 
-/// Animation curve model and samplers.
-pub mod animation_curve {
-    pub use golden_engine::animation_curve::*;
+/// Curve model and samplers.
+pub mod curve {
+    pub use golden_engine::node::curve::*;
 }
 
 /// Process-wide logger API and `log!` macro support.

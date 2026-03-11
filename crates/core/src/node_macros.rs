@@ -20,10 +20,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method(),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method(),
             Self::ParameterAnimationControl(node) => node.$method(),
-            Self::AnimationCurve(node) => node.$method(),
-            Self::AnimationCurveRange(node) => node.$method(),
-            Self::AnimationCurveKey(node) => node.$method(),
-            Self::AnimationCurveEasing(node) => node.$method(),
+            Self::Curve(node) => node.$method(),
+            Self::CurveRange(node) => node.$method(),
+            Self::CurveKey(node) => node.$method(),
+            Self::CurveEasing(node) => node.$method(),
             Self::Script(node) => node.$method(),
             $(Self::$variant(node) => node.$method(),)*
         }
@@ -47,10 +47,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1),
             Self::ParameterAnimationControl(node) => node.$method($arg1),
-            Self::AnimationCurve(node) => node.$method($arg1),
-            Self::AnimationCurveRange(node) => node.$method($arg1),
-            Self::AnimationCurveKey(node) => node.$method($arg1),
-            Self::AnimationCurveEasing(node) => node.$method($arg1),
+            Self::Curve(node) => node.$method($arg1),
+            Self::CurveRange(node) => node.$method($arg1),
+            Self::CurveKey(node) => node.$method($arg1),
+            Self::CurveEasing(node) => node.$method($arg1),
             Self::Script(node) => node.$method($arg1),
             $(Self::$variant(node) => node.$method($arg1),)*
         }
@@ -74,10 +74,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2),
-            Self::AnimationCurve(node) => node.$method($arg1, $arg2),
-            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2),
-            Self::AnimationCurveKey(node) => node.$method($arg1, $arg2),
-            Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2),
+            Self::Curve(node) => node.$method($arg1, $arg2),
+            Self::CurveRange(node) => node.$method($arg1, $arg2),
+            Self::CurveKey(node) => node.$method($arg1, $arg2),
+            Self::CurveEasing(node) => node.$method($arg1, $arg2),
             Self::Script(node) => node.$method($arg1, $arg2),
             $(Self::$variant(node) => node.$method($arg1, $arg2),)*
         }
@@ -101,10 +101,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3),
-            Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3),
-            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3),
-            Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3),
-            Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Curve(node) => node.$method($arg1, $arg2, $arg3),
+            Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3),
+            Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3),
+            Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
         }
@@ -128,10 +128,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4),
-            Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
-            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
-            Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4),
-            Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Curve(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
         }
@@ -155,10 +155,10 @@ macro_rules! __dispatch_node_enum {
             Self::DashboardNodeWidgetVec3EditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardNodeWidgetColorEditorOptions(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::ParameterAnimationControl(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
-            Self::AnimationCurve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
-            Self::AnimationCurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
-            Self::AnimationCurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
-            Self::AnimationCurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Curve(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
         }
@@ -584,11 +584,11 @@ macro_rules! define_user_item_factory_methods {
 /// - `DashboardNodeWidgetVec2EditorOptions($crate::node::DashboardNodeWidgetVec2EditorOptionsNode)`
 /// - `DashboardNodeWidgetVec3EditorOptions($crate::node::DashboardNodeWidgetVec3EditorOptionsNode)`
 /// - `DashboardNodeWidgetColorEditorOptions($crate::node::DashboardNodeWidgetColorEditorOptionsNode)`
-/// - `ParameterAnimationControl($crate::node::ParameterAnimationControlNode)`
-/// - `AnimationCurve($crate::node::AnimationCurveNode)`
-/// - `AnimationCurveRange($crate::node::AnimationCurveRangeNode)`
-/// - `AnimationCurveKey($crate::node::AnimationCurveKeyNode)`
-/// - `AnimationCurveEasing($crate::node::AnimationCurveEasingNode)`
+/// - `ParameterAnimationControl($crate::parameter::ParameterAnimationControlNode)`
+/// - `Curve($crate::node::CurveNode)`
+/// - `CurveRange($crate::node::CurveRangeNode)`
+/// - `CurveKey($crate::node::CurveKeyNode)`
+/// - `CurveEasing($crate::node::CurveEasingNode)`
 /// - `Script($crate::script::ScriptNode)`
 ///
 /// Shorthand form for app-specific nodes:
@@ -616,11 +616,11 @@ macro_rules! define_node_enum {
             DashboardNodeWidgetVec2EditorOptions($crate::node::DashboardNodeWidgetVec2EditorOptionsNode),
             DashboardNodeWidgetVec3EditorOptions($crate::node::DashboardNodeWidgetVec3EditorOptionsNode),
             DashboardNodeWidgetColorEditorOptions($crate::node::DashboardNodeWidgetColorEditorOptionsNode),
-            ParameterAnimationControl($crate::node::ParameterAnimationControlNode),
-            AnimationCurve($crate::node::AnimationCurveNode),
-            AnimationCurveRange($crate::node::AnimationCurveRangeNode),
-            AnimationCurveKey($crate::node::AnimationCurveKeyNode),
-            AnimationCurveEasing($crate::node::AnimationCurveEasingNode),
+            ParameterAnimationControl($crate::parameter::ParameterAnimationControlNode),
+            Curve($crate::node::CurveNode),
+            CurveRange($crate::node::CurveRangeNode),
+            CurveKey($crate::node::CurveKeyNode),
+            CurveEasing($crate::node::CurveEasingNode),
             Script($crate::script::ScriptNode),
             $($variant($node_ty),)*
         }
@@ -661,10 +661,10 @@ macro_rules! define_node_enum {
                     Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
                     Self::DashboardNodeWidgetColorEditorOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
-                    Self::AnimationCurve(node) => node,
-                    Self::AnimationCurveRange(node) => node,
-                    Self::AnimationCurveKey(node) => node,
-                    Self::AnimationCurveEasing(node) => node,
+                    Self::Curve(node) => node,
+                    Self::CurveRange(node) => node,
+                    Self::CurveKey(node) => node,
+                    Self::CurveEasing(node) => node,
                     Self::Script(node) => node,
                     $(Self::$variant(node) => node,)*
                 }
@@ -690,10 +690,10 @@ macro_rules! define_node_enum {
                     Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
                     Self::DashboardNodeWidgetColorEditorOptions(node) => node,
                     Self::ParameterAnimationControl(node) => node,
-                    Self::AnimationCurve(node) => node,
-                    Self::AnimationCurveRange(node) => node,
-                    Self::AnimationCurveKey(node) => node,
-                    Self::AnimationCurveEasing(node) => node,
+                    Self::Curve(node) => node,
+                    Self::CurveRange(node) => node,
+                    Self::CurveKey(node) => node,
+                    Self::CurveEasing(node) => node,
                     Self::Script(node) => node,
                     $(Self::$variant(node) => node,)*
                 }
@@ -994,11 +994,11 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetVec2EditorOptions, $crate::node::DashboardNodeWidgetVec2EditorOptionsNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetVec3EditorOptions, $crate::node::DashboardNodeWidgetVec3EditorOptionsNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardNodeWidgetColorEditorOptions, $crate::node::DashboardNodeWidgetColorEditorOptionsNode);
-                $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::node::ParameterAnimationControlNode);
-                $crate::__downcast_node_enum_variant!(any, AnimationCurve, $crate::node::AnimationCurveNode);
-                $crate::__downcast_node_enum_variant!(any, AnimationCurveRange, $crate::node::AnimationCurveRangeNode);
-                $crate::__downcast_node_enum_variant!(any, AnimationCurveKey, $crate::node::AnimationCurveKeyNode);
-                $crate::__downcast_node_enum_variant!(any, AnimationCurveEasing, $crate::node::AnimationCurveEasingNode);
+                $crate::__downcast_node_enum_variant!(any, ParameterAnimationControl, $crate::parameter::ParameterAnimationControlNode);
+                $crate::__downcast_node_enum_variant!(any, Curve, $crate::node::CurveNode);
+                $crate::__downcast_node_enum_variant!(any, CurveRange, $crate::node::CurveRangeNode);
+                $crate::__downcast_node_enum_variant!(any, CurveKey, $crate::node::CurveKeyNode);
+                $crate::__downcast_node_enum_variant!(any, CurveEasing, $crate::node::CurveEasingNode);
                 $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
 
                 $(
@@ -1106,30 +1106,30 @@ macro_rules! define_node_enum {
                     return Ok(Self::DashboardNodeWidgetColorEditorOptions(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CONTROL_NODE_TYPE {
-                    let mut node = $crate::node::ParameterAnimationControlNode::new(meta.label.clone());
+                    let mut node = $crate::parameter::ParameterAnimationControlNode::new(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::ParameterAnimationControl(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CURVE_NODE_TYPE {
-                    let mut node = $crate::node::AnimationCurveNode::new_with_label(meta.label.clone());
+                    let mut node = $crate::node::CurveNode::new_with_label(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::AnimationCurve(node));
+                    return Ok(Self::Curve(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_RANGE_NODE_TYPE {
-                    let mut node = $crate::node::AnimationCurveRangeNode::new(None, true);
+                    let mut node = $crate::node::CurveRangeNode::new(None, true);
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::AnimationCurveRange(node));
+                    return Ok(Self::CurveRange(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_KEY_NODE_TYPE {
-                    let mut node = $crate::node::AnimationCurveKeyNode::new_with_label(meta.label.clone());
+                    let mut node = $crate::node::CurveKeyNode::new_with_label(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::AnimationCurveKey(node));
+                    return Ok(Self::CurveKey(node));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
-                    let mut node = $crate::node::AnimationCurveEasingNode::new();
+                    let mut node = $crate::node::CurveEasingNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::AnimationCurveEasing(node));
+                    return Ok(Self::CurveEasing(node));
                 }
                 if let Some(mut node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
@@ -1245,33 +1245,33 @@ macro_rules! define_node_enum {
             }
         }
 
-        impl From<$crate::node::ParameterAnimationControlNode> for $enum_name {
-            fn from(node: $crate::node::ParameterAnimationControlNode) -> Self {
+        impl From<$crate::parameter::ParameterAnimationControlNode> for $enum_name {
+            fn from(node: $crate::parameter::ParameterAnimationControlNode) -> Self {
                 Self::ParameterAnimationControl(node)
             }
         }
 
-        impl From<$crate::node::AnimationCurveNode> for $enum_name {
-            fn from(node: $crate::node::AnimationCurveNode) -> Self {
-                Self::AnimationCurve(node)
+        impl From<$crate::node::CurveNode> for $enum_name {
+            fn from(node: $crate::node::CurveNode) -> Self {
+                Self::Curve(node)
             }
         }
 
-        impl From<$crate::node::AnimationCurveRangeNode> for $enum_name {
-            fn from(node: $crate::node::AnimationCurveRangeNode) -> Self {
-                Self::AnimationCurveRange(node)
+        impl From<$crate::node::CurveRangeNode> for $enum_name {
+            fn from(node: $crate::node::CurveRangeNode) -> Self {
+                Self::CurveRange(node)
             }
         }
 
-        impl From<$crate::node::AnimationCurveKeyNode> for $enum_name {
-            fn from(node: $crate::node::AnimationCurveKeyNode) -> Self {
-                Self::AnimationCurveKey(node)
+        impl From<$crate::node::CurveKeyNode> for $enum_name {
+            fn from(node: $crate::node::CurveKeyNode) -> Self {
+                Self::CurveKey(node)
             }
         }
 
-        impl From<$crate::node::AnimationCurveEasingNode> for $enum_name {
-            fn from(node: $crate::node::AnimationCurveEasingNode) -> Self {
-                Self::AnimationCurveEasing(node)
+        impl From<$crate::node::CurveEasingNode> for $enum_name {
+            fn from(node: $crate::node::CurveEasingNode) -> Self {
+                Self::CurveEasing(node)
             }
         }
 

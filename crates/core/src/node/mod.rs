@@ -1,16 +1,16 @@
-mod animation_curve;
-mod control_animation;
 mod core;
+/// Built-in node families, node traits, and node-level constants.
+pub mod curve;
 mod dashboard;
 mod handles;
 
 pub use crate::parameter::ParameterValueType;
-pub use animation_curve::{
-    AnimationCurveEasingNode, AnimationCurveKeyNode, AnimationCurveNode, AnimationCurveRangeConstraint,
-    AnimationCurveRangeNode, curve_from_snapshot,
-};
-pub use control_animation::ParameterAnimationControlNode;
 pub use core::*;
+pub use curve::{
+    Curve, CurveBezierFitOptions, CurveCursor, CurveEasing, CurveEasingNode, CurveFitPoint, CurveHandle, CurveKey,
+    CurveKeyNode, CurveNode, CurvePhaseMode, CurveRangeConstraint, CurveRangeNode, CurveShape, CurveStepMode,
+    curve_from_snapshot,
+};
 pub use dashboard::{
     DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_ITEM_KIND, DASHBOARD_NODE_TYPE,
     DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE, DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE,

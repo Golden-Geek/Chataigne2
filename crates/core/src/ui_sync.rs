@@ -3,15 +3,14 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::animation_curve::{AnimationCurveBezierFitOptions, AnimationCurveFitPoint};
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
-    AnimationCurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch, NodeUserPermissions, NodeUuid,
-    PresentationHint, UserCreatableItem, UserNodeRole,
+    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch,
+    NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
@@ -796,10 +795,10 @@ pub enum UiEditIntent {
         /// Target animation-curve node id.
         curve: NodeId,
         /// Recorded path samples.
-        points: Vec<AnimationCurveFitPoint>,
+        points: Vec<CurveFitPoint>,
         /// Fit controls.
         #[serde(default)]
-        options: AnimationCurveBezierFitOptions,
+        options: CurveBezierFitOptions,
     },
     /// Patch node metadata.
     PatchMeta {
@@ -1497,8 +1496,8 @@ impl<T: Node> Engine<T> {
                 self.edits.push(Edit::CallNodeMutation {
                     node: curve,
                     callback: Box::new(move |node, ctx| {
-                        let Some(curve_node) = node.as_any_mut().downcast_mut::<AnimationCurveNode>() else {
-                            return Err("target node should be AnimationCurveNode".to_string());
+                        let Some(curve_node) = node.as_any_mut().downcast_mut::<CurveNode>() else {
+                            return Err("target node should be CurveNode".to_string());
                         };
                         curve_node.replace_range_with_fitted_samples(ctx, points.as_slice(), options)?;
                         Ok(())

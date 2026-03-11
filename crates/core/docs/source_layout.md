@@ -9,9 +9,9 @@
 - `src/engine/`
   - Engine state, edit application, runtime scheduling, persistence helpers, UI event helpers, and engine tests.
 - `src/node/`
-  - Node traits, built-in node families, dashboards, animation-curve nodes, and typed handle helpers.
+  - Node traits, built-in node families, dashboards, curve nodes, and typed handle helpers.
 - `src/parameter/`
-  - Parameter value model, constraints, control state, and the parameter node type.
+  - Parameter value model, constraints, control state, animation control nodes, and the parameter node type.
 - `src/script/`
   - Script runtime plus checked-in default templates.
 - `src/*.rs`
@@ -26,14 +26,17 @@
 - Filenames should match the primary exported concept or a tight concept family.
 - Folder context should remove redundant prefixes. Inside `src/engine/`, use `runtime.rs`, not `engine_runtime.rs`.
 - `mod.rs` should stay thin: declare children, re-export the public surface, and keep only parent-level orchestration that genuinely belongs there.
-- Folder modules keep tests in `tests.rs`.
-- Single-file leaf modules may keep inline `mod tests { ... }` until they are promoted to folders for real code-ownership reasons.
-- When a leaf module becomes large enough to justify a folder, move its tests out of the runtime body at the same time.
+- Normalized folders keep tests in sibling `tests.rs` or `*_tests.rs` files.
+- Runtime files inside normalized folders do not keep inline `mod tests { ... }` blocks.
+- If a module needs sibling runtime files or sibling tests, promote it to a folder instead of keeping a large leaf file.
 
 ## Lookup Examples
 
 - `DashboardNodeWidgetVec2EditorOptionsNode` -> `src/node/dashboard/widget_options/vec2_editor.rs`
 - `DashboardNode` -> `src/node/dashboard/mod.rs`
+- `CurveEasingNode` -> `src/node/curve/easing.rs`
+- `curve_from_snapshot` -> `src/node/curve/snapshot.rs`
+- `ParameterAnimationControlNode` -> `src/parameter/animation_control.rs`
 - `ParameterHandle` -> `src/node/handles/parameter_handle.rs`
 - `ProjectFile` -> `src/engine/persistence.rs`
 - `EngineRuntimeError` -> `src/engine/runtime.rs`

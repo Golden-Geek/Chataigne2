@@ -38,9 +38,6 @@ pub mod blueprints;
 /// UserContext and DynamicContext APIs.
 pub mod contexts;
 
-/// Animation curve model and high-performance samplers.
-pub mod animation_curve;
-
 /// Process-wide logger API and `log!` macro support.
 pub mod logger;
 
