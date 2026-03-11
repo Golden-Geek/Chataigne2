@@ -7,9 +7,9 @@ use crate::{
 };
 
 use super::{
-    default_parameter_value_for_node_type, EventPropagation, Node, NodeData, NodeId,
-    UserContainerRules, UserCreatableItem, FOLDER_NODE_TYPE, USER_CONTEXT_ALLOWED_ITEM_KINDS,
-    USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE,
+    EventPropagation, FOLDER_NODE_TYPE, Node, NodeData, NodeId, USER_CONTEXT_ALLOWED_ITEM_KINDS,
+    USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
+    default_parameter_value_for_node_type,
 };
 
 /// Internal scope node used to host user-authored lexical context entries.

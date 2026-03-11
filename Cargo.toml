@@ -1,5 +1,15 @@
 [workspace]
-members = ["crates/codegen_support", "crates/core", "crates/core_macros"]
+members = [
+    "crates/codegen_support",
+    "crates/core",
+    "crates/core_facade",
+    "crates/core_macros",
+    "crates/host_desktop",
+    "crates/persistence",
+    "crates/protocol",
+    "crates/script",
+    "crates/transport_server",
+]
 resolver = "2"
 
 [workspace.package]

@@ -1,5 +1,5 @@
 [package]
-name = "golden_core"
+name = "golden_engine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,6 +13,4 @@ slotmap = "1.1.1"
 serde_json = "1"
 golden_core_macros = { path = "../core_macros" }
 rquickjs = { version = "0.11", features = ["parallel"] }
-rfd = "0.15"
-tauri = "2"
 ts-rs.workspace = true

@@ -13,7 +13,9 @@ pub use builtins::{Folder, UserContextNode};
 pub use constants::*;
 pub use events::{EventPropagation, EventSubscription};
 pub use identity::{DeclId, NodeId, NodeReference, NodeUuid};
-pub use metadata::{NodeData, NodeMeta, NodeMetaPatch, NodeScriptDescriptor, NodeWarning, PresentationHint, SemanticsHint};
+pub use metadata::{
+    NodeData, NodeMeta, NodeMetaPatch, NodeScriptDescriptor, NodeWarning, PresentationHint, SemanticsHint,
+};
 pub use policies::{IntoScriptHostPolicyOption, IntoUserContextHostPolicyOption, UserContextHostPolicy};
 pub use user_items::{DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserNodeRole};
 

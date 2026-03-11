@@ -1,16 +1,16 @@
 //! Build-script support helpers for Golden workspaces.
 
 use std::collections::HashSet;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use golden_core::script::ScriptUiState;
-use golden_core::ui_sync::{
-    UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto,
-    UiParamControlInfoRequest, UiProjectPathRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
-    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot,
-    UiSnapshotRequest,
+use golden_protocol::{
+    UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
+    UiProjectPathRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiScriptConfigRequest,
+    UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
 };
+use golden_script::ScriptUiState;
 use ts_rs::{Config, TS};
 
 #[derive(Debug, Clone)]
@@ -72,7 +72,7 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
 
 /// Exports Rust-owned UI transport bindings into the TypeScript workspace.
 pub fn generate_ui_protocol_bindings(out_dir: &Path) {
-    let core_src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("core").join("src");
+    let core_src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     println!("cargo:rerun-if-changed={}", core_src_root.display());
 
     let mut rust_files = Vec::new();
@@ -83,8 +83,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     }
 
     if out_dir.exists() {
-        fs::remove_dir_all(out_dir)
-            .unwrap_or_else(|err| panic!("failed to clear {}: {}", out_dir.display(), err));
+        fs::remove_dir_all(out_dir).unwrap_or_else(|err| panic!("failed to clear {}: {}", out_dir.display(), err));
     }
     fs::create_dir_all(out_dir).unwrap_or_else(|err| panic!("failed to create {}: {}", out_dir.display(), err));
 
@@ -106,6 +105,39 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiScriptConfigRequest>(&config, "UiScriptConfigRequest");
     export_binding::<UiScriptReloadRequest>(&config, "UiScriptReloadRequest");
     export_binding::<UiProjectPathRequest>(&config, "UiProjectPathRequest");
+}
+
+/// Small command-line wrapper around the codegen helpers.
+pub fn run_cli() -> Result<(), String> {
+    let mut args = env::args().skip(1);
+    let Some(command) = args.next() else {
+        return Err(
+            "missing command: expected `app-nodes <src-root> <out-file>` or `ui-protocol <out-dir>`".to_string(),
+        );
+    };
+
+    match command.as_str() {
+        "app-nodes" => {
+            let Some(src_root) = args.next() else {
+                return Err("missing <src-root> for `app-nodes`".to_string());
+            };
+            let Some(out_file) = args.next() else {
+                return Err("missing <out-file> for `app-nodes`".to_string());
+            };
+            generate_app_nodes(Path::new(&src_root), Path::new(&out_file));
+            Ok(())
+        }
+        "ui-protocol" => {
+            let Some(out_dir) = args.next() else {
+                return Err("missing <out-dir> for `ui-protocol`".to_string());
+            };
+            generate_ui_protocol_bindings(Path::new(&out_dir));
+            Ok(())
+        }
+        other => Err(format!(
+            "unknown command `{other}`: expected `app-nodes` or `ui-protocol`"
+        )),
+    }
 }
 
 fn export_binding<T: TS + 'static>(config: &Config, name: &str) {

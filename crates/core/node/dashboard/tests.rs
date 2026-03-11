@@ -11,8 +11,8 @@ use crate::parameter::{
 use crate::ui_sync::{UiCreateUserItemInitialParam, UiEditIntent};
 
 use super::{
-    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE,
-    DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DashboardNode,
+    DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE,
+    DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DashboardNode,
 };
 
 define_node_enum!(
@@ -273,8 +273,7 @@ fn dashboard_node_widget_types_follow_target_capabilities() {
 
     let float_param = direct_child_by_type(&engine, engine.root, "float").expect("float parameter should exist");
     let vec2_param = direct_child_by_type(&engine, engine.root, "vec2").expect("vec2 parameter should exist");
-    let dashboard =
-        direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+    let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
     engine
         .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
         .expect("page creation should queue");
@@ -800,8 +799,8 @@ fn dashboard_widgets_expose_disableable_label_placement() {
 
     let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE)
         .expect("page should contain a generic widget child");
-    let label_placement = find_descendant_by_decl(&engine, widget, "label_placement")
-        .expect("label placement parameter should exist");
+    let label_placement =
+        find_descendant_by_decl(&engine, widget, "label_placement").expect("label placement parameter should exist");
     let label_placement_node = engine
         .nodes
         .get(label_placement)
@@ -836,8 +835,7 @@ fn dashboard_node_widget_inspector_options_follow_target_disable_capabilities() 
     engine.add_node(DashboardNode::new().into(), None);
     engine.apply_edits().expect("initial tree should apply");
 
-    let dashboard =
-        direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+    let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
     let target_node = {
         let mut child = engine
             .nodes
@@ -901,9 +899,8 @@ fn dashboard_node_widget_inspector_options_follow_target_disable_capabilities() 
             .expect("dispatch should succeed");
     }
 
-    let show_enable_button = find_descendant_by_decl(&engine, widget, "show_enable_button").expect(
-        "disableable parameter widgets should expose the enable-button toggle in their default widget options",
-    );
+    let show_enable_button = find_descendant_by_decl(&engine, widget, "show_enable_button")
+        .expect("disableable parameter widgets should expose the enable-button toggle in their default widget options");
     assert_eq!(
         param_snapshot(&engine, show_enable_button).value,
         ParamValue::Bool(true),
@@ -951,8 +948,7 @@ fn ui_create_user_item_initial_params_materialize_dashboard_widget_without_follo
     engine.apply_edits().expect("initial tree should apply");
 
     let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");
-    let dashboard =
-        direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+    let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
     engine
         .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
         .expect("page creation should queue");
@@ -1013,8 +1009,7 @@ fn ui_create_user_item_initial_params_materialize_dashboard_widget_without_follo
         find_descendant_by_decl(&engine, widget, "widget_kind").expect("widget kind parameter should exist");
     let placeholder =
         find_descendant_by_decl(&engine, widget, "placeholder").expect("placeholder parameter should exist");
-    let multiline =
-        find_descendant_by_decl(&engine, widget, "multiline").expect("multiline parameter should exist");
+    let multiline = find_descendant_by_decl(&engine, widget, "multiline").expect("multiline parameter should exist");
     let anchor = find_descendant_by_decl(&engine, widget, "anchor").expect("anchor parameter should exist");
     let position = find_descendant_by_decl(&engine, widget, "position").expect("position parameter should exist");
     let width = find_descendant_by_decl(&engine, widget, "width").expect("width parameter should exist");
@@ -1056,8 +1051,7 @@ fn dashboard_node_widget_initial_target_reference_without_cached_id_stabilizes()
     engine.apply_edits().expect("initial tree should apply");
 
     let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");
-    let dashboard =
-        direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+    let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
     engine
         .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
         .expect("page creation should queue");

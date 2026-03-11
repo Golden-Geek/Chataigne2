@@ -86,8 +86,8 @@ fn easing_node_dependencies_follow_kind_and_mode() {
                 direct_children_after_create
             )
         });
-    let kind = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_KIND_DECL_ID)
-        .expect("kind should exist");
+    let kind =
+        find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_KIND_DECL_ID).expect("kind should exist");
 
     assert!(
         find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_OUT_POSITION_DECL_ID).is_none(),
@@ -211,14 +211,13 @@ fn easing_node_preserves_script_source_default() {
 
     let easing = first_child(&engine, engine.root);
     let direct_children_after_create = direct_child_decl_ids(&engine, easing);
-    let script_source =
-        find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID)
-            .unwrap_or_else(|| {
-                panic!(
-                    "script easings should materialize script source; children were {:?}",
-                    direct_children_after_create
-                )
-            });
+    let script_source = find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_SCRIPT_SOURCE_DECL_ID)
+        .unwrap_or_else(|| {
+            panic!(
+                "script easings should materialize script source; children were {:?}",
+                direct_children_after_create
+            )
+        });
     let script_source_snapshot = engine
         .nodes
         .get(script_source)
@@ -234,7 +233,9 @@ fn easing_node_preserves_script_source_default() {
         "script easings should hide the out handle value"
     );
     assert!(
-        find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID).is.none(),
+        find_direct_child_by_decl(&engine, easing, PARAMETER_ANIMATION_EASING_IN_POSITION_DECL_ID)
+            .is
+            .none(),
         "script easings should hide the in handle position"
     );
     assert!(

@@ -1,0 +1,13 @@
+[package]
+name = "golden_host_desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+golden_engine = { path = "../core" }
+golden_transport_server = { path = "../transport_server" }
+rfd = "0.15"
+tauri = "2"

@@ -94,7 +94,10 @@ pub fn dependency_binary_compare(lhs: &ParamValue, rhs: &ParamValue, operator: P
             _ => {}
         }
 
-        if matches!(operator, ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne) {
+        if matches!(
+            operator,
+            ParameterDependencyOperator::Eq | ParameterDependencyOperator::Ne
+        ) {
             if let (Some(lhs), Some(rhs)) = (lhs.as_str(), rhs.as_str()) {
                 return compare_partial_ord(lhs.as_str(), rhs.as_str(), operator);
             }

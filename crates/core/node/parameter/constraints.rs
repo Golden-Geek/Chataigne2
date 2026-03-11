@@ -6,9 +6,7 @@ use ts_rs::TS;
 use crate::node::NodeUuid;
 
 use super::control::{is_default_parameter_control_state, is_true};
-use super::{
-    CssValue, ParamValue, ParameterChangeCheck, ParameterControlState, ParameterEventBehaviour,
-};
+use super::{CssValue, ParamValue, ParameterChangeCheck, ParameterControlState, ParameterEventBehaviour};
 
 /// Data-level enum option descriptor used by validation and UI rendering.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

@@ -11,10 +11,10 @@ use crate::{
 };
 
 use super::{
-    core_node_script_descriptor, lookup_script_child_by_key_and_type, parameter_node_type_from_value,
     DeclId, EventPropagation, Folder, NodeData, NodeId, NodeMetaPatch, NodeReference, NodeScriptDescriptor,
-    NodeUserPermissions, UserContainerRules, UserContextHostPolicy, UserContextNode, UserCreatableItem,
-    USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
+    NodeUserPermissions, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
+    UserContainerRules, UserContextHostPolicy, UserContextNode, UserCreatableItem, core_node_script_descriptor,
+    lookup_script_child_by_key_and_type, parameter_node_type_from_value,
 };
 
 #[allow(missing_docs)]
@@ -73,7 +73,10 @@ pub trait Node: Send + Any {
 
     #[doc(hidden)]
     fn engine_request_script_reload(&mut self) -> Result<(), String> {
-        Err(format!("node type '{}' does not support script reload", self.get_type()))
+        Err(format!(
+            "node type '{}' does not support script reload",
+            self.get_type()
+        ))
     }
 
     #[doc(hidden)]
@@ -352,7 +355,8 @@ pub trait Node: Send + Any {
                         });
 
                     if let Some((is_parameter, node_type, label, param_value)) = existing_snapshot {
-                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type) {
+                        if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type)
+                        {
                             if label != parameter_id {
                                 ctx.patch_node_meta(
                                     existing_node,

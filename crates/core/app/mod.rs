@@ -1,21 +1,9 @@
-//! App lifecycle hooks and the default ready-to-launch host runtime.
+//! App lifecycle hooks and host-independent runtime preparation.
 
 use std::io::Error;
 
 use crate::engine::{Engine, EngineRuntimeError};
 use crate::node::{DashboardNode, Folder, Node, NodeMeta};
-
-mod desktop;
-mod desktop_commands;
-pub(crate) mod project_host;
-/// Built-in HTTP and WebSocket runtime host used by the default launch flow.
-pub mod ui_server;
-
-pub use desktop::{
-    launch_engine_with_args, launch_with_args, parse_launch_args, parse_launch_args_from_env, run_default,
-    LaunchArgs,
-};
-pub use ui_server::{run_ui_server, run_with_ui_server_config, UiServerConfig};
 
 /// App node contract required by the default runtime host.
 pub trait ProjectNode: Node {
@@ -146,15 +134,6 @@ impl<T: Node> GoldenApp<T> {
         self.engine.clear_history();
         self.engine.run_loop()
     }
-}
-
-/// Launches an app node type through the default `golden_core` host runtime using the
-/// application crate's Tauri context.
-#[macro_export]
-macro_rules! run_default_app {
-    ($node_ty:ty) => {
-        $crate::app::run_default::<$node_ty, tauri::Wry>(tauri::generate_context!())
-    };
 }
 
 #[cfg(test)]

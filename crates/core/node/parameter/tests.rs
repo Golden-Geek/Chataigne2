@@ -145,8 +145,8 @@ fn projection_supports_color_rgb_hsv_mappings() {
     approx_eq(s, 1.0);
     approx_eq(v, 1.0);
 
-    let hs = project_param_value(&color, ParamValueProjection::ColorToVec2Hs)
-        .expect("color->hs projection should succeed");
+    let hs =
+        project_param_value(&color, ParamValueProjection::ColorToVec2Hs).expect("color->hs projection should succeed");
     let ParamValue::Vec2(h, s) = hs else {
         panic!("expected vec2 hs result");
     };
@@ -274,10 +274,8 @@ fn reverse_projection_preserves_target_components() {
 
 #[test]
 fn binding_compatibility_requires_bidirectional_direct_conversion() {
-    let compatibility = compatibility_for_binding_values(
-        &ParamValue::Color(0.1, 0.2, 0.3, 1.0),
-        &ParamValue::Vec3(0.0, 0.0, 0.0),
-    );
+    let compatibility =
+        compatibility_for_binding_values(&ParamValue::Color(0.1, 0.2, 0.3, 1.0), &ParamValue::Vec3(0.0, 0.0, 0.0));
     assert!(!compatibility.direct, "color->vec3 is direct, but vec3->color is not");
     assert!(
         compatibility
