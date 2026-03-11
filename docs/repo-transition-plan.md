@@ -48,6 +48,9 @@ Target:
 - Shared protocol changes must update Rust source, generated TypeScript output, and consuming adapters in the same change.
 - App-local build steps may generate app-owned code only. Shared SDK outputs must be generated from the shared SDK boundary.
 - During the transition, package-style consumption of `golden_ui` inside `src-ui` is preferred over direct `$lib/golden_ui/...` imports from app-local code.
+- Inside `golden_ui` itself, new code should not depend on `$app/*` or other app-only aliases. The
+  package is now source-self-contained and should keep that property before it moves out of
+  `src/lib/`.
 
 ## Version Pinning Policy
 

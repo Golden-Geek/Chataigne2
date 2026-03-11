@@ -38,6 +38,8 @@ npm run format
 - Do not import submodule internals by filesystem path from app crates or build scripts.
 - Do not use `#[path = "..."]` to reach into another crate's private files.
 - Inside `golden_engine`, keep `src/` as the real module tree. Do not reintroduce runtime `#[path]` wiring or split one concept across `thing.rs` and `thing/`.
+- Inside `golden_ui`, do not add new `$app/*` dependencies or app-local alias coupling. Treat it
+  as a package boundary even while it is checked out under `src-ui/src/lib/`.
 - If shared build logic is needed, expose it through a dedicated public crate or module.
 - Keep `Chataigne2` thin. Reusable engine, default desktop/headless host runtime, protocol, persistence, and UI logic belongs in shared workspaces.
 - Do not reimplement the default Tauri/headless launch path in the app shell; override it only when the app genuinely needs custom bootstrap.
@@ -55,5 +57,7 @@ npm run format
 - Keep docs short and architectural.
 - Link to deeper design docs in `submodules/golden_core/crates/core/docs/` instead of duplicating them.
 - Keep `submodules/golden_core/crates/core/docs/source_layout.md` current when filesystem ownership or module-placement rules change.
+- Keep `src-ui/src/lib/golden_ui/docs/source_layout.md` current when UI package ownership or file
+  placement rules change.
 - Update architecture docs when host/runtime responsibilities move across the app shell and shared crates.
 - Update `docs/repo-transition-plan.md` when repo ownership or migration rules change.
