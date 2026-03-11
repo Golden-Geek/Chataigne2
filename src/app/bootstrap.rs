@@ -45,11 +45,7 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         let manager = find_root_child_by_type(engine, "module_manager")
             .ok_or_else(|| "default module manager was not created during project initialization".to_string())?;
 
-        for node_type in [
-            "osc_module",
-            "midi_module",
-            "dmx_module",
-        ] {
+        for node_type in ["osc_module", "midi_module", "dmx_module"] {
             let node = create_manager_item(engine, manager, node_type)?;
             engine.add_user_item(node, Some(manager));
         }

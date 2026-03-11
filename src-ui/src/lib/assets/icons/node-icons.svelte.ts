@@ -1,5 +1,5 @@
-import type { NodeIconSet } from '$lib/golden_ui';
-import { generateIconWithText } from '$lib/golden_ui/store/node-types';
+import type { NodeIconSet } from 'golden_ui';
+import { generateIconWithText } from 'golden_ui/store/node-types';
 import moduleIcon from './nodes/module.svg';
 import moduleManagerIcon from './nodes/module_manager.svg';
 

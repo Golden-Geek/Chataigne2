@@ -10,7 +10,7 @@ This repository is converging on a layered workspace with a thin shell, shared e
 
 ### Core Engine
 
-`golden_core` hosts the shared runtime, default ready-to-launch desktop/headless host flow, node model, macros, and protocol layers. Pure engine modules inside `golden_core` should remain usable without invoking the desktop host path, but the default application runtime belongs in the reusable core workspace rather than each app shell.
+`golden_core` is the shared runtime workspace. It now exposes explicit crates for the engine, protocol, persistence, transport server, desktop host, scripting, macros, and build-time support. Pure engine consumers should be able to depend on the engine-facing crates without pulling in desktop host concerns, while app shells still launch through the default reusable host/runtime path by default.
 
 ### Protocol Boundary
 
@@ -18,7 +18,7 @@ UI request, response, event, snapshot, and version types must have one source of
 
 ### UI Client And Stores
 
-`src-ui` contains the Svelte 5 client, transport layer, and workbench state. Session state should be composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces, not leak directly into state orchestration.
+`src-ui` contains the app UI shell and consumes `golden_ui` as the reusable UI package boundary. Session state should be composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces, not leak directly into state orchestration.
 
 ### Host Layers
 
@@ -26,7 +26,7 @@ Desktop startup, browser/headless hosting, native dialogs, and transport servers
 
 ## Build And Codegen Boundary
 
-App build scripts must consume public support APIs. They must not path-import private submodule files. The app node registry is now generated through `submodules/golden_core/crates/codegen_support/`, which exists specifically to provide a stable build-time boundary.
+App build scripts must consume public support APIs. They must not path-import private submodule files. The app node registry is generated through `submodules/golden_core/crates/codegen_support/`, which exists specifically to provide a stable build-time boundary. Shared UI protocol bindings are generated from the reusable UI/package workflow rather than the app build script.
 
 ## Persistence Direction
 

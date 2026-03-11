@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MainWindow, WorkbenchOverlayHost, type UserPanelDefinitionMap } from '$lib/golden_ui';
+	import { MainWindow, WorkbenchOverlayHost, type UserPanelDefinitionMap } from 'golden_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
 
 	const userPanels: UserPanelDefinitionMap = {};

@@ -5,8 +5,13 @@ This repository is being refactored toward a clean long-term architecture. Optim
 ## Repo Map
 
 - `src/`: thin app-shell bootstrap, app-specific nodes, and minimal shell wiring.
-- `src-ui/`: Svelte 5 UI, transport clients, and state/store composition.
-- `submodules/golden_core/crates/core/`: engine, default ready-to-launch host runtime, protocol, and shared runtime layers.
+- `src-ui/`: Svelte 5 app UI shell, `golden_ui` package consumption, transport clients, and state/store composition.
+- `submodules/golden_core/crates/core/`: pure engine/runtime crate implementation (`golden_engine` package).
+- `submodules/golden_core/crates/core_facade/`: stable `golden_core` facade used by apps.
+- `submodules/golden_core/crates/protocol/`: public protocol DTO boundary.
+- `submodules/golden_core/crates/persistence/`: public persistence DTO boundary.
+- `submodules/golden_core/crates/transport_server/`: built-in HTTP/WebSocket host.
+- `submodules/golden_core/crates/host_desktop/`: default desktop/headless host runtime.
 - `submodules/golden_core/crates/core_macros/`: proc macros used by the engine and app nodes.
 - `submodules/golden_core/crates/codegen_support/`: build-script support APIs intended for app/workspace consumers.
 
@@ -23,6 +28,7 @@ UI:
 
 ```sh
 cd src-ui
+npm run codegen:golden-ui-protocol
 npm run format
 ```
 
@@ -39,6 +45,7 @@ npm run format
 - Do not duplicate protocol declarations across Rust and TypeScript.
 - Request, response, event, snapshot, and protocol-version types must have one source of truth.
 - When code generation exists, update generator inputs, generated output, and consumers together.
+- Do not make the app build script write into shared UI package internals.
 
 ## Documentation Expectations
 
@@ -46,3 +53,4 @@ npm run format
 - Keep docs short and architectural.
 - Link to deeper design docs in `submodules/golden_core/crates/core/docs/` instead of duplicating them.
 - Update architecture docs when host/runtime responsibilities move across the app shell and shared crates.
+- Update `docs/repo-transition-plan.md` when repo ownership or migration rules change.

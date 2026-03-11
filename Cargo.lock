@@ -1421,7 +1421,8 @@ dependencies = [
 name = "golden_codegen_support"
 version = "0.1.0"
 dependencies = [
- "golden_core",
+ "golden_protocol",
+ "golden_script",
  "ts-rs",
 ]
 
@@ -1430,14 +1431,12 @@ name = "golden_core"
 version = "0.1.0"
 dependencies = [
  "golden_core_macros",
- "rfd",
- "rquickjs",
- "serde",
- "serde_json",
- "slotmap",
- "tauri",
- "ts-rs",
- "uuid",
+ "golden_engine",
+ "golden_host_desktop",
+ "golden_persistence",
+ "golden_protocol",
+ "golden_script",
+ "golden_transport_server",
 ]
 
 [[package]]
@@ -1447,6 +1446,60 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "golden_engine"
+version = "0.1.0"
+dependencies = [
+ "golden_core_macros",
+ "rquickjs",
+ "serde",
+ "serde_json",
+ "slotmap",
+ "ts-rs",
+ "uuid",
+]
+
+[[package]]
+name = "golden_host_desktop"
+version = "0.1.0"
+dependencies = [
+ "golden_engine",
+ "golden_transport_server",
+ "rfd",
+ "tauri",
+]
+
+[[package]]
+name = "golden_persistence"
+version = "0.1.0"
+dependencies = [
+ "golden_engine",
+]
+
+[[package]]
+name = "golden_protocol"
+version = "0.1.0"
+dependencies = [
+ "golden_engine",
+]
+
+[[package]]
+name = "golden_script"
+version = "0.1.0"
+dependencies = [
+ "golden_engine",
+]
+
+[[package]]
+name = "golden_transport_server"
+version = "0.1.0"
+dependencies = [
+ "golden_engine",
+ "golden_protocol",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
