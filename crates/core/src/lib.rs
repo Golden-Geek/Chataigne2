@@ -8,63 +8,48 @@
 
 extern crate self as golden_core;
 
-#[path = "../schema/color.rs"]
 /// Basic color schema types.
 pub mod color;
 
-#[path = "../engine/engine.rs"]
 /// Engine data model and edit-application entry points.
 pub mod engine;
 
-#[path = "../node/mod.rs"]
 /// Node identity, metadata, and trait implementations.
 pub mod node;
 
-#[path = "../node/node_macros.rs"]
 /// Declarative helper macros for defining nodes and node enums.
 pub mod node_macros;
 
-#[path = "../node/parameter/mod.rs"]
 /// Parameter node implementations and value conversions.
 pub mod parameter;
 
-#[path = "../events/events.rs"]
 /// Event models and event inbox utilities.
 pub mod events;
 
-#[path = "../engine/edit.rs"]
 /// Edit request models queued by the engine.
 pub mod edit;
 
-#[path = "../engine/process_ctx.rs"]
 /// Processing-time context passed to node callbacks.
 pub mod process_ctx;
 
-#[path = "../engine/blueprints.rs"]
 /// Blueprint declaration and instance registry APIs.
 pub mod blueprints;
 
-#[path = "../engine/contexts.rs"]
 /// UserContext and DynamicContext APIs.
 pub mod contexts;
 
-#[path = "../engine/animation_curve.rs"]
 /// Animation curve model and high-performance samplers.
 pub mod animation_curve;
 
-#[path = "../engine/logger.rs"]
 /// Process-wide logger API and `log!` macro support.
 pub mod logger;
 
-#[path = "../app/mod.rs"]
 /// App lifecycle hooks and host-independent runtime preparation.
 pub mod app;
 
-#[path = "../ui/ui_sync.rs"]
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
 
-#[path = "../script/script.rs"]
 /// Scripting schemas and runtime integrations.
 pub mod script;
 

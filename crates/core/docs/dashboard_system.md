@@ -2,6 +2,15 @@
 
 The dashboard system is modeled entirely as engine nodes so project state, persistence, scripting, undo history, and UI synchronization all flow through the existing Golden node runtime.
 
+## Implementation Layout
+
+- `src/node/dashboard/mod.rs`
+  - Dashboard root, page, widget container, node widget, and generic widget nodes.
+- `src/node/dashboard/widget_options/`
+  - Widget-option node families owned by the dashboard module.
+- `src/node/handles/`
+  - Typed handle helpers used throughout dashboard node orchestration and other node families.
+
 ## Node Hierarchy
 
 - `dashboard`
