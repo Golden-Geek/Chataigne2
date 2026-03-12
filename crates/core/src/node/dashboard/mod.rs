@@ -461,12 +461,14 @@ impl Node for DashboardPageNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            enabled = false,
             can_be_disabled = true,
         );
         height: CssValue = CssValue::new(8.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
+            enabled = false,
             can_be_disabled = true,
         );
     }
@@ -560,12 +562,14 @@ impl Node for DashboardWidgetContainerNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            enabled = false,
             can_be_disabled = true,
         );
         height: CssValue = CssValue::new(4.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
+            enabled = false,
             can_be_disabled = true,
         );
         locked: bool = false (
@@ -772,12 +776,14 @@ impl Node for DashboardNodeWidgetNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            enabled = false,
             can_be_disabled = true,
         );
         height: CssValue = CssValue::new(3.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
+            enabled = false,
             can_be_disabled = true,
         );
     }

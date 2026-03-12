@@ -755,6 +755,16 @@ fn dashboard_stack_layout_widget_sizes_become_optional_constraints() {
         "horizontal width should become optional"
     );
     assert!(
+        !engine
+            .nodes
+            .get(horizontal_width)
+            .expect("horizontal width node should exist")
+            .node_data()
+            .meta
+            .enabled,
+        "horizontal width should stay disabled by default after layout changes"
+    );
+    assert!(
         find_descendant_by_decl(&engine, widget, "height").is_none(),
         "horizontal layout should hide vertical height"
     );
@@ -782,6 +792,16 @@ fn dashboard_stack_layout_widget_sizes_become_optional_constraints() {
             .meta
             .can_be_disabled,
         "vertical height should become optional"
+    );
+    assert!(
+        !engine
+            .nodes
+            .get(vertical_height)
+            .expect("vertical height node should exist")
+            .node_data()
+            .meta
+            .enabled,
+        "vertical height should stay disabled by default after layout changes"
     );
     assert!(
         find_descendant_by_decl(&engine, widget, "width").is_none(),
