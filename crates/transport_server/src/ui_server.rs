@@ -318,7 +318,7 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
             };
 
             if let Err(err) = guard.run_tick(elapsed) {
-                eprintln!("runtime tick failed: {err}");
+                report_runtime_tick_failure(&err);
             }
             drop(guard);
 
@@ -330,6 +330,17 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
             }
         }
     });
+}
+
+fn report_runtime_tick_failure(err: &impl std::fmt::Display) {
+    eprintln!("runtime tick failed: {err}");
+
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("debug build aborting process after runtime tick failure");
+        let _ = std::io::stderr().flush();
+        std::process::abort();
+    }
 }
 
 fn spawn_ws_hub<T: ProjectLifecycle + 'static>(

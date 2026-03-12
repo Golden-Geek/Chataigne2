@@ -2371,6 +2371,50 @@ fn apply_edits_move_reorders_children() {
 }
 
 #[test]
+fn apply_edits_move_with_no_prev_sibling_places_child_first() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child_a".to_string()), None);
+    engine.add_node(Folder::new("child_b".to_string()), None);
+    engine.apply_edits().expect("initial apply_edits should succeed");
+
+    let child_a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("child_a should exist");
+    let child_b = engine
+        .nodes
+        .get(child_a)
+        .and_then(|child| child.node_data().next_sibling)
+        .expect("child_b should exist");
+
+    engine.edits.push(Edit::MoveNode {
+        node: child_b,
+        new_parent: engine.root,
+        new_prev_sibling: None,
+    });
+    engine.apply_edits().expect("move should succeed");
+
+    let root_data = engine.nodes.get(engine.root).expect("root should exist").node_data();
+    assert_eq!(root_data.first_child, Some(child_b));
+    assert_eq!(
+        engine.nodes.get(child_b).and_then(|node| node.node_data().next_sibling),
+        Some(child_a)
+    );
+    assert_eq!(
+        engine.nodes.get(child_a).and_then(|node| node.node_data().prev_sibling),
+        Some(child_b)
+    );
+    assert!(
+        matches!(
+            engine.inbox.events.last().map(|event| &event.kind),
+            Some(EventKind::ChildReordered { parent, child }) if *parent == engine.root && *child == child_b
+        ),
+        "last event should report child reordering",
+    );
+}
+
+#[test]
 fn apply_edits_rejects_cycle_move() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
     engine.add_node(Folder::new("parent".to_string()), None);

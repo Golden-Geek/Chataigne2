@@ -6,7 +6,9 @@ use self::widget_options::{
     dashboard_widget_options_node_type, make_dashboard_widget_options_node, refresh_dashboard_widget_options_node,
 };
 use crate::events::Event;
-use crate::node::{DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
+use crate::node::{
+    DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions,
+};
 use crate::parameter::{
     CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, Vec2,
 };
@@ -177,13 +179,15 @@ fn dashboard_parent_layout_kind(node_id: NodeId, ctx: &ProcessCtx) -> Option<Str
     let parent_id = snapshot.node(node_id)?.parent?;
     let parent_type = snapshot.node(parent_id)?.node_type.as_str();
     match parent_type {
-        DASHBOARD_PAGE_NODE_TYPE | DASHBOARD_WIDGET_CONTAINER_NODE_TYPE => {
-            snapshot_find_descendant_by_decl(snapshot, parent_id, "layout_kind")
-                .and_then(|layout_kind| snapshot.node(layout_kind))
-                .and_then(|layout_kind| layout_kind.param_value.as_ref())
-                .and_then(|value| value.as_enum().or_else(|| value.as_str()))
-                .map(|value| value.to_string())
-        }
+        DASHBOARD_PAGE_NODE_TYPE | DASHBOARD_WIDGET_CONTAINER_NODE_TYPE => snapshot
+            .find_child(parent_id, "layout")
+            .or_else(|| snapshot.find_child(parent_id, "content"))
+            .and_then(|layout| snapshot_find_descendant_by_decl(snapshot, layout, "layout_kind"))
+            .or_else(|| snapshot.resolve_path_from(parent_id, "layout_kind"))
+            .and_then(|layout_kind| snapshot.node(layout_kind))
+            .and_then(|layout_kind| layout_kind.param_value.as_ref())
+            .and_then(|value| value.as_enum().or_else(|| value.as_str()))
+            .map(|value| value.to_string()),
         _ => None,
     }
 }
@@ -322,43 +326,75 @@ impl Node for DashboardNode {
     }
 }
 
-/// Top-level dashboard page that arranges widgets for one route/view.
+#[allow(missing_docs)]
+#[node("dashboard_layout_surface", label = "Dashboard Layout Surface")]
+#[children(
+    folder(layout, label = "Layout") {
+        layout_kind: Enum = "free" (
+            label = "Layout",
+            description = "How this surface arranges its child widgets.",
+            enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
+        );
+        gap_x: CssValue = CssValue::new(1.0, CssUnit::Rem) (
+            label = "Gap X",
+            description = "Horizontal spacing between child widgets.",
+            dependency = layout_kind == "horizontal" || layout_kind == "grid",
+        );
+        gap_y: CssValue = CssValue::new(1.0, CssUnit::Rem) (
+            label = "Gap Y",
+            description = "Vertical spacing between child widgets.",
+            dependency = layout_kind == "vertical" || layout_kind == "grid",
+        );
+        grid_direction: Enum = "row" (
+            label = "Grid Direction",
+            description = "Whether the grid fills row by row or column by column.",
+            enum_options = ["row", "column"],
+            dependency = layout_kind == "grid",
+        );
+        grid_line_count: i32 = 3 [1..64] (
+            label = "Line Count",
+            description = "Number of columns for row flow or rows for column flow.",
+            dependency = layout_kind == "grid",
+        );
+        snap_grid: f64 = 1.0 [0.0..100.0] (
+            label = "Snap Grid",
+            description = "Grid size in rem used to snap child widgets while editing free layouts. Disable to move widgets freely.",
+            dependency = layout_kind == "free",
+            enabled = false,
+            can_be_disabled = true,
+        );
+    }
+)]
+struct DashboardLayoutSurfaceNode {}
+
+#[node("dashboard_layout_surface", from_struct)]
+impl Node for DashboardLayoutSurfaceNode {}
+
+/// Top-level dashboard page that arranges widgets using the shared container surface layout.
 #[allow(missing_docs)]
 #[node("dashboard_page", label = "Dashboard Page")]
+#[defaults(surface = DashboardLayoutSurfaceNode::new())]
 #[children(
-    route: String = "".to_string() (label = "Route", description = "Stable route or slug used to address this page.");
-    page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
-        label = "Page Size",
-        description = "Rendered page size in pixels. The dashboard viewer treats those values as the page render surface dimensions.",
-        enabled = false,
-        can_be_disabled = true,
-        step = 1.0,
-        step_base = 0.0,
-    );
-    layout_kind: Enum = "free" (
-        label = "Layout",
-        description = "Primary layout strategy used for the page root.",
-        enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
-    );
-    gap_x: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap X", description = "Horizontal spacing between child widgets.");
-    gap_y: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap Y", description = "Vertical spacing between child widgets.");
-    grid_columns: i32 = 12 [1..64] (
-        label = "Grid Columns",
-        description = "Column count when the page layout uses a grid.",
-        dependency = layout_kind == "grid",
-    );
-    snap_grid: f64 = 1.0 [0.0..100.0] (
-        label = "Snap Grid",
-        description = "Grid size in rem used to snap widgets while editing free layouts. Disable to move widgets freely.",
-        dependency = layout_kind == "free",
-        enabled = false,
-        can_be_disabled = true,
-    );
-    scrollable: bool = true (label = "Scrollable", description = "Whether this page may scroll when content exceeds the viewport.");
+    folder(viewport, label = "Viewport") {
+        page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
+            label = "Page Size",
+            description = "Rendered page size in pixels. The dashboard viewer treats those values as the page render surface dimensions.",
+            enabled = false,
+            can_be_disabled = true,
+            step = 1.0,
+            step_base = 0.0,
+        );
+        scrollable: bool = true (
+            label = "Scrollable",
+            description = "Whether this page may scroll when content exceeds the viewport.",
+        );
+    }
 )]
-pub struct DashboardPageNode {}
+pub struct DashboardPageNode {
+    surface: DashboardLayoutSurfaceNode,
+}
 
-#[item("dashboard_page", from_struct)]
+#[item("dashboard_page", via = surface, from_struct)]
 impl Node for DashboardPageNode {
     crate::define_user_item_factory_methods! {
         accepts = ["dashboard_widget"];
@@ -380,7 +416,7 @@ impl Node for DashboardPageNode {
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: crate::parameter::ParamValue) {
-        if param != self.layout_kind.id() {
+        if param != self.surface.layout_kind.id() {
             return;
         }
 
@@ -399,8 +435,9 @@ impl Node for DashboardPageNode {
 /// Widget container that arranges child widgets using one layout strategy.
 #[allow(missing_docs)]
 #[node("dashboard_widget_container", label = "Container Widget")]
+#[defaults(surface = DashboardLayoutSurfaceNode::new())]
 #[children(
-    folder(appearance, label = "Appearance") {
+    folder(widget_options, label = "Widget Options") {
         label_placement: Enum = "top" (
             label = "Label Placement",
             description = "Where the container label is rendered. Disable to hide it.",
@@ -408,7 +445,7 @@ impl Node for DashboardPageNode {
             can_be_disabled = true,
         );
     }
-    folder(layout, label = "Layout") {
+    folder(layout, label = "Layout", reuse = true) {
         position: Vec2 = (0.0, 0.0) (
             label = "Position",
             description = "Position offset in pixels relative to the selected free-layout anchor.",
@@ -424,46 +461,19 @@ impl Node for DashboardPageNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            can_be_disabled = true,
         );
         height: CssValue = CssValue::new(8.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
-        );
-        column_span: i32 = 1 [1..64] (
-            label = "Column Span",
-            description = "Number of grid columns consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
-        );
-        row_span: i32 = 1 [1..64] (
-            label = "Row Span",
-            description = "Number of grid rows consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
-        );
-    }
-    folder(content, label = "Content") {
-        layout_kind: Enum = "free" (
-            label = "Layout",
-            description = "How this container arranges its child widgets.",
-            enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
-        );
-        gap_x: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap X", description = "Horizontal spacing between child widgets.");
-        gap_y: CssValue = CssValue::new(1.0, CssUnit::Rem) (label = "Gap Y", description = "Vertical spacing between child widgets.");
-        grid_columns: i32 = 12 [1..64] (
-            label = "Grid Columns",
-            description = "Column count when the container layout uses a grid.",
-            dependency = layout_kind == "grid",
-        );
-        snap_grid: f64 = 1.0 [0.0..100.0] (
-            label = "Snap Grid",
-            description = "Grid size in rem used to snap child widgets while editing free layouts. Disable to move widgets freely.",
-            dependency = layout_kind == "free",
-            enabled = false,
+            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
             can_be_disabled = true,
         );
     }
 )]
-pub struct DashboardWidgetContainerNode {}
+pub struct DashboardWidgetContainerNode {
+    surface: DashboardLayoutSurfaceNode,
+}
 
 impl DashboardWidgetContainerNode {
     fn sync_parent_layout_dependency_handles(&mut self, ctx: &ProcessCtx) {
@@ -476,22 +486,10 @@ impl DashboardWidgetContainerNode {
         } else {
             self.position.clear_node_id();
         }
-
-        if let Some(column_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "column_span") {
-            self.column_span.set_node_id(column_span);
-        } else {
-            self.column_span.clear_node_id();
-        }
-
-        if let Some(row_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "row_span") {
-            self.row_span.set_node_id(row_span);
-        } else {
-            self.row_span.clear_node_id();
-        }
     }
 }
 
-#[item("dashboard_widget", from_struct)]
+#[item("dashboard_widget", via = surface, from_struct)]
 impl Node for DashboardWidgetContainerNode {
     crate::define_user_item_factory_methods! {
         accepts = ["dashboard_widget"];
@@ -508,15 +506,13 @@ impl Node for DashboardWidgetContainerNode {
         ];
     }
 
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
         enable_dashboard_authoring(self.node_data_mut());
+        self.sync_parent_layout_dependency_handles(ctx);
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: crate::parameter::ParamValue) {
-        let Some(snapshot) = ctx.tree_snapshot() else {
-            return;
-        };
-        if !snapshot_child_decl_matches(snapshot, param, "layout_kind") {
+        if param != self.surface.layout_kind.id() {
             return;
         }
 
@@ -564,21 +560,13 @@ impl Node for DashboardWidgetContainerNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            can_be_disabled = true,
         );
         height: CssValue = CssValue::new(4.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
-        );
-        column_span: i32 = 1 [1..64] (
-            label = "Column Span",
-            description = "Number of grid columns consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
-        );
-        row_span: i32 = 1 [1..64] (
-            label = "Row Span",
-            description = "Number of grid rows consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
+            can_be_disabled = true,
         );
         locked: bool = false (
             label = "Locked",
@@ -598,18 +586,6 @@ impl DashboardNodeWidgetNode {
             self.position.set_node_id(position);
         } else {
             self.position.clear_node_id();
-        }
-
-        if let Some(column_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "column_span") {
-            self.column_span.set_node_id(column_span);
-        } else {
-            self.column_span.clear_node_id();
-        }
-
-        if let Some(row_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "row_span") {
-            self.row_span.set_node_id(row_span);
-        } else {
-            self.row_span.clear_node_id();
         }
     }
 
@@ -796,21 +772,13 @@ impl Node for DashboardNodeWidgetNode {
             label = "Width",
             description = "Preferred widget width when the parent layout allows widgets to size horizontally.",
             dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "horizontal"]),
+            can_be_disabled = true,
         );
         height: CssValue = CssValue::new(3.0, CssUnit::Rem) (
             label = "Height",
             description = "Preferred widget height when the parent layout allows widgets to size vertically.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical", "grid"]),
-        );
-        column_span: i32 = 1 [1..64] (
-            label = "Column Span",
-            description = "Number of grid columns consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
-        );
-        row_span: i32 = 1 [1..64] (
-            label = "Row Span",
-            description = "Number of grid rows consumed by this widget.",
-            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_is(node.id(), ctx, "grid"),
+            dependency = |node: &Self, ctx: &ProcessCtx| dashboard_parent_layout_matches(node.id(), ctx, &["free", "vertical"]),
+            can_be_disabled = true,
         );
     }
     folder(content, label = "Content") {
@@ -860,25 +828,14 @@ impl DashboardGenericWidgetNode {
         } else {
             self.position.clear_node_id();
         }
-
-        if let Some(column_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "column_span") {
-            self.column_span.set_node_id(column_span);
-        } else {
-            self.column_span.clear_node_id();
-        }
-
-        if let Some(row_span) = snapshot_find_descendant_by_decl(snapshot, self.id(), "row_span") {
-            self.row_span.set_node_id(row_span);
-        } else {
-            self.row_span.clear_node_id();
-        }
     }
 }
 
 #[item("dashboard_widget", from_struct, scriptable, contextualizable)]
 impl Node for DashboardGenericWidgetNode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
         enable_dashboard_authoring(self.node_data_mut());
+        self.sync_parent_layout_dependency_handles(ctx);
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {

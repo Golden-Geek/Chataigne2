@@ -971,7 +971,13 @@ impl<T: Node> Engine<T> {
         let (old_parent, old_prev_sibling, old_next_sibling) = self.node_position(edit_index, OP, node)?;
 
         let detached_parent = self.detach_node(edit_index, OP, node)?;
-        self.attach_node(edit_index, OP, node, new_parent, new_prev_sibling)?;
+        if let Some(new_prev_sibling) = new_prev_sibling {
+            self.attach_node(edit_index, OP, node, new_parent, Some(new_prev_sibling))?;
+        } else {
+            // MoveNode uses previous-sibling semantics: None means "become first child".
+            let new_next_sibling = self.nodes.get(new_parent).and_then(|entry| entry.node_data().first_child);
+            self.attach_node_between(edit_index, OP, node, new_parent, None, new_next_sibling)?;
+        }
 
         let new_node_data = self
             .nodes

@@ -170,6 +170,11 @@ fn dashboard_pages_expose_pixel_page_size_as_vec2() {
     engine.apply_edits().expect("page creation should apply");
 
     let page = first_child(&engine, dashboard);
+    assert_eq!(
+        direct_child_decl_ids(&engine, page),
+        vec!["layout".to_string(), "viewport".to_string()],
+        "pages should organize shared surface layout and page-specific viewport params into folders",
+    );
     let page_size = find_descendant_by_decl(&engine, page, "page_size").expect("page size parameter should exist");
     let page_size_snapshot = param_snapshot(&engine, page_size);
     let page_size_node = engine.nodes.get(page_size).expect("page size node should exist");
@@ -197,6 +202,80 @@ fn dashboard_pages_expose_pixel_page_size_as_vec2() {
     assert!(
         find_descendant_by_decl(&engine, page, "page_height").is_none(),
         "legacy page height parameter should be removed"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "route").is_none(),
+        "unused page routes should be removed"
+    );
+}
+
+#[test]
+fn dashboard_container_widgets_merge_surface_layout_into_layout_folder() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+            Some("Container".to_string()),
+            None,
+        )
+        .expect("container creation should queue");
+    for _ in 0..3 {
+        engine.apply_edits().expect("container creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let container = direct_child_by_type(&engine, page, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE)
+        .expect("page should contain a container widget child");
+    let direct_decl_ids = direct_child_decl_ids(&engine, container);
+
+    assert_eq!(
+        direct_decl_ids
+            .iter()
+            .filter(|decl_id| decl_id.as_str() == "layout")
+            .count(),
+        1,
+        "containers should expose a single shared layout folder"
+    );
+    assert!(
+        direct_decl_ids
+            .iter()
+            .any(|decl_id| decl_id.as_str() == "widget_options"),
+        "containers should expose widget options directly"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "content").is_none(),
+        "legacy content folder should be removed from containers"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "layout_kind").is_some(),
+        "containers should keep shared surface layout kind in layout"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "snap_grid").is_some(),
+        "containers should keep snap grid in layout"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "position").is_some(),
+        "containers should keep widget placement in layout"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "label_placement").is_some(),
+        "containers should keep label placement in widget options"
     );
 }
 
@@ -582,12 +661,20 @@ fn dashboard_widget_layout_dependencies_follow_parent_layout() {
         "grid-layout widgets should hide free-layout position"
     );
     assert!(
-        find_descendant_by_decl(&engine, widget, "column_span").is_some(),
-        "grid-layout widgets should expose column span"
+        find_descendant_by_decl(&engine, widget, "width").is_none(),
+        "grid-layout widgets should hide explicit width"
     );
     assert!(
-        find_descendant_by_decl(&engine, widget, "row_span").is_some(),
-        "grid-layout widgets should expose row span"
+        find_descendant_by_decl(&engine, widget, "height").is_none(),
+        "grid-layout widgets should hide explicit height"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "column_span").is_none(),
+        "grid-layout widgets should not expose legacy grid spans"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "row_span").is_none(),
+        "grid-layout widgets should not expose legacy grid spans"
     );
 
     engine.edits.push(Edit::SetParam {
@@ -606,6 +693,521 @@ fn dashboard_widget_layout_dependencies_follow_parent_layout() {
         direct_child_decl_ids(&engine, widget),
         vec!["binding", "appearance", "layout", "content"],
         "reintroduced free-layout parameters should return to declared order",
+    );
+}
+
+#[test]
+fn dashboard_stack_layout_widget_sizes_become_optional_constraints() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
+            Some("Widget".to_string()),
+            None,
+        )
+        .expect("generic widget creation should queue");
+    for _ in 0..3 {
+        engine.apply_edits().expect("widget creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE)
+        .expect("page should contain a generic widget child");
+    let page_layout =
+        find_descendant_by_decl(&engine, page, "layout_kind").expect("page layout parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("horizontal".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let horizontal_width =
+        find_descendant_by_decl(&engine, widget, "width").expect("horizontal width should exist");
+    assert!(
+        engine
+            .nodes
+            .get(horizontal_width)
+            .expect("horizontal width node should exist")
+            .node_data()
+            .meta
+            .can_be_disabled,
+        "horizontal width should become optional"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "height").is_none(),
+        "horizontal layout should hide vertical height"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("vertical".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let vertical_height =
+        find_descendant_by_decl(&engine, widget, "height").expect("vertical height should exist");
+    assert!(
+        engine
+            .nodes
+            .get(vertical_height)
+            .expect("vertical height node should exist")
+            .node_data()
+            .meta
+            .can_be_disabled,
+        "vertical height should become optional"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "width").is_none(),
+        "vertical layout should hide horizontal width"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("grid".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, widget, "width").is_none(),
+        "grid layout should hide width"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "height").is_none(),
+        "grid layout should hide height"
+    );
+}
+
+#[test]
+fn dashboard_layout_surfaces_expose_layout_specific_gap_params() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    let page_layout =
+        find_descendant_by_decl(&engine, page, "layout_kind").expect("page layout parameter should exist");
+
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_x").is_none(),
+        "free-layout pages should hide horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_y").is_none(),
+        "free-layout pages should hide vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("horizontal".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_x").is_some(),
+        "horizontal pages should expose horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_y").is_none(),
+        "horizontal pages should hide vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("vertical".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_x").is_none(),
+        "vertical pages should hide horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_y").is_some(),
+        "vertical pages should expose vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("grid".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_x").is_some(),
+        "grid pages should expose horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "gap_y").is_some(),
+        "grid pages should expose vertical gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "grid_direction").is_some(),
+        "grid pages should expose their fill direction"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "grid_line_count").is_some(),
+        "grid pages should expose their line count"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("free".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching page layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+            Some("Container".to_string()),
+            None,
+        )
+        .expect("container creation should queue");
+    for _ in 0..3 {
+        engine.apply_edits().expect("container creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let container = direct_child_by_type(&engine, page, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE)
+        .expect("page should contain a container widget child");
+    let container_layout =
+        find_descendant_by_decl(&engine, container, "layout_kind").expect("container layout parameter should exist");
+
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_x").is_none(),
+        "free-layout containers should hide horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_y").is_none(),
+        "free-layout containers should hide vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: container_layout,
+        value: ParamValue::Enum("horizontal".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching container layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_x").is_some(),
+        "horizontal containers should expose horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_y").is_none(),
+        "horizontal containers should hide vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: container_layout,
+        value: ParamValue::Enum("vertical".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching container layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_x").is_none(),
+        "vertical containers should hide horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_y").is_some(),
+        "vertical containers should expose vertical gaps"
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: container_layout,
+        value: ParamValue::Enum("grid".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    for _ in 0..3 {
+        engine.apply_edits().expect("switching container layout should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_x").is_some(),
+        "grid containers should expose horizontal gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "gap_y").is_some(),
+        "grid containers should expose vertical gaps"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "grid_direction").is_some(),
+        "grid containers should expose their fill direction"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, container, "grid_line_count").is_some(),
+        "grid containers should expose their line count"
+    );
+}
+
+#[test]
+fn dashboard_child_container_layout_changes_do_not_destabilize_sibling_parent_layouts() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
+            Some("Widget".to_string()),
+            None,
+        )
+        .expect("generic widget creation should queue");
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_WIDGET_CONTAINER_NODE_TYPE,
+            Some("Container".to_string()),
+            None,
+        )
+        .expect("container creation should queue");
+    for _ in 0..3 {
+        engine.apply_edits().expect("widget creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE)
+        .expect("page should contain a generic widget child");
+    let container = direct_child_by_type(&engine, page, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE)
+        .expect("page should contain a container child");
+    let container_layout =
+        find_descendant_by_decl(&engine, container, "layout_kind").expect("container layout parameter should exist");
+
+    assert!(
+        find_descendant_by_decl(&engine, widget, "position").is_some(),
+        "widgets under a free-layout page should expose free placement before sibling container edits"
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: container_layout,
+        value: ParamValue::Enum("horizontal".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        ack.success,
+        "changing a child container layout should stabilize through the UI-intent fixed-point path"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "position").is_some(),
+        "sibling widgets should continue resolving the page's own layout_kind, not a child container layout_kind"
+    );
+}
+
+#[test]
+fn dashboard_page_vertical_layout_change_via_ui_intent_stabilizes() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    engine
+        .queue_catalog_create(
+            page,
+            DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
+            Some("Widget".to_string()),
+            None,
+        )
+        .expect("generic widget creation should queue");
+    for _ in 0..3 {
+        engine.apply_edits().expect("widget creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE)
+        .expect("page should contain a generic widget child");
+    let page_layout =
+        find_descendant_by_decl(&engine, page, "layout_kind").expect("page layout parameter should exist");
+    let position = find_descendant_by_decl(&engine, widget, "position");
+    let anchor = find_descendant_by_decl(&engine, widget, "anchor");
+    let width = find_descendant_by_decl(&engine, widget, "width");
+    let height = find_descendant_by_decl(&engine, widget, "height");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("vertical".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        ack.success,
+        "switching a page with one widget to vertical should stabilize; error={:?}, position={position:?}, anchor={anchor:?}, width={width:?}, height={height:?}",
+        ack.error_message
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "position").is_none(),
+        "vertical-layout widgets should hide free-layout position"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "anchor").is_none(),
+        "vertical-layout widgets should hide free-layout anchor"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "width").is_none(),
+        "vertical-layout widgets should hide horizontal width"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "height").is_some(),
+        "vertical-layout widgets should keep vertical height"
+    );
+}
+
+#[test]
+fn dashboard_page_vertical_layout_change_with_node_widget_via_ui_intent_stabilizes() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    engine
+        .queue_catalog_create(page, DASHBOARD_NODE_WIDGET_NODE_TYPE, Some("Widget".to_string()), None)
+        .expect("node widget creation should queue");
+    for _ in 0..4 {
+        engine.apply_edits().expect("widget creation should apply");
+        engine
+            .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let widget = direct_child_by_type(&engine, page, DASHBOARD_NODE_WIDGET_NODE_TYPE)
+        .expect("page should contain a node widget child");
+    let page_layout =
+        find_descendant_by_decl(&engine, page, "layout_kind").expect("page layout parameter should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: page_layout,
+        value: ParamValue::Enum("vertical".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        ack.success,
+        "switching a page with one node widget to vertical should stabilize; error={:?}",
+        ack.error_message
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "position").is_none(),
+        "vertical-layout node widgets should hide free-layout position"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "anchor").is_none(),
+        "vertical-layout node widgets should hide free-layout anchor"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "width").is_none(),
+        "vertical-layout node widgets should hide horizontal width"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, widget, "height").is_some(),
+        "vertical-layout node widgets should keep vertical height"
     );
 }
 
