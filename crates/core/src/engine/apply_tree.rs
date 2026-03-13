@@ -975,7 +975,10 @@ impl<T: Node> Engine<T> {
             self.attach_node(edit_index, OP, node, new_parent, Some(new_prev_sibling))?;
         } else {
             // MoveNode uses previous-sibling semantics: None means "become first child".
-            let new_next_sibling = self.nodes.get(new_parent).and_then(|entry| entry.node_data().first_child);
+            let new_next_sibling = self
+                .nodes
+                .get(new_parent)
+                .and_then(|entry| entry.node_data().first_child);
             self.attach_node_between(edit_index, OP, node, new_parent, None, new_next_sibling)?;
         }
 

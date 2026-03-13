@@ -52,6 +52,7 @@ This keeps the schema visible to:
 Current direct parameters cover:
 
 - page layout strategy and grid density
+- page render size inside the shared layout folder
 - widget position, size, and span hints
 - node-widget target node references and display mode
 - generic-widget kind, text/value configuration, and target parameter references

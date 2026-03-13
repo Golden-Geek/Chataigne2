@@ -688,12 +688,20 @@ struct DslReferenceDefaultNode {}
         node curve: CurveNode = CurveNode::new_with_label("Curve") (
             label = "Curve",
             description = "Declared curve child",
+            color = crate::color::Color::new(0.25, 0.5, 0.75, 1.0),
         );
     }
 )]
 struct DslNodeChildrenNode {}
 
-#[crate::node("dsl_meta_params_node")]
+#[crate::node(
+    "dsl_meta_params_node",
+    presentation = crate::node::PresentationHint {
+        show_in_nested_inspector: true,
+        ..Default::default()
+    },
+    color = crate::color::Color::new(0.95, 0.4, 0.2, 1.0)
+)]
 #[children(
     folder(
         settings,
@@ -707,10 +715,8 @@ struct DslNodeChildrenNode {}
             intent: Some(String::from("container")),
             unit: Some(String::from("section")),
         },
-        presentation = crate::node::PresentationHint {
-            color: Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0)),
-            ..Default::default()
-        },
+        color = crate::color::Color::new(0.1, 0.2, 0.3, 1.0),
+        show_child_warnings_max_depth = 2,
     ) {
         gain: f64 = 0.5 (
             label = "Gain",
@@ -723,10 +729,7 @@ struct DslNodeChildrenNode {}
                 intent: Some(String::from("level")),
                 unit: Some(String::from("db")),
             },
-            presentation = crate::node::PresentationHint {
-                color: Some(crate::color::Color::new(0.7, 0.8, 0.9, 1.0)),
-                ..Default::default()
-            },
+            color = crate::color::Color::new(0.7, 0.8, 0.9, 1.0),
         );
     }
 )]
@@ -1517,6 +1520,10 @@ fn children_macro_materializes_declared_node_children_and_binds_handles() {
         curve_node.node_data().meta.description.as_deref(),
         Some("Declared curve child")
     );
+    assert_eq!(
+        curve_node.node_data().meta.presentation.color,
+        Some(crate::color::Color::new(0.25, 0.5, 0.75, 1.0))
+    );
 }
 
 #[test]
@@ -1539,6 +1546,18 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
         .expect("dsl meta node should be attached under root");
     let settings = find_child_by_decl(&engine, owner, "settings").expect("settings folder should exist");
     let gain = find_child_by_decl(&engine, settings, "settings/gain").expect("settings/gain parameter should exist");
+    let owner_meta = engine
+        .nodes
+        .get(owner)
+        .expect("dsl meta node should exist")
+        .node_data()
+        .meta
+        .clone();
+    assert_eq!(
+        owner_meta.presentation.color,
+        Some(crate::color::Color::new(0.95, 0.4, 0.2, 1.0))
+    );
+    assert!(owner_meta.presentation.show_in_nested_inspector);
 
     let settings_meta = engine
         .nodes
@@ -1559,6 +1578,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
         settings_meta.presentation.color,
         Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0))
     );
+    assert_eq!(settings_meta.presentation.show_child_warnings_max_depth, 2);
 
     let gain_meta = engine
         .nodes

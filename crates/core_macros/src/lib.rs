@@ -30,9 +30,59 @@ impl Parse for DelegatePath {
     }
 }
 
+#[derive(Clone, Default)]
+struct PresentationMetaFields {
+    color: Option<Expr>,
+    warnings: Option<Expr>,
+    show_child_warnings_max_depth: Option<Expr>,
+    show_in_nested_inspector: Option<Expr>,
+}
+
+impl PresentationMetaFields {
+    fn is_empty(&self) -> bool {
+        self.color.is_none()
+            && self.warnings.is_none()
+            && self.show_child_warnings_max_depth.is_none()
+            && self.show_in_nested_inspector.is_none()
+    }
+}
+
+fn try_parse_presentation_meta_field(
+    key: &Ident,
+    input: ParseStream,
+    fields: &mut PresentationMetaFields,
+) -> Result<bool> {
+    let (slot, field_name): (&mut Option<Expr>, &str) = if key == "color" {
+        (&mut fields.color, "color")
+    } else if key == "warnings" {
+        (&mut fields.warnings, "warnings")
+    } else if key == "show_child_warnings_max_depth" || key == "showChildWarningsMaxDepth" {
+        (
+            &mut fields.show_child_warnings_max_depth,
+            "show_child_warnings_max_depth",
+        )
+    } else if key == "show_in_nested_inspector" || key == "showInNestedInspector" {
+        (&mut fields.show_in_nested_inspector, "show_in_nested_inspector")
+    } else {
+        return Ok(false);
+    };
+
+    if slot.is_some() {
+        return Err(Error::new(
+            key.span(),
+            format!("duplicate presentation field `{field_name}`"),
+        ));
+    }
+
+    input.parse::<Token![=]>()?;
+    *slot = Some(input.parse::<Expr>()?);
+    Ok(true)
+}
+
 struct NodeAttr {
     type_name: Option<LitStr>,
     ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
+    presentation_fields: PresentationMetaFields,
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
@@ -54,6 +104,7 @@ impl Parse for NodeAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut type_name = None;
         let mut ctor_meta_fields = BTreeMap::new();
+        let mut presentation_fields = PresentationMetaFields::default();
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
@@ -68,7 +119,8 @@ impl Parse for NodeAttr {
                 type_name = Some(input.parse::<LitStr>()?);
             } else if input.peek(Ident) {
                 let key = input.parse::<Ident>()?;
-                if key == "via" {
+                if try_parse_presentation_meta_field(&key, input, &mut presentation_fields)? {
+                } else if key == "via" {
                     if via.is_some() {
                         return Err(Error::new(key.span(), "duplicate `via` argument"));
                     }
@@ -116,7 +168,7 @@ impl Parse for NodeAttr {
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected string literal, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
+                    "unexpected attribute arguments, expected string literal, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
                 ));
             }
 
@@ -133,6 +185,7 @@ impl Parse for NodeAttr {
         Ok(Self {
             type_name,
             ctor_meta_fields,
+            presentation_fields,
             via,
             impl_node,
             from_struct,
@@ -152,6 +205,7 @@ impl Parse for ItemAttr {
         let mut item_kind = None;
         let mut type_name = None;
         let mut ctor_meta_fields = BTreeMap::new();
+        let mut presentation_fields = PresentationMetaFields::default();
         let mut via = None;
         let mut impl_node = false;
         let mut from_struct = false;
@@ -173,7 +227,8 @@ impl Parse for ItemAttr {
                 }
             } else if input.peek(Ident) {
                 let key = input.parse::<Ident>()?;
-                if key == "kind" {
+                if try_parse_presentation_meta_field(&key, input, &mut presentation_fields)? {
+                } else if key == "kind" {
                     if item_kind.is_some() {
                         return Err(Error::new(key.span(), "duplicate `kind` argument"));
                     }
@@ -233,7 +288,7 @@ impl Parse for ItemAttr {
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                 ));
             }
 
@@ -252,6 +307,7 @@ impl Parse for ItemAttr {
             node: NodeAttr {
                 type_name,
                 ctor_meta_fields,
+                presentation_fields,
                 via,
                 impl_node,
                 from_struct,
@@ -571,6 +627,7 @@ struct ParamsDslMetaOptions {
     tags: Option<Expr>,
     semantics: Option<Expr>,
     presentation: Option<Expr>,
+    presentation_fields: PresentationMetaFields,
 }
 
 #[derive(Default)]
@@ -726,10 +783,11 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                     }
                     content.parse::<Token![=]>()?;
                     folder_meta.presentation = Some(content.parse::<Expr>()?);
+                } else if try_parse_presentation_meta_field(&key, &content, &mut folder_meta.presentation_fields)? {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
+                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector)",
                     ));
                 }
             }
@@ -802,60 +860,63 @@ fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
 
     while !input.is_empty() {
         let key = input.parse::<Ident>()?;
-        if !input.peek(Token![=]) {
-            return Err(Error::new(
-                key.span(),
-                "unsupported node child option flag; expected `key = value`",
-            ));
-        }
-
-        input.parse::<Token![=]>()?;
-
-        if key == "label" {
-            if out.label.is_some() {
-                return Err(Error::new(key.span(), "duplicate `label` option"));
-            }
-            out.label = Some(input.parse::<LitStr>()?);
-        } else if key == "description" {
-            if out.description.is_some() {
-                return Err(Error::new(key.span(), "duplicate `description` option"));
-            }
-            out.description = Some(input.parse::<LitStr>()?);
-        } else if key == "short_name" || key == "shortName" {
-            if out.meta.short_name.is_some() {
-                return Err(Error::new(key.span(), "duplicate `short_name` option"));
-            }
-            out.meta.short_name = Some(input.parse::<LitStr>()?);
-        } else if key == "enabled" {
-            if out.meta.enabled.is_some() {
-                return Err(Error::new(key.span(), "duplicate `enabled` option"));
-            }
-            out.meta.enabled = Some(input.parse::<Expr>()?);
-        } else if key == "can_be_disabled" || key == "canBeDisabled" {
-            if out.meta.can_be_disabled.is_some() {
-                return Err(Error::new(key.span(), "duplicate `can_be_disabled` option"));
-            }
-            out.meta.can_be_disabled = Some(input.parse::<Expr>()?);
-        } else if key == "tags" {
-            if out.meta.tags.is_some() {
-                return Err(Error::new(key.span(), "duplicate `tags` option"));
-            }
-            out.meta.tags = Some(input.parse::<Expr>()?);
-        } else if key == "semantics" {
-            if out.meta.semantics.is_some() {
-                return Err(Error::new(key.span(), "duplicate `semantics` option"));
-            }
-            out.meta.semantics = Some(input.parse::<Expr>()?);
-        } else if key == "presentation" {
-            if out.meta.presentation.is_some() {
-                return Err(Error::new(key.span(), "duplicate `presentation` option"));
-            }
-            out.meta.presentation = Some(input.parse::<Expr>()?);
+        if try_parse_presentation_meta_field(&key, input, &mut out.meta.presentation_fields)? {
         } else {
-            return Err(Error::new(
-                key.span(),
-                "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation)",
-            ));
+            if !input.peek(Token![=]) {
+                return Err(Error::new(
+                    key.span(),
+                    "unsupported node child option flag; expected `key = value`",
+                ));
+            }
+
+            input.parse::<Token![=]>()?;
+
+            if key == "label" {
+                if out.label.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `label` option"));
+                }
+                out.label = Some(input.parse::<LitStr>()?);
+            } else if key == "description" {
+                if out.description.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `description` option"));
+                }
+                out.description = Some(input.parse::<LitStr>()?);
+            } else if key == "short_name" || key == "shortName" {
+                if out.meta.short_name.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `short_name` option"));
+                }
+                out.meta.short_name = Some(input.parse::<LitStr>()?);
+            } else if key == "enabled" {
+                if out.meta.enabled.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `enabled` option"));
+                }
+                out.meta.enabled = Some(input.parse::<Expr>()?);
+            } else if key == "can_be_disabled" || key == "canBeDisabled" {
+                if out.meta.can_be_disabled.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `can_be_disabled` option"));
+                }
+                out.meta.can_be_disabled = Some(input.parse::<Expr>()?);
+            } else if key == "tags" {
+                if out.meta.tags.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `tags` option"));
+                }
+                out.meta.tags = Some(input.parse::<Expr>()?);
+            } else if key == "semantics" {
+                if out.meta.semantics.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `semantics` option"));
+                }
+                out.meta.semantics = Some(input.parse::<Expr>()?);
+            } else if key == "presentation" {
+                if out.meta.presentation.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `presentation` option"));
+                }
+                out.meta.presentation = Some(input.parse::<Expr>()?);
+            } else {
+                return Err(Error::new(
+                    key.span(),
+                    "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector)",
+                ));
+            }
         }
 
         if input.is_empty() {
@@ -884,6 +945,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 out.default_callback = true;
             }
+        } else if try_parse_presentation_meta_field(&key, input, &mut out.meta.presentation_fields)? {
         } else if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
 
@@ -1051,7 +1113,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1840,11 +1902,55 @@ fn build_set_declared_description_tokens(
     }
 }
 
+fn build_presentation_assignment_tokens(
+    target_expr: proc_macro2::TokenStream,
+    base_expr: Option<&Expr>,
+    fields: &PresentationMetaFields,
+) -> Option<proc_macro2::TokenStream> {
+    if base_expr.is_none() && fields.is_empty() {
+        return None;
+    }
+
+    let initial_value = base_expr.map_or_else(|| quote!(::std::default::Default::default()), |expr| quote!(#expr));
+    let set_color = fields.color.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.color = Some((#expr).into());
+        }
+    });
+    let set_warnings = fields.warnings.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.warnings = #expr;
+        }
+    });
+    let set_child_warning_depth = fields.show_child_warnings_max_depth.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.show_child_warnings_max_depth = #expr;
+        }
+    });
+    let set_nested_inspector_visibility = fields.show_in_nested_inspector.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.show_in_nested_inspector = #expr;
+        }
+    });
+
+    Some(quote! {
+        {
+            let mut __golden_presentation: golden_core::node::PresentationHint = #initial_value;
+            #set_color
+            #set_warnings
+            #set_child_warning_depth
+            #set_nested_inspector_visibility
+            #target_expr = __golden_presentation;
+        }
+    })
+}
+
 #[proc_macro_attribute]
 pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let NodeAttr {
         type_name,
         ctor_meta_fields,
+        presentation_fields,
         via,
         impl_node,
         from_struct,
@@ -1857,6 +1963,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
         Item::Struct(input) => expand_struct(
             type_name,
             ctor_meta_fields,
+            presentation_fields,
             via,
             impl_node,
             from_struct,
@@ -1869,6 +1976,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
         Item::Impl(input) => expand_impl(
             type_name,
             ctor_meta_fields,
+            presentation_fields,
             via,
             impl_node,
             from_struct,
@@ -1892,6 +2000,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
             NodeAttr {
                 type_name,
                 ctor_meta_fields,
+                presentation_fields,
                 via,
                 impl_node,
                 from_struct,
@@ -1915,6 +2024,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
         Item::Struct(input) => expand_struct(
             type_name,
             ctor_meta_fields,
+            presentation_fields,
             via,
             impl_node,
             from_struct,
@@ -1927,6 +2037,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
         Item::Impl(input) => expand_impl(
             type_name,
             ctor_meta_fields,
+            presentation_fields,
             via,
             impl_node,
             from_struct,
@@ -2003,6 +2114,7 @@ pub fn update(attr: TokenStream, item: TokenStream) -> TokenStream {
 fn expand_struct(
     type_name: Option<LitStr>,
     ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
+    ctor_presentation_fields: PresentationMetaFields,
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
@@ -2719,6 +2831,8 @@ fn expand_struct(
         Some((_, expr)) => quote! { (#expr).into() },
         None => quote! { ::std::string::String::from(Self::DEFAULT_LABEL) },
     };
+    let mut ctor_meta_fields = ctor_meta_fields;
+    let ctor_presentation_expr = ctor_meta_fields.remove("presentation").map(|(_, expr)| expr);
     let ctor_meta_inits = ctor_meta_fields
         .values()
         .map(|(field_ident, expr)| {
@@ -2734,6 +2848,11 @@ fn expand_struct(
             }
         })
         .collect::<Vec<_>>();
+    let ctor_presentation_init = build_presentation_assignment_tokens(
+        quote!(node_data.meta.presentation),
+        ctor_presentation_expr.as_ref(),
+        &ctor_presentation_fields,
+    );
     let generated_project_create = if ctor_fields.is_empty() {
         quote! {
             if node_type == #resolved_type_name {
@@ -2924,6 +3043,7 @@ fn expand_struct(
             pub fn new(#(#ctor_args),*) -> Self {
                 let mut node_data = golden_core::node::NodeData::new(Self::default_label());
                 #(#ctor_meta_inits)*
+                #ctor_presentation_init
                 Self {
                     node_data,
                     #(#ctor_inits),*
@@ -3023,6 +3143,7 @@ fn expand_struct(
 fn expand_impl(
     type_name: Option<LitStr>,
     ctor_meta_fields: BTreeMap<String, (Ident, Expr)>,
+    _presentation_fields: PresentationMetaFields,
     via: Option<DelegatePath>,
     impl_node: bool,
     from_struct: bool,
@@ -3675,11 +3796,15 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             golden_core::node::Node::node_data_mut(&mut __param_node).meta.semantics = #expr;
         }
     });
-    let set_presentation = param.meta.presentation.as_ref().map(|expr| {
-        quote! {
-            golden_core::node::Node::node_data_mut(&mut __param_node).meta.presentation = #expr;
-        }
-    });
+    let set_presentation = build_presentation_assignment_tokens(
+        quote!(
+            golden_core::node::Node::node_data_mut(&mut __param_node)
+                .meta
+                .presentation
+        ),
+        param.meta.presentation.as_ref(),
+        &param.meta.presentation_fields,
+    );
     let set_behaviour = match param.behaviour {
         Some(ParamEventBehaviourSpec::Append) => Some(quote! {
             self.#field_ident.set_event_behaviour(golden_core::parameter::ParameterEventBehaviour::Append);
@@ -3903,11 +4028,15 @@ fn materialize_children_tokens(
                         golden_core::node::Node::node_data_mut(&mut __folder_node).meta.semantics = #expr;
                     }
                 });
-                let set_presentation = folder.meta.presentation.as_ref().map(|expr| {
-                    quote! {
-                        golden_core::node::Node::node_data_mut(&mut __folder_node).meta.presentation = #expr;
-                    }
-                });
+                let set_presentation = build_presentation_assignment_tokens(
+                    quote!(
+                        golden_core::node::Node::node_data_mut(&mut __folder_node)
+                            .meta
+                            .presentation
+                    ),
+                    folder.meta.presentation.as_ref(),
+                    &folder.meta.presentation_fields,
+                );
                 let guard = folder_materialization_guard(plan, folder_index);
                 if folder.reuse {
                     out.push(quote! {
@@ -4025,11 +4154,15 @@ fn materialize_children_tokens(
                         golden_core::node::Node::node_data_mut(&mut __child_node).meta.semantics = #expr;
                     }
                 });
-                let set_presentation = node.meta.presentation.as_ref().map(|expr| {
-                    quote! {
-                        golden_core::node::Node::node_data_mut(&mut __child_node).meta.presentation = #expr;
-                    }
-                });
+                let set_presentation = build_presentation_assignment_tokens(
+                    quote!(
+                        golden_core::node::Node::node_data_mut(&mut __child_node)
+                            .meta
+                            .presentation
+                    ),
+                    node.meta.presentation.as_ref(),
+                    &node.meta.presentation_fields,
+                );
 
                 out.push(quote! {
                     self.#field_ident.set_parent(#parent_expr);

@@ -156,6 +156,33 @@ fn dashboard_catalog_exposes_pages_and_widgets() {
 }
 
 #[test]
+fn dashboard_page_catalog_label_matches_created_default_label() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("dashboard creation should apply");
+
+    let dashboard = first_child(&engine, engine.root);
+    let dashboard_page_item = engine
+        .catalog_creatable_items(dashboard)
+        .into_iter()
+        .find(|item| item.node_type == DASHBOARD_PAGE_NODE_TYPE)
+        .expect("dashboard should expose dashboard page creation");
+
+    assert_eq!(dashboard_page_item.label, "Page");
+
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, None, None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+
+    let page = first_child(&engine, dashboard);
+    let page_node = engine.nodes.get(page).expect("page should exist");
+    assert_eq!(page_node.node_data().meta.label, "Page");
+}
+
+#[test]
 fn dashboard_pages_expose_pixel_page_size_as_vec2() {
     let root: DashboardTestNode = Folder::new("Root").into();
     let mut engine = Engine::new(root);
@@ -172,8 +199,8 @@ fn dashboard_pages_expose_pixel_page_size_as_vec2() {
     let page = first_child(&engine, dashboard);
     assert_eq!(
         direct_child_decl_ids(&engine, page),
-        vec!["layout".to_string(), "viewport".to_string()],
-        "pages should organize shared surface layout and page-specific viewport params into folders",
+        vec!["layout".to_string()],
+        "pages should expose a single layout folder for both shared surface layout and page sizing",
     );
     let page_size = find_descendant_by_decl(&engine, page, "page_size").expect("page size parameter should exist");
     let page_size_snapshot = param_snapshot(&engine, page_size);
@@ -194,6 +221,10 @@ fn dashboard_pages_expose_pixel_page_size_as_vec2() {
     assert!(
         page_size_node.node_data().meta.can_be_disabled,
         "page size should remain disableable"
+    );
+    assert!(
+        find_descendant_by_decl(&engine, page, "scrollable").is_none(),
+        "page viewport scrollability should be removed"
     );
     assert!(
         find_descendant_by_decl(&engine, page, "page_width").is_none(),
@@ -742,8 +773,7 @@ fn dashboard_stack_layout_widget_sizes_become_optional_constraints() {
             .expect("dispatch should succeed");
     }
 
-    let horizontal_width =
-        find_descendant_by_decl(&engine, widget, "width").expect("horizontal width should exist");
+    let horizontal_width = find_descendant_by_decl(&engine, widget, "width").expect("horizontal width should exist");
     assert!(
         engine
             .nodes
@@ -781,8 +811,7 @@ fn dashboard_stack_layout_widget_sizes_become_optional_constraints() {
             .expect("dispatch should succeed");
     }
 
-    let vertical_height =
-        find_descendant_by_decl(&engine, widget, "height").expect("vertical height should exist");
+    let vertical_height = find_descendant_by_decl(&engine, widget, "height").expect("vertical height should exist");
     assert!(
         engine
             .nodes

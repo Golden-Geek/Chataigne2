@@ -64,6 +64,10 @@ fn is_zero_u32(value: &u32) -> bool {
     *value == 0
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
@@ -76,6 +80,12 @@ pub struct PresentationHint {
     /// If greater than zero, this node surfaces descendant warnings up to this depth.
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub show_child_warnings_max_depth: u32,
+    /// Whether this node stays visible when rendered as a nested inspector child.
+    ///
+    /// Managed items default to hidden in nested inspectors unless directly selected
+    /// or rendered as the inspector root.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub show_in_nested_inspector: bool,
 }
 
 impl PresentationHint {
@@ -433,4 +443,28 @@ pub struct NodeScriptDescriptor {
     /// Script-callable method names exposed on the node object.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub methods: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::PresentationHint;
+
+    #[test]
+    fn presentation_hint_serializes_nested_inspector_flag_when_enabled() {
+        let hint = PresentationHint {
+            show_in_nested_inspector: true,
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(hint).expect("presentation hint should serialize");
+
+        assert_eq!(
+            serialized,
+            json!({
+                "show_in_nested_inspector": true
+            })
+        );
+    }
 }

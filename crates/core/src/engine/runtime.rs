@@ -743,19 +743,23 @@ impl<T: Node> Engine<T> {
     fn describe_pending_edit(&self, request: &EditRequest) -> String {
         match &request.edit {
             Edit::BeginEditSession {
-                origin,
-                client_edit_id,
-                ..
+                origin, client_edit_id, ..
             } => format!("BeginEditSession origin={origin:?} client_edit_id={client_edit_id}"),
             Edit::EndEditSession { client_edit_id } => {
                 format!("EndEditSession client_edit_id={client_edit_id}")
             }
             Edit::SetParam { node, .. } => format!("SetParam target={}", self.describe_node(*node)),
             Edit::SetNodeScriptProperty { node, property, .. } => {
-                format!("SetNodeScriptProperty target={} property={property}", self.describe_node(*node))
+                format!(
+                    "SetNodeScriptProperty target={} property={property}",
+                    self.describe_node(*node)
+                )
             }
             Edit::CallNodeScriptMethod { node, method, .. } => {
-                format!("CallNodeScriptMethod target={} method={method}", self.describe_node(*node))
+                format!(
+                    "CallNodeScriptMethod target={} method={method}",
+                    self.describe_node(*node)
+                )
             }
             Edit::CallNodeMutation { node, .. } => {
                 format!("CallNodeMutation target={}", self.describe_node(*node))
@@ -809,10 +813,17 @@ impl<T: Node> Engine<T> {
             ),
             Edit::PatchMeta { node, .. } => format!("PatchMeta target={}", self.describe_node(*node)),
             Edit::SetScriptConfig { node, force_reload, .. } => {
-                format!("SetScriptConfig target={} force_reload={force_reload}", self.describe_node(*node))
+                format!(
+                    "SetScriptConfig target={} force_reload={force_reload}",
+                    self.describe_node(*node)
+                )
             }
             Edit::SetNodeWarning { node, warning } => {
-                format!("SetNodeWarning target={} warning_id='{}'", self.describe_node(*node), warning.id)
+                format!(
+                    "SetNodeWarning target={} warning_id='{}'",
+                    self.describe_node(*node),
+                    warning.id
+                )
             }
             Edit::ClearNodeWarning { node, warning_id } => format!(
                 "ClearNodeWarning target={} warning_id={}",
@@ -840,10 +851,7 @@ impl<T: Node> Engine<T> {
 
     #[cfg(debug_assertions)]
     fn describe_inbox_event(&self, event: &Event) -> String {
-        let time = format!(
-            "time=({}, {}, {})",
-            event.time.tick, event.time.micro, event.time.seq
-        );
+        let time = format!("time=({}, {}, {})", event.time.tick, event.time.micro, event.time.seq);
         match &event.kind {
             EventKind::ParamChanged { param, .. } => {
                 format!("{time} ParamChanged target={}", self.describe_node(*param))

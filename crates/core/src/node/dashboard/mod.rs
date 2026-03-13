@@ -6,9 +6,7 @@ use self::widget_options::{
     dashboard_widget_options_node_type, make_dashboard_widget_options_node, refresh_dashboard_widget_options_node,
 };
 use crate::events::Event;
-use crate::node::{
-    DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions,
-};
+use crate::node::{DeclId, EventPropagation, Node, NodeData, NodeId, NodeReference, NodeUserPermissions};
 use crate::parameter::{
     CssUnit, CssValue, Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, Vec2,
 };
@@ -327,11 +325,16 @@ impl Node for DashboardNode {
 }
 
 #[allow(missing_docs)]
-#[node("dashboard_layout_surface", label = "Dashboard Layout Surface")]
+#[node(
+    "dashboard_layout_surface",
+    label = "Dashboard Layout Surface",
+    color = crate::color::Color::new(0.15, 0.6, 0.9, 1.0)
+)]
 #[children(
-    folder(layout, label = "Layout") {
+    folder(layout, label = "Layout", color = crate::color::Color::new(0.15, 0.6, 0.9, 1.0)) {
         layout_kind: Enum = "free" (
             label = "Layout",
+            color = crate::color::Color::new(0.15, 0.6, 0.9, 1.0),
             description = "How this surface arranges its child widgets.",
             enum_options = ["free", "horizontal", "vertical", "grid", "accordion", "tabs"],
         );
@@ -372,10 +375,10 @@ impl Node for DashboardLayoutSurfaceNode {}
 
 /// Top-level dashboard page that arranges widgets using the shared container surface layout.
 #[allow(missing_docs)]
-#[node("dashboard_page", label = "Dashboard Page")]
+#[node("dashboard_page", label = "Page")]
 #[defaults(surface = DashboardLayoutSurfaceNode::new())]
 #[children(
-    folder(viewport, label = "Viewport") {
+    folder(layout, label = "Layout", reuse = true) {
         page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
             label = "Page Size",
             description = "Rendered page size in pixels. The dashboard viewer treats those values as the page render surface dimensions.",
@@ -384,17 +387,13 @@ impl Node for DashboardLayoutSurfaceNode {}
             step = 1.0,
             step_base = 0.0,
         );
-        scrollable: bool = true (
-            label = "Scrollable",
-            description = "Whether this page may scroll when content exceeds the viewport.",
-        );
     }
 )]
 pub struct DashboardPageNode {
     surface: DashboardLayoutSurfaceNode,
 }
 
-#[item("dashboard_page", via = surface, from_struct)]
+#[item("dashboard_page", label = "Page", via = surface, from_struct)]
 impl Node for DashboardPageNode {
     crate::define_user_item_factory_methods! {
         accepts = ["dashboard_widget"];
