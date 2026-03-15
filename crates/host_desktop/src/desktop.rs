@@ -1,6 +1,7 @@
 use std::io::{Error, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
 use std::path::Path;
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -10,16 +11,23 @@ use tauri::{Runtime, Url, WebviewUrl};
 
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
 use golden_engine::engine::Engine;
-use golden_transport_server::{UiServerConfig, run_with_ui_server_config};
+use golden_transport_server::{UiAsset, UiServerConfig, run_with_ui_server_config};
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
+const WINDOW_CLOSE_REQUESTED_SCRIPT: &str = "window.dispatchEvent(new CustomEvent('gc-window-close-requested'));";
 
 #[derive(Debug, Clone, Copy, Default)]
 /// Launch flags understood by the default desktop and headless runtime.
 pub struct LaunchArgs {
     /// Runs the built-in UI server without launching the Tauri window.
     pub headless: bool,
+    /// Launches against a live frontend dev server instead of bundled UI assets.
+    pub dev: bool,
+    /// Launches Tauri against an external frontend instead of serving bundled UI assets.
+    pub no_frontend: bool,
+    /// Forces the process to attach or create a console for stdout/stderr.
+    pub show_output: bool,
     /// Forces the built-in UI server to bind to loopback only.
     pub no_remote: bool,
     /// Prints default launch usage instead of starting the app.
@@ -31,19 +39,62 @@ struct UiEndpoint {
     connect_addr: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+/// App-provided configuration for launching a frontend dev server.
+pub struct FrontendDevServerConfig {
+    /// Absolute working directory containing the frontend package.json.
+    pub working_dir: &'static str,
+    /// NPM script to execute for the frontend dev server.
+    pub npm_script: &'static str,
+    /// URL where the dev server should become reachable.
+    pub url: &'static str,
+}
+
+struct DevFrontendProcess {
+    child: Child,
+}
+
 /// Parses the current process arguments and launches the app through the default host runtime.
 pub fn run_default<T, R>(tauri_context: tauri::Context<R>) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    run_default_with_ui_assets::<T, R>(tauri_context, &[])
+}
+
+/// Parses the current process arguments and launches the app through the default host runtime with bundled UI assets.
+pub fn run_default_with_ui_assets<T, R>(
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    run_default_with_ui_assets_and_dev_server::<T, R>(tauri_context, ui_assets, None)
+}
+
+/// Parses the current process arguments and launches the app through the default host runtime with bundled UI assets
+/// and an optional frontend dev server.
+pub fn run_default_with_ui_assets_and_dev_server<T, R>(
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+    dev_server: Option<FrontendDevServerConfig>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    maybe_enable_output_console_from_env()?;
+
     let args = parse_launch_args_from_env()?;
     if args.show_help {
         print_usage();
         return Ok(());
     }
 
-    launch_with_args::<T, R>(args, tauri_context)
+    launch_with_ui_assets_and_dev_server::<T, R>(args, tauri_context, ui_assets, dev_server)
 }
 
 /// Parses launch flags from the current process environment.
@@ -62,12 +113,17 @@ where
     for arg in args {
         match arg.as_ref() {
             "--headless" => parsed.headless = true,
+            "--dev" => parsed.dev = true,
+            "--no-frontend" => parsed.no_frontend = true,
+            "--show-output" => parsed.show_output = true,
             "--no-remote" => parsed.no_remote = true,
             "--help" | "-h" => parsed.show_help = true,
             other => {
                 return Err(Error::new(
                     ErrorKind::InvalidInput,
-                    format!("unknown argument '{other}'. supported flags: --headless, --no-remote, --help"),
+                    format!(
+                        "unknown argument '{other}'. supported flags: --headless, --dev, --no-frontend, --show-output, --no-remote, --help"
+                    ),
                 ));
             }
         }
@@ -82,8 +138,36 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    launch_with_ui_assets::<T, R>(args, tauri_context, &[])
+}
+
+/// Creates the app's default new-project engine and launches it through the default host runtime with bundled UI.
+pub fn launch_with_ui_assets<T, R>(
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    launch_with_ui_assets_and_dev_server::<T, R>(args, tauri_context, ui_assets, None)
+}
+
+/// Creates the app's default new-project engine and launches it through the default host runtime with bundled UI and
+/// an optional frontend dev server.
+pub fn launch_with_ui_assets_and_dev_server<T, R>(
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+    dev_server: Option<FrontendDevServerConfig>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
     let engine = create_new_project_engine::<T>().map_err(Error::other)?;
-    launch_engine_with_args(engine, args, tauri_context)
+    launch_engine_with_ui_assets_and_dev_server(engine, args, tauri_context, ui_assets, dev_server)
 }
 
 /// Launches a caller-provided engine through the default desktop or headless host runtime.
@@ -96,26 +180,61 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    launch_engine_with_ui_assets(engine, args, tauri_context, &[])
+}
+
+/// Launches a caller-provided engine through the default desktop or headless host runtime with bundled UI assets.
+pub fn launch_engine_with_ui_assets<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    launch_engine_with_ui_assets_and_dev_server(engine, args, tauri_context, ui_assets, None)
+}
+
+/// Launches a caller-provided engine through the default desktop or headless host runtime with bundled UI assets and
+/// an optional frontend dev server.
+pub fn launch_engine_with_ui_assets_and_dev_server<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    tauri_context: tauri::Context<R>,
+    ui_assets: &'static [UiAsset],
+    dev_server: Option<FrontendDevServerConfig>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
     let mut config = UiServerConfig::default();
+    let frontend_assets = if args.no_frontend || args.dev { &[] } else { ui_assets };
     if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
         if !bind_addr.trim().is_empty() {
             config.bind_addr = bind_addr;
         }
     }
 
-    let frontend_url = std::env::var("GC_UI_FRONTEND_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(detect_or_default_frontend_url);
-
     if args.no_remote {
         config.bind_addr = force_loopback_bind_addr(&config.bind_addr);
     }
 
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
+    config.frontend_assets = frontend_assets;
+
     if args.headless {
         return run_with_ui_server_config(engine, config);
     }
+
+    let configured_frontend_url = std::env::var("GC_UI_FRONTEND_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty());
+    let frontend_url = configured_frontend_url
+        .clone()
+        .unwrap_or_else(|| default_frontend_url(&endpoint, frontend_assets, args.dev, dev_server));
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
     thread::spawn(move || {
@@ -133,6 +252,12 @@ where
 
     wait_for_ui_server(&endpoint.connect_addr, UI_STARTUP_TIMEOUT)?;
 
+    let dev_server_process = if args.dev && configured_frontend_url.is_none() {
+        spawn_frontend_dev_server(dev_server, &frontend_url, args.show_output)?
+    } else {
+        None
+    };
+
     if let Some(connect_addr) = url_connect_addr(&frontend_url) {
         if let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
             eprintln!(
@@ -141,7 +266,9 @@ where
         }
     }
 
-    run_tauri(&frontend_url, tauri_context)
+    let run_result = run_tauri(&frontend_url, tauri_context);
+    drop(dev_server_process);
+    run_result
 }
 
 fn print_usage() {
@@ -151,9 +278,66 @@ fn print_usage() {
         .and_then(|name| name.to_str())
         .unwrap_or("app");
 
-    println!("Usage: {program_name} [--headless] [--no-remote]");
+    println!("Usage: {program_name} [--headless] [--dev] [--no-frontend] [--show-output] [--no-remote]");
     println!("  --headless   Run without launching the Tauri desktop window.");
+    println!("  --dev   Launch against the frontend dev server instead of bundled UI assets.");
+    println!("  --no-frontend  Launch Tauri against an external frontend instead of the bundled UI.");
+    println!("  --show-output  Attach or create a console window for stdout/stderr logs.");
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
+}
+
+#[cfg(target_os = "windows")]
+fn maybe_enable_output_console_from_env() -> std::io::Result<()> {
+    let should_show_output = std::env::args_os().skip(1).any(|arg| {
+        let arg = arg.to_string_lossy();
+        arg == "--show-output" || arg == "--help" || arg == "-h"
+    });
+
+    if should_show_output {
+        ensure_console_attached()?;
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn maybe_enable_output_console_from_env() -> std::io::Result<()> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn ensure_console_attached() -> std::io::Result<()> {
+    const ATTACH_PARENT_PROCESS: u32 = u32::MAX;
+    const ERROR_ACCESS_DENIED: i32 = 5;
+
+    unsafe extern "system" {
+        fn AllocConsole() -> i32;
+        fn AttachConsole(dw_process_id: u32) -> i32;
+    }
+
+    // Prefer the parent terminal when one exists so `cargo run -- --show-output`
+    // stays in the same console instead of opening a second window.
+    let attached = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+    if attached != 0 {
+        return Ok(());
+    }
+
+    let attach_error = Error::last_os_error();
+    if attach_error.raw_os_error() == Some(ERROR_ACCESS_DENIED) {
+        return Ok(());
+    }
+
+    let allocated = unsafe { AllocConsole() };
+    if allocated != 0 {
+        return Ok(());
+    }
+
+    let alloc_error = Error::last_os_error();
+    if alloc_error.raw_os_error() == Some(ERROR_ACCESS_DENIED) {
+        return Ok(());
+    }
+
+    Err(alloc_error)
 }
 
 fn force_loopback_bind_addr(bind_addr: &str) -> String {
@@ -224,6 +408,117 @@ fn url_connect_addr(url: &str) -> Option<String> {
     Some(format!("{host}:{port}"))
 }
 
+fn default_frontend_url(
+    endpoint: &UiEndpoint,
+    ui_assets: &[UiAsset],
+    use_dev_server: bool,
+    dev_server: Option<FrontendDevServerConfig>,
+) -> String {
+    if use_dev_server {
+        return dev_server
+            .map(|config| config.url.to_string())
+            .unwrap_or_else(detect_or_default_frontend_url);
+    }
+
+    if !ui_assets.is_empty() {
+        return format!("http://{}/", endpoint.connect_addr);
+    }
+
+    detect_or_default_frontend_url()
+}
+
+fn spawn_frontend_dev_server(
+    dev_server: Option<FrontendDevServerConfig>,
+    frontend_url: &str,
+    show_output: bool,
+) -> std::io::Result<Option<DevFrontendProcess>> {
+    let Some(connect_addr) = url_connect_addr(frontend_url) else {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            format!("invalid frontend dev server url '{frontend_url}'"),
+        ));
+    };
+
+    if wait_for_ui_server(&connect_addr, Duration::from_millis(250)).is_ok() {
+        return Ok(None);
+    }
+
+    let Some(dev_server) = dev_server else {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "no frontend dev server configuration was provided by the app shell",
+        ));
+    };
+
+    let mut command = Command::new(npm_command_name());
+    command
+        .arg("run")
+        .arg(dev_server.npm_script)
+        .current_dir(dev_server.working_dir);
+
+    if show_output {
+        command.stdin(Stdio::inherit());
+        command.stdout(Stdio::inherit());
+        command.stderr(Stdio::inherit());
+    } else {
+        command.stdin(Stdio::null());
+        command.stdout(Stdio::null());
+        command.stderr(Stdio::null());
+    }
+
+    let mut child = command.spawn().map_err(|err| {
+        Error::new(
+            err.kind(),
+            format!(
+                "failed to start frontend dev server with '{} run {}' in {}: {err}",
+                npm_command_name(),
+                dev_server.npm_script,
+                dev_server.working_dir
+            ),
+        )
+    })?;
+
+    match wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
+        Ok(()) => Ok(Some(DevFrontendProcess { child })),
+        Err(err) => {
+            terminate_child_process_tree(&mut child);
+            Err(Error::new(
+                err.kind(),
+                format!("frontend dev server at {frontend_url} did not become ready: {err}"),
+            ))
+        }
+    }
+}
+
+fn npm_command_name() -> &'static str {
+    if cfg!(windows) { "npm.cmd" } else { "npm" }
+}
+
+fn terminate_child_process_tree(child: &mut Child) {
+    #[cfg(target_os = "windows")]
+    {
+        let _status = Command::new("taskkill")
+            .args(["/PID", &child.id().to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = child.wait();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+impl Drop for DevFrontendProcess {
+    fn drop(&mut self) {
+        terminate_child_process_tree(&mut self.child);
+    }
+}
+
 fn detect_or_default_frontend_url() -> String {
     let candidates = [5173u16, 5174, 5175, 5176, 4173];
     for port in candidates {
@@ -264,7 +559,36 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
         os, os
     );
 
+    let dispatch_close_requested_to_frontend = |window: &tauri::Window<R>| -> bool {
+        let mut delivered = false;
+        for webview in window.webviews() {
+            match webview.eval(WINDOW_CLOSE_REQUESTED_SCRIPT) {
+                Ok(()) => {
+                    delivered = true;
+                }
+                Err(err) => {
+                    eprintln!(
+                        "warning: failed to dispatch close-request event to frontend for window '{}': {err}",
+                        window.label()
+                    );
+                }
+            }
+        }
+        delivered
+    };
+
     tauri::Builder::<R>::new()
+        .on_window_event(move |window, event| {
+            if window.label() != "main" {
+                return;
+            }
+
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if dispatch_close_requested_to_frontend(window) {
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(move |app| {
             let mut window_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(external_url.clone()))
@@ -292,6 +616,7 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
             crate::desktop_commands::window_minimize,
             crate::desktop_commands::window_toggle_maximize,
             crate::desktop_commands::window_close,
+            crate::desktop_commands::window_destroy,
             crate::desktop_commands::window_is_maximized,
             crate::desktop_commands::start_drag,
             crate::desktop_commands::open_file_dialog,

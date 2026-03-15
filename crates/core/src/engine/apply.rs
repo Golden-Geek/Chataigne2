@@ -241,8 +241,8 @@ impl<T: Node> Engine<T> {
 
                     if capture_history {
                         if let Some(step) = step {
-                            if let Some(active) = self.active_edit_session.as_mut() {
-                                active.transaction.push(step);
+                            if self.active_edit_session.is_some() {
+                                self.push_step_into_active_history_transaction(step);
                             } else {
                                 transaction.push(step);
                             }

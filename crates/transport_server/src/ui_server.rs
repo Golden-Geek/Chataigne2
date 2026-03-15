@@ -13,7 +13,8 @@ use golden_engine::node::Node;
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
     UiEventBatch, UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest,
-    UiProjectPathRequest as ProjectPathRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
+    UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
+    UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
     UiReplayRequest as ReplayRequest, UiScriptConfigRequest as ScriptConfigRequest,
     UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
     UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
@@ -22,12 +23,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::project_host;
 
+const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
 const WS_PING_INTERVAL: Duration = Duration::from_secs(10);
 const WS_PONG_TIMEOUT: Duration = Duration::from_secs(30);
 
 static NEXT_WS_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Debug, Clone, Copy)]
+/// A bundled frontend asset served by the built-in UI host.
+pub struct UiAsset {
+    /// Absolute HTTP path where the asset is served, such as `/index.html` or `/_app/app.js`.
+    pub path: &'static str,
+    /// Response content type sent when the asset is served.
+    pub content_type: &'static str,
+    /// Embedded file contents.
+    pub bytes: &'static [u8],
+}
 
 #[derive(Clone)]
 /// Runtime settings for the built-in HTTP and WebSocket UI server.
@@ -36,6 +49,8 @@ pub struct UiServerConfig {
     pub bind_addr: String,
     /// Runtime tick interval used by the engine loop hosted by the UI server.
     pub tick_interval: Duration,
+    /// Optional bundled frontend assets served from non-API routes.
+    pub frontend_assets: &'static [UiAsset],
 }
 
 impl Default for UiServerConfig {
@@ -43,6 +58,7 @@ impl Default for UiServerConfig {
         Self {
             bind_addr: "localhost:7010".to_string(),
             tick_interval: Duration::from_millis(16),
+            frontend_assets: &[],
         }
     }
 }
@@ -50,6 +66,7 @@ impl Default for UiServerConfig {
 struct ServerState<T: ProjectLifecycle> {
     engine: Arc<Mutex<Engine<T>>>,
     ws_hub: WsHubHandle,
+    frontend_assets: &'static [UiAsset],
 }
 
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
@@ -57,6 +74,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
         Self {
             engine: self.engine.clone(),
             ws_hub: self.ws_hub.clone(),
+            frontend_assets: self.frontend_assets,
         }
     }
 }
@@ -280,9 +298,17 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     );
 
     let listener = TcpListener::bind(&config.bind_addr)?;
-    println!("UI API listening on http://{}", config.bind_addr);
+    println!(
+        "UI host listening on http://{} (bundled_frontend={})",
+        config.bind_addr,
+        !config.frontend_assets.is_empty()
+    );
 
-    let state = ServerState { engine, ws_hub };
+    let state = ServerState {
+        engine,
+        ws_hub,
+        frontend_assets: config.frontend_assets,
+    };
 
     for stream in listener.incoming() {
         match stream {
@@ -743,6 +769,13 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         return handle_ws_connection(stream, state, &request);
     }
 
+    if request.method.eq_ignore_ascii_case("GET") {
+        if let Some(asset) = resolve_frontend_asset(state.frontend_assets, &request.path) {
+            write_response(stream, "200 OK", asset.content_type, asset.bytes)?;
+            return Ok(());
+        }
+    }
+
     let route = request.path.as_str();
     match (request.method.as_str(), route) {
         ("GET", "/api/ui/health") => {
@@ -776,7 +809,8 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 }
             }
             let build_started = Instant::now();
-            let snapshot = guard.ui_snapshot(scope.clone());
+            let mut snapshot = guard.ui_snapshot(scope.clone());
+            snapshot.project_file = T::project_file_spec().into();
             let build_elapsed = build_started.elapsed();
             drop(guard);
 
@@ -954,6 +988,22 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 }
             }
         }
+        ("POST", "/api/ui/project-upload-load") => {
+            let payload: ProjectUploadRequest = serde_json::from_slice(&request.body).map_err(|err| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("invalid project-upload-load payload: {err}"),
+                )
+            })?;
+            match project_host::upload_project_and_load(&state.engine, &payload.file_name, &payload.contents) {
+                Ok(path) => {
+                    write_json(stream, "200 OK", &ProjectPathDto { path })?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &format!("project-upload-load failed: {err}"))?;
+                }
+            }
+        }
         ("POST", "/api/ui/intent") => {
             let intent: UiEditIntent = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
@@ -989,6 +1039,37 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
     }
 
     Ok(())
+}
+
+fn resolve_frontend_asset<'a>(assets: &'a [UiAsset], request_path: &str) -> Option<&'a UiAsset> {
+    if assets.is_empty() || request_path.starts_with("/api/") {
+        return None;
+    }
+
+    let normalized_path = normalize_frontend_asset_path(request_path);
+    if let Some(asset) = assets.iter().find(|asset| asset.path == normalized_path) {
+        return Some(asset);
+    }
+
+    if looks_like_asset_path(normalized_path) {
+        return None;
+    }
+
+    assets.iter().find(|asset| asset.path == "/index.html")
+}
+
+fn normalize_frontend_asset_path(request_path: &str) -> &str {
+    match request_path {
+        "" | "/" => "/index.html",
+        path => path,
+    }
+}
+
+fn looks_like_asset_path(request_path: &str) -> bool {
+    request_path
+        .rsplit('/')
+        .next()
+        .is_some_and(|segment| segment.contains('.'))
 }
 
 fn handle_ws_connection<T: ProjectLifecycle>(
@@ -1496,8 +1577,11 @@ fn read_http_request(stream: &mut TcpStream) -> std::io::Result<HttpRequest> {
         }
 
         buffer.extend_from_slice(&temp[..read]);
-        if buffer.len() > 1024 * 1024 {
-            return Err(Error::new(ErrorKind::InvalidData, "request exceeds 1MB"));
+        if buffer.len() > HTTP_MAX_REQUEST_BYTES {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("request exceeds {} bytes", HTTP_MAX_REQUEST_BYTES),
+            ));
         }
 
         if header_end.is_none() {

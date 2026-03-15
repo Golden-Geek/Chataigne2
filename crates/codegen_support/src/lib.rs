@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use golden_protocol::{
     UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
-    UiProjectPathRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiScriptConfigRequest,
-    UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
+    UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
+    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script::ScriptUiState;
 use ts_rs::{Config, TS};
@@ -105,6 +105,8 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiScriptConfigRequest>(&config, "UiScriptConfigRequest");
     export_binding::<UiScriptReloadRequest>(&config, "UiScriptReloadRequest");
     export_binding::<UiProjectPathRequest>(&config, "UiProjectPathRequest");
+    export_binding::<UiProjectUploadRequest>(&config, "UiProjectUploadRequest");
+    export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
 }
 
 /// Small command-line wrapper around the codegen helpers.

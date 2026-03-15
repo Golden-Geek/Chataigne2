@@ -4911,6 +4911,117 @@ fn clear_history_drops_active_edit_session_state() {
 }
 
 #[test]
+fn current_history_state_id_tracks_undo_redo_and_branching() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    assert_eq!(engine.current_history_state_id(), 0);
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(10),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("first edit should apply");
+
+    let first_state_id = engine.current_history_state_id();
+    assert!(first_state_id > 0, "first edit should advance the content-state id");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine.current_history_state_id(),
+        0,
+        "undo should restore the initial content-state id"
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine.current_history_state_id(),
+        first_state_id,
+        "redo should restore the first edited content-state id"
+    );
+
+    assert!(engine.undo().expect("second undo should succeed"));
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(25),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("branch edit should apply");
+
+    let branch_state_id = engine.current_history_state_id();
+    assert_ne!(
+        branch_state_id, first_state_id,
+        "branching after undo should produce a fresh content-state id"
+    );
+    assert_eq!(engine.redo_len(), 0, "branching edit should clear redo history");
+}
+
+#[test]
+fn current_history_state_id_tracks_live_edit_sessions() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: crate::edit::EditOrigin::Ui,
+        label: Some("drag".to_string()),
+        client_edit_id: "drag-1".to_string(),
+        ui_client_instance_id: None,
+    });
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(10),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("first session chunk should apply");
+
+    let first_session_state_id = engine.current_history_state_id();
+    assert!(
+        first_session_state_id > 0,
+        "live edit-session changes should advance the content-state id before commit"
+    );
+    assert_eq!(engine.undo_len(), 0, "open session should not commit undo history yet");
+
+    engine.edits.push(Edit::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(15),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("second session chunk should apply");
+
+    let second_session_state_id = engine.current_history_state_id();
+    assert!(
+        second_session_state_id > first_session_state_id,
+        "additional live session changes should keep advancing the content-state id"
+    );
+
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: "drag-1".to_string(),
+    });
+    engine.apply_edits().expect("session end should commit history");
+
+    assert_eq!(
+        engine.current_history_state_id(),
+        second_session_state_id,
+        "committing an edit session should preserve the live content-state id"
+    );
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine.current_history_state_id(),
+        0,
+        "undo should restore the pre-session content-state id"
+    );
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert_eq!(
+        engine.current_history_state_id(),
+        second_session_state_id,
+        "redo should restore the committed session content-state id"
+    );
+}
+
+#[test]
 fn patch_meta_applies_patch_to_runtime_node_metadata() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
 

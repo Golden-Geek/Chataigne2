@@ -10,12 +10,20 @@ use super::{Engine, EngineEditError};
 pub(crate) struct HistoryTransaction<T: Node> {
     /// Ordered steps captured while applying a single queue drain transaction.
     steps: Vec<HistoryStep<T>>,
+    /// Content-state id before this transaction was applied.
+    before_state_id: Option<u64>,
+    /// Content-state id after this transaction was applied.
+    after_state_id: Option<u64>,
 }
 
 impl<T: Node> HistoryTransaction<T> {
     /// Creates an empty transaction.
     pub(crate) fn new() -> Self {
-        Self { steps: Vec::new() }
+        Self {
+            steps: Vec::new(),
+            before_state_id: None,
+            after_state_id: None,
+        }
     }
 
     /// Appends a history step to the transaction.
@@ -26,6 +34,27 @@ impl<T: Node> HistoryTransaction<T> {
     /// Returns `true` when no reversible steps were captured.
     pub(crate) fn is_empty(&self) -> bool {
         self.steps.is_empty()
+    }
+
+    /// Returns the content-state id before this transaction.
+    fn before_state_id(&self) -> Option<u64> {
+        self.before_state_id
+    }
+
+    /// Returns the content-state id after this transaction.
+    fn after_state_id(&self) -> Option<u64> {
+        self.after_state_id
+    }
+
+    /// Sets the content-state ids tracked by this transaction.
+    fn set_state_ids(&mut self, before_state_id: u64, after_state_id: u64) {
+        self.before_state_id = Some(before_state_id);
+        self.after_state_id = Some(after_state_id);
+    }
+
+    /// Updates the content-state id produced by this transaction.
+    fn set_after_state_id(&mut self, after_state_id: u64) {
+        self.after_state_id = Some(after_state_id);
     }
 
     /// Updates the newest matching coalesced SetParam step in this transaction, if present.
@@ -982,10 +1011,32 @@ impl<T: Node> From<ReplaceNodeEffect<T>> for HistoryStep<T> {
 }
 
 impl<T: Node> Engine<T> {
+    fn allocate_history_state_id(&mut self) -> u64 {
+        let state_id = self.next_history_state_id;
+        self.next_history_state_id = self.next_history_state_id.saturating_add(1);
+        state_id
+    }
+
+    pub(crate) fn push_step_into_active_history_transaction(&mut self, step: HistoryStep<T>) {
+        let before_state_id = self.current_history_state_id;
+        let after_state_id = self.allocate_history_state_id();
+        let active = self
+            .active_edit_session
+            .as_mut()
+            .expect("active edit session should exist when capturing a session history step");
+
+        if active.transaction.before_state_id.is_none() {
+            active.transaction.before_state_id = Some(before_state_id);
+        }
+        active.transaction.push(step);
+        active.transaction.after_state_id = Some(after_state_id);
+        self.current_history_state_id = after_state_id;
+    }
+
     pub(crate) fn record_single_history_step(&mut self, step: HistoryStep<T>) {
         self.clear_redo_history();
-        if let Some(active) = self.active_edit_session.as_mut() {
-            active.transaction.push(step);
+        if self.active_edit_session.is_some() {
+            self.push_step_into_active_history_transaction(step);
             return;
         }
 
@@ -1040,14 +1091,26 @@ impl<T: Node> Engine<T> {
             return;
         }
 
+        let before_state_id = transaction.before_state_id().unwrap_or(self.current_history_state_id);
+        let after_state_id = transaction
+            .after_state_id()
+            .unwrap_or_else(|| self.allocate_history_state_id());
+        transaction.set_state_ids(before_state_id, after_state_id);
+
         // eprintln!("[gc-history] push undo tx: steps={} undo_before={} redo_current={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
 
         if let Some(previous) = self.undo_stack.last_mut() {
             transaction.absorb_coalesced_set_params(previous);
+            if transaction.is_empty() {
+                previous.set_after_state_id(after_state_id);
+                self.current_history_state_id = after_state_id;
+                return;
+            }
         }
 
         if !transaction.is_empty() {
             self.undo_stack.push(transaction);
+            self.current_history_state_id = after_state_id;
             // eprintln!("[gc-history] push undo tx done: undo_after={} redo_current={}", self.undo_stack.len(), self.redo_stack.len());
         }
     }
@@ -1072,6 +1135,8 @@ impl<T: Node> Engine<T> {
             transaction.dispose(self);
         }
         self.drop_active_edit_session_history();
+        self.current_history_state_id = 0;
+        self.next_history_state_id = 1;
     }
 
     /// Reverts the last applied edit transaction.
@@ -1080,6 +1145,7 @@ impl<T: Node> Engine<T> {
             // eprintln!("[gc-history] undo: no-op (undo_len=0, redo_len={})", self.redo_stack.len());
             return Ok(false);
         };
+        let before_state_id = transaction.before_state_id().unwrap_or(0);
 
         // eprintln!("[gc-history] undo start: tx_steps={} undo_after_pop={} redo_before={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.undo(self)?;
@@ -1087,6 +1153,7 @@ impl<T: Node> Engine<T> {
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
         self.redo_stack.push(transaction);
+        self.current_history_state_id = before_state_id;
         // eprintln!("[gc-history] undo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)
     }
@@ -1097,6 +1164,7 @@ impl<T: Node> Engine<T> {
             // eprintln!("[gc-history] redo: no-op (undo_len={}, redo_len=0)", self.undo_stack.len());
             return Ok(false);
         };
+        let after_state_id = transaction.after_state_id().unwrap_or(self.current_history_state_id);
 
         // eprintln!("[gc-history] redo start: tx_steps={} undo_before={} redo_after_pop={}", transaction.steps.len(), self.undo_stack.len(), self.redo_stack.len());
         transaction.redo(self)?;
@@ -1104,8 +1172,14 @@ impl<T: Node> Engine<T> {
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
         self.undo_stack.push(transaction);
+        self.current_history_state_id = after_state_id;
         // eprintln!("[gc-history] redo done: undo_len={} redo_len={}", self.undo_stack.len(), self.redo_stack.len());
         Ok(true)
+    }
+
+    /// Returns the logical content-state id for the current graph.
+    pub fn current_history_state_id(&self) -> u64 {
+        self.current_history_state_id
     }
 
     /// Returns `true` when an edit session is currently active.

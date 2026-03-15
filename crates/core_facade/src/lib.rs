@@ -69,14 +69,16 @@ pub mod logger {
 /// Host-independent app lifecycle hooks plus the default host/runtime entry points.
 pub mod app {
     pub use golden_engine::app::{
-        GoldenApp, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine, create_engine,
-        create_new_project_engine, prepare_engine_for_runtime,
+        GoldenApp, ProjectFileSpec, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine,
+        create_engine, create_new_project_engine, prepare_engine_for_runtime,
     };
     pub use golden_host_desktop::{
-        LaunchArgs, launch_engine_with_args, launch_with_args, parse_launch_args, parse_launch_args_from_env,
-        run_default,
+        FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
+        launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_ui_assets,
+        launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
+        run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
     };
-    pub use golden_transport_server::{UiServerConfig, run_ui_server, run_with_ui_server_config};
+    pub use golden_transport_server::{UiAsset, UiServerConfig, run_ui_server, run_with_ui_server_config};
 }
 
 /// UI protocol DTOs and transport-oriented helpers.

@@ -1416,6 +1416,7 @@ dependencies = [
  "golden_transport_server",
  "rfd",
  "tauri",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]

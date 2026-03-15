@@ -157,6 +157,49 @@ pub struct UiProjectPathRequest {
     pub path: String,
 }
 
+/// HTTP request payload for uploading a browser-selected project file before loading it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectUploadRequest {
+    /// Original browser-side file name.
+    pub file_name: String,
+    /// Uploaded project document contents.
+    pub contents: String,
+}
+
+/// HTTP response payload carrying a resolved project path.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectPathDto {
+    /// Resolved project path on the host.
+    pub path: String,
+}
+
+/// UI-facing app project-file metadata.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectFileSpec {
+    /// Human-readable name for one project document, such as `Noisette`.
+    pub display_name: String,
+    /// Preferred filename extension without a leading dot.
+    pub extension: String,
+}
+
+impl Default for UiProjectFileSpec {
+    fn default() -> Self {
+        Self {
+            display_name: "Project".to_string(),
+            extension: "json".to_string(),
+        }
+    }
+}
+
+impl From<crate::app::ProjectFileSpec> for UiProjectFileSpec {
+    fn from(spec: crate::app::ProjectFileSpec) -> Self {
+        Self {
+            display_name: spec.normalized_display_name(),
+            extension: spec.normalized_extension(),
+        }
+    }
+}
+
 /// UI-facing node metadata payload.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiNodeMetaDto {
@@ -490,6 +533,8 @@ pub struct UiHistoryState {
     pub redo_len: usize,
     /// Whether an edit session is currently active.
     pub active_edit_session: bool,
+    /// Logical content-state id for the current graph relative to undo/redo history.
+    pub current_history_state_id: u64,
 }
 
 /// UI-facing logger state included in snapshots.
@@ -519,6 +564,9 @@ pub struct UiSnapshot {
     pub history: UiHistoryState,
     /// Current logger state.
     pub logger: UiLoggerState,
+    /// App-provided project file metadata.
+    #[serde(default)]
+    pub project_file: UiProjectFileSpec,
     /// Current user-context scopes.
     #[serde(default, skip_serializing_if = "is_default_user_contexts")]
     pub user_contexts: UiUserContextsDto,
@@ -1080,6 +1128,7 @@ impl<T: Node> Engine<T> {
                 max_entries: crate::logger::max_entries(),
                 records: crate::logger::records(),
             },
+            project_file: UiProjectFileSpec::default(),
             user_contexts: self.ui_user_contexts(),
         }
     }
@@ -1780,6 +1829,7 @@ impl<T: Node> Engine<T> {
             undo_len: self.undo_len(),
             redo_len: self.redo_len(),
             active_edit_session: self.has_active_edit_session(),
+            current_history_state_id: self.current_history_state_id(),
         }
     }
 

@@ -6,5 +6,8 @@ mod desktop;
 mod desktop_commands;
 
 pub use desktop::{
-    LaunchArgs, launch_engine_with_args, launch_with_args, parse_launch_args, parse_launch_args_from_env, run_default,
+    FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
+    launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_ui_assets,
+    launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
+    run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
 };

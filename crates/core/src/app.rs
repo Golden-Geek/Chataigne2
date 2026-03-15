@@ -5,6 +5,49 @@ use std::io::Error;
 use crate::engine::{Engine, EngineRuntimeError};
 use crate::node::{DashboardNode, Folder, Node, NodeMeta};
 
+/// App-provided project file metadata consumed by hosts and UIs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectFileSpec {
+    /// Human-readable name for one project document, such as `Noisette`.
+    pub display_name: &'static str,
+    /// Preferred filename extension without a leading dot.
+    pub extension: &'static str,
+}
+
+impl ProjectFileSpec {
+    /// Creates one project-file descriptor.
+    pub const fn new(display_name: &'static str, extension: &'static str) -> Self {
+        Self {
+            display_name,
+            extension,
+        }
+    }
+
+    /// Returns the normalized extension used by hosts and transports.
+    pub fn normalized_extension(&self) -> String {
+        let normalized = self.extension.trim().trim_start_matches('.').to_ascii_lowercase();
+        if normalized.is_empty() {
+            return "json".to_string();
+        }
+        normalized
+    }
+
+    /// Returns the human-readable label, falling back to a generic default.
+    pub fn normalized_display_name(&self) -> String {
+        let normalized = self.display_name.trim();
+        if normalized.is_empty() {
+            return "Project".to_string();
+        }
+        normalized.to_string()
+    }
+}
+
+impl Default for ProjectFileSpec {
+    fn default() -> Self {
+        Self::new("Project", "json")
+    }
+}
+
 /// App node contract required by the default runtime host.
 pub trait ProjectNode: Node {
     /// Recreates one node from project persistence payload.
@@ -18,6 +61,11 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
     /// Creates the root node used for fresh engine instances.
     fn create_project_root() -> Self {
         Folder::new("Root").into()
+    }
+
+    /// Declares the project file label and extension used by hosts and UIs.
+    fn project_file_spec() -> ProjectFileSpec {
+        ProjectFileSpec::default()
     }
 
     /// Applies runtime-only engine setup that must run on every recreation.

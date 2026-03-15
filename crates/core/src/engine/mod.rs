@@ -131,6 +131,10 @@ pub struct Engine<T: Node> {
     undo_stack: Vec<history::HistoryTransaction<T>>,
     /// Undone edit transactions available for redo.
     redo_stack: Vec<history::HistoryTransaction<T>>,
+    /// Logical content-state id for the current graph relative to undo/redo history.
+    current_history_state_id: u64,
+    /// Next unique content-state id assigned to a history-visible graph state.
+    next_history_state_id: u64,
     /// Currently active edit session boundary.
     active_edit_session: Option<history::ActiveEditSession<T>>,
     /// Runtime schedule built by `resolve()`.
@@ -188,6 +192,8 @@ impl<T: Node> Engine<T> {
             last_synced_logger_repeat_count: 0,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            current_history_state_id: 0,
+            next_history_state_id: 1,
             active_edit_session: None,
             runtime_schedule: runtime::ScheduleMgr::default(),
             runtime_resolve_pending: true,
