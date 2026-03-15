@@ -29,6 +29,10 @@ fn create_manager_item(engine: &AppEngine, manager: NodeId, node_type: &str) -> 
 }
 
 impl golden_core::app::ProjectLifecycle for AppNode {
+    fn project_file_spec() -> golden_core::app::ProjectFileSpec {
+        golden_core::app::ProjectFileSpec::new("Noisette", "noisette")
+    }
+
     fn configure_engine(engine: &mut AppEngine) -> Result<(), String> {
         super::nodes_module_demo::register_demo_reference_filters(engine);
         Ok(())

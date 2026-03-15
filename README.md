@@ -10,6 +10,10 @@ This repository is being actively refactored toward a clean long-term architectu
 - Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
 - UI state and transport boundaries are being normalized in `src-ui`.
 - protocol declarations and code generation are moving toward a single source of truth.
+- `cargo run` and the built app now ship the UI bundle and serve it from the built-in Rust host by default, so the desktop app does not depend on a separate Vite process to be usable.
+- `cargo run -- --dev` now launches against the live Svelte/Vite dev server from `src-ui` instead of the bundled frontend, so frontend iteration can use the normal dev pipeline.
+- `--no-frontend` disables bundled UI serving but still launches Tauri against an external frontend you start yourself.
+- On Windows, debug builds keep their console output during `cargo run`, while release-style builds stay window-only unless `--show-output` is passed.
 
 ## Repository Map
 
