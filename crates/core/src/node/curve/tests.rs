@@ -61,6 +61,13 @@ fn parse_helpers_map_variants() {
 }
 
 #[test]
+fn curve_node_shows_in_nested_inspector_by_default() {
+    let node = CurveNode::new();
+
+    assert!(node.node_data().meta.presentation.show_in_nested_inspector);
+}
+
+#[test]
 fn easing_node_dependencies_follow_kind_and_mode() {
     let root: CurveTestNode = Folder::new("Root").into();
     let mut engine = Engine::new(root);

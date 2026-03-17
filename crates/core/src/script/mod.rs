@@ -3283,7 +3283,8 @@ pub struct ScriptNode {
 impl ScriptNode {
     /// Creates a new script node.
     pub fn new(label: impl Into<String>, config: ScriptNodeConfig) -> Self {
-        let node_data = NodeData::new(label.into());
+        let mut node_data = NodeData::new(label.into());
+        node_data.meta.presentation.show_in_nested_inspector = true;
         Self {
             node_data,
             config,
@@ -5013,6 +5014,13 @@ function init() {
 
         let rule = script.execution_rule();
         assert_eq!(rule.update_rate, None);
+    }
+
+    #[test]
+    fn script_node_shows_in_nested_inspector_by_default() {
+        let node = ScriptNode::new("Script", ScriptNodeConfig::default());
+
+        assert!(node.node_data().meta.presentation.show_in_nested_inspector);
     }
 
     #[test]

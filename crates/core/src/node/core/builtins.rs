@@ -25,6 +25,7 @@ impl UserContextNode {
     pub fn new(label: impl Into<String>) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
+        node_data.meta.presentation.show_in_nested_inspector = true;
         Self { node_data }
     }
 }
@@ -176,5 +177,17 @@ impl Node for Folder {
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::PassOn
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Node, UserContextNode};
+
+    #[test]
+    fn user_context_node_shows_in_nested_inspector_by_default() {
+        let node = UserContextNode::new("Context");
+
+        assert!(node.node_data().meta.presentation.show_in_nested_inspector);
     }
 }
