@@ -46,6 +46,40 @@ fn hold_easing_keeps_start_value_until_boundary() {
 }
 
 #[test]
+fn elastic_easing_overshoots_before_settling_on_target() {
+    let curve = Curve::new(vec![
+        CurveKey::new(0.0, 0.0, CurveEasing::Elastic),
+        CurveKey::new(1.0, 1.0, CurveEasing::Linear),
+    ]);
+
+    assert_close(curve.sample(0.0).expect("sample should exist"), 0.0);
+    assert_close(curve.sample(1.0).expect("sample should exist"), 1.0);
+
+    let max_sample = (1..100)
+        .map(|index| curve.sample(index as f64 / 100.0).expect("sample should exist"))
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!(max_sample > 1.0, "elastic easing should overshoot, got {max_sample}");
+}
+
+#[test]
+fn bounce_easing_rebounds_before_reaching_target() {
+    let curve = Curve::new(vec![
+        CurveKey::new(0.0, 0.0, CurveEasing::Bounce),
+        CurveKey::new(1.0, 1.0, CurveEasing::Linear),
+    ]);
+
+    assert_close(curve.sample(0.0).expect("sample should exist"), 0.0);
+    assert_close(curve.sample(1.0).expect("sample should exist"), 1.0);
+
+    let early_peak = curve.sample(0.4).expect("sample should exist");
+    let rebound = curve.sample(0.5).expect("sample should exist");
+    assert!(
+        early_peak > rebound,
+        "bounce easing should dip after the first impact, got peak={early_peak} rebound={rebound}"
+    );
+}
+
+#[test]
 fn steps_mode_num_steps_quantizes_progress() {
     let curve = Curve::new(vec![
         CurveKey::new(

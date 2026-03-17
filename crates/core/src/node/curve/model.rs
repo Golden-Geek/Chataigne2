@@ -146,6 +146,10 @@ pub enum CurveEasing {
         #[serde(default)]
         phase: f64,
     },
+    /// Oscillating overshoot that settles on the target value.
+    Elastic,
+    /// Bounce easing that lands on the target value after a few rebounds.
+    Bounce,
     /// Seeded random interpolation modulation.
     Random {
         /// Bucket frequency (changes per position unit).
@@ -832,6 +836,8 @@ struct CompiledCurveSegment {
 #[derive(Clone, Debug)]
 enum CompiledCurveEasing {
     Linear,
+    Elastic,
+    Bounce,
     Hold,
     Bezier(CompiledBezierSegment),
     Steps {
@@ -869,6 +875,8 @@ impl CompiledCurveEasing {
         let span = (end.position - start.position).abs();
         match easing {
             CurveEasing::Linear => Self::Linear,
+            CurveEasing::Elastic => Self::Elastic,
+            CurveEasing::Bounce => Self::Bounce,
             CurveEasing::Hold => Self::Hold,
             CurveEasing::Bezier { out_handle, in_handle } => {
                 let out_handle = sanitize_handle(*out_handle, default_bezier_out_handle());
@@ -1060,6 +1068,14 @@ fn sample_compiled_segment(
 
     match &segment.easing {
         CompiledCurveEasing::Linear => linear_value,
+        CompiledCurveEasing::Elastic => {
+            let eased_progress = sample_elastic_progress(progress);
+            segment.start_value + segment.value_delta * eased_progress
+        }
+        CompiledCurveEasing::Bounce => {
+            let eased_progress = sample_bounce_progress(progress);
+            segment.start_value + segment.value_delta * eased_progress
+        }
         CompiledCurveEasing::Hold => segment.start_value,
         CompiledCurveEasing::Bezier(bezier) => bezier.sample(position),
         CompiledCurveEasing::Steps { steps } => {
@@ -1234,6 +1250,44 @@ fn sample_shape_wave(shape: CurveShape, phase_cycles: f64) -> f64 {
                 -1.0
             }
         }
+    }
+}
+
+fn sample_elastic_progress(progress: f64) -> f64 {
+    if progress <= 0.0 {
+        return 0.0;
+    }
+    if progress >= 1.0 {
+        return 1.0;
+    }
+
+    let oscillation = (progress * 10.0 - 0.75) * (TAU / 3.0);
+    (2.0_f64).powf(-10.0 * progress) * oscillation.sin() + 1.0
+}
+
+fn sample_bounce_progress(progress: f64) -> f64 {
+    if progress <= 0.0 {
+        return 0.0;
+    }
+    if progress >= 1.0 {
+        return 1.0;
+    }
+
+    let mut t = progress;
+    const N1: f64 = 7.5625;
+    const D1: f64 = 2.75;
+
+    if t < 1.0 / D1 {
+        N1 * t * t
+    } else if t < 2.0 / D1 {
+        t -= 1.5 / D1;
+        N1 * t * t + 0.75
+    } else if t < 2.5 / D1 {
+        t -= 2.25 / D1;
+        N1 * t * t + 0.9375
+    } else {
+        t -= 2.625 / D1;
+        N1 * t * t + 0.984375
     }
 }
 

@@ -11,7 +11,18 @@ use super::prelude::*;
 #[children(
     kind: crate::parameter::Enum = "bezier" (
         label = "Kind",
-        enum_options = ["linear", "bezier", "hold", "steps", "shape", "perlinNoise", "random", "script"],
+        enum_options = [
+            "linear",
+            "bezier",
+            "hold",
+            "steps",
+            "shape",
+            "perlinNoise",
+            "elastic",
+            "bounce",
+            "random",
+            "script",
+        ],
     );
     out_position: f64 = 1.0 / 3.0 (
         label = "Out Handle Position",
@@ -286,6 +297,8 @@ impl Node for CurveEasingNode {
 pub(super) fn parse_easing_from_snapshot(snapshot: &ProcessTreeSnapshot, easing_node: NodeId) -> CurveEasing {
     let kind = read_child_param_enum(snapshot, easing_node, PARAMETER_ANIMATION_EASING_KIND_DECL_ID, "linear");
     match kind.trim().to_ascii_lowercase().as_str() {
+        "elastic" => CurveEasing::Elastic,
+        "bounce" => CurveEasing::Bounce,
         "bezier" => CurveEasing::Bezier {
             out_handle: CurveHandle::new(
                 read_child_param_f64(

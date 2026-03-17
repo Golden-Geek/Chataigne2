@@ -31,6 +31,8 @@ pub(super) fn default_curve_easing() -> CurveEasing {
 pub(super) fn curve_easing_kind_id(easing: &CurveEasing) -> &'static str {
     match easing {
         CurveEasing::Linear => "linear",
+        CurveEasing::Elastic => "elastic",
+        CurveEasing::Bounce => "bounce",
         CurveEasing::Bezier { .. } => "bezier",
         CurveEasing::Hold => "hold",
         CurveEasing::Steps { .. } => "steps",

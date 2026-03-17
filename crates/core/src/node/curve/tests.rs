@@ -182,6 +182,32 @@ fn easing_node_dependencies_follow_kind_and_mode() {
 
     engine.edits.push(Edit::SetParam {
         node: kind,
+        value: ParamValue::Enum("elastic".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    stabilize_dependency_updates(&mut engine, "switching easing kind to elastic should apply");
+
+    assert_eq!(
+        direct_child_decl_ids(&engine, easing),
+        vec![PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string()],
+        "elastic easings should expose only the kind selector",
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: kind,
+        value: ParamValue::Enum("bounce".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    stabilize_dependency_updates(&mut engine, "switching easing kind to bounce should apply");
+
+    assert_eq!(
+        direct_child_decl_ids(&engine, easing),
+        vec![PARAMETER_ANIMATION_EASING_KIND_DECL_ID.to_string()],
+        "bounce easings should expose only the kind selector",
+    );
+
+    engine.edits.push(Edit::SetParam {
+        node: kind,
         value: ParamValue::Enum("bezier".to_string()),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
