@@ -1,9 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use golden_core::{
-    engine::Engine,
     // curve::{CurveEasing, CurveHandle},
     color::Color,
+    engine::Engine,
     item,
     log,
     node,
@@ -11,6 +11,41 @@ use golden_core::{
     parameter::{Enum, File, ParamValue, Vec2, Vec3},
     process_ctx::ProcessCtx,
 };
+
+macro_rules! define_module_container_factory_methods {
+    () => {
+        golden_core::define_user_item_factory_methods! {
+            accepts = ["module", "folder"];
+            items = [
+                {
+                    node_type: "folder",
+                    item_kind: "folder",
+                    label: "Folder",
+                    create: |_this: &Self| node::Folder::new("Folder"),
+                },
+                {
+                    node_type: "osc_module",
+                    item_kind: "module",
+                    label: "OSC Module",
+                    create: |_this: &Self| OscModule::create(),
+                },
+                {
+                    node_type: "midi_module",
+                    item_kind: "module",
+                    label: "MIDI Module",
+                    create: |_this: &Self| MidiModule::create(),
+                },
+                {
+                    node_type: "dmx_module",
+                    item_kind: "module",
+                    label: "DMX Module",
+                    when: |this: &Self| this.allow_dmx,
+                    create: |_this: &Self| DmxModule::create(),
+                },
+            ];
+        }
+    };
+}
 
 #[node(label = "Module Manager")]
 pub struct ModuleManager {
@@ -20,21 +55,7 @@ pub struct ModuleManager {
 
 #[node(from_struct)]
 impl Node for ModuleManager {
-    golden_core::define_user_item_factory_methods! {
-        accepts = ["module"];
-        items = [
-            {
-                type: OscModule,
-            },
-            {
-                type: MidiModule,
-            },
-            {
-                type: DmxModule,
-                when: |this: &Self| this.allow_dmx,
-            },
-        ];
-    }
+    define_module_container_factory_methods!();
 }
 
 #[node(label = "Module")]
@@ -79,7 +100,7 @@ impl Node for ModuleBase {
         vec2_range_param: Vec2 = (0.5, 0.25) [(-1.0, -1.0)..(1.0, 2.0)] (label = "Test Vec2 Range Parameter", description = "Test 2D vector parameter with component ranges", read_only = false);
     }
     folder(values, label = "Values", reuse = true) {
-       
+
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Test Vec3 Parameter", description = "Test 3D vector parameter");
         vec3_range_param: Vec3 = (0.1, 0.2, 0.3) [(0.0, -1.0, 0.2)..(1.0, 2.0, 0.8)] (label = "Test Vec3 Range Parameter", description = "Test 3D vector parameter with component ranges");
         color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Test Color Parameter", description = "Test RGBA color parameter");
@@ -131,17 +152,15 @@ impl Node for OscModule {
 
         //get current time
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
-        let noise = (now *2.73).cos() * 0.5 + 0.5;
+        let noise = (now * 2.73).cos() * 0.5 + 0.5;
 
-        let tx = (now + noise).cos() ;
-        let ty = (now * 1.13+noise*0.32).cos() ;
-        let tz = (now * 0.72+noise*0.54).cos() ;
+        let tx = (now + noise).cos();
+        let ty = (now * 1.13 + noise * 0.32).cos();
+        let tz = (now * 0.72 + noise * 0.54).cos();
         // println!("now: {}, noise: {}", now, noise);
         self.vec2_param.set(ctx, Vec2::new(tx, ty));
         self.vec2_range_param.set(ctx, Vec2::new(tx, ty));
         self.vec3_param.set(ctx, Vec3::new(tx, ty, tz));
-
-        
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, node_id: NodeId, _old_value: ParamValue) {
@@ -156,27 +175,24 @@ impl Node for OscModule {
         if node_id == self.float_param.id() {
             let val = self.float_param.get();
 
-           self.string_param.set(ctx, format!("Value: {:.2}", val));
-           if self.bool_param.get() {
-            if val > 7.5 {
-                log!(level= error; "New value :",  self.float_param.get());
-
-            } else if val > 5.0 {
-                log!(level= info; "New value :",  self.float_param.get());
-
-            } else {
-                log!(level= success; "New value :",  self.float_param.get());
+            self.string_param.set(ctx, format!("Value: {:.2}", val));
+            if self.bool_param.get() {
+                if val > 7.5 {
+                    log!(level= error; "New value :",  self.float_param.get());
+                } else if val > 5.0 {
+                    log!(level= info; "New value :",  self.float_param.get());
+                } else {
+                    log!(level= success; "New value :",  self.float_param.get());
+                };
             };
-        };
         }
     }
-
 }
 
 #[node(label = "MIDI Module")]
 #[children(
 folder(values, label = "Values", reuse = true) {
-       
+
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
         color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
         reference_param: NodeReference (
@@ -221,13 +237,12 @@ impl Node for MidiModule {
         // Allow UI actions (color, delete/duplicate, constraints)
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
     }
-
 }
 
 #[node(label = "DMX Module")]
 #[children(
 folder(values, label = "Values", reuse = true) {
-       
+
         vec3_param: Vec3 = (0.1, 0.2, 0.3) (label = "Vec3 Parameter", description = "A 3D vector parameter");
         color_param: Color = (0.9, 0.4, 0.2, 1.0) (label = "Color Parameter", description = "An RGBA color parameter");
         reference_param: NodeReference (
@@ -262,7 +277,6 @@ impl Node for DmxModule {
         // Allow UI actions (color, delete/duplicate, constraints)
         self.node_data_mut().meta.user_permissions = node::NodeUserPermissions::all();
     }
-
 }
 
 pub fn register_demo_reference_filters<T: Node>(engine: &mut Engine<T>) {
