@@ -4,7 +4,8 @@ This repository is being refactored toward a clean long-term architecture. Optim
 
 ## Repo Map
 
-- `src/`: thin app-shell bootstrap, app-specific nodes, and minimal shell wiring.
+- `src/`: thin app-shell bootstrap plus the app-owned node tree.
+- `src/module/`: module-system foundation owned by the app crate until it earns a shared boundary.
 - `src-ui/`: Svelte 5 app UI shell, `golden_ui` package consumption, transport clients, and state/store composition.
 - `submodules/golden_core/crates/core/`: pure engine/runtime crate implementation (`golden_engine` package).
 - `submodules/golden_core/crates/core/src/`: canonical source tree for `golden_engine`; new runtime modules belong here, not beside it.

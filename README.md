@@ -17,7 +17,8 @@ This repository is being actively refactored toward a clean long-term architectu
 
 ## Repository Map
 
-- `src/`: app-shell bootstrap, app-specific nodes, and minimal shell wiring.
+- `src/`: app-shell bootstrap plus the app-owned node tree.
+- `src/module/`: real Chataigne module foundation, including module roots, command containers, and sync hooks.
 - `src-ui/`: Svelte 5 app UI shell and `golden_ui` package consumption.
 - `submodules/golden_core/`: shared engine, macros, and deeper design docs.
 - `build.rs`: app node registry generation through a public codegen support crate.

@@ -2,7 +2,7 @@
 
 ## Top Level
 
-- `src/`: Chataigne2 app shell, app-specific nodes, and minimal shell wiring.
+- `src/`: Chataigne2 app shell and app-owned node tree.
 - `src-ui/`: Svelte 5 UI package.
 - `submodules/golden_core/`: shared engine workspace.
 - `capabilities/`: Tauri capability and permission configuration.
@@ -12,7 +12,7 @@
 
 - `src/app/mod.rs`: app entry wiring.
 - `src/app/bootstrap.rs`: project lifecycle hooks for the app node enum.
-- `src/nodes/`: app-owned node declarations.
+- `src/module/`: module manager, module base nodes, command containers, and sync-related shared app nodes.
 
 ## golden_core Workspace
 
