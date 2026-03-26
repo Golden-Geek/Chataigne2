@@ -100,7 +100,36 @@ fn candidate_is_module_values_parameter<T: Node>(engine: &Engine<T>, candidate: 
     folder(parameters, label = "Parameters") {}
     folder(values, label = "Values") {}
 )]
-pub struct ModuleBase {}
+pub struct ModuleBase {
+    #[potential_node(decl_id = "infos")]
+    infos_folder: golden_core::node::PotentialNodeHandle,
+    #[potential_node(decl_id = "parameters")]
+    parameters_folder: golden_core::node::PotentialNodeHandle,
+    #[potential_node(decl_id = "values")]
+    values_folder: golden_core::node::PotentialNodeHandle,
+}
+
+impl ModuleBase {
+    pub fn parameters_id(&self) -> Option<NodeId> {
+        self.parameters_folder.current_id()
+    }
+
+    pub fn values_id(&self) -> Option<NodeId> {
+        self.values_folder.current_id()
+    }
+
+    pub fn log_incoming_enabled(&self) -> bool {
+        self.log_incoming.get()
+    }
+
+    pub fn log_outgoing_enabled(&self) -> bool {
+        self.log_outgoing.get()
+    }
+
+    pub fn set_connected(&mut self, ctx: &mut ProcessCtx, connected: bool) {
+        self.connected.set(ctx, connected);
+    }
+}
 
 #[node("module_base", from_struct, scriptable, contextualizable)]
 impl Node for ModuleBase {

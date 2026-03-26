@@ -4,6 +4,9 @@ include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+pub(crate) use module_modules_protocol_osc_osc_module_base::{
+    OscDecodedMessage, OscIncomingApplyResult, OscValuePayload,
+};
 
 const APP_UI_DEV_SERVER: golden_core::app::FrontendDevServerConfig = golden_core::app::FrontendDevServerConfig {
     working_dir: concat!(env!("CARGO_MANIFEST_DIR"), "/src-ui"),
