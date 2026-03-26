@@ -94,6 +94,8 @@ pub struct UserCreatableItem {
     pub item_kind: String,
     /// Suggested default label for newly created items.
     pub label: String,
+    /// Whether UI creation flows should auto-select the created item.
+    pub select_when_created: bool,
 }
 
 impl UserCreatableItem {
@@ -103,7 +105,14 @@ impl UserCreatableItem {
             node_type: node_type.into(),
             item_kind: item_kind.into(),
             label: label.into(),
+            select_when_created: true,
         }
+    }
+
+    /// Overrides whether UI creation flows should auto-select the created item.
+    pub fn with_select_when_created(mut self, select_when_created: bool) -> Self {
+        self.select_when_created = select_when_created;
+        self
     }
 }
 

@@ -26,6 +26,32 @@ fn logger_accepts_success_options() {
 }
 
 #[test]
+fn logger_accepts_warning_shortcut() {
+    clear();
+    let record = crate::logwarning!("payload");
+    assert_eq!(record.level, LogLevel::Warning);
+    assert_eq!(record.tag, "general");
+}
+
+#[test]
+fn logger_accepts_error_shortcut_options() {
+    clear();
+    let origin = NodeId(9);
+    let record = crate::logerror!(origin = origin, tag = "ui"; "payload");
+    assert_eq!(record.level, LogLevel::Error);
+    assert_eq!(record.tag, "ui");
+    assert_eq!(record.origin, Some(origin));
+}
+
+#[test]
+fn logger_accepts_success_shortcut_options() {
+    clear();
+    let record = crate::logsuccess!(tag = "ui"; "payload");
+    assert_eq!(record.level, LogLevel::Success);
+    assert_eq!(record.tag, "ui");
+}
+
+#[test]
 fn logger_uses_thread_local_origin_when_not_explicit() {
     clear();
     let origin = NodeId(12);

@@ -449,6 +449,8 @@ pub struct UiCreatableUserItemDto {
     pub item_kind: String,
     /// Suggested default label.
     pub label: String,
+    /// Whether UI creation flows should auto-select the created item.
+    pub select_when_created: bool,
 }
 
 impl From<UserCreatableItem> for UiCreatableUserItemDto {
@@ -457,6 +459,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
             node_type: item.node_type,
             item_kind: item.item_kind,
             label: item.label,
+            select_when_created: item.select_when_created,
         }
     }
 }

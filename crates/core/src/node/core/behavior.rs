@@ -119,14 +119,17 @@ pub trait Node: Send + Any {
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = Vec::new();
         if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            items.push(UserCreatableItem::new("script", "script", "Script"));
+            items.push(UserCreatableItem::new("script", "script", "Script").with_select_when_created(false));
         }
         if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-            items.push(UserCreatableItem::new(
-                USER_CONTEXT_NODE_TYPE,
-                USER_CONTEXT_ITEM_KIND,
-                USER_CONTEXT_DEFAULT_LABEL,
-            ));
+            items.push(
+                UserCreatableItem::new(
+                    USER_CONTEXT_NODE_TYPE,
+                    USER_CONTEXT_ITEM_KIND,
+                    USER_CONTEXT_DEFAULT_LABEL,
+                )
+                .with_select_when_created(false),
+            );
         }
         items
     }

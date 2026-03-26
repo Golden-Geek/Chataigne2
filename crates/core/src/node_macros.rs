@@ -208,6 +208,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
                     $(,)?
@@ -228,6 +229,7 @@ macro_rules! define_user_item_factory_methods {
                         $(, node_type: $typed_node_type)?
                         $(, item_kind: $typed_item_kind)?
                         $(, label: $typed_label)?
+                        $(, select_when_created: $typed_select_when_created)?
                         $(, when: $typed_when)?
                         $(, create: $typed_create)?
                     }
@@ -244,6 +246,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
                     $(,)?
@@ -260,6 +263,7 @@ macro_rules! define_user_item_factory_methods {
                         $(, node_type: $typed_node_type)?
                         $(, item_kind: $typed_item_kind)?
                         $(, label: $typed_label)?
+                        $(, select_when_created: $typed_select_when_created)?
                         $(, when: $typed_when)?
                         $(, create: $typed_create)?
                     }
@@ -276,6 +280,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
                     $(,)?
@@ -295,6 +300,7 @@ macro_rules! define_user_item_factory_methods {
                         node_type: $node_type,
                         item_kind: $item_kind,
                         label: $label,
+                        $(select_when_created: $select_when_created,)?
                         $(when: $when,)?
                         create: $create
                     }
@@ -310,6 +316,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
                     $(,)?
@@ -325,6 +332,7 @@ macro_rules! define_user_item_factory_methods {
                         node_type: $node_type,
                         item_kind: $item_kind,
                         label: $label,
+                        $(select_when_created: $select_when_created,)?
                         $(when: $when,)?
                         create: $create
                     }
@@ -341,6 +349,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
                 }
@@ -376,19 +385,30 @@ macro_rules! define_user_item_factory_methods {
             let mut items = Vec::new();
 
             if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push($crate::node::UserCreatableItem::new("script", "script", "Script"));
+                items.push(
+                    $crate::node::UserCreatableItem::new("script", "script", "Script")
+                        .with_select_when_created(false),
+                );
             }
             if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push($crate::node::UserCreatableItem::new(
-                    $crate::node::USER_CONTEXT_NODE_TYPE,
-                    $crate::node::USER_CONTEXT_ITEM_KIND,
-                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                ));
+                items.push(
+                    $crate::node::UserCreatableItem::new(
+                        $crate::node::USER_CONTEXT_NODE_TYPE,
+                        $crate::node::USER_CONTEXT_ITEM_KIND,
+                        $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                    )
+                    .with_select_when_created(false),
+                );
             }
 
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
-                    items.push($crate::node::UserCreatableItem::new($node_type, $item_kind, $label));
+                    items.push(
+                        $crate::node::UserCreatableItem::new($node_type, $item_kind, $label)
+                            .with_select_when_created(
+                                $crate::define_user_item_factory_methods!(@select_when_created $( $select_when_created )?),
+                            ),
+                    );
                 }
             )*
             items
@@ -435,6 +455,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
                 }
@@ -469,14 +490,20 @@ macro_rules! define_user_item_factory_methods {
             let mut items = Vec::new();
 
             if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push($crate::node::UserCreatableItem::new("script", "script", "Script"));
+                items.push(
+                    $crate::node::UserCreatableItem::new("script", "script", "Script")
+                        .with_select_when_created(false),
+                );
             }
             if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push($crate::node::UserCreatableItem::new(
-                    $crate::node::USER_CONTEXT_NODE_TYPE,
-                    $crate::node::USER_CONTEXT_ITEM_KIND,
-                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                ));
+                items.push(
+                    $crate::node::UserCreatableItem::new(
+                        $crate::node::USER_CONTEXT_NODE_TYPE,
+                        $crate::node::USER_CONTEXT_ITEM_KIND,
+                        $crate::node::USER_CONTEXT_DEFAULT_LABEL,
+                    )
+                    .with_select_when_created(false),
+                );
             }
 
             $(
@@ -485,6 +512,9 @@ macro_rules! define_user_item_factory_methods {
                         $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?),
                         $crate::define_user_item_factory_methods!(@typed_item_kind $node_ty $(, $typed_item_kind)?),
                         $crate::define_user_item_factory_methods!(@typed_label $node_ty $(, $typed_label)?),
+                    )
+                    .with_select_when_created(
+                        $crate::define_user_item_factory_methods!(@select_when_created $( $typed_select_when_created )?),
                     ));
                 }
             )*
@@ -561,6 +591,14 @@ macro_rules! define_user_item_factory_methods {
     };
 
     (@cond $self:expr) => {
+        true
+    };
+
+    (@select_when_created $select_when_created:expr) => {
+        $select_when_created
+    };
+
+    (@select_when_created) => {
         true
     };
 }

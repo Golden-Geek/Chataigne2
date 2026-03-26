@@ -289,6 +289,26 @@ macro_rules! __golden_log_emit {
     }};
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __golden_log_with_fixed_level {
+    ($level:ident; $($msg:expr),+ $(,)?) => {{
+        $crate::log!(level = $level; $($msg),+)
+    }};
+    ($level:ident; tag = $tag:expr ; $($msg:expr),+ $(,)?) => {{
+        $crate::log!(level = $level, tag = $tag; $($msg),+)
+    }};
+    ($level:ident; origin = $origin:expr ; $($msg:expr),+ $(,)?) => {{
+        $crate::log!(level = $level, origin = $origin; $($msg),+)
+    }};
+    ($level:ident; tag = $tag:expr, origin = $origin:expr ; $($msg:expr),+ $(,)?) => {{
+        $crate::log!(level = $level, tag = $tag, origin = $origin; $($msg),+)
+    }};
+    ($level:ident; origin = $origin:expr, tag = $tag:expr ; $($msg:expr),+ $(,)?) => {{
+        $crate::log!(level = $level, origin = $origin, tag = $tag; $($msg),+)
+    }};
+}
+
 /// Logs one record with optional `level`, `tag`, and `origin` options.
 ///
 /// # Examples
@@ -367,6 +387,54 @@ macro_rules! log {
     }};
     (origin = $origin:expr, tag = $tag:expr, level = $level:ident ; $($msg:expr),+ $(,)?) => {{
         $crate::__golden_log_emit!($crate::__golden_log_level!($level), $tag, Some($origin); $($msg),+)
+    }};
+}
+
+/// Logs one warning record with optional `tag` and `origin` options.
+///
+/// # Examples
+/// ```rust
+/// use golden_engine::logwarning;
+///
+/// logwarning!("socket is slow");
+/// logwarning!(tag = "transport", origin = golden_engine::node::NodeId(7); "socket", "late");
+/// ```
+#[macro_export]
+macro_rules! logwarning {
+    ($($tt:tt)*) => {{
+        $crate::__golden_log_with_fixed_level!(warning; $($tt)*)
+    }};
+}
+
+/// Logs one error record with optional `tag` and `origin` options.
+///
+/// # Examples
+/// ```rust
+/// use golden_engine::logerror;
+///
+/// logerror!("transport failed");
+/// logerror!(tag = "transport"; "socket", "closed");
+/// ```
+#[macro_export]
+macro_rules! logerror {
+    ($($tt:tt)*) => {{
+        $crate::__golden_log_with_fixed_level!(error; $($tt)*)
+    }};
+}
+
+/// Logs one success record with optional `tag` and `origin` options.
+///
+/// # Examples
+/// ```rust
+/// use golden_engine::logsuccess;
+///
+/// logsuccess!("transport ready");
+/// logsuccess!(origin = golden_engine::node::NodeId(7); "started");
+/// ```
+#[macro_export]
+macro_rules! logsuccess {
+    ($($tt:tt)*) => {{
+        $crate::__golden_log_with_fixed_level!(success; $($tt)*)
     }};
 }
 

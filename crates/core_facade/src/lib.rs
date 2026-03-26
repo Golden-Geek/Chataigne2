@@ -5,8 +5,8 @@
 extern crate self as golden_core;
 
 pub use golden_core_macros::{item, node, update};
-pub use golden_engine::log;
 pub use golden_engine::{define_node_enum, define_user_item_factory_methods};
+pub use golden_engine::{log, logerror, logsuccess, logwarning};
 
 /// Basic color schema types.
 pub mod color {
