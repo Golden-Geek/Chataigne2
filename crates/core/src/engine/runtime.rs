@@ -540,9 +540,11 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let needs_tree_snapshot = due_nodes
-            .iter()
-            .any(|node_id| self.nodes.get(*node_id).is_some_and(|node| node.get_type() == "script"));
+        let needs_tree_snapshot = due_nodes.iter().any(|node_id| {
+            self.nodes
+                .get(*node_id)
+                .is_some_and(|node| node.update_requires_tree_snapshot())
+        });
         let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         let mut parameter_values = self
             .nodes
@@ -593,7 +595,11 @@ impl<T: Node> Engine<T> {
             ctx.delta_time = delta_time;
             ctx.runtime_elapsed = self.runtime_elapsed;
             if let Some(tree_snapshot) = &tree_snapshot {
-                if self.nodes.get(node_id).is_some_and(|node| node.get_type() == "script") {
+                if self
+                    .nodes
+                    .get(node_id)
+                    .is_some_and(|node| node.update_requires_tree_snapshot())
+                {
                     ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
                 }
             }

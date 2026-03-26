@@ -3695,6 +3695,10 @@ impl Node for ScriptNode {
         self.runtime_started_elapsed = Duration::ZERO;
     }
 
+    fn update_requires_tree_snapshot(&self) -> bool {
+        true
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         if !self.node_data.meta.enabled {
             return NodeExecutionRule::passive();

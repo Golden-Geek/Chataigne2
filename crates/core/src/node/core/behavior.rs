@@ -653,6 +653,11 @@ pub trait Node: Send + Any {
     fn update(&mut self, _ctx: &mut ProcessCtx) {}
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
 
+    /// Returns `true` when [`Self::update`] requires a tree snapshot in `ProcessCtx`.
+    fn update_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::default()
     }

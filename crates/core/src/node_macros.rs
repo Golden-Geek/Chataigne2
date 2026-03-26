@@ -908,6 +908,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn update_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, update_requires_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
             fn child_event_interest_depth(&self, event: &$crate::events::Event) -> u32 {
                 $crate::__dispatch_node_enum!(self, child_event_interest_depth, event; $($variant),*)
             }

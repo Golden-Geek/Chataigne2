@@ -9276,8 +9276,10 @@ fn runtime_listener_is_removed_automatically_when_target_is_deleted() {
 struct RuntimeNode {
     node_data: NodeData,
     rule: NodeExecutionRule,
+    update_requires_tree_snapshot: bool,
     updates: usize,
     delta_times: Vec<Duration>,
+    saw_tree_snapshot_in_update: bool,
     bounce_custom_events: bool,
 }
 
@@ -9286,9 +9288,18 @@ impl RuntimeNode {
         Self {
             node_data: NodeData::new(label.to_string()),
             rule,
+            update_requires_tree_snapshot: false,
             updates: 0,
             delta_times: Vec::new(),
+            saw_tree_snapshot_in_update: false,
             bounce_custom_events: false,
+        }
+    }
+
+    fn with_update_tree_snapshot(label: &str, rule: NodeExecutionRule) -> Self {
+        Self {
+            update_requires_tree_snapshot: true,
+            ..Self::new(label, rule)
         }
     }
 
@@ -9296,8 +9307,10 @@ impl RuntimeNode {
         Self {
             node_data: NodeData::new(label.to_string()),
             rule: NodeExecutionRule::passive(),
+            update_requires_tree_snapshot: false,
             updates: 0,
             delta_times: Vec::new(),
+            saw_tree_snapshot_in_update: false,
             bounce_custom_events: true,
         }
     }
@@ -9328,9 +9341,14 @@ impl Node for RuntimeNode {
         self.rule.clone()
     }
 
+    fn update_requires_tree_snapshot(&self) -> bool {
+        self.update_requires_tree_snapshot
+    }
+
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.updates += 1;
         self.delta_times.push(ctx.delta_time);
+        self.saw_tree_snapshot_in_update |= ctx.tree_snapshot().is_some();
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, _event: CustomEvent) {
@@ -9343,6 +9361,12 @@ impl Node for RuntimeNode {
         }
     }
 }
+
+crate::define_node_enum!(
+    enum RuntimeEnumNode {
+        Runtime(RuntimeNode),
+    }
+);
 
 #[test]
 fn resolve_builds_topological_rate_buckets() {
@@ -9461,6 +9485,68 @@ fn reevaluate_graph_edit_marks_and_rebuilds_schedule() {
     assert!(
         engine.schedule_bucket_nodes(2).is_none(),
         "old rate bucket should be dropped"
+    );
+}
+
+#[test]
+fn run_tick_attaches_tree_snapshot_when_update_requests_it() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        RuntimeNode::with_update_tree_snapshot("runner", NodeExecutionRule::periodic(10)),
+        None,
+    );
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine
+        .run_tick(Duration::from_millis(100))
+        .expect("tick should succeed");
+
+    assert!(
+        engine
+            .nodes
+            .get(runner)
+            .is_some_and(|node| node.saw_tree_snapshot_in_update),
+        "requested tree snapshot should be attached during update",
+    );
+}
+
+#[test]
+fn run_tick_attaches_tree_snapshot_when_update_requests_it_through_node_enum() {
+    let root: RuntimeEnumNode = RuntimeNode::new("root", NodeExecutionRule::passive()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        RuntimeNode::with_update_tree_snapshot("runner", NodeExecutionRule::periodic(10)).into(),
+        None,
+    );
+    engine.apply_edits().expect("setup edits should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    let runner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("runner should exist");
+
+    engine
+        .run_tick(Duration::from_millis(100))
+        .expect("tick should succeed");
+
+    let RuntimeEnumNode::Runtime(node) = engine.nodes.get(runner).expect("runner should exist") else {
+        panic!("expected Runtime variant");
+    };
+    assert!(
+        node.saw_tree_snapshot_in_update,
+        "generated node enums should forward update_requires_tree_snapshot",
     );
 }
 
