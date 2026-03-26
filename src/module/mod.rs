@@ -5,6 +5,8 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
+pub(crate) mod common;
+
 pub const MODULE_ITEM_KIND: &str = "module";
 pub const MODULE_VALUES_REFERENCE_FILTER_KEY: &str = "module_values_parameters";
 

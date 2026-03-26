@@ -9,10 +9,11 @@ impl Node for ModuleManager {
         accepts = ["module", "folder"];
         items = [
             {
-                node_type: "module_base",
+                node_type: "generic_osc_module",
                 item_kind: "module",
-                label: "Module",
-                create: |_this: &Self| crate::app::ModuleBase::new()
+                label: "Generic OSC Module"
+                ,
+                create: |_this: &Self| crate::app::GenericOscModule::create()
             },
             {
                 node_type: "folder",

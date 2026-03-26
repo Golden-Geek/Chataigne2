@@ -12,7 +12,10 @@
 
 - `src/app/mod.rs`: app entry wiring.
 - `src/app/bootstrap.rs`: project lifecycle hooks for the app node enum.
-- `src/module/`: module manager, module base nodes, command containers, and sync-related shared app nodes.
+- `src/module/`: shared module manager, module base nodes, command containers, and module-family roots.
+- `src/module/common/`: reusable module infrastructure shared across module families, such as network-interface discovery/helpers.
+- `src/module/modules/`: concrete module families grouped by domain (`generic/`, `hardware/`, `protocol/`, `software/`).
+- `src/module/modules/protocol/osc/`: OSC module stack, including `OscModuleBase`, parameter-hosted receive/output nodes, auto-added OSC value trees, and its async `rosc` transport helpers.
 
 ## golden_core Workspace
 
