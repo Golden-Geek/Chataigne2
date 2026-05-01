@@ -64,6 +64,10 @@ local and CI workflows:
 - `GC_SKIP_UI_BUILD=1`: compile without bundled UI assets.
 - `GC_UI_ASSUME_BUILT=1`: embed the existing `src-ui/build` output instead of running Vite.
 
+For first-time local setup, use `.\tools\dev.ps1` on Windows or `bash ./tools/dev.sh` on macOS/Linux.
+Those scripts install or verify the host toolchains, initialize submodules, run `npm ci` when needed,
+and then delegate to `cargo run`.
+
 ## Intentional Naming
 
 Chataigne project files use the `noisette` file extension. That naming is intentional app
@@ -87,5 +91,5 @@ npm run check
 npm run build
 ```
 
-Use `tools/check.ps1` for the documented local guardrail pass on Windows once Rust and Node are on
-the shell PATH.
+Use `tools/check.ps1` for the documented local guardrail pass on Windows once the bootstrap command
+has prepared Rust and Node on the shell PATH.

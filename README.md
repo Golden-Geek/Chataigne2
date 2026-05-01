@@ -15,6 +15,36 @@ This repository is being actively refactored toward a clean long-term architectu
 - `--no-frontend` disables bundled UI serving but still launches Tauri against an external frontend you start yourself.
 - On Windows, debug builds keep their console output during `cargo run`, while release-style builds stay window-only unless `--show-output` is passed.
 
+## First Clone Run
+
+From a fresh clone, use the repo bootstrap command for your platform:
+
+```powershell
+.\tools\dev.ps1
+```
+
+```sh
+bash ./tools/dev.sh
+```
+
+The bootstrap command initializes Git submodules, installs or verifies Rust through `rustup`, installs
+or verifies Node.js/npm for the Svelte frontend, installs supported desktop build prerequisites, runs
+`npm ci` in `src-ui` when needed, then runs `cargo run`.
+
+On Windows it also selects the `stable-msvc` Rust toolchain, which Tauri needs for desktop builds.
+
+After that first setup, `cargo run` is the normal launch command. The Rust build embeds the Svelte UI
+bundle and will refresh `src-ui` dependencies when the package lock changes. For live frontend
+iteration, pass app arguments through the bootstrap command or Cargo:
+
+```sh
+bash ./tools/dev.sh -- --dev
+cargo run -- --dev
+```
+
+Use `.\tools\dev.ps1 -SetupOnly` or `bash ./tools/dev.sh --setup-only` when you only want to prepare
+the machine without launching the app.
+
 ## Repository Map
 
 - `src/`: app-shell bootstrap plus the app-owned node tree.

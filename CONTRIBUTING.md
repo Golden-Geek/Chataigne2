@@ -17,6 +17,23 @@ This repository is being refactored toward a clean long-term architecture. Optim
 - `submodules/golden_core/crates/core_macros/`: proc macros used by the engine and app nodes.
 - `submodules/golden_core/crates/codegen_support/`: build-script support APIs intended for app/workspace consumers.
 
+## Local Bootstrap
+
+For a fresh machine, start from the repository root with the platform bootstrap command:
+
+```powershell
+.\tools\dev.ps1
+```
+
+```sh
+bash ./tools/dev.sh
+```
+
+These commands initialize submodules, install or verify Rust, Node.js/npm, platform desktop build
+dependencies, `src-ui` dependencies, and then run the app. On Windows, the bootstrap selects
+`stable-msvc` because the desktop host requires the MSVC Rust toolchain. Once the machine is prepared,
+`cargo run` is expected to build the bundled Svelte UI automatically.
+
 ## Formatting
 
 Rust:

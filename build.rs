@@ -4,13 +4,14 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use golden_codegen_support::generate_app_nodes;
 
 const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
 const GC_SKIP_UI_BUILD: &str = "GC_SKIP_UI_BUILD";
 const GC_UI_ASSUME_BUILT: &str = "GC_UI_ASSUME_BUILT";
+const REQUIRED_NODE_RANGE: &str = "Node.js 20.19+ or 22.12+";
 
 struct BuildPaths {
     bundled_ui_dir: PathBuf,
@@ -76,6 +77,8 @@ fn prepare_ui_assets(paths: &BuildPaths) -> std::io::Result<()> {
 }
 
 fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
+    ensure_frontend_toolchain()?;
+
     let lockfile = paths.ui_root.join("package-lock.json");
     let current_hash = file_hash(&lockfile)?;
     let previous_hash = fs::read_to_string(&paths.npm_ci_stamp)
@@ -164,15 +167,22 @@ fn emit_rerun_if_changed_for_dir(dir: &Path) -> std::io::Result<()> {
 }
 
 fn run_npm_command(ui_root: &Path, args: &[&str], envs: &[(&str, &OsStr)]) -> std::io::Result<()> {
-    let npm = if cfg!(windows) { "npm.cmd" } else { "npm" };
+    let npm = npm_command();
     let mut command = Command::new(npm);
     command.args(args).current_dir(ui_root);
     for (key, value) in envs {
         command.env(key, value);
     }
-    let status = command
-        .status()
-        .map_err(|err| Error::new(err.kind(), format!("failed to start {npm} {}: {err}", args.join(" "))))?;
+    let status = command.status().map_err(|err| {
+        Error::new(
+            err.kind(),
+            format!(
+                "failed to start {npm} {}: {err}\n{}",
+                args.join(" "),
+                frontend_toolchain_help()
+            ),
+        )
+    })?;
 
     if status.success() {
         return Ok(());
@@ -180,8 +190,68 @@ fn run_npm_command(ui_root: &Path, args: &[&str], envs: &[(&str, &OsStr)]) -> st
 
     Err(Error::new(
         ErrorKind::Other,
-        format!("{npm} {} exited with status {status}", args.join(" ")),
+        format!(
+            "{npm} {} exited with status {status}\n{}",
+            args.join(" "),
+            frontend_toolchain_help()
+        ),
     ))
+}
+
+fn ensure_frontend_toolchain() -> std::io::Result<()> {
+    ensure_command_available("node", &["--version"])?;
+    ensure_command_available(npm_command(), &["--version"])
+}
+
+fn ensure_command_available(command: &str, args: &[&str]) -> std::io::Result<()> {
+    let status = Command::new(command)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|err| {
+            Error::new(
+                err.kind(),
+                format!(
+                    "required frontend command `{command}` was not found or could not start: {err}\n{}",
+                    frontend_toolchain_help()
+                ),
+            )
+        })?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    Err(Error::new(
+        ErrorKind::Other,
+        format!(
+            "required frontend command `{command}` exited with status {status}\n{}",
+            frontend_toolchain_help()
+        ),
+    ))
+}
+
+fn npm_command() -> &'static str {
+    if cfg!(windows) {
+        "npm.cmd"
+    } else {
+        "npm"
+    }
+}
+
+fn frontend_toolchain_help() -> String {
+    let bootstrap_command = if cfg!(windows) {
+        r".\tools\dev.ps1"
+    } else {
+        "bash ./tools/dev.sh"
+    };
+
+    format!(
+        "Chataigne2 builds and embeds the Svelte frontend during `cargo run`.\n\
+         Install {REQUIRED_NODE_RANGE} with npm, or run `{bootstrap_command}` from the repository root to install prerequisites and launch the app.\n\
+         For engine-only checks, set {GC_SKIP_UI_BUILD}=1."
+    )
 }
 
 fn generate_ui_assets_module(dist_root: &Path, out_file: &Path) -> std::io::Result<()> {
