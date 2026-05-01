@@ -1,7 +1,7 @@
 use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
-    events::Event,
+    events::{CustomEvent, Event},
     node::{Folder, Node, NodeId, NodeMetaPatch},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
@@ -9,7 +9,6 @@ use golden_core::{
 
 use crate::app::{OscDecodedMessage, OscIncomingApplyResult, OscValuePayload};
 
-const GENERIC_OSC_MODULE_NODE_TYPE: &str = "generic_osc_module";
 const VALUE_LABEL_PREFIX: &str = "value ";
 
 #[golden_core::node("generic_osc_module", label = "Generic OSC Module")]
@@ -20,6 +19,27 @@ pub struct GenericOscModule {
 impl GenericOscModule {
     pub fn create() -> Self {
         Self::new(crate::app::OscModuleBase::create())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn disable_transport_for_test(&mut self) {
+        self.base.stop_transport();
+        self.base.set_transport_dirty(false);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: OscDecodedMessage) {
+        self.base.enqueue_incoming_message(message);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
+        self.base.auto_add_enabled()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_pending_incoming_messages_for_test(&self) -> bool {
+        self.base.has_pending_incoming_messages()
     }
 
     fn apply_incoming_message(
@@ -58,6 +78,7 @@ impl GenericOscModule {
             OscValuePayload::Multi(values) => {
                 apply_multi_value_message(base, ctx, snapshot, parent_id, leaf_name, values, auto_add)
             }
+            OscValuePayload::Arguments(_) => OscIncomingApplyResult::Ignored,
         }
     }
 }
@@ -108,8 +129,12 @@ impl Node for GenericOscModule {
         self.base.on_meta_changed(ctx, node, patch);
     }
 
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
+        self.base.on_custom_event(ctx, event);
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == GENERIC_OSC_MODULE_NODE_TYPE).then(Self::create)
+        (node_type == crate::app::descriptors::GENERIC_OSC_MODULE.type_id).then(Self::create)
     }
 }
 
@@ -145,7 +170,7 @@ fn resolve_or_create_parent(
                     return ParentResolution::Ignored;
                 }
 
-                ctx.replace_node_boxed(child_id, Box::new(Folder::new(segment.clone())));
+                ctx.replace_node_boxed(child_id, Box::new(create_auto_values_folder(segment.as_str())));
                 return ParentResolution::Retry;
             }
             None => {
@@ -153,7 +178,7 @@ fn resolve_or_create_parent(
                     return ParentResolution::Ignored;
                 }
 
-                ctx.add_child_boxed(current, Box::new(Folder::new(segment.clone())), None);
+                ctx.add_child_boxed(current, Box::new(create_auto_values_folder(segment.as_str())), None);
                 return ParentResolution::Retry;
             }
         }
@@ -247,7 +272,7 @@ fn apply_multi_value_message(
                     return OscIncomingApplyResult::Ignored;
                 }
 
-                ctx.replace_node_boxed(existing_id, Box::new(Folder::new(leaf_name)));
+                ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(leaf_name.as_str())));
                 return OscIncomingApplyResult::Retry;
             }
         }
@@ -256,7 +281,7 @@ fn apply_multi_value_message(
                 return OscIncomingApplyResult::Ignored;
             }
 
-            ctx.add_child_boxed(parent_id, Box::new(Folder::new(leaf_name)), None);
+            ctx.add_child_boxed(parent_id, Box::new(create_auto_values_folder(leaf_name.as_str())), None);
             return OscIncomingApplyResult::Retry;
         }
     };
@@ -326,7 +351,14 @@ fn sync_multi_value_folder(
 fn create_parameter_node(label: &str, value: ParamValue, description: Option<String>) -> Parameter {
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     parameter.node_data_mut().meta.description = description;
+    crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter
+}
+
+fn create_auto_values_folder(label: &str) -> Folder {
+    let mut folder = Folder::new(label);
+    crate::app::module::enable_module_authoring(folder.node_data_mut());
+    folder
 }
 
 fn address_segments(address: &str) -> Vec<String> {
@@ -352,5 +384,4 @@ fn param_types_match(lhs: &ParamValue, rhs: &ParamValue) -> bool {
 }
 
 #[cfg(test)]
-#[path = "generic_osc_module/tests.rs"]
 mod tests;

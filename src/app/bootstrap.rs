@@ -11,8 +11,7 @@ impl golden_core::app::ProjectLifecycle for AppNode {
     }
 
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
-        golden_core::app::add_default_project_nodes(engine);
-        engine.add_node(super::ModuleManager::new().into(), None);
+        super::default_project::initialize_default_project(engine);
         Ok(())
     }
 }

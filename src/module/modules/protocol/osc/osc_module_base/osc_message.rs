@@ -11,6 +11,7 @@ pub(crate) struct OscDecodedMessage {
 pub(crate) enum OscValuePayload {
     Single(ParamValue),
     Multi(Vec<ParamValue>),
+    Arguments(Vec<ParamValue>),
 }
 
 pub(crate) fn encode_packet(address: &str, payload: &OscValuePayload) -> Result<OscPacket, String> {
@@ -53,6 +54,7 @@ fn encode_payload(payload: &OscValuePayload) -> Result<Vec<OscType>, String> {
     match payload {
         OscValuePayload::Single(value) => encode_param_value(value),
         OscValuePayload::Multi(values) => values.iter().map(encode_single_argument).collect(),
+        OscValuePayload::Arguments(values) => encode_argument_values(values),
     }
 }
 
@@ -77,14 +79,23 @@ fn encode_param_value(value: &ParamValue) -> Result<Vec<OscType>, String> {
             OscType::Float(*b as f32),
             OscType::Float(*a as f32),
         ],
-        ParamValue::CssValue(_) => {
-            return Err("CSS values are not supported by the generic OSC module".to_string());
-        }
-        ParamValue::Reference(_) => {
-            return Err("Node references are not supported by the generic OSC module".to_string());
-        }
+        ParamValue::CssValue(value) => vec![OscType::String(value.to_css_string())],
+        ParamValue::Reference(reference) => vec![OscType::String(
+            reference
+                .cached_name()
+                .map(str::to_string)
+                .unwrap_or_else(|| reference.uuid().0.to_string()),
+        )],
     };
 
+    Ok(args)
+}
+
+fn encode_argument_values(values: &[ParamValue]) -> Result<Vec<OscType>, String> {
+    let mut args = Vec::new();
+    for value in values {
+        args.extend(encode_param_value(value)?);
+    }
     Ok(args)
 }
 
@@ -103,7 +114,14 @@ fn encode_single_argument(value: &ParamValue) -> Result<OscType, String> {
             blue: color_channel_to_u8(*b),
             alpha: color_channel_to_u8(*a),
         })),
-        ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) | ParamValue::CssValue(_) | ParamValue::Reference(_) => {
+        ParamValue::CssValue(value) => Ok(OscType::String(value.to_css_string())),
+        ParamValue::Reference(reference) => Ok(OscType::String(
+            reference
+                .cached_name()
+                .map(str::to_string)
+                .unwrap_or_else(|| reference.uuid().0.to_string()),
+        )),
+        ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) => {
             Err("Only scalar-like values are supported inside OSC multi-value folders".to_string())
         }
     }

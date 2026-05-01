@@ -26,6 +26,9 @@ This repository is being actively refactored toward a clean long-term architectu
 ## Start Here
 
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) for the top-level layer map.
+- Read [docs/architecture.md](docs/architecture.md) for the contributor-facing boundary summary.
+- Read [docs/contributor-map.md](docs/contributor-map.md) for practical ownership rules, generated
+  files, and the intentional `noisette` project-file naming.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) for formatting, boundary, and codegen rules.
 - Read [docs/repo-transition-plan.md](docs/repo-transition-plan.md) for current-vs-target repo ownership and migration rules.
 - Read [AGENTS.md](AGENTS.md) for the current repo operating rules and refactor direction.

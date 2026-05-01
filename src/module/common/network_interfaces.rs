@@ -7,7 +7,7 @@ use golden_core::{
     parameter::{ParamValue, ParameterEnumOption},
     process_ctx::ProcessCtx,
 };
-use if_addrs::{IfAddr, IfOperStatus, Interface, get_if_addrs};
+use if_addrs::{get_if_addrs, IfAddr, IfOperStatus, Interface};
 
 pub const ANY_INTERFACE_VARIANT: &str = "any";
 pub const ANY_INTERFACE_BIND_HOST: &str = "0.0.0.0";
@@ -43,7 +43,11 @@ pub fn bind_host_for_interface_variant(variant_id: &str) -> String {
     }
 }
 
-pub fn sync_interface_enum_options(ctx: &mut ProcessCtx, param_id: golden_core::node::NodeId, options: Vec<ParameterEnumOption>) {
+pub fn sync_interface_enum_options(
+    ctx: &mut ProcessCtx,
+    param_id: golden_core::node::NodeId,
+    options: Vec<ParameterEnumOption>,
+) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("network interface target is not a parameter".to_string());

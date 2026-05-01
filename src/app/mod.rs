@@ -1,11 +1,14 @@
 mod bootstrap;
+mod default_project;
+pub(crate) mod descriptors;
 
 include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+pub(crate) use module_modules_protocol_osc_commands_osc_send_custom_message_command::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE;
 pub(crate) use module_modules_protocol_osc_osc_module_base::{
-    OscDecodedMessage, OscIncomingApplyResult, OscValuePayload,
+    OscDecodedMessage, OscIncomingApplyResult, OscSendCustomMessageRequest, OscValuePayload,
 };
 
 const APP_UI_DEV_SERVER: golden_core::app::FrontendDevServerConfig = golden_core::app::FrontendDevServerConfig {

@@ -21,6 +21,8 @@ This package contains the Svelte 5 client for Chataigne2. It owns the workbench 
 - Push session orchestration behind focused stores and a thin facade.
 - Keep transport details behind interfaces instead of importing the websocket implementation directly into large state modules. The workbench now depends on the transport facade in `src/lib/golden_ui/transport/index.ts`.
 - Keep desktop host calls behind shared host bridges instead of sprinkling `window.__TAURI_INTERNALS__` access through components and stores.
+- Keep direct Tauri/global access inside `src/lib/golden_ui/host/desktop.ts`; see
+  `../docs/tauri-security.md` for the current hardening plan.
 - Treat raw protocol types as generated Rust-owned bindings.
 - Keep `src/lib/golden_ui/types.ts` for UI-local normalized model types, not for hand-maintained wire contracts.
 - Treat `src/lib/golden_ui/` as package-owned code even while it still lives under the app tree.
@@ -51,6 +53,9 @@ npm run smoke:ui
 ```
 
 The smoke tool writes output to `src-ui/artifacts/`.
+
+From the repository root, `tools/check.ps1` runs the combined Rust, UI, generated-protocol, and
+architecture guardrail checklist when Rust and Node are available on PATH.
 
 ## Runtime Probe
 

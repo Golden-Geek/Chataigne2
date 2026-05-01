@@ -1,39 +1,127 @@
+use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use golden_codegen_support::generate_app_nodes;
 
-fn main() {
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is not set"));
-    let bundled_ui_dir = out_dir.join("ui-dist");
+const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
+const GC_SKIP_UI_BUILD: &str = "GC_SKIP_UI_BUILD";
+const GC_UI_ASSUME_BUILT: &str = "GC_UI_ASSUME_BUILT";
 
-    build_ui_bundle(&bundled_ui_dir).expect("failed to build bundled UI");
-    generate_ui_assets_module(&bundled_ui_dir, &out_dir.join("ui_assets.rs"))
-        .expect("failed to generate bundled UI asset module");
-
-    tauri_build::build();
-
-    let src_root = Path::new("src");
-    generate_app_nodes(src_root, &out_dir.join("app_nodes.rs"));
+struct BuildPaths {
+    bundled_ui_dir: PathBuf,
+    ui_assets_rs: PathBuf,
+    app_nodes_rs: PathBuf,
+    ui_root: PathBuf,
+    npm_ci_stamp: PathBuf,
 }
 
-fn build_ui_bundle(dist_dir: &Path) -> std::io::Result<()> {
-    let ui_root = PathBuf::from("src-ui");
-    track_ui_inputs(&ui_root)?;
+impl BuildPaths {
+    fn from_env() -> Self {
+        let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is not set"));
+        Self {
+            bundled_ui_dir: out_dir.join("ui-dist"),
+            ui_assets_rs: out_dir.join("ui_assets.rs"),
+            app_nodes_rs: out_dir.join("app_nodes.rs"),
+            npm_ci_stamp: out_dir.join("src-ui-package-lock.hash"),
+            ui_root: PathBuf::from("src-ui"),
+        }
+    }
+}
 
-    if !ui_root.join("node_modules").exists() {
-        run_npm_command(&ui_root, &["ci"], &[])?;
+fn main() -> std::io::Result<()> {
+    let paths = BuildPaths::from_env();
+
+    emit_rerun_tracking(&paths)?;
+    prepare_ui_assets(&paths)?;
+    run_tauri_build();
+    generate_rust_code(&paths);
+
+    Ok(())
+}
+
+fn emit_rerun_tracking(paths: &BuildPaths) -> std::io::Result<()> {
+    println!("cargo:rerun-if-env-changed={GC_FORCE_NPM_CI}");
+    println!("cargo:rerun-if-env-changed={GC_SKIP_UI_BUILD}");
+    println!("cargo:rerun-if-env-changed={GC_UI_ASSUME_BUILT}");
+
+    track_ui_inputs(&paths.ui_root)?;
+    Ok(())
+}
+
+fn prepare_ui_assets(paths: &BuildPaths) -> std::io::Result<()> {
+    if env_flag(GC_SKIP_UI_BUILD) {
+        println!("cargo:warning={GC_SKIP_UI_BUILD}=1; compiling without bundled UI assets");
+        return generate_empty_ui_assets_module(&paths.ui_assets_rs);
     }
 
-    if dist_dir.exists() {
-        fs::remove_dir_all(dist_dir)?;
-    }
-    fs::create_dir_all(dist_dir)?;
+    let asset_root = if env_flag(GC_UI_ASSUME_BUILT) {
+        let assumed_dist = paths.ui_root.join("build");
+        println!(
+            "cargo:warning={GC_UI_ASSUME_BUILT}=1; using prebuilt UI at {}",
+            assumed_dist.display()
+        );
+        assumed_dist
+    } else {
+        ensure_ui_dependencies(paths)?;
+        build_ui_bundle(paths)?;
+        paths.bundled_ui_dir.clone()
+    };
 
-    run_npm_command(&ui_root, &["run", "build"], &[("GC_UI_OUT_DIR", dist_dir.as_os_str())])
+    generate_ui_assets_module(&asset_root, &paths.ui_assets_rs)
+}
+
+fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
+    let lockfile = paths.ui_root.join("package-lock.json");
+    let current_hash = file_hash(&lockfile)?;
+    let previous_hash = fs::read_to_string(&paths.npm_ci_stamp)
+        .ok()
+        .map(|value| value.trim().to_string());
+
+    let force_ci = env_flag(GC_FORCE_NPM_CI);
+    let missing_node_modules = !paths.ui_root.join("node_modules").exists();
+    let stale_lockfile = previous_hash.as_deref() != Some(current_hash.as_str());
+
+    if force_ci || missing_node_modules || stale_lockfile {
+        if force_ci {
+            println!("cargo:warning={GC_FORCE_NPM_CI}=1; running npm ci");
+        } else if missing_node_modules {
+            println!("cargo:warning=src-ui/node_modules is missing; running npm ci");
+        } else {
+            println!("cargo:warning=src-ui/package-lock.json changed; running npm ci");
+        }
+
+        run_npm_command(&paths.ui_root, &["ci"], &[])?;
+        fs::write(&paths.npm_ci_stamp, current_hash)?;
+    }
+
+    Ok(())
+}
+
+fn build_ui_bundle(paths: &BuildPaths) -> std::io::Result<()> {
+    if paths.bundled_ui_dir.exists() {
+        fs::remove_dir_all(&paths.bundled_ui_dir)?;
+    }
+    fs::create_dir_all(&paths.bundled_ui_dir)?;
+
+    run_npm_command(
+        &paths.ui_root,
+        &["run", "build"],
+        &[("GC_UI_OUT_DIR", paths.bundled_ui_dir.as_os_str())],
+    )
+}
+
+fn run_tauri_build() {
+    tauri_build::build();
+}
+
+fn generate_rust_code(paths: &BuildPaths) {
+    let src_root = Path::new("src");
+    generate_app_nodes(src_root, &paths.app_nodes_rs);
 }
 
 fn track_ui_inputs(ui_root: &Path) -> std::io::Result<()> {
@@ -118,7 +206,7 @@ fn generate_ui_assets_module(dist_root: &Path, out_file: &Path) -> std::io::Resu
         ));
     }
 
-    let mut generated = String::from("// @generated by build.rs\n");
+    let mut generated = String::from("// @generated by build.rs. Do not edit.\n");
     generated.push_str("pub static APP_UI_ASSETS: &[golden_core::app::UiAsset] = &[\n");
 
     for asset_path in asset_files {
@@ -150,6 +238,13 @@ fn generate_ui_assets_module(dist_root: &Path, out_file: &Path) -> std::io::Resu
     fs::write(out_file, generated)
 }
 
+fn generate_empty_ui_assets_module(out_file: &Path) -> std::io::Result<()> {
+    fs::write(
+        out_file,
+        "// @generated by build.rs. Do not edit.\npub static APP_UI_ASSETS: &[golden_core::app::UiAsset] = &[];\n",
+    )
+}
+
 fn collect_files(dir: &Path, output: &mut Vec<PathBuf>) -> std::io::Result<()> {
     let mut entries = fs::read_dir(dir)?.collect::<Result<Vec<_>, _>>()?;
     entries.sort_by_key(|entry| entry.path());
@@ -164,6 +259,26 @@ fn collect_files(dir: &Path, output: &mut Vec<PathBuf>) -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+fn file_hash(path: &Path) -> std::io::Result<String> {
+    let bytes = fs::read(path)?;
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    Ok(format!("{:016x}", hasher.finish()))
+}
+
+fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|value| {
+            let value = value.trim();
+            value == "1"
+                || value.eq_ignore_ascii_case("true")
+                || value.eq_ignore_ascii_case("yes")
+                || value.eq_ignore_ascii_case("on")
+        })
+        .unwrap_or(false)
 }
 
 fn content_type_for_path(path: &Path) -> &'static str {

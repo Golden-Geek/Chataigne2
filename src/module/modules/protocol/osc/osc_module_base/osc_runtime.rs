@@ -7,7 +7,7 @@ use std::{
 
 use rosc::{decoder, encoder};
 
-use super::osc_message::{OscDecodedMessage, OscValuePayload, decode_packet_messages, encode_packet};
+use super::osc_message::{decode_packet_messages, encode_packet, OscDecodedMessage, OscValuePayload};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OscTransportConfig {
@@ -133,6 +133,7 @@ fn worker_loop(
                         }
                     },
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                    Err(error) if should_ignore_receive_error(&error) => break,
                     Err(error) => {
                         if event_tx
                             .send(OscWorkerEvent::Error(format!("OSC socket receive error: {error}")))
@@ -172,11 +173,11 @@ fn drain_commands(
     }
 }
 
-fn send_message(
-    socket: &UdpSocket,
-    event_tx: &Sender<OscWorkerEvent>,
-    message: OscOutboundMessage,
-) {
+fn should_ignore_receive_error(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(10054) || (cfg!(windows) && error.kind() == std::io::ErrorKind::ConnectionReset)
+}
+
+fn send_message(socket: &UdpSocket, event_tx: &Sender<OscWorkerEvent>, message: OscOutboundMessage) {
     let packet = match encode_packet(message.address.as_str(), &message.payload) {
         Ok(packet) => packet,
         Err(error) => {
@@ -216,3 +217,6 @@ fn resolve_socket_addr(host: &str, port: u16) -> Result<SocketAddr, String> {
         .next()
         .ok_or_else(|| format!("OSC address '{address}' did not resolve to a socket address"))
 }
+
+#[cfg(test)]
+mod tests;

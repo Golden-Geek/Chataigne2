@@ -12,7 +12,12 @@
 
 - `src/app/mod.rs`: app entry wiring.
 - `src/app/bootstrap.rs`: project lifecycle hooks for the app node enum.
+- `src/app/descriptors.rs`: stable app-owned node IDs, labels, item kinds, and project/filter
+  identifiers. Persisted `type_id` values live here before being reused elsewhere.
+- `src/app/default_project.rs`: default Chataigne project content wired by the lifecycle hook.
 - `src/module/`: shared module manager, module base nodes, command containers, and module-family roots.
+- `src/module/permissions.rs`: authoring permission policy for app-owned module nodes.
+- `src/module/reference_filters.rs`: module reference-filter registration and candidate predicates.
 - `src/module/common/`: reusable module infrastructure shared across module families, such as network-interface discovery/helpers.
 - `src/module/modules/`: concrete module families grouped by domain (`generic/`, `hardware/`, `protocol/`, `software/`).
 - `src/module/modules/protocol/osc/`: OSC module stack, including `OscModuleBase`, parameter-hosted receive/output nodes, auto-added OSC value trees, and its async `rosc` transport helpers.
