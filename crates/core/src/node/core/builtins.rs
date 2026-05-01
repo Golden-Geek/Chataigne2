@@ -7,9 +7,9 @@ use crate::{
 };
 
 use super::{
-    EventPropagation, FOLDER_NODE_TYPE, Node, NodeData, NodeId, USER_CONTEXT_ALLOWED_ITEM_KINDS,
-    USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
-    default_parameter_value_for_node_type,
+    default_parameter_value_for_node_type, EventPropagation, Node, NodeData, NodeId, UserContainerRules,
+    UserCreatableItem, FOLDER_NODE_TYPE, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL,
+    USER_CONTEXT_NODE_TYPE,
 };
 
 /// Internal scope node used to host user-authored lexical context entries.
@@ -64,17 +64,17 @@ impl Node for UserContextNode {
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = vec![UserCreatableItem::new(FOLDER_NODE_TYPE, FOLDER_NODE_TYPE, "Folder")];
         items.extend([
-            UserCreatableItem::new("trigger", "trigger", "Trigger"),
-            UserCreatableItem::new("int", "int", "Int"),
-            UserCreatableItem::new("float", "float", "Float"),
-            UserCreatableItem::new("str", "str", "String"),
-            UserCreatableItem::new("file", "file", "File"),
-            UserCreatableItem::new("enum", "enum", "Enum"),
-            UserCreatableItem::new("bool", "bool", "Bool"),
-            UserCreatableItem::new("vec2", "vec2", "Vec2"),
-            UserCreatableItem::new("vec3", "vec3", "Vec3"),
-            UserCreatableItem::new("color", "color", "Color"),
-            UserCreatableItem::new("reference", "reference", "Reference"),
+            UserCreatableItem::new("trigger", "trigger", "Trigger").with_select_when_created(false),
+            UserCreatableItem::new("int", "int", "Int").with_select_when_created(false),
+            UserCreatableItem::new("float", "float", "Float").with_select_when_created(false),
+            UserCreatableItem::new("str", "str", "String").with_select_when_created(false),
+            UserCreatableItem::new("file", "file", "File").with_select_when_created(false),
+            UserCreatableItem::new("enum", "enum", "Enum").with_select_when_created(false),
+            UserCreatableItem::new("bool", "bool", "Bool").with_select_when_created(false),
+            UserCreatableItem::new("vec2", "vec2", "Vec2").with_select_when_created(false),
+            UserCreatableItem::new("vec3", "vec3", "Vec3").with_select_when_created(false),
+            UserCreatableItem::new("color", "color", "Color").with_select_when_created(false),
+            UserCreatableItem::new("reference", "reference", "Reference").with_select_when_created(false),
         ]);
         items
     }

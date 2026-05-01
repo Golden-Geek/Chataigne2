@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::blueprints::{BlueprintDecl, BlueprintId, BlueprintInstanceMeta, BlueprintRegistry};
 use crate::edit::Edit;
-use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, USER_CONTEXT_ITEM_KIND, UserCreatableItem};
+use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, USER_CONTEXT_NODE_TYPE, UserCreatableItem};
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -40,6 +40,9 @@ impl<T: Node> Engine<T> {
         let mut items = Vec::<UserCreatableItem>::new();
         for item in factory_node.user_creatable_items().into_iter() {
             if factory_node.user_container_accepts_item(&item.node_type, &item.item_kind) {
+                if parent != factory_node_id && self.item_requires_direct_catalog_host(&item) {
+                    continue;
+                }
                 items.push(item);
             }
         }
@@ -89,6 +92,17 @@ impl<T: Node> Engine<T> {
             });
         };
 
+        let catalog_item = self
+            .catalog_creatable_items(parent)
+            .into_iter()
+            .find(|candidate| candidate.node_type == node_type)
+            .ok_or_else(|| EngineEditError::UserItemTypeUnavailable {
+                edit_index: 0,
+                operation: "CreateCatalogItem",
+                parent,
+                node_type: node_type.clone(),
+            })?;
+
         if let Some(blueprint_id) = BlueprintRegistry::<T>::parse_type_id(node_type.as_str()) {
             if self.blueprints.blueprint(&blueprint_id).is_none() {
                 return Err(EngineEditError::UserItemTypeUnavailable {
@@ -108,14 +122,7 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let resolved_label = label.unwrap_or_else(|| {
-            factory_node
-                .user_creatable_items()
-                .into_iter()
-                .find(|candidate| candidate.node_type == node_type)
-                .map(|candidate| candidate.label)
-                .unwrap_or_else(|| node_type.clone())
-        });
+        let resolved_label = label.unwrap_or(catalog_item.label);
 
         let Some(mut node) = factory_node.create_user_item(node_type.as_str()) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
@@ -198,18 +205,13 @@ impl<T: Node> Engine<T> {
             return false;
         };
 
-        if item_kind == "script" {
-            return container_node.script_host_policy().is_some_and(|policy| policy.enabled);
-        }
-        if item_kind == USER_CONTEXT_ITEM_KIND {
-            return container_node
-                .user_context_host_policy()
-                .is_some_and(|policy| policy.enabled);
-        }
-
         container_node
             .user_container_rules()
             .is_some_and(|rules| rules.accepts(item_kind))
+            || container_node
+                .user_creatable_items()
+                .into_iter()
+                .any(|item| item.item_kind == item_kind)
     }
 
     fn catalog_factory_node(&self, parent: NodeId) -> Option<NodeId> {
@@ -222,5 +224,9 @@ impl<T: Node> Engine<T> {
             cursor = node.node_data().parent;
         }
         None
+    }
+
+    fn item_requires_direct_catalog_host(&self, item: &UserCreatableItem) -> bool {
+        item.node_type == "script" || item.node_type == USER_CONTEXT_NODE_TYPE
     }
 }

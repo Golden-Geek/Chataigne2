@@ -16,8 +16,8 @@ use crate::node::{
     PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID,
     PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID,
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID,
-    PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_NODE_TYPE, UserContainerRules,
-    UserContextNode, UserNodeRole, curve_from_snapshot,
+    PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
+    UserContainerRules, UserContextNode, UserCreatableItem, UserNodeRole, curve_from_snapshot,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints,
@@ -25,7 +25,7 @@ use crate::parameter::{
     RangeConstraint, ReferenceConstraints, ReferenceRoot, ReferenceTargetKind,
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
-use crate::script::{ScriptHostPolicy, ScriptUiConfig, ScriptUiSource};
+use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiConfig, ScriptUiSource};
 use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope};
 
 #[crate::node]
@@ -1007,6 +1007,23 @@ impl Node for UiScriptHostNode {
     fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
         Some(ScriptHostPolicy::default_scriptable())
     }
+
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&["script"]))
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        vec![UserCreatableItem::new("script", "script", "Script").with_select_when_created(false)]
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        (node_type.trim().eq_ignore_ascii_case("script")).then(|| {
+            Box::new(ScriptNode::new(
+                "Script",
+                ScriptNodeConfig::for_host_node_type(self.get_type()),
+            )) as Box<dyn Node>
+        })
+    }
 }
 
 #[crate::node("via_script_host_node")]
@@ -1017,8 +1034,36 @@ struct ViaScriptHostNode {
 #[crate::node("via_script_host_node", via = base, from_struct)]
 impl Node for ViaScriptHostNode {}
 
-#[crate::node("ui_context_host", impl_node, contextualizable)]
+#[crate::node("ui_context_host")]
 struct UiContextHostNode {}
+
+#[crate::node("ui_context_host", from_struct, contextualizable)]
+impl Node for UiContextHostNode {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        vec![
+            UserCreatableItem::new(USER_CONTEXT_NODE_TYPE, USER_CONTEXT_ITEM_KIND, "Context")
+                .with_select_when_created(false),
+        ]
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        matches!(
+            node_type.trim().to_ascii_lowercase().as_str(),
+            USER_CONTEXT_NODE_TYPE | "context"
+        )
+        .then(|| Box::new(UserContextNode::new("Context")) as Box<dyn Node>)
+    }
+}
+
+#[crate::node("policy_only_script_host", impl_node, scriptable)]
+struct PolicyOnlyScriptHostNode {}
+
+#[crate::node("policy_only_context_host", impl_node, contextualizable)]
+struct PolicyOnlyContextHostNode {}
 
 #[crate::node("via_context_host_node")]
 struct ViaContextHostNode {
@@ -2910,6 +2955,86 @@ fn via_nodes_inherit_context_host_policy_from_base() {
             .iter()
             .any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == "user_context"),
         "via-hosted node should expose user_context item creation when base is contextualizable"
+    );
+}
+
+#[test]
+fn script_host_policy_alone_does_not_expose_script_items_in_catalog() {
+    let engine = Engine::new(PolicyOnlyScriptHostNode::new());
+
+    assert!(
+        engine.catalog_creatable_items(engine.root).is_empty(),
+        "script host policy alone should not expose script creation without explicit container methods"
+    );
+}
+
+#[test]
+fn context_host_policy_alone_does_not_expose_context_items_in_catalog() {
+    let engine = Engine::new(PolicyOnlyContextHostNode::new());
+
+    assert!(
+        engine.catalog_creatable_items(engine.root).is_empty(),
+        "context host policy alone should not expose context creation without explicit container methods"
+    );
+}
+
+#[test]
+fn folder_under_script_host_does_not_inherit_script_creation() {
+    let root: MacroTestNode = UiScriptHostNode::new("root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Folder::new("Inner".to_string()).into(), Some(engine.root));
+    engine.apply_edits().expect("folder add should succeed");
+
+    let folder = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("folder should exist");
+
+    let creatable = engine.catalog_creatable_items(folder);
+    assert!(
+        !creatable
+            .iter()
+            .any(|item| item.node_type == "script" && item.item_kind == "script"),
+        "folder descendants should not inherit direct-only script creation"
+    );
+    assert!(
+        matches!(
+            engine.queue_catalog_create(folder, "script", Some("Script".to_string()), None),
+            Err(EngineEditError::UserItemTypeUnavailable { .. })
+        ),
+        "direct queueing should reject script creation under non-host folders"
+    );
+}
+
+#[test]
+fn folder_under_context_host_does_not_inherit_context_creation() {
+    let root: MacroTestNode = UiContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Folder::new("Inner".to_string()).into(), Some(engine.root));
+    engine.apply_edits().expect("folder add should succeed");
+
+    let folder = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("folder should exist");
+
+    let creatable = engine.catalog_creatable_items(folder);
+    assert!(
+        !creatable
+            .iter()
+            .any(|item| item.node_type == USER_CONTEXT_NODE_TYPE && item.item_kind == USER_CONTEXT_ITEM_KIND),
+        "folder descendants should not inherit direct-only context creation"
+    );
+    assert!(
+        matches!(
+            engine.queue_catalog_create(folder, USER_CONTEXT_NODE_TYPE, None, None),
+            Err(EngineEditError::UserItemTypeUnavailable { .. })
+        ),
+        "direct queueing should reject context creation under non-host folders"
     );
 }
 

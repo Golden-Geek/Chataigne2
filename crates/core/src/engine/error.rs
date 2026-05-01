@@ -37,6 +37,19 @@ pub enum EngineEditError {
         /// Human-readable constraint failure message.
         message: String,
     },
+    /// A `SetParamConstraints` operation was rejected.
+    ParamConstraintsRejected {
+        /// Index of the edit in the drained queue.
+        edit_index: usize,
+        /// Operation name associated with this edit.
+        operation: &'static str,
+        /// Target node id.
+        node: NodeId,
+        /// Runtime type name of the target node.
+        node_type: String,
+        /// Human-readable rejection message.
+        message: String,
+    },
     /// A `SetParamControlState` operation was rejected.
     ParamControlStateRejected {
         /// Index of the edit in the drained queue.
@@ -268,6 +281,17 @@ impl fmt::Display for EngineEditError {
             } => write!(
                 f,
                 "edit #{edit_index} (SetParam) rejected for node {:?} of type '{node_type}': {message}",
+                node
+            ),
+            Self::ParamConstraintsRejected {
+                edit_index,
+                operation,
+                node,
+                node_type,
+                message,
+            } => write!(
+                f,
+                "edit #{edit_index} ({operation}) rejected for node {:?} of type '{node_type}': {message}",
                 node
             ),
             Self::ParamControlStateRejected {

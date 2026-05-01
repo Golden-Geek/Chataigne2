@@ -1,7 +1,7 @@
 use crate::edit::EditOrigin;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMeta, NodeMetaPatch};
-use crate::parameter::{ParamValue, ParameterControlState, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
 use crate::script::ScriptNodeConfig;
 
 use super::{Engine, EngineEditError};
@@ -161,6 +161,8 @@ pub(crate) enum HistoryStep<T: Node> {
     SetParam(SetParamHistory),
     /// Parameter control-state update history.
     SetParamControlState(SetParamControlStateHistory),
+    /// Parameter constraints update history.
+    SetParamConstraints(SetParamConstraintsHistory),
     /// Node metadata patch history.
     PatchMeta(PatchMetaHistory),
     /// Script configuration update history.
@@ -187,6 +189,14 @@ impl<T: Node> HistoryStep<T> {
                     "UndoSetParamControlState",
                     step.node,
                     step.old_state.clone(),
+                )?;
+            }
+            Self::SetParamConstraints(step) => {
+                engine.apply_restore_param_state_for_history(
+                    "UndoSetParamConstraints",
+                    step.node,
+                    step.old_value.clone(),
+                    step.old_constraints.clone(),
                 )?;
             }
             Self::PatchMeta(step) => {
@@ -411,6 +421,14 @@ impl<T: Node> HistoryStep<T> {
                     step.new_state.clone(),
                 )?;
             }
+            Self::SetParamConstraints(step) => {
+                engine.apply_restore_param_state_for_history(
+                    "RedoSetParamConstraints",
+                    step.node,
+                    step.new_value.clone(),
+                    step.new_constraints.clone(),
+                )?;
+            }
             Self::PatchMeta(step) => {
                 let enabled_changed = {
                     let current = engine.nodes.get(step.node).ok_or(EngineEditError::NodeNotFound {
@@ -624,6 +642,7 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::SetParam(_)
             | Self::SetParamControlState(_)
+            | Self::SetParamConstraints(_)
             | Self::PatchMeta(_)
             | Self::SetScriptConfig(_)
             | Self::MoveNode(_) => {}
@@ -718,6 +737,20 @@ pub(crate) struct SetParamControlStateEffect {
     pub(crate) old_state: ParameterControlState,
     /// Control state after the edit.
     pub(crate) new_state: ParameterControlState,
+}
+
+/// Captured effect for a successful `SetParamConstraints` operation.
+pub(crate) struct SetParamConstraintsEffect {
+    /// Edited parameter node id.
+    pub(crate) node: NodeId,
+    /// Constraints before the edit.
+    pub(crate) old_constraints: ParameterConstraints,
+    /// Constraints after the edit.
+    pub(crate) new_constraints: ParameterConstraints,
+    /// Parameter value before the edit.
+    pub(crate) old_value: ParamValue,
+    /// Parameter value after the edit.
+    pub(crate) new_value: ParamValue,
 }
 
 /// Captured effect for a successful `PatchMeta` edit.
@@ -826,6 +859,20 @@ pub(crate) struct SetParamControlStateHistory {
     new_state: ParameterControlState,
 }
 
+/// Undo/redo payload for parameter-constraints updates.
+pub(crate) struct SetParamConstraintsHistory {
+    /// Edited parameter node id.
+    node: NodeId,
+    /// Constraints before the edit.
+    old_constraints: ParameterConstraints,
+    /// Constraints after the edit.
+    new_constraints: ParameterConstraints,
+    /// Value before the edit.
+    old_value: ParamValue,
+    /// Value after the edit.
+    new_value: ParamValue,
+}
+
 /// Undo/redo payload for metadata patches.
 pub(crate) struct PatchMetaHistory {
     /// Edited node id.
@@ -932,6 +979,18 @@ impl<T: Node> From<SetParamControlStateEffect> for HistoryStep<T> {
             node: effect.node,
             old_state: effect.old_state,
             new_state: effect.new_state,
+        })
+    }
+}
+
+impl<T: Node> From<SetParamConstraintsEffect> for HistoryStep<T> {
+    fn from(effect: SetParamConstraintsEffect) -> Self {
+        Self::SetParamConstraints(SetParamConstraintsHistory {
+            node: effect.node,
+            old_constraints: effect.old_constraints,
+            new_constraints: effect.new_constraints,
+            old_value: effect.old_value,
+            new_value: effect.new_value,
         })
     }
 }
@@ -1047,6 +1106,11 @@ impl<T: Node> Engine<T> {
 
     /// Records a parameter control-state update in undo/redo history.
     pub(crate) fn record_set_param_control_state_history(&mut self, effect: SetParamControlStateEffect) {
+        self.record_single_history_step(effect.into());
+    }
+
+    /// Records a parameter-constraints update in undo/redo history.
+    pub(crate) fn record_set_param_constraints_history(&mut self, effect: SetParamConstraintsEffect) {
         self.record_single_history_step(effect.into());
     }
 

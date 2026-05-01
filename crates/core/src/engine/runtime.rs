@@ -755,6 +755,9 @@ impl<T: Node> Engine<T> {
                 format!("EndEditSession client_edit_id={client_edit_id}")
             }
             Edit::SetParam { node, .. } => format!("SetParam target={}", self.describe_node(*node)),
+            Edit::SetParamConstraints { node, .. } => {
+                format!("SetParamConstraints target={}", self.describe_node(*node))
+            }
             Edit::SetNodeScriptProperty { node, property, .. } => {
                 format!(
                     "SetNodeScriptProperty target={} property={property}",
@@ -861,6 +864,9 @@ impl<T: Node> Engine<T> {
         match &event.kind {
             EventKind::ParamChanged { param, .. } => {
                 format!("{time} ParamChanged target={}", self.describe_node(*param))
+            }
+            EventKind::ParamConstraintsChanged { param, .. } => {
+                format!("{time} ParamConstraintsChanged target={}", self.describe_node(*param))
             }
             EventKind::ParamControlChanged { param, .. } => {
                 format!("{time} ParamControlChanged target={}", self.describe_node(*param))

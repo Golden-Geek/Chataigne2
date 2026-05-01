@@ -1,6 +1,6 @@
 use crate::engine::EngineTime;
 use crate::node::{DeclId, NodeId, NodeMetaPatch};
-use crate::parameter::{ParamValue, ParameterControlState};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -81,6 +81,15 @@ pub enum EventKind {
         /// Control state after the change.
         new_state: ParameterControlState,
     },
+    /// A parameter's live constraints were changed.
+    ParamConstraintsChanged {
+        /// Parameter node that changed.
+        param: NodeId,
+        /// Previous constraint state.
+        old_constraints: ParameterConstraints,
+        /// New constraint state.
+        new_constraints: ParameterConstraints,
+    },
 
     /// A child node was attached under a parent.
     ChildAdded {
@@ -155,6 +164,7 @@ impl EventKind {
         match self {
             Self::ParamChanged { param, .. } => Some(*param),
             Self::ParamControlChanged { param, .. } => Some(*param),
+            Self::ParamConstraintsChanged { param, .. } => Some(*param),
             Self::ChildAdded { child, .. } => Some(*child),
             Self::ChildRemoved { parent, .. } => Some(*parent),
             Self::ChildReplaced { new, .. } => Some(*new),

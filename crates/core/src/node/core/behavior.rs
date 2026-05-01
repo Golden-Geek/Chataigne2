@@ -5,16 +5,18 @@ use crate::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event, EventKind},
     node::DashboardWidgetTargetDescriptor,
-    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterControlState, ParameterSnapshot},
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterSnapshot,
+    },
     process_ctx::ProcessCtx,
-    script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiState},
+    script::{ScriptHostPolicy, ScriptNodeConfig, ScriptUiState},
 };
 
 use super::{
     DeclId, EventPropagation, Folder, NodeData, NodeId, NodeMetaPatch, NodeReference, NodeScriptDescriptor,
-    NodeUserPermissions, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
-    UserContainerRules, UserContextHostPolicy, UserContextNode, UserCreatableItem, core_node_script_descriptor,
-    lookup_script_child_by_key_and_type, parameter_node_type_from_value,
+    NodeUserPermissions, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextHostPolicy,
+    UserCreatableItem, core_node_script_descriptor, lookup_script_child_by_key_and_type,
+    parameter_node_type_from_value,
 };
 
 #[allow(missing_docs)]
@@ -48,12 +50,12 @@ pub trait Node: Send + Any {
         None
     }
 
-    /// Returns scripting host policy when this node supports hosting script nodes.
+    /// Returns scripting host policy metadata for this node type.
     fn script_host_policy(&self) -> Option<ScriptHostPolicy> {
         None
     }
 
-    /// Returns user-context host policy when this node supports hosting `UserContextNode`.
+    /// Returns user-context host policy metadata for this node type.
     fn user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
         None
     }
@@ -104,48 +106,16 @@ pub trait Node: Send + Any {
         None
     }
 
-    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        if item_type == "script" && item_kind == "script" {
-            return self.script_host_policy().is_some_and(|policy| policy.enabled);
-        }
-        if (item_type == USER_CONTEXT_NODE_TYPE || item_type == "context") && item_kind == USER_CONTEXT_ITEM_KIND {
-            return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
-        }
-        let _ = item_type;
+    fn user_container_accepts_item(&self, _item_type: &str, item_kind: &str) -> bool {
         self.user_container_rules()
             .is_some_and(|rules| rules.accepts(item_kind))
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = Vec::new();
-        if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            items.push(UserCreatableItem::new("script", "script", "Script").with_select_when_created(false));
-        }
-        if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-            items.push(
-                UserCreatableItem::new(
-                    USER_CONTEXT_NODE_TYPE,
-                    USER_CONTEXT_ITEM_KIND,
-                    USER_CONTEXT_DEFAULT_LABEL,
-                )
-                .with_select_when_created(false),
-            );
-        }
-        items
+        Vec::new()
     }
 
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            return Some(Box::new(ScriptNode::new(
-                "Script",
-                ScriptNodeConfig::for_host_node_type(self.get_type()),
-            )));
-        }
-        if (node_type == USER_CONTEXT_NODE_TYPE || node_type == "context")
-            && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
-        {
-            return Some(Box::new(UserContextNode::new(USER_CONTEXT_DEFAULT_LABEL)));
-        }
+    fn create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {
         None
     }
 
@@ -177,6 +147,20 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_set_param_control_state(&mut self, _state: ParameterControlState) -> Result<(), String> {
         Err("node does not expose parameter control state".to_string())
+    }
+
+    #[doc(hidden)]
+    fn engine_set_param_constraints(&mut self, _constraints: ParameterConstraints) -> Result<(), String> {
+        Err("node does not expose parameter constraints".to_string())
+    }
+
+    #[doc(hidden)]
+    fn engine_restore_param_state(
+        &mut self,
+        _value: ParamValue,
+        _constraints: ParameterConstraints,
+    ) -> Result<(), String> {
+        Err("node does not expose parameter state".to_string())
     }
 
     #[doc(hidden)]
@@ -815,6 +799,13 @@ pub trait Node: Send + Any {
                 } => {
                     self.on_param_control_changed(ctx, param, old_state, new_state);
                 }
+                EventKind::ParamConstraintsChanged {
+                    param,
+                    old_constraints,
+                    new_constraints,
+                } => {
+                    self.on_param_constraints_changed(ctx, param, old_constraints, new_constraints);
+                }
                 EventKind::ChildAdded { parent, child, decl_id } => {
                     self.on_child_added_decl(ctx, parent, child, &decl_id);
                 }
@@ -862,6 +853,14 @@ pub trait Node: Send + Any {
         _param: NodeId,
         _old_state: ParameterControlState,
         _new_state: ParameterControlState,
+    ) {
+    }
+    fn on_param_constraints_changed(
+        &mut self,
+        _ctx: &mut ProcessCtx,
+        _param: NodeId,
+        _old_constraints: ParameterConstraints,
+        _new_constraints: ParameterConstraints,
     ) {
     }
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {}
@@ -914,6 +913,22 @@ pub trait ViaTarget {
     }
 
     fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
+        None
+    }
+
+    fn via_user_container_rules(&self) -> Option<UserContainerRules> {
+        None
+    }
+
+    fn via_user_container_accepts_item(&self, _item_type: &str, _item_kind: &str) -> bool {
+        false
+    }
+
+    fn via_user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        Vec::new()
+    }
+
+    fn via_create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {
         None
     }
 
@@ -975,6 +990,22 @@ impl<T: Node + ?Sized> ViaTarget for T {
 
     fn via_user_context_host_policy(&self) -> Option<UserContextHostPolicy> {
         self.user_context_host_policy()
+    }
+
+    fn via_user_container_rules(&self) -> Option<UserContainerRules> {
+        self.user_container_rules()
+    }
+
+    fn via_user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        self.user_container_accepts_item(item_type, item_kind)
+    }
+
+    fn via_user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        self.user_creatable_items()
+    }
+
+    fn via_create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        self.create_user_item(node_type)
     }
 
     fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {

@@ -639,6 +639,9 @@ impl From<&Event> for ScriptEvent {
             EventKind::ParamChanged { param, old_value, .. } => {
                 ("paramChanged".to_string(), Some(*param), Some(old_value.clone()))
             }
+            EventKind::ParamConstraintsChanged { param, .. } => {
+                ("paramConstraintsChanged".to_string(), Some(*param), None)
+            }
             EventKind::ParamControlChanged { param, .. } => ("paramControlChanged".to_string(), Some(*param), None),
             EventKind::ChildAdded { child, .. } => ("childAdded".to_string(), Some(*child), None),
             EventKind::ChildRemoved { parent, .. } => ("childRemoved".to_string(), Some(*parent), None),

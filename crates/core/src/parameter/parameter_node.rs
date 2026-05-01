@@ -456,6 +456,24 @@ impl Node for Parameter {
         Ok(())
     }
 
+    fn engine_set_param_constraints(&mut self, constraints: ParameterConstraints) -> Result<(), String> {
+        let value = self.coerce_for_current_value_kind(self.value.clone())?;
+        self.value = constraints.normalize(value)?;
+        self.constraints = constraints;
+        Ok(())
+    }
+
+    fn engine_restore_param_state(
+        &mut self,
+        value: ParamValue,
+        constraints: ParameterConstraints,
+    ) -> Result<(), String> {
+        let value = self.coerce_for_current_value_kind(value)?;
+        self.value = constraints.normalize(value)?;
+        self.constraints = constraints;
+        Ok(())
+    }
+
     fn engine_script_descriptor(&self) -> crate::node::NodeScriptDescriptor {
         let mut descriptor = crate::node::core_node_script_descriptor(&self.node_data, self.get_type());
         descriptor.properties.insert("value".to_string(), self.value.clone());

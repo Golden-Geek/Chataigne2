@@ -1,6 +1,6 @@
 use crate::events::CustomEvent;
 use crate::node::{EventSubscription, Node, NodeId, NodeMetaPatch, NodeWarning};
-use crate::parameter::{ParamValue, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use crate::process_ctx::ProcessCtx;
 use crate::script::ScriptNodeConfig;
 use serde::{Deserialize, Serialize};
@@ -43,6 +43,13 @@ pub enum Edit {
         value: ParamValue,
         /// Coalescing strategy requested by the parameter/node API.
         behaviour: ParameterEventBehaviour,
+    },
+    /// Replace the live constraints on an existing parameter node.
+    SetParamConstraints {
+        /// Target node id.
+        node: NodeId,
+        /// New runtime constraints.
+        constraints: ParameterConstraints,
     },
     /// Sets one script-exposed property on a node.
     SetNodeScriptProperty {

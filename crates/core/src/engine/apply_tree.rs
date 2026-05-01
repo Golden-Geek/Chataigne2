@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUserPermissions, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE, UserNodeRole};
+use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -513,52 +513,28 @@ impl<T: Node> Engine<T> {
         })?;
 
         let container_type = container_node.get_type().to_string();
-        if item_type == "script" && item_kind == "script" {
-            let Some(_) = container_node.script_host_policy().filter(|policy| policy.enabled) else {
-                return Err(EngineEditError::UserItemContainerRequired {
-                    edit_index,
-                    operation,
-                    parent: container,
-                });
-            };
-
-            return Ok(());
-        }
-        if (item_type == USER_CONTEXT_NODE_TYPE || item_type == "context") && item_kind == USER_CONTEXT_ITEM_KIND {
-            let Some(_) = container_node
-                .user_context_host_policy()
-                .filter(|policy| policy.enabled)
-            else {
-                return Err(EngineEditError::UserItemContainerRequired {
-                    edit_index,
-                    operation,
-                    parent: container,
-                });
-            };
-
+        if container_node.user_container_accepts_item(item_type, item_kind) {
             return Ok(());
         }
 
-        let Some(_) = container_node.user_container_rules() else {
+        let has_user_item_capability =
+            container_node.user_container_rules().is_some() || !container_node.user_creatable_items().is_empty();
+        if !has_user_item_capability {
             return Err(EngineEditError::UserItemContainerRequired {
                 edit_index,
                 operation,
                 parent: container,
             });
-        };
-
-        if container_node.user_container_accepts_item(item_type, item_kind) {
-            Ok(())
-        } else {
-            Err(EngineEditError::UserItemKindRejected {
-                edit_index,
-                operation,
-                container,
-                container_type,
-                item_type: item_type.to_string(),
-                item_kind: item_kind.to_string(),
-            })
         }
+
+        Err(EngineEditError::UserItemKindRejected {
+            edit_index,
+            operation,
+            container,
+            container_type,
+            item_type: item_type.to_string(),
+            item_kind: item_kind.to_string(),
+        })
     }
 
     fn validate_item_roots_for_move(

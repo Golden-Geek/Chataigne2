@@ -32,6 +32,8 @@ mod dispatch;
 mod error;
 /// Undo/redo history transaction and effect models.
 mod history;
+#[cfg(test)]
+mod param_constraints_tests;
 /// Project save/load support.
 mod persistence;
 /// UUID reference cache helpers.

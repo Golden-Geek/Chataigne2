@@ -113,6 +113,12 @@ impl<T: Node> Engine<T> {
                     }
                     None => (Ok(None), false),
                 },
+                Edit::SetParamConstraints { node, constraints } => {
+                    missing_reference_warning_dirty = true;
+                    let effect = self.apply_set_param_constraints(edit_index, node, constraints)?;
+                    let should_clear_redo = effect.is_some();
+                    (Ok(effect.map(Into::into)), should_clear_redo)
+                }
                 Edit::SetNodeScriptProperty { node, property, value } => {
                     self.apply_set_node_script_property(edit_index, node, property, value)?;
                     (Ok(None), true)

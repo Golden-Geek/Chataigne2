@@ -1,11 +1,11 @@
 use crate::edit::NodeMutation;
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
-use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterConstraints, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::ScriptNodeConfig;
 
-use super::history::{PatchMetaEffect, SetParamEffect, SetScriptConfigEffect};
+use super::history::{PatchMetaEffect, SetParamConstraintsEffect, SetParamEffect, SetScriptConfigEffect};
 use super::{Engine, EngineEditError};
 
 impl<T: Node> Engine<T> {
@@ -103,6 +103,56 @@ impl<T: Node> Engine<T> {
             new_value,
             behaviour: ParameterEventBehaviour::Append,
             tick: self.time.tick,
+        }))
+    }
+
+    /// Applies a live parameter-constraints update and emits value/constraint events as needed.
+    pub(crate) fn apply_set_param_constraints(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        constraints: ParameterConstraints,
+    ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
+        const OP: &str = "SetParamConstraints";
+        let old_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
+
+        let node_type = self
+            .nodes
+            .get(node)
+            .map(|target| target.get_type().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        {
+            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
+                edit_index,
+                operation: OP,
+                node,
+            })?;
+            target.engine_set_param_constraints(constraints).map_err(|message| {
+                EngineEditError::ParamConstraintsRejected {
+                    edit_index,
+                    operation: OP,
+                    node,
+                    node_type: node_type.clone(),
+                    message,
+                }
+            })?;
+        }
+
+        let new_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
+        if old_snapshot.constraints == new_snapshot.constraints && old_snapshot.value == new_snapshot.value {
+            return Ok(None);
+        }
+
+        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
+        self.emit_param_constraints_event(node, old_snapshot.constraints.clone(), new_snapshot.constraints.clone());
+
+        Ok(Some(SetParamConstraintsEffect {
+            node,
+            old_constraints: old_snapshot.constraints,
+            new_constraints: new_snapshot.constraints,
+            old_value: old_snapshot.value,
+            new_value: new_snapshot.value,
         }))
     }
 
@@ -361,6 +411,43 @@ impl<T: Node> Engine<T> {
         self.apply_script_config_inner(0, operation, node, config, force_reload)
     }
 
+    pub(crate) fn apply_restore_param_state_for_history(
+        &mut self,
+        operation: &'static str,
+        node: NodeId,
+        value: ParamValue,
+        constraints: ParameterConstraints,
+    ) -> Result<(), EngineEditError> {
+        let old_snapshot = self.capture_param_snapshot(0, operation, node)?;
+        let node_type = self
+            .nodes
+            .get(node)
+            .map(|target| target.get_type().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        {
+            let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation,
+                node,
+            })?;
+            target
+                .engine_restore_param_state(value, constraints)
+                .map_err(|message| EngineEditError::ParamConstraintsRejected {
+                    edit_index: 0,
+                    operation,
+                    node,
+                    node_type: node_type.clone(),
+                    message,
+                })?;
+        }
+
+        let new_snapshot = self.capture_param_snapshot(0, operation, node)?;
+        self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
+        self.emit_param_constraints_event(node, old_snapshot.constraints, new_snapshot.constraints);
+        Ok(())
+    }
+
     /// Sets/replaces one warning by id and emits `MetaChanged` when runtime metadata changed.
     pub(crate) fn apply_set_node_warning(
         &mut self,
@@ -478,5 +565,57 @@ impl<T: Node> Engine<T> {
             },
         )?;
         Ok(Some(effect))
+    }
+
+    fn capture_param_snapshot(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        node: NodeId,
+    ) -> Result<crate::parameter::ParameterSnapshot, EngineEditError> {
+        let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+            edit_index,
+            operation,
+            node,
+        })?;
+        let node_type = target.get_type().to_string();
+        target
+            .engine_param_snapshot()
+            .ok_or(EngineEditError::ParamEditTargetMismatch {
+                edit_index,
+                node,
+                node_type,
+            })
+    }
+
+    fn emit_param_events_for_state_change(&mut self, node: NodeId, old_value: &ParamValue, new_value: &ParamValue) {
+        if old_value == new_value {
+            return;
+        }
+
+        self.emit_event(EventKind::ParamChanged {
+            param: node,
+            old_value: old_value.clone(),
+            new_value: new_value.clone(),
+        });
+        self.param_change_counter = self.param_change_counter.saturating_add(1);
+        self.param_last_change_counter.insert(node, self.param_change_counter);
+    }
+
+    fn emit_param_constraints_event(
+        &mut self,
+        node: NodeId,
+        old_constraints: ParameterConstraints,
+        new_constraints: ParameterConstraints,
+    ) {
+        if old_constraints == new_constraints {
+            return;
+        }
+
+        self.emit_event(EventKind::ParamConstraintsChanged {
+            param: node,
+            old_constraints,
+            new_constraints,
+        });
     }
 }

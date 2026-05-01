@@ -610,6 +610,15 @@ pub enum UiEventKind {
         /// New control state.
         new_state: UiParameterControlStateDto,
     },
+    /// Parameter constraints changed.
+    ParamConstraintsChanged {
+        /// Parameter node id.
+        param: NodeId,
+        /// Previous constraints.
+        old_constraints: ParameterConstraints,
+        /// New constraints.
+        new_constraints: ParameterConstraints,
+    },
     /// Child added.
     ChildAdded {
         /// Parent id.
@@ -712,6 +721,15 @@ impl From<Event> for UiEventDto {
                 old_state: old_state.into(),
                 new_state: new_state.into(),
             },
+            EventKind::ParamConstraintsChanged {
+                param,
+                old_constraints,
+                new_constraints,
+            } => UiEventKind::ParamConstraintsChanged {
+                param,
+                old_constraints,
+                new_constraints,
+            },
             EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded { parent, child, decl_id },
             EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved { parent, child },
             EventKind::ChildReplaced {
@@ -794,6 +812,13 @@ pub enum UiEditIntent {
         node: NodeId,
         /// New control state payload.
         state: UiParameterControlStateDto,
+    },
+    /// Replace a parameter's live runtime constraints.
+    SetParamConstraints {
+        /// Target parameter node id.
+        node: NodeId,
+        /// New constraints payload.
+        constraints: ParameterConstraints,
     },
     /// Move a node.
     MoveNode {
@@ -1011,12 +1036,10 @@ impl<T: Node> Engine<T> {
                 }
             };
 
-            let script_host_enabled = node.script_host_policy().is_some_and(|policy| policy.enabled);
-            let user_context_host_enabled = node.user_context_host_policy().is_some_and(|policy| policy.enabled);
+            let listed_user_items = node.user_creatable_items();
             let can_query_creatable_items = node.get_type() == FOLDER_NODE_TYPE
                 || node.user_container_rules().is_some()
-                || script_host_enabled
-                || user_context_host_enabled;
+                || !listed_user_items.is_empty();
 
             let mut creatable_user_items = Vec::new();
             if can_query_creatable_items {
@@ -1035,8 +1058,10 @@ impl<T: Node> Engine<T> {
                         .collect()
                 })
                 .unwrap_or_default();
-            if script_host_enabled && !accepted_user_item_kinds.iter().any(|kind| kind == "script") {
-                accepted_user_item_kinds.push("script".to_string());
+            for item in &listed_user_items {
+                if !accepted_user_item_kinds.iter().any(|kind| kind == &item.item_kind) {
+                    accepted_user_item_kinds.push(item.item_kind.clone());
+                }
             }
 
             let declared_description_key = node_data
@@ -1491,6 +1516,16 @@ impl<T: Node> Engine<T> {
                     Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
                 }
             }
+            UiEditIntent::SetParamConstraints { node, constraints } => {
+                match self.apply_set_param_constraints(0, node, constraints) {
+                    Ok(Some(effect)) => {
+                        self.record_set_param_constraints_history(effect);
+                        self.finish_ui_apply_now(before_len, Ok(()))
+                    }
+                    Ok(None) => self.finish_ui_apply_now(before_len, Ok(())),
+                    Err(err) => self.finish_ui_apply_now(before_len, Err(err)),
+                }
+            }
             UiEditIntent::MoveNode {
                 node,
                 new_parent,
@@ -1892,6 +1927,7 @@ impl<T: Node> Engine<T> {
                 let candidate_nodes: Vec<NodeId> = match &event.kind {
                     EventKind::ParamChanged { param, .. } => vec![*param],
                     EventKind::ParamControlChanged { param, .. } => vec![*param],
+                    EventKind::ParamConstraintsChanged { param, .. } => vec![*param],
                     EventKind::ChildAdded { parent, child, .. } => vec![*parent, *child],
                     EventKind::ChildRemoved { parent, child } => vec![*parent, *child],
                     EventKind::ChildReplaced { parent, old, new, .. } => vec![*parent, *old, *new],
@@ -1938,6 +1974,7 @@ fn ui_error_code(error: &crate::engine::EngineEditError) -> &'static str {
         crate::engine::EngineEditError::NodeTypeMismatch { .. } => "node_type_mismatch",
         crate::engine::EngineEditError::ParamEditTargetMismatch { .. } => "param_edit_target_mismatch",
         crate::engine::EngineEditError::ParamConstraintViolation { .. } => "param_constraint_violation",
+        crate::engine::EngineEditError::ParamConstraintsRejected { .. } => "param_constraints_rejected",
         crate::engine::EngineEditError::ParamControlStateRejected { .. } => "param_control_error",
         crate::engine::EngineEditError::ScriptConfigRejected { .. } => "script_config_rejected",
         crate::engine::EngineEditError::ScriptPropertyRejected { .. } => "script_property_rejected",

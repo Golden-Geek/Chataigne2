@@ -3420,6 +3420,56 @@ fn expand_impl(
         }
     }
 
+    let has_user_item_factory_macro = has_define_user_item_factory_methods_macro(&input);
+
+    if !has_user_item_factory_macro && !has_method(&input, "user_container_rules") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn user_container_rules(&self) -> Option<golden_core::node::UserContainerRules> {
+                    golden_core::node::ViaTarget::via_user_container_rules(&self.#(#segments).*)
+                }
+            });
+        }
+    }
+
+    if !has_user_item_factory_macro && !has_method(&input, "user_container_accepts_item") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+                    golden_core::node::ViaTarget::via_user_container_accepts_item(
+                        &self.#(#segments).*,
+                        item_type,
+                        item_kind,
+                    )
+                }
+            });
+        }
+    }
+
+    if !has_user_item_factory_macro && !has_method(&input, "user_creatable_items") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
+                    golden_core::node::ViaTarget::via_user_creatable_items(&self.#(#segments).*)
+                }
+            });
+        }
+    }
+
+    if !has_user_item_factory_macro && !has_method(&input, "create_user_item") {
+        if let Some(path) = via.as_ref() {
+            let segments = &path.segments;
+            input.items.push(parse_quote! {
+                fn create_user_item(&self, node_type: &str) -> Option<Box<dyn golden_core::node::Node>> {
+                    golden_core::node::ViaTarget::via_create_user_item(&self.#(#segments).*, node_type)
+                }
+            });
+        }
+    }
+
     if from_struct {
         if let Err(err) = append_struct_methods_from_helpers(&mut input, via.as_ref()) {
             return err.to_compile_error();
@@ -4623,6 +4673,21 @@ fn has_method(item_impl: &ItemImpl, name: &str) -> bool {
         matches!(
             item,
             ImplItem::Fn(function) if function.sig.ident == name
+        )
+    })
+}
+
+fn has_define_user_item_factory_methods_macro(item_impl: &ItemImpl) -> bool {
+    item_impl.items.iter().any(|item| {
+        matches!(
+            item,
+            ImplItem::Macro(item_macro)
+                if item_macro
+                    .mac
+                    .path
+                    .segments
+                    .last()
+                    .is_some_and(|segment| segment.ident == "define_user_item_factory_methods")
         )
     })
 }

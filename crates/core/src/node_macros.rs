@@ -357,15 +357,6 @@ macro_rules! define_user_item_factory_methods {
         ];
     ) => {
         fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-            if item_type == "script" && item_kind == "script" {
-                return self.script_host_policy().is_some_and(|policy| policy.enabled);
-            }
-            if (item_type == $crate::node::USER_CONTEXT_NODE_TYPE || item_type == "context")
-                && item_kind == $crate::node::USER_CONTEXT_ITEM_KIND
-            {
-                return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
-            }
-
             if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
                 return false;
             }
@@ -384,23 +375,6 @@ macro_rules! define_user_item_factory_methods {
         fn user_creatable_items(&self) -> Vec<$crate::node::UserCreatableItem> {
             let mut items = Vec::new();
 
-            if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push(
-                    $crate::node::UserCreatableItem::new("script", "script", "Script")
-                        .with_select_when_created(false),
-                );
-            }
-            if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push(
-                    $crate::node::UserCreatableItem::new(
-                        $crate::node::USER_CONTEXT_NODE_TYPE,
-                        $crate::node::USER_CONTEXT_ITEM_KIND,
-                        $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                    )
-                    .with_select_when_created(false),
-                );
-            }
-
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
                     items.push(
@@ -415,20 +389,6 @@ macro_rules! define_user_item_factory_methods {
         }
 
         fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
-            if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                return Some(Box::new($crate::script::ScriptNode::new(
-                    "Script",
-                    $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
-                )));
-            }
-            if (node_type == $crate::node::USER_CONTEXT_NODE_TYPE || node_type == "context")
-                && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
-            {
-                return Some(Box::new($crate::node::UserContextNode::new(
-                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                )));
-            }
-
             match node_type {
                 $(
                     $node_type => {
@@ -463,15 +423,6 @@ macro_rules! define_user_item_factory_methods {
         ];
     ) => {
         fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-            if item_type == "script" && item_kind == "script" {
-                return self.script_host_policy().is_some_and(|policy| policy.enabled);
-            }
-            if (item_type == $crate::node::USER_CONTEXT_NODE_TYPE || item_type == "context")
-                && item_kind == $crate::node::USER_CONTEXT_ITEM_KIND
-            {
-                return self.user_context_host_policy().is_some_and(|policy| policy.enabled);
-            }
-
             if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
                 return false;
             }
@@ -489,23 +440,6 @@ macro_rules! define_user_item_factory_methods {
         fn user_creatable_items(&self) -> Vec<$crate::node::UserCreatableItem> {
             let mut items = Vec::new();
 
-            if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push(
-                    $crate::node::UserCreatableItem::new("script", "script", "Script")
-                        .with_select_when_created(false),
-                );
-            }
-            if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
-                items.push(
-                    $crate::node::UserCreatableItem::new(
-                        $crate::node::USER_CONTEXT_NODE_TYPE,
-                        $crate::node::USER_CONTEXT_ITEM_KIND,
-                        $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                    )
-                    .with_select_when_created(false),
-                );
-            }
-
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?) {
                     items.push($crate::node::UserCreatableItem::new(
@@ -522,20 +456,6 @@ macro_rules! define_user_item_factory_methods {
         }
 
         fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
-            if node_type == "script" && self.script_host_policy().is_some_and(|policy| policy.enabled) {
-                return Some(Box::new($crate::script::ScriptNode::new(
-                    "Script",
-                    $crate::script::ScriptNodeConfig::for_host_node_type(self.get_type()),
-                )));
-            }
-            if (node_type == $crate::node::USER_CONTEXT_NODE_TYPE || node_type == "context")
-                && self.user_context_host_policy().is_some_and(|policy| policy.enabled)
-            {
-                return Some(Box::new($crate::node::UserContextNode::new(
-                    $crate::node::USER_CONTEXT_DEFAULT_LABEL,
-                )));
-            }
-
             $(
                 if node_type == $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?) {
                     if $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?) {
@@ -840,6 +760,20 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn engine_set_param_control_state(&mut self, state: $crate::parameter::ParameterControlState) -> Result<(), String> {
                 $crate::__dispatch_node_enum!(self, engine_set_param_control_state, state; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_set_param_constraints(&mut self, constraints: $crate::parameter::ParameterConstraints) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_set_param_constraints, constraints; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn engine_restore_param_state(
+                &mut self,
+                value: $crate::parameter::ParamValue,
+                constraints: $crate::parameter::ParameterConstraints,
+            ) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, engine_restore_param_state, value, constraints; $($variant),*)
             }
 
             #[inline(always)]
