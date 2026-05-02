@@ -36,6 +36,7 @@ struct PresentationMetaFields {
     warnings: Option<Expr>,
     show_child_warnings_max_depth: Option<Expr>,
     show_in_nested_inspector: Option<Expr>,
+    show_in_inspector_content: Option<Expr>,
 }
 
 impl PresentationMetaFields {
@@ -44,6 +45,7 @@ impl PresentationMetaFields {
             && self.warnings.is_none()
             && self.show_child_warnings_max_depth.is_none()
             && self.show_in_nested_inspector.is_none()
+            && self.show_in_inspector_content.is_none()
     }
 }
 
@@ -63,6 +65,8 @@ fn try_parse_presentation_meta_field(
         )
     } else if key == "show_in_nested_inspector" || key == "showInNestedInspector" {
         (&mut fields.show_in_nested_inspector, "show_in_nested_inspector")
+    } else if key == "show_in_inspector_content" || key == "showInInspectorContent" {
+        (&mut fields.show_in_inspector_content, "show_in_inspector_content")
     } else {
         return Ok(false);
     };
@@ -794,7 +798,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector)",
+                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
                     ));
                 }
             }
@@ -921,7 +925,7 @@ fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector)",
+                    "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
                 ));
             }
         }
@@ -1125,7 +1129,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1946,6 +1950,11 @@ fn build_presentation_assignment_tokens(
             __golden_presentation.show_in_nested_inspector = #expr;
         }
     });
+    let set_inspector_content_visibility = fields.show_in_inspector_content.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.show_in_inspector_content = #expr;
+        }
+    });
 
     Some(quote! {
         {
@@ -1954,6 +1963,7 @@ fn build_presentation_assignment_tokens(
             #set_warnings
             #set_child_warning_depth
             #set_nested_inspector_visibility
+            #set_inspector_content_visibility
             #target_expr = __golden_presentation;
         }
     })

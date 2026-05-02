@@ -697,7 +697,7 @@ struct DslNodeChildrenNode {}
 #[crate::node(
     "dsl_meta_params_node",
     presentation = crate::node::PresentationHint {
-        show_in_nested_inspector: true,
+        show_in_nested_inspector: false,
         ..Default::default()
     },
     color = crate::color::Color::new(0.95, 0.4, 0.2, 1.0)
@@ -1602,7 +1602,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
         owner_meta.presentation.color,
         Some(crate::color::Color::new(0.95, 0.4, 0.2, 1.0))
     );
-    assert!(owner_meta.presentation.show_in_nested_inspector);
+    assert!(!owner_meta.presentation.show_in_nested_inspector);
 
     let settings_meta = engine
         .nodes

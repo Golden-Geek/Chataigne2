@@ -7,9 +7,9 @@ use crate::{
 };
 
 use super::{
-    default_parameter_value_for_node_type, EventPropagation, Node, NodeData, NodeId, UserContainerRules,
-    UserCreatableItem, FOLDER_NODE_TYPE, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL,
-    USER_CONTEXT_NODE_TYPE,
+    EventPropagation, FOLDER_NODE_TYPE, Node, NodeData, NodeId, USER_CONTEXT_ALLOWED_ITEM_KINDS,
+    USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
+    default_parameter_value_for_node_type,
 };
 
 /// Internal scope node used to host user-authored lexical context entries.
@@ -25,7 +25,6 @@ impl UserContextNode {
     pub fn new(label: impl Into<String>) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
-        node_data.meta.presentation.show_in_nested_inspector = true;
         Self { node_data }
     }
 }

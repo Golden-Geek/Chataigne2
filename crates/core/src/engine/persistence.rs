@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::node::{
-    DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PARAMETER_ANIMATION_CURVE_NODE_TYPE,
-    PresentationHint, SemanticsHint, USER_CONTEXT_NODE_TYPE, UserNodeRole,
+    DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint,
+    UserNodeRole,
 };
 
 use super::history::AddNodeEffect;
@@ -35,13 +35,6 @@ fn is_default_node_user_permissions(value: &NodeUserPermissions) -> bool {
 
 fn is_default_user_node_role(value: &UserNodeRole) -> bool {
     *value == UserNodeRole::Regular
-}
-
-fn defaults_to_nested_inspector_visibility(node_type: &str) -> bool {
-    matches!(
-        node_type,
-        "script" | PARAMETER_ANIMATION_CURVE_NODE_TYPE | USER_CONTEXT_NODE_TYPE
-    )
 }
 
 /// Serialized project document containing one rooted node hierarchy.
@@ -129,14 +122,14 @@ impl ProjectNodeMeta {
         }
     }
 
-    fn into_runtime(self, uuid: NodeUuid, node_type: &str) -> NodeMeta {
+    fn into_runtime(self, uuid: NodeUuid) -> NodeMeta {
         let mut user_permissions = self.user_permissions;
         // Backward compatibility for persisted projects that predate explicit permission fields.
         if user_permissions == NodeUserPermissions::default() && self.tags.iter().any(|tag| tag == "is_user_made") {
             user_permissions = NodeUserPermissions::all();
         }
 
-        let mut meta = NodeMeta {
+        NodeMeta {
             uuid,
             decl_id: self.decl_id,
             short_name: self.short_name,
@@ -150,11 +143,7 @@ impl ProjectNodeMeta {
             user_permissions,
             semantics: self.semantics,
             presentation: self.presentation,
-        };
-        if defaults_to_nested_inspector_visibility(node_type) {
-            meta.presentation.show_in_nested_inspector = true;
         }
-        meta
     }
 }
 
@@ -452,7 +441,7 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let meta = record.meta.clone().into_runtime(record.uuid, &record.node_type);
+        let meta = record.meta.clone().into_runtime(record.uuid);
         let data = record.data.clone().unwrap_or(serde_json::Value::Null);
         let mut node = if record.user_role == UserNodeRole::ItemRoot {
             if let Some(parent) = parent {
@@ -614,10 +603,7 @@ fn generate_short_name(label: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::ProjectNodeMeta;
-    use crate::node::{
-        DeclId, NodeUserPermissions, NodeUuid, PARAMETER_ANIMATION_CURVE_NODE_TYPE, PresentationHint, SemanticsHint,
-        USER_CONTEXT_NODE_TYPE,
-    };
+    use crate::node::{DeclId, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint};
 
     fn project_meta(label: &str) -> ProjectNodeMeta {
         ProjectNodeMeta {
@@ -637,13 +623,13 @@ mod tests {
     }
 
     #[test]
-    fn project_decode_normalizes_nested_inspector_visibility_for_builtin_nested_nodes() {
-        for node_type in ["script", PARAMETER_ANIMATION_CURVE_NODE_TYPE, USER_CONTEXT_NODE_TYPE] {
-            let meta = project_meta(node_type).into_runtime(NodeUuid::default(), node_type);
+    fn project_decode_defaults_nested_inspector_visibility_on() {
+        for node_type in ["regular", "script", "user_context"] {
+            let meta = project_meta(node_type).into_runtime(NodeUuid::default());
 
             assert!(
                 meta.presentation.show_in_nested_inspector,
-                "{node_type} should stay visible in nested inspectors after load"
+                "{node_type} should default to visible in nested inspectors after load"
             );
         }
     }

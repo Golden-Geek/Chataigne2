@@ -34,7 +34,6 @@ impl CurveNode {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_CURVE_DECL_ID.to_string());
-        node_data.meta.presentation.show_in_nested_inspector = true;
         Self {
             node_data,
             user_can_edit_range: true,

@@ -64,11 +64,15 @@ fn is_zero_u32(value: &u32) -> bool {
     *value == 0
 }
 
-fn is_false(value: &bool) -> bool {
-    !*value
+fn default_nested_inspector_visibility() -> bool {
+    true
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
     /// Preferred UI color.
@@ -82,10 +86,28 @@ pub struct PresentationHint {
     pub show_child_warnings_max_depth: u32,
     /// Whether this node stays visible when rendered as a nested inspector child.
     ///
-    /// Managed items default to hidden in nested inspectors unless directly selected
-    /// or rendered as the inspector root.
-    #[serde(default, skip_serializing_if = "is_false")]
+    /// Nodes default to visible at any nested inspector level. Set this to `false`
+    /// only for item roots that should stay hidden unless selected directly.
+    #[serde(default = "default_nested_inspector_visibility", skip_serializing_if = "is_true")]
     pub show_in_nested_inspector: bool,
+    /// Whether this node is rendered in its parent's inspector content area.
+    ///
+    /// Nodes default to visible in inspector content. Set this to `false` for controls
+    /// that are rendered by a custom inspector location such as a header action.
+    #[serde(default = "default_nested_inspector_visibility", skip_serializing_if = "is_true")]
+    pub show_in_inspector_content: bool,
+}
+
+impl Default for PresentationHint {
+    fn default() -> Self {
+        Self {
+            color: None,
+            warnings: Vec::new(),
+            show_child_warnings_max_depth: 0,
+            show_in_nested_inspector: default_nested_inspector_visibility(),
+            show_in_inspector_content: default_nested_inspector_visibility(),
+        }
+    }
 }
 
 impl PresentationHint {
@@ -452,9 +474,14 @@ mod tests {
     use super::PresentationHint;
 
     #[test]
-    fn presentation_hint_serializes_nested_inspector_flag_when_enabled() {
+    fn presentation_hint_defaults_to_nested_inspector_visibility() {
+        assert!(PresentationHint::default().show_in_nested_inspector);
+    }
+
+    #[test]
+    fn presentation_hint_serializes_nested_inspector_flag_when_disabled() {
         let hint = PresentationHint {
-            show_in_nested_inspector: true,
+            show_in_nested_inspector: false,
             ..Default::default()
         };
 
@@ -463,8 +490,32 @@ mod tests {
         assert_eq!(
             serialized,
             json!({
-                "show_in_nested_inspector": true
+                "show_in_nested_inspector": false
             })
         );
+    }
+
+    #[test]
+    fn presentation_hint_serializes_inspector_content_flag_when_disabled() {
+        let hint = PresentationHint {
+            show_in_inspector_content: false,
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(hint).expect("presentation hint should serialize");
+
+        assert_eq!(
+            serialized,
+            json!({
+                "show_in_inspector_content": false
+            })
+        );
+    }
+
+    #[test]
+    fn presentation_hint_omits_default_nested_inspector_visibility() {
+        let serialized = serde_json::to_value(PresentationHint::default()).expect("presentation hint should serialize");
+
+        assert_eq!(serialized, json!({}));
     }
 }

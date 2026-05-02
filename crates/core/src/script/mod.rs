@@ -3286,10 +3286,8 @@ pub struct ScriptNode {
 impl ScriptNode {
     /// Creates a new script node.
     pub fn new(label: impl Into<String>, config: ScriptNodeConfig) -> Self {
-        let mut node_data = NodeData::new(label.into());
-        node_data.meta.presentation.show_in_nested_inspector = true;
         Self {
-            node_data,
+            node_data: NodeData::new(label.into()),
             config,
             budgets: ScriptBudgets::default(),
             runtime: None,
