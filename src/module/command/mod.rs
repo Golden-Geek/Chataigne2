@@ -1,7 +1,7 @@
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    node::{Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules},
     parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
-const MODULE_COMMAND_EXECUTE_PATH: &str = "command/execute";
-const MODULE_COMMAND_LAST_RESULT_PATH: &str = "command/last_result";
+const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct ModuleCommandRequestEvent {
@@ -27,33 +26,55 @@ pub fn enable_module_command_authoring(node_data: &mut NodeData) {
     node_data.meta.user_permissions = NodeUserPermissions::all();
 }
 
-pub(crate) fn create_command_folder() -> golden_core::node::Folder {
-    let mut folder = golden_core::node::Folder::new("Folder");
-    enable_module_command_authoring(folder.node_data_mut());
-    folder.node_data_mut().meta.presentation.show_in_nested_inspector = true;
-    folder
-}
-
-pub(crate) fn module_command_execute_triggered(
+pub(crate) fn module_command_triggered(
     snapshot: &ProcessTreeSnapshot,
     command_id: NodeId,
     changed_param: NodeId,
 ) -> bool {
-    snapshot
-        .resolve_path_from(command_id, MODULE_COMMAND_EXECUTE_PATH)
-        .is_some_and(|execute_id| execute_id == changed_param)
+    resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TRIGGER_PATH)
+        .is_some_and(|trigger_id| trigger_id == changed_param)
 }
 
-pub(crate) fn set_module_command_last_result(
-    ctx: &mut ProcessCtx,
+pub(crate) fn resolve_module_command_child(
     snapshot: &ProcessTreeSnapshot,
     command_id: NodeId,
-    result: impl Into<String>,
-) {
-    let Some(last_result_id) = snapshot.resolve_path_from(command_id, MODULE_COMMAND_LAST_RESULT_PATH) else {
-        return;
-    };
-    ctx.set_param(last_result_id, ParamValue::from(result.into()));
+    path: &str,
+) -> Option<NodeId> {
+    // Macro-generated reused children may expose the full path as decl_id, so
+    // prefer that stable declaration before falling back to segment traversal.
+    find_direct_child_by_decl_id(snapshot, command_id, path)
+        .or_else(|| find_descendant_by_decl_id(snapshot, command_id, path))
+        .or_else(|| snapshot.resolve_path_from(command_id, path))
+}
+
+fn find_direct_child_by_decl_id(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeId> {
+    snapshot
+        .child_ids(parent)
+        .into_iter()
+        .find(|child_id| snapshot.node(*child_id).is_some_and(|child| child.decl_id == decl_id))
+}
+
+fn find_descendant_by_decl_id(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeId> {
+    for child_id in snapshot.child_ids(parent) {
+        let Some(child) = snapshot.node(child_id) else {
+            continue;
+        };
+        if child.decl_id == decl_id {
+            return Some(child_id);
+        }
+        if let Some(found) = find_descendant_by_decl_id(snapshot, child_id, decl_id) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 pub(crate) fn emit_module_command_request<T: Serialize>(
@@ -93,44 +114,27 @@ pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<Modul
         .flatten()
 }
 
-#[node("module_commands_container", label = "Commands")]
-pub struct ModuleCommandsContainer {}
+#[node("module_command_manager_base", label = "Commands")]
+pub struct ModuleCommandManagerBase {}
 
-#[node("module_commands_container", from_struct)]
-impl Node for ModuleCommandsContainer {
+#[node("module_command_manager_base", from_struct)]
+impl Node for ModuleCommandManagerBase {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         enable_module_command_authoring(self.node_data_mut());
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[MODULE_COMMAND_ITEM_KIND, "folder"]))
-    }
-
-    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![UserCreatableItem::new("folder", "folder", "Folder").with_select_when_created(false)]
-    }
-
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        match node_type {
-            "folder" => Some(Box::new(create_command_folder())),
-            _ => None,
-        }
+        Some(UserContainerRules::new(&[MODULE_COMMAND_ITEM_KIND]))
     }
 }
 
 #[node("module_command_base", label = "Command")]
 #[children(
-    folder(command, label = "Command") {
-        execute: ParamValue = ParamValue::Trigger() (
-            label = "Execute",
-            description = "Fire this trigger to execute the command."
-        );
-        last_result: String = "".to_string() (
-            label = "Last Result",
-            description = "Summary of the most recent command execution.",
-            read_only = true
-        );
-    }
+    trigger: ParamValue = ParamValue::Trigger() (
+        label = "Trigger",
+        description = "Fire this trigger to run the command.",
+        show_in_inspector_content = false
+    );
 )]
 pub struct ModuleCommandBase {}
 

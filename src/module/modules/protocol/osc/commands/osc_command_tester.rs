@@ -5,16 +5,16 @@ use golden_core::{
 
 #[node("osc_command_tester", label = "Command Tester")]
 pub struct OscCommandTester {
-    base: crate::app::ModuleCommandsContainer,
+    manager: crate::app::ModuleCommandManagerBase,
 }
 
 impl OscCommandTester {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandsContainer::new())
+        Self::new(crate::app::ModuleCommandManagerBase::new())
     }
 }
 
-#[node("osc_command_tester", via = base, from_struct)]
+#[node("osc_command_tester", via = manager, from_struct)]
 impl Node for OscCommandTester {
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         vec![
@@ -24,7 +24,6 @@ impl Node for OscCommandTester {
                 "Send Custom Message",
             )
             .with_select_when_created(false),
-            UserCreatableItem::new("folder", "folder", "Folder").with_select_when_created(false),
         ]
     }
 
@@ -33,7 +32,6 @@ impl Node for OscCommandTester {
             crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE => {
                 Some(Box::new(crate::app::OscSendCustomMessageCommand::create()))
             }
-            "folder" => Some(Box::new(crate::app::module_command::create_command_folder())),
             _ => None,
         }
     }
@@ -61,15 +59,19 @@ mod tests {
     }
 
     #[test]
-    fn created_command_folders_stay_visible_in_nested_inspectors() {
+    fn command_tester_does_not_create_folders() {
         let tester = OscCommandTester::create();
-        let folder = tester
-            .create_user_item("folder")
-            .expect("folder creation should be supported");
 
         assert!(
-            folder.node_data().meta.presentation.show_in_nested_inspector,
-            "command tester folders should stay visible without requiring selection"
+            tester.create_user_item("folder").is_none(),
+            "command tester should not create command folders"
+        );
+        assert!(
+            tester
+                .user_creatable_items()
+                .into_iter()
+                .all(|item| item.node_type != "folder" && item.item_kind != "folder"),
+            "command tester catalog should not advertise command folders"
         );
     }
 }

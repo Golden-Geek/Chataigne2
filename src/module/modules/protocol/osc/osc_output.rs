@@ -1,6 +1,6 @@
 use golden_core::{node, node::Node, process_ctx::ProcessCtx};
 
-#[node("osc_output", label = "Output", show_in_nested_inspector = true)]
+#[node("osc_output", label = "Output")]
 #[children(
     remote_host: String = "127.0.0.1".to_string() (
         label = "Remote Host",

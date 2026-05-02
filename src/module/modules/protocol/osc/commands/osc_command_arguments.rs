@@ -20,7 +20,7 @@ const OSC_COMMAND_ARGUMENT_TYPES: &[&str] = &[
     "reference",
 ];
 
-#[node("osc_command_arguments", label = "Arguments", show_in_nested_inspector = true)]
+#[node("osc_command_arguments", label = "Arguments")]
 pub struct OscCommandArguments {}
 
 #[node("osc_command_arguments", from_struct)]
@@ -67,7 +67,6 @@ impl Node for OscCommandArguments {
 fn create_argument_parameter(label: &str, value: ParamValue) -> Parameter {
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
-    parameter.node_data_mut().meta.presentation.show_in_nested_inspector = true;
     parameter
 }
 

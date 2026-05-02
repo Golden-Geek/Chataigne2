@@ -74,7 +74,7 @@ pub(crate) struct OscSendCustomMessageRequest {
     }
     node command_tester: crate::app::OscCommandTester = crate::app::OscCommandTester::create() (
         label = "Command Tester",
-        description = "Create and execute ad-hoc OSC commands through this module's outputs."
+        description = "Create and trigger ad-hoc OSC commands through this module's outputs."
     );
 )]
 pub struct OscModuleBase {
@@ -319,24 +319,6 @@ impl OscModuleBase {
         ctx.add_user_item_boxed(outputs_id, Box::new(crate::app::OscOutput::new()), None);
     }
 
-    fn ensure_default_command(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(command_tester_id) = self.command_tester.current_id() else {
-            return;
-        };
-
-        let mut command_ids = Vec::new();
-        collect_send_custom_message_commands_recursive(snapshot, command_tester_id, &mut command_ids);
-        if !command_ids.is_empty() {
-            return;
-        }
-
-        ctx.add_user_item_boxed(
-            command_tester_id,
-            Box::new(crate::app::OscSendCustomMessageCommand::create()),
-            None,
-        );
-    }
-
     fn flush_outbound_values(&mut self, snapshot: &ProcessTreeSnapshot) {
         if self.pending_outbound_nodes.is_empty() {
             return;
@@ -523,12 +505,12 @@ impl OscModuleBase {
         };
         let snapshot = snapshot_arc.as_ref();
 
-        let result = serde_json::from_value::<OscSendCustomMessageRequest>(payload)
+        if let Err(error) = serde_json::from_value::<OscSendCustomMessageRequest>(payload)
             .map_err(|error| format!("invalid OSC command payload: {error}"))
             .and_then(|payload| self.queue_custom_message(snapshot, &payload))
-            .unwrap_or_else(|error| error);
-
-        crate::app::module_command::set_module_command_last_result(ctx, snapshot, command_id, result);
+        {
+            logerror!(format!("Failed to handle OSC command {:?}: {error}", command_id));
+        }
     }
 
     fn on_param_change_inner(&mut self, ctx: &mut ProcessCtx, param: NodeId) {
@@ -607,7 +589,6 @@ impl Node for OscModuleBase {
         let snapshot = snapshot_arc.as_ref();
 
         self.ensure_default_output(ctx, snapshot);
-        self.ensure_default_command(ctx, snapshot);
         self.refresh_transport(ctx, snapshot);
     }
 
@@ -682,24 +663,6 @@ fn collect_outputs_recursive(snapshot: &ProcessTreeSnapshot, parent: NodeId, out
             output.push(child_id);
         } else if child_snapshot.node_type == "folder" {
             collect_outputs_recursive(snapshot, child_id, output);
-        }
-    }
-}
-
-fn collect_send_custom_message_commands_recursive(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    output: &mut Vec<NodeId>,
-) {
-    for child_id in snapshot.child_ids(parent) {
-        let Some(child_snapshot) = snapshot.node(child_id) else {
-            continue;
-        };
-
-        if child_snapshot.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE {
-            output.push(child_id);
-        } else if child_snapshot.node_type == "folder" {
-            collect_send_custom_message_commands_recursive(snapshot, child_id, output);
         }
     }
 }

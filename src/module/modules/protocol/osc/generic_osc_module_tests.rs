@@ -4,10 +4,11 @@ use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch, NodeUserPermissions},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
+    process_ctx::ExecutionPhase,
 };
 use rosc::{decoder, OscPacket, OscType};
 
-use crate::app::{GenericOscModule, OscDecodedMessage, OscValuePayload};
+use crate::app::{GenericOscModule, OscDecodedMessage, OscSendCustomMessageCommand, OscValuePayload};
 
 #[test]
 fn incoming_message_auto_adds_value_nodes_under_values_folder() {
@@ -72,6 +73,33 @@ fn incoming_message_auto_adds_value_nodes_under_values_folder() {
 }
 
 #[test]
+fn new_module_command_tester_starts_empty() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(GenericOscModule::create().into(), None);
+    engine.apply_edits().expect("generic osc module should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("osc defaults should materialize");
+    }
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+
+    assert!(
+        engine
+            .nodes
+            .get(command_tester_id)
+            .and_then(|node| node.node_data().first_child)
+            .is_none(),
+        "new OSC modules should not seed command tester commands"
+    );
+}
+
+#[test]
 fn send_custom_message_command_sends_osc_packet_through_module_output() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver
@@ -122,20 +150,50 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
     );
 
     engine.apply_edits().expect("osc transport config edits should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("osc transport config edits should dispatch");
+    engine
+        .apply_edits()
+        .expect("osc transport config reactions should apply");
     engine.resolve().expect("runtime schedule should resolve");
     engine
         .run_tick(Duration::from_millis(20))
         .expect("runtime tick should refresh osc transport");
 
     let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    assert!(
+        engine
+            .nodes
+            .get(command_tester_id)
+            .and_then(|node| node.node_data().first_child)
+            .is_none(),
+        "command tester should start empty before commands are user-created"
+    );
+
+    engine.add_user_item(OscSendCustomMessageCommand::create().into(), Some(command_tester_id));
+    engine
+        .apply_edits()
+        .expect("send custom message command should be created");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("send custom message command children should materialize");
+    }
+
     let command_id = engine
         .nodes
         .get(command_tester_id)
         .and_then(|node| node.node_data().first_child)
-        .expect("default send custom message command should be created");
+        .expect("send custom message command should be created");
 
     let command_child_labels = child_labels(&engine, command_id);
-    let arguments_id = find_path(&engine, command_id, "command/arguments")
+    assert!(
+        !command_child_labels.iter().any(|label| label == "Command"),
+        "command children should be flat; children were {command_child_labels:?}"
+    );
+
+    let arguments_id = find_path(&engine, command_id, "arguments")
         .unwrap_or_else(|| panic!("arguments folder should exist; command children were {command_child_labels:?}"));
     engine.add_user_item(
         Parameter::new("Int", ParamValue::Int(7), ParameterChangeCheck::ValueChange).into(),
@@ -155,10 +213,23 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
         Some(arguments_id),
     );
 
-    let address_param = find_path(&engine, command_id, "command/address").expect("command address param should exist");
-    let execute_param = find_path(&engine, command_id, "command/execute").expect("command execute param should exist");
-    let last_result_param =
-        find_path(&engine, command_id, "command/last_result").expect("command result param should exist");
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    let trigger_param = find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
+    assert!(
+        !engine
+            .nodes
+            .get(trigger_param)
+            .expect("trigger param should exist")
+            .node_data()
+            .meta
+            .presentation
+            .show_in_inspector_content,
+        "trigger should be hidden from inspector content so the command inspector can render it in the header"
+    );
+    assert!(
+        find_path(&engine, command_id, "last_result").is_none(),
+        "commands should not expose a last result parameter"
+    );
 
     set_param(
         &mut engine,
@@ -168,29 +239,26 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
     engine.apply_edits().expect("command setup edits should apply");
 
     engine.edits.push(Edit::SetParam {
-        node: execute_param,
+        node: trigger_param,
         value: ParamValue::Trigger(),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
     engine.apply_edits().expect("command trigger edit should apply");
     engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("command trigger should dispatch");
+    engine
         .apply_edits()
         .expect("queued command request should apply through the engine");
     engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued command request should dispatch to the module");
+    engine
+        .apply_edits()
+        .expect("queued command request side effects should apply through the engine");
+    engine
         .run_tick(Duration::from_millis(20))
         .expect("runtime tick should let the transport process the queued command");
-
-    let last_result = engine
-        .nodes
-        .get(last_result_param)
-        .and_then(|node| node.engine_param_snapshot())
-        .map(|snapshot| snapshot.value);
-    assert_eq!(
-        last_result,
-        Some(ParamValue::Str(
-            "Queued OSC /test/custom-message for 1 output(s)".to_string()
-        ))
-    );
 
     let mut buffer = [0u8; 2048];
     let (length, _) = receiver
@@ -266,6 +334,12 @@ fn changing_values_parameter_sends_osc_packet_through_module_output() {
     );
 
     engine.apply_edits().expect("osc transport config edits should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("osc transport config edits should dispatch");
+    engine
+        .apply_edits()
+        .expect("osc transport config reactions should apply");
     engine.resolve().expect("runtime schedule should resolve");
     engine
         .run_tick(Duration::from_millis(20))
@@ -281,6 +355,10 @@ fn changing_values_parameter_sends_osc_packet_through_module_output() {
     let value_id = find_child_by_key(&engine, values_id, "Foo").expect("value parameter should exist");
     set_param(&mut engine, value_id, ParamValue::Float(3.25));
     engine.apply_edits().expect("value change should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("value change should dispatch");
+    engine.apply_edits().expect("outbound value edit queue should settle");
     engine
         .run_tick(Duration::from_millis(20))
         .expect("runtime tick should flush outbound OSC values");
@@ -305,7 +383,11 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
     while let Some(child_id) = child {
         let node = engine.nodes.get(child_id)?;
         let meta = &node.node_data().meta;
-        if meta.decl_id.0 == key || meta.short_name == key || meta.label == key {
+        if meta.decl_id.0 == key
+            || meta.decl_id.0.rsplit('/').next() == Some(key)
+            || meta.short_name == key
+            || meta.label == key
+        {
             return Some(child_id);
         }
         child = node.node_data().next_sibling;

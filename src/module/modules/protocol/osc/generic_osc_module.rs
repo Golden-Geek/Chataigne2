@@ -384,4 +384,4 @@ fn param_types_match(lhs: &ParamValue, rhs: &ParamValue) -> bool {
 }
 
 #[cfg(test)]
-mod tests;
+mod generic_osc_module_tests;
