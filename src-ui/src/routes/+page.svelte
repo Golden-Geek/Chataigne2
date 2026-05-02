@@ -1,11 +1,21 @@
 <script lang="ts">
-	import { MainWindow, registerNodeInspector, type UserPanelDefinitionMap } from 'golden_ui';
+	import {
+		MainWindow,
+		registerNodeInspector,
+		registerOutlinerRowSupplement,
+		type UserPanelDefinitionMap
+	} from 'golden_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
 	import ModuleCommandInspector from '$lib/inspectors/ModuleCommandInspector.svelte';
+	import ModuleItem from '$lib/panels/modules/ModuleItem.svelte';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 
 	registerNodeInspector('module_command', {
 		component: ModuleCommandInspector
+	});
+
+	registerOutlinerRowSupplement('module', {
+		component: ModuleItem
 	});
 
 	const userPanels: UserPanelDefinitionMap = {

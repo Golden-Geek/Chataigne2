@@ -100,6 +100,114 @@ fn new_module_command_tester_starts_empty() {
 }
 
 #[test]
+fn osc_module_connection_indicators_follow_receiver_and_outputs() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    let output_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+    let (mut engine, module_id) = create_osc_module_with_output(output_port);
+
+    let connected_param = find_path(&engine, module_id, "connection/connected")
+        .expect("module connection state parameter should exist");
+    let can_receive_param = find_path(&engine, module_id, "connection/can_receive")
+        .expect("module incoming capability parameter should exist");
+    let can_send_param = find_path(&engine, module_id, "connection/can_send")
+        .expect("module outgoing capability parameter should exist");
+    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
+    let receiver_port_param =
+        find_path(&engine, module_id, "parameters/receiver/port").expect("receiver port param should exist");
+    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
+
+    assert!(
+        engine
+            .nodes
+            .get(outputs_id)
+            .expect("outputs node should exist")
+            .node_data()
+            .meta
+            .can_be_disabled,
+        "OSC Outputs should expose an enabled toggle"
+    );
+
+    assert_bool_param(&engine, connected_param, true, "output-only OSC transport should be connected");
+    assert_bool_param(
+        &engine,
+        can_receive_param,
+        false,
+        "disabled Receiver should hide the incoming indicator",
+    );
+    assert_bool_param(
+        &engine,
+        can_send_param,
+        true,
+        "enabled Outputs should show the outgoing indicator",
+    );
+
+    set_node_enabled(&mut engine, outputs_id, false);
+    settle_osc_module_state(&mut engine);
+    assert_bool_param(
+        &engine,
+        connected_param,
+        false,
+        "OSC module with Receiver and Outputs disabled should not report connected",
+    );
+    assert_bool_param(
+        &engine,
+        can_receive_param,
+        false,
+        "disabled Receiver should still hide the incoming indicator",
+    );
+    assert_bool_param(
+        &engine,
+        can_send_param,
+        false,
+        "disabled Outputs should hide the outgoing indicator",
+    );
+
+    set_param(
+        &mut engine,
+        receiver_port_param,
+        ParamValue::Int(i32::from(available_udp_port())),
+    );
+    set_node_enabled(&mut engine, receiver_folder, true);
+    settle_osc_module_state(&mut engine);
+    assert_bool_param(
+        &engine,
+        connected_param,
+        true,
+        "OSC receiver should report connected after binding",
+    );
+    assert_bool_param(
+        &engine,
+        can_receive_param,
+        true,
+        "enabled Receiver should show the incoming indicator",
+    );
+    assert_bool_param(
+        &engine,
+        can_send_param,
+        false,
+        "disabled Outputs should still hide the outgoing indicator",
+    );
+
+    set_node_enabled(&mut engine, outputs_id, true);
+    settle_osc_module_state(&mut engine);
+    assert_bool_param(
+        &engine,
+        can_receive_param,
+        true,
+        "enabled Receiver should keep the incoming indicator visible",
+    );
+    assert_bool_param(
+        &engine,
+        can_send_param,
+        true,
+        "enabled Outputs should show the outgoing indicator again",
+    );
+}
+
+#[test]
 fn send_custom_message_command_sends_osc_packet_through_module_output() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver
@@ -425,6 +533,56 @@ fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue
         value,
         behaviour: ParameterEventBehaviour::Coalesce,
     });
+}
+
+fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool) {
+    engine.edits.push(Edit::PatchMeta {
+        node,
+        patch: NodeMetaPatch {
+            enabled: Some(enabled),
+            ..Default::default()
+        },
+    });
+}
+
+fn settle_osc_module_state(engine: &mut crate::app::AppEngine) {
+    engine.apply_edits().expect("pending OSC indicator edits should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("pending OSC indicator edits should dispatch");
+    engine
+        .apply_edits()
+        .expect("OSC indicator event reactions should apply");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should refresh OSC indicator state");
+    engine
+        .apply_edits()
+        .expect("OSC indicator parameter updates should apply");
+}
+
+fn assert_bool_param(engine: &crate::app::AppEngine, node: NodeId, expected: bool, context: &str) {
+    assert_eq!(bool_param_value(engine, node), expected, "{context}");
+}
+
+fn bool_param_value(engine: &crate::app::AppEngine, node: NodeId) -> bool {
+    match engine
+        .nodes
+        .get(node)
+        .and_then(|candidate| candidate.engine_param_snapshot())
+        .map(|snapshot| snapshot.value)
+    {
+        Some(ParamValue::Bool(value)) => value,
+        other => panic!("expected bool parameter, got {other:?}"),
+    }
+}
+
+fn available_udp_port() -> u16 {
+    UdpSocket::bind("127.0.0.1:0")
+        .expect("temporary UDP port probe should bind")
+        .local_addr()
+        .expect("temporary UDP port probe should expose an address")
+        .port()
 }
 
 fn create_send_custom_message_command(engine: &mut crate::app::AppEngine, command_tester_id: NodeId) -> NodeId {

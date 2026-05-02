@@ -45,7 +45,7 @@ pub(crate) const SCRIPT_ITEM: AppNodeDescriptor = AppNodeDescriptor {
     user_item_kind: Some(SCRIPT_ITEM_KIND),
 };
 
-pub(crate) const MODULE_INFOS_DECL_ID: &str = "infos";
+pub(crate) const MODULE_CONNECTION_DECL_ID: &str = "connection";
 pub(crate) const MODULE_PARAMETERS_DECL_ID: &str = "parameters";
 pub(crate) const MODULE_VALUES_DECL_ID: &str = "values";
 pub(crate) const MODULE_VALUES_REFERENCE_FILTER_KEY: &str = "module_values_parameters";

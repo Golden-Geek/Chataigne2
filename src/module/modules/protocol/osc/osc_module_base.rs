@@ -13,6 +13,7 @@ use golden_core::{
 };
 
 use self::osc_runtime::{OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscWorkerEvent};
+use crate::app::module::ModuleDataCapabilities;
 
 pub(crate) use self::osc_message::{OscDecodedMessage, OscValuePayload};
 
@@ -42,6 +43,12 @@ struct OscOutputTarget {
     remote_port: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OscQueueError {
+    queued: usize,
+    message: String,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub(crate) struct OscSendCustomMessageRequest {
     pub address: String,
@@ -69,7 +76,8 @@ pub(crate) struct OscSendCustomMessageRequest {
         }
         node outputs: crate::app::OscOutputManager = crate::app::OscOutputManager::new() (
             label = "Outputs",
-            description = "OSC destinations used by this module for outgoing traffic."
+            description = "OSC destinations used by this module for outgoing traffic.",
+            can_be_disabled = true
         );
     }
     node command_tester: crate::app::OscCommandTester = crate::app::OscCommandTester::create() (
@@ -198,6 +206,7 @@ impl OscModuleBase {
 
         match self.transport_binding(snapshot) {
             Ok(binding) => {
+                let connected = self.connected_for_binding(snapshot, &binding);
                 let config = OscTransportConfig {
                     bind_interface_host:
                         crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
@@ -209,7 +218,7 @@ impl OscModuleBase {
 
                 if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
                     self.clear_receiver_warning(ctx, snapshot);
-                    self.base.set_connected(ctx, binding.receive_enabled);
+                    self.base.set_connected(ctx, connected);
                     return;
                 }
 
@@ -220,7 +229,7 @@ impl OscModuleBase {
                         self.transport = Some(handle);
                         self.last_transport_config = Some(config);
                         self.clear_receiver_warning(ctx, snapshot);
-                        self.base.set_connected(ctx, binding.receive_enabled);
+                        self.base.set_connected(ctx, connected);
                         if binding.receive_enabled {
                             self.log_receiver_bound(
                                 crate::app::module::common::network_interfaces::bind_host_for_interface_variant(
@@ -285,7 +294,7 @@ impl OscModuleBase {
         })
     }
 
-    fn drain_transport_events(&mut self) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
         let mut worker_events = Vec::new();
         let Some(transport) = &self.transport else {
             return;
@@ -295,13 +304,21 @@ impl OscModuleBase {
             worker_events.push(event);
         }
 
+        let mut received_message = false;
         for event in worker_events {
             match event {
-                OscWorkerEvent::Message(message) => self.enqueue_incoming_message(message),
+                OscWorkerEvent::Message(message) => {
+                    received_message = true;
+                    self.enqueue_incoming_message(message);
+                }
                 OscWorkerEvent::Error(error) => {
                     logerror!("OSC transport error: {}", error);
                 }
             }
+        }
+
+        if received_message {
+            self.base.emit_incoming_traffic(ctx);
         }
     }
 
@@ -319,7 +336,7 @@ impl OscModuleBase {
         ctx.add_user_item_boxed(outputs_id, Box::new(crate::app::OscOutput::new()), None);
     }
 
-    fn flush_outbound_values(&mut self, snapshot: &ProcessTreeSnapshot) {
+    fn flush_outbound_values(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         if self.pending_outbound_nodes.is_empty() {
             return;
         }
@@ -340,6 +357,7 @@ impl OscModuleBase {
             return;
         };
 
+        let mut sent_message = false;
         for target_id in target_nodes {
             let Some(address) = outgoing_address_for_values_node(snapshot, values_id, target_id) else {
                 continue;
@@ -348,13 +366,27 @@ impl OscModuleBase {
                 continue;
             };
 
-            if let Err(error) = self.queue_message_for_outputs(outputs.as_slice(), address.as_str(), &payload) {
-                logerror!("Failed to send OSC message {} - {}", address, error);
+            match self.queue_message_for_outputs(outputs.as_slice(), address.as_str(), &payload) {
+                Ok(queued) => {
+                    sent_message = sent_message || queued > 0;
+                }
+                Err(error) => {
+                    sent_message = sent_message || error.queued > 0;
+                    logerror!("Failed to send OSC message {} - {}", address, error.message);
+                }
             }
+        }
+
+        if sent_message {
+            self.base.emit_outgoing_traffic(ctx);
         }
     }
 
     fn collect_enabled_outputs(&self, snapshot: &ProcessTreeSnapshot) -> Vec<OscOutputTarget> {
+        if !self.outputs_enabled(snapshot).unwrap_or(false) {
+            return Vec::new();
+        }
+
         let Some(outputs_id) = self.outputs.current_id() else {
             return Vec::new();
         };
@@ -427,17 +459,26 @@ impl OscModuleBase {
         outputs: &[OscOutputTarget],
         address: &str,
         payload: &OscValuePayload,
-    ) -> Result<usize, String> {
+    ) -> Result<usize, OscQueueError> {
         if outputs.is_empty() {
-            return Err("no enabled OSC outputs are configured".to_string());
+            return Err(OscQueueError {
+                queued: 0,
+                message: "no enabled OSC outputs are configured".to_string(),
+            });
         }
 
         let transport = self
             .transport
             .as_ref()
-            .ok_or_else(|| "OSC transport is not available".to_string())?;
+            .ok_or_else(|| OscQueueError {
+                queued: 0,
+                message: "OSC transport is not available".to_string(),
+            })?;
         self::osc_message::encode_packet(address, payload)
-            .map_err(|error| format!("cannot encode OSC message '{}': {error}", address.trim()))?;
+            .map_err(|error| OscQueueError {
+                queued: 0,
+                message: format!("cannot encode OSC message '{}': {error}", address.trim()),
+            })?;
 
         let mut queued = 0usize;
         let mut errors = Vec::new();
@@ -466,25 +507,43 @@ impl OscModuleBase {
         }
 
         if queued == 0 {
-            return Err(errors.join("; "));
+            return Err(OscQueueError {
+                queued,
+                message: errors.join("; "),
+            });
         }
 
-        Err(format!(
-            "queued {} output(s), but {} output(s) failed: {}",
+        Err(OscQueueError {
             queued,
-            errors.len(),
-            errors.join("; ")
-        ))
+            message: format!(
+                "queued {} output(s), but {} output(s) failed: {}",
+                queued,
+                errors.len(),
+                errors.join("; ")
+            ),
+        })
     }
 
     fn queue_custom_message(
         &self,
+        ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         request: &OscSendCustomMessageRequest,
     ) -> Result<String, String> {
         let outputs = self.collect_enabled_outputs(snapshot);
         let payload = OscValuePayload::Arguments(request.arguments.clone());
-        let queued = self.queue_message_for_outputs(outputs.as_slice(), request.address.as_str(), &payload)?;
+        let queued = match self.queue_message_for_outputs(outputs.as_slice(), request.address.as_str(), &payload) {
+            Ok(queued) => queued,
+            Err(error) => {
+                if error.queued > 0 {
+                    self.base.emit_outgoing_traffic(ctx);
+                }
+                return Err(error.message);
+            }
+        };
+        if queued > 0 {
+            self.base.emit_outgoing_traffic(ctx);
+        }
         Ok(format!("Queued OSC {} for {} output(s)", request.address, queued))
     }
 
@@ -507,7 +566,7 @@ impl OscModuleBase {
 
         if let Err(error) = serde_json::from_value::<OscSendCustomMessageRequest>(payload)
             .map_err(|error| format!("invalid OSC command payload: {error}"))
-            .and_then(|payload| self.queue_custom_message(snapshot, &payload))
+            .and_then(|payload| self.queue_custom_message(ctx, snapshot, &payload))
         {
             logerror!(format!("Failed to handle OSC command {:?}: {error}", command_id));
         }
@@ -558,6 +617,33 @@ impl OscModuleBase {
         snapshot.node(receiver_id).map(|node| node.enabled)
     }
 
+    fn outputs_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+        self.outputs.current_id().or_else(|| {
+            let parameters_id = self.base.parameters_id()?;
+            snapshot.find_child(parameters_id, "outputs")
+        })
+    }
+
+    fn outputs_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
+        let outputs_id = self.outputs_node_id(snapshot)?;
+        snapshot.node(outputs_id).map(|node| node.enabled)
+    }
+
+    fn data_capabilities(&self, snapshot: &ProcessTreeSnapshot) -> ModuleDataCapabilities {
+        ModuleDataCapabilities::new(
+            self.receiver_enabled(snapshot).unwrap_or(false),
+            self.outputs_enabled(snapshot).unwrap_or(false),
+        )
+    }
+
+    fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        self.base.set_data_capabilities(ctx, self.data_capabilities(snapshot));
+    }
+
+    fn connected_for_binding(&self, snapshot: &ProcessTreeSnapshot, binding: &OscTransportBinding) -> bool {
+        binding.receive_enabled || self.outputs_enabled(snapshot).unwrap_or(false)
+    }
+
     fn set_receiver_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
         let Some(receiver_id) = self.receiver_node_id(snapshot) else {
             return;
@@ -588,17 +674,17 @@ impl Node for OscModuleBase {
         };
         let snapshot = snapshot_arc.as_ref();
 
+        self.refresh_data_capabilities(ctx, snapshot);
         self.ensure_default_output(ctx, snapshot);
         self.refresh_transport(ctx, snapshot);
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events();
+        self.drain_transport_events(ctx);
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot =
-            refresh_interface_options || self.transport_dirty || !self.pending_outbound_nodes.is_empty();
+        let needs_snapshot = refresh_interface_options || self.transport_dirty || !self.pending_outbound_nodes.is_empty();
         if !needs_snapshot {
             return;
         }
@@ -613,11 +699,13 @@ impl Node for OscModuleBase {
             self.interface_refresh_elapsed = 0.0;
         }
 
+        self.refresh_data_capabilities(ctx, snapshot);
+
         if self.transport_dirty {
             self.refresh_transport(ctx, snapshot);
         }
 
-        self.flush_outbound_values(snapshot);
+        self.flush_outbound_values(ctx, snapshot);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {

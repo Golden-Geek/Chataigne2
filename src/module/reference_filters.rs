@@ -11,7 +11,7 @@ pub(crate) fn resolve_enclosing_module_root(snapshot: &ProcessTreeSnapshot, star
     let mut current = Some(start);
 
     while let Some(node_id) = current {
-        if snapshot.find_child(node_id, super::constants::MODULE_INFOS_DECL_ID).is_some()
+        if snapshot.find_child(node_id, super::constants::MODULE_CONNECTION_DECL_ID).is_some()
             && snapshot
                 .find_child(node_id, super::constants::MODULE_PARAMETERS_DECL_ID)
                 .is_some()
