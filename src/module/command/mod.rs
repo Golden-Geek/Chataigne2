@@ -1,8 +1,8 @@
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules},
-    parameter::ParamValue,
+    node::{DeclId, Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
+const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct ModuleCommandRequestEvent {
@@ -31,8 +32,75 @@ pub(crate) fn module_command_triggered(
     command_id: NodeId,
     changed_param: NodeId,
 ) -> bool {
-    resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TRIGGER_PATH)
+    module_command_manual_triggered(snapshot, command_id, changed_param)
+        || module_command_auto_triggered(snapshot, command_id, changed_param)
+}
+
+fn module_command_manual_triggered(
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    changed_param: NodeId,
+) -> bool {
+    resolve_module_command_control(snapshot, command_id, MODULE_COMMAND_TRIGGER_PATH)
         .is_some_and(|trigger_id| trigger_id == changed_param)
+}
+
+fn module_command_auto_triggered(
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    changed_param: NodeId,
+) -> bool {
+    let Some(auto_trigger_id) = resolve_module_command_control(
+        snapshot,
+        command_id,
+        MODULE_COMMAND_AUTO_TRIGGER_PATH,
+    ) else {
+        return false;
+    };
+
+    if changed_param == auto_trigger_id {
+        return false;
+    }
+    if resolve_module_command_control(snapshot, command_id, MODULE_COMMAND_TRIGGER_PATH)
+        .is_some_and(|trigger_id| trigger_id == changed_param)
+    {
+        return false;
+    }
+    if !node_is_descendant_of(snapshot, changed_param, command_id) {
+        return false;
+    }
+    if !snapshot
+        .node(changed_param)
+        .is_some_and(|node| node.param_value.is_some())
+    {
+        return false;
+    }
+
+    bool_param(snapshot, auto_trigger_id)
+}
+
+fn bool_param(snapshot: &ProcessTreeSnapshot, param_id: NodeId) -> bool {
+    snapshot
+        .node(param_id)
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_bool)
+        .unwrap_or(false)
+}
+
+fn node_is_descendant_of(
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+    ancestor_id: NodeId,
+) -> bool {
+    let mut current = snapshot.node(node_id).and_then(|node| node.parent);
+    while let Some(current_id) = current {
+        if current_id == ancestor_id {
+            return true;
+        }
+        current = snapshot.node(current_id).and_then(|node| node.parent);
+    }
+
+    false
 }
 
 pub(crate) fn resolve_module_command_child(
@@ -45,6 +113,15 @@ pub(crate) fn resolve_module_command_child(
     find_direct_child_by_decl_id(snapshot, command_id, path)
         .or_else(|| find_descendant_by_decl_id(snapshot, command_id, path))
         .or_else(|| snapshot.resolve_path_from(command_id, path))
+}
+
+fn resolve_module_command_control(
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    path: &str,
+) -> Option<NodeId> {
+    find_direct_child_by_decl_id(snapshot, command_id, path)
+        .or_else(|| snapshot.find_child(command_id, path))
 }
 
 fn find_direct_child_by_decl_id(
@@ -128,6 +205,22 @@ impl Node for ModuleCommandManagerBase {
     }
 }
 
+impl ModuleCommandManagerBase {
+    pub(crate) fn ensure_command_tester_controls(&self, ctx: &mut ProcessCtx, command_id: NodeId) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        if snapshot.node(command_id).is_none() {
+            return;
+        }
+        if resolve_module_command_control(snapshot, command_id, MODULE_COMMAND_AUTO_TRIGGER_PATH).is_some() {
+            return;
+        }
+
+        ctx.add_child_boxed(command_id, Box::new(create_auto_trigger_parameter()), None);
+    }
+}
+
 #[node("module_command_base", label = "Command")]
 #[children(
     trigger: ParamValue = ParamValue::Trigger() (
@@ -147,4 +240,19 @@ impl Node for ModuleCommandBase {
     fn user_item_kind(&self) -> &str {
         MODULE_COMMAND_ITEM_KIND
     }
+}
+
+fn create_auto_trigger_parameter() -> Parameter {
+    let mut parameter = Parameter::new(
+        "Auto Trigger",
+        ParamValue::Bool(false),
+        ParameterChangeCheck::ValueChange,
+    );
+    let meta = &mut parameter.node_data_mut().meta;
+    meta.decl_id = DeclId(MODULE_COMMAND_AUTO_TRIGGER_PATH.to_string());
+    meta.short_name = MODULE_COMMAND_AUTO_TRIGGER_PATH.to_string();
+    meta.description =
+        Some("Run this command automatically when one of its command parameters changes.".to_string());
+    meta.presentation.show_in_inspector_content = false;
+    parameter
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { NodeInspectorComponentProps, UiNodeDto } from 'golden_ui';
 	import { appState } from '$lib/golden_ui/store/workbench.svelte';
+	import CheckboxEditor from '$lib/golden_ui/components/panels/inspector/parameters/CheckboxEditor.svelte';
 	import TriggerEditor from '$lib/golden_ui/components/panels/inspector/parameters/TriggerEditor.svelte';
 
 	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
@@ -16,6 +17,13 @@
 			candidate.meta.short_name === 'trigger' ||
 			candidate.meta.label === 'Trigger');
 
+	const isAutoTrigger = (candidate: UiNodeDto): boolean =>
+		candidate.data.kind === 'parameter' &&
+		candidate.data.param.value.kind === 'bool' &&
+		(candidate.decl_id === 'auto_trigger' ||
+			candidate.meta.short_name === 'auto_trigger' ||
+			candidate.meta.label === 'Auto Trigger');
+
 	let triggerNode = $derived.by((): UiNodeDto | null => {
 		if (!graphNodesById) {
 			return null;
@@ -30,12 +38,27 @@
 
 		return null;
 	});
+
+	let autoTriggerNode = $derived.by((): UiNodeDto | null => {
+		if (!graphNodesById) {
+			return null;
+		}
+
+		for (const childId of liveNode.children) {
+			const child = graphNodesById.get(childId);
+			if (child && isAutoTrigger(child)) {
+				return child;
+			}
+		}
+
+		return null;
+	});
 </script>
 
 {#snippet commandHeaderExtra()}
-	{#if triggerNode}
+	{#if autoTriggerNode || triggerNode}
 		<span
-			class="command-header-trigger"
+			class="command-header-controls"
 			role="presentation"
 			onclick={(event) => {
 				event.stopPropagation();
@@ -43,7 +66,16 @@
 			onkeydown={(event) => {
 				event.stopPropagation();
 			}}>
-			<TriggerEditor node={triggerNode} layoutMode="widget" insideLabel={triggerNode.meta.label} />
+			{#if autoTriggerNode}
+				<span class="command-header-auto-trigger" title={autoTriggerNode.meta.label}>
+					<CheckboxEditor node={autoTriggerNode} layoutMode="widget" insideLabel="Auto" />
+				</span>
+			{/if}
+			{#if triggerNode}
+				<span class="command-header-trigger">
+					<TriggerEditor node={triggerNode} layoutMode="widget" insideLabel={triggerNode.meta.label} />
+				</span>
+			{/if}
 		</span>
 	{/if}
 {/snippet}
@@ -57,12 +89,36 @@
 {/if}
 
 <style>
+	.command-header-controls {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		margin-left: 0.15rem;
+	}
+
+	.command-header-auto-trigger {
+		display: inline-flex;
+		align-items: center;
+		inline-size: 3rem;
+		block-size: 1.15rem;
+	}
+
 	.command-header-trigger {
 		display: inline-flex;
 		align-items: center;
 		inline-size: 4.8rem;
 		block-size: 1.15rem;
-		margin-left: 0.15rem;
+	}
+
+	.command-header-auto-trigger :global(.widget-checkbox-button) {
+		border-radius: 0.35rem;
+		padding: 0;
+	}
+
+	.command-header-auto-trigger :global(.widget-checkbox-button.with-inline-label .widget-checkbox-mark) {
+		padding-inline: 0.25rem;
+		font-size: 0.62rem;
+		font-weight: 600;
 	}
 
 	.command-header-trigger :global(.trigger) {

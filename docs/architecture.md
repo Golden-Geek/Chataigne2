@@ -29,10 +29,12 @@ it to add their concrete command catalog and execution payloads. Command testers
 modules do not seed ad-hoc commands unless a user or an explicit project preset adds them. Command
 items expose trigger and configuration controls as direct children; they should not wrap their
 parameters in an extra command folder or persist transient execution results as command parameters.
+Command-tester contexts may add tester-only controls such as auto-trigger to command instances
+without introducing a separate command type.
 When a custom inspector moves a child control into a header or another region, the child should opt
 out of the normal inspector content through node presentation metadata instead of being filtered by
 node type in the UI. Shared command inspectors should attach to the `module_command` item kind so
-all command implementations inherit the same trigger placement.
+all command implementations inherit the same trigger and tester-control placement.
 
 Inspector visibility is opt-out. `golden_core::node::PresentationHint` defaults nested inspector
 visibility on for every node; only nodes that should disappear from a parent inspector should set

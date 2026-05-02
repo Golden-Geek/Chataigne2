@@ -1,6 +1,7 @@
 use golden_core::{
     node,
-    node::{Node, UserCreatableItem},
+    node::{Node, NodeId, UserCreatableItem},
+    process_ctx::ProcessCtx,
 };
 
 #[node("osc_command_tester", label = "Command Tester")]
@@ -33,6 +34,12 @@ impl Node for OscCommandTester {
                 Some(Box::new(crate::app::OscSendCustomMessageCommand::create()))
             }
             _ => None,
+        }
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        if parent == self.id() {
+            self.manager.ensure_command_tester_controls(ctx, child);
         }
     }
 }

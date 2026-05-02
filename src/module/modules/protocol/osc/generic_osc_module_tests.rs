@@ -110,56 +110,7 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
         .expect("test receiver should expose a local address")
         .port();
 
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("generic osc module should attach");
-    for _ in 0..4 {
-        engine.apply_edits().expect("osc defaults should materialize");
-    }
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("module should be attached under root");
-
-    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
-    engine.edits.push(Edit::PatchMeta {
-        node: receiver_folder,
-        patch: NodeMetaPatch {
-            enabled: Some(false),
-            ..Default::default()
-        },
-    });
-
-    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
-    let output_id = engine
-        .nodes
-        .get(outputs_id)
-        .and_then(|node| node.node_data().first_child)
-        .expect("default output should be created");
-
-    let remote_host_param = find_path(&engine, output_id, "remote_host").expect("output host param should exist");
-    let remote_port_param = find_path(&engine, output_id, "remote_port").expect("output port param should exist");
-    set_param(&mut engine, remote_host_param, ParamValue::Str("127.0.0.1".to_string()));
-    set_param(
-        &mut engine,
-        remote_port_param,
-        ParamValue::Int(i32::from(receiver_port)),
-    );
-
-    engine.apply_edits().expect("osc transport config edits should apply");
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("osc transport config edits should dispatch");
-    engine
-        .apply_edits()
-        .expect("osc transport config reactions should apply");
-    engine.resolve().expect("runtime schedule should resolve");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("runtime tick should refresh osc transport");
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
 
     let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     assert!(
@@ -171,21 +122,7 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
         "command tester should start empty before commands are user-created"
     );
 
-    engine.add_user_item(OscSendCustomMessageCommand::create().into(), Some(command_tester_id));
-    engine
-        .apply_edits()
-        .expect("send custom message command should be created");
-    for _ in 0..4 {
-        engine
-            .apply_edits()
-            .expect("send custom message command children should materialize");
-    }
-
-    let command_id = engine
-        .nodes
-        .get(command_tester_id)
-        .and_then(|node| node.node_data().first_child)
-        .expect("send custom message command should be created");
+    let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
 
     let command_child_labels = child_labels(&engine, command_id);
     assert!(
@@ -215,6 +152,8 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
 
     let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
     let trigger_param = find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
+    let auto_trigger_param =
+        find_path(&engine, command_id, "auto_trigger").expect("command auto-trigger param should exist");
     assert!(
         !engine
             .nodes
@@ -225,6 +164,26 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
             .presentation
             .show_in_inspector_content,
         "trigger should be hidden from inspector content so the command inspector can render it in the header"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(auto_trigger_param)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(false)),
+        "command tester auto-trigger should be available and disabled by default"
+    );
+    assert!(
+        !engine
+            .nodes
+            .get(auto_trigger_param)
+            .expect("auto-trigger param should exist")
+            .node_data()
+            .meta
+            .presentation
+            .show_in_inspector_content,
+        "auto-trigger should be hidden from inspector content so the command inspector can render it in the header"
     );
     assert!(
         find_path(&engine, command_id, "last_result").is_none(),
@@ -284,6 +243,87 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
 }
 
 #[test]
+fn auto_trigger_send_custom_message_command_sends_when_command_parameter_changes() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    receiver
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("test receiver should accept a read timeout");
+    let receiver_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
+
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
+
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    let auto_trigger_param =
+        find_path(&engine, command_id, "auto_trigger").expect("command auto-trigger param should exist");
+
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/before-auto-trigger".to_string()),
+    );
+    engine.apply_edits().expect("initial command setup edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("initial command setup event should dispatch");
+    engine
+        .apply_edits()
+        .expect("initial command setup event should settle without sending");
+
+    set_param(&mut engine, auto_trigger_param, ParamValue::Bool(true));
+    engine.apply_edits().expect("auto-trigger edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("auto-trigger edit should dispatch");
+    engine
+        .apply_edits()
+        .expect("auto-trigger edit should not emit a command request");
+
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/auto-trigger".to_string()),
+    );
+    engine
+        .apply_edits()
+        .expect("auto-triggered command parameter edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("auto-triggered command parameter edit should dispatch");
+    engine
+        .apply_edits()
+        .expect("queued auto-triggered command request should apply through the engine");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued auto-triggered command request should dispatch to the module");
+    engine
+        .apply_edits()
+        .expect("queued auto-triggered command request side effects should apply through the engine");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should let the transport process the auto-triggered command");
+
+    let mut buffer = [0u8; 2048];
+    let (length, _) = receiver
+        .recv_from(&mut buffer)
+        .expect("auto-triggered OSC command should send a UDP packet");
+    let (_, packet) = decoder::decode_udp(&buffer[..length]).expect("udp payload should decode as osc");
+
+    match packet {
+        OscPacket::Message(message) => {
+            assert_eq!(message.addr, "/test/auto-trigger");
+            assert!(message.args.is_empty());
+        }
+        other => panic!("expected OSC message packet, got {other:?}"),
+    }
+}
+
+#[test]
 fn changing_values_parameter_sends_osc_packet_through_module_output() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver
@@ -294,56 +334,7 @@ fn changing_values_parameter_sends_osc_packet_through_module_output() {
         .expect("test receiver should expose a local address")
         .port();
 
-    let root: crate::app::AppNode = Folder::new("root").into();
-    let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("generic osc module should attach");
-    for _ in 0..4 {
-        engine.apply_edits().expect("osc defaults should materialize");
-    }
-
-    let module_id = engine
-        .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("module should be attached under root");
-
-    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
-    engine.edits.push(Edit::PatchMeta {
-        node: receiver_folder,
-        patch: NodeMetaPatch {
-            enabled: Some(false),
-            ..Default::default()
-        },
-    });
-
-    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
-    let output_id = engine
-        .nodes
-        .get(outputs_id)
-        .and_then(|node| node.node_data().first_child)
-        .expect("default output should be created");
-
-    let remote_host_param = find_path(&engine, output_id, "remote_host").expect("output host param should exist");
-    let remote_port_param = find_path(&engine, output_id, "remote_port").expect("output port param should exist");
-    set_param(&mut engine, remote_host_param, ParamValue::Str("127.0.0.1".to_string()));
-    set_param(
-        &mut engine,
-        remote_port_param,
-        ParamValue::Int(i32::from(receiver_port)),
-    );
-
-    engine.apply_edits().expect("osc transport config edits should apply");
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("osc transport config edits should dispatch");
-    engine
-        .apply_edits()
-        .expect("osc transport config reactions should apply");
-    engine.resolve().expect("runtime schedule should resolve");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("runtime tick should refresh osc transport");
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
 
     let values_id = find_path(&engine, module_id, "values").expect("values folder should exist");
     engine.add_node(
@@ -434,4 +425,83 @@ fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue
         value,
         behaviour: ParameterEventBehaviour::Coalesce,
     });
+}
+
+fn create_send_custom_message_command(engine: &mut crate::app::AppEngine, command_tester_id: NodeId) -> NodeId {
+    engine.add_user_item(OscSendCustomMessageCommand::create().into(), Some(command_tester_id));
+    engine
+        .apply_edits()
+        .expect("send custom message command should be created");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("command tester should decorate the created command");
+    engine
+        .apply_edits()
+        .expect("command tester controls should materialize");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("send custom message command children should materialize");
+    }
+
+    engine
+        .nodes
+        .get(command_tester_id)
+        .and_then(|node| node.node_data().first_child)
+        .expect("send custom message command should be created")
+}
+
+fn create_osc_module_with_output(receiver_port: u16) -> (crate::app::AppEngine, NodeId) {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(GenericOscModule::create().into(), None);
+    engine.apply_edits().expect("generic osc module should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("osc defaults should materialize");
+    }
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
+    engine.edits.push(Edit::PatchMeta {
+        node: receiver_folder,
+        patch: NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
+
+    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
+    let output_id = engine
+        .nodes
+        .get(outputs_id)
+        .and_then(|node| node.node_data().first_child)
+        .expect("default output should be created");
+
+    let remote_host_param = find_path(&engine, output_id, "remote_host").expect("output host param should exist");
+    let remote_port_param = find_path(&engine, output_id, "remote_port").expect("output port param should exist");
+    set_param(&mut engine, remote_host_param, ParamValue::Str("127.0.0.1".to_string()));
+    set_param(
+        &mut engine,
+        remote_port_param,
+        ParamValue::Int(i32::from(receiver_port)),
+    );
+
+    engine.apply_edits().expect("osc transport config edits should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("osc transport config edits should dispatch");
+    engine
+        .apply_edits()
+        .expect("osc transport config reactions should apply");
+    engine.resolve().expect("runtime schedule should resolve");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should refresh osc transport");
+
+    (engine, module_id)
 }
