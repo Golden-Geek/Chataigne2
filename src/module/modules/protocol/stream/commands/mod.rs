@@ -117,6 +117,10 @@ impl StreamingCommandTester {
 
 #[node("streaming_command_tester", via = manager, from_struct)]
 impl Node for StreamingCommandTester {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == "streaming_command_tester").then(Self::create)
+    }
+
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         vec![
             UserCreatableItem::new(
@@ -192,8 +196,12 @@ impl StreamingSendStringCommand {
     }
 }
 
-#[node("streaming_send_string_command", via = base, from_struct)]
+#[golden_core::item("module_command", node = "streaming_send_string_command", via = base, from_struct)]
 impl Node for StreamingSendStringCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == STREAMING_SEND_STRING_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
     command_node_impl!("streaming string command");
 }
 
@@ -219,8 +227,12 @@ impl StreamingSendBytesCommand {
     }
 }
 
-#[node("streaming_send_bytes_command", via = base, from_struct)]
+#[golden_core::item("module_command", node = "streaming_send_bytes_command", via = base, from_struct)]
 impl Node for StreamingSendBytesCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == STREAMING_SEND_BYTES_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
     command_node_impl!("streaming bytes command");
 }
 
@@ -246,8 +258,12 @@ impl StreamingSendHexStringCommand {
     }
 }
 
-#[node("streaming_send_hex_string_command", via = base, from_struct)]
+#[golden_core::item("module_command", node = "streaming_send_hex_string_command", via = base, from_struct)]
 impl Node for StreamingSendHexStringCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
     command_node_impl!("streaming hex string command");
 }
 
@@ -301,8 +317,12 @@ impl StreamingSendValuesCommand {
     }
 }
 
-#[node("streaming_send_values_command", via = base, from_struct)]
+#[golden_core::item("module_command", node = "streaming_send_values_command", via = base, from_struct)]
 impl Node for StreamingSendValuesCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == STREAMING_SEND_VALUES_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
     command_node_impl!("streaming values command");
 }
 
@@ -363,5 +383,80 @@ fn default_value_for_node_type(node_type: &str) -> Option<ParamValue> {
         "color" => Some(ParamValue::Color(0.0, 0.0, 0.0, 1.0)),
         "reference" => Some(ParamValue::Reference(golden_core::node::NodeReference::default())),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use golden_core::app::ProjectNode;
+    use golden_core::node::Node;
+    use golden_core::node::NodeMeta;
+
+    use super::{
+        StreamingCommandTester, StreamingSendBytesCommand, StreamingSendHexStringCommand,
+        StreamingSendStringCommand, StreamingSendValuesCommand, STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
+        STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+        STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
+    };
+
+    #[test]
+    fn streaming_commands_are_module_command_items() {
+        let commands: Vec<Box<dyn Node>> = vec![
+            Box::new(StreamingSendStringCommand::create()),
+            Box::new(StreamingSendBytesCommand::create()),
+            Box::new(StreamingSendHexStringCommand::create()),
+            Box::new(StreamingSendValuesCommand::create()),
+        ];
+
+        for command in commands {
+            assert_eq!(
+                command.user_item_kind(),
+                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+                "streaming command '{}' should register as a module command item",
+                command.get_type()
+            );
+        }
+    }
+
+    #[test]
+    fn command_tester_accepts_streaming_command_items() {
+        let tester = StreamingCommandTester::create();
+        let commands: Vec<Box<dyn Node>> = vec![
+            Box::new(StreamingSendStringCommand::create()),
+            Box::new(StreamingSendBytesCommand::create()),
+            Box::new(StreamingSendHexStringCommand::create()),
+            Box::new(StreamingSendValuesCommand::create()),
+        ];
+
+        for command in commands {
+            assert!(
+                tester.user_container_accepts_item(command.get_type(), command.user_item_kind()),
+                "streaming command tester should accept '{}' as '{}'",
+                command.get_type(),
+                command.user_item_kind()
+            );
+        }
+    }
+
+    #[test]
+    fn streaming_command_tester_decodes_from_project_node_type() {
+        let node_types = [
+            "streaming_command_tester",
+            STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+            STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
+            STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
+            STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
+        ];
+
+        for node_type in node_types {
+            let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+                node_type,
+                &serde_json::Value::Null,
+                &NodeMeta::new("Decoded Node".to_string()),
+            )
+            .unwrap_or_else(|error| panic!("{node_type} should decode from project files: {error}"));
+
+            assert_eq!(node.get_type(), node_type);
+        }
     }
 }

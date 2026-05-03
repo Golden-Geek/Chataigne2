@@ -64,6 +64,10 @@ impl OscSendCustomMessageCommand {
 
 #[golden_core::item("module_command", node = "osc_send_custom_message_command", via = base, from_struct)]
 impl Node for OscSendCustomMessageCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. } => u32::MAX,
@@ -95,4 +99,23 @@ fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path
             .and_then(|node| node.param_value.as_ref())
             .and_then(ParamValue::as_str)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use golden_core::app::ProjectNode;
+    use golden_core::node::Node;
+    use golden_core::node::NodeMeta;
+
+    #[test]
+    fn osc_send_custom_message_command_decodes_from_project_node_type() {
+        let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+            super::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+            &serde_json::Value::Null,
+            &NodeMeta::new("Send Custom Message".to_string()),
+        )
+        .expect("OSC custom message command should decode from project files");
+
+        assert_eq!(node.get_type(), super::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE);
+    }
 }

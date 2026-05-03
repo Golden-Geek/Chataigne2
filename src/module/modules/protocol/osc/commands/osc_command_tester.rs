@@ -17,6 +17,10 @@ impl OscCommandTester {
 
 #[node("osc_command_tester", via = manager, from_struct)]
 impl Node for OscCommandTester {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == "osc_command_tester").then(Self::create)
+    }
+
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         vec![
             UserCreatableItem::new(
@@ -46,7 +50,9 @@ impl Node for OscCommandTester {
 
 #[cfg(test)]
 mod tests {
+    use golden_core::app::ProjectNode;
     use golden_core::node::Node;
+    use golden_core::node::NodeMeta;
 
     use super::OscCommandTester;
 
@@ -80,5 +86,17 @@ mod tests {
                 .all(|item| item.node_type != "folder" && item.item_kind != "folder"),
             "command tester catalog should not advertise command folders"
         );
+    }
+
+    #[test]
+    fn osc_command_tester_decodes_from_project_node_type() {
+        let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+            "osc_command_tester",
+            &serde_json::Value::Null,
+            &NodeMeta::new("Command Tester".to_string()),
+        )
+        .expect("osc command tester should decode from project files");
+
+        assert_eq!(node.get_type(), "osc_command_tester");
     }
 }

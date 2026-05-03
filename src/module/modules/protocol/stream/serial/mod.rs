@@ -1,26 +1,33 @@
-mod transport;
+use std::sync::mpsc::TryRecvError;
 
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeHandle, NodeId, NodeMetaPatch},
+    node::{Node, NodeId, NodeMetaPatch},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module::common::streaming::{
-    commands::StreamingSendRequest,
-    module_helpers::{
-        format_bytes_for_log, streaming_command_type_supported, streaming_parse_config, StreamingIncomingQueue,
+use crate::app::module::common::{
+    serial::{
+        serial_port_name_for_variant, serial_port_options, sync_serial_port_enum_options,
+        SerialConnectionConfig, SerialConnectionEvent, SerialConnectionHandle,
+        SerialConnectionStatus, SerialDiscoveryRegistration, SerialDiscoverySnapshot,
+        NO_SERIAL_PORT_VARIANT,
     },
-    parser::{StreamingParseConfig, StreamingParser},
+    streaming::{
+        commands::StreamingSendRequest,
+        module_helpers::{
+            format_bytes_for_log, streaming_command_type_supported, streaming_parse_config, StreamingIncomingQueue,
+        },
+        parser::{StreamingParseConfig, StreamingParser},
+    },
 };
 
-use self::transport::{SerialStreamingTransportConfig, SerialStreamingTransportHandle, StreamingWorkerEvent};
-
 const SERIAL_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const SERIAL_PORT_WARNING_ID: &str = "serial_port_transport";
+const SERIAL_PORT_OPTIONS_WARNING_ID: &str = "serial_port_options";
+const SERIAL_PORT_CONNECTION_WARNING_ID: &str = "serial_port_connection";
 
 #[node("serial_module", label = "Serial")]
 #[children(
@@ -30,9 +37,10 @@ const SERIAL_PORT_WARNING_ID: &str = "serial_port_transport";
             description = "Automatically create missing value nodes from incoming serial data."
         );
         folder(port, label = "Port") {
-            port_name: String = String::new() (
+            port_name: Enum = NO_SERIAL_PORT_VARIANT (
                 label = "Port",
-                description = "Serial port name, such as COM3 on Windows or /dev/ttyUSB0 on Linux."
+                description = "Serial port to connect to. Ports are detected automatically and labeled for this OS.",
+                enum_options = ["none (No Port)"]
             );
             baud_rate: i32 = 115200 [1..2147483647] (
                 label = "Baud Rate",
@@ -79,8 +87,11 @@ pub struct SerialModule {
     base: crate::app::ModuleBase,
     parser: StreamingParser,
     incoming: StreamingIncomingQueue,
-    transport: Option<SerialStreamingTransportHandle>,
-    last_transport_config: Option<SerialStreamingTransportConfig>,
+    port_discovery: Option<SerialDiscoveryRegistration>,
+    last_port_snapshot_version: u64,
+    last_port_registration_error: Option<String>,
+    transport: Option<SerialConnectionHandle>,
+    last_transport_config: Option<SerialConnectionConfig>,
     transport_dirty: bool,
 }
 
@@ -91,9 +102,62 @@ impl SerialModule {
             StreamingParser::default(),
             StreamingIncomingQueue::new(),
             None,
+            0,
+            None,
+            None,
             None,
             true,
         )
+    }
+
+    fn ensure_port_discovery_registration(&mut self, ctx: &mut ProcessCtx) {
+        if self.port_discovery.is_some() {
+            return;
+        }
+
+        match SerialDiscoveryRegistration::register() {
+            Ok(registration) => {
+                self.port_discovery = Some(registration);
+                self.last_port_snapshot_version = 0;
+                self.last_port_registration_error = None;
+                self.sync_port_state_from_manager(ctx, true);
+            }
+            Err(error) => {
+                if self.last_port_registration_error.as_deref() != Some(error.as_str()) {
+                    logerror!(origin = self.id(); format!("Failed to start serial discovery: {}", error));
+                }
+                self.last_port_registration_error = Some(error.clone());
+                self.set_port_warning(ctx, SERIAL_PORT_OPTIONS_WARNING_ID, error.as_str());
+            }
+        }
+    }
+
+    fn sync_port_state_from_manager(&mut self, ctx: &mut ProcessCtx, force: bool) {
+        let Some(port_discovery) = &self.port_discovery else {
+            return;
+        };
+
+        let snapshot_version = port_discovery.snapshot_version();
+        if !force && snapshot_version == self.last_port_snapshot_version {
+            return;
+        }
+
+        self.apply_port_discovery_snapshot(ctx, port_discovery.snapshot());
+    }
+
+    fn apply_port_discovery_snapshot(&mut self, ctx: &mut ProcessCtx, snapshot: SerialDiscoverySnapshot) {
+        self.last_port_snapshot_version = snapshot.version;
+
+        if !self.port_name.is_bound() {
+            return;
+        }
+
+        sync_serial_port_enum_options(ctx, self.port_name.id(), serial_port_options(snapshot.ports.as_slice()));
+        if let Some(error) = snapshot.error.as_deref() {
+            self.set_port_warning(ctx, SERIAL_PORT_OPTIONS_WARNING_ID, error);
+        } else {
+            self.clear_port_warning(ctx, SERIAL_PORT_OPTIONS_WARNING_ID);
+        }
     }
 
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -104,7 +168,7 @@ impl SerialModule {
             Ok(None) => {
                 self.stop_transport();
                 self.last_transport_config = None;
-                self.clear_port_warning(ctx, snapshot);
+                self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
                 self.base.set_connected(ctx, false);
                 return;
             }
@@ -112,32 +176,38 @@ impl SerialModule {
                 logerror!("Invalid serial module configuration: {}", error);
                 self.stop_transport();
                 self.last_transport_config = None;
-                self.set_port_warning(ctx, snapshot, error.as_str());
+                self.set_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID, error.as_str());
                 self.base.set_connected(ctx, false);
                 return;
             }
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_port_warning(ctx, snapshot);
-            self.base.set_connected(ctx, true);
             return;
         }
 
         self.stop_transport();
 
-        match SerialStreamingTransportHandle::spawn(config.clone()) {
+        match SerialConnectionHandle::spawn(config.clone()) {
             Ok(handle) => {
+                golden_core::log!(
+                    origin = self.id();
+                    format!(
+                        "Starting serial connection to {} @ {} baud.",
+                        config.port_name,
+                        config.baud_rate
+                    )
+                );
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
-                self.clear_port_warning(ctx, snapshot);
-                self.base.set_connected(ctx, true);
+                self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
+                self.base.set_connected(ctx, false);
             }
             Err(error) => {
                 logerror!("Failed to start serial transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
-                self.set_port_warning(ctx, snapshot, error.as_str());
+                self.set_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID, error.as_str());
                 self.base.set_connected(ctx, false);
             }
         }
@@ -146,22 +216,20 @@ impl SerialModule {
     fn transport_config(
         &self,
         snapshot: &ProcessTreeSnapshot,
-    ) -> Result<Option<SerialStreamingTransportConfig>, String> {
+    ) -> Result<Option<SerialConnectionConfig>, String> {
         let receive_enabled = self.receiver_enabled(snapshot).unwrap_or(false);
         let send_enabled = self.sender_enabled(snapshot).unwrap_or(false);
         if !receive_enabled && !send_enabled {
             return Ok(None);
         }
 
-        let port_name = self.port_name.get_ref().clone();
-        if port_name.trim().is_empty() {
-            return Err("serial port name cannot be empty".to_string());
-        }
+        let port_name = serial_port_name_for_variant(self.port_name.get_ref().as_str())
+            .ok_or_else(|| "serial port is not selected".to_string())?;
 
         let baud_rate = u32::try_from(self.baud_rate.get())
             .map_err(|_| "serial baud rate 'parameters/port/baud_rate' must be positive".to_string())?;
 
-        Ok(Some(SerialStreamingTransportConfig {
+        Ok(Some(SerialConnectionConfig {
             port_name,
             baud_rate,
             receive_enabled,
@@ -170,20 +238,32 @@ impl SerialModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
-        let mut worker_events = Vec::new();
-        let Some(transport) = &self.transport else {
-            return;
-        };
+        let (worker_events, worker_disconnected) = {
+            let Some(transport) = &self.transport else {
+                return;
+            };
 
-        while let Ok(event) = transport.try_recv() {
-            worker_events.push(event);
-        }
+            let mut worker_events = Vec::new();
+            let mut worker_disconnected = false;
+            loop {
+                match transport.try_recv() {
+                    Ok(event) => worker_events.push(event),
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => {
+                        worker_disconnected = true;
+                        break;
+                    }
+                }
+            }
+
+            (worker_events, worker_disconnected)
+        };
 
         let parse_config = self.current_parse_config();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) => match self.parser.push_bytes(bytes.as_slice(), &parse_config) {
+                SerialConnectionEvent::Bytes(bytes) => match self.parser.push_bytes(bytes.as_slice(), &parse_config) {
                     Ok(messages) => {
                         received_bytes = true;
                         if self.base.log_incoming_enabled() {
@@ -198,14 +278,50 @@ impl SerialModule {
                         logerror!("Failed to parse serial input: {}", error);
                     }
                 },
-                StreamingWorkerEvent::Error(error) => {
-                    logerror!("Serial transport error: {}", error);
+                SerialConnectionEvent::Warning(error) => {
+                    logerror!("Serial transport warning: {}", error);
+                    self.set_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID, error.as_str());
                 }
-                StreamingWorkerEvent::Stopped(error) => {
-                    logerror!("Serial transport stopped: {}", error);
-                    self.transport_dirty = true;
+                SerialConnectionEvent::Status(status) => match status {
+                    SerialConnectionStatus::Connected { port_name } => {
+                        if let Some(config) = self.last_transport_config.as_ref() {
+                            golden_core::logsuccess!(
+                                origin = self.id();
+                                format!(
+                                    "Connected serial port {} @ {} baud.",
+                                    port_name,
+                                    config.baud_rate
+                                )
+                            );
+                        } else {
+                            golden_core::logsuccess!(
+                                origin = self.id();
+                                format!("Connected serial port {}.", port_name)
+                            );
+                        }
+                        self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
+                        self.base.set_connected(ctx, true);
+                    }
+                    SerialConnectionStatus::Recovering { message, .. } => {
+                        logerror!("Serial transport recovering: {}", message);
+                        self.set_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID, message.as_str());
+                        self.base.set_connected(ctx, false);
+                    }
                 }
             }
+        }
+
+        if worker_disconnected {
+            logerror!("Serial transport worker stopped unexpectedly; restarting.");
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.set_port_warning(
+                ctx,
+                SERIAL_PORT_CONNECTION_WARNING_ID,
+                "Serial transport worker stopped unexpectedly. Restarting.",
+            );
+            self.base.set_connected(ctx, false);
+            self.transport_dirty = true;
         }
 
         if received_bytes {
@@ -310,11 +426,6 @@ impl SerialModule {
         snapshot.node(sender_id).map(|node| node.enabled)
     }
 
-    fn port_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "port")
-    }
-
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.base.set_data_capabilities(
             ctx,
@@ -325,18 +436,18 @@ impl SerialModule {
         );
     }
 
-    fn set_port_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
-        let Some(port_id) = self.port_node_id(snapshot) else {
+    fn set_port_warning(&self, ctx: &mut ProcessCtx, warning_id: &str, message: &str) {
+        if !self.port_name.is_bound() {
             return;
-        };
-        NodeHandle::new(port_id).set_warning_with(ctx, Some(SERIAL_PORT_WARNING_ID), message, None);
+        }
+        self.port_name.set_warning_with(ctx, Some(warning_id), message, None);
     }
 
-    fn clear_port_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(port_id) = self.port_node_id(snapshot) else {
+    fn clear_port_warning(&self, ctx: &mut ProcessCtx, warning_id: &str) {
+        if !self.port_name.is_bound() {
             return;
-        };
-        NodeHandle::new(port_id).clear_warning(ctx, Some(SERIAL_PORT_WARNING_ID));
+        }
+        self.port_name.clear_warning(ctx, Some(warning_id));
     }
 
     fn stop_transport(&mut self) {
@@ -359,6 +470,8 @@ impl Node for SerialModule {
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
 
+        self.ensure_port_discovery_registration(ctx);
+
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
@@ -370,6 +483,8 @@ impl Node for SerialModule {
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.drain_transport_events(ctx);
+        self.ensure_port_discovery_registration(ctx);
+        self.sync_port_state_from_manager(ctx, false);
 
         let needs_snapshot = self.transport_dirty || self.incoming.has_pending_messages();
         if !needs_snapshot {
@@ -392,6 +507,9 @@ impl Node for SerialModule {
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.port_discovery = None;
+        self.last_port_snapshot_version = 0;
+        self.last_port_registration_error = None;
         self.stop_transport();
     }
 
