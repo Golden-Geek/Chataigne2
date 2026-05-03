@@ -1,6 +1,5 @@
 mod bootstrap;
 mod default_project;
-pub(crate) mod descriptors;
 
 include!(concat!(env!("OUT_DIR"), "/app_nodes.rs"));
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));

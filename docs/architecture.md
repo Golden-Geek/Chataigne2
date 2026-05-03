@@ -5,7 +5,7 @@ the contributor-facing companion for day-to-day placement decisions.
 
 ## Ownership
 
-- Chataigne2 app code owns app startup wiring, app descriptors, default project content,
+- Chataigne2 app code owns app startup wiring, default project content,
   app-specific node trees, product assets, and Tauri capability configuration.
 - `golden_core` owns reusable Rust engine/runtime behavior, protocol DTOs, persistence contracts,
   transport hosting, desktop/headless hosting, native dialogs, macros, and build-time codegen
@@ -19,9 +19,10 @@ App code should launch through the reusable `golden_core` runtime path and shoul
 desktop, headless, transport, protocol, or persistence infrastructure locally. UI code should keep
 raw generated wire types separate from UI-local model types.
 
-Stable Chataigne app identifiers live in `src/app/descriptors.rs`. Macro attributes still carry the
-persisted node type literals required by the node generation system; shared use sites should refer
-to descriptors instead of repeating those strings.
+Stable node identifiers and default item labels live on the node declarations themselves. Concrete
+modules declare their `#[node(...)]` type/label and `#[item("module", ...)]` catalog metadata in
+the module file; `golden_codegen_support` turns those declarations into the generated app registry
+and module creation catalog.
 
 Module command infrastructure lives in `src/module/command`. The reusable command manager base owns
 common command-container behavior and accepts command items only; module families such as OSC compose

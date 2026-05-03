@@ -311,9 +311,9 @@
 <style>
 	.module-indicators {
 		display: inline-flex;
-		align-items: center;
+		justify-content: end;
 		gap: 0.15rem;
-		flex: 0 0 auto;
+		flex: 1 0 auto;
 	}
 
 	.module-status-icon {

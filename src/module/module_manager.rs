@@ -11,53 +11,39 @@ pub struct ModuleManager {}
 impl Node for ModuleManager {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            crate::app::descriptors::MODULE_ITEM_KIND,
+            crate::app::module::MODULE_ITEM_KIND,
             golden_core::node::FOLDER_NODE_TYPE,
         ]))
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        if !self.user_container_rules().is_some_and(|rules| rules.accepts(item_kind)) {
+        if !self
+            .user_container_rules()
+            .is_some_and(|rules| rules.accepts(item_kind))
+        {
             return false;
         }
 
-        let generic_osc = crate::app::descriptors::GENERIC_OSC_MODULE;
-        let folder = crate::app::descriptors::FOLDER_ITEM;
-        (item_type == generic_osc.type_id && item_kind == crate::app::descriptors::MODULE_ITEM_KIND)
-            || (item_type == folder.type_id && item_kind == golden_core::node::FOLDER_NODE_TYPE)
+        (item_kind == crate::app::module::MODULE_ITEM_KIND
+            && crate::app::declared_user_item_type_matches(item_type, crate::app::module::MODULE_ITEM_KIND))
+            || (item_type == golden_core::node::FOLDER_NODE_TYPE && item_kind == golden_core::node::FOLDER_NODE_TYPE)
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let generic_osc = crate::app::descriptors::GENERIC_OSC_MODULE;
-        let folder = crate::app::descriptors::FOLDER_ITEM;
-        vec![
-            UserCreatableItem::new(
-                generic_osc.type_id,
-                crate::app::descriptors::MODULE_ITEM_KIND,
-                generic_osc.display_name,
-            ),
-            UserCreatableItem::new(
-                folder.type_id,
-                golden_core::node::FOLDER_NODE_TYPE,
-                folder.display_name,
-            ),
-        ]
+        let mut items = crate::app::declared_user_creatable_items(crate::app::module::MODULE_ITEM_KIND);
+        items.push(UserCreatableItem::new(
+            golden_core::node::FOLDER_NODE_TYPE,
+            golden_core::node::FOLDER_NODE_TYPE,
+            "Folder",
+        ));
+        items
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        let generic_osc = crate::app::descriptors::GENERIC_OSC_MODULE;
-        if node_type == generic_osc.type_id {
-            let mut module = crate::app::GenericOscModule::create();
-            module.node_data_mut().meta.label = generic_osc.display_name.to_string();
-            return Some(Box::new(module));
-        }
-        if node_type == golden_core::node::FOLDER_NODE_TYPE {
-            return Some(Box::new(golden_core::node::Folder::new(
-                crate::app::descriptors::FOLDER_ITEM.display_name,
-            )));
-        }
-
-        None
+        crate::app::create_declared_user_item(node_type, crate::app::module::MODULE_ITEM_KIND).or_else(|| {
+            (node_type == golden_core::node::FOLDER_NODE_TYPE)
+                .then(|| Box::new(golden_core::node::Folder::new("Folder")) as Box<dyn Node>)
+        })
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -95,5 +81,43 @@ mod tests {
         assert!(permissions.can_edit_constraints);
         assert!(permissions.can_edit_tags);
         assert!(permissions.can_edit_color);
+    }
+
+    #[test]
+    fn module_manager_uses_declared_module_item_metadata() {
+        let manager = ModuleManager::new();
+        let items = manager.user_creatable_items();
+
+        for (node_type, label) in [
+            (
+                crate::app::GenericOscModule::NODE_TYPE,
+                crate::app::GenericOscModule::DEFAULT_LABEL,
+            ),
+            (
+                crate::app::SerialModule::NODE_TYPE,
+                crate::app::SerialModule::DEFAULT_LABEL,
+            ),
+            (crate::app::UdpModule::NODE_TYPE, crate::app::UdpModule::DEFAULT_LABEL),
+            (crate::app::TcpModule::NODE_TYPE, crate::app::TcpModule::DEFAULT_LABEL),
+        ] {
+            let item = items
+                .iter()
+                .find(|item| item.node_type == node_type)
+                .unwrap_or_else(|| panic!("module manager should expose module item type {node_type}"));
+            assert_eq!(item.item_kind, crate::app::module::MODULE_ITEM_KIND);
+            assert_eq!(item.label, label);
+            assert_eq!(item.menu_path, vec!["Generic".to_string()]);
+
+            let created = manager
+                .create_user_item(node_type)
+                .unwrap_or_else(|| panic!("module manager should create module item type {node_type}"));
+            assert_eq!(created.node_data().meta.label, label);
+        }
+
+        let folder = items
+            .last()
+            .expect("module manager should expose a trailing Folder item");
+        assert_eq!(folder.node_type, golden_core::node::FOLDER_NODE_TYPE);
+        assert!(folder.menu_path.is_empty());
     }
 }

@@ -8,7 +8,7 @@ runtime and UI packages. When in doubt, add code at the narrowest layer that own
 Chataigne2 owns product-level composition:
 
 - `src/main.rs`: the thinnest executable entry point.
-- `src/app/`: app lifecycle wiring, app descriptors, default project setup, and launch through the
+- `src/app/`: app lifecycle wiring, default project setup, and launch through the
   reusable `golden_core` host.
 - `src/module/`: Chataigne-specific module nodes, module manager policy, module authoring rules,
   reference filters, and concrete module families.
@@ -17,8 +17,9 @@ Chataigne2 owns product-level composition:
   assets.
 
 Add a new Chataigne app node under the cohesive app-owned feature tree that owns it, usually
-`src/module/` for module-related nodes. Register stable app IDs in `src/app/descriptors.rs` before
-reusing them across managers, filters, and project creation.
+`src/module/` for module-related nodes. Stable node IDs and default labels belong on the node's
+`#[node(...)]` declaration. User-creatable catalog metadata belongs on `#[item(...)]` in the node
+file, so managers and project creation do not repeat module type strings or labels.
 
 ## golden_core
 

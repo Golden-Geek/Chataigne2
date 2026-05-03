@@ -1,147 +1,64 @@
 use golden_core::{
     edit::Edit,
-    engine::NodeExecutionRule,
-    events::{CustomEvent, Event},
-    node::{Folder, Node, NodeId, NodeMetaPatch},
-    parameter::{ParamValue, Parameter, ParameterChangeCheck},
+    node::{Folder, Node, NodeId},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::{OscDecodedMessage, OscIncomingApplyResult, OscValuePayload};
-
 const VALUE_LABEL_PREFIX: &str = "value ";
 
-#[golden_core::node("osc", label = "OSC")]
-pub struct GenericOscModule {
-    base: crate::app::OscModuleBase,
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ReceivedValuePayload {
+    Single(ParamValue),
+    Multi(Vec<ParamValue>),
 }
 
-impl GenericOscModule {
-    pub fn create() -> Self {
-        Self::new(crate::app::OscModuleBase::create())
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ReceivedValueApplyResult {
+    Applied,
+    Retry,
+    Ignored,
+}
+
+pub(crate) fn apply_received_value_payload(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    values_id: NodeId,
+    path_segments: &[String],
+    payload: &ReceivedValuePayload,
+    options: ReceivedValueApplyOptions<'_>,
+) -> ReceivedValueApplyResult {
+    if path_segments.is_empty() {
+        return ReceivedValueApplyResult::Ignored;
     }
 
-    #[cfg(test)]
-    pub(crate) fn disable_transport_for_test(&mut self) {
-        self.base.stop_transport();
-        self.base.set_transport_dirty(false);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: OscDecodedMessage) {
-        self.base.enqueue_incoming_message(message);
-    }
-
-    #[cfg(test)]
-    pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
-        self.base.auto_add_enabled()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn has_pending_incoming_messages_for_test(&self) -> bool {
-        self.base.has_pending_incoming_messages()
-    }
-
-    fn apply_incoming_message(
-        base: &mut crate::app::OscModuleBase,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        message: &OscDecodedMessage,
-    ) -> OscIncomingApplyResult {
-        let Some(values_id) = base.values_id() else {
-            return OscIncomingApplyResult::Ignored;
-        };
-
-        let segments = address_segments(message.address.as_str());
-        if segments.is_empty() {
-            return OscIncomingApplyResult::Ignored;
-        }
-
-        let auto_add = base.auto_add_enabled();
-        let (parent_id, leaf_name) = match resolve_or_create_parent(ctx, snapshot, values_id, &segments, auto_add) {
+    let (parent_id, leaf_name) =
+        match resolve_or_create_parent(ctx, snapshot, values_id, path_segments, options.auto_add) {
             ParentResolution::Ready { parent_id, leaf_name } => (parent_id, leaf_name),
-            ParentResolution::Retry => return OscIncomingApplyResult::Retry,
-            ParentResolution::Ignored => return OscIncomingApplyResult::Ignored,
+            ParentResolution::Retry => return ReceivedValueApplyResult::Retry,
+            ParentResolution::Ignored => return ReceivedValueApplyResult::Ignored,
         };
 
-        match &message.payload {
-            OscValuePayload::Single(value) => apply_single_value_message(
-                base,
-                ctx,
-                snapshot,
-                parent_id,
-                leaf_name,
-                value.clone(),
-                auto_add,
-                message.address.as_str(),
-            ),
-            OscValuePayload::Multi(values) => {
-                apply_multi_value_message(base, ctx, snapshot, parent_id, leaf_name, values, auto_add)
-            }
-            OscValuePayload::Arguments(_) => OscIncomingApplyResult::Ignored,
+    match payload {
+        ReceivedValuePayload::Single(value) => apply_single_value_message(
+            ctx,
+            snapshot,
+            parent_id,
+            leaf_name,
+            value.clone(),
+            options,
+        ),
+        ReceivedValuePayload::Multi(values) => {
+            apply_multi_value_message(ctx, snapshot, parent_id, leaf_name, values, options)
         }
     }
 }
 
-#[golden_core::item(
-    "module",
-    node = "osc",
-    via = base,
-    from_struct,
-    menu_path = ["Generic"]
-)]
-impl Node for GenericOscModule {
-    fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.base.init(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.base.update(ctx);
-
-        if !self.base.has_pending_incoming_messages() {
-            return;
-        }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        self.base
-            .process_pending_incoming(ctx, snapshot, Self::apply_incoming_message);
-    }
-
-    fn destroy(&mut self, ctx: &mut ProcessCtx) {
-        self.base.destroy(ctx);
-    }
-
-    fn update_requires_tree_snapshot(&self) -> bool {
-        self.base.update_requires_tree_snapshot()
-    }
-
-    fn execution_rule(&self) -> NodeExecutionRule {
-        self.base.execution_rule()
-    }
-
-    fn child_event_interest_depth(&self, event: &Event) -> u32 {
-        self.base.child_event_interest_depth(event)
-    }
-
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
-        self.base.on_param_change(ctx, param, old_value);
-    }
-
-    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        self.base.on_meta_changed(ctx, node, patch);
-    }
-
-    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
-        self.base.on_custom_event(ctx, event);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::create)
-    }
+#[derive(Clone, Copy)]
+pub(crate) struct ReceivedValueApplyOptions<'a> {
+    pub(crate) auto_add: bool,
+    pub(crate) source_description: &'a str,
+    pub(crate) event_behaviour: ParameterEventBehaviour,
 }
 
 enum ParentResolution {
@@ -197,50 +114,48 @@ fn resolve_or_create_parent(
 }
 
 fn apply_single_value_message(
-    base: &mut crate::app::OscModuleBase,
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     parent_id: NodeId,
     leaf_name: String,
     value: ParamValue,
-    auto_add: bool,
-    address: &str,
-) -> OscIncomingApplyResult {
+    options: ReceivedValueApplyOptions<'_>,
+) -> ReceivedValueApplyResult {
     match snapshot.find_child(parent_id, leaf_name.as_str()) {
         Some(existing_id) => {
             let Some(existing_snapshot) = snapshot.node(existing_id) else {
-                return OscIncomingApplyResult::Ignored;
+                return ReceivedValueApplyResult::Ignored;
             };
 
             if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
                 if param_types_match(existing_value, &value) {
-                    base.set_internal_param(ctx, existing_id, value);
-                } else if auto_add {
+                    ctx.set_param_with_behaviour(existing_id, value, options.event_behaviour);
+                } else if options.auto_add {
                     ctx.replace_node_boxed(
                         existing_id,
                         Box::new(create_parameter_node(
                             leaf_name.as_str(),
                             value,
-                            Some(format!("Auto-created from OSC address '{address}'")),
+                            Some(format!("Auto-created from {}", options.source_description)),
                         )),
                     );
                 }
-            } else if auto_add {
+            } else if options.auto_add {
                 ctx.replace_node_boxed(
                     existing_id,
                     Box::new(create_parameter_node(
                         leaf_name.as_str(),
                         value,
-                        Some(format!("Auto-created from OSC address '{address}'")),
+                        Some(format!("Auto-created from {}", options.source_description)),
                     )),
                 );
             }
 
-            OscIncomingApplyResult::Applied
+            ReceivedValueApplyResult::Applied
         }
         None => {
-            if !auto_add {
-                return OscIncomingApplyResult::Ignored;
+            if !options.auto_add {
+                return ReceivedValueApplyResult::Ignored;
             }
 
             ctx.add_child_boxed(
@@ -248,61 +163,59 @@ fn apply_single_value_message(
                 Box::new(create_parameter_node(
                     leaf_name.as_str(),
                     value,
-                    Some(format!("Auto-created from OSC address '{address}'")),
+                    Some(format!("Auto-created from {}", options.source_description)),
                 )),
                 None,
             );
-            OscIncomingApplyResult::Applied
+            ReceivedValueApplyResult::Applied
         }
     }
 }
 
 fn apply_multi_value_message(
-    base: &mut crate::app::OscModuleBase,
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     parent_id: NodeId,
     leaf_name: String,
     values: &[ParamValue],
-    auto_add: bool,
-) -> OscIncomingApplyResult {
+    options: ReceivedValueApplyOptions<'_>,
+) -> ReceivedValueApplyResult {
     let folder_id = match snapshot.find_child(parent_id, leaf_name.as_str()) {
         Some(existing_id) => {
             let Some(existing_snapshot) = snapshot.node(existing_id) else {
-                return OscIncomingApplyResult::Ignored;
+                return ReceivedValueApplyResult::Ignored;
             };
             if existing_snapshot.node_type == "folder" {
                 existing_id
             } else {
-                if !auto_add {
-                    return OscIncomingApplyResult::Ignored;
+                if !options.auto_add {
+                    return ReceivedValueApplyResult::Ignored;
                 }
 
                 ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(leaf_name.as_str())));
-                return OscIncomingApplyResult::Retry;
+                return ReceivedValueApplyResult::Retry;
             }
         }
         None => {
-            if !auto_add {
-                return OscIncomingApplyResult::Ignored;
+            if !options.auto_add {
+                return ReceivedValueApplyResult::Ignored;
             }
 
             ctx.add_child_boxed(parent_id, Box::new(create_auto_values_folder(leaf_name.as_str())), None);
-            return OscIncomingApplyResult::Retry;
+            return ReceivedValueApplyResult::Retry;
         }
     };
 
-    sync_multi_value_folder(base, ctx, snapshot, folder_id, values, auto_add);
-    OscIncomingApplyResult::Applied
+    sync_multi_value_folder(ctx, snapshot, folder_id, values, options);
+    ReceivedValueApplyResult::Applied
 }
 
 fn sync_multi_value_folder(
-    base: &mut crate::app::OscModuleBase,
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     folder_id: NodeId,
     values: &[ParamValue],
-    auto_add: bool,
+    options: ReceivedValueApplyOptions<'_>,
 ) {
     for (index, value) in values.iter().enumerate() {
         let label = indexed_value_label(index);
@@ -314,14 +227,14 @@ fn sync_multi_value_folder(
 
                 if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
                     if param_types_match(existing_value, value) {
-                        base.set_internal_param(ctx, existing_id, value.clone());
-                    } else if auto_add {
+                        ctx.set_param_with_behaviour(existing_id, value.clone(), options.event_behaviour);
+                    } else if options.auto_add {
                         ctx.replace_node_boxed(
                             existing_id,
                             Box::new(create_parameter_node(label.as_str(), value.clone(), None)),
                         );
                     }
-                } else if auto_add {
+                } else if options.auto_add {
                     ctx.replace_node_boxed(
                         existing_id,
                         Box::new(create_parameter_node(label.as_str(), value.clone(), None)),
@@ -329,7 +242,7 @@ fn sync_multi_value_folder(
                 }
             }
             None => {
-                if !auto_add {
+                if !options.auto_add {
                     continue;
                 }
 
@@ -367,15 +280,6 @@ fn create_auto_values_folder(label: &str) -> Folder {
     folder
 }
 
-fn address_segments(address: &str) -> Vec<String> {
-    address
-        .split('/')
-        .map(str::trim)
-        .filter(|segment| !segment.is_empty())
-        .map(str::to_string)
-        .collect()
-}
-
 fn indexed_value_label(index: usize) -> String {
     format!("{VALUE_LABEL_PREFIX}{}", index + 1)
 }
@@ -388,6 +292,3 @@ fn indexed_value_label_index(label: &str) -> Option<usize> {
 fn param_types_match(lhs: &ParamValue, rhs: &ParamValue) -> bool {
     std::mem::discriminant(lhs) == std::mem::discriminant(rhs)
 }
-
-#[cfg(test)]
-mod generic_osc_module_tests;

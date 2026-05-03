@@ -15,7 +15,7 @@ fn incoming_message_auto_adds_value_nodes_under_values_folder() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("generic osc module should attach");
+    engine.apply_edits().expect("osc module should attach");
     engine.resolve().expect("runtime schedule should resolve");
 
     let module_id = engine
@@ -77,7 +77,7 @@ fn new_module_command_tester_starts_empty() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("generic osc module should attach");
+    engine.apply_edits().expect("osc module should attach");
     for _ in 0..4 {
         engine.apply_edits().expect("osc defaults should materialize");
     }
@@ -613,7 +613,7 @@ fn create_osc_module_with_output(receiver_port: u16) -> (crate::app::AppEngine, 
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(GenericOscModule::create().into(), None);
-    engine.apply_edits().expect("generic osc module should attach");
+    engine.apply_edits().expect("osc module should attach");
     for _ in 0..4 {
         engine.apply_edits().expect("osc defaults should materialize");
     }

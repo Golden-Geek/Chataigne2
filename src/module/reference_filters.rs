@@ -4,8 +4,10 @@ use golden_core::{
     process_ctx::ProcessTreeSnapshot,
 };
 
-use super::constants::{MODULE_VALUES_DECL_ID, MODULE_VALUES_REFERENCE_FILTER_KEY};
-use crate::app::descriptors::{MODULE_ITEM_KIND, MODULE_MANAGER};
+use super::{
+    constants::{MODULE_VALUES_DECL_ID, MODULE_VALUES_REFERENCE_FILTER_KEY},
+    MODULE_ITEM_KIND,
+};
 
 pub(crate) fn resolve_enclosing_module_root(snapshot: &ProcessTreeSnapshot, start: NodeId) -> Option<NodeId> {
     let mut current = Some(start);
@@ -58,7 +60,7 @@ fn candidate_is_module_values_parameter<T: Node>(engine: &Engine<T>, candidate: 
         if node.user_item_kind() == MODULE_ITEM_KIND {
             has_module_ancestor = true;
         }
-        if node.get_type() == MODULE_MANAGER.type_id {
+        if node.get_type() == crate::app::ModuleManager::NODE_TYPE {
             has_module_manager_ancestor = true;
         }
         let Some(parent) = node.node_data().parent else {

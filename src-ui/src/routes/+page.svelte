@@ -14,9 +14,9 @@
 		component: ModuleCommandInspector
 	});
 
-	registerOutlinerRowSupplement('module', {
-		component: ModuleItem
-	});
+	// registerOutlinerRowSupplement('module', {
+	// 	component: ModuleItem
+	// });
 
 	const userPanels: UserPanelDefinitionMap = {
 		modules: {

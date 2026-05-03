@@ -14,8 +14,13 @@ mod constants;
 mod permissions;
 mod reference_filters;
 
+pub(crate) use constants::MODULE_ITEM_KIND;
 pub(crate) use permissions::{enable_module_authoring, enable_module_manager_authoring};
 pub(crate) use reference_filters::{register_module_reference_filters, resolve_enclosing_module_root};
+
+const SCRIPT_ITEM_KIND: &str = "script";
+const SCRIPT_NODE_TYPE: &str = "script";
+const SCRIPT_DEFAULT_LABEL: &str = "Script";
 
 pub(crate) const MODULE_INCOMING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.incoming";
 pub(crate) const MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.outgoing";
@@ -133,23 +138,15 @@ impl Node for ModuleBase {
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[
-            crate::app::descriptors::SCRIPT_ITEM_KIND,
-            USER_CONTEXT_ITEM_KIND,
-        ]))
+        Some(UserContainerRules::new(&[SCRIPT_ITEM_KIND, USER_CONTEXT_ITEM_KIND]))
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = Vec::new();
         if self.script_host_policy().is_some_and(|policy| policy.enabled) {
-            let descriptor = crate::app::descriptors::SCRIPT_ITEM;
             items.push(
-                UserCreatableItem::new(
-                    descriptor.type_id,
-                    descriptor.user_item_kind.unwrap_or(crate::app::descriptors::SCRIPT_ITEM_KIND),
-                    descriptor.display_name,
-                )
-                .with_select_when_created(false),
+                UserCreatableItem::new(SCRIPT_NODE_TYPE, SCRIPT_ITEM_KIND, SCRIPT_DEFAULT_LABEL)
+                    .with_select_when_created(false),
             );
         }
         if self.user_context_host_policy().is_some_and(|policy| policy.enabled) {
@@ -167,11 +164,9 @@ impl Node for ModuleBase {
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         let node_type = node_type.trim().to_ascii_lowercase();
-        if node_type == crate::app::descriptors::SCRIPT_NODE_TYPE
-            && self.script_host_policy().is_some_and(|policy| policy.enabled)
-        {
+        if node_type == SCRIPT_NODE_TYPE && self.script_host_policy().is_some_and(|policy| policy.enabled) {
             return Some(Box::new(ScriptNode::new(
-                "Script",
+                SCRIPT_DEFAULT_LABEL,
                 ScriptNodeConfig::for_host_node_type(self.get_type()),
             )));
         }
@@ -186,10 +181,10 @@ impl Node for ModuleBase {
     }
 
     fn user_item_kind(&self) -> &str {
-        crate::app::descriptors::MODULE_ITEM_KIND
+        MODULE_ITEM_KIND
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == crate::app::descriptors::MODULE_BASE.type_id).then(Self::new)
+        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }

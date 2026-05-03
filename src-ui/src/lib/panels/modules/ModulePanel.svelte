@@ -401,7 +401,7 @@
 				{#each moduleNodes as moduleNode (moduleNode.node_id)}
 					<OutlinerItem
 						node={moduleNode}
-						mode="outliner"
+						mode="tree"
 						focusedNodeId={focusedModuleNodeId}
 						{nodeFilter}
 						canRenderNodeChildren={canRenderModuleChildren}

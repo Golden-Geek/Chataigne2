@@ -737,7 +737,7 @@ impl Node for OscModuleBase {
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == crate::app::descriptors::OSC_MODULE_BASE.type_id).then(Self::create)
+        (node_type == Self::NODE_TYPE).then(Self::create)
     }
 }
 
