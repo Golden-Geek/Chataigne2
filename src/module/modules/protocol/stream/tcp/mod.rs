@@ -5,16 +5,16 @@ use golden_core::{
     events::{CustomEvent, Event},
     logerror, node,
     node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch},
-    parameter::{Enum, ParamValue},
+    parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module::common::streaming::{
-    commands::StreamingSendRequest,
-    module_helpers::{
-        format_bytes_for_log, streaming_command_type_supported, streaming_parse_config, StreamingIncomingQueue,
+use crate::app::{
+    module::common::streaming::{
+        commands::StreamingSendRequest,
+        module_helpers::{format_bytes_for_log, streaming_command_type_supported},
     },
-    parser::{StreamingParseConfig, StreamingParser},
+    StreamingModuleBase,
 };
 
 use self::transport::{StreamingWorkerEvent, TcpStreamingTransportConfig, TcpStreamingTransportHandle};
@@ -36,38 +36,6 @@ const TCP_TARGET_WARNING_ID: &str = "tcp_target_transport";
                 widget = "text"
             );
         }
-        folder(receiver, label = "Receiver", can_be_disabled = true) {
-            auto_add: bool = true (
-                label = "Auto Add",
-                description = "Automatically create missing value nodes from incoming TCP data."
-            );
-            parse_mode: Enum = "line" (
-                label = "Parse Mode",
-                description = "How incoming bytes are converted into values.",
-                enum_options = ["line (default)", "raw"]
-            );
-            line_delimiter: String = "\\n".to_string() (
-                label = "Line Delimiter",
-                description = "Delimiter that terminates one incoming line. Escape sequences such as \\n, \\r, \\t, and \\xNN are supported."
-            );
-            value_separator: String = ",".to_string() (
-                label = "Value Separator",
-                description = "Separator used to split one line into values. Leave empty to split on whitespace."
-            );
-            first_element: Enum = "name" (
-                label = "First Element",
-                description = "Whether the first line element is a parameter name or a value.",
-                enum_options = ["name (default)", "value"]
-            );
-            hierarchy_from_name: bool = true (
-                label = "Name Hierarchy",
-                description = "Split parameter names such as my.received.value into nested value folders."
-            );
-            hierarchy_delimiter: String = ".".to_string() (
-                label = "Hierarchy Delimiter",
-                description = "Delimiter used to split incoming parameter names into nested folders."
-            );
-        }
         folder(sender, label = "Sender", can_be_disabled = true) {}
     }
     node command_tester: crate::app::StreamingCommandTester = crate::app::StreamingCommandTester::create() (
@@ -76,9 +44,7 @@ const TCP_TARGET_WARNING_ID: &str = "tcp_target_transport";
     );
 )]
 pub struct TcpModule {
-    base: crate::app::ModuleBase,
-    parser: StreamingParser,
-    incoming: StreamingIncomingQueue,
+    stream: StreamingModuleBase,
     transport: Option<TcpStreamingTransportHandle>,
     last_transport_config: Option<TcpStreamingTransportConfig>,
     transport_dirty: bool,
@@ -87,9 +53,7 @@ pub struct TcpModule {
 impl TcpModule {
     pub fn create() -> Self {
         Self::new(
-            crate::app::ModuleBase::new(),
-            StreamingParser::default(),
-            StreamingIncomingQueue::new(),
+            StreamingModuleBase::create(),
             None,
             None,
             true,
@@ -107,7 +71,7 @@ impl TcpModule {
             self.stop_transport();
             self.last_transport_config = None;
             self.clear_target_warning(ctx, snapshot);
-            self.base.set_connected(ctx, false);
+            self.stream.set_connected(ctx, false);
             return;
         }
 
@@ -117,7 +81,7 @@ impl TcpModule {
                 self.stop_transport();
                 self.last_transport_config = None;
                 self.clear_target_warning(ctx, snapshot);
-                self.base.set_connected(ctx, false);
+                self.stream.set_connected(ctx, false);
                 return;
             }
             Err(error) => {
@@ -125,14 +89,14 @@ impl TcpModule {
                 self.stop_transport();
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, snapshot, error.as_str());
-                self.base.set_connected(ctx, false);
+                self.stream.set_connected(ctx, false);
                 return;
             }
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
             self.clear_target_warning(ctx, snapshot);
-            self.base.set_connected(ctx, true);
+            self.stream.set_connected(ctx, true);
             return;
         }
 
@@ -143,14 +107,14 @@ impl TcpModule {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
                 self.clear_target_warning(ctx, snapshot);
-                self.base.set_connected(ctx, true);
+                self.stream.set_connected(ctx, true);
             }
             Err(error) => {
                 logerror!("Failed to start TCP transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
                 self.set_target_warning(ctx, snapshot, error.as_str());
-                self.base.set_connected(ctx, false);
+                self.stream.set_connected(ctx, false);
             }
         }
     }
@@ -187,20 +151,19 @@ impl TcpModule {
             worker_events.push(event);
         }
 
-        let parse_config = self.current_parse_config();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) => match self.parser.push_bytes(bytes.as_slice(), &parse_config) {
+                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice()) {
                     Ok(messages) => {
                         received_bytes = true;
-                        if self.base.log_incoming_enabled() {
+                        if self.stream.log_incoming_enabled() {
                             golden_core::log!(
                                 origin = self.id();
                                 format!("Received TCP {}", format_bytes_for_log(bytes.as_slice()))
                             );
                         }
-                        self.incoming.push_messages(messages);
+                        self.stream.push_messages(messages);
                     }
                     Err(error) => {
                         logerror!("Failed to parse TCP input: {}", error);
@@ -217,19 +180,8 @@ impl TcpModule {
         }
 
         if received_bytes {
-            self.base.emit_incoming_traffic(ctx);
+            self.stream.emit_incoming_traffic(ctx);
         }
-    }
-
-    fn current_parse_config(&self) -> StreamingParseConfig {
-        streaming_parse_config(
-            self.parse_mode.get_ref().as_str(),
-            self.line_delimiter.get_ref().as_str(),
-            self.value_separator.get_ref().as_str(),
-            self.first_element.get_ref().as_str(),
-            self.hierarchy_from_name.get(),
-            self.hierarchy_delimiter.get_ref().as_str(),
-        )
     }
 
     fn queue_send_request(
@@ -247,9 +199,9 @@ impl TcpModule {
             .as_ref()
             .ok_or_else(|| "TCP transport is not available".to_string())?;
         transport.send(request.bytes.clone())?;
-        self.base.emit_outgoing_traffic(ctx);
+        self.stream.emit_outgoing_traffic(ctx);
 
-        if self.base.log_outgoing_enabled() {
+        if self.stream.log_outgoing_enabled() {
             golden_core::log!(
                 origin = self.id();
                 format!("Sent TCP {}", format_bytes_for_log(request.bytes.as_slice()))
@@ -281,7 +233,7 @@ impl TcpModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if self.incoming.take_ignored_param_change(param) {
+        if self.stream.take_ignored_param_change(param) {
             return;
         }
 
@@ -295,33 +247,20 @@ impl TcpModule {
             || (self.remote_port.is_bound() && self.remote_port.id() == param)
     }
 
-    fn receiver_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "receiver")
-    }
-
     fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        let receiver_id = self.receiver_node_id(snapshot)?;
-        snapshot.node(receiver_id).map(|node| node.enabled)
-    }
-
-    fn sender_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "sender")
+        self.stream.receiver_enabled(snapshot)
     }
 
     fn sender_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        let sender_id = self.sender_node_id(snapshot)?;
-        snapshot.node(sender_id).map(|node| node.enabled)
+        self.stream.sender_enabled(snapshot)
     }
 
     fn target_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "target")
+        self.stream.parameter_child_node_id(snapshot, "target")
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.base.set_data_capabilities(
+        self.stream.set_data_capabilities(
             ctx,
             crate::app::module::ModuleDataCapabilities::new(
                 self.receiver_enabled(snapshot).unwrap_or(false),
@@ -354,15 +293,14 @@ impl TcpModule {
 #[golden_core::item(
     "module",
     node = "tcp_module",
-    via = base,
+    via = stream,
     from_struct,
     menu_path = ["Generic"]
 )]
 impl Node for TcpModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.base.init(ctx);
+        self.stream.init(ctx);
         self.transport_dirty = true;
-        crate::app::module::enable_module_authoring(self.node_data_mut());
 
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
@@ -383,7 +321,7 @@ impl Node for TcpModule {
     fn update(&mut self, ctx: &mut ProcessCtx) {
         self.drain_transport_events(ctx);
 
-        let needs_snapshot = self.transport_dirty || self.incoming.has_pending_messages();
+        let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
@@ -399,8 +337,7 @@ impl Node for TcpModule {
             self.refresh_transport(ctx, snapshot);
         }
 
-        self.incoming
-            .process_pending(ctx, snapshot, self.base.values_id(), self.auto_add.get());
+        self.stream.process_pending(ctx, snapshot);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -434,7 +371,7 @@ impl Node for TcpModule {
                     if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                         self.clear_target_warning(ctx, snapshot_arc.as_ref());
                     }
-                    self.base.set_connected(ctx, false);
+                    self.stream.set_connected(ctx, false);
                     self.transport_dirty = false;
                 }
                 return;

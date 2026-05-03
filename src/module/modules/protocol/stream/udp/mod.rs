@@ -9,13 +9,14 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::module::common::streaming::{
-    commands::StreamingSendRequest,
-    module_helpers::{
-        child_int_param, child_string_param, format_bytes_for_log, streaming_command_type_supported,
-        streaming_parse_config, StreamingIncomingQueue,
+use crate::app::{
+    module::common::streaming::{
+        commands::StreamingSendRequest,
+        module_helpers::{
+            child_int_param, child_string_param, format_bytes_for_log, streaming_command_type_supported,
+        },
     },
-    parser::{StreamingParseConfig, StreamingParser},
+    StreamingModuleBase,
 };
 
 use self::transport::{
@@ -94,41 +95,11 @@ impl Node for UdpOutputManager {
             description = "Network interface used to receive UDP packets and as the source binding for outgoing traffic.",
             enum_options = ["any (default)"]
         );
-        folder(receiver, label = "Receiver", can_be_disabled = true) {
-            auto_add: bool = true (
-                label = "Auto Add",
-                description = "Automatically create missing value nodes from incoming UDP data."
-            );
+        folder(receiver, label = "Receiver", reuse = true, can_be_disabled = true) {
             port: i32 = 9001 [0..65535] (
                 label = "Port",
                 description = "UDP port used to receive packets when the receiver is enabled.",
                 widget = "text"
-            );
-            parse_mode: Enum = "line" (
-                label = "Parse Mode",
-                description = "How incoming bytes are converted into values.",
-                enum_options = ["line (default)", "raw"]
-            );
-            line_delimiter: String = "\\n".to_string() (
-                label = "Line Delimiter",
-                description = "Delimiter that terminates one incoming line. Escape sequences such as \\n, \\r, \\t, and \\xNN are supported."
-            );
-            value_separator: String = ",".to_string() (
-                label = "Value Separator",
-                description = "Separator used to split one line into values. Leave empty to split on whitespace."
-            );
-            first_element: Enum = "name" (
-                label = "First Element",
-                description = "Whether the first line element is a parameter name or a value.",
-                enum_options = ["name (default)", "value"]
-            );
-            hierarchy_from_name: bool = true (
-                label = "Name Hierarchy",
-                description = "Split parameter names such as my.received.value into nested value folders."
-            );
-            hierarchy_delimiter: String = ".".to_string() (
-                label = "Hierarchy Delimiter",
-                description = "Delimiter used to split incoming parameter names into nested folders."
             );
         }
         node outputs: UdpOutputManager = UdpOutputManager::new() (
@@ -143,10 +114,8 @@ impl Node for UdpOutputManager {
     );
 )]
 pub struct UdpModule {
-    base: crate::app::ModuleBase,
+    stream: StreamingModuleBase,
     interface_refresh_elapsed: f64,
-    parser: StreamingParser,
-    incoming: StreamingIncomingQueue,
     transport: Option<UdpStreamingTransportHandle>,
     last_transport_config: Option<UdpStreamingTransportConfig>,
     transport_dirty: bool,
@@ -155,10 +124,8 @@ pub struct UdpModule {
 impl UdpModule {
     pub fn create() -> Self {
         Self::new(
-            crate::app::ModuleBase::new(),
+            StreamingModuleBase::create(),
             0.0,
-            StreamingParser::default(),
-            StreamingIncomingQueue::new(),
             None,
             None,
             true,
@@ -202,7 +169,7 @@ impl UdpModule {
             self.stop_transport();
             self.last_transport_config = None;
             self.clear_receiver_warning(ctx, snapshot);
-            self.base.set_connected(ctx, false);
+            self.stream.set_connected(ctx, false);
             return;
         }
 
@@ -213,7 +180,7 @@ impl UdpModule {
                 self.stop_transport();
                 self.last_transport_config = None;
                 self.set_receiver_warning(ctx, snapshot, error.as_str());
-                self.base.set_connected(ctx, false);
+                self.stream.set_connected(ctx, false);
                 return;
             }
         };
@@ -222,7 +189,7 @@ impl UdpModule {
             self.stop_transport();
             self.last_transport_config = None;
             self.clear_receiver_warning(ctx, snapshot);
-            self.base.set_connected(ctx, false);
+            self.stream.set_connected(ctx, false);
             return;
         }
 
@@ -236,7 +203,7 @@ impl UdpModule {
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
             self.clear_receiver_warning(ctx, snapshot);
-            self.base.set_connected(ctx, true);
+            self.stream.set_connected(ctx, true);
             return;
         }
 
@@ -247,20 +214,21 @@ impl UdpModule {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
                 self.clear_receiver_warning(ctx, snapshot);
-                self.base.set_connected(ctx, true);
+                self.stream.set_connected(ctx, true);
             }
             Err(error) => {
                 logerror!("Failed to start UDP transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
                 self.set_receiver_warning(ctx, snapshot, error.as_str());
-                self.base.set_connected(ctx, false);
+                self.stream.set_connected(ctx, false);
             }
         }
     }
 
     fn transport_binding(&self, snapshot: &ProcessTreeSnapshot) -> Result<UdpTransportBinding, String> {
         let receiver_id = self
+            .stream
             .receiver_node_id(snapshot)
             .ok_or_else(|| "missing UDP receiver folder 'parameters/receiver'".to_string())?;
         let receive_enabled = snapshot
@@ -293,20 +261,19 @@ impl UdpModule {
             worker_events.push(event);
         }
 
-        let parse_config = self.current_parse_config();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) => match self.parser.push_bytes(bytes.as_slice(), &parse_config) {
+                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice()) {
                     Ok(messages) => {
                         received_bytes = true;
-                        if self.base.log_incoming_enabled() {
+                        if self.stream.log_incoming_enabled() {
                             golden_core::log!(
                                 origin = self.id();
                                 format!("Received UDP {}", format_bytes_for_log(bytes.as_slice()))
                             );
                         }
-                        self.incoming.push_messages(messages);
+                        self.stream.push_messages(messages);
                     }
                     Err(error) => {
                         logerror!("Failed to parse UDP input: {}", error);
@@ -319,19 +286,8 @@ impl UdpModule {
         }
 
         if received_bytes {
-            self.base.emit_incoming_traffic(ctx);
+            self.stream.emit_incoming_traffic(ctx);
         }
-    }
-
-    fn current_parse_config(&self) -> StreamingParseConfig {
-        streaming_parse_config(
-            self.parse_mode.get_ref().as_str(),
-            self.line_delimiter.get_ref().as_str(),
-            self.value_separator.get_ref().as_str(),
-            self.first_element.get_ref().as_str(),
-            self.hierarchy_from_name.get(),
-            self.hierarchy_delimiter.get_ref().as_str(),
-        )
     }
 
     fn ensure_default_output(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
@@ -412,7 +368,7 @@ impl UdpModule {
             match transport.send(packet) {
                 Ok(()) => {
                     queued = queued.saturating_add(1);
-                    if self.base.log_outgoing_enabled() {
+                    if self.stream.log_outgoing_enabled() {
                         golden_core::log!(
                             origin = self.id();
                             format!(
@@ -429,7 +385,7 @@ impl UdpModule {
         }
 
         if queued > 0 {
-            self.base.emit_outgoing_traffic(ctx);
+            self.stream.emit_outgoing_traffic(ctx);
         }
 
         if errors.is_empty() {
@@ -461,7 +417,7 @@ impl UdpModule {
     }
 
     fn on_param_change_inner(&mut self, param: NodeId) {
-        if self.incoming.take_ignored_param_change(param) {
+        if self.stream.take_ignored_param_change(param) {
             return;
         }
 
@@ -475,19 +431,13 @@ impl UdpModule {
             || (self.port.is_bound() && self.port.id() == param)
     }
 
-    fn receiver_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "receiver")
-    }
-
     fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        let receiver_id = self.receiver_node_id(snapshot)?;
-        snapshot.node(receiver_id).map(|node| node.enabled)
+        self.stream.receiver_enabled(snapshot)
     }
 
     fn outputs_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
         self.outputs.current_id().or_else(|| {
-            let parameters_id = self.base.parameters_id()?;
+            let parameters_id = self.stream.parameters_id()?;
             snapshot.find_child(parameters_id, "outputs")
         })
     }
@@ -498,7 +448,7 @@ impl UdpModule {
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.base.set_data_capabilities(
+        self.stream.set_data_capabilities(
             ctx,
             crate::app::module::ModuleDataCapabilities::new(
                 self.receiver_enabled(snapshot).unwrap_or(false),
@@ -508,14 +458,14 @@ impl UdpModule {
     }
 
     fn set_receiver_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
-        let Some(receiver_id) = self.receiver_node_id(snapshot) else {
+        let Some(receiver_id) = self.stream.receiver_node_id(snapshot) else {
             return;
         };
         NodeHandle::new(receiver_id).set_warning_with(ctx, Some(UDP_RECEIVER_WARNING_ID), message, None);
     }
 
     fn clear_receiver_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(receiver_id) = self.receiver_node_id(snapshot) else {
+        let Some(receiver_id) = self.stream.receiver_node_id(snapshot) else {
             return;
         };
         NodeHandle::new(receiver_id).clear_warning(ctx, Some(UDP_RECEIVER_WARNING_ID));
@@ -531,15 +481,14 @@ impl UdpModule {
 #[golden_core::item(
     "module",
     node = "udp_module",
-    via = base,
+    via = stream,
     from_struct,
     menu_path = ["Generic"]
 )]
 impl Node for UdpModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.base.init(ctx);
+        self.stream.init(ctx);
         self.transport_dirty = true;
-        crate::app::module::enable_module_authoring(self.node_data_mut());
 
         self.refresh_interface_options(ctx);
         self.interface_refresh_elapsed = 0.0;
@@ -566,7 +515,7 @@ impl Node for UdpModule {
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot = refresh_interface_options || self.transport_dirty || self.incoming.has_pending_messages();
+        let needs_snapshot = refresh_interface_options || self.transport_dirty || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
@@ -587,8 +536,7 @@ impl Node for UdpModule {
             self.refresh_transport(ctx, snapshot);
         }
 
-        self.incoming
-            .process_pending(ctx, snapshot, self.base.values_id(), self.auto_add.get());
+        self.stream.process_pending(ctx, snapshot);
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
@@ -622,7 +570,7 @@ impl Node for UdpModule {
                     if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
                         self.clear_receiver_warning(ctx, snapshot_arc.as_ref());
                     }
-                    self.base.set_connected(ctx, false);
+                    self.stream.set_connected(ctx, false);
                     self.transport_dirty = false;
                 }
                 return;
