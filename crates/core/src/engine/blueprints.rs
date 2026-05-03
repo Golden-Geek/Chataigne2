@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use crate::blueprints::{BlueprintDecl, BlueprintId, BlueprintInstanceMeta, BlueprintRegistry};
 use crate::edit::Edit;
-use crate::node::{DeclId, FOLDER_NODE_TYPE, Node, NodeId, USER_CONTEXT_NODE_TYPE, UserCreatableItem};
+use crate::node::{
+    DeclId, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeId, USER_CONTEXT_NODE_TYPE, UserCreatableItem,
+};
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -149,6 +151,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         label: Option<String>,
+        creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
         const OPERATION: &str = "CreateBlueprintInstance";
 
@@ -171,7 +174,7 @@ impl<T: Node> Engine<T> {
             node.node_data_mut().meta.tags.push(tag);
         }
 
-        let effect = self.apply_add_user_item(edit_index, Box::new(node), parent, prev_sibling)?;
+        let effect = self.apply_add_user_item(edit_index, Box::new(node), parent, prev_sibling, creation_context)?;
         let decl_index = self.collect_blueprint_decl_index(effect.node, edit_index, OPERATION)?;
         self.blueprints.register_instance(
             effect.node,

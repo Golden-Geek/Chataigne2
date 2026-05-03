@@ -19,6 +19,24 @@ use super::{
     parameter_node_type_from_value,
 };
 
+/// Creation context for one node instance after attachment, decode, and child reconciliation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NodeCreationContext {
+    /// Fresh node inserted by regular runtime editing or blueprint creation.
+    Fresh,
+    /// Node recreated while loading a persisted project.
+    ProjectLoad,
+    /// Node recreated while duplicating/copy-pasting a persisted subtree.
+    Duplicate,
+}
+
+impl NodeCreationContext {
+    /// Returns `true` when this creation path restored persisted data.
+    pub const fn has_loaded_data(self) -> bool {
+        !matches!(self, Self::Fresh)
+    }
+}
+
 #[allow(missing_docs)]
 /// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
@@ -580,6 +598,9 @@ pub trait Node: Send + Any {
     }
 
     #[doc(hidden)]
+    fn engine_visit_references(&self, _visit: &mut dyn FnMut(&NodeReference)) {}
+
+    #[doc(hidden)]
     fn engine_visit_references_mut(&mut self, _visit: &mut dyn FnMut(&mut NodeReference)) {}
 
     #[doc(hidden)]
@@ -632,6 +653,13 @@ pub trait Node: Send + Any {
     fn is(&self, id: NodeId) -> bool {
         self.id() == id
     }
+
+    /// Runs once the node has its default or restored data and bound child handles.
+    ///
+    /// Keep context-independent setup in [`Self::init`]. Use this hook for work that must know
+    /// whether the node is fresh or rebuilt from persisted data, such as binding transports only
+    /// after load/duplicate restored the relevant parameters.
+    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {}
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {}
     fn update(&mut self, _ctx: &mut ProcessCtx) {}

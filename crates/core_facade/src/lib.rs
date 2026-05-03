@@ -69,16 +69,18 @@ pub mod logger {
 /// Host-independent app lifecycle hooks plus the default host/runtime entry points.
 pub mod app {
     pub use golden_engine::app::{
-        GoldenApp, ProjectFileSpec, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine,
-        create_engine, create_new_project_engine, prepare_engine_for_runtime,
+        add_default_project_nodes, configure_loaded_engine, create_engine, create_new_project_engine,
+        from_sparse_project_json, load_sparse_project_file, prepare_engine_for_runtime, save_sparse_project_file,
+        shutdown_engine_for_runtime, to_sparse_project_json_pretty, GoldenApp, ProjectFileSpec, ProjectLifecycle,
+        ProjectNode,
     };
     pub use golden_host_desktop::{
-        FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
-        launch_engine_with_ui_assets_and_dev_server, launch_with_args, launch_with_ui_assets,
-        launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
-        run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
+        launch_engine_with_args, launch_engine_with_ui_assets, launch_engine_with_ui_assets_and_dev_server,
+        launch_with_args, launch_with_ui_assets, launch_with_ui_assets_and_dev_server, parse_launch_args,
+        parse_launch_args_from_env, run_default, run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
+        FrontendDevServerConfig, LaunchArgs,
     };
-    pub use golden_transport_server::{UiAsset, UiServerConfig, run_ui_server, run_with_ui_server_config};
+    pub use golden_transport_server::{run_ui_server, run_with_ui_server_config, UiAsset, UiServerConfig};
 }
 
 /// UI protocol DTOs and transport-oriented helpers.

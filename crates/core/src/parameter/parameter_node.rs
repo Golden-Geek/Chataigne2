@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 use crate::{
@@ -164,7 +163,7 @@ impl Parameter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 struct ParameterProjectData {
     value: ParamValue,
     default_value: ParamValue,
@@ -174,33 +173,37 @@ struct ParameterProjectData {
     constraints: ParameterConstraints,
     ui_hints: ParameterUiHints,
     control: ParameterControlState,
-    #[serde(default = "default_true")]
     control_modes_enabled: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct RawParameterProjectData {
-    value: JsonValue,
-    default_value: JsonValue,
-    change_check: ParameterChangeCheck,
-    event_behaviour: ParameterEventBehaviour,
-    read_only: bool,
-    constraints: ParameterConstraints,
-    ui_hints: ParameterUiHints,
-    control: ParameterControlState,
-    #[serde(default = "default_true")]
-    control_modes_enabled: bool,
+fn default_parameter_project_data(node_type: &str) -> Result<ParameterProjectData, String> {
+    let fallback_value = crate::node::default_parameter_value_for_node_type(node_type)
+        .ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
+    Ok(ParameterProjectData {
+        value: fallback_value.clone(),
+        default_value: fallback_value,
+        change_check: ParameterChangeCheck::ValueChange,
+        event_behaviour: ParameterEventBehaviour::Coalesce,
+        read_only: false,
+        constraints: ParameterConstraints::default(),
+        ui_hints: ParameterUiHints::default(),
+        control: ParameterControlState::default(),
+        control_modes_enabled: default_control_modes_enabled(),
+    })
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct RawLegacyParameterProjectData {
-    value: JsonValue,
-    change_check: ParameterChangeCheck,
-    event_behaviour: ParameterEventBehaviour,
-}
-
-fn default_true() -> bool {
-    true
+fn current_parameter_project_data(parameter: &Parameter) -> ParameterProjectData {
+    ParameterProjectData {
+        value: parameter.value.clone(),
+        default_value: parameter.default_value.clone(),
+        change_check: parameter.change_check.clone(),
+        event_behaviour: parameter.event_behaviour,
+        read_only: parameter.read_only,
+        constraints: parameter.constraints.clone(),
+        ui_hints: parameter.ui_hints.clone(),
+        control: parameter.control.clone(),
+        control_modes_enabled: parameter.control_modes_enabled,
+    }
 }
 
 fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
@@ -223,52 +226,143 @@ fn decode_project_param_value(value: &JsonValue) -> Result<ParamValue, String> {
 }
 
 fn decode_parameter_project_data(node_type: &str, data: &JsonValue) -> Result<ParameterProjectData, String> {
+    let baseline = default_parameter_project_data(node_type)?;
+    decode_parameter_project_data_with_baseline(baseline, data)
+}
+
+fn decode_parameter_project_data_with_baseline(
+    mut parsed: ParameterProjectData,
+    data: &JsonValue,
+) -> Result<ParameterProjectData, String> {
     if data.is_null() {
-        let fallback_value = crate::node::default_parameter_value_for_node_type(node_type)
-            .ok_or_else(|| format!("unsupported parameter node type '{node_type}'"))?;
-        return Ok(ParameterProjectData {
-            value: fallback_value.clone(),
-            default_value: fallback_value,
-            change_check: ParameterChangeCheck::ValueChange,
-            event_behaviour: ParameterEventBehaviour::Coalesce,
-            read_only: false,
-            constraints: ParameterConstraints::default(),
-            ui_hints: ParameterUiHints::default(),
-            control: ParameterControlState::default(),
-            control_modes_enabled: default_control_modes_enabled(),
-        });
+        return Ok(parsed);
     }
 
-    if let Ok(full) = serde_json::from_value::<RawParameterProjectData>(data.clone()) {
-        return Ok(ParameterProjectData {
-            value: decode_project_param_value(&full.value)
-                .map_err(|err| format!("invalid parameter payload: {err}"))?,
-            default_value: decode_project_param_value(&full.default_value)
-                .map_err(|err| format!("invalid parameter payload: {err}"))?,
-            change_check: full.change_check,
-            event_behaviour: full.event_behaviour,
-            read_only: full.read_only,
-            constraints: full.constraints,
-            ui_hints: full.ui_hints,
-            control: full.control,
-            control_modes_enabled: full.control_modes_enabled,
-        });
+    let Some(object) = data.as_object() else {
+        return Err(format!("invalid parameter payload: expected an object, got {data:?}"));
+    };
+
+    if let Some(value) = object.get("value") {
+        parsed.value = decode_project_param_value(value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+    }
+    if let Some(default_value) = object.get("default_value") {
+        parsed.default_value =
+            decode_project_param_value(default_value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+    }
+    if let Some(change_check) = object.get("change_check") {
+        parsed.change_check = serde_json::from_value(change_check.clone())
+            .map_err(|err| format!("invalid change_check payload: {err}"))?;
+    }
+    if let Some(event_behaviour) = object.get("event_behaviour") {
+        parsed.event_behaviour = serde_json::from_value(event_behaviour.clone())
+            .map_err(|err| format!("invalid event_behaviour payload: {err}"))?;
+    }
+    if let Some(read_only) = object.get("read_only") {
+        parsed.read_only =
+            serde_json::from_value(read_only.clone()).map_err(|err| format!("invalid read_only payload: {err}"))?;
+    }
+    if let Some(constraints) = object.get("constraints") {
+        parsed.constraints =
+            serde_json::from_value(constraints.clone()).map_err(|err| format!("invalid constraints payload: {err}"))?;
+    }
+    if let Some(ui_hints) = object.get("ui_hints") {
+        parsed.ui_hints =
+            serde_json::from_value(ui_hints.clone()).map_err(|err| format!("invalid ui_hints payload: {err}"))?;
+    }
+    if let Some(control) = object.get("control") {
+        parsed.control =
+            serde_json::from_value(control.clone()).map_err(|err| format!("invalid control payload: {err}"))?;
+    }
+    if let Some(control_modes_enabled) = object.get("control_modes_enabled") {
+        parsed.control_modes_enabled = serde_json::from_value(control_modes_enabled.clone())
+            .map_err(|err| format!("invalid control_modes_enabled payload: {err}"))?;
     }
 
-    let legacy = serde_json::from_value::<RawLegacyParameterProjectData>(data.clone())
-        .map_err(|err| format!("invalid parameter payload: {err}"))?;
-    Ok(ParameterProjectData {
-        value: decode_project_param_value(&legacy.value).map_err(|err| format!("invalid parameter payload: {err}"))?,
-        default_value: decode_project_param_value(&legacy.value)
-            .map_err(|err| format!("invalid parameter payload: {err}"))?,
-        change_check: legacy.change_check,
-        event_behaviour: legacy.event_behaviour,
-        read_only: false,
-        constraints: ParameterConstraints::default(),
-        ui_hints: ParameterUiHints::default(),
-        control: ParameterControlState::default(),
-        control_modes_enabled: default_control_modes_enabled(),
-    })
+    Ok(parsed)
+}
+
+impl Parameter {
+    pub(crate) fn project_encode_data_against_baseline(
+        &self,
+        baseline_data: Option<&JsonValue>,
+        persist_runtime_value: bool,
+        persist_constraints: bool,
+    ) -> Result<JsonValue, String> {
+        let baseline = match baseline_data {
+            Some(data) => decode_parameter_project_data(self.get_type(), data)?,
+            None => default_parameter_project_data(self.get_type())?,
+        };
+        let mut data = serde_json::Map::new();
+
+        if persist_runtime_value && self.value != baseline.value {
+            data.insert(
+                "value".to_string(),
+                serde_json::to_value(&self.value).map_err(|err| format!("failed to encode 'value' field: {err}"))?,
+            );
+        }
+        if self.default_value != baseline.default_value {
+            data.insert(
+                "default_value".to_string(),
+                serde_json::to_value(&self.default_value)
+                    .map_err(|err| format!("failed to encode 'default_value' field: {err}"))?,
+            );
+        }
+        if self.change_check != baseline.change_check {
+            data.insert(
+                "change_check".to_string(),
+                serde_json::to_value(&self.change_check)
+                    .map_err(|err| format!("failed to encode 'change_check' field: {err}"))?,
+            );
+        }
+        if self.event_behaviour != baseline.event_behaviour {
+            data.insert(
+                "event_behaviour".to_string(),
+                serde_json::to_value(&self.event_behaviour)
+                    .map_err(|err| format!("failed to encode 'event_behaviour' field: {err}"))?,
+            );
+        }
+        if self.read_only != baseline.read_only {
+            data.insert(
+                "read_only".to_string(),
+                serde_json::to_value(self.read_only)
+                    .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
+            );
+        }
+        if persist_constraints && self.constraints != baseline.constraints {
+            data.insert(
+                "constraints".to_string(),
+                serde_json::to_value(&self.constraints)
+                    .map_err(|err| format!("failed to encode 'constraints' field: {err}"))?,
+            );
+        }
+        if self.ui_hints != baseline.ui_hints {
+            data.insert(
+                "ui_hints".to_string(),
+                serde_json::to_value(&self.ui_hints)
+                    .map_err(|err| format!("failed to encode 'ui_hints' field: {err}"))?,
+            );
+        }
+        if self.control != baseline.control {
+            data.insert(
+                "control".to_string(),
+                serde_json::to_value(&self.control)
+                    .map_err(|err| format!("failed to encode 'control' field: {err}"))?,
+            );
+        }
+        if self.control_modes_enabled != baseline.control_modes_enabled {
+            data.insert(
+                "control_modes_enabled".to_string(),
+                serde_json::to_value(self.control_modes_enabled)
+                    .map_err(|err| format!("failed to encode 'control_modes_enabled' field: {err}"))?,
+            );
+        }
+
+        if data.is_empty() {
+            Ok(serde_json::Value::Null)
+        } else {
+            Ok(serde_json::Value::Object(data))
+        }
+    }
 }
 
 impl Node for Parameter {
@@ -323,22 +417,81 @@ impl Node for Parameter {
     }
 
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
-        serde_json::to_value(ParameterProjectData {
-            value: self.value.clone(),
-            default_value: self.default_value.clone(),
-            change_check: self.change_check.clone(),
-            event_behaviour: self.event_behaviour,
-            read_only: self.read_only,
-            constraints: self.constraints.clone(),
-            ui_hints: self.ui_hints.clone(),
-            control: self.control.clone(),
-            control_modes_enabled: self.control_modes_enabled,
-        })
-        .map_err(|err| format!("failed to encode parameter node data: {err}"))
+        let baseline = default_parameter_project_data(self.get_type())?;
+        let mut data = serde_json::Map::new();
+
+        if self.value != baseline.value {
+            data.insert(
+                "value".to_string(),
+                serde_json::to_value(&self.value).map_err(|err| format!("failed to encode 'value' field: {err}"))?,
+            );
+        }
+        if self.default_value != baseline.default_value {
+            data.insert(
+                "default_value".to_string(),
+                serde_json::to_value(&self.default_value)
+                    .map_err(|err| format!("failed to encode 'default_value' field: {err}"))?,
+            );
+        }
+        if self.change_check != baseline.change_check {
+            data.insert(
+                "change_check".to_string(),
+                serde_json::to_value(&self.change_check)
+                    .map_err(|err| format!("failed to encode 'change_check' field: {err}"))?,
+            );
+        }
+        if self.event_behaviour != baseline.event_behaviour {
+            data.insert(
+                "event_behaviour".to_string(),
+                serde_json::to_value(&self.event_behaviour)
+                    .map_err(|err| format!("failed to encode 'event_behaviour' field: {err}"))?,
+            );
+        }
+        if self.read_only != baseline.read_only {
+            data.insert(
+                "read_only".to_string(),
+                serde_json::to_value(self.read_only)
+                    .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
+            );
+        }
+        if self.constraints != baseline.constraints {
+            data.insert(
+                "constraints".to_string(),
+                serde_json::to_value(&self.constraints)
+                    .map_err(|err| format!("failed to encode 'constraints' field: {err}"))?,
+            );
+        }
+        if self.ui_hints != baseline.ui_hints {
+            data.insert(
+                "ui_hints".to_string(),
+                serde_json::to_value(&self.ui_hints)
+                    .map_err(|err| format!("failed to encode 'ui_hints' field: {err}"))?,
+            );
+        }
+        if self.control != baseline.control {
+            data.insert(
+                "control".to_string(),
+                serde_json::to_value(&self.control)
+                    .map_err(|err| format!("failed to encode 'control' field: {err}"))?,
+            );
+        }
+        if self.control_modes_enabled != baseline.control_modes_enabled {
+            data.insert(
+                "control_modes_enabled".to_string(),
+                serde_json::to_value(self.control_modes_enabled)
+                    .map_err(|err| format!("failed to encode 'control_modes_enabled' field: {err}"))?,
+            );
+        }
+
+        if data.is_empty() {
+            Ok(serde_json::Value::Null)
+        } else {
+            Ok(serde_json::Value::Object(data))
+        }
     }
 
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
-        let parsed = decode_parameter_project_data(self.get_type(), data)?;
+        let parsed = decode_parameter_project_data_with_baseline(current_parameter_project_data(self), data)?;
         self.value = parsed.value;
         self.default_value = parsed.default_value;
         self.change_check = parsed.change_check;
@@ -524,6 +677,12 @@ impl Node for Parameter {
 
     fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut NodeReference)) {
         if let ParamValue::Reference(reference) = &mut self.value {
+            visit(reference);
+        }
+    }
+
+    fn engine_visit_references(&self, visit: &mut dyn FnMut(&NodeReference)) {
+        if let ParamValue::Reference(reference) = &self.value {
             visit(reference);
         }
     }

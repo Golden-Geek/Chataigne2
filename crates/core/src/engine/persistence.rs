@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::events::{Event, EventKind};
 use crate::node::{
-    DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint,
-    UserNodeRole,
+    DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
+    PresentationHint, SemanticsHint, UserNodeRole,
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
@@ -20,20 +20,14 @@ use super::{Engine, EngineEditError};
 /// Version tag emitted in project files created by this engine.
 pub const PROJECT_FILE_VERSION: &str = "1.0";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LoadedReadyMode {
+    Immediate,
+    Deferred,
+}
+
 fn default_project_file_version() -> String {
     PROJECT_FILE_VERSION.to_string()
-}
-
-fn is_default_semantics_hint(value: &SemanticsHint) -> bool {
-    *value == SemanticsHint::default()
-}
-
-fn is_default_presentation_hint(value: &PresentationHint) -> bool {
-    *value == PresentationHint::default()
-}
-
-fn is_default_node_user_permissions(value: &NodeUserPermissions) -> bool {
-    *value == NodeUserPermissions::default()
 }
 
 fn is_default_user_node_role(value: &UserNodeRole) -> bool {
@@ -51,7 +45,7 @@ pub struct ProjectFile {
 }
 
 /// Serialized node record for full-snapshot persistence.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProjectNodeRecord {
     /// Persistent identity.
     pub uuid: NodeUuid,
@@ -62,6 +56,7 @@ pub struct ProjectNodeRecord {
     #[serde(default, skip_serializing_if = "is_default_user_node_role")]
     pub user_role: UserNodeRole,
     /// Persisted metadata fields.
+    #[serde(default, skip_serializing_if = "ProjectNodeMeta::is_empty")]
     pub meta: ProjectNodeMeta,
     /// Node-specific payload.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -72,81 +67,206 @@ pub struct ProjectNodeRecord {
 }
 
 /// Persisted subset of runtime node metadata.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ProjectNodeMeta {
     /// Declared id key under the parent scope.
-    pub decl_id: DeclId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decl_id: Option<DeclId>,
     /// Generated short name.
-    pub short_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_name: Option<String>,
     /// Runtime enablement state.
-    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
     /// Whether this node can be disabled.
-    pub can_be_disabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_be_disabled: Option<bool>,
     /// User-visible label.
-    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     /// Optional description.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    pub description: Option<Option<String>>,
     /// Canonical declaration-description key shared by repeated declared nodes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub declared_description_key: Option<String>,
+    pub declared_description_key: Option<Option<String>>,
     /// Canonical declaration description before any instance-level override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub declared_description: Option<String>,
+    pub declared_description: Option<Option<String>>,
     /// User tags.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
     /// User-edit permissions.
-    #[serde(default, skip_serializing_if = "is_default_node_user_permissions")]
-    pub user_permissions: NodeUserPermissions,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_permissions: Option<NodeUserPermissions>,
     /// Semantic hints.
-    #[serde(default, skip_serializing_if = "is_default_semantics_hint")]
-    pub semantics: SemanticsHint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantics: Option<SemanticsHint>,
     /// Presentation hints.
-    #[serde(default, skip_serializing_if = "is_default_presentation_hint")]
-    pub presentation: PresentationHint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation: Option<PresentationHint>,
 }
 
 impl ProjectNodeMeta {
-    fn from_runtime(meta: &NodeMeta) -> Self {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.decl_id.is_none()
+            && self.short_name.is_none()
+            && self.enabled.is_none()
+            && self.can_be_disabled.is_none()
+            && self.label.is_none()
+            && self.description.is_none()
+            && self.declared_description_key.is_none()
+            && self.declared_description.is_none()
+            && self.tags.is_none()
+            && self.user_permissions.is_none()
+            && self.semantics.is_none()
+            && self.presentation.is_none()
+    }
+
+    pub(crate) fn from_runtime(meta: &NodeMeta) -> Self {
         Self {
-            decl_id: meta.decl_id.clone(),
-            short_name: meta.short_name.clone(),
-            enabled: meta.enabled,
-            can_be_disabled: meta.can_be_disabled,
-            label: meta.label.clone(),
-            description: meta.description.clone(),
-            declared_description_key: meta.declared_description_key.clone(),
-            declared_description: meta.declared_description.clone(),
-            tags: meta.tags.clone(),
-            user_permissions: meta.user_permissions.clone(),
-            semantics: meta.semantics.clone(),
-            presentation: meta.presentation.clone(),
+            decl_id: Some(meta.decl_id.clone()),
+            short_name: Some(meta.short_name.clone()),
+            enabled: Some(meta.enabled),
+            can_be_disabled: Some(meta.can_be_disabled),
+            label: Some(meta.label.clone()),
+            description: Some(meta.description.clone()),
+            declared_description_key: Some(meta.declared_description_key.clone()),
+            declared_description: Some(meta.declared_description.clone()),
+            tags: Some(meta.tags.clone()),
+            user_permissions: Some(meta.user_permissions.clone()),
+            semantics: Some(meta.semantics.clone()),
+            presentation: Some(meta.presentation.clone()),
         }
     }
 
-    fn into_runtime(self, uuid: NodeUuid) -> NodeMeta {
-        let mut user_permissions = self.user_permissions;
-        // Backward compatibility for persisted projects that predate explicit permission fields.
-        if user_permissions == NodeUserPermissions::default() && self.tags.iter().any(|tag| tag == "is_user_made") {
-            user_permissions = NodeUserPermissions::all();
+    pub(crate) fn delta_against(&self, baseline: &Self) -> Self {
+        Self {
+            decl_id: (self.decl_id != baseline.decl_id)
+                .then(|| self.decl_id.clone())
+                .flatten(),
+            short_name: (self.short_name != baseline.short_name)
+                .then(|| self.short_name.clone())
+                .flatten(),
+            enabled: (self.enabled != baseline.enabled).then_some(self.enabled).flatten(),
+            can_be_disabled: (self.can_be_disabled != baseline.can_be_disabled)
+                .then_some(self.can_be_disabled)
+                .flatten(),
+            label: (self.label != baseline.label).then(|| self.label.clone()).flatten(),
+            description: (self.description != baseline.description)
+                .then(|| self.description.clone())
+                .unwrap_or_default(),
+            declared_description_key: (self.declared_description_key != baseline.declared_description_key)
+                .then(|| self.declared_description_key.clone())
+                .unwrap_or_default(),
+            declared_description: (self.declared_description != baseline.declared_description)
+                .then(|| self.declared_description.clone())
+                .unwrap_or_default(),
+            tags: (self.tags != baseline.tags).then(|| self.tags.clone()).flatten(),
+            user_permissions: (self.user_permissions != baseline.user_permissions)
+                .then(|| self.user_permissions.clone())
+                .flatten(),
+            semantics: (self.semantics != baseline.semantics)
+                .then(|| self.semantics.clone())
+                .flatten(),
+            presentation: (self.presentation != baseline.presentation)
+                .then(|| self.presentation.clone())
+                .flatten(),
         }
+    }
 
-        NodeMeta {
-            uuid,
-            decl_id: self.decl_id,
-            short_name: self.short_name,
-            enabled: self.enabled,
-            can_be_disabled: self.can_be_disabled,
-            label: self.label,
-            description: self.description,
-            declared_description_key: self.declared_description_key,
-            declared_description: self.declared_description,
-            tags: self.tags,
-            user_permissions,
-            semantics: self.semantics,
-            presentation: self.presentation,
+    pub(crate) fn without_runtime_fields(&self) -> Self {
+        let mut sanitized = self.clone();
+        if let Some(presentation) = sanitized.presentation.as_mut() {
+            presentation.warnings.clear();
         }
+        sanitized
+    }
+
+    pub(crate) fn merged_with_sparse_overlay(&self, overlay: &Self) -> Self {
+        Self {
+            decl_id: overlay.decl_id.clone().or_else(|| self.decl_id.clone()),
+            short_name: overlay.short_name.clone().or_else(|| self.short_name.clone()),
+            enabled: overlay.enabled.or(self.enabled),
+            can_be_disabled: overlay.can_be_disabled.or(self.can_be_disabled),
+            label: overlay.label.clone().or_else(|| self.label.clone()),
+            description: overlay.description.clone().or_else(|| self.description.clone()),
+            declared_description_key: overlay
+                .declared_description_key
+                .clone()
+                .or_else(|| self.declared_description_key.clone()),
+            declared_description: overlay
+                .declared_description
+                .clone()
+                .or_else(|| self.declared_description.clone()),
+            tags: overlay.tags.clone().or_else(|| self.tags.clone()),
+            user_permissions: overlay
+                .user_permissions
+                .clone()
+                .or_else(|| self.user_permissions.clone()),
+            semantics: overlay.semantics.clone().or_else(|| self.semantics.clone()),
+            presentation: overlay.presentation.clone().or_else(|| self.presentation.clone()),
+        }
+    }
+
+    pub(crate) fn apply_to_runtime(&self, meta: &mut NodeMeta, uuid: NodeUuid) {
+        meta.uuid = uuid;
+
+        if let Some(decl_id) = self.decl_id.clone() {
+            meta.decl_id = decl_id;
+        }
+        if let Some(short_name) = self.short_name.clone() {
+            meta.short_name = short_name;
+        }
+        if let Some(enabled) = self.enabled {
+            meta.enabled = enabled;
+        }
+        if let Some(can_be_disabled) = self.can_be_disabled {
+            meta.can_be_disabled = can_be_disabled;
+        }
+        if let Some(label) = self.label.clone() {
+            meta.label = label;
+        }
+        if let Some(description) = self.description.clone() {
+            meta.description = description;
+        }
+        if let Some(declared_description_key) = self.declared_description_key.clone() {
+            meta.declared_description_key = declared_description_key;
+        }
+        if let Some(declared_description) = self.declared_description.clone() {
+            meta.declared_description = declared_description;
+        }
+        if let Some(tags) = self.tags.clone() {
+            meta.tags = tags;
+        }
+        if let Some(user_permissions) = self.user_permissions.clone() {
+            meta.user_permissions = user_permissions;
+        } else if meta.user_permissions == NodeUserPermissions::default()
+            && self
+                .tags
+                .as_ref()
+                .is_some_and(|tags| tags.iter().any(|tag| tag == "is_user_made"))
+        {
+            // Backward compatibility for persisted projects that predate explicit permission fields.
+            meta.user_permissions = NodeUserPermissions::all();
+        }
+        if let Some(semantics) = self.semantics.clone() {
+            meta.semantics = semantics;
+        }
+        if let Some(presentation) = self.presentation.clone() {
+            meta.presentation = presentation;
+        }
+    }
+
+    pub(crate) fn into_runtime(self, uuid: NodeUuid) -> NodeMeta {
+        let fallback_label = self
+            .label
+            .clone()
+            .or_else(|| self.short_name.clone())
+            .unwrap_or_else(|| "Node".to_string());
+        let mut meta = NodeMeta::new(fallback_label);
+        self.apply_to_runtime(&mut meta, uuid);
+        meta
     }
 }
 
@@ -303,7 +423,7 @@ impl<T: Node> Engine<T> {
             seq: 0,
         };
 
-        engine.replay_loaded_subtree_lifecycle(root_id)?;
+        engine.replay_loaded_subtree_lifecycle(root_id, NodeCreationContext::ProjectLoad, LoadedReadyMode::Deferred)?;
         engine.resolve_reference_caches();
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
@@ -352,9 +472,9 @@ impl<T: Node> Engine<T> {
         let mut record = self.encode_node_record_with(source, &mut encode_data)?;
         if let Some(label) = label {
             let short_name = generate_short_name(&label);
-            record.meta.label = label;
-            record.meta.short_name = short_name.clone();
-            record.meta.decl_id = DeclId(short_name);
+            record.meta.label = Some(label);
+            record.meta.short_name = Some(short_name.clone());
+            record.meta.decl_id = Some(DeclId(short_name));
         }
 
         let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
@@ -368,7 +488,11 @@ impl<T: Node> Engine<T> {
             &mut decode_node,
         )?;
 
-        self.replay_loaded_subtree_lifecycle(duplicated_root)?;
+        self.replay_loaded_subtree_lifecycle(
+            duplicated_root,
+            NodeCreationContext::Duplicate,
+            LoadedReadyMode::Immediate,
+        )?;
         self.resolve_reference_caches();
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
@@ -397,23 +521,36 @@ impl<T: Node> Engine<T> {
         Ok(duplicated_root)
     }
 
-    fn replay_loaded_subtree_lifecycle(&mut self, root: NodeId) -> Result<(), ProjectPersistenceError> {
+    fn replay_loaded_subtree_lifecycle(
+        &mut self,
+        root: NodeId,
+        creation_context: NodeCreationContext,
+        ready_mode: LoadedReadyMode,
+    ) -> Result<(), ProjectPersistenceError> {
         let loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
 
         for node_id in &loaded_node_ids {
-            self.replay_loaded_node_attached(*node_id)?;
+            self.replay_loaded_node_attached(*node_id, creation_context)?;
         }
 
-        self.reconcile_loaded_declared_children(loaded_node_ids.as_slice())?;
+        self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
 
         for node_id in loaded_node_ids {
-            self.replay_loaded_node_init(node_id)?;
+            self.replay_loaded_node_init(node_id, creation_context)?;
+            match ready_mode {
+                LoadedReadyMode::Immediate => self.replay_loaded_node_ready(node_id, creation_context)?,
+                LoadedReadyMode::Deferred => self.queue_node_ready(node_id, creation_context),
+            }
         }
 
         Ok(())
     }
 
-    fn reconcile_loaded_declared_children(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
+    fn reconcile_loaded_declared_children(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: NodeCreationContext,
+    ) -> Result<(), ProjectPersistenceError> {
         let mut index_by_node = HashMap::<NodeId, usize>::new();
         let mut per_node_events = Vec::<(NodeId, Vec<Event>)>::new();
 
@@ -463,7 +600,7 @@ impl<T: Node> Engine<T> {
         let event_cursor = self.inbox.events.len();
         self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)?;
         if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(event_cursor)?;
+            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
         }
 
         Ok(())
@@ -504,7 +641,11 @@ impl<T: Node> Engine<T> {
         Ok(ordered)
     }
 
-    fn replay_loaded_node_attached(&mut self, node_id: NodeId) -> Result<(), ProjectPersistenceError> {
+    fn replay_loaded_node_attached(
+        &mut self,
+        node_id: NodeId,
+        creation_context: NodeCreationContext,
+    ) -> Result<(), ProjectPersistenceError> {
         let tree_snapshot = Some(self.build_process_tree_snapshot());
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         ctx.runtime_elapsed = self.runtime_elapsed;
@@ -521,13 +662,17 @@ impl<T: Node> Engine<T> {
         let event_cursor = self.inbox.events.len();
         self.absorb_edits(&mut ctx)?;
         if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(event_cursor)?;
+            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
         }
 
         Ok(())
     }
 
-    fn replay_loaded_node_init(&mut self, node_id: NodeId) -> Result<(), ProjectPersistenceError> {
+    fn replay_loaded_node_init(
+        &mut self,
+        node_id: NodeId,
+        creation_context: NodeCreationContext,
+    ) -> Result<(), ProjectPersistenceError> {
         let tree_snapshot = Some(self.build_process_tree_snapshot());
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         ctx.runtime_elapsed = self.runtime_elapsed;
@@ -544,9 +689,18 @@ impl<T: Node> Engine<T> {
         let event_cursor = self.inbox.events.len();
         self.absorb_edits(&mut ctx)?;
         if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(event_cursor)?;
+            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
         }
 
+        Ok(())
+    }
+
+    fn replay_loaded_node_ready(
+        &mut self,
+        node_id: NodeId,
+        creation_context: NodeCreationContext,
+    ) -> Result<(), ProjectPersistenceError> {
+        self.run_node_ready(node_id, creation_context)?;
         Ok(())
     }
 
@@ -608,12 +762,10 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        let meta = record.meta.clone().into_runtime(record.uuid);
         let data = record.data.clone().unwrap_or(serde_json::Value::Null);
         let mut node = if record.user_role == UserNodeRole::ItemRoot {
             if let Some(parent) = parent {
                 if let Some(mut node) = parent.create_user_item(record.node_type.as_str()) {
-                    node.node_data_mut().meta.label = meta.label.clone();
                     node.project_decode_data(&data)
                         .map_err(|message| ProjectPersistenceError::Codec {
                             node_type: record.node_type.clone(),
@@ -624,22 +776,54 @@ impl<T: Node> Engine<T> {
                         message: "parent item factory returned a node outside the engine node enum".to_string(),
                     })?
                 } else {
+                    if let Some(mut node) = T::project_create(record.node_type.as_str()) {
+                        node.project_decode_data(&data)
+                            .map_err(|message| ProjectPersistenceError::Codec {
+                                node_type: record.node_type.clone(),
+                                message,
+                            })?;
+                        node
+                    } else {
+                        let meta = record.meta.clone().into_runtime(record.uuid);
+                        decode_node(&record.node_type, &data, &meta).map_err(|message| {
+                            ProjectPersistenceError::Codec {
+                                node_type: record.node_type.clone(),
+                                message,
+                            }
+                        })?
+                    }
+                }
+            } else {
+                if let Some(mut node) = T::project_create(record.node_type.as_str()) {
+                    node.project_decode_data(&data)
+                        .map_err(|message| ProjectPersistenceError::Codec {
+                            node_type: record.node_type.clone(),
+                            message,
+                        })?;
+                    node
+                } else {
+                    let meta = record.meta.clone().into_runtime(record.uuid);
                     decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
                         node_type: record.node_type.clone(),
                         message,
                     })?
                 }
+            }
+        } else {
+            if let Some(mut node) = T::project_create(record.node_type.as_str()) {
+                node.project_decode_data(&data)
+                    .map_err(|message| ProjectPersistenceError::Codec {
+                        node_type: record.node_type.clone(),
+                        message,
+                    })?;
+                node
             } else {
+                let meta = record.meta.clone().into_runtime(record.uuid);
                 decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
                     node_type: record.node_type.clone(),
                     message,
                 })?
             }
-        } else {
-            decode_node(&record.node_type, &data, &meta).map_err(|message| ProjectPersistenceError::Codec {
-                node_type: record.node_type.clone(),
-                message,
-            })?
         };
 
         let node_data = node.node_data_mut();
@@ -649,7 +833,7 @@ impl<T: Node> Engine<T> {
         node_data.prev_sibling = None;
         node_data.next_sibling = None;
         node_data.user_role = record.user_role;
-        node_data.meta = meta;
+        record.meta.apply_to_runtime(&mut node_data.meta, record.uuid);
 
         Ok(node)
     }
@@ -771,21 +955,22 @@ fn generate_short_name(label: &str) -> String {
 mod tests {
     use super::ProjectNodeMeta;
     use crate::node::{DeclId, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint};
+    use serde_json::json;
 
     fn project_meta(label: &str) -> ProjectNodeMeta {
         ProjectNodeMeta {
-            decl_id: DeclId(label.to_string()),
-            short_name: label.to_string(),
-            enabled: true,
-            can_be_disabled: true,
-            label: label.to_string(),
-            description: None,
-            declared_description_key: None,
-            declared_description: None,
-            tags: Vec::new(),
-            user_permissions: NodeUserPermissions::default(),
-            semantics: SemanticsHint::default(),
-            presentation: PresentationHint::default(),
+            decl_id: Some(DeclId(label.to_string())),
+            short_name: Some(label.to_string()),
+            enabled: Some(true),
+            can_be_disabled: Some(true),
+            label: Some(label.to_string()),
+            description: Some(None),
+            declared_description_key: Some(None),
+            declared_description: Some(None),
+            tags: Some(Vec::new()),
+            user_permissions: Some(NodeUserPermissions::default()),
+            semantics: Some(SemanticsHint::default()),
+            presentation: Some(PresentationHint::default()),
         }
     }
 
@@ -799,5 +984,35 @@ mod tests {
                 "{node_type} should default to visible in nested inspectors after load"
             );
         }
+    }
+
+    #[test]
+    fn project_meta_delta_preserves_explicit_optional_clears() {
+        let baseline = ProjectNodeMeta {
+            description: Some(Some("Default description".to_string())),
+            declared_description_key: Some(Some("node::field".to_string())),
+            declared_description: Some(Some("Declared description".to_string())),
+            ..project_meta("node")
+        };
+        let current = ProjectNodeMeta {
+            description: Some(None),
+            declared_description_key: Some(None),
+            declared_description: Some(None),
+            ..baseline.clone()
+        };
+
+        let delta = current.delta_against(&baseline);
+
+        assert_eq!(delta.description, Some(None));
+        assert_eq!(delta.declared_description_key, Some(None));
+        assert_eq!(delta.declared_description, Some(None));
+        assert_eq!(
+            serde_json::to_value(delta).expect("metadata delta should serialize"),
+            json!({
+                "description": null,
+                "declared_description_key": null,
+                "declared_description": null
+            })
+        );
     }
 }

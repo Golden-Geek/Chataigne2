@@ -6,9 +6,9 @@ use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, parse_quote, Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit,
-    ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct,
-    Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp,
+    Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary,
+    Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta,
+    PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote,
 };
 
 #[derive(Clone)]
@@ -2309,7 +2309,7 @@ fn expand_struct(
     let mut param_refresh_bindings = Vec::<proc_macro2::TokenStream>::new();
     let mut param_dependency_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
     let mut param_order_reconcile_statements = Vec::<proc_macro2::TokenStream>::new();
-    let mut persisted_state_fields = Vec::<(Ident, LitStr)>::new();
+    let mut persisted_state_fields = Vec::<(Ident, LitStr, Option<Expr>)>::new();
     let field_param_order = fields
         .iter()
         .filter_map(|field| {
@@ -2654,6 +2654,7 @@ fn expand_struct(
             persisted_state_fields.push((
                 field_ident.clone(),
                 LitStr::new(&field_ident.to_string(), field_ident.span()),
+                state_default.clone().or(field_default.clone()),
             ));
         }
 
@@ -2986,18 +2987,40 @@ fn expand_struct(
             Ok(serde_json::Value::Null)
         }
     } else {
-        let inserts = persisted_state_fields.iter().map(|(field_ident, field_name)| {
-            quote! {
-                __golden_data.insert(
-                    ::std::string::ToString::to_string(#field_name),
-                    serde_json::to_value(&self.#field_ident).map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?,
-                );
-            }
-        });
+        let inserts = persisted_state_fields
+            .iter()
+            .map(|(field_ident, field_name, default_expr)| {
+                if let Some(default_expr) = default_expr {
+                    quote! {
+                        let __golden_current_value = serde_json::to_value(&self.#field_ident)
+                            .map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?;
+                        let __golden_default_value = serde_json::to_value(&(#default_expr))
+                            .map_err(|err| format!("failed to encode default for '{}' field: {err}", #field_name))?;
+                        if __golden_current_value != __golden_default_value {
+                            __golden_data.insert(
+                                ::std::string::ToString::to_string(#field_name),
+                                __golden_current_value,
+                            );
+                        }
+                    }
+                } else {
+                    quote! {
+                        __golden_data.insert(
+                            ::std::string::ToString::to_string(#field_name),
+                            serde_json::to_value(&self.#field_ident)
+                                .map_err(|err| format!("failed to encode '{}' field: {err}", #field_name))?,
+                        );
+                    }
+                }
+            });
         quote! {
             let mut __golden_data = serde_json::Map::new();
             #(#inserts)*
-            Ok(serde_json::Value::Object(__golden_data))
+            if __golden_data.is_empty() {
+                Ok(serde_json::Value::Null)
+            } else {
+                Ok(serde_json::Value::Object(__golden_data))
+            }
         }
     };
     let generated_project_decode_data = if persisted_state_fields.is_empty() {
@@ -3009,14 +3032,16 @@ fn expand_struct(
             Err(format!("node type '{}' does not support persisted project data", #resolved_type_name))
         }
     } else {
-        let decodes = persisted_state_fields.iter().map(|(field_ident, field_name)| {
-            quote! {
-                if let Some(__golden_value) = __golden_object.get(#field_name) {
-                    self.#field_ident = serde_json::from_value(__golden_value.clone())
-                        .map_err(|err| format!("invalid '{}' field: {err}", #field_name))?;
+        let decodes = persisted_state_fields
+            .iter()
+            .map(|(field_ident, field_name, _default_expr)| {
+                quote! {
+                    if let Some(__golden_value) = __golden_object.get(#field_name) {
+                        self.#field_ident = serde_json::from_value(__golden_value.clone())
+                            .map_err(|err| format!("invalid '{}' field: {err}", #field_name))?;
+                    }
                 }
-            }
-        });
+            });
         quote! {
             if data.is_null() {
                 return Ok(());

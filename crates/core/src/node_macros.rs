@@ -763,6 +763,14 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn project_create(node_type: &str) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                <Self as $crate::app::ProjectNode>::project_create_node(node_type)
+            }
+
+            #[inline(always)]
             fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
                 $crate::__dispatch_node_enum!(self, user_container_accepts_item, item_type, item_kind; $($variant),*)
             }
@@ -852,6 +860,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_visit_references(&self, visit: &mut dyn FnMut(&$crate::node::NodeReference)) {
+                $crate::__dispatch_node_enum!(self, engine_visit_references, visit; $($variant),*)
+            }
+
+            #[inline(always)]
             fn engine_visit_references_mut(&mut self, visit: &mut dyn FnMut(&mut $crate::node::NodeReference)) {
                 $crate::__dispatch_node_enum!(self, engine_visit_references_mut, visit; $($variant),*)
             }
@@ -879,6 +892,15 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
                 $crate::__dispatch_node_enum!(self, init, ctx; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn on_node_ready(
+                &mut self,
+                ctx: &mut $crate::process_ctx::ProcessCtx,
+                context: $crate::node::NodeCreationContext,
+            ) {
+                $crate::__dispatch_node_enum!(self, on_node_ready, ctx, context; $($variant),*)
             }
 
             #[inline(always)]
@@ -1038,6 +1060,101 @@ macro_rules! define_node_enum {
         }
 
         impl $crate::app::ProjectNode for $enum_name {
+            fn project_create_node(node_type: &str) -> Option<Self> {
+                if let Some(node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type) {
+                    return Some(Self::Folder(node));
+                }
+                if let Some(node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type) {
+                    return Some(Self::UserContext(node));
+                }
+                if let Some(node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
+                    return Some(Self::Parameter(node));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_TYPE {
+                    return Some(Self::Dashboard($crate::node::DashboardNode::new()));
+                }
+                if node_type == $crate::node::DASHBOARD_PAGE_NODE_TYPE {
+                    return Some(Self::DashboardPage($crate::node::DashboardPageNode::new()));
+                }
+                if node_type == $crate::node::DASHBOARD_WIDGET_CONTAINER_NODE_TYPE {
+                    return Some(Self::DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode::new()));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidget($crate::node::DashboardNodeWidgetNode::new()));
+                }
+                if node_type == $crate::node::DASHBOARD_GENERIC_WIDGET_NODE_TYPE {
+                    return Some(Self::DashboardGenericWidget($crate::node::DashboardGenericWidgetNode::new()));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetInspectorOptions(
+                        $crate::node::DashboardNodeWidgetInspectorOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetParameterEditorOptions(
+                        $crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetNumberSliderOptions(
+                        $crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetNumberRotaryOptions(
+                        $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetVec2PadOptions(
+                        $crate::node::DashboardNodeWidgetVec2PadOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetVec2EditorOptions(
+                        $crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetVec3EditorOptions(
+                        $crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE {
+                    return Some(Self::DashboardNodeWidgetColorEditorOptions(
+                        $crate::node::DashboardNodeWidgetColorEditorOptionsNode::new(),
+                    ));
+                }
+                if node_type == $crate::node::PARAMETER_ANIMATION_CONTROL_NODE_TYPE {
+                    return Some(Self::ParameterAnimationControl(
+                        $crate::parameter::ParameterAnimationControlNode::new("Animation"),
+                    ));
+                }
+                if node_type == $crate::node::PARAMETER_ANIMATION_CURVE_NODE_TYPE {
+                    return Some(Self::Curve($crate::node::CurveNode::new_with_label("Curve")));
+                }
+                if node_type == $crate::node::PARAMETER_ANIMATION_RANGE_NODE_TYPE {
+                    return Some(Self::CurveRange($crate::node::CurveRangeNode::new(None, true)));
+                }
+                if node_type == $crate::node::PARAMETER_ANIMATION_KEY_NODE_TYPE {
+                    return Some(Self::CurveKey($crate::node::CurveKeyNode::new_with_label("Key")));
+                }
+                if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
+                    return Some(Self::CurveEasing($crate::node::CurveEasingNode::new()));
+                }
+                if let Some(node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
+                    return Some(Self::Script(node));
+                }
+
+                $(
+                    if let Some(node) = <$node_ty as $crate::node::Node>::project_create(node_type) {
+                        return Some(Self::$variant(node));
+                    }
+                )*
+
+                None
+            }
+
             fn project_decode_node(node_type: &str, data: &serde_json::Value, meta: &$crate::node::NodeMeta) -> Result<Self, String> {
                 if let Some(mut node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();

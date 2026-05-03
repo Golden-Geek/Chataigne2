@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
-use crate::node::Node;
+use crate::node::{Node, NodeCreationContext};
 
 use super::history::{HistoryStep, HistoryTransaction};
 use super::{Engine, EngineEditError};
@@ -21,7 +21,7 @@ impl<T: Node> Engine<T> {
     /// engine.apply_edits().expect("edit application should succeed");
     /// ```
     pub fn apply_edits(&mut self) -> Result<(), EngineEditError> {
-        self.apply_edits_internal(true)
+        self.apply_edits_internal(true, Some(NodeCreationContext::Fresh))
     }
 
     /// Applies pending edits without recording undo transactions.
@@ -29,10 +29,19 @@ impl<T: Node> Engine<T> {
     /// Runtime-driven edit flushes use this so periodic/internal graph activity
     /// does not pollute user-facing undo history.
     pub(crate) fn apply_edits_without_history(&mut self) -> Result<(), EngineEditError> {
-        self.apply_edits_internal(false)
+        self.apply_edits_internal(false, Some(NodeCreationContext::Fresh))
     }
 
-    fn apply_edits_internal(&mut self, capture_history: bool) -> Result<(), EngineEditError> {
+    /// Applies pending edits without running post-create callbacks for newly added nodes.
+    pub(crate) fn apply_edits_without_creation_callbacks(&mut self) -> Result<(), EngineEditError> {
+        self.apply_edits_internal(false, None)
+    }
+
+    pub(crate) fn apply_edits_internal(
+        &mut self,
+        capture_history: bool,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
         self.absorb_external_edits()?;
 
         let mut transaction = HistoryTransaction::new();
@@ -138,7 +147,7 @@ impl<T: Node> Engine<T> {
                 } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect = self.apply_add_node(edit_index, node, parent, prev_sibling)?;
+                    let effect = self.apply_add_node(edit_index, node, parent, prev_sibling, creation_context)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddUserItem {
@@ -148,7 +157,7 @@ impl<T: Node> Engine<T> {
                 } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling)?;
+                    let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling, creation_context)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::CreateBlueprintInstance {
@@ -159,8 +168,14 @@ impl<T: Node> Engine<T> {
                 } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect =
-                        self.apply_create_blueprint_instance(edit_index, blueprint_id, parent, prev_sibling, label)?;
+                    let effect = self.apply_create_blueprint_instance(
+                        edit_index,
+                        blueprint_id,
+                        parent,
+                        prev_sibling,
+                        label,
+                        creation_context,
+                    )?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::ReplaceNode { node, new_node } => {

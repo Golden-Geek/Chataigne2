@@ -8,7 +8,7 @@ mod policies;
 mod script_support;
 mod user_items;
 
-pub use behavior::{Node, ViaTarget};
+pub use behavior::{Node, NodeCreationContext, ViaTarget};
 pub use builtins::{Folder, UserContextNode};
 pub use constants::*;
 pub use events::{EventPropagation, EventSubscription};

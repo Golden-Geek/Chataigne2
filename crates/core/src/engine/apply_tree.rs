@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::events::EventKind;
-use crate::node::{Node, NodeId, NodeUserPermissions, UserNodeRole};
+use crate::node::{Node, NodeCreationContext, NodeId, NodeUserPermissions, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
@@ -591,12 +591,16 @@ impl<T: Node> Engine<T> {
 
     /// Applies queued structural side effects and preprocesses newly emitted events
     /// until the add/bootstrap pipeline reaches a fixed point.
-    pub(crate) fn stabilize_added_node_structure(&mut self, mut event_cursor: usize) -> Result<(), EngineEditError> {
+    pub(crate) fn stabilize_added_node_structure(
+        &mut self,
+        mut event_cursor: usize,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
         self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_add(1);
         let result = (|| -> Result<(), EngineEditError> {
             loop {
                 while !self.edits.pending.is_empty() {
-                    self.apply_edits_without_history()?;
+                    self.apply_edits_internal(false, creation_context)?;
                 }
 
                 let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
@@ -627,6 +631,7 @@ impl<T: Node> Engine<T> {
         prev_sibling: Option<NodeId>,
         user_role: UserNodeRole,
         validate_as_user_item: bool,
+        creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
         if !self.nodes.contains(parent) {
             return Err(EngineEditError::ParentNotFound {
@@ -713,24 +718,13 @@ impl<T: Node> Engine<T> {
         }
         self.absorb_edits(&mut attach_ctx)?;
         if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(self.inbox.events.len())?;
+            self.stabilize_added_node_structure(self.inbox.events.len(), creation_context)?;
         }
 
         // Run app init after declared/generated children are materialized and handles are bound.
-        let init_tree_snapshot = Some(self.build_process_tree_snapshot());
-        let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        init_ctx.runtime_elapsed = self.runtime_elapsed;
-        if let Some(init_tree_snapshot) = &init_tree_snapshot {
-            init_ctx.set_tree_snapshot(Arc::clone(init_tree_snapshot));
-        }
-        if let Some(node) = self.nodes.get_mut(child_id) {
-            crate::logger::with_node_origin(child_id, || {
-                node.init(&mut init_ctx);
-            });
-        }
-        self.absorb_edits(&mut init_ctx)?;
-        if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(self.inbox.events.len())?;
+        self.run_node_init(child_id, creation_context)?;
+        if let Some(context) = creation_context {
+            self.run_node_ready(child_id, context)?;
         }
 
         Ok(AddNodeEffect {
@@ -748,6 +742,7 @@ impl<T: Node> Engine<T> {
         node: Box<dyn Node>,
         parent: NodeId,
         prev_sibling: Option<NodeId>,
+        creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
         self.apply_add_node_with_role(
             edit_index,
@@ -757,6 +752,7 @@ impl<T: Node> Engine<T> {
             prev_sibling,
             UserNodeRole::Regular,
             false,
+            creation_context,
         )
     }
 
@@ -767,6 +763,7 @@ impl<T: Node> Engine<T> {
         node: Box<dyn Node>,
         parent: NodeId,
         prev_sibling: Option<NodeId>,
+        creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
         self.apply_add_node_with_role(
             edit_index,
@@ -776,7 +773,71 @@ impl<T: Node> Engine<T> {
             prev_sibling,
             UserNodeRole::ItemRoot,
             true,
+            creation_context,
         )
+    }
+
+    pub(crate) fn run_node_init(
+        &mut self,
+        node_id: NodeId,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
+        let init_tree_snapshot = Some(self.build_process_tree_snapshot());
+        let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        init_ctx.runtime_elapsed = self.runtime_elapsed;
+        if let Some(init_tree_snapshot) = &init_tree_snapshot {
+            init_ctx.set_tree_snapshot(Arc::clone(init_tree_snapshot));
+        }
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            crate::logger::with_node_origin(node_id, || {
+                node.init(&mut init_ctx);
+            });
+        }
+        self.absorb_edits(&mut init_ctx)?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(self.inbox.events.len(), creation_context)?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn run_node_ready(
+        &mut self,
+        node_id: NodeId,
+        creation_context: NodeCreationContext,
+    ) -> Result<(), EngineEditError> {
+        let created_tree_snapshot = Some(self.build_process_tree_snapshot());
+        let mut created_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        created_ctx.runtime_elapsed = self.runtime_elapsed;
+        if let Some(created_tree_snapshot) = &created_tree_snapshot {
+            created_ctx.set_tree_snapshot(Arc::clone(created_tree_snapshot));
+        }
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            crate::logger::with_node_origin(node_id, || {
+                node.on_node_ready(&mut created_ctx, creation_context);
+            });
+        }
+        self.absorb_edits(&mut created_ctx)?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(self.inbox.events.len(), Some(creation_context))?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn queue_node_ready(&mut self, node_id: NodeId, creation_context: NodeCreationContext) {
+        self.pending_node_ready.push((node_id, creation_context));
+    }
+
+    pub(crate) fn run_pending_node_ready_callbacks(&mut self) -> Result<(), EngineEditError> {
+        let pending = std::mem::take(&mut self.pending_node_ready);
+        for (node_id, creation_context) in pending {
+            if self.nodes.contains(node_id) {
+                self.run_node_ready(node_id, creation_context)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Applies a replace-node edit and returns history data required for undo/redo.

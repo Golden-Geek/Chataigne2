@@ -155,6 +155,8 @@ pub struct Engine<T: Node> {
     param_last_change_counter: HashMap<NodeId, u64>,
     /// Runtime state for expression-controlled parameters.
     expression_runtime: HashMap<NodeId, ExpressionControlRuntime>,
+    /// Node-ready callbacks deferred by persistence until a host starts the loaded graph.
+    pending_node_ready: Vec<(NodeId, NodeCreationContext)>,
     /// Re-entrancy depth for outer structural stabilization loops.
     ///
     /// When non-zero, add-node inline stabilization is deferred to the outer pass
@@ -205,6 +207,7 @@ impl<T: Node> Engine<T> {
             param_change_counter: 0,
             param_last_change_counter: HashMap::new(),
             expression_runtime: HashMap::new(),
+            pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
         };
         engine.sync_missing_reference_warnings_silent();
