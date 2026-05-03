@@ -158,7 +158,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn route_event_recipients(&self, event: &Event) -> Vec<NodeId> {
+    pub(crate) fn route_event_recipients(&self, event: &Event) -> Vec<NodeId> {
         let Some(origin) = event.kind.propagation_origin() else {
             return Vec::new();
         };

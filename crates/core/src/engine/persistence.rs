@@ -2,14 +2,17 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::events::{Event, EventKind};
 use crate::node::{
     DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, SemanticsHint,
     UserNodeRole,
 };
+use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -288,7 +291,7 @@ impl<T: Node> Engine<T> {
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
 
-        // Freshly loaded projects should start with no pending edits/history/events.
+        // Freshly loaded projects should start with clean runtime-only state before re-running node lifecycle hooks.
         engine.inbox.clear();
         engine.edits.pending.clear();
         engine.clear_history();
@@ -299,6 +302,16 @@ impl<T: Node> Engine<T> {
             micro: 0,
             seq: 0,
         };
+
+        engine.replay_loaded_subtree_lifecycle(root_id)?;
+        engine.resolve_reference_caches();
+        engine.sync_missing_reference_warnings_silent();
+        engine.rebuild_user_context_registry_from_nodes();
+
+        // Loaded projects should not surface bootstrap-only events or history to the runtime host.
+        engine.inbox.clear();
+        engine.edits.pending.clear();
+        engine.clear_history();
 
         Ok(engine)
     }
@@ -355,6 +368,7 @@ impl<T: Node> Engine<T> {
             &mut decode_node,
         )?;
 
+        self.replay_loaded_subtree_lifecycle(duplicated_root)?;
         self.resolve_reference_caches();
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
@@ -381,6 +395,159 @@ impl<T: Node> Engine<T> {
         );
 
         Ok(duplicated_root)
+    }
+
+    fn replay_loaded_subtree_lifecycle(&mut self, root: NodeId) -> Result<(), ProjectPersistenceError> {
+        let loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+
+        for node_id in &loaded_node_ids {
+            self.replay_loaded_node_attached(*node_id)?;
+        }
+
+        self.reconcile_loaded_declared_children(loaded_node_ids.as_slice())?;
+
+        for node_id in loaded_node_ids {
+            self.replay_loaded_node_init(node_id)?;
+        }
+
+        Ok(())
+    }
+
+    fn reconcile_loaded_declared_children(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
+        let mut index_by_node = HashMap::<NodeId, usize>::new();
+        let mut per_node_events = Vec::<(NodeId, Vec<Event>)>::new();
+
+        for parent_id in node_ids {
+            let mut child = self
+                .nodes
+                .get(*parent_id)
+                .ok_or(ProjectPersistenceError::MissingNode(*parent_id))?
+                .node_data()
+                .first_child;
+
+            while let Some(child_id) = child {
+                let child_node = self
+                    .nodes
+                    .get(child_id)
+                    .ok_or(ProjectPersistenceError::MissingNode(child_id))?;
+                let event = Event {
+                    time: self.time,
+                    kind: EventKind::ChildAdded {
+                        parent: *parent_id,
+                        child: child_id,
+                        decl_id: child_node.node_data().meta.decl_id.clone(),
+                    },
+                };
+
+                for recipient in self.route_event_recipients(&event) {
+                    let slot = match index_by_node.get(&recipient).copied() {
+                        Some(index) => index,
+                        None => {
+                            let index = per_node_events.len();
+                            per_node_events.push((recipient, Vec::new()));
+                            index_by_node.insert(recipient, index);
+                            index
+                        }
+                    };
+                    per_node_events[slot].1.push(event.clone());
+                }
+
+                child = child_node.node_data().next_sibling;
+            }
+        }
+
+        if per_node_events.is_empty() {
+            return Ok(());
+        }
+
+        let event_cursor = self.inbox.events.len();
+        self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor)?;
+        }
+
+        Ok(())
+    }
+
+    fn collect_loaded_subtree_node_ids(&self, root: NodeId) -> Result<Vec<NodeId>, ProjectPersistenceError> {
+        if !self.nodes.contains(root) {
+            return Err(ProjectPersistenceError::MissingNode(root));
+        }
+
+        let mut ordered = Vec::<NodeId>::new();
+        let mut stack = vec![root];
+        while let Some(node_id) = stack.pop() {
+            ordered.push(node_id);
+
+            let mut children = Vec::<NodeId>::new();
+            let mut child = self
+                .nodes
+                .get(node_id)
+                .ok_or(ProjectPersistenceError::MissingNode(node_id))?
+                .node_data()
+                .first_child;
+            while let Some(child_id) = child {
+                children.push(child_id);
+                child = self
+                    .nodes
+                    .get(child_id)
+                    .ok_or(ProjectPersistenceError::MissingNode(child_id))?
+                    .node_data()
+                    .next_sibling;
+            }
+
+            for child_id in children.into_iter().rev() {
+                stack.push(child_id);
+            }
+        }
+
+        Ok(ordered)
+    }
+
+    fn replay_loaded_node_attached(&mut self, node_id: NodeId) -> Result<(), ProjectPersistenceError> {
+        let tree_snapshot = Some(self.build_process_tree_snapshot());
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.runtime_elapsed = self.runtime_elapsed;
+        if let Some(tree_snapshot) = &tree_snapshot {
+            ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+        }
+
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            crate::logger::with_node_origin(node_id, || {
+                node.engine_on_attached(&mut ctx);
+            });
+        }
+
+        let event_cursor = self.inbox.events.len();
+        self.absorb_edits(&mut ctx)?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor)?;
+        }
+
+        Ok(())
+    }
+
+    fn replay_loaded_node_init(&mut self, node_id: NodeId) -> Result<(), ProjectPersistenceError> {
+        let tree_snapshot = Some(self.build_process_tree_snapshot());
+        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        ctx.runtime_elapsed = self.runtime_elapsed;
+        if let Some(tree_snapshot) = &tree_snapshot {
+            ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+        }
+
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            crate::logger::with_node_origin(node_id, || {
+                node.init(&mut ctx);
+            });
+        }
+
+        let event_cursor = self.inbox.events.len();
+        self.absorb_edits(&mut ctx)?;
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor)?;
+        }
+
+        Ok(())
     }
 
     fn encode_node_record_with<F>(

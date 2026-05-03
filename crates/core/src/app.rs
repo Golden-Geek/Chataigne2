@@ -187,7 +187,7 @@ impl<T: Node> GoldenApp<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::Node;
+    use crate::node::{Node, PotentialNodeHandle};
 
     #[crate::node("lifecycle_marker_node", label = "Marker")]
     struct LifecycleMarkerNode {}
@@ -218,6 +218,67 @@ mod tests {
 
     #[crate::node("persisted_state_node", from_struct)]
     impl Node for PersistedStateNode {}
+
+    #[crate::node("loaded_init_node")]
+    #[defaults(init_calls = 0)]
+    struct LoadedInitNode {
+        init_calls: usize,
+    }
+
+    #[crate::node("loaded_init_node", from_struct)]
+    impl Node for LoadedInitNode {
+        fn init(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+            self.init_calls += 1;
+        }
+    }
+
+    #[crate::node("loaded_children_node")]
+    #[children(
+        value: f64 = 1.0 (
+            label = "Value"
+        );
+    )]
+    struct LoadedChildrenNode {}
+
+    #[crate::node("loaded_children_node", from_struct)]
+    impl Node for LoadedChildrenNode {}
+
+    #[crate::node("loaded_nested_children_node")]
+    #[children(
+        folder(parameters, label = "Parameters", reuse = true) {
+            port: String = "COM1" (label = "Port");
+
+            folder(connection, label = "Connection") {
+                baud_rate: i32 = 9600 (label = "Baud Rate");
+            }
+
+            folder(empty_group, label = "Empty Group") {}
+        }
+    )]
+    struct LoadedNestedChildrenNode {}
+
+    #[crate::node("loaded_nested_children_node", from_struct)]
+    impl Node for LoadedNestedChildrenNode {}
+
+    #[crate::node("loaded_potential_folder_node")]
+    #[defaults(saw_parameters_in_init = false)]
+    #[children(
+        folder(parameters, label = "Parameters") {
+            enabled: bool = true (label = "Enabled");
+        }
+    )]
+    struct LoadedPotentialFolderNode {
+        #[potential_node(decl_id = "parameters")]
+        parameters: PotentialNodeHandle,
+        saw_parameters_in_init: bool,
+    }
+
+    #[crate::node("loaded_potential_folder_node", from_struct)]
+    impl Node for LoadedPotentialFolderNode {
+        fn init(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+            self.saw_parameters_in_init = self.parameters.current_id().is_some();
+        }
+    }
 
     #[crate::node("via_persisted_state_base_node")]
     struct ViaPersistedStateBaseNode {
@@ -286,7 +347,11 @@ mod tests {
     crate::define_node_enum!(
         enum ProjectDecodeTestAppNode {
             AutoLoadedNode,
+            LoadedChildrenNode,
+            LoadedNestedChildrenNode,
+            LoadedPotentialFolderNode,
             DefaultedLoadedNode,
+            LoadedInitNode,
             PersistedStateNode,
             ViaPersistedStateBaseNode,
             ViaPersistedStateWrapperNode,
@@ -434,6 +499,312 @@ mod tests {
             node.flag,
             "autoloaded node should preserve generated default-backed constructor state"
         );
+    }
+
+    #[test]
+    fn deserialized_nodes_run_init_after_project_decode() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedInitNode::new().into(), None);
+        engine.apply_edits().expect("loaded-init node should attach");
+
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
+
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-init node should be restored under root");
+        let ProjectDecodeTestAppNode::LoadedInitNode(node) = loaded
+            .nodes
+            .get(restored)
+            .expect("loaded-init node should exist")
+        else {
+            panic!("restored node should be a LoadedInitNode");
+        };
+
+        assert_eq!(
+            node.init_calls, 1,
+            "deserialized nodes should replay init once after project decode"
+        );
+    }
+
+    #[test]
+    fn deserialized_nodes_do_not_duplicate_declared_children() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedChildrenNode::new().into(), None);
+        engine.apply_edits().expect("loaded-children node should attach");
+
+        let source = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-children node should exist under root");
+        assert_eq!(count_direct_children(&engine, source), 1, "source node should materialize one declared child");
+
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
+
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-children node should be restored under root");
+        assert_eq!(
+            count_direct_children(&loaded, restored),
+            1,
+            "deserialized node should not duplicate declared children"
+        );
+    }
+
+    #[test]
+    fn duplicated_subtrees_do_not_duplicate_declared_children() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedChildrenNode::new().into(), None);
+        engine.apply_edits().expect("loaded-children node should attach");
+
+        let source = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-children node should exist under root");
+        let duplicated = engine
+            .duplicate_subtree_with(
+                source,
+                engine.root,
+                Some(source),
+                Some("Loaded Children Copy".to_string()),
+                |node| node.project_encode_data(),
+                <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+            )
+            .expect("loaded-children subtree should duplicate");
+
+        assert_eq!(
+            count_direct_children(&engine, duplicated),
+            1,
+            "duplicated subtree should not duplicate declared children"
+        );
+    }
+
+    #[test]
+    fn deserialized_nodes_do_not_duplicate_nested_declared_children() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedNestedChildrenNode::new().into(), None);
+        engine.apply_edits().expect("loaded-nested-children node should attach");
+
+        let source = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-nested-children node should exist under root");
+        assert_nested_declared_child_shape(&engine, source);
+
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
+
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-nested-children node should be restored under root");
+        assert_nested_declared_child_shape(&loaded, restored);
+    }
+
+    #[test]
+    fn duplicated_subtrees_do_not_duplicate_nested_declared_children() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedNestedChildrenNode::new().into(), None);
+        engine.apply_edits().expect("loaded-nested-children node should attach");
+
+        let source = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-nested-children node should exist under root");
+        let duplicated = engine
+            .duplicate_subtree_with(
+                source,
+                engine.root,
+                Some(source),
+                Some("Loaded Nested Children Copy".to_string()),
+                |node| node.project_encode_data(),
+                <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+            )
+            .expect("loaded-nested-children subtree should duplicate");
+
+        assert_nested_declared_child_shape(&engine, duplicated);
+    }
+
+    #[test]
+    fn deserialized_nodes_bind_potential_folder_handles_before_init() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedPotentialFolderNode::new().into(), None);
+        engine.apply_edits().expect("loaded-potential-folder node should attach");
+
+        let json = engine
+            .to_project_json_with(|node| node.project_encode_data())
+            .expect("project should encode");
+        let loaded = Engine::<ProjectDecodeTestAppNode>::from_project_json_with(
+            &json,
+            <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("project should decode");
+
+        let restored = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-potential-folder node should be restored under root");
+        let ProjectDecodeTestAppNode::LoadedPotentialFolderNode(node) = loaded
+            .nodes
+            .get(restored)
+            .expect("loaded-potential-folder node should exist")
+        else {
+            panic!("restored node should be a LoadedPotentialFolderNode");
+        };
+
+        assert!(
+            node.parameters.current_id().is_some(),
+            "loaded potential folder handle should bind to the existing declared folder"
+        );
+        assert!(
+            node.saw_parameters_in_init,
+            "loaded potential folder handle should already be bound when init runs"
+        );
+    }
+
+    #[test]
+    fn duplicated_subtrees_bind_potential_folder_handles_before_init() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(LoadedPotentialFolderNode::new().into(), None);
+        engine.apply_edits().expect("loaded-potential-folder node should attach");
+
+        let source = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("loaded-potential-folder node should exist under root");
+        let duplicated = engine
+            .duplicate_subtree_with(
+                source,
+                engine.root,
+                Some(source),
+                Some("Loaded Potential Folder Copy".to_string()),
+                |node| node.project_encode_data(),
+                <ProjectDecodeTestAppNode as ProjectNode>::project_decode_node,
+            )
+            .expect("loaded-potential-folder subtree should duplicate");
+
+        let ProjectDecodeTestAppNode::LoadedPotentialFolderNode(node) = engine
+            .nodes
+            .get(duplicated)
+            .expect("duplicated loaded-potential-folder node should exist")
+        else {
+            panic!("duplicated node should be a LoadedPotentialFolderNode");
+        };
+
+        assert!(
+            node.parameters.current_id().is_some(),
+            "duplicated potential folder handle should bind to the existing declared folder"
+        );
+        assert!(
+            node.saw_parameters_in_init,
+            "duplicated potential folder handle should already be bound when init runs"
+        );
+    }
+
+    fn count_direct_children(engine: &Engine<ProjectDecodeTestAppNode>, node_id: crate::node::NodeId) -> usize {
+        let mut count = 0usize;
+        let mut child = engine.nodes.get(node_id).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            count = count.saturating_add(1);
+            child = engine.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+        }
+        count
+    }
+
+    fn assert_nested_declared_child_shape(engine: &Engine<ProjectDecodeTestAppNode>, owner_id: crate::node::NodeId) {
+        let parameters = find_direct_child_by_decl(engine, owner_id, "parameters")
+            .expect("parameters folder should exist");
+        assert_eq!(
+            count_direct_children(engine, owner_id),
+            1,
+            "owner should only have one top-level declared folder"
+        );
+        assert_eq!(
+            count_direct_children(engine, parameters),
+            3,
+            "parameters folder should keep exactly its declared children"
+        );
+        assert_eq!(count_direct_decl(engine, owner_id, "parameters"), 1);
+        assert_eq!(count_direct_decl(engine, parameters, "parameters/port"), 1);
+        assert_eq!(count_direct_decl(engine, parameters, "parameters/connection"), 1);
+        assert_eq!(count_direct_decl(engine, parameters, "parameters/empty_group"), 1);
+
+        let connection = find_direct_child_by_decl(engine, parameters, "parameters/connection")
+            .expect("connection folder should exist");
+        assert_eq!(count_direct_children(engine, connection), 1);
+        assert_eq!(count_direct_decl(engine, connection, "parameters/connection/baud_rate"), 1);
+
+        let empty_group = find_direct_child_by_decl(engine, parameters, "parameters/empty_group")
+            .expect("empty group folder should exist");
+        assert_eq!(count_direct_children(engine, empty_group), 0, "empty group should stay empty");
+    }
+
+    fn find_direct_child_by_decl(
+        engine: &Engine<ProjectDecodeTestAppNode>,
+        node_id: crate::node::NodeId,
+        decl_id: &str,
+    ) -> Option<crate::node::NodeId> {
+        let mut child = engine.nodes.get(node_id).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let child_node = engine.nodes.get(child_id)?;
+            if child_node.node_data().meta.decl_id.0 == decl_id {
+                return Some(child_id);
+            }
+            child = child_node.node_data().next_sibling;
+        }
+        None
+    }
+
+    fn count_direct_decl(engine: &Engine<ProjectDecodeTestAppNode>, node_id: crate::node::NodeId, decl_id: &str) -> usize {
+        let mut count = 0usize;
+        let mut child = engine.nodes.get(node_id).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let Some(child_node) = engine.nodes.get(child_id) else {
+                break;
+            };
+            if child_node.node_data().meta.decl_id.0 == decl_id {
+                count = count.saturating_add(1);
+            }
+            child = child_node.node_data().next_sibling;
+        }
+        count
     }
 
     #[test]

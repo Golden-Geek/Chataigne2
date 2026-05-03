@@ -591,7 +591,7 @@ impl<T: Node> Engine<T> {
 
     /// Applies queued structural side effects and preprocesses newly emitted events
     /// until the add/bootstrap pipeline reaches a fixed point.
-    fn stabilize_added_node_structure(&mut self, mut event_cursor: usize) -> Result<(), EngineEditError> {
+    pub(crate) fn stabilize_added_node_structure(&mut self, mut event_cursor: usize) -> Result<(), EngineEditError> {
         self.stabilization_scope_depth = self.stabilization_scope_depth.saturating_add(1);
         let result = (|| -> Result<(), EngineEditError> {
             loop {

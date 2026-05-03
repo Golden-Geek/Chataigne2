@@ -4079,49 +4079,56 @@ fn build_params_plan_param_create_tokens_with_insert_after(
         let _: &golden_core::node::ParameterHandle<#ty> = &self.#field_ident;
         #set_behaviour
         {
-            let __golden_param_already_pending = ctx.edits.pending.iter().any(|request| {
-                matches!(
-                    &request.edit,
-                    golden_core::edit::Edit::AddNode { parent, node, .. }
-                        if *parent == #parent_expr
-                            && node.node_data().meta.decl_id.0 == #decl_id_lit
-                )
-            });
-            if !__golden_param_already_pending {
-                let mut __param_node = golden_core::parameter::Parameter::new(
-                    #label_lit,
-                    <#ty as golden_core::node::ParameterValueType>::to_param_value(
-                        self.#field_ident.get_ref().clone()
-                    ),
-                    self.#field_ident.change_check().clone(),
-                );
-                __param_node.event_behaviour = self.#field_ident.event_behaviour();
-                #set_read_only
-                #set_widget
-                #set_range
-                #set_step
-                #set_step_base
-                #set_enum_options
-                #set_file_allowed_types
-                #set_file_allowed_extensions
-                #set_constraint_policy
-                #set_reference_root
-                #set_reference_target_kind
-                #set_reference_allowed_node_types
-                #set_reference_allowed_parameter_types
-                #set_reference_allow_projections
-                #set_reference_custom_filter_key
-                #set_reference_default_search_filter
-                golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
-                    golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                #set_description
-                #set_short_name
-                #set_enabled
-                #set_can_be_disabled
-                #set_tags
-                #set_semantics
-                #set_presentation
-                ctx.add_child(#parent_expr, __param_node, #insert_after);
+            let __golden_existing_param = ctx
+                .tree_snapshot()
+                .and_then(|__golden_snapshot| __golden_snapshot.find_child(#parent_expr, #decl_id_lit));
+            if let Some(__golden_existing_param) = __golden_existing_param {
+                self.#field_ident.set_node_id(__golden_existing_param);
+            } else {
+                let __golden_param_already_pending = ctx.edits.pending.iter().any(|request| {
+                    matches!(
+                        &request.edit,
+                        golden_core::edit::Edit::AddNode { parent, node, .. }
+                            if *parent == #parent_expr
+                                && node.node_data().meta.decl_id.0 == #decl_id_lit
+                    )
+                });
+                if !__golden_param_already_pending {
+                    let mut __param_node = golden_core::parameter::Parameter::new(
+                        #label_lit,
+                        <#ty as golden_core::node::ParameterValueType>::to_param_value(
+                            self.#field_ident.get_ref().clone()
+                        ),
+                        self.#field_ident.change_check().clone(),
+                    );
+                    __param_node.event_behaviour = self.#field_ident.event_behaviour();
+                    #set_read_only
+                    #set_widget
+                    #set_range
+                    #set_step
+                    #set_step_base
+                    #set_enum_options
+                    #set_file_allowed_types
+                    #set_file_allowed_extensions
+                    #set_constraint_policy
+                    #set_reference_root
+                    #set_reference_target_kind
+                    #set_reference_allowed_node_types
+                    #set_reference_allowed_parameter_types
+                    #set_reference_allow_projections
+                    #set_reference_custom_filter_key
+                    #set_reference_default_search_filter
+                    golden_core::node::Node::node_data_mut(&mut __param_node).meta.decl_id =
+                        golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                    #set_description
+                    #set_short_name
+                    #set_enabled
+                    #set_can_be_disabled
+                    #set_tags
+                    #set_semantics
+                    #set_presentation
+                    ctx.add_child(#parent_expr, __param_node, #insert_after);
+                }
             }
         }
     }
@@ -4223,6 +4230,10 @@ fn materialize_children_tokens(
                 if folder.reuse {
                     out.push(quote! {
                         if #guard {
+                            let __golden_folder_already_exists = ctx
+                                .tree_snapshot()
+                                .and_then(|__golden_snapshot| __golden_snapshot.find_child(#parent_expr, #decl_id_lit))
+                                .is_some();
                             let __golden_folder_already_pending = ctx.edits.pending.iter().any(|request| {
                                 matches!(
                                     &request.edit,
@@ -4231,7 +4242,7 @@ fn materialize_children_tokens(
                                             && node.node_data().meta.decl_id.0 == #decl_id_lit
                                 )
                             });
-                            if !__golden_folder_already_pending {
+                            if !__golden_folder_already_exists && !__golden_folder_already_pending {
                                 let mut __folder_node = golden_core::node::Folder::new(#label_lit);
                                 golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
                                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
@@ -4249,17 +4260,23 @@ fn materialize_children_tokens(
                 } else {
                     out.push(quote! {
                         if #guard {
-                            let mut __folder_node = golden_core::node::Folder::new(#label_lit);
-                            golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
-                                golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
-                            #set_description
-                            #set_short_name
-                            #set_enabled
-                            #set_can_be_disabled
-                            #set_tags
-                            #set_semantics
-                            #set_presentation
-                            ctx.add_child(#parent_expr, __folder_node, #insert_after);
+                            let __golden_folder_already_exists = ctx
+                                .tree_snapshot()
+                                .and_then(|__golden_snapshot| __golden_snapshot.find_child(#parent_expr, #decl_id_lit))
+                                .is_some();
+                            if !__golden_folder_already_exists {
+                                let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                                golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
+                                    golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
+                                #set_description
+                                #set_short_name
+                                #set_enabled
+                                #set_can_be_disabled
+                                #set_tags
+                                #set_semantics
+                                #set_presentation
+                                ctx.add_child(#parent_expr, __folder_node, #insert_after);
+                            }
                         }
                     });
                 }
@@ -4481,7 +4498,7 @@ fn build_range_constraint_assignment(
                 );
             }
 
-            if let Some(values) = &min_components {
+            if let Some(values) = min_components.as_ref() {
                 if values.len() != arity {
                     return Some(
                         Error::new_spanned(
