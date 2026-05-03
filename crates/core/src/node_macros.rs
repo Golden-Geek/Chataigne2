@@ -208,6 +208,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, menu_path: [$($typed_menu_path:expr),* $(,)?])?
                     $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
@@ -229,6 +230,7 @@ macro_rules! define_user_item_factory_methods {
                         $(, node_type: $typed_node_type)?
                         $(, item_kind: $typed_item_kind)?
                         $(, label: $typed_label)?
+                        $(, menu_path: [$($typed_menu_path),*])?
                         $(, select_when_created: $typed_select_when_created)?
                         $(, when: $typed_when)?
                         $(, create: $typed_create)?
@@ -246,6 +248,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, menu_path: [$($typed_menu_path:expr),* $(,)?])?
                     $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
@@ -263,6 +266,7 @@ macro_rules! define_user_item_factory_methods {
                         $(, node_type: $typed_node_type)?
                         $(, item_kind: $typed_item_kind)?
                         $(, label: $typed_label)?
+                        $(, menu_path: [$($typed_menu_path),*])?
                         $(, select_when_created: $typed_select_when_created)?
                         $(, when: $typed_when)?
                         $(, create: $typed_create)?
@@ -280,6 +284,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(menu_path: [$($menu_path:expr),* $(,)?],)?
                     $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
@@ -300,6 +305,7 @@ macro_rules! define_user_item_factory_methods {
                         node_type: $node_type,
                         item_kind: $item_kind,
                         label: $label,
+                        $(menu_path: [$($menu_path),*],)?
                         $(select_when_created: $select_when_created,)?
                         $(when: $when,)?
                         create: $create
@@ -316,6 +322,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(menu_path: [$($menu_path:expr),* $(,)?],)?
                     $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
@@ -332,6 +339,7 @@ macro_rules! define_user_item_factory_methods {
                         node_type: $node_type,
                         item_kind: $item_kind,
                         label: $label,
+                        $(menu_path: [$($menu_path),*],)?
                         $(select_when_created: $select_when_created,)?
                         $(when: $when,)?
                         create: $create
@@ -349,6 +357,7 @@ macro_rules! define_user_item_factory_methods {
                     node_type: $node_type:literal,
                     item_kind: $item_kind:literal,
                     label: $label:expr,
+                    $(menu_path: [$($menu_path:expr),* $(,)?],)?
                     $(select_when_created: $select_when_created:expr,)?
                     $(when: $when:expr,)?
                     create: $create:expr
@@ -377,12 +386,12 @@ macro_rules! define_user_item_factory_methods {
 
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $when )?) {
-                    items.push(
-                        $crate::node::UserCreatableItem::new($node_type, $item_kind, $label)
-                            .with_select_when_created(
-                                $crate::define_user_item_factory_methods!(@select_when_created $( $select_when_created )?),
-                            ),
-                    );
+                    let item = $crate::node::UserCreatableItem::new($node_type, $item_kind, $label)
+                        .with_select_when_created(
+                            $crate::define_user_item_factory_methods!(@select_when_created $( $select_when_created )?),
+                        );
+                    let item = $crate::define_user_item_factory_methods!(@with_menu_path item $(, [$($menu_path),*])?);
+                    items.push(item);
                 }
             )*
             items
@@ -415,6 +424,7 @@ macro_rules! define_user_item_factory_methods {
                     $(, node_type: $typed_node_type:expr)?
                     $(, item_kind: $typed_item_kind:expr)?
                     $(, label: $typed_label:expr)?
+                    $(, menu_path: [$($typed_menu_path:expr),* $(,)?])?
                     $(, select_when_created: $typed_select_when_created:expr)?
                     $(, when: $typed_when:expr)?
                     $(, create: $typed_create:expr)?
@@ -442,14 +452,26 @@ macro_rules! define_user_item_factory_methods {
 
             $(
                 if $crate::define_user_item_factory_methods!(@cond self $(, $typed_when )?) {
-                    items.push($crate::node::UserCreatableItem::new(
+                    let item = $crate::node::UserCreatableItem::new(
                         $crate::define_user_item_factory_methods!(@typed_node_type $node_ty $(, $typed_node_type)?),
                         $crate::define_user_item_factory_methods!(@typed_item_kind $node_ty $(, $typed_item_kind)?),
                         $crate::define_user_item_factory_methods!(@typed_label $node_ty $(, $typed_label)?),
                     )
                     .with_select_when_created(
                         $crate::define_user_item_factory_methods!(@select_when_created $( $typed_select_when_created )?),
-                    ));
+                    );
+                    let item = $crate::define_user_item_factory_methods!(
+                        @with_typed_menu_path
+                        item,
+                        $node_ty
+                        $(, [$($typed_menu_path),*])?
+                        ;
+                        $(node_type $typed_node_type)?
+                        $(item_kind $typed_item_kind)?
+                        $(label $typed_label)?
+                        $(create $typed_create)?
+                    );
+                    items.push(item);
                 }
             )*
             items
@@ -491,7 +513,10 @@ macro_rules! define_user_item_factory_methods {
     };
 
     (@typed_label $node_ty:ty, $label:expr) => {
-        ($label).into()
+        {
+            let __golden_label: ::std::string::String = ($label).into();
+            __golden_label
+        }
     };
 
     (@typed_label $node_ty:ty) => {
@@ -520,6 +545,31 @@ macro_rules! define_user_item_factory_methods {
 
     (@select_when_created) => {
         true
+    };
+
+    (@with_menu_path $item:expr, [$($menu_path:expr),*]) => {
+        $item.with_menu_path([$($menu_path),*])
+    };
+
+    (@with_menu_path $item:expr) => {
+        $item
+    };
+
+    (@with_typed_menu_path $item:expr, $node_ty:ty, [$($menu_path:expr),*] ; $($custom:tt)*) => {
+        $item.with_menu_path([$($menu_path),*])
+    };
+
+    (@with_typed_menu_path $item:expr, $node_ty:ty ;) => {{
+        let __golden_menu_path = <$node_ty as $crate::node::DeclaredUserItemNode>::item_menu_path();
+        if __golden_menu_path.is_empty() {
+            $item
+        } else {
+            $item.with_menu_path(__golden_menu_path)
+        }
+    }};
+
+    (@with_typed_menu_path $item:expr, $node_ty:ty ; $($custom:tt)+) => {
+        $item
     };
 }
 

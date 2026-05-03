@@ -6,9 +6,9 @@ use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
-    Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit, ExprMethodCall, ExprPath, ExprUnary,
-    Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct, Lit, LitBool, LitInt, LitStr, Meta,
-    PathArguments, Result, Token, Type, UnOp, parse_macro_input, parse_quote,
+    parse_macro_input, parse_quote, Attribute, BinOp, Error, Expr, ExprArray, ExprBinary, ExprCall, ExprLit,
+    ExprMethodCall, ExprPath, ExprUnary, Field, Fields, GenericArgument, Ident, ImplItem, Item, ItemImpl, ItemStruct,
+    Lit, LitBool, LitInt, LitStr, Meta, PathArguments, Result, Token, Type, UnOp,
 };
 
 #[derive(Clone)]
@@ -201,12 +201,14 @@ impl Parse for NodeAttr {
 
 struct ItemAttr {
     item_kind: Option<LitStr>,
+    menu_path: Vec<LitStr>,
     node: NodeAttr,
 }
 
 impl Parse for ItemAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut item_kind = None;
+        let mut menu_path = None::<Vec<LitStr>>;
         let mut type_name = None;
         let mut ctor_meta_fields = BTreeMap::new();
         let mut presentation_fields = PresentationMetaFields::default();
@@ -244,6 +246,12 @@ impl Parse for ItemAttr {
                     }
                     input.parse::<Token![=]>()?;
                     type_name = Some(input.parse::<LitStr>()?);
+                } else if key == "menu_path" || key == "menuPath" {
+                    if menu_path.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `menu_path` argument"));
+                    }
+                    input.parse::<Token![=]>()?;
+                    menu_path = Some(parse_lit_str_array(input)?);
                 } else if key == "via" {
                     if via.is_some() {
                         return Err(Error::new(key.span(), "duplicate `via` argument"));
@@ -292,7 +300,7 @@ impl Parse for ItemAttr {
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, `menu_path = [\"...\"]`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                 ));
             }
 
@@ -308,6 +316,7 @@ impl Parse for ItemAttr {
 
         Ok(Self {
             item_kind,
+            menu_path: menu_path.unwrap_or_default(),
             node: NodeAttr {
                 type_name,
                 ctor_meta_fields,
@@ -319,6 +328,35 @@ impl Parse for ItemAttr {
                 contextualizable,
             },
         })
+    }
+}
+
+fn parse_lit_str_array(input: ParseStream) -> Result<Vec<LitStr>> {
+    let content;
+    syn::bracketed!(content in input);
+
+    let mut values = Vec::new();
+    while !content.is_empty() {
+        values.push(content.parse::<LitStr>()?);
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<Token![,]>()?;
+        if content.is_empty() {
+            break;
+        }
+    }
+
+    Ok(values)
+}
+
+fn build_item_menu_path_tokens(item_menu_path: &[LitStr]) -> proc_macro2::TokenStream {
+    if item_menu_path.is_empty() {
+        quote! { ::std::vec::Vec::new() }
+    } else {
+        quote! {
+            ::std::vec![#(::std::string::String::from(#item_menu_path)),*]
+        }
     }
 }
 
@@ -1994,6 +2032,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
             scriptable,
             contextualizable,
             None,
+            Vec::new(),
             input,
         )
         .into(),
@@ -2007,6 +2046,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
             scriptable,
             contextualizable,
             None,
+            Vec::new(),
             input,
         )
         .into(),
@@ -2020,6 +2060,7 @@ pub fn node(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ItemAttr {
         item_kind,
+        menu_path,
         node:
             NodeAttr {
                 type_name,
@@ -2055,6 +2096,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
             scriptable,
             contextualizable,
             Some(resolved_item_kind),
+            menu_path.clone(),
             input,
         )
         .into(),
@@ -2068,6 +2110,7 @@ pub fn item(attr: TokenStream, item: TokenStream) -> TokenStream {
             scriptable,
             contextualizable,
             Some(resolved_item_kind),
+            menu_path,
             input,
         )
         .into(),
@@ -2145,6 +2188,7 @@ fn expand_struct(
     scriptable: Option<ScriptableAttr>,
     contextualizable: Option<ContextualizableAttr>,
     item_kind: Option<LitStr>,
+    item_menu_path: Vec<LitStr>,
     mut input: ItemStruct,
 ) -> proc_macro2::TokenStream {
     if via.is_some() {
@@ -3009,6 +3053,7 @@ fn expand_struct(
             }
         }
     });
+    let generated_item_menu_path = build_item_menu_path_tokens(&item_menu_path);
     let generated_declared_user_item_node = item_kind.as_ref().map(|item_kind| {
         quote! {
             impl #impl_generics golden_core::node::DeclaredUserItemNode for #struct_name #ty_generics #where_clause {
@@ -3017,6 +3062,10 @@ fn expand_struct(
 
                 fn item_default_label() -> ::std::string::String {
                     Self::default_label()
+                }
+
+                fn item_menu_path() -> ::std::vec::Vec<::std::string::String> {
+                    #generated_item_menu_path
                 }
 
                 fn create_item() -> Self {
@@ -3220,6 +3269,7 @@ fn expand_impl(
     scriptable: Option<ScriptableAttr>,
     contextualizable: Option<ContextualizableAttr>,
     item_kind: Option<LitStr>,
+    item_menu_path: Vec<LitStr>,
     mut input: ItemImpl,
 ) -> proc_macro2::TokenStream {
     if impl_node {
@@ -3246,6 +3296,7 @@ fn expand_impl(
     let fallback_default_label = make_label_literal(&resolved_type_name.value());
     let generated_default_label = match ctor_meta_fields.get("label") {
         Some((_, expr)) => quote! { (#expr).into() },
+        None if from_struct => quote! { Self::default_label() },
         None => quote! { ::std::string::String::from(#fallback_default_label) },
     };
 
@@ -3486,6 +3537,7 @@ fn expand_impl(
         }
     }
 
+    let generated_item_menu_path = build_item_menu_path_tokens(&item_menu_path);
     let generated_declared_user_item_node = item_kind.as_ref().map(|item_kind| {
         let self_ty = &input.self_ty;
         let generics = &input.generics;
@@ -3497,6 +3549,10 @@ fn expand_impl(
 
                 fn item_default_label() -> ::std::string::String {
                     #generated_default_label
+                }
+
+                fn item_menu_path() -> ::std::vec::Vec<::std::string::String> {
+                    #generated_item_menu_path
                 }
 
                 fn create_item() -> Self {

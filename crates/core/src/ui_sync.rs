@@ -9,13 +9,13 @@ use crate::engine::{Engine, EngineTime};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
-    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch,
-    NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
+    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, Node, NodeId, NodeMetaPatch, NodeUserPermissions,
+    NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole, FOLDER_NODE_TYPE,
 };
 use crate::parameter::{
-    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
-    ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
-    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values, ParamValue,
+    ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec, ParameterControlState,
+    ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
 };
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
@@ -449,6 +449,9 @@ pub struct UiCreatableUserItemDto {
     pub item_kind: String,
     /// Suggested default label.
     pub label: String,
+    /// Optional Add menu submenu path, excluding the item label.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub menu_path: Vec<String>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
 }
@@ -459,6 +462,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
             node_type: item.node_type,
             item_kind: item.item_kind,
             label: item.label,
+            menu_path: item.menu_path,
             select_when_created: item.select_when_created,
         }
     }

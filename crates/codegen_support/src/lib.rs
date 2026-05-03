@@ -18,6 +18,7 @@ struct NodeEntry {
     module: String,
     type_name: String,
     source_path: String,
+    declared_user_item: bool,
 }
 
 /// Scans `src_root` for node declarations and writes a generated node registry file.
@@ -35,6 +36,7 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
         let source_raw =
             fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
         let source = strip_for_scanning(&source_raw);
+        let declared_user_item_types = extract_declared_user_item_types(&source_raw);
 
         if !declares_node_type(&source) {
             continue;
@@ -57,6 +59,7 @@ pub fn generate_app_nodes(src_root: &Path, out_file: &Path) {
         for type_name in type_names {
             entries.push(NodeEntry {
                 module: module.clone(),
+                declared_user_item: declared_user_item_types.contains(&type_name),
                 type_name,
                 source_path: source_path.clone(),
             });
@@ -204,6 +207,109 @@ fn extract_all_after_marker(source: &str, marker: &str) -> Vec<String> {
     out
 }
 
+fn extract_declared_user_item_types(source: &str) -> HashSet<String> {
+    let mut out = HashSet::new();
+    let mut offset = 0usize;
+
+    while let Some(found) = source[offset..].find("#[") {
+        let attr_start = offset + found;
+        let attr_content_start = attr_start + 2;
+        let Some(attr_end) = find_attribute_end(source, attr_content_start) else {
+            break;
+        };
+
+        let attr = &source[attr_content_start..attr_end];
+        if attr_is_item(attr) {
+            if let Some(type_name) = extract_item_target_type(&source[attr_end + 1..]) {
+                out.insert(type_name);
+            }
+        }
+
+        offset = attr_end + 1;
+    }
+
+    out
+}
+
+fn find_attribute_end(source: &str, content_start: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut nested_brackets = 0usize;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for (offset, byte) in bytes.iter().enumerate().skip(content_start) {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if *byte == b'\\' {
+                escaped = true;
+            } else if *byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match *byte {
+            b'"' => in_string = true,
+            b'[' => nested_brackets += 1,
+            b']' if nested_brackets == 0 => return Some(offset),
+            b']' => nested_brackets = nested_brackets.saturating_sub(1),
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn attr_is_item(attr: &str) -> bool {
+    let attr = attr.trim_start();
+    let path_end = attr
+        .find(|ch: char| ch == '(' || ch.is_ascii_whitespace())
+        .unwrap_or(attr.len());
+    let path = &attr[..path_end];
+    path.split("::").last() == Some("item")
+}
+
+fn extract_item_target_type(tail: &str) -> Option<String> {
+    let declaration = skip_leading_outer_attrs(tail);
+    let impl_index = declaration.find("impl ");
+    let struct_index = declaration.find("struct ");
+
+    if struct_index.is_some_and(|index| impl_index.is_none_or(|impl_index| index < impl_index)) {
+        let after_struct = &declaration[struct_index? + "struct ".len()..];
+        return extract_rust_ident(after_struct);
+    }
+
+    let impl_start = impl_index?;
+    let header = declaration[impl_start..].split_once('{')?.0;
+    let self_ty = header.rsplit_once(" for ")?.1.trim();
+    extract_rust_ident(self_ty.rsplit("::").next().unwrap_or(self_ty))
+}
+
+fn skip_leading_outer_attrs(mut tail: &str) -> &str {
+    loop {
+        let trimmed = tail.trim_start();
+        if !trimmed.starts_with("#[") {
+            return trimmed;
+        }
+
+        let Some(attr_end) = find_attribute_end(trimmed, 2) else {
+            return trimmed;
+        };
+        tail = &trimmed[attr_end + 1..];
+    }
+}
+
+fn extract_rust_ident(input: &str) -> Option<String> {
+    let ident: String = input
+        .trim_start()
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect();
+
+    (!ident.is_empty()).then_some(ident)
+}
+
 fn module_name_from_relative(src_root: &Path, file: &Path) -> String {
     let relative = file.strip_prefix(src_root).unwrap_or_else(|_| {
         panic!(
@@ -304,7 +410,91 @@ fn render_registry(entries: &[NodeEntry]) -> String {
     out.push_str("    }\n");
     out.push_str(");\n");
 
+    render_declared_user_item_catalog(entries, &mut out);
+
     out
+}
+
+fn render_declared_user_item_catalog(entries: &[NodeEntry], out: &mut String) {
+    let declared_entries = entries
+        .iter()
+        .filter(|entry| entry.declared_user_item)
+        .collect::<Vec<_>>();
+
+    if declared_entries.is_empty() {
+        return;
+    }
+
+    out.push_str("\npub(crate) fn declared_user_creatable_items(item_kind: &str) -> Vec<golden_core::node::UserCreatableItem> {\n");
+    out.push_str("    let mut items = Vec::new();\n");
+    for entry in &declared_entries {
+        let ty = &entry.type_name;
+        out.push_str(&format!(
+            "    if item_kind == <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_KIND {{\n"
+        ));
+        out.push_str("        let mut item = golden_core::node::UserCreatableItem::new(\n");
+        out.push_str(&format!(
+            "            <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_NODE_TYPE,\n"
+        ));
+        out.push_str(&format!(
+            "            <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_KIND,\n"
+        ));
+        out.push_str(&format!(
+            "            <{ty} as golden_core::node::DeclaredUserItemNode>::item_default_label(),\n"
+        ));
+        out.push_str("        );\n");
+        out.push_str(&format!(
+            "        let __golden_menu_path = <{ty} as golden_core::node::DeclaredUserItemNode>::item_menu_path();\n"
+        ));
+        out.push_str("        if !__golden_menu_path.is_empty() {\n");
+        out.push_str("            item = item.with_menu_path(__golden_menu_path);\n");
+        out.push_str("        }\n");
+        out.push_str("        items.push(item);\n");
+        out.push_str("    }\n");
+    }
+    out.push_str("    items\n");
+    out.push_str("}\n\n");
+
+    out.push_str("pub(crate) fn declared_user_item_type_matches(node_type: &str, item_kind: &str) -> bool {\n");
+    for entry in &declared_entries {
+        let ty = &entry.type_name;
+        out.push_str(&format!(
+            "    if node_type == <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_NODE_TYPE {{\n"
+        ));
+        out.push_str(&format!(
+            "        return item_kind == <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_KIND;\n"
+        ));
+        out.push_str("    }\n");
+    }
+    out.push_str("    false\n");
+    out.push_str("}\n\n");
+
+    out.push_str(
+        "pub(crate) fn create_declared_user_item(node_type: &str, item_kind: &str) -> Option<Box<dyn golden_core::node::Node>> {\n",
+    );
+    for entry in &declared_entries {
+        let ty = &entry.type_name;
+        out.push_str(&format!(
+            "    if node_type == <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_NODE_TYPE\n"
+        ));
+        out.push_str(&format!(
+            "        && item_kind == <{ty} as golden_core::node::DeclaredUserItemNode>::ITEM_KIND\n"
+        ));
+        out.push_str("    {\n");
+        out.push_str(&format!(
+            "        let __golden_label = <{ty} as golden_core::node::DeclaredUserItemNode>::item_default_label();\n"
+        ));
+        out.push_str(&format!(
+            "        let mut node = <{ty} as golden_core::node::DeclaredUserItemNode>::create_item();\n"
+        ));
+        out.push_str("        if golden_core::node::Node::node_data(&node).meta.label != __golden_label {\n");
+        out.push_str("            golden_core::node::Node::node_data_mut(&mut node).meta.label = __golden_label;\n");
+        out.push_str("        }\n");
+        out.push_str("        return Some(Box::new(node));\n");
+        out.push_str("    }\n");
+    }
+    out.push_str("    None\n");
+    out.push_str("}\n");
 }
 
 fn normalize_absolute_path(path: PathBuf) -> String {

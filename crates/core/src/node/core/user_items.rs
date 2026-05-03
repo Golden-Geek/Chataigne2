@@ -94,6 +94,9 @@ pub struct UserCreatableItem {
     pub item_kind: String,
     /// Suggested default label for newly created items.
     pub label: String,
+    /// Optional Add menu submenu path, excluding the item label.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub menu_path: Vec<String>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
 }
@@ -105,8 +108,23 @@ impl UserCreatableItem {
             node_type: node_type.into(),
             item_kind: item_kind.into(),
             label: label.into(),
+            menu_path: Vec::new(),
             select_when_created: true,
         }
+    }
+
+    /// Places the item under a nested Add menu path.
+    pub fn with_menu_path<I, S>(mut self, menu_path: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.menu_path = menu_path
+            .into_iter()
+            .map(|segment| segment.as_ref().trim().to_string())
+            .filter(|segment| !segment.is_empty())
+            .collect();
+        self
     }
 
     /// Overrides whether UI creation flows should auto-select the created item.
@@ -125,6 +143,11 @@ pub trait DeclaredUserItemNode: Node + Sized {
 
     /// Default label shown for newly created instances of this item.
     fn item_default_label() -> String;
+
+    /// Optional Add menu submenu path, excluding the item label.
+    fn item_menu_path() -> Vec<String> {
+        Vec::new()
+    }
 
     /// Creates a new item instance using the item's own constructor policy.
     fn create_item() -> Self;
