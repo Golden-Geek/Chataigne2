@@ -394,6 +394,43 @@ fn osc_module_connection_indicators_follow_receiver_and_outputs() {
 }
 
 #[test]
+fn osc_module_root_enable_toggle_stops_and_restarts_transport() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    let output_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+    let (mut engine, module_id) = create_osc_module_with_output(output_port);
+
+    let connected_param =
+        find_path(&engine, module_id, "connection/connected").expect("module connection state parameter should exist");
+    assert_bool_param(
+        &engine,
+        connected_param,
+        true,
+        "OSC module should report connected while enabled",
+    );
+
+    set_node_enabled(&mut engine, module_id, false);
+    settle_osc_module_state(&mut engine);
+    assert_bool_param(
+        &engine,
+        connected_param,
+        false,
+        "OSC module should disconnect as soon as its root node is disabled",
+    );
+
+    set_node_enabled(&mut engine, module_id, true);
+    settle_osc_module_state(&mut engine);
+    assert_bool_param(
+        &engine,
+        connected_param,
+        true,
+        "OSC module should reconnect after its root node is re-enabled",
+    );
+}
+
+#[test]
 fn send_custom_message_command_sends_osc_packet_through_module_output() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver

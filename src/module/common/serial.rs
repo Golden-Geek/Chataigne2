@@ -74,6 +74,8 @@ pub(crate) struct SerialConnectionConfig {
     pub baud_rate: u32,
     pub receive_enabled: bool,
     pub send_enabled: bool,
+    pub dtr: bool,
+    pub rts: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -671,9 +673,14 @@ fn flush_pending_writes(
 fn open_serial_port(
     config: &SerialConnectionConfig,
 ) -> serialport::Result<Box<dyn serialport::SerialPort>> {
-    serialport::new(config.port_name.as_str(), config.baud_rate)
+    let mut port = serialport::new(config.port_name.as_str(), config.baud_rate)
         .timeout(SERIAL_IO_TIMEOUT)
-        .open()
+        .open()?;
+
+    let _ = port.write_data_terminal_ready(config.dtr);
+    let _ = port.write_request_to_send(config.rts);
+
+    Ok(port)
 }
 
 fn emit_status(

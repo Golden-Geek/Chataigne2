@@ -63,11 +63,11 @@ pub(crate) struct OscSendCustomMessageRequest {
             description = "Network interface used to receive OSC and as the source binding for outgoing traffic.",
             enum_options = ["any (default)"]
         );
-        auto_add: bool = true (
-            label = "Auto Add",
-            description = "Automatically create missing OSC value nodes from incoming addresses."
-        );
         folder(receiver, label = "Receiver", can_be_disabled = true) {
+            auto_add: bool = true (
+                label = "Auto Add",
+                description = "Automatically create missing OSC value nodes from incoming addresses."
+            );
             port: i32 = 9000 [0..65535] (
                 label = "Port",
                 description = "UDP port used to receive OSC messages when the receiver is enabled.",
@@ -201,8 +201,20 @@ impl OscModuleBase {
         }
     }
 
+    fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
+        snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
+    }
+
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+
+        if !self.module_enabled(snapshot) {
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.clear_receiver_warning(ctx, snapshot);
+            self.base.set_connected(ctx, false);
+            return;
+        }
 
         match self.transport_binding(snapshot) {
             Ok(binding) => {
@@ -596,8 +608,23 @@ impl OscModuleBase {
         }
     }
 
-    fn on_meta_changed_inner(&mut self, node: NodeId, patch: NodeMetaPatch) {
-        if patch.enabled.is_some() && node != self.id() {
+    fn on_meta_changed_inner(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if let Some(enabled) = patch.enabled {
+            if node == self.id() {
+                if enabled {
+                    self.transport_dirty = true;
+                } else {
+                    self.stop_transport();
+                    self.last_transport_config = None;
+                    if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+                        self.clear_receiver_warning(ctx, snapshot_arc.as_ref());
+                    }
+                    self.base.set_connected(ctx, false);
+                    self.transport_dirty = false;
+                }
+                return;
+            }
+
             self.transport_dirty = true;
         }
     }
@@ -735,8 +762,8 @@ impl Node for OscModuleBase {
         self.on_param_change_inner(ctx, param);
     }
 
-    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        self.on_meta_changed_inner(node, patch);
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        self.on_meta_changed_inner(ctx, node, patch);
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {

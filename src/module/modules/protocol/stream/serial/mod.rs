@@ -32,10 +32,6 @@ const SERIAL_PORT_CONNECTION_WARNING_ID: &str = "serial_port_connection";
 #[node("serial_module", label = "Serial")]
 #[children(
     folder(parameters, label = "Parameters", reuse = true) {
-        auto_add: bool = true (
-            label = "Auto Add",
-            description = "Automatically create missing value nodes from incoming serial data."
-        );
         folder(port, label = "Port") {
             port_name: Enum = NO_SERIAL_PORT_VARIANT (
                 label = "Port",
@@ -47,8 +43,20 @@ const SERIAL_PORT_CONNECTION_WARNING_ID: &str = "serial_port_connection";
                 description = "Serial baud rate.",
                 widget = "text"
             );
+            dtr: bool = false (
+                label = "DTR",
+                description = "Data Terminal Ready."
+            );
+            rts: bool = false (
+                label = "RTS",
+                description = "Request To Send."
+            );
         }
         folder(receiver, label = "Receiver", can_be_disabled = true) {
+            auto_add: bool = true (
+                label = "Auto Add",
+                description = "Automatically create missing value nodes from incoming serial data."
+            );
             parse_mode: Enum = "line" (
                 label = "Parse Mode",
                 description = "How incoming bytes are converted into values.",
@@ -160,8 +168,20 @@ impl SerialModule {
         }
     }
 
+    fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
+        snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
+    }
+
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+
+        if !self.module_enabled(snapshot) {
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
+            self.base.set_connected(ctx, false);
+            return;
+        }
 
         let config = match self.transport_config(snapshot) {
             Ok(Some(config)) => config,
@@ -234,6 +254,8 @@ impl SerialModule {
             baud_rate,
             receive_enabled,
             send_enabled,
+            dtr: self.dtr.get(),
+            rts: self.rts.get(),
         }))
     }
 
@@ -404,6 +426,8 @@ impl SerialModule {
     fn param_affects_transport(&self, param: NodeId) -> bool {
         (self.port_name.is_bound() && self.port_name.id() == param)
             || (self.baud_rate.is_bound() && self.baud_rate.id() == param)
+            || (self.dtr.is_bound() && self.dtr.id() == param)
+            || (self.rts.is_bound() && self.rts.id() == param)
     }
 
     fn receiver_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -536,8 +560,21 @@ impl Node for SerialModule {
         self.on_param_change_inner(param);
     }
 
-    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if patch.enabled.is_some() && node != self.id() {
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if let Some(enabled) = patch.enabled {
+            if node == self.id() {
+                if enabled {
+                    self.transport_dirty = true;
+                } else {
+                    self.stop_transport();
+                    self.last_transport_config = None;
+                    self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
+                    self.base.set_connected(ctx, false);
+                    self.transport_dirty = false;
+                }
+                return;
+            }
+
             self.transport_dirty = true;
         }
     }
@@ -548,5 +585,168 @@ impl Node for SerialModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use golden_core::{
+        edit::Edit,
+        node::{Folder, Node, NodeId, NodeMetaPatch},
+        parameter::{ParamValue, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour},
+        process_ctx::ExecutionPhase,
+    };
+
+    use super::SerialModule;
+
+    #[test]
+    fn serial_module_root_enable_toggle_stops_and_restarts_transport_while_recovering() {
+        let (mut engine, module_id) = create_serial_module();
+        let port_name_id = serial_module(&engine, module_id)
+            .port_name
+            .id();
+
+        allow_serial_port_variant(&mut engine, port_name_id, "missing-test-port");
+        set_param(
+            &mut engine,
+            port_name_id,
+            ParamValue::Enum("missing-test-port".to_string()),
+        );
+        settle_transport_state(&mut engine, "serial transport config should settle");
+
+        let module = serial_module(&engine, module_id);
+        assert!(
+            module.transport.is_some(),
+            "serial module should start a transport handle even when the selected port is recovering"
+        );
+        assert!(
+            module.last_transport_config.is_some(),
+            "serial module should retain transport config while enabled"
+        );
+
+        set_node_enabled(&mut engine, module_id, false);
+        settle_transport_state(&mut engine, "serial module disable should settle");
+
+        let module = serial_module(&engine, module_id);
+        assert!(
+            module.transport.is_none(),
+            "serial module should stop the recovering transport as soon as the module root is disabled"
+        );
+        assert!(
+            module.last_transport_config.is_none(),
+            "serial module should clear cached transport config while disabled"
+        );
+
+        engine
+            .run_tick(Duration::from_millis(20))
+            .expect("disabled serial module tick should succeed");
+
+        let module = serial_module(&engine, module_id);
+        assert!(
+            module.transport.is_none(),
+            "serial module should stay disconnected while disabled instead of reconnecting in the background"
+        );
+
+        set_node_enabled(&mut engine, module_id, true);
+        settle_transport_state(&mut engine, "serial module re-enable should restart transport");
+
+        let module = serial_module(&engine, module_id);
+        assert!(
+            module.transport.is_some(),
+            "serial module should recreate its transport after re-enable"
+        );
+        assert!(
+            module.last_transport_config.is_some(),
+            "serial module should restore transport config after re-enable"
+        );
+    }
+
+    fn create_serial_module() -> (crate::app::AppEngine, NodeId) {
+        let root: crate::app::AppNode = Folder::new("root").into();
+        let mut engine = crate::app::AppEngine::new(root);
+        engine.add_node(SerialModule::create().into(), None);
+        engine.apply_edits().expect("serial module should attach");
+        for _ in 0..4 {
+            engine.apply_edits().expect("serial defaults should materialize");
+        }
+        engine.resolve().expect("serial runtime schedule should resolve");
+
+        let module_id = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("serial module should be attached under root");
+
+        (engine, module_id)
+    }
+
+    fn serial_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &SerialModule {
+        let crate::app::AppNode::SerialModule(module) = engine
+            .nodes
+            .get(module_id)
+            .expect("serial module should exist")
+        else {
+            panic!("expected SerialModule node");
+        };
+
+        module
+    }
+
+    fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
+        engine.edits.push(Edit::SetParam {
+            node,
+            value,
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
+
+    fn allow_serial_port_variant(engine: &mut crate::app::AppEngine, node: NodeId, variant: &str) {
+        let snapshot = engine
+            .nodes
+            .get(node)
+            .and_then(|candidate| candidate.engine_param_snapshot())
+            .expect("serial port parameter should exist");
+        let mut constraints = snapshot.constraints.clone();
+        constraints.enum_options.push(ParameterEnumOption {
+            variant_id: variant.to_string(),
+            value: ParamValue::Enum(variant.to_string()),
+            label: variant.to_string(),
+            tags: Vec::new(),
+            ordering: None,
+        });
+        set_param_constraints(engine, node, constraints);
+        engine
+            .apply_edits()
+            .expect("serial port test enum option should apply");
+    }
+
+    fn set_param_constraints(engine: &mut crate::app::AppEngine, node: NodeId, constraints: ParameterConstraints) {
+        engine.edits.push(Edit::SetParamConstraints { node, constraints });
+    }
+
+    fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool) {
+        engine.edits.push(Edit::PatchMeta {
+            node,
+            patch: NodeMetaPatch {
+                enabled: Some(enabled),
+                ..Default::default()
+            },
+        });
+    }
+
+    fn settle_transport_state(engine: &mut crate::app::AppEngine, context: &str) {
+        engine.apply_edits().expect(context);
+        engine
+            .dispatch_inbox(ExecutionPhase::EngineTick)
+            .expect("transport edits should dispatch");
+        engine
+            .apply_edits()
+            .expect("transport event reactions should apply");
+        engine
+            .run_tick(Duration::from_millis(20))
+            .expect("transport tick should succeed");
+        engine.apply_edits().expect("transport edits should apply");
     }
 }

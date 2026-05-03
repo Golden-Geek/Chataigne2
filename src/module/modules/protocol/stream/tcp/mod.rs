@@ -25,10 +25,6 @@ const TCP_TARGET_WARNING_ID: &str = "tcp_target_transport";
 #[node("tcp_module", label = "TCP")]
 #[children(
     folder(parameters, label = "Parameters", reuse = true) {
-        auto_add: bool = true (
-            label = "Auto Add",
-            description = "Automatically create missing value nodes from incoming TCP data."
-        );
         folder(target, label = "Target") {
             remote_host: String = "127.0.0.1".to_string() (
                 label = "Remote Host",
@@ -41,6 +37,10 @@ const TCP_TARGET_WARNING_ID: &str = "tcp_target_transport";
             );
         }
         folder(receiver, label = "Receiver", can_be_disabled = true) {
+            auto_add: bool = true (
+                label = "Auto Add",
+                description = "Automatically create missing value nodes from incoming TCP data."
+            );
             parse_mode: Enum = "line" (
                 label = "Parse Mode",
                 description = "How incoming bytes are converted into values.",
@@ -96,8 +96,20 @@ impl TcpModule {
         )
     }
 
+    fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
+        snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
+    }
+
     fn refresh_transport(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         self.transport_dirty = false;
+
+        if !self.module_enabled(snapshot) {
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.clear_target_warning(ctx, snapshot);
+            self.base.set_connected(ctx, false);
+            return;
+        }
 
         let config = match self.transport_config(snapshot) {
             Ok(Some(config)) => config,
@@ -411,8 +423,23 @@ impl Node for TcpModule {
         self.on_param_change_inner(param);
     }
 
-    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
-        if patch.enabled.is_some() && node != self.id() {
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if let Some(enabled) = patch.enabled {
+            if node == self.id() {
+                if enabled {
+                    self.transport_dirty = true;
+                } else {
+                    self.stop_transport();
+                    self.last_transport_config = None;
+                    if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+                        self.clear_target_warning(ctx, snapshot_arc.as_ref());
+                    }
+                    self.base.set_connected(ctx, false);
+                    self.transport_dirty = false;
+                }
+                return;
+            }
+
             self.transport_dirty = true;
         }
     }
@@ -423,5 +450,131 @@ impl Node for TcpModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        net::TcpListener,
+        time::Duration,
+    };
+
+    use golden_core::{
+        edit::Edit,
+        node::{Folder, Node, NodeId, NodeMetaPatch},
+        parameter::{ParamValue, ParameterEventBehaviour},
+        process_ctx::ExecutionPhase,
+    };
+
+    use super::TcpModule;
+
+    #[test]
+    fn tcp_module_root_enable_toggle_stops_and_restarts_transport() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("TCP test listener should bind");
+        let port = listener
+            .local_addr()
+            .expect("TCP test listener should expose a port")
+            .port();
+        let (mut engine, module_id) = create_tcp_module();
+        let remote_port_id = tcp_module(&engine, module_id)
+            .remote_port
+            .id();
+
+        set_param(
+            &mut engine,
+            remote_port_id,
+            ParamValue::Int(i32::from(port)),
+        );
+        settle_transport_state(&mut engine);
+
+        let module = tcp_module(&engine, module_id);
+        assert!(module.transport.is_some(), "TCP module should start a transport while enabled");
+        assert!(
+            module.last_transport_config.is_some(),
+            "TCP module should retain its transport config while enabled"
+        );
+
+        set_node_enabled(&mut engine, module_id, false);
+        settle_transport_state(&mut engine);
+
+        let module = tcp_module(&engine, module_id);
+        assert!(module.transport.is_none(), "TCP module should stop its transport when disabled");
+        assert!(
+            module.last_transport_config.is_none(),
+            "TCP module should clear cached transport config while disabled"
+        );
+
+        set_node_enabled(&mut engine, module_id, true);
+        settle_transport_state(&mut engine);
+
+        let module = tcp_module(&engine, module_id);
+        assert!(module.transport.is_some(), "TCP module should restart its transport when re-enabled");
+        assert!(
+            module.last_transport_config.is_some(),
+            "TCP module should restore transport config after re-enable"
+        );
+
+        drop(listener);
+    }
+
+    fn create_tcp_module() -> (crate::app::AppEngine, NodeId) {
+        let root: crate::app::AppNode = Folder::new("root").into();
+        let mut engine = crate::app::AppEngine::new(root);
+        engine.add_node(TcpModule::create().into(), None);
+        engine.apply_edits().expect("TCP module should attach");
+        for _ in 0..4 {
+            engine.apply_edits().expect("TCP defaults should materialize");
+        }
+        engine.resolve().expect("TCP runtime schedule should resolve");
+
+        let module_id = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("TCP module should be attached under root");
+
+        (engine, module_id)
+    }
+
+    fn tcp_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &TcpModule {
+        let crate::app::AppNode::TcpModule(module) = engine.nodes.get(module_id).expect("TCP module should exist")
+        else {
+            panic!("expected TcpModule node");
+        };
+
+        module
+    }
+
+    fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: bool) {
+        engine.edits.push(Edit::PatchMeta {
+            node,
+            patch: NodeMetaPatch {
+                enabled: Some(enabled),
+                ..Default::default()
+            },
+        });
+    }
+
+    fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
+        engine.edits.push(Edit::SetParam {
+            node,
+            value,
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
+
+    fn settle_transport_state(engine: &mut crate::app::AppEngine) {
+        engine.apply_edits().expect("pending TCP edits should apply");
+        engine
+            .dispatch_inbox(ExecutionPhase::EngineTick)
+            .expect("pending TCP edits should dispatch");
+        engine
+            .apply_edits()
+            .expect("TCP event reactions should apply");
+        engine
+            .run_tick(Duration::from_millis(20))
+            .expect("TCP transport tick should succeed");
+        engine.apply_edits().expect("TCP transport edits should apply");
     }
 }

@@ -267,7 +267,7 @@
 		{#if canReceive && logIncomingParamNode}
 			<button
 				type="button"
-				class="module-status-icon module-traffic-icon"
+				class="module-status-icon module-traffic-icon traffic-incoming"
 				class:logging={logIncomingEnabled}
 				class:flashing={incomingFlashActive}
 				title={incomingLoggingLabel}
@@ -288,7 +288,7 @@
 		{#if canSend && logOutgoingParamNode}
 			<button
 				type="button"
-				class="module-status-icon module-traffic-icon"
+				class="module-status-icon module-traffic-icon traffic-outgoing"
 				class:logging={logOutgoingEnabled}
 				class:flashing={outgoingFlashActive}
 				title={outgoingLoggingLabel}
@@ -322,14 +322,9 @@
 		justify-content: center;
 		width: 1.35rem;
 		height: 1.35rem;
-		padding: 0.08rem;
-		border: 0.06rem solid transparent;
-		border-radius: 0.3rem;
 		background: transparent;
-		color: var(--gc-color-text);
-		font: inherit;
-		line-height: 0;
 		cursor: pointer;
+		border-radius: 0.8rem;
 		transition:
 			background-color 0.12s ease,
 			border-color 0.12s ease,
@@ -349,11 +344,20 @@
 		pointer-events: none;
 	}
 
+	.module-connection-icon {
+		cursor: normal;
+		pointer-events: none;
+		border: solid 1px;
+		padding: 0.2rem;
+	}
+
 	.module-connection-icon.connected {
+		border-color: rgb(from var(--gc-color-success) r g b / 0.1);
 		background: rgb(from var(--gc-color-success) r g b / 0.12);
 	}
 
 	.module-connection-icon.disconnected {
+		border-color: rgb(from var(--gc-color-error) r g b / 0.2);
 		background: rgb(from var(--gc-color-error) r g b / 0.12);
 	}
 
@@ -362,41 +366,34 @@
 	}
 
 	.module-traffic-icon {
-		opacity: 0.58;
+		padding: 0.1rem;
+		border: solid 1px transparent;
+
+		transition: border-color 0.12s ease;
 	}
 
-	.module-traffic-icon.logging {
-		opacity: 1;
-		border-color: rgb(from var(--gc-color-text) r g b / 0.24);
-		background: rgb(from var(--gc-color-text) r g b / 0.1);
+	.module-traffic-icon.logging.traffic-incoming {
+		border-color: rgba(0,150,255, 1);
 	}
 
-	.module-traffic-icon.flashing {
-		opacity: 1;
-		box-shadow: 0 0 0.45rem rgb(from var(--gc-color-text) r g b / 0.42);
-		transform: scale(1.08);
+	.module-traffic-icon.logging.traffic-outgoing {
+		border-color: rgba(255,192,50, 1);
 	}
 
 	.module-traffic-image {
-		filter: grayscale(1) saturate(0) contrast(1.35);
+		filter: grayscale(1) brightness(0.6);
 	}
 
 	.module-traffic-image.flashing {
-		animation: module-traffic-flash 0.34s ease-out;
+		animation: module-traffic-flash 0.1s ease-out;
 	}
 
 	@keyframes module-traffic-flash {
 		0% {
-			filter: grayscale(1) saturate(0) contrast(1.35) brightness(1);
-			transform: scale(1);
-		}
-		38% {
-			filter: grayscale(1) saturate(0) contrast(1.9) brightness(1.85);
-			transform: scale(1.18);
+			filter: brightness(1) grayscale(0);
 		}
 		100% {
-			filter: grayscale(1) saturate(0) contrast(1.35) brightness(1);
-			transform: scale(1);
+			filter: brightness(0.8) grayscale(1);
 		}
 	}
 </style>
