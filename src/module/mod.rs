@@ -1,4 +1,5 @@
 use golden_core::{
+    color,
     events::CustomEvent,
     node,
     node::{
@@ -41,7 +42,7 @@ impl ModuleDataCapabilities {
 
 #[node("module_base", label = "Module")]
 #[children(
-    folder(connection, label = "Connection") {
+    folder(connection, label = "Connection", color = color::Color::new(0.1, 0.75, 0.3, 1.0)) {
         connected: bool = false (
             label = "Connected",
             description = "Whether the module is currently connected to its remote interface.",
@@ -68,8 +69,8 @@ impl ModuleDataCapabilities {
             description = "Whether outgoing module traffic should be recorded in logs."
         );
     }
-    folder(parameters, label = "Parameters") {}
-    folder(values, label = "Values") {}
+    folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.75, 0.1, 1.0)) {}
+    folder(values, label = "Values", color = color::Color::new(0.1, 0.45, 0.75, 1.0)) {}
 )]
 pub struct ModuleBase {
     #[potential_node(decl_id = "connection")]
