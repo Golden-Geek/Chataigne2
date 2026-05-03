@@ -7,7 +7,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeHandle, NodeId, NodeMetaPatch},
+    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -241,7 +241,7 @@ impl OscModuleBase {
                         }
                     }
                     Err(error) => {
-                        logerror!("Failed to start OSC transport: {}", error);
+                        logerror!(format!("Failed to bind OSC at {}:{}, {}", binding.interface_variant.as_str(), binding.bind_port, error));
                         self.transport = None;
                         self.last_transport_config = None;
                         if binding.receive_enabled {
@@ -431,9 +431,9 @@ impl OscModuleBase {
     }
 
     fn log_receiver_bound(&self, bind_host: &str, bind_port: u16) {
-        golden_core::log!(
+        golden_core::logsuccess!(
             origin = self.id();
-            format!("Bound OSC receiver on {}:{}", bind_host, bind_port)
+            format!("Now receiving OSC on {}:{}", bind_host, bind_port)
         );
     }
 
@@ -676,6 +676,13 @@ impl Node for OscModuleBase {
 
         self.refresh_data_capabilities(ctx, snapshot);
         self.ensure_default_output(ctx, snapshot);
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
         self.refresh_transport(ctx, snapshot);
     }
 

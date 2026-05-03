@@ -4,7 +4,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeId, NodeMetaPatch},
+    node::{Node, NodeCreationContext, NodeId, NodeMetaPatch},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -470,14 +470,21 @@ impl Node for SerialModule {
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
 
-        self.ensure_port_discovery_registration(ctx);
-
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
 
         self.refresh_data_capabilities(ctx, snapshot);
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        self.ensure_port_discovery_registration(ctx);
+
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
         self.refresh_transport(ctx, snapshot);
     }
 

@@ -2,7 +2,7 @@ use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
-    node::{Folder, Node, NodeId, NodeMetaPatch},
+    node::{Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -93,6 +93,10 @@ impl GenericOscModule {
 impl Node for GenericOscModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
+        self.base.on_node_ready(ctx, context);
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {

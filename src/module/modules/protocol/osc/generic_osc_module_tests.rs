@@ -3,12 +3,14 @@ use std::{net::UdpSocket, time::Duration};
 use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch, NodeUserPermissions},
-    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint},
     process_ctx::ExecutionPhase,
 };
 use rosc::{decoder, OscPacket, OscType};
 
-use crate::app::{GenericOscModule, OscDecodedMessage, OscSendCustomMessageCommand, OscValuePayload};
+use crate::app::{
+    AppNode, GenericOscModule, ModuleManager, OscDecodedMessage, OscSendCustomMessageCommand, OscValuePayload,
+};
 
 #[test]
 fn incoming_message_auto_adds_value_nodes_under_values_folder() {
@@ -100,6 +102,185 @@ fn new_module_command_tester_starts_empty() {
 }
 
 #[test]
+fn sparse_project_serialization_omits_unchanged_osc_defaults() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(ModuleManager::new().into(), None);
+    engine.apply_edits().expect("module manager should attach");
+
+    let manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should be attached under root");
+    engine.add_user_item(GenericOscModule::create().into(), Some(manager_id));
+    engine.apply_edits().expect("osc module should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("osc defaults should materialize");
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let round_tripped = golden_core::app::to_sparse_project_json_pretty(
+        &golden_core::app::from_sparse_project_json::<AppNode>(&json).expect("sparse project should decode"),
+    )
+    .expect("round-tripped sparse project should encode");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&round_tripped).expect("round-tripped project json should parse"),
+        serde_json::from_str::<serde_json::Value>(&json).expect("project json should parse"),
+        "saving, reopening, then saving again should not add declared default noise"
+    );
+
+    let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
+    let module_record = value
+        .get("root")
+        .and_then(|root| root.get("children"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|children| children.first())
+        .and_then(|manager| manager.get("children"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|children| children.first())
+        .expect("osc module record should be saved under the module manager");
+
+    assert_eq!(
+        module_record.get("type"),
+        Some(&serde_json::Value::String("osc".to_string()))
+    );
+    assert!(
+        module_record.get("children").is_none(),
+        "unchanged OSC connection, parameter, output, command tester, and values defaults should be recreated, not saved"
+    );
+
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json).expect("sparse project should decode");
+    let loaded_manager = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should reload");
+    let loaded_module = loaded
+        .nodes
+        .get(loaded_manager)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("osc module should reload");
+
+    assert!(
+        find_path(&loaded, loaded_module, "connection/connected").is_some(),
+        "omitted connection defaults should be restored"
+    );
+    assert!(
+        find_path(&loaded, loaded_module, "parameters/outputs").is_some(),
+        "omitted output defaults should be restored"
+    );
+    assert!(
+        find_path(&loaded, loaded_module, "values").is_some(),
+        "omitted values folder should be restored"
+    );
+}
+
+#[test]
+fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(ModuleManager::new().into(), None);
+    engine.apply_edits().expect("module manager should attach");
+
+    let manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should be attached under root");
+    engine.add_user_item(GenericOscModule::create().into(), Some(manager_id));
+    engine.apply_edits().expect("osc module should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("osc defaults should materialize");
+    }
+
+    let module_id = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("osc module should be attached under manager");
+    let port_id = find_path(&engine, module_id, "parameters/receiver/port").expect("receiver port param should exist");
+    set_param(&mut engine, port_id, ParamValue::Int(9001));
+    engine.apply_edits().expect("receiver port edit should apply");
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let round_tripped = golden_core::app::to_sparse_project_json_pretty(
+        &golden_core::app::from_sparse_project_json::<AppNode>(&json).expect("sparse project should decode"),
+    )
+    .expect("round-tripped sparse project should encode");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&round_tripped).expect("round-tripped project json should parse"),
+        serde_json::from_str::<serde_json::Value>(&json).expect("project json should parse"),
+        "saving, reopening, then saving again should not add declared default noise"
+    );
+
+    let value: serde_json::Value = serde_json::from_str(&json).expect("project json should parse");
+    let module_record = value
+        .get("root")
+        .and_then(|root| root.get("children"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|children| children.first())
+        .and_then(|manager| manager.get("children"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|children| children.first())
+        .expect("osc module record should be saved under the module manager");
+    let parameters_record = json_child_by_decl(module_record, "parameters");
+    let receiver_record = json_child_by_decl(parameters_record, "parameters/receiver");
+    let port_record = json_child_by_decl(receiver_record, "parameters/receiver/port");
+
+    assert_eq!(
+        parameters_record.get("meta"),
+        Some(&serde_json::json!({ "decl_id": "parameters" })),
+        "declared ancestor folders should only carry their declaration path"
+    );
+    assert_eq!(
+        receiver_record.get("meta"),
+        Some(&serde_json::json!({ "decl_id": "parameters/receiver" })),
+        "declared receiver folder defaults should stay app-owned"
+    );
+    assert_eq!(
+        port_record.get("meta"),
+        Some(&serde_json::json!({ "decl_id": "parameters/receiver/port" })),
+        "declared port label and static metadata should stay app-owned"
+    );
+    assert_eq!(
+        port_record.get("data"),
+        Some(&serde_json::json!({ "value": { "Int": 9001 } })),
+        "only the changed receiver port value should be persisted"
+    );
+
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json).expect("sparse project should decode");
+    let loaded_manager = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should reload");
+    let loaded_module = loaded
+        .nodes
+        .get(loaded_manager)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("osc module should reload");
+    let loaded_port =
+        find_path(&loaded, loaded_module, "parameters/receiver/port").expect("receiver port should reload");
+    let loaded_port_node = loaded.nodes.get(loaded_port).expect("receiver port node should exist");
+    let snapshot = loaded_port_node
+        .engine_param_snapshot()
+        .expect("receiver port should remain a parameter");
+
+    assert_eq!(loaded_port_node.node_data().meta.label, "Port");
+    assert_eq!(snapshot.value, ParamValue::Int(9001));
+    assert_eq!(snapshot.default_value, ParamValue::Int(9000));
+    assert_eq!(snapshot.ui_hints.widget.as_deref(), Some("text"));
+    assert!(matches!(
+        snapshot.constraints.range,
+        Some(RangeConstraint::Uniform {
+            min: Some(0.0),
+            max: Some(65535.0),
+        })
+    ));
+}
+
+#[test]
 fn osc_module_connection_indicators_follow_receiver_and_outputs() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     let output_port = receiver
@@ -108,8 +289,8 @@ fn osc_module_connection_indicators_follow_receiver_and_outputs() {
         .port();
     let (mut engine, module_id) = create_osc_module_with_output(output_port);
 
-    let connected_param = find_path(&engine, module_id, "connection/connected")
-        .expect("module connection state parameter should exist");
+    let connected_param =
+        find_path(&engine, module_id, "connection/connected").expect("module connection state parameter should exist");
     let can_receive_param = find_path(&engine, module_id, "connection/can_receive")
         .expect("module incoming capability parameter should exist");
     let can_send_param = find_path(&engine, module_id, "connection/can_send")
@@ -130,7 +311,12 @@ fn osc_module_connection_indicators_follow_receiver_and_outputs() {
         "OSC Outputs should expose an enabled toggle"
     );
 
-    assert_bool_param(&engine, connected_param, true, "output-only OSC transport should be connected");
+    assert_bool_param(
+        &engine,
+        connected_param,
+        true,
+        "output-only OSC transport should be connected",
+    );
     assert_bool_param(
         &engine,
         can_receive_param,
@@ -525,6 +711,22 @@ fn find_path(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Optio
         current = find_child_by_key(engine, current, segment)?;
         remaining = tail;
     }
+}
+
+fn json_child_by_decl<'a>(record: &'a serde_json::Value, decl_id: &str) -> &'a serde_json::Value {
+    record
+        .get("children")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|children| {
+            children.iter().find(|child| {
+                child
+                    .get("meta")
+                    .and_then(|meta| meta.get("decl_id"))
+                    .and_then(serde_json::Value::as_str)
+                    == Some(decl_id)
+            })
+        })
+        .unwrap_or_else(|| panic!("child record '{decl_id}' should exist"))
 }
 
 fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {

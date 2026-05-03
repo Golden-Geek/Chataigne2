@@ -4,7 +4,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeHandle, NodeId, NodeMetaPatch},
+    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -358,6 +358,13 @@ impl Node for TcpModule {
         let snapshot = snapshot_arc.as_ref();
 
         self.refresh_data_capabilities(ctx, snapshot);
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
         self.refresh_transport(ctx, snapshot);
     }
 
