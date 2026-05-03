@@ -7,8 +7,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::engine::{
-    Engine, EngineRuntimeError, ProjectFile, ProjectNodeMeta, ProjectNodeRecord, ProjectPersistenceError,
-    PROJECT_FILE_VERSION,
+    Engine, EngineRuntimeError, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeMeta, ProjectNodeRecord,
+    ProjectPersistenceError,
 };
 use crate::node::{DashboardNode, Folder, Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::Parameter;
@@ -293,14 +293,7 @@ where
     };
     let current_node = decode_sparse_baseline_node(parent_node, &expanded)?;
 
-    expanded.children = record
-        .children
-        .iter()
-        .map(|child| {
-            let matched_child = find_matching_sparse_child_baseline(child, baseline_children);
-            expand_sparse_node_record(child, Some(&current_node), Some(&expanded), matched_child)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    expanded.children = expand_sparse_child_records(record, &current_node, &expanded, baseline_children)?;
 
     Ok(expanded)
 }
@@ -481,16 +474,66 @@ fn merge_sparse_json_value(baseline: &serde_json::Value, overlay: &serde_json::V
     }
 }
 
-fn find_matching_sparse_child_baseline<'a>(
-    child_record: &ProjectNodeRecord,
-    baseline_children: &'a [ProjectNodeRecord],
-) -> Option<&'a ProjectNodeRecord> {
-    let child_decl_id = child_record.meta.decl_id.as_ref()?;
-    baseline_children.iter().find(|baseline_child| {
-        baseline_child.node_type == child_record.node_type
-            && baseline_child.user_role == child_record.user_role
-            && baseline_child.meta.decl_id.as_ref() == Some(child_decl_id)
-    })
+fn expand_sparse_child_records<T>(
+    record: &ProjectNodeRecord,
+    current_node: &T,
+    expanded_parent_record: &ProjectNodeRecord,
+    baseline_children: &[ProjectNodeRecord],
+) -> Result<Vec<ProjectNodeRecord>, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let mut consumed_overlay_children = vec![false; record.children.len()];
+    let mut expanded_children = Vec::with_capacity(baseline_children.len().max(record.children.len()));
+
+    // Saved sparse children are overlays. Declared baseline children own the structural order.
+    for baseline_child in baseline_children {
+        let matched_index = record
+            .children
+            .iter()
+            .enumerate()
+            .find(|(index, child)| {
+                !consumed_overlay_children[*index] && sparse_child_matches_baseline(child, baseline_child)
+            })
+            .map(|(index, _)| index);
+
+        if let Some(index) = matched_index {
+            consumed_overlay_children[index] = true;
+            expanded_children.push(expand_sparse_node_record(
+                &record.children[index],
+                Some(current_node),
+                Some(expanded_parent_record),
+                Some(baseline_child),
+            )?);
+        } else {
+            expanded_children.push(baseline_child.clone());
+        }
+    }
+
+    for (index, child) in record.children.iter().enumerate() {
+        if consumed_overlay_children[index] {
+            continue;
+        }
+
+        expanded_children.push(expand_sparse_node_record(
+            child,
+            Some(current_node),
+            Some(expanded_parent_record),
+            None,
+        )?);
+    }
+
+    Ok(expanded_children)
+}
+
+fn sparse_child_matches_baseline(child_record: &ProjectNodeRecord, baseline_child: &ProjectNodeRecord) -> bool {
+    let Some(child_decl_id) = child_record.meta.decl_id.as_ref() else {
+        return false;
+    };
+
+    baseline_child.node_type == child_record.node_type
+        && baseline_child.user_role == child_record.user_role
+        && baseline_child.meta.decl_id.as_ref() == Some(child_decl_id)
 }
 
 fn encode_sparse_node_record<T>(
@@ -1709,6 +1752,19 @@ mod tests {
         count
     }
 
+    fn direct_child_decl_ids(engine: &Engine<ProjectDecodeTestAppNode>, node_id: crate::node::NodeId) -> Vec<String> {
+        let mut decl_ids = Vec::new();
+        let mut child = engine.nodes.get(node_id).and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let Some(child_node) = engine.nodes.get(child_id) else {
+                break;
+            };
+            decl_ids.push(child_node.node_data().meta.decl_id.0.clone());
+            child = child_node.node_data().next_sibling;
+        }
+        decl_ids
+    }
+
     fn assert_nested_declared_child_shape(engine: &Engine<ProjectDecodeTestAppNode>, owner_id: crate::node::NodeId) {
         let parameters =
             find_direct_child_by_decl(engine, owner_id, "parameters").expect("parameters folder should exist");
@@ -2344,6 +2400,80 @@ mod tests {
             ParamValue::Bool(false),
             "editable parameter changes should still round-trip through sparse project files"
         );
+    }
+
+    #[test]
+    fn sparse_project_load_preserves_declared_child_order_around_saved_deltas() {
+        let root: ProjectDecodeTestAppNode = Folder::new("Root").into();
+        let mut engine = Engine::new(root);
+        engine.add_node(SparseNoiseNode::new().into(), None);
+        engine.add_node(LoadedNestedChildrenNode::new().into(), None);
+        engine.apply_edits().expect("declared nodes should attach");
+
+        let sparse_noise = engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("sparse-noise node should exist under root");
+        let nested = engine
+            .nodes
+            .get(sparse_noise)
+            .and_then(|node| node.node_data().next_sibling)
+            .expect("loaded-nested node should exist under root");
+
+        let editable_flag =
+            find_direct_child_by_decl(&engine, sparse_noise, "editable_flag").expect("editable flag should exist");
+        let _ = engine
+            .nodes
+            .get_mut(editable_flag)
+            .expect("editable flag should exist")
+            .engine_set_param_value(ParamValue::Bool(false));
+
+        let baud_rate = find_decl_path(&engine, nested, "parameters/connection/baud_rate")
+            .expect("baud rate parameter should exist");
+        let _ = engine
+            .nodes
+            .get_mut(baud_rate)
+            .expect("baud rate parameter should exist")
+            .engine_set_param_value(ParamValue::Int(115200));
+
+        let json = to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+        let loaded = from_sparse_project_json::<ProjectDecodeTestAppNode>(&json).expect("sparse project should decode");
+
+        let loaded_sparse_noise = loaded
+            .nodes
+            .get(loaded.root)
+            .and_then(|root| root.node_data().first_child)
+            .expect("sparse-noise node should reload");
+        assert_eq!(
+            direct_child_decl_ids(&loaded, loaded_sparse_noise),
+            ["runtime_flag", "editable_flag", "dynamic_port", "receiver"],
+            "saved declared child deltas should hydrate in their declared slot"
+        );
+
+        let loaded_nested = loaded
+            .nodes
+            .get(loaded_sparse_noise)
+            .and_then(|node| node.node_data().next_sibling)
+            .expect("loaded-nested node should reload");
+        let parameters =
+            find_direct_child_by_decl(&loaded, loaded_nested, "parameters").expect("parameters folder should reload");
+        assert_eq!(
+            direct_child_decl_ids(&loaded, parameters),
+            ["parameters/port", "parameters/connection", "parameters/empty_group"],
+            "saved nested folder deltas should not jump ahead of omitted declared siblings"
+        );
+
+        let loaded_baud_rate = find_decl_path(&loaded, loaded_nested, "parameters/connection/baud_rate")
+            .expect("baud rate parameter should reload");
+        let ProjectDecodeTestAppNode::Parameter(baud_rate) = loaded
+            .nodes
+            .get(loaded_baud_rate)
+            .expect("baud rate parameter should exist")
+        else {
+            panic!("baud rate should decode as a Parameter");
+        };
+        assert_eq!(baud_rate.value, ParamValue::Int(115200));
     }
 
     #[test]
