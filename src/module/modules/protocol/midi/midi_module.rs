@@ -1,35 +1,33 @@
-use std::{
-    collections::HashSet,
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 
 pub(crate) mod midi_message;
 pub(crate) mod midi_runtime;
 
 use golden_core::{
+    edit::Edit,
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{DeclId, Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch},
+    node::{DeclId, Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions},
     parameter::{
-        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterEnumOption,
-        ParameterEventBehaviour, RangeConstraint,
+        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterEventBehaviour,
+        RangeConstraint,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use self::{
     midi_message::{
-        cc_decl_id, cc_label, channel_decl_id, channel_folder_label, clamp_i32_to_u14, clamp_i32_to_u7,
-        decode_midi_message, decode_rotary_delta, encode_14_bit_control_change, encode_midi_message,
-        encode_rotary_delta, message_description, note_decl_id, note_label, MidiMessage, MidiSystemMessage,
-        MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, ROTARY_ABSOLUTE, ROTARY_BINARY_OFFSET,
-        ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT,
+        MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, MidiMessage, MidiSystemMessage, ROTARY_ABSOLUTE,
+        ROTARY_BINARY_OFFSET, ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT, cc_decl_id, cc_label, cc_supports_14_bit,
+        channel_decl_id, channel_folder_label, clamp_i32_to_u7, clamp_i32_to_u14, decode_midi_message,
+        decode_rotary_delta, encode_14_bit_control_change, encode_midi_message, encode_rotary_delta,
+        message_description, note_decl_id, note_label,
     },
     midi_runtime::{
+        MidiInputConfig, MidiInputEvent, MidiInputHandle, MidiOutputConfig, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
         available_midi_port_options, format_midi_bytes, midi_input_port_options, midi_output_port_options,
-        midi_port_selected, sync_midi_port_enum_options, MidiInputConfig, MidiInputEvent, MidiInputHandle,
-        MidiOutputConfig, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
+        midi_port_selected, sync_midi_port_enum_options,
     },
 };
 
@@ -46,18 +44,9 @@ const CONTROL_CHANGE_FOLDER_DECL_ID: &str = "control_change";
 const POLY_PRESSURE_FOLDER_DECL_ID: &str = "poly_pressure";
 const SYSTEM_FOLDER_DECL_ID: &str = "system";
 const SYSEX_FOLDER_DECL_ID: &str = "sysex";
+const FOURTEEN_BIT_CHANNELS_FOLDER_DECL_ID: &str = "fourteen_bit_channels";
 
-const NOTE_ON_DECL_ID: &str = "on";
-const NOTE_VELOCITY_DECL_ID: &str = "velocity";
-const NOTE_RELEASE_VELOCITY_DECL_ID: &str = "release_velocity";
-const NOTE_PITCH_DECL_ID: &str = "pitch";
-const NOTE_NAME_DECL_ID: &str = "name";
-
-const CC_VALUE_DECL_ID: &str = "value";
-const CC_RAW_VALUE_DECL_ID: &str = "raw_value";
-const CC_CONTROLLER_DECL_ID: &str = "controller";
-const CC_IS_14_BIT_DECL_ID: &str = "is_14_bit";
-const CC_ROTARY_MECHANISM_DECL_ID: &str = "rotary_mechanism";
+const MIDI_CC_ROTARY_TAG_PREFIX: &str = "midi:cc:rotary:";
 
 const PROGRAM_DECL_ID: &str = "program";
 const CHANNEL_PRESSURE_DECL_ID: &str = "channel_pressure";
@@ -74,6 +63,10 @@ const ACTIVE_SENSING_DECL_ID: &str = "active_sensing";
 const RESET_DECL_ID: &str = "reset";
 const SYSEX_BYTES_DECL_ID: &str = "bytes";
 const SYSEX_LENGTH_DECL_ID: &str = "length";
+
+const MIDI_7_BIT_VALUE_RANGE: (i32, i32) = (0, 127);
+const MIDI_14_BIT_VALUE_RANGE: (i32, i32) = (0, MIDI_U14_MAX as i32);
+const MIDI_NONNEGATIVE_INT_RANGE: (i32, i32) = (0, i32::MAX);
 
 const MIDI_MODULE_COMMAND_TYPES: &[&str] = &[
     crate::app::MidiSendNoteOnCommand::NODE_TYPE,
@@ -97,6 +90,17 @@ struct Cc14BitState {
     lsb: Option<u8>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MidiCcTagConfig {
+    rotary_mechanism: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MidiOrderedValueKind {
+    Note,
+    ControlChange,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PendingMidiPacket {
     due_at: Duration,
@@ -109,83 +113,6 @@ enum MidiApplyResult {
     Applied,
     Retry,
     Ignored,
-}
-
-#[node("midi_note_value", label = "Note")]
-#[children(
-    on: bool = false (
-        label = "On",
-        description = "Whether this note is currently held."
-    );
-    velocity: i32 = 0 [0..127] (
-        label = "Velocity",
-        description = "Last note-on velocity."
-    );
-    release_velocity: i32 = 0 [0..127] (
-        label = "Release Velocity",
-        description = "Last note-off release velocity."
-    );
-    pitch: i32 = 0 [0..127] (
-        label = "Pitch",
-        description = "MIDI note pitch.",
-        read_only = true
-    );
-    name: String = String::new() (
-        label = "Name",
-        description = "Pitch formatted as note name and octave.",
-        read_only = true
-    );
-)]
-pub struct MidiNoteValue {}
-
-#[node("midi_note_value", from_struct)]
-impl Node for MidiNoteValue {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        crate::app::module::enable_module_authoring(self.node_data_mut());
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("midi_control_change_value", label = "Control Change")]
-#[children(
-    value: i32 = 0 (
-        label = "Value",
-        description = "Absolute, 14-bit, or accumulated relative control-change value."
-    );
-    raw_value: i32 = 0 [0..127] (
-        label = "Raw Value",
-        description = "Last raw 7-bit MIDI control-change value.",
-        read_only = true
-    );
-    controller: i32 = 0 [0..127] (
-        label = "Controller",
-        description = "MIDI control-change number.",
-        read_only = true
-    );
-    is_14_bit: bool = false (
-        label = "14-bit",
-        description = "Treat this controller as a 14-bit MSB/LSB MIDI control value."
-    );
-    rotary_mechanism: Enum = ROTARY_ABSOLUTE (
-        label = "Rotary Mechanism",
-        description = "Infinite rotary encoder interpretation for incoming and feedback values.",
-        enum_options = midi_rotary_mechanism_options()
-    );
-)]
-pub struct MidiControlChangeValue {}
-
-#[node("midi_control_change_value", from_struct)]
-impl Node for MidiControlChangeValue {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        crate::app::module::enable_module_authoring(self.node_data_mut());
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
 }
 
 #[node("midi_module", label = "MIDI")]
@@ -213,6 +140,24 @@ impl Node for MidiControlChangeValue {
                 description = "Send MIDI when values in the MIDI value tree are edited."
             );
         }
+        folder(fourteen_bit_channels, label = "14-bit Channels", collapsed = true) {
+            channel_1: bool = false (label = "Channel 1", description = "Treat CC 0-31 on MIDI channel 1 as 14-bit controls paired with CC 32-63.");
+            channel_2: bool = false (label = "Channel 2", description = "Treat CC 0-31 on MIDI channel 2 as 14-bit controls paired with CC 32-63.");
+            channel_3: bool = false (label = "Channel 3", description = "Treat CC 0-31 on MIDI channel 3 as 14-bit controls paired with CC 32-63.");
+            channel_4: bool = false (label = "Channel 4", description = "Treat CC 0-31 on MIDI channel 4 as 14-bit controls paired with CC 32-63.");
+            channel_5: bool = false (label = "Channel 5", description = "Treat CC 0-31 on MIDI channel 5 as 14-bit controls paired with CC 32-63.");
+            channel_6: bool = false (label = "Channel 6", description = "Treat CC 0-31 on MIDI channel 6 as 14-bit controls paired with CC 32-63.");
+            channel_7: bool = false (label = "Channel 7", description = "Treat CC 0-31 on MIDI channel 7 as 14-bit controls paired with CC 32-63.");
+            channel_8: bool = false (label = "Channel 8", description = "Treat CC 0-31 on MIDI channel 8 as 14-bit controls paired with CC 32-63.");
+            channel_9: bool = false (label = "Channel 9", description = "Treat CC 0-31 on MIDI channel 9 as 14-bit controls paired with CC 32-63.");
+            channel_10: bool = false (label = "Channel 10", description = "Treat CC 0-31 on MIDI channel 10 as 14-bit controls paired with CC 32-63.");
+            channel_11: bool = false (label = "Channel 11", description = "Treat CC 0-31 on MIDI channel 11 as 14-bit controls paired with CC 32-63.");
+            channel_12: bool = false (label = "Channel 12", description = "Treat CC 0-31 on MIDI channel 12 as 14-bit controls paired with CC 32-63.");
+            channel_13: bool = false (label = "Channel 13", description = "Treat CC 0-31 on MIDI channel 13 as 14-bit controls paired with CC 32-63.");
+            channel_14: bool = false (label = "Channel 14", description = "Treat CC 0-31 on MIDI channel 14 as 14-bit controls paired with CC 32-63.");
+            channel_15: bool = false (label = "Channel 15", description = "Treat CC 0-31 on MIDI channel 15 as 14-bit controls paired with CC 32-63.");
+            channel_16: bool = false (label = "Channel 16", description = "Treat CC 0-31 on MIDI channel 16 as 14-bit controls paired with CC 32-63.");
+        }
     }
 )]
 pub struct MidiModule {
@@ -228,6 +173,7 @@ pub struct MidiModule {
     ignored_param_changes: HashSet<NodeId>,
     pending_packets: Vec<PendingMidiPacket>,
     cc_14_bit_state: [[Cc14BitState; 32]; 16],
+    pending_auto_children: HashSet<(NodeId, String)>,
 }
 
 impl MidiModule {
@@ -245,11 +191,30 @@ impl MidiModule {
             HashSet::new(),
             Vec::new(),
             [[Cc14BitState::default(); 32]; 16],
+            HashSet::new(),
         )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MidiMessage) {
+        self.pending_incoming_messages.push(message);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn auto_add_enabled_for_test(&self) -> bool {
+        self.auto_add.get()
     }
 
     fn module_command_types() -> &'static [&'static str] {
         MIDI_MODULE_COMMAND_TYPES
+    }
+
+    fn clear_pending_auto_child(&mut self, parent_id: NodeId, decl_id: &str) {
+        self.pending_auto_children.remove(&(parent_id, decl_id.to_string()));
+    }
+
+    fn mark_pending_auto_child(&mut self, parent_id: NodeId, decl_id: &str) -> bool {
+        self.pending_auto_children.insert((parent_id, decl_id.to_string()))
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -265,17 +230,11 @@ impl MidiModule {
             Ok(options) => {
                 if self.input_port.is_bound() {
                     sync_midi_port_enum_options(ctx, self.input_port.id(), midi_input_port_options(&options.inputs));
-                    self.input_port
-                        .clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
+                    self.input_port.clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
                 }
                 if self.output_port.is_bound() {
-                    sync_midi_port_enum_options(
-                        ctx,
-                        self.output_port.id(),
-                        midi_output_port_options(&options.outputs),
-                    );
-                    self.output_port
-                        .clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
+                    sync_midi_port_enum_options(ctx, self.output_port.id(), midi_output_port_options(&options.outputs));
+                    self.output_port.clear_warning(ctx, Some(MIDI_PORT_OPTIONS_WARNING_ID));
                 }
             }
             Err(error) => {
@@ -430,7 +389,10 @@ impl MidiModule {
                         self.pending_incoming_messages.push(message);
                     }
                     None => {
-                        logerror!("Ignored unsupported MIDI message {}", format_midi_bytes(bytes.as_slice()));
+                        logerror!(
+                            "Ignored unsupported MIDI message {}",
+                            format_midi_bytes(bytes.as_slice())
+                        );
                     }
                 },
             }
@@ -496,9 +458,15 @@ impl MidiModule {
                 note,
                 pressure,
             } => self.apply_poly_pressure(ctx, snapshot, *channel, *note, *pressure),
-            MidiMessage::ProgramChange { channel, program } => {
-                self.apply_channel_parameter(ctx, snapshot, *channel, PROGRAM_DECL_ID, "Program", i32::from(*program), Some((0, 127)))
-            }
+            MidiMessage::ProgramChange { channel, program } => self.apply_channel_parameter(
+                ctx,
+                snapshot,
+                *channel,
+                PROGRAM_DECL_ID,
+                "Program",
+                i32::from(*program),
+                Some((0, 127)),
+            ),
             MidiMessage::ChannelPressure { channel, pressure } => self.apply_channel_parameter(
                 ctx,
                 snapshot,
@@ -529,27 +497,21 @@ impl MidiModule {
         note: u8,
         velocity: u8,
     ) -> MidiApplyResult {
-        let Some(note_id) = self.ensure_note_value(ctx, snapshot, channel, note) else {
+        let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
-        let Some(on_id) = child_by_decl_id(snapshot, note_id, NOTE_ON_DECL_ID) else {
+        let Some(notes_id) = self.ensure_folder(ctx, snapshot, channel_id, "Notes", NOTES_FOLDER_DECL_ID) else {
             return MidiApplyResult::Retry;
         };
-        let Some(velocity_id) = child_by_decl_id(snapshot, note_id, NOTE_VELOCITY_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(pitch_id) = child_by_decl_id(snapshot, note_id, NOTE_PITCH_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(name_id) = child_by_decl_id(snapshot, note_id, NOTE_NAME_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-
-        self.set_internal_param(ctx, pitch_id, ParamValue::Int(i32::from(note)));
-        self.set_internal_param(ctx, name_id, ParamValue::Str(note_label(note)));
-        self.set_internal_param(ctx, velocity_id, ParamValue::Int(i32::from(velocity)));
-        self.set_internal_param(ctx, on_id, ParamValue::Bool(true));
-        MidiApplyResult::Applied
+        self.apply_direct_int_parameter(
+            ctx,
+            snapshot,
+            notes_id,
+            note_label(note).as_str(),
+            note_decl_id(note).as_str(),
+            i32::from(velocity),
+            Some(MIDI_7_BIT_VALUE_RANGE),
+        )
     }
 
     fn apply_note_off(
@@ -558,29 +520,36 @@ impl MidiModule {
         snapshot: &ProcessTreeSnapshot,
         channel: u8,
         note: u8,
-        velocity: u8,
+        _velocity: u8,
     ) -> MidiApplyResult {
-        let Some(note_id) = self.ensure_note_value(ctx, snapshot, channel, note) else {
+        let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
-        let Some(on_id) = child_by_decl_id(snapshot, note_id, NOTE_ON_DECL_ID) else {
+        let Some(notes_id) = self.ensure_folder(ctx, snapshot, channel_id, "Notes", NOTES_FOLDER_DECL_ID) else {
             return MidiApplyResult::Retry;
         };
-        let Some(release_velocity_id) = child_by_decl_id(snapshot, note_id, NOTE_RELEASE_VELOCITY_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(pitch_id) = child_by_decl_id(snapshot, note_id, NOTE_PITCH_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(name_id) = child_by_decl_id(snapshot, note_id, NOTE_NAME_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
+        self.apply_direct_int_parameter(
+            ctx,
+            snapshot,
+            notes_id,
+            note_label(note).as_str(),
+            note_decl_id(note).as_str(),
+            0,
+            Some(MIDI_7_BIT_VALUE_RANGE),
+        )
+    }
 
-        self.set_internal_param(ctx, pitch_id, ParamValue::Int(i32::from(note)));
-        self.set_internal_param(ctx, name_id, ParamValue::Str(note_label(note)));
-        self.set_internal_param(ctx, release_velocity_id, ParamValue::Int(i32::from(velocity)));
-        self.set_internal_param(ctx, on_id, ParamValue::Bool(false));
-        MidiApplyResult::Applied
+    fn cc_parameter_range(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        channel: u8,
+        controller: u8,
+    ) -> Option<(i32, i32)> {
+        Some(if self.cc_parameter_is_14_bit(snapshot, channel, controller) {
+            MIDI_14_BIT_VALUE_RANGE
+        } else {
+            MIDI_7_BIT_VALUE_RANGE
+        })
     }
 
     fn apply_control_change(
@@ -591,9 +560,9 @@ impl MidiModule {
         controller: u8,
         raw_value: u8,
     ) -> MidiApplyResult {
-        if (32..=63).contains(&controller) {
+        if self.cc_channel_is_14_bit(snapshot, channel) && (32..=63).contains(&controller) {
             let base_controller = controller - 32;
-            if self.cc_value_is_14_bit(snapshot, channel, base_controller) {
+            if self.cc_parameter_is_14_bit(snapshot, channel, base_controller) {
                 return self.apply_control_change_value(ctx, snapshot, channel, base_controller, raw_value, true);
             }
         }
@@ -610,33 +579,31 @@ impl MidiModule {
         raw_value: u8,
         is_lsb_message: bool,
     ) -> MidiApplyResult {
-        let Some(cc_id) = self.ensure_cc_value(ctx, snapshot, channel, controller) else {
+        let Some(cc_id) = self.ensure_cc_parameter(ctx, snapshot, channel, controller) else {
             return MidiApplyResult::Retry;
         };
-        let Some(value_id) = child_by_decl_id(snapshot, cc_id, CC_VALUE_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(raw_value_id) = child_by_decl_id(snapshot, cc_id, CC_RAW_VALUE_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-        let Some(controller_id) = child_by_decl_id(snapshot, cc_id, CC_CONTROLLER_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
+        let config = midi_cc_tag_config(snapshot.node(cc_id).map(|node| node.tags.as_slice()).unwrap_or(&[]));
 
-        let is_14_bit = child_bool(snapshot, cc_id, CC_IS_14_BIT_DECL_ID).unwrap_or(false);
-        let mechanism = child_enum(snapshot, cc_id, CC_ROTARY_MECHANISM_DECL_ID).unwrap_or_else(|| ROTARY_ABSOLUTE.to_string());
-
-        self.set_internal_param(ctx, controller_id, ParamValue::Int(i32::from(controller)));
-        self.set_internal_param(ctx, raw_value_id, ParamValue::Int(i32::from(raw_value)));
-
-        if mechanism != ROTARY_ABSOLUTE {
-            let current = child_int(snapshot, cc_id, CC_VALUE_DECL_ID).unwrap_or(0);
-            let delta = decode_rotary_delta(mechanism.as_str(), raw_value).unwrap_or(0);
-            self.set_internal_param(ctx, value_id, ParamValue::Int(current.saturating_add(delta)));
+        if config.rotary_mechanism != ROTARY_ABSOLUTE {
+            let current = snapshot
+                .node(cc_id)
+                .and_then(|node| node.param_value.as_ref())
+                .and_then(ParamValue::as_int)
+                .unwrap_or(0);
+            let delta = decode_rotary_delta(config.rotary_mechanism, raw_value).unwrap_or(0);
+            self.set_internal_param(ctx, cc_id, ParamValue::Int(current.saturating_add(delta)));
             return MidiApplyResult::Applied;
         }
 
-        if is_14_bit && controller <= 31 {
+        if self.cc_parameter_is_14_bit(snapshot, channel, controller) {
+            let current_combined = snapshot
+                .node(cc_id)
+                .and_then(|node| node.param_value.as_ref())
+                .and_then(ParamValue::as_int)
+                .map(clamp_i32_to_u14)
+                .unwrap_or(0);
+            let default_msb = ((current_combined >> 7) & 0x7F) as u8;
+            let default_lsb = (current_combined & 0x7F) as u8;
             let channel_index = usize::from(channel.saturating_sub(1).min(15));
             let controller_index = usize::from(controller);
             let state = &mut self.cc_14_bit_state[channel_index][controller_index];
@@ -646,14 +613,14 @@ impl MidiModule {
                 state.msb = Some(raw_value);
             }
 
-            let msb = state.msb.unwrap_or(raw_value);
-            let lsb = state.lsb.unwrap_or(0);
+            let msb = state.msb.unwrap_or(default_msb);
+            let lsb = state.lsb.unwrap_or(default_lsb);
             let combined = (u16::from(msb) << 7) | u16::from(lsb);
-            self.set_internal_param(ctx, value_id, ParamValue::Int(i32::from(combined)));
+            self.set_internal_param(ctx, cc_id, ParamValue::Int(i32::from(combined)));
             return MidiApplyResult::Applied;
         }
 
-        self.set_internal_param(ctx, value_id, ParamValue::Int(i32::from(raw_value)));
+        self.set_internal_param(ctx, cc_id, ParamValue::Int(i32::from(raw_value)));
         MidiApplyResult::Applied
     }
 
@@ -668,13 +635,9 @@ impl MidiModule {
         let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
-        let Some(pressure_folder_id) = self.ensure_folder(
-            ctx,
-            snapshot,
-            channel_id,
-            "Poly Pressure",
-            POLY_PRESSURE_FOLDER_DECL_ID,
-        ) else {
+        let Some(pressure_folder_id) =
+            self.ensure_folder(ctx, snapshot, channel_id, "Poly Pressure", POLY_PRESSURE_FOLDER_DECL_ID)
+        else {
             return MidiApplyResult::Retry;
         };
 
@@ -685,7 +648,7 @@ impl MidiModule {
             note_label(note).as_str(),
             note_decl_id(note).as_str(),
             i32::from(pressure),
-            Some((0, 127)),
+            Some(MIDI_7_BIT_VALUE_RANGE),
         )
     }
 
@@ -727,7 +690,7 @@ impl MidiModule {
                 "Time Code Quarter Frame",
                 TIME_CODE_QUARTER_FRAME_DECL_ID,
                 i32::from(*value),
-                Some((0, 127)),
+                Some(MIDI_7_BIT_VALUE_RANGE),
             ),
             MidiSystemMessage::SongPosition { position } => self.apply_direct_int_parameter(
                 ctx,
@@ -736,7 +699,7 @@ impl MidiModule {
                 "Song Position",
                 SONG_POSITION_DECL_ID,
                 i32::from(*position),
-                Some((0, i32::from(MIDI_U14_MAX))),
+                Some(MIDI_14_BIT_VALUE_RANGE),
             ),
             MidiSystemMessage::SongSelect { song } => self.apply_direct_int_parameter(
                 ctx,
@@ -745,10 +708,14 @@ impl MidiModule {
                 "Song Select",
                 SONG_SELECT_DECL_ID,
                 i32::from(*song),
-                Some((0, 127)),
+                Some(MIDI_7_BIT_VALUE_RANGE),
             ),
-            MidiSystemMessage::TuneRequest => self.apply_trigger(ctx, snapshot, system_id, "Tune Request", TUNE_REQUEST_DECL_ID),
-            MidiSystemMessage::TimingClock => self.apply_trigger(ctx, snapshot, system_id, "Timing Clock", TIMING_CLOCK_DECL_ID),
+            MidiSystemMessage::TuneRequest => {
+                self.apply_trigger(ctx, snapshot, system_id, "Tune Request", TUNE_REQUEST_DECL_ID)
+            }
+            MidiSystemMessage::TimingClock => {
+                self.apply_trigger(ctx, snapshot, system_id, "Timing Clock", TIMING_CLOCK_DECL_ID)
+            }
             MidiSystemMessage::Start => self.apply_trigger(ctx, snapshot, system_id, "Start", START_DECL_ID),
             MidiSystemMessage::Continue => self.apply_trigger(ctx, snapshot, system_id, "Continue", CONTINUE_DECL_ID),
             MidiSystemMessage::Stop => self.apply_trigger(ctx, snapshot, system_id, "Stop", STOP_DECL_ID),
@@ -791,7 +758,7 @@ impl MidiModule {
             "Length",
             SYSEX_LENGTH_DECL_ID,
             i32::try_from(bytes.len()).unwrap_or(i32::MAX),
-            Some((0, i32::MAX)),
+            Some(MIDI_NONNEGATIVE_INT_RANGE),
         )
     }
 
@@ -804,7 +771,12 @@ impl MidiModule {
         decl_id: &str,
     ) -> MidiApplyResult {
         match snapshot.find_child_by_decl_id(parent_id, decl_id) {
-            Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "trigger") => {
+            Some(existing_id)
+                if snapshot
+                    .node(existing_id)
+                    .is_some_and(|node| node.node_type == "trigger") =>
+            {
+                self.clear_pending_auto_child(parent_id, decl_id);
                 self.set_internal_param(ctx, existing_id, ParamValue::Trigger());
                 MidiApplyResult::Applied
             }
@@ -812,14 +784,18 @@ impl MidiModule {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.replace_node_boxed(existing_id, Box::new(create_trigger_parameter(label, decl_id)));
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.replace_node_boxed(existing_id, Box::new(create_trigger_parameter(label, decl_id)));
+                }
                 MidiApplyResult::Retry
             }
             None => {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.add_child_boxed(parent_id, Box::new(create_trigger_parameter(label, decl_id)), None);
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.add_child_boxed(parent_id, Box::new(create_trigger_parameter(label, decl_id)), None);
+                }
                 MidiApplyResult::Retry
             }
         }
@@ -837,6 +813,8 @@ impl MidiModule {
     ) -> MidiApplyResult {
         match snapshot.find_child_by_decl_id(parent_id, decl_id) {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "int") => {
+                self.clear_pending_auto_child(parent_id, decl_id);
+                sync_int_parameter_constraints(ctx, snapshot, existing_id, range);
                 self.set_internal_param(ctx, existing_id, ParamValue::Int(value));
                 MidiApplyResult::Applied
             }
@@ -844,21 +822,28 @@ impl MidiModule {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.replace_node_boxed(
-                    existing_id,
-                    Box::new(create_int_parameter(label, decl_id, value, range, false)),
-                );
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.replace_node_boxed(
+                        existing_id,
+                        Box::new(create_int_parameter(label, decl_id, value, range, false)),
+                    );
+                }
                 MidiApplyResult::Retry
             }
             None => {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.add_child_boxed(
-                    parent_id,
-                    Box::new(create_int_parameter(label, decl_id, value, range, false)),
-                    None,
-                );
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.add_child_boxed(
+                        parent_id,
+                        Box::new(create_int_parameter(label, decl_id, value, range, false)),
+                        None,
+                    );
+                    if ordered_midi_value_kind(snapshot, parent_id).is_some() {
+                        self.schedule_ordered_value_rebuild(ctx, parent_id);
+                    }
+                }
                 MidiApplyResult::Retry
             }
         }
@@ -876,6 +861,7 @@ impl MidiModule {
     ) -> MidiApplyResult {
         match snapshot.find_child_by_decl_id(parent_id, decl_id) {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "str") => {
+                self.clear_pending_auto_child(parent_id, decl_id);
                 self.set_internal_param(ctx, existing_id, ParamValue::Str(value));
                 MidiApplyResult::Applied
             }
@@ -883,28 +869,32 @@ impl MidiModule {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.replace_node_boxed(
-                    existing_id,
-                    Box::new(create_string_parameter(label, decl_id, value, read_only)),
-                );
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.replace_node_boxed(
+                        existing_id,
+                        Box::new(create_string_parameter(label, decl_id, value, read_only)),
+                    );
+                }
                 MidiApplyResult::Retry
             }
             None => {
                 if !self.auto_add.get() {
                     return MidiApplyResult::Ignored;
                 }
-                ctx.add_child_boxed(
-                    parent_id,
-                    Box::new(create_string_parameter(label, decl_id, value, read_only)),
-                    None,
-                );
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.add_child_boxed(
+                        parent_id,
+                        Box::new(create_string_parameter(label, decl_id, value, read_only)),
+                        None,
+                    );
+                }
                 MidiApplyResult::Retry
             }
         }
     }
 
     fn ensure_channel_folder(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         channel: u8,
@@ -919,43 +909,8 @@ impl MidiModule {
         )
     }
 
-    fn ensure_note_value(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        channel: u8,
-        note: u8,
-    ) -> Option<NodeId> {
-        let channel_id = self.ensure_channel_folder(ctx, snapshot, channel)?;
-        let notes_id = self.ensure_folder(ctx, snapshot, channel_id, "Notes", NOTES_FOLDER_DECL_ID)?;
-        let decl_id = note_decl_id(note);
-        match snapshot.find_child_by_decl_id(notes_id, decl_id.as_str()) {
-            Some(existing_id)
-                if snapshot
-                    .node(existing_id)
-                    .is_some_and(|node| node.node_type == MidiNoteValue::NODE_TYPE) =>
-            {
-                Some(existing_id)
-            }
-            Some(existing_id) => {
-                if !self.auto_add.get() {
-                    return None;
-                }
-                ctx.replace_node_boxed(existing_id, Box::new(create_note_value(note)));
-                None
-            }
-            None => {
-                if !self.auto_add.get() {
-                    return None;
-                }
-                ctx.add_child_boxed(notes_id, Box::new(create_note_value(note)), None);
-                None
-            }
-        }
-    }
-
-    fn ensure_cc_value(
-        &self,
+    fn ensure_cc_parameter(
+        &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         channel: u8,
@@ -970,33 +925,56 @@ impl MidiModule {
             CONTROL_CHANGE_FOLDER_DECL_ID,
         )?;
         let decl_id = cc_decl_id(controller);
+        let range = self.cc_parameter_range(snapshot, channel, controller);
         match snapshot.find_child_by_decl_id(cc_folder_id, decl_id.as_str()) {
-            Some(existing_id)
-                if snapshot
-                    .node(existing_id)
-                    .is_some_and(|node| node.node_type == MidiControlChangeValue::NODE_TYPE) =>
-            {
+            Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "int") => {
+                self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
+                sync_int_parameter_constraints(ctx, snapshot, existing_id, range);
                 Some(existing_id)
             }
             Some(existing_id) => {
                 if !self.auto_add.get() {
                     return None;
                 }
-                ctx.replace_node_boxed(existing_id, Box::new(create_cc_value(controller)));
+                if self.mark_pending_auto_child(cc_folder_id, decl_id.as_str()) {
+                    ctx.replace_node_boxed(
+                        existing_id,
+                        Box::new(create_int_parameter(
+                            cc_label(controller).as_str(),
+                            decl_id.as_str(),
+                            0,
+                            range,
+                            false,
+                        )),
+                    );
+                }
                 None
             }
             None => {
                 if !self.auto_add.get() {
                     return None;
                 }
-                ctx.add_child_boxed(cc_folder_id, Box::new(create_cc_value(controller)), None);
+                if self.mark_pending_auto_child(cc_folder_id, decl_id.as_str()) {
+                    ctx.add_child_boxed(
+                        cc_folder_id,
+                        Box::new(create_int_parameter(
+                            cc_label(controller).as_str(),
+                            decl_id.as_str(),
+                            0,
+                            range,
+                            false,
+                        )),
+                        None,
+                    );
+                    self.schedule_ordered_value_rebuild(ctx, cc_folder_id);
+                }
                 None
             }
         }
     }
 
     fn ensure_folder(
-        &self,
+        &mut self,
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         parent_id: NodeId,
@@ -1004,37 +982,267 @@ impl MidiModule {
         decl_id: &str,
     ) -> Option<NodeId> {
         match snapshot.find_child_by_decl_id(parent_id, decl_id) {
-            Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "folder") => {
+            Some(existing_id)
+                if snapshot
+                    .node(existing_id)
+                    .is_some_and(|node| node.node_type == "folder") =>
+            {
+                self.clear_pending_auto_child(parent_id, decl_id);
                 Some(existing_id)
             }
             Some(existing_id) => {
                 if !self.auto_add.get() {
                     return None;
                 }
-                ctx.replace_node_boxed(existing_id, Box::new(create_folder(label, decl_id)));
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.replace_node_boxed(existing_id, Box::new(create_folder(label, decl_id)));
+                }
                 None
             }
             None => {
                 if !self.auto_add.get() {
                     return None;
                 }
-                ctx.add_child_boxed(parent_id, Box::new(create_folder(label, decl_id)), None);
+                if self.mark_pending_auto_child(parent_id, decl_id) {
+                    ctx.add_child_boxed(parent_id, Box::new(create_folder(label, decl_id)), None);
+                }
                 None
             }
         }
     }
 
-    fn cc_value_is_14_bit(&self, snapshot: &ProcessTreeSnapshot, channel: u8, controller: u8) -> bool {
-        self.find_cc_value(snapshot, channel, controller)
-            .and_then(|cc_id| child_bool(snapshot, cc_id, CC_IS_14_BIT_DECL_ID))
-            .unwrap_or(false)
-    }
-
-    fn find_cc_value(&self, snapshot: &ProcessTreeSnapshot, channel: u8, controller: u8) -> Option<NodeId> {
+    fn find_cc_folder(&self, snapshot: &ProcessTreeSnapshot, channel: u8) -> Option<NodeId> {
         let values_id = self.base.values_id()?;
         let channel_id = snapshot.find_child_by_decl_id(values_id, channel_decl_id(channel).as_str())?;
-        let cc_folder_id = snapshot.find_child_by_decl_id(channel_id, CONTROL_CHANGE_FOLDER_DECL_ID)?;
-        snapshot.find_child_by_decl_id(cc_folder_id, cc_decl_id(controller).as_str())
+        snapshot.find_child_by_decl_id(channel_id, CONTROL_CHANGE_FOLDER_DECL_ID)
+    }
+
+    fn cc_channel_is_14_bit(&self, _snapshot: &ProcessTreeSnapshot, channel: u8) -> bool {
+        match channel {
+            1 => self.channel_1.get(),
+            2 => self.channel_2.get(),
+            3 => self.channel_3.get(),
+            4 => self.channel_4.get(),
+            5 => self.channel_5.get(),
+            6 => self.channel_6.get(),
+            7 => self.channel_7.get(),
+            8 => self.channel_8.get(),
+            9 => self.channel_9.get(),
+            10 => self.channel_10.get(),
+            11 => self.channel_11.get(),
+            12 => self.channel_12.get(),
+            13 => self.channel_13.get(),
+            14 => self.channel_14.get(),
+            15 => self.channel_15.get(),
+            16 => self.channel_16.get(),
+            _ => false,
+        }
+    }
+
+    fn cc_parameter_is_14_bit(&self, snapshot: &ProcessTreeSnapshot, channel: u8, controller: u8) -> bool {
+        cc_supports_14_bit(controller) && self.cc_channel_is_14_bit(snapshot, channel)
+    }
+
+    fn channel_14_bit_toggle_channel(&self, param: NodeId) -> Option<u8> {
+        if self.channel_1.is_bound() && self.channel_1.id() == param {
+            return Some(1);
+        }
+        if self.channel_2.is_bound() && self.channel_2.id() == param {
+            return Some(2);
+        }
+        if self.channel_3.is_bound() && self.channel_3.id() == param {
+            return Some(3);
+        }
+        if self.channel_4.is_bound() && self.channel_4.id() == param {
+            return Some(4);
+        }
+        if self.channel_5.is_bound() && self.channel_5.id() == param {
+            return Some(5);
+        }
+        if self.channel_6.is_bound() && self.channel_6.id() == param {
+            return Some(6);
+        }
+        if self.channel_7.is_bound() && self.channel_7.id() == param {
+            return Some(7);
+        }
+        if self.channel_8.is_bound() && self.channel_8.id() == param {
+            return Some(8);
+        }
+        if self.channel_9.is_bound() && self.channel_9.id() == param {
+            return Some(9);
+        }
+        if self.channel_10.is_bound() && self.channel_10.id() == param {
+            return Some(10);
+        }
+        if self.channel_11.is_bound() && self.channel_11.id() == param {
+            return Some(11);
+        }
+        if self.channel_12.is_bound() && self.channel_12.id() == param {
+            return Some(12);
+        }
+        if self.channel_13.is_bound() && self.channel_13.id() == param {
+            return Some(13);
+        }
+        if self.channel_14.is_bound() && self.channel_14.id() == param {
+            return Some(14);
+        }
+        if self.channel_15.is_bound() && self.channel_15.id() == param {
+            return Some(15);
+        }
+        if self.channel_16.is_bound() && self.channel_16.id() == param {
+            return Some(16);
+        }
+        None
+    }
+
+    fn set_or_create_cc_param(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        channel: u8,
+        cc_folder_id: NodeId,
+        controller: u8,
+        existing_id: Option<NodeId>,
+        value: i32,
+    ) {
+        let decl_id = cc_decl_id(controller);
+        let label = cc_label(controller);
+        let range = self.cc_parameter_range(snapshot, channel, controller);
+        match existing_id {
+            Some(node_id) if snapshot.node(node_id).is_some_and(|node| node.node_type == "int") => {
+                sync_int_parameter_constraints(ctx, snapshot, node_id, range);
+                self.set_internal_param(ctx, node_id, ParamValue::Int(value));
+            }
+            Some(node_id) => {
+                self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
+                ctx.replace_node_boxed(
+                    node_id,
+                    Box::new(create_int_parameter(
+                        label.as_str(),
+                        decl_id.as_str(),
+                        value,
+                        range,
+                        false,
+                    )),
+                );
+            }
+            None => {
+                self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
+                ctx.add_child_boxed(
+                    cc_folder_id,
+                    Box::new(create_int_parameter(
+                        label.as_str(),
+                        decl_id.as_str(),
+                        value,
+                        range,
+                        false,
+                    )),
+                    None,
+                );
+                self.schedule_ordered_value_rebuild(ctx, cc_folder_id);
+            }
+        }
+    }
+
+    fn schedule_ordered_value_rebuild(&self, ctx: &mut ProcessCtx, parent_id: NodeId) {
+        ctx.call_node_mutation(self.id(), move |_node, inner_ctx| {
+            let Some(snapshot_arc) = inner_ctx.tree_snapshot_arc() else {
+                return Ok(());
+            };
+            reorder_ordered_midi_value_children(inner_ctx, snapshot_arc.as_ref(), parent_id);
+            Ok(())
+        });
+    }
+
+    fn set_channel_14_bit_mode(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        channel: u8,
+        enable_14_bit: bool,
+    ) {
+        let channel_index = usize::from(channel.saturating_sub(1).min(15));
+        self.cc_14_bit_state[channel_index] = [Cc14BitState::default(); 32];
+
+        let Some(cc_folder_id) = self.find_cc_folder(snapshot, channel) else {
+            return;
+        };
+
+        for base_controller in 0..32u8 {
+            let lsb_controller = base_controller + 32;
+            let base_decl_id = cc_decl_id(base_controller);
+            let lsb_decl_id = cc_decl_id(lsb_controller);
+            let base_id = snapshot.find_child_by_decl_id(cc_folder_id, base_decl_id.as_str());
+            let lsb_id = snapshot.find_child_by_decl_id(cc_folder_id, lsb_decl_id.as_str());
+
+            if enable_14_bit {
+                if base_id.is_none() && lsb_id.is_none() {
+                    continue;
+                }
+
+                let msb = base_id
+                    .and_then(|node_id| snapshot.node(node_id))
+                    .and_then(|node| node.param_value.as_ref())
+                    .and_then(ParamValue::as_int)
+                    .map(clamp_i32_to_u7)
+                    .unwrap_or(0);
+                let lsb = lsb_id
+                    .and_then(|node_id| snapshot.node(node_id))
+                    .and_then(|node| node.param_value.as_ref())
+                    .and_then(ParamValue::as_int)
+                    .map(clamp_i32_to_u7)
+                    .unwrap_or(0);
+                let combined = i32::from((u16::from(msb) << 7) | u16::from(lsb));
+
+                self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, base_controller, base_id, combined);
+                if let Some(node_id) = lsb_id {
+                    self.clear_pending_auto_child(cc_folder_id, lsb_decl_id.as_str());
+                    ctx.edits.push(Edit::RemoveNode { node: node_id });
+                }
+
+                self.cc_14_bit_state[channel_index][usize::from(base_controller)] = Cc14BitState {
+                    msb: Some(msb),
+                    lsb: Some(lsb),
+                };
+                continue;
+            }
+
+            if base_id.is_none() && lsb_id.is_none() {
+                continue;
+            }
+
+            let combined = base_id
+                .and_then(|node_id| snapshot.node(node_id))
+                .and_then(|node| node.param_value.as_ref())
+                .and_then(ParamValue::as_int)
+                .map(clamp_i32_to_u14)
+                .unwrap_or_else(|| {
+                    lsb_id
+                        .and_then(|node_id| snapshot.node(node_id))
+                        .and_then(|node| node.param_value.as_ref())
+                        .and_then(ParamValue::as_int)
+                        .map(clamp_i32_to_u7)
+                        .map(u16::from)
+                        .unwrap_or(0)
+                });
+            let msb = i32::from((combined >> 7) & 0x7F);
+            let lsb = i32::from(combined & 0x7F);
+
+            self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, base_controller, base_id, msb);
+            self.set_or_create_cc_param(ctx, snapshot, channel, cc_folder_id, lsb_controller, lsb_id, lsb);
+        }
+    }
+
+    fn lock_existing_value_tree(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        let Some(values_id) = self.base.values_id() else {
+            return;
+        };
+
+        let mut pending = vec![values_id];
+        while let Some(node_id) = pending.pop() {
+            lock_midi_value_node(ctx, node_id);
+            pending.extend(snapshot.child_ids(node_id));
+        }
     }
 
     fn set_internal_param(&mut self, ctx: &mut ProcessCtx, param_id: NodeId, value: ParamValue) {
@@ -1154,6 +1362,21 @@ impl MidiModule {
             return;
         }
 
+        if let Some(channel) = self.channel_14_bit_toggle_channel(param) {
+            ctx.call_node_mutation(self.id(), move |node, inner_ctx| {
+                let Some(module) = node.as_any_mut().downcast_mut::<MidiModule>() else {
+                    return Err("expected MidiModule during deferred 14-bit channel conversion".to_string());
+                };
+                let Some(snapshot_arc) = inner_ctx.tree_snapshot_arc() else {
+                    return Ok(());
+                };
+                let enabled = module.cc_channel_is_14_bit(snapshot_arc.as_ref(), channel);
+                module.set_channel_14_bit_mode(inner_ctx, snapshot_arc.as_ref(), channel, enabled);
+                Ok(())
+            });
+            return;
+        }
+
         if self.param_affects_transport(param) {
             if self.input_port.is_bound() && self.input_port.id() == param {
                 self.input_dirty = true;
@@ -1248,6 +1471,7 @@ impl Node for MidiModule {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
+        self.lock_existing_value_tree(ctx, snapshot);
         self.refresh_input(ctx, snapshot);
         self.refresh_output(ctx, snapshot);
     }
@@ -1358,12 +1582,12 @@ fn feedback_messages_for_param(
     let parent_id = param_snapshot.parent?;
     let parent = snapshot.node(parent_id)?;
 
-    if parent.node_type == MidiNoteValue::NODE_TYPE {
-        return feedback_messages_for_note_param(snapshot, parent_id, param_snapshot, old_value);
+    if parent.decl_id.as_str() == NOTES_FOLDER_DECL_ID {
+        return feedback_messages_for_note_param(snapshot, param_snapshot);
     }
 
-    if parent.node_type == MidiControlChangeValue::NODE_TYPE {
-        return feedback_messages_for_cc_param(snapshot, parent_id, param_snapshot, old_value);
+    if parent.decl_id.as_str() == CONTROL_CHANGE_FOLDER_DECL_ID {
+        return feedback_messages_for_cc_param(snapshot, param_snapshot, old_value);
     }
 
     if parent.decl_id.as_str() == POLY_PRESSURE_FOLDER_DECL_ID {
@@ -1402,67 +1626,42 @@ fn feedback_messages_for_param(
 
 fn feedback_messages_for_note_param(
     snapshot: &ProcessTreeSnapshot,
-    note_id: NodeId,
     param: &golden_core::process_ctx::ProcessTreeNodeSnapshot,
-    _old_value: ParamValue,
 ) -> Option<Vec<MidiMessage>> {
-    let channel = channel_for_descendant(snapshot, note_id)?;
-    let note = child_int(snapshot, note_id, NOTE_PITCH_DECL_ID).map(clamp_i32_to_u7)?;
-    let on = child_bool(snapshot, note_id, NOTE_ON_DECL_ID).unwrap_or(false);
-    let velocity = child_int(snapshot, note_id, NOTE_VELOCITY_DECL_ID)
-        .map(clamp_i32_to_u7)
-        .unwrap_or(0);
-    let release_velocity = child_int(snapshot, note_id, NOTE_RELEASE_VELOCITY_DECL_ID)
-        .map(clamp_i32_to_u7)
-        .unwrap_or(0);
+    let channel = channel_for_descendant(snapshot, param.id)?;
+    let note = note_from_decl_id(param.decl_id.as_str())?;
+    let velocity = param.param_value.as_ref()?.as_int().map(clamp_i32_to_u7)?;
 
-    match param.decl_id.as_str() {
-        NOTE_ON_DECL_ID => Some(vec![if on {
-            MidiMessage::NoteOn {
-                channel,
-                note,
-                velocity,
-            }
-        } else {
-            MidiMessage::NoteOff {
-                channel,
-                note,
-                velocity: release_velocity,
-            }
-        }]),
-        NOTE_VELOCITY_DECL_ID if on => Some(vec![MidiMessage::NoteOn {
+    Some(vec![if velocity == 0 {
+        MidiMessage::NoteOff {
+            channel,
+            note,
+            velocity: 0,
+        }
+    } else {
+        MidiMessage::NoteOn {
             channel,
             note,
             velocity,
-        }]),
-        NOTE_RELEASE_VELOCITY_DECL_ID if !on => Some(vec![MidiMessage::NoteOff {
-            channel,
-            note,
-            velocity: release_velocity,
-        }]),
-        _ => None,
-    }
+        }
+    }])
 }
 
 fn feedback_messages_for_cc_param(
     snapshot: &ProcessTreeSnapshot,
-    cc_id: NodeId,
     param: &golden_core::process_ctx::ProcessTreeNodeSnapshot,
     old_value: ParamValue,
 ) -> Option<Vec<MidiMessage>> {
-    if param.decl_id != CC_VALUE_DECL_ID {
-        return None;
-    }
-
-    let channel = channel_for_descendant(snapshot, cc_id)?;
-    let controller = child_int(snapshot, cc_id, CC_CONTROLLER_DECL_ID).map(clamp_i32_to_u7)?;
+    let channel = channel_for_descendant(snapshot, param.id)?;
+    let controller = cc_from_decl_id(param.decl_id.as_str())?;
     let value = param.param_value.as_ref()?.as_int().unwrap_or(0);
-    let mechanism = child_enum(snapshot, cc_id, CC_ROTARY_MECHANISM_DECL_ID).unwrap_or_else(|| ROTARY_ABSOLUTE.to_string());
+    let config = midi_cc_tag_config(param.tags.as_slice());
+    let channel_14_bit = midi_cc_channel_is_14_bit(snapshot, param.id, channel);
 
-    if mechanism != ROTARY_ABSOLUTE {
+    if config.rotary_mechanism != ROTARY_ABSOLUTE {
         let old = old_value.as_int().unwrap_or(value);
         let delta = value.saturating_sub(old);
-        let raw_delta = encode_rotary_delta(mechanism.as_str(), delta)?;
+        let raw_delta = encode_rotary_delta(config.rotary_mechanism, delta)?;
         return Some(vec![MidiMessage::ControlChange {
             channel,
             controller,
@@ -1470,12 +1669,16 @@ fn feedback_messages_for_cc_param(
         }]);
     }
 
-    if child_bool(snapshot, cc_id, CC_IS_14_BIT_DECL_ID).unwrap_or(false) {
+    if channel_14_bit && cc_supports_14_bit(controller) {
         return Some(encode_14_bit_control_change(
             channel,
-            controller.min(31),
+            controller,
             clamp_i32_to_u14(value),
         ));
+    }
+
+    if channel_14_bit && (32..=63).contains(&controller) {
+        return None;
     }
 
     Some(vec![MidiMessage::ControlChange {
@@ -1510,30 +1713,9 @@ fn feedback_messages_for_system_param(
     Some(vec![MidiMessage::System(system)])
 }
 
-fn create_note_value(note: u8) -> MidiNoteValue {
-    let mut value = MidiNoteValue::new();
-    let meta = &mut value.node_data_mut().meta;
-    meta.label = note_label(note);
-    meta.decl_id = DeclId(note_decl_id(note));
-    meta.short_name = meta.decl_id.0.clone();
-    meta.description = Some(format!("Auto-created MIDI note {}", meta.label));
-    value
-}
-
-fn create_cc_value(controller: u8) -> MidiControlChangeValue {
-    let mut value = MidiControlChangeValue::new();
-    let meta = &mut value.node_data_mut().meta;
-    meta.label = cc_label(controller);
-    meta.decl_id = DeclId(cc_decl_id(controller));
-    meta.short_name = meta.decl_id.0.clone();
-    meta.description = Some(format!("Auto-created MIDI control change {}", controller));
-    value
-}
-
 fn create_folder(label: &str, decl_id: &str) -> Folder {
     let mut folder = Folder::new(label);
-    apply_node_identity(folder.node_data_mut(), decl_id);
-    crate::app::module::enable_module_authoring(folder.node_data_mut());
+    apply_midi_value_identity(folder.node_data_mut(), decl_id);
     folder
 }
 
@@ -1545,67 +1727,71 @@ fn create_int_parameter(
     read_only: bool,
 ) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Int(value), ParameterChangeCheck::ValueChange);
-    apply_node_identity(parameter.node_data_mut(), decl_id);
+    apply_midi_value_identity(parameter.node_data_mut(), decl_id);
     parameter.read_only = read_only;
-    if let Some((min, max)) = range {
-        parameter.constraints = ParameterConstraints {
-            range: RangeConstraint::uniform(Some(f64::from(min)), Some(f64::from(max))),
-            ..Default::default()
-        };
-    }
-    crate::app::module::enable_module_authoring(parameter.node_data_mut());
+    parameter.constraints = int_parameter_constraints(range);
     parameter
 }
 
 fn create_string_parameter(label: &str, decl_id: &str, value: String, read_only: bool) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Str(value), ParameterChangeCheck::ValueChange);
-    apply_node_identity(parameter.node_data_mut(), decl_id);
+    apply_midi_value_identity(parameter.node_data_mut(), decl_id);
     parameter.read_only = read_only;
-    crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter
 }
 
 fn create_trigger_parameter(label: &str, decl_id: &str) -> Parameter {
     let mut parameter = Parameter::new(label, ParamValue::Trigger(), ParameterChangeCheck::ValueChange);
-    apply_node_identity(parameter.node_data_mut(), decl_id);
-    crate::app::module::enable_module_authoring(parameter.node_data_mut());
+    apply_midi_value_identity(parameter.node_data_mut(), decl_id);
     parameter
+}
+
+fn apply_midi_value_identity(node_data: &mut golden_core::node::NodeData, decl_id: &str) {
+    apply_node_identity(node_data, decl_id);
+    crate::app::module::enable_module_authoring(node_data);
+    node_data.meta.user_permissions = NodeUserPermissions::none();
+}
+
+fn int_parameter_constraints(range: Option<(i32, i32)>) -> ParameterConstraints {
+    match range {
+        Some((min, max)) => ParameterConstraints {
+            range: RangeConstraint::uniform(Some(f64::from(min)), Some(f64::from(max))),
+            ..Default::default()
+        },
+        None => ParameterConstraints::default(),
+    }
+}
+
+fn sync_int_parameter_constraints(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+    range: Option<(i32, i32)>,
+) {
+    let expected = int_parameter_constraints(range);
+    if snapshot.node(node_id).and_then(|node| node.param_constraints.as_ref()) == Some(&expected) {
+        return;
+    }
+
+    ctx.edits.push(Edit::SetParamConstraints {
+        node: node_id,
+        constraints: expected,
+    });
+}
+
+fn lock_midi_value_node(ctx: &mut ProcessCtx, node_id: NodeId) {
+    ctx.edits.push(Edit::PatchMeta {
+        node: node_id,
+        patch: NodeMetaPatch {
+            user_permissions: Some(NodeUserPermissions::none()),
+            ..Default::default()
+        },
+    });
 }
 
 fn apply_node_identity(node_data: &mut golden_core::node::NodeData, decl_id: &str) {
     node_data.meta.decl_id = DeclId(decl_id.to_string());
     node_data.meta.short_name = decl_id.to_string();
-}
-
-fn child_by_decl_id(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
-    snapshot.find_child_by_decl_id(parent, decl_id)
-}
-
-fn child_int(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<i32> {
-    child_by_decl_id(snapshot, parent, decl_id).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_int)
-    })
-}
-
-fn child_bool(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<bool> {
-    child_by_decl_id(snapshot, parent, decl_id).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_bool)
-    })
-}
-
-fn child_enum(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
-    child_by_decl_id(snapshot, parent, decl_id).and_then(|child_id| {
-        snapshot
-            .node(child_id)
-            .and_then(|node| node.param_value.as_ref())
-            .and_then(ParamValue::as_enum)
-    })
 }
 
 fn channel_for_descendant(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<u8> {
@@ -1628,6 +1814,90 @@ fn note_from_decl_id(decl_id: &str) -> Option<u8> {
         .filter(|value| *value <= MIDI_DATA_MAX)
 }
 
+fn cc_from_decl_id(decl_id: &str) -> Option<u8> {
+    decl_id
+        .strip_prefix("cc_")?
+        .parse::<u8>()
+        .ok()
+        .filter(|value| *value <= MIDI_DATA_MAX)
+}
+
+fn ordered_midi_value_kind(snapshot: &ProcessTreeSnapshot, parent_id: NodeId) -> Option<MidiOrderedValueKind> {
+    match snapshot.node(parent_id)?.decl_id.as_str() {
+        NOTES_FOLDER_DECL_ID => Some(MidiOrderedValueKind::Note),
+        CONTROL_CHANGE_FOLDER_DECL_ID => Some(MidiOrderedValueKind::ControlChange),
+        _ => None,
+    }
+}
+
+fn ordered_midi_value_key(kind: MidiOrderedValueKind, decl_id: &str) -> Option<u8> {
+    match kind {
+        MidiOrderedValueKind::Note => note_from_decl_id(decl_id),
+        MidiOrderedValueKind::ControlChange => cc_from_decl_id(decl_id),
+    }
+}
+
+fn reorder_ordered_midi_value_children(ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, parent_id: NodeId) {
+    let Some(kind) = ordered_midi_value_kind(snapshot, parent_id) else {
+        return;
+    };
+
+    let mut current_children = snapshot
+        .child_ids(parent_id)
+        .into_iter()
+        .filter_map(|child_id| {
+            let key = snapshot
+                .node(child_id)
+                .and_then(|node| ordered_midi_value_key(kind, node.decl_id.as_str()))?;
+            Some((key, child_id))
+        })
+        .collect::<Vec<_>>();
+
+    let mut ordered_children = current_children.clone();
+    ordered_children.sort_by_key(|(key, _child_id)| *key);
+
+    if current_children == ordered_children {
+        return;
+    }
+
+    for (_key, child_id) in ordered_children.into_iter().rev() {
+        let Some(current_index) = current_children.iter().position(|(_key, current_id)| *current_id == child_id) else {
+            continue;
+        };
+        if current_index == 0 {
+            continue;
+        }
+
+        let entry = current_children.remove(current_index);
+        current_children.insert(0, entry);
+        ctx.edits.push(Edit::MoveNode {
+            node: child_id,
+            new_parent: parent_id,
+            new_prev_sibling: None,
+        });
+    }
+}
+
+fn midi_cc_tag_config(tags: &[String]) -> MidiCcTagConfig {
+    let rotary_mechanism = tags
+        .iter()
+        .find_map(|tag| tag.strip_prefix(MIDI_CC_ROTARY_TAG_PREFIX))
+        .and_then(normalize_rotary_mechanism_tag)
+        .unwrap_or(ROTARY_ABSOLUTE);
+
+    MidiCcTagConfig { rotary_mechanism }
+}
+
+fn normalize_rotary_mechanism_tag(mechanism: &str) -> Option<&'static str> {
+    match mechanism {
+        ROTARY_ABSOLUTE => Some(ROTARY_ABSOLUTE),
+        ROTARY_TWOS_COMPLEMENT => Some(ROTARY_TWOS_COMPLEMENT),
+        ROTARY_BINARY_OFFSET => Some(ROTARY_BINARY_OFFSET),
+        ROTARY_SIGN_MAGNITUDE => Some(ROTARY_SIGN_MAGNITUDE),
+        _ => None,
+    }
+}
+
 fn is_descendant_of(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: NodeId) -> bool {
     let mut current = Some(start);
     while let Some(node_id) = current {
@@ -1639,21 +1909,35 @@ fn is_descendant_of(snapshot: &ProcessTreeSnapshot, start: NodeId, ancestor: Nod
     false
 }
 
-fn midi_rotary_mechanism_options() -> Vec<ParameterEnumOption> {
-    [
-        (ROTARY_ABSOLUTE, "Absolute"),
-        (ROTARY_TWOS_COMPLEMENT, "Two's Complement"),
-        (ROTARY_BINARY_OFFSET, "Binary Offset"),
-        (ROTARY_SIGN_MAGNITUDE, "Sign Magnitude"),
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(index, (variant_id, label))| ParameterEnumOption {
-        variant_id: variant_id.to_string(),
-        value: ParamValue::Enum(variant_id.to_string()),
-        label: label.to_string(),
-        tags: Vec::new(),
-        ordering: Some(index as i32),
-    })
-    .collect()
+fn enclosing_midi_module(snapshot: &ProcessTreeSnapshot, start: NodeId) -> Option<NodeId> {
+    let mut current = Some(start);
+    while let Some(node_id) = current {
+        let node = snapshot.node(node_id)?;
+        if node.node_type == MidiModule::NODE_TYPE {
+            return Some(node_id);
+        }
+        current = node.parent;
+    }
+    None
 }
+
+fn midi_cc_channel_is_14_bit(snapshot: &ProcessTreeSnapshot, start: NodeId, channel: u8) -> bool {
+    let Some(module_id) = enclosing_midi_module(snapshot, start) else {
+        return false;
+    };
+    let Some(parameters_id) = snapshot.find_child_by_decl_id(module_id, "parameters") else {
+        return false;
+    };
+    let Some(folder_id) = snapshot.find_child_by_decl_id(parameters_id, FOURTEEN_BIT_CHANNELS_FOLDER_DECL_ID) else {
+        return false;
+    };
+    snapshot
+        .find_child_by_decl_id(folder_id, channel_decl_id(channel).as_str())
+        .and_then(|param_id| snapshot.node(param_id))
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_bool)
+        .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod midi_module_tests;

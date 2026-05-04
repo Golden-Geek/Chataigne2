@@ -1,7 +1,7 @@
 use midly::{
+    MidiMessage as MidlyMidiMessage, PitchBend,
     live::{LiveEvent, MtcQuarterFrameMessage, SystemCommon, SystemRealtime},
     num::{u4, u7, u14},
-    MidiMessage as MidlyMidiMessage, PitchBend,
 };
 use serde::{Deserialize, Serialize};
 
@@ -16,44 +16,17 @@ pub(crate) const ROTARY_TWOS_COMPLEMENT: &str = "twos_complement";
 pub(crate) const ROTARY_BINARY_OFFSET: &str = "binary_offset";
 pub(crate) const ROTARY_SIGN_MAGNITUDE: &str = "sign_magnitude";
 
-const NOTE_NAMES_SHARP: [&str; 12] = [
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-];
+const NOTE_NAMES_SHARP: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub(crate) enum MidiMessage {
-    NoteOff {
-        channel: u8,
-        note: u8,
-        velocity: u8,
-    },
-    NoteOn {
-        channel: u8,
-        note: u8,
-        velocity: u8,
-    },
-    PolyPressure {
-        channel: u8,
-        note: u8,
-        pressure: u8,
-    },
-    ControlChange {
-        channel: u8,
-        controller: u8,
-        value: u8,
-    },
-    ProgramChange {
-        channel: u8,
-        program: u8,
-    },
-    ChannelPressure {
-        channel: u8,
-        pressure: u8,
-    },
-    PitchBend {
-        channel: u8,
-        value: u16,
-    },
+    NoteOff { channel: u8, note: u8, velocity: u8 },
+    NoteOn { channel: u8, note: u8, velocity: u8 },
+    PolyPressure { channel: u8, note: u8, pressure: u8 },
+    ControlChange { channel: u8, controller: u8, value: u8 },
+    ProgramChange { channel: u8, program: u8 },
+    ChannelPressure { channel: u8, pressure: u8 },
+    PitchBend { channel: u8, value: u16 },
     System(MidiSystemMessage),
 }
 
@@ -249,6 +222,10 @@ pub(crate) fn cc_decl_id(controller: u8) -> String {
     format!("cc_{}", controller.min(MIDI_DATA_MAX))
 }
 
+pub(crate) fn cc_supports_14_bit(controller: u8) -> bool {
+    controller <= 31
+}
+
 pub(crate) fn decode_rotary_delta(mechanism: &str, raw_value: u8) -> Option<i32> {
     match mechanism {
         ROTARY_ABSOLUTE => None,
@@ -274,17 +251,9 @@ pub(crate) fn encode_rotary_delta(mechanism: &str, delta: i32) -> Option<u8> {
     let delta = delta.clamp(-63, 63);
     match mechanism {
         ROTARY_ABSOLUTE => None,
-        ROTARY_TWOS_COMPLEMENT => Some(if delta >= 0 {
-            delta as u8
-        } else {
-            (128 + delta) as u8
-        }),
+        ROTARY_TWOS_COMPLEMENT => Some(if delta >= 0 { delta as u8 } else { (128 + delta) as u8 }),
         ROTARY_BINARY_OFFSET => Some((delta + 64) as u8),
-        ROTARY_SIGN_MAGNITUDE => Some(if delta >= 0 {
-            delta as u8
-        } else {
-            0x40 | (-delta as u8)
-        }),
+        ROTARY_SIGN_MAGNITUDE => Some(if delta >= 0 { delta as u8 } else { 0x40 | (-delta as u8) }),
         _ => None,
     }
 }
@@ -345,9 +314,7 @@ fn decode_system_message(message: SystemCommon<'_>) -> Option<MidiMessage> {
         SystemCommon::SongPosition(position) => MidiSystemMessage::SongPosition {
             position: position.as_int(),
         },
-        SystemCommon::SongSelect(song) => MidiSystemMessage::SongSelect {
-            song: song.as_int(),
-        },
+        SystemCommon::SongSelect(song) => MidiSystemMessage::SongSelect { song: song.as_int() },
         SystemCommon::TuneRequest => MidiSystemMessage::TuneRequest,
         SystemCommon::Undefined(_, _) => return None,
     };
@@ -380,9 +347,9 @@ fn encode_system_message(message: &MidiSystemMessage) -> Vec<u8> {
         MidiSystemMessage::SongPosition { position } => write_live_event(LiveEvent::Common(
             SystemCommon::SongPosition(u14::new((*position).min(MIDI_U14_MAX))),
         )),
-        MidiSystemMessage::SongSelect { song } => write_live_event(LiveEvent::Common(
-            SystemCommon::SongSelect(midi_u7(*song)),
-        )),
+        MidiSystemMessage::SongSelect { song } => {
+            write_live_event(LiveEvent::Common(SystemCommon::SongSelect(midi_u7(*song))))
+        }
         MidiSystemMessage::TuneRequest => write_live_event(LiveEvent::Common(SystemCommon::TuneRequest)),
         MidiSystemMessage::TimingClock => write_live_event(LiveEvent::Realtime(SystemRealtime::TimingClock)),
         MidiSystemMessage::Start => write_live_event(LiveEvent::Realtime(SystemRealtime::Start)),
@@ -460,10 +427,7 @@ fn encode_mtc_quarter_frame(message: MtcQuarterFrameMessage, value: u4) -> u8 {
 }
 
 fn decode_mtc_quarter_frame(raw: u8) -> (MtcQuarterFrameMessage, u4) {
-    (
-        mtc_quarter_frame_message((raw >> 4) & 0x07),
-        u4::new(raw & 0x0F),
-    )
+    (mtc_quarter_frame_message((raw >> 4) & 0x07), u4::new(raw & 0x0F))
 }
 
 fn mtc_quarter_frame_index(message: MtcQuarterFrameMessage) -> u8 {

@@ -8,8 +8,9 @@ use golden_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::app::{
-    clamp_channel_i32, clamp_i32_to_u14, clamp_i32_to_u7, encode_14_bit_control_change, encode_midi_message,
-    message_description, normalize_sysex_bytes, note_pitch_from_name_octave, MidiMessage, MidiSystemMessage,
+    cc_supports_14_bit, clamp_channel_i32, clamp_i32_to_u14, clamp_i32_to_u7, encode_14_bit_control_change,
+    encode_midi_message, message_description, normalize_sysex_bytes, note_pitch_from_name_octave, MidiMessage,
+    MidiSystemMessage,
 };
 
 const NOTE_MODE_PITCH: &str = "pitch";
@@ -91,44 +92,43 @@ impl MidiSendPacket {
     }
 }
 
-macro_rules! midi_command_node_impl {
-    ($type_name:ident, $node_type:literal, $context:literal) => {
-        #[golden_core::item("module_command", node = $node_type, via = base, from_struct)]
-        impl Node for $type_name {
-            fn project_create(node_type: &str) -> Option<Self> {
-                (node_type == Self::NODE_TYPE).then(Self::create)
-            }
+fn midi_command_child_event_interest_depth(event: &Event) -> u32 {
+    match event.kind {
+        EventKind::ParamChanged { .. } => u32::MAX,
+        _ => 0,
+    }
+}
 
-            fn child_event_interest_depth(&self, event: &Event) -> u32 {
-                match event.kind {
-                    EventKind::ParamChanged { .. } => u32::MAX,
-                    _ => 0,
-                }
-            }
-
-            fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-                let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-                    return;
-                };
-                let snapshot = snapshot_arc.as_ref();
-                if !crate::app::module_command::module_command_triggered(snapshot, self.id(), param) {
-                    return;
-                }
-
-                if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
-                    crate::app::module_command::emit_module_command_request(
-                        ctx,
-                        snapshot,
-                        self.id(),
-                        self.get_type(),
-                        &payload,
-                    )
-                }) {
-                    golden_core::logerror!(format!("Failed to trigger {}: {error}", $context));
-                }
-            }
-        }
+fn handle_midi_command_param_change<TCommand, TPayload, TRequest>(
+    command: &TCommand,
+    ctx: &mut ProcessCtx,
+    param: NodeId,
+    context: &str,
+    request_payload: TRequest,
+) where
+    TCommand: Node,
+    TPayload: Serialize,
+    TRequest: FnOnce(&TCommand, &ProcessTreeSnapshot) -> Result<TPayload, String>,
+{
+    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        return;
     };
+    let snapshot = snapshot_arc.as_ref();
+    if !crate::app::module_command::module_command_triggered(snapshot, command.id(), param) {
+        return;
+    }
+
+    if let Err(error) = request_payload(command, snapshot).and_then(|payload| {
+        crate::app::module_command::emit_module_command_request(
+            ctx,
+            snapshot,
+            command.id(),
+            command.get_type(),
+            &payload,
+        )
+    }) {
+        golden_core::logerror!(format!("Failed to trigger {context}: {error}"));
+    }
 }
 
 #[node("midi_send_note_on_command", label = "Send Note On")]
@@ -178,11 +178,22 @@ impl MidiSendNoteOnCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendNoteOnCommand,
-    "midi_send_note_on_command",
-    "MIDI note-on command"
-);
+#[golden_core::item("module_command", node = "midi_send_note_on_command", via = base, from_struct)]
+impl Node for MidiSendNoteOnCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI note-on command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_note_off_command", label = "Send Note Off")]
 #[children(
@@ -231,11 +242,22 @@ impl MidiSendNoteOffCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendNoteOffCommand,
-    "midi_send_note_off_command",
-    "MIDI note-off command"
-);
+#[golden_core::item("module_command", node = "midi_send_note_off_command", via = base, from_struct)]
+impl Node for MidiSendNoteOffCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI note-off command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_full_note_command", label = "Send Full Note")]
 #[children(
@@ -308,11 +330,22 @@ impl MidiSendFullNoteCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendFullNoteCommand,
-    "midi_send_full_note_command",
-    "MIDI full-note command"
-);
+#[golden_core::item("module_command", node = "midi_send_full_note_command", via = base, from_struct)]
+impl Node for MidiSendFullNoteCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI full-note command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_control_change_command", label = "Send Control Change")]
 #[children(
@@ -322,7 +355,7 @@ midi_command_node_impl!(
     );
     controller: i32 = 1 [0..127] (
         label = "Controller",
-        description = "Control-change number. For 14-bit MIDI, use the MSB controller in the 0-31 range."
+        description = "Control-change number. For 14-bit MIDI, use an MSB controller in the 0-31 range; the matching LSB is sent automatically on controller +32."
     );
     value: i32 = 0 [0..127] (
         label = "Value",
@@ -330,11 +363,11 @@ midi_command_node_impl!(
     );
     is_14_bit: bool = false (
         label = "14-bit",
-        description = "Send this control change as an MSB/LSB 14-bit pair."
+        description = "Send this control change as an MSB/LSB 14-bit pair using this controller and its paired LSB controller at +32."
     );
     value_14_bit: i32 = 0 [0..16383] (
         label = "14-bit Value",
-        description = "14-bit value used when 14-bit is enabled."
+        description = "14-bit value used when 14-bit is enabled; it is split across the selected MSB controller and its paired LSB controller at +32."
     );
 )]
 pub struct MidiSendControlChangeCommand {
@@ -350,8 +383,8 @@ impl MidiSendControlChangeCommand {
         let channel = command_channel(snapshot, self.id());
         let controller = command_u7(snapshot, self.id(), "controller", 1);
         if command_bool(snapshot, self.id(), "is_14_bit", false) {
+            let controller = validate_14_bit_controller(controller)?;
             let value = clamp_i32_to_u14(command_int(snapshot, self.id(), "value_14_bit", 0));
-            let controller = controller.min(31);
             return Ok(MidiSendRequest::immediate_many(
                 encode_14_bit_control_change(channel, controller, value),
                 format!("14-bit cc ch{} {} value {}", channel, controller, value),
@@ -366,11 +399,26 @@ impl MidiSendControlChangeCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendControlChangeCommand,
-    "midi_send_control_change_command",
-    "MIDI control-change command"
-);
+#[golden_core::item("module_command", node = "midi_send_control_change_command", via = base, from_struct)]
+impl Node for MidiSendControlChangeCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(
+            self,
+            ctx,
+            param,
+            "MIDI control-change command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
+}
 
 #[node("midi_send_program_change_command", label = "Send Program Change")]
 #[children(
@@ -400,11 +448,26 @@ impl MidiSendProgramChangeCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendProgramChangeCommand,
-    "midi_send_program_change_command",
-    "MIDI program-change command"
-);
+#[golden_core::item("module_command", node = "midi_send_program_change_command", via = base, from_struct)]
+impl Node for MidiSendProgramChangeCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(
+            self,
+            ctx,
+            param,
+            "MIDI program-change command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
+}
 
 #[node("midi_send_pitch_bend_command", label = "Send Pitch Bend")]
 #[children(
@@ -434,11 +497,22 @@ impl MidiSendPitchBendCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendPitchBendCommand,
-    "midi_send_pitch_bend_command",
-    "MIDI pitch-bend command"
-);
+#[golden_core::item("module_command", node = "midi_send_pitch_bend_command", via = base, from_struct)]
+impl Node for MidiSendPitchBendCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI pitch-bend command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_channel_pressure_command", label = "Send Channel Pressure")]
 #[children(
@@ -468,11 +542,26 @@ impl MidiSendChannelPressureCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendChannelPressureCommand,
-    "midi_send_channel_pressure_command",
-    "MIDI channel-pressure command"
-);
+#[golden_core::item("module_command", node = "midi_send_channel_pressure_command", via = base, from_struct)]
+impl Node for MidiSendChannelPressureCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(
+            self,
+            ctx,
+            param,
+            "MIDI channel-pressure command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
+}
 
 #[node("midi_send_poly_pressure_command", label = "Send Poly Pressure")]
 #[children(
@@ -521,11 +610,22 @@ impl MidiSendPolyPressureCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendPolyPressureCommand,
-    "midi_send_poly_pressure_command",
-    "MIDI poly-pressure command"
-);
+#[golden_core::item("module_command", node = "midi_send_poly_pressure_command", via = base, from_struct)]
+impl Node for MidiSendPolyPressureCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI poly-pressure command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_system_common_command", label = "Send System Common")]
 #[children(
@@ -576,11 +676,22 @@ impl MidiSendSystemCommonCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendSystemCommonCommand,
-    "midi_send_system_common_command",
-    "MIDI system-common command"
-);
+#[golden_core::item("module_command", node = "midi_send_system_common_command", via = base, from_struct)]
+impl Node for MidiSendSystemCommonCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI system-common command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_system_realtime_command", label = "Send System Realtime")]
 #[children(
@@ -615,11 +726,26 @@ impl MidiSendSystemRealtimeCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendSystemRealtimeCommand,
-    "midi_send_system_realtime_command",
-    "MIDI system-realtime command"
-);
+#[golden_core::item("module_command", node = "midi_send_system_realtime_command", via = base, from_struct)]
+impl Node for MidiSendSystemRealtimeCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(
+            self,
+            ctx,
+            param,
+            "MIDI system-realtime command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
+}
 
 #[node("midi_send_sysex_bytes_command", label = "Send Sysex Bytes")]
 #[children(
@@ -649,11 +775,22 @@ impl MidiSendSysexBytesCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendSysexBytesCommand,
-    "midi_send_sysex_bytes_command",
-    "MIDI sysex-bytes command"
-);
+#[golden_core::item("module_command", node = "midi_send_sysex_bytes_command", via = base, from_struct)]
+impl Node for MidiSendSysexBytesCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI sysex-bytes command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_sysex_string_command", label = "Send Sysex String")]
 #[children(
@@ -683,11 +820,22 @@ impl MidiSendSysexStringCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendSysexStringCommand,
-    "midi_send_sysex_string_command",
-    "MIDI sysex-string command"
-);
+#[golden_core::item("module_command", node = "midi_send_sysex_string_command", via = base, from_struct)]
+impl Node for MidiSendSysexStringCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI sysex-string command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 #[node("midi_send_raw_bytes_command", label = "Send Raw MIDI Bytes")]
 #[children(
@@ -717,11 +865,22 @@ impl MidiSendRawBytesCommand {
     }
 }
 
-midi_command_node_impl!(
-    MidiSendRawBytesCommand,
-    "midi_send_raw_bytes_command",
-    "MIDI raw-bytes command"
-);
+#[golden_core::item("module_command", node = "midi_send_raw_bytes_command", via = base, from_struct)]
+impl Node for MidiSendRawBytesCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        midi_command_child_event_interest_depth(event)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        handle_midi_command_param_change(self, ctx, param, "MIDI raw-bytes command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+}
 
 fn command_channel(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> u8 {
     clamp_channel_i32(command_int(snapshot, command_id, "channel", DEFAULT_CHANNEL))
@@ -832,6 +991,16 @@ fn parse_compact_hex(text: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
+fn validate_14_bit_controller(controller: u8) -> Result<u8, String> {
+    if cc_supports_14_bit(controller) {
+        return Ok(controller);
+    }
+
+    Err(format!(
+        "14-bit CC requires an MSB controller in the 0-31 range; controller {controller} uses a paired LSB role instead"
+    ))
+}
+
 fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOption {
     ParameterEnumOption {
         variant_id: variant_id.to_string(),
@@ -889,3 +1058,6 @@ fn system_realtime_message_options() -> Vec<ParameterEnumOption> {
     .map(|(index, (variant, label))| enum_option(variant, label, index as i32))
     .collect()
 }
+
+#[cfg(test)]
+mod tests;

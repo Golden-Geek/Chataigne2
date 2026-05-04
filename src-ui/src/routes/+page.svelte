@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		MainWindow,
+		registerNodeContextMenuContributor,
 		registerNodeInspector,
 		registerOutlinerRowSupplement,
 		type UserPanelDefinitionMap
@@ -9,6 +10,7 @@
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
 	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
+	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 
 	registerNodeInspector('module_command', {
@@ -19,6 +21,8 @@
 		component: ModuleNodeInspector,
 		panelHeaderComponent: ModuleInspectorPanelHeader
 	});
+
+		registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
 
 	// registerOutlinerRowSupplement('module', {
 	// 	component: ModuleItem

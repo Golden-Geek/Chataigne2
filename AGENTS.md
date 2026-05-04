@@ -30,6 +30,12 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Do not move the default Tauri/headless/file-dialog host path back into the app shell.
 - Persistence must not be hidden inside host/bootstrap code.
 
+### Golden Package Boundary
+- `golden_core` and `golden_ui` must stay app-agnostic reusable packages.
+- Do not put `Chataigne2`-specific nodes, MIDI behavior, module behavior, or product policy inside any `golden_*` package.
+- When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
+- No app-layer code inside `golden_*`.
+
 ### Public Boundaries Only
 - App crates must not import private submodule files by filesystem path.
 - Do not use `#[path = "..."]` to reach into another crate or submodule's internals from app code.

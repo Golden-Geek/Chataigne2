@@ -1,5 +1,6 @@
 use super::{
-    decode_midi_message, encode_midi_message, normalize_sysex_bytes, MidiMessage, MidiSystemMessage,
+    MidiMessage, MidiSystemMessage, cc_supports_14_bit, decode_midi_message, encode_14_bit_control_change,
+    encode_midi_message, normalize_sysex_bytes,
 };
 
 #[test]
@@ -48,4 +49,27 @@ fn quarter_frame_round_trips() {
 
     assert_eq!(bytes, vec![0xF1, 0x73]);
     assert_eq!(decode_midi_message(bytes.as_slice()), Some(message));
+}
+
+#[test]
+fn fourteen_bit_control_change_uses_lsb_controller_plus_32() {
+    let messages = encode_14_bit_control_change(2, 7, 0x2345);
+
+    assert_eq!(
+        messages,
+        vec![
+            MidiMessage::ControlChange {
+                channel: 2,
+                controller: 7,
+                value: 0x46,
+            },
+            MidiMessage::ControlChange {
+                channel: 2,
+                controller: 39,
+                value: 0x45,
+            },
+        ]
+    );
+    assert!(cc_supports_14_bit(7));
+    assert!(!cc_supports_14_bit(39));
 }

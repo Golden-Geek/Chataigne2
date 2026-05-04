@@ -122,11 +122,7 @@ pub(crate) fn midi_output_port_options(ports: &[DiscoveredMidiPort]) -> Vec<Para
     midi_port_options("No Output", ports)
 }
 
-pub(crate) fn sync_midi_port_enum_options(
-    ctx: &mut ProcessCtx,
-    param_id: NodeId,
-    options: Vec<ParameterEnumOption>,
-) {
+pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
             return Err("MIDI port target is not a parameter".to_string());
@@ -140,17 +136,12 @@ pub(crate) fn sync_midi_port_enum_options(
             .unwrap_or_else(|| NO_MIDI_PORT_VARIANT.to_string());
 
         if current_variant != NO_MIDI_PORT_VARIANT
-            && !next_options
-                .iter()
-                .any(|option| option.variant_id == current_variant)
+            && !next_options.iter().any(|option| option.variant_id == current_variant)
         {
             next_options.insert(1, missing_midi_port_option(current_variant.as_str()));
         }
 
-        let next_value = if next_options
-            .iter()
-            .any(|option| option.variant_id == current_variant)
-        {
+        let next_value = if next_options.iter().any(|option| option.variant_id == current_variant) {
             ParamValue::Enum(current_variant.clone())
         } else {
             ParamValue::Enum(NO_MIDI_PORT_VARIANT.to_string())
