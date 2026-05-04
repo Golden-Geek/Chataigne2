@@ -281,6 +281,78 @@ fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
 }
 
 #[test]
+fn sparse_project_round_trip_preserves_saved_osc_command_tester_children() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(ModuleManager::new().into(), None);
+    engine.apply_edits().expect("module manager should attach");
+
+    let manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should be attached under root");
+    engine.add_user_item(GenericOscModule::create().into(), Some(manager_id));
+    engine.apply_edits().expect("osc module should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("osc defaults should materialize");
+    }
+
+    let module_id = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("osc module should be attached under manager");
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/save/reopen".to_string()),
+    );
+    engine.apply_edits().expect("command edit should apply");
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("sparse project with saved osc commands should decode");
+
+    let loaded_manager = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should reload");
+    let loaded_module = loaded
+        .nodes
+        .get(loaded_manager)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("osc module should reload");
+    let loaded_command_tester =
+        find_path(&loaded, loaded_module, "command_tester").expect("command tester should reload");
+    let loaded_command = loaded
+        .nodes
+        .get(loaded_command_tester)
+        .and_then(|node| node.node_data().first_child)
+        .expect("saved osc command should reload under the command tester");
+    let loaded_address = find_path(&loaded, loaded_command, "address").expect("saved command address should reload");
+
+    assert_eq!(
+        loaded.nodes.get(loaded_command).map(|node| node.get_type()),
+        Some(crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE),
+        "saved osc command should keep its node type through project round-trip"
+    );
+    assert_eq!(
+        loaded
+            .nodes
+            .get(loaded_address)
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Str("/save/reopen".to_string())),
+        "saved osc command parameters should survive project round-trip"
+    );
+}
+
+#[test]
 fn osc_module_connection_indicators_follow_receiver_and_outputs() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     let output_port = receiver
@@ -668,6 +740,13 @@ fn changing_values_parameter_sends_osc_packet_through_module_output() {
     let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
 
     let values_id = find_path(&engine, module_id, "values").expect("values folder should exist");
+    
+    // Enable auto_feedback to allow sending values
+    let auto_feedback_id = find_path(&engine, module_id, "parameters/processing/auto_feedback")
+        .expect("auto_feedback parameter should exist");
+    set_param(&mut engine, auto_feedback_id, ParamValue::Bool(true));
+    engine.apply_edits().expect("auto_feedback change should apply");
+
     engine.add_node(
         Parameter::new("Foo", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into(),
         Some(values_id),

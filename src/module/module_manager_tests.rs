@@ -63,7 +63,7 @@ fn module_manager_uses_declared_module_item_metadata() {
             .unwrap_or_else(|| panic!("module manager should expose module item type {node_type}"));
         assert_eq!(item.item_kind, crate::app::module::MODULE_ITEM_KIND);
         assert_eq!(item.label, label);
-        assert_eq!(item.menu_path, vec!["Generic".to_string()]);
+        assert_eq!(item.menu_path, vec!["Network".to_string()]);
 
         let created = manager
             .create_user_item(node_type)

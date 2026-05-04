@@ -393,7 +393,7 @@ impl SerialModule {
     node = "serial_module",
     via = stream,
     from_struct,
-    menu_path = ["Generic"]
+    menu_path = ["Hardware"]
 )]
 impl Node for SerialModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {

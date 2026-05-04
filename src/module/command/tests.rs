@@ -56,3 +56,34 @@ fn module_command_tester_decodes_from_project_node_type() {
 
     assert_eq!(node.get_type(), "module_command_tester");
 }
+
+#[test]
+fn decoded_module_command_tester_accepts_declared_module_commands_until_scoped() {
+    let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+        "module_command_tester",
+        &serde_json::Value::Null,
+        &NodeMeta::new("Command Tester".to_string()),
+    )
+    .expect("module command tester should decode from project files");
+
+    let items = node.user_creatable_items();
+    assert!(
+        items
+            .iter()
+            .any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE),
+        "decoded testers should accept saved OSC command items before module init scopes the catalog"
+    );
+    assert!(
+        items.iter().any(|item| {
+            item.node_type == crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE
+        }),
+        "decoded testers should accept saved streaming command items before module init scopes the catalog"
+    );
+    assert!(
+        node.user_container_accepts_item(
+            crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+            MODULE_COMMAND_ITEM_KIND,
+        ),
+        "decoded testers should accept saved OSC command items before module init scopes the catalog"
+    );
+}

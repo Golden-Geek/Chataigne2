@@ -223,12 +223,20 @@ impl ModuleCommandManagerBase {
 
 #[node("module_command_tester", label = "Command Tester")]
 pub struct ModuleCommandTester {
-    available_command_types: &'static [&'static str],
+    available_command_types: Option<&'static [&'static str]>,
     manager: ModuleCommandManagerBase,
 }
 
 impl ModuleCommandTester {
     pub fn create(available_command_types: &'static [&'static str]) -> Self {
+        Self::create_with_available_command_types(Some(available_command_types))
+    }
+
+    fn create_for_project_decode() -> Self {
+        Self::create_with_available_command_types(None)
+    }
+
+    fn create_with_available_command_types(available_command_types: Option<&'static [&'static str]>) -> Self {
         let mut tester = Self::new(available_command_types, ModuleCommandManagerBase::new());
         tester.node_data_mut().meta.description =
             Some("Create and trigger ad-hoc commands through this module.".to_string());
@@ -236,11 +244,13 @@ impl ModuleCommandTester {
     }
 
     pub(crate) fn set_available_command_types(&mut self, available_command_types: &'static [&'static str]) {
-        self.available_command_types = available_command_types;
+        self.available_command_types = Some(available_command_types);
     }
 
     fn command_type_available(&self, node_type: &str) -> bool {
-        self.available_command_types.contains(&node_type)
+        self.available_command_types
+            .map(|available_command_types| available_command_types.contains(&node_type))
+            .unwrap_or_else(|| crate::app::declared_user_item_type_matches(node_type, MODULE_COMMAND_ITEM_KIND))
     }
 
     fn available_command_items(&self) -> Vec<UserCreatableItem> {
@@ -255,7 +265,7 @@ impl ModuleCommandTester {
 #[node("module_command_tester", via = manager, from_struct)]
 impl Node for ModuleCommandTester {
     fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == "module_command_tester").then(|| Self::create(&[]))
+        (node_type == "module_command_tester").then(Self::create_for_project_decode)
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {

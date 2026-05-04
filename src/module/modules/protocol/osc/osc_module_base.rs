@@ -83,6 +83,10 @@ pub(crate) struct OscSendCustomMessageRequest {
                 label = "Auto Add",
                 description = "Automatically create missing OSC value nodes from incoming addresses."
             );
+            auto_feedback: bool = false (
+                label = "Auto Feedback",
+                description = "Only send OSC when data in values changes if auto feedback is checked."
+            );
         }
     }
 )]
@@ -603,10 +607,11 @@ impl OscModuleBase {
         };
         let snapshot = snapshot_arc.as_ref();
 
-        if self
-            .base
-            .values_id()
-            .is_some_and(|values_id| is_descendant_of_node(snapshot, param, values_id))
+        if self.auto_feedback.get()
+            && self
+                .base
+                .values_id()
+                .is_some_and(|values_id| is_descendant_of_node(snapshot, param, values_id))
         {
             self.pending_outbound_nodes.insert(param);
         }

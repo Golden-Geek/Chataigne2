@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
 if-addrs = "0.15.0"
+midir = "0.11.0"
 rand = "0.10.0"
 rosc = "0.11.4"
 serialport = "4"
