@@ -49,6 +49,7 @@ const SERIAL_PORT_CONNECTION_WARNING_ID: &str = "serial_port_connection";
             label = "RTS",
             description = "Request To Send."
         );
+        [base_children];
     }
     node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,

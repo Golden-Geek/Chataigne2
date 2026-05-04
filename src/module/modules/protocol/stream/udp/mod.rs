@@ -106,6 +106,7 @@ impl Node for UdpOutputManager {
             description = "UDP destinations used by this module for outgoing command traffic.",
             can_be_disabled = true
         );
+        [base_children];
     }
     node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,

@@ -34,6 +34,7 @@ const TCP_CLIENT_TARGET_WARNING_ID: &str = "tcp_client_target_transport";
             description = "TCP server port to connect to.",
             widget = "text"
         );
+        [base_children];
     }
     node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,

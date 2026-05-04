@@ -25,9 +25,15 @@ fn serial_parameters_keep_port_before_input_and_no_sender_folder() {
     );
     let port_pos = connection_labels.iter().position(|l| l == "Port").unwrap();
     let baud_pos = connection_labels.iter().position(|l| l == "Baud Rate").unwrap();
+    let rts_pos = connection_labels.iter().position(|l| l == "RTS").unwrap();
+    let connected_pos = connection_labels.iter().position(|l| l == "Connected").unwrap();
     assert!(
         port_pos < baud_pos,
         "serial Port should appear before Baud Rate in Connection; children were {connection_labels:?}"
+    );
+    assert!(
+        rts_pos < connected_pos,
+        "serial-specific connection controls should appear before base connection children; children were {connection_labels:?}"
     );
     assert_eq!(
         parameter_labels.first().map(String::as_str),
