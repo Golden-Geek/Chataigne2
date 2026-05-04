@@ -660,6 +660,7 @@ enum ParamsDslItem {
     Folder(ParamsDslFolder),
     Param(ParamsDslParam),
     Node(ParamsDslNode),
+    BaseChildren,
 }
 
 struct ParamsDslFolder {
@@ -760,7 +761,34 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
     let mut items = Vec::new();
 
     while !input.is_empty() {
+        if input.peek(syn::token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            let placeholder = content.parse::<Ident>()?;
+            if !content.is_empty() {
+                return Err(Error::new(
+                    placeholder.span(),
+                    "base child placeholder expects exactly one identifier",
+                ));
+            }
+            if placeholder != "base_children" {
+                return Err(Error::new(
+                    placeholder.span(),
+                    "unsupported children placeholder; expected `[base_children]`",
+                ));
+            }
+            if input.peek(Token![;]) {
+                input.parse::<Token![;]>()?;
+            }
+            items.push(ParamsDslItem::BaseChildren);
+            continue;
+        }
+
         let ident = input.parse::<Ident>()?;
+        if ident == "base_children" {
+            return Err(Error::new(ident.span(), "use `[base_children]` to place composed children"));
+        }
+
         if ident == "folder" {
             let content;
             syn::parenthesized!(content in input);
@@ -1597,6 +1625,7 @@ enum ParamsChildRef {
     Folder(usize),
     Param(usize),
     Node(usize),
+    BaseChildren,
 }
 
 struct ParamsFolderSpec {
@@ -1673,6 +1702,8 @@ struct ParamsPlan {
     nodes: Vec<ParamsNodeSpec>,
     children_by_parent: BTreeMap<String, ParamsParentChildren>,
     max_depth: u32,
+    has_root_base_children_placeholder: bool,
+    has_nested_base_children_placeholder: bool,
 }
 
 fn build_params_plan(dsl: &ParamsDsl) -> Result<ParamsPlan> {
@@ -1932,6 +1963,15 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                 children.nodes.push(node_index);
                 children.ordered.push(ParamsChildRef::Node(node_index));
                 plan.max_depth = plan.max_depth.max(path.len() as u32);
+            }
+            ParamsDslItem::BaseChildren => {
+                let children = plan.children_by_parent.entry(parent_key.clone()).or_default();
+                children.ordered.push(ParamsChildRef::BaseChildren);
+                if parent_path.is_empty() {
+                    plan.has_root_base_children_placeholder = true;
+                } else {
+                    plan.has_nested_base_children_placeholder = true;
+                }
             }
         }
     }
@@ -2948,6 +2988,13 @@ fn expand_struct(
         generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
     }
 
+    let generated_has_root_base_children_placeholder = params_plan
+        .as_ref()
+        .is_some_and(|plan| plan.has_root_base_children_placeholder);
+    let generated_has_nested_base_children_placeholder = params_plan
+        .as_ref()
+        .is_some_and(|plan| plan.has_nested_base_children_placeholder);
+
     let ctor_args = ctor_fields
         .iter()
         .map(|(ident, ty)| quote!(#ident: #ty))
@@ -3188,6 +3235,14 @@ fn expand_struct(
             /// Static fallback label exposed for catalog and schema code.
             pub const DEFAULT_LABEL: &'static str = #static_default_label;
 
+            #[doc(hidden)]
+            pub const __GOLDEN_NODE_HAS_ROOT_BASE_CHILDREN_PLACEHOLDER: bool =
+                #generated_has_root_base_children_placeholder;
+
+            #[doc(hidden)]
+            pub const __GOLDEN_NODE_HAS_NESTED_BASE_CHILDREN_PLACEHOLDER: bool =
+                #generated_has_nested_base_children_placeholder;
+
             /// Returns the runtime default label used by the generated constructor.
             pub fn default_label() -> ::std::string::String {
                 #generated_default_label
@@ -3237,7 +3292,23 @@ fn expand_struct(
                 ctx: &mut golden_core::process_ctx::ProcessCtx,
                 owner_id: golden_core::node::NodeId,
             ) {
+                self.__golden_node_engine_on_attached_with_base_children(ctx, owner_id, |_, _| {});
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_engine_on_attached_with_base_children<F>(
+                &mut self,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
+                mut __golden_base_children: F,
+            )
+            where
+                F: FnMut(&mut Self, &mut golden_core::process_ctx::ProcessCtx),
+            {
                 let __golden_node_owner_id = owner_id;
+                let mut __golden_base_children_inserted = false;
+                let _ = &mut __golden_base_children;
+                let _ = &mut __golden_base_children_inserted;
                 #(#generated_init_statements)*
             }
 
@@ -3264,7 +3335,21 @@ fn expand_struct(
                 ctx: &mut golden_core::process_ctx::ProcessCtx,
                 owner_id: golden_core::node::NodeId,
             ) {
+                self.__golden_node_engine_preprocess_inbox_with_base_children(ctx, owner_id, |_, _| {});
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_engine_preprocess_inbox_with_base_children<F>(
+                &mut self,
+                ctx: &mut golden_core::process_ctx::ProcessCtx,
+                owner_id: golden_core::node::NodeId,
+                mut __golden_base_children: F,
+            )
+            where
+                F: FnMut(&mut Self, &mut golden_core::process_ctx::ProcessCtx),
+            {
                 let __golden_node_owner_id = owner_id;
+                let mut __golden_base_children_inserted = false;
                 for event in ctx.events.clone() {
                     match event.kind {
                         golden_core::events::EventKind::ParamChanged { param, old_value, new_value } => {
@@ -3283,6 +3368,9 @@ fn expand_struct(
                         }
                         _ => {}
                     }
+                }
+                if !__golden_base_children_inserted {
+                    __golden_base_children(self, ctx);
                 }
                 #(#param_dependency_reconcile_statements)*
                 #(#param_order_reconcile_statements)*
@@ -3631,13 +3719,29 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         quote! {}
     };
 
-    let via_on_attached = if let Some(path) = via {
+    let engine_on_attached_body = if let Some(path) = via {
         let segments = &path.segments;
         quote! {
-            golden_core::node::ViaTarget::via_engine_on_attached(&mut self.#(#segments).*, ctx);
+            if Self::__GOLDEN_NODE_HAS_ROOT_BASE_CHILDREN_PLACEHOLDER {
+                self.__golden_node_engine_on_attached_with_base_children(
+                    ctx,
+                    owner_id,
+                    |__golden_this, __golden_ctx| {
+                        golden_core::node::ViaTarget::via_engine_on_attached(
+                            &mut __golden_this.#(#segments).*,
+                            __golden_ctx,
+                        );
+                    },
+                );
+            } else {
+                golden_core::node::ViaTarget::via_engine_on_attached(&mut self.#(#segments).*, ctx);
+                self.__golden_node_engine_on_attached(ctx, owner_id);
+            }
         }
     } else {
-        quote! {}
+        quote! {
+            self.__golden_node_engine_on_attached(ctx, owner_id);
+        }
     };
 
     let via_sync_param_handle_cache = if let Some(path) = via {
@@ -3658,13 +3762,29 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         quote! {}
     };
 
-    let via_preprocess_inbox = if let Some(path) = via {
+    let engine_preprocess_inbox_body = if let Some(path) = via {
         let segments = &path.segments;
         quote! {
-            golden_core::node::ViaTarget::via_engine_preprocess_inbox(&mut self.#(#segments).*, ctx);
+            if Self::__GOLDEN_NODE_HAS_NESTED_BASE_CHILDREN_PLACEHOLDER {
+                self.__golden_node_engine_preprocess_inbox_with_base_children(
+                    ctx,
+                    owner_id,
+                    |__golden_this, __golden_ctx| {
+                        golden_core::node::ViaTarget::via_engine_preprocess_inbox(
+                            &mut __golden_this.#(#segments).*,
+                            __golden_ctx,
+                        );
+                    },
+                );
+            } else {
+                golden_core::node::ViaTarget::via_engine_preprocess_inbox(&mut self.#(#segments).*, ctx);
+                self.__golden_node_engine_preprocess_inbox(ctx, owner_id);
+            }
         }
     } else {
-        quote! {}
+        quote! {
+            self.__golden_node_engine_preprocess_inbox(ctx, owner_id);
+        }
     };
 
     input.items.push(parse_quote! {
@@ -3678,8 +3798,7 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
     input.items.push(parse_quote! {
         fn engine_on_attached(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
             let owner_id = golden_core::node::Node::id(self);
-            #via_on_attached
-            self.__golden_node_engine_on_attached(ctx, owner_id);
+            #engine_on_attached_body
         }
     });
 
@@ -3707,8 +3826,7 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
     input.items.push(parse_quote! {
         fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
             let owner_id = golden_core::node::Node::id(self);
-            #via_preprocess_inbox
-            self.__golden_node_engine_preprocess_inbox(ctx, owner_id);
+            #engine_preprocess_inbox_body
         }
     });
 
@@ -3756,11 +3874,12 @@ fn extract_doc_comment_literal(attrs: &[Attribute]) -> Option<LitStr> {
     Some(LitStr::new(description.as_str(), Span::call_site()))
 }
 
-fn params_child_decl_id(plan: &ParamsPlan, child: ParamsChildRef) -> LitStr {
+fn params_child_decl_id(plan: &ParamsPlan, child: ParamsChildRef) -> Option<LitStr> {
     match child {
-        ParamsChildRef::Folder(index) => plan.folders[index].decl_id.clone(),
-        ParamsChildRef::Param(index) => plan.params[index].decl_id.clone(),
-        ParamsChildRef::Node(index) => plan.nodes[index].decl_id.clone(),
+        ParamsChildRef::Folder(index) => Some(plan.folders[index].decl_id.clone()),
+        ParamsChildRef::Param(index) => Some(plan.params[index].decl_id.clone()),
+        ParamsChildRef::Node(index) => Some(plan.nodes[index].decl_id.clone()),
+        ParamsChildRef::BaseChildren => None,
     }
 }
 
@@ -3774,7 +3893,13 @@ fn previous_decl_ids_for_child(plan: &ParamsPlan, parent_key: &str, current: Par
         if *child == current {
             break;
         }
-        out.push(params_child_decl_id(plan, *child));
+        if *child == ParamsChildRef::BaseChildren {
+            out.clear();
+            continue;
+        }
+        if let Some(decl_id) = params_child_decl_id(plan, *child) {
+            out.push(decl_id);
+        }
     }
     out
 }
@@ -3947,6 +4072,9 @@ fn build_plan_prev_sibling_tokens(
                         }
                     });
                 }
+            }
+            ParamsChildRef::BaseChildren => {
+                checks.clear();
             }
         }
     }
@@ -4425,6 +4553,14 @@ fn materialize_children_tokens(
                             #set_presentation
                             self.#field_ident.replace_with_boxed(ctx, ::std::boxed::Box::new(__child_node));
                         }
+                    }
+                });
+            }
+            ParamsChildRef::BaseChildren => {
+                out.push(quote! {
+                    if !__golden_base_children_inserted {
+                        __golden_base_children_inserted = true;
+                        __golden_base_children(self, ctx);
                     }
                 });
             }

@@ -627,6 +627,36 @@ struct ReuseFolderViaNode {
 #[crate::node("reuse_folder_via_node", via = base, from_struct)]
 impl Node for ReuseFolderViaNode {}
 
+#[crate::node("base_children_layout_base_node")]
+#[children(
+    folder(connection, label = "Connection") {
+        base_value: f64 = 1.0 (label = "Base Value");
+        folder(base_folder, label = "Base Folder") {}
+    }
+)]
+struct BaseChildrenLayoutBaseNode {}
+
+#[crate::node("base_children_layout_base_node", from_struct)]
+impl Node for BaseChildrenLayoutBaseNode {}
+
+#[crate::node("base_children_layout_via_node")]
+#[children(
+    folder(connection, label = "Connection") {
+        folder(before_folder, label = "Before Folder") {}
+        before_value: f64 = 0.25 (label = "Before Value");
+        [base_children];
+        folder(after_folder, label = "After Folder") {}
+        after_value: f64 = 0.75 (label = "After Value");
+        node after_node: Folder = Folder::new("After Node".to_string()) (label = "After Node");
+    }
+)]
+struct BaseChildrenLayoutViaNode {
+    base: BaseChildrenLayoutBaseNode,
+}
+
+#[crate::node("base_children_layout_via_node", via = base, from_struct)]
+impl Node for BaseChildrenLayoutViaNode {}
+
 #[crate::node("dsl_params_node")]
 #[children(
     feedback: f64 = 0.5 [0.0..1.0] (
@@ -1085,6 +1115,8 @@ crate::define_node_enum!(
         ViaComposedRootNode,
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
+        BaseChildrenLayoutBaseNode,
+        BaseChildrenLayoutViaNode,
         DslParamsNode,
         DslVectorBoundsNode,
         DslEnumDefaultsNode,
@@ -2306,6 +2338,63 @@ fn params_macro_folder_reuses_via_folder_when_decl_id_matches_by_default() {
         gain,
         "outer handle should bind to shared-folder gain parameter"
     );
+}
+
+#[test]
+fn base_children_placeholder_controls_via_layout_inside_reused_folder() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(
+        BaseChildrenLayoutViaNode::new(BaseChildrenLayoutBaseNode::new()).into(),
+        None,
+    );
+
+    for _ in 0..8 {
+        engine.apply_edits().expect("apply should succeed");
+        engine
+            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+            .expect("dispatch should succeed");
+    }
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("node should be attached under root");
+    let connection = find_child_by_decl(&engine, owner, "connection").expect("connection folder should exist");
+    let connection_decl_ids = child_decl_ids(&engine, connection);
+
+    assert_eq!(
+        connection_decl_ids,
+        vec![
+            "connection/before_folder".to_string(),
+            "connection/before_value".to_string(),
+            "connection/base_value".to_string(),
+            "connection/base_folder".to_string(),
+            "connection/after_folder".to_string(),
+            "connection/after_value".to_string(),
+            "connection/after_node".to_string(),
+        ],
+        "`[base_children]` should splice composed folder, parameter, and node children at the declaration point",
+    );
+
+    let before = find_child_by_decl(&engine, connection, "connection/before_value")
+        .expect("before parameter should exist");
+    let base = find_child_by_decl(&engine, connection, "connection/base_value")
+        .expect("base parameter should exist");
+    let after = find_child_by_decl(&engine, connection, "connection/after_value")
+        .expect("after parameter should exist");
+    let after_node = find_child_by_decl(&engine, connection, "connection/after_node")
+        .expect("after node should exist");
+
+    let MacroTestNode::BaseChildrenLayoutViaNode(node) = engine.nodes.get(owner).expect("node should exist") else {
+        panic!("expected BaseChildrenLayoutViaNode variant");
+    };
+
+    assert_eq!(node.before_value.id(), before, "outer before handle should bind");
+    assert_eq!(node.base.base_value.id(), base, "base handle should bind through the placeholder");
+    assert_eq!(node.after_value.id(), after, "outer after handle should bind");
+    assert_eq!(node.after_node.current_id(), Some(after_node), "declared node handle should bind");
 }
 
 #[test]
