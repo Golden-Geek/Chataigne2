@@ -485,7 +485,7 @@ impl UdpModule {
     node = "udp_module",
     via = stream,
     from_struct,
-    menu_path = ["Generic"]
+    menu_path = ["Network"]
 )]
 impl Node for UdpModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
