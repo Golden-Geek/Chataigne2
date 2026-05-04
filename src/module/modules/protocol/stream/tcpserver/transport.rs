@@ -1,6 +1,6 @@
 use std::{
     io::{Read, Write},
-    net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
+    net::{Shutdown, SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
     sync::mpsc::{self, Receiver, Sender},
     thread::{self, JoinHandle},
     time::Duration,
@@ -119,6 +119,8 @@ fn worker_loop(
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
     }
+
+    shutdown_clients(&mut clients);
 }
 
 fn drain_commands(
@@ -301,6 +303,12 @@ fn broadcast_bytes(
     }
 
     Ok(())
+}
+
+fn shutdown_clients(clients: &mut Vec<TcpClientConnection>) {
+    for client in clients.drain(..) {
+        let _ = client.stream.shutdown(Shutdown::Both);
+    }
 }
 
 fn is_disconnect_error(error: &std::io::Error) -> bool {

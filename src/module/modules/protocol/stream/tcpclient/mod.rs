@@ -1,5 +1,7 @@
 mod transport;
 
+use std::sync::mpsc::TryRecvError;
+
 use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
@@ -17,7 +19,10 @@ use crate::app::{
     StreamingModuleBase,
 };
 
-use self::transport::{StreamingWorkerEvent, TcpStreamingTransportConfig, TcpStreamingTransportHandle};
+use self::transport::{
+    StreamingWorkerEvent, TcpStreamingConnectionStatus, TcpStreamingTransportConfig,
+    TcpStreamingTransportHandle,
+};
 
 const TCP_CLIENT_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const TCP_CLIENT_TARGET_WARNING_ID: &str = "tcp_client_target_transport";
@@ -77,8 +82,6 @@ impl TcpClientModule {
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_target_warning(ctx, snapshot);
-            self.stream.set_connected(ctx, true);
             return;
         }
 
@@ -89,7 +92,7 @@ impl TcpClientModule {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
                 self.clear_target_warning(ctx, snapshot);
-                self.stream.set_connected(ctx, true);
+                self.stream.set_connected(ctx, false);
             }
             Err(error) => {
                 logerror!("Failed to start TCP transport: {}", error);
@@ -106,6 +109,7 @@ impl TcpClientModule {
         if remote_host.trim().is_empty() {
             return Err("TCP remote host cannot be empty".to_string());
         }
+
         let remote_port = u16::try_from(self.remote_port.get())
             .map_err(|_| "TCP remote port 'connection/target/remote_port' must be between 0 and 65535".to_string())?;
 
@@ -118,14 +122,26 @@ impl TcpClientModule {
     }
 
     fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let mut worker_events = Vec::new();
-        let Some(transport) = &self.transport else {
-            return;
-        };
+        let (worker_events, worker_disconnected) = {
+            let Some(transport) = &self.transport else {
+                return;
+            };
 
-        while let Ok(event) = transport.try_recv() {
-            worker_events.push(event);
-        }
+            let mut worker_events = Vec::new();
+            let mut worker_disconnected = false;
+            loop {
+                match transport.try_recv() {
+                    Ok(event) => worker_events.push(event),
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => {
+                        worker_disconnected = true;
+                        break;
+                    }
+                }
+            }
+
+            (worker_events, worker_disconnected)
+        };
 
         let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
         let mut received_bytes = false;
@@ -135,7 +151,10 @@ impl TcpClientModule {
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
-                            format!("Received TCP {} (processing disabled)", format_bytes_for_log(bytes.as_slice()))
+                            format!(
+                                "Received TCP {} (processing disabled)",
+                                format_bytes_for_log(bytes.as_slice())
+                            )
                         );
                     }
                 }
@@ -157,11 +176,35 @@ impl TcpClientModule {
                 StreamingWorkerEvent::Error(error) => {
                     logerror!("TCP transport error: {}", error);
                 }
-                StreamingWorkerEvent::Stopped(error) => {
-                    logerror!("TCP transport stopped: {}", error);
-                    self.transport_dirty = true;
-                }
+                StreamingWorkerEvent::Status(status) => match status {
+                    TcpStreamingConnectionStatus::Connected { remote_address } => {
+                        golden_core::logsuccess!(
+                            origin = self.id();
+                            format!("Connected TCP stream to {remote_address}.")
+                        );
+                        self.clear_target_warning(ctx, snapshot);
+                        self.stream.set_connected(ctx, true);
+                    }
+                    TcpStreamingConnectionStatus::Recovering { message, .. } => {
+                        logerror!("TCP transport recovering: {}", message);
+                        self.set_target_warning(ctx, snapshot, message.as_str());
+                        self.stream.set_connected(ctx, false);
+                    }
+                },
             }
+        }
+
+        if worker_disconnected {
+            logerror!("TCP transport worker stopped unexpectedly; restarting.");
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.set_target_warning(
+                ctx,
+                snapshot,
+                "TCP transport worker stopped unexpectedly. Restarting.",
+            );
+            self.stream.set_connected(ctx, false);
+            self.transport_dirty = true;
         }
 
         if received_bytes {

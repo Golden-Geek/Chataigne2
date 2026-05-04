@@ -1,4 +1,5 @@
 use std::{
+    io::Read,
     net::{TcpListener, TcpStream},
     thread,
     time::Duration,
@@ -11,7 +12,10 @@ use golden_core::{
     process_ctx::ExecutionPhase,
 };
 
-use super::TcpServerModule;
+use super::{
+    transport::{TcpServerTransportConfig, TcpServerTransportHandle, TcpServerWorkerEvent},
+    TcpServerModule,
+};
 
 #[test]
 fn tcp_server_module_root_enable_toggle_stops_and_restarts_transport() {
@@ -107,6 +111,35 @@ fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
     );
 }
 
+#[test]
+fn tcp_server_transport_closes_client_connections_when_stopped() {
+    let port = free_tcp_port();
+    let mut transport = TcpServerTransportHandle::spawn(TcpServerTransportConfig {
+        bind_host: "127.0.0.1".to_string(),
+        bind_port: port,
+        receive_enabled: true,
+        send_enabled: true,
+    })
+    .expect("TCP server transport should bind for the shutdown test");
+
+    let mut client = TcpStream::connect(("127.0.0.1", port)).expect("TCP client should connect to transport test server");
+    client
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("TCP shutdown test client should accept a read timeout");
+
+    wait_for_client_connected(&transport);
+
+    transport.stop();
+
+    let mut buffer = [0u8; 1];
+    match client.read(&mut buffer) {
+        Ok(0) => {}
+        Ok(length) => panic!("expected TCP shutdown to terminate the client stream, got {length} byte(s)"),
+        Err(error) if client_disconnect_detected(&error) => {}
+        Err(error) => panic!("expected TCP shutdown to terminate the client stream, got {error}"),
+    }
+}
+
 fn create_tcp_server_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
@@ -170,6 +203,33 @@ fn settle_transport_state(engine: &mut crate::app::AppEngine) {
 
 fn wait_for_transport_io() {
     thread::sleep(Duration::from_millis(25));
+}
+
+fn wait_for_client_connected(transport: &TcpServerTransportHandle) {
+    for _ in 0..40 {
+        match transport.try_recv() {
+            Ok(TcpServerWorkerEvent::ClientConnected { .. }) => return,
+            Ok(_) => {}
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                panic!("TCP server transport worker should stay alive while waiting for the client")
+            }
+        }
+        wait_for_transport_io();
+    }
+
+    panic!("TCP server transport should report a connected client before shutdown")
+}
+
+fn client_disconnect_detected(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::ConnectionAborted
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::NotConnected
+            | std::io::ErrorKind::BrokenPipe
+            | std::io::ErrorKind::UnexpectedEof
+    ) || error.raw_os_error() == Some(10054)
 }
 
 fn free_tcp_port() -> u16 {
