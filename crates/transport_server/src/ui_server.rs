@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::node::Node;
@@ -20,16 +21,31 @@ use golden_protocol::{
     UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
 use serde::{Deserialize, Serialize};
+use tokio::runtime::{Builder, Runtime};
+use tokio::time::timeout;
+use tokio_tungstenite::{
+    tungstenite::{
+        handshake::server::{
+            create_response, write_response as write_ws_handshake_response, Request as WsRequest,
+        },
+        http::{HeaderValue, Method, Version},
+        protocol::{Message, Role, WebSocketConfig},
+    },
+    WebSocketStream,
+};
 
 use crate::project_host;
 
 const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
+const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WS_PING_INTERVAL: Duration = Duration::from_secs(10);
 const WS_PONG_TIMEOUT: Duration = Duration::from_secs(30);
 
 static NEXT_WS_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
+
+type UiWebSocketStream = WebSocketStream<tokio::net::TcpStream>;
 
 #[derive(Debug, Clone, Copy)]
 /// A bundled frontend asset served by the built-in UI host.
@@ -202,7 +218,6 @@ enum WsHubCommand {
 enum WsOutbound {
     Message(WsServerMessage),
     Ping(Vec<u8>),
-    Pong(Vec<u8>),
     Close,
 }
 
@@ -268,11 +283,10 @@ enum WsClientMessage {
     },
 }
 
-enum WsIncomingFrame {
-    Text(String),
-    Close,
-    Ping(Vec<u8>),
-    Pong,
+enum UiWebSocketPoll {
+    Message(Message),
+    Closed,
+    Idle,
 }
 
 /// Prepares an engine and runs it through the built-in HTTP and WebSocket host.
@@ -1077,31 +1091,61 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     state: &ServerState<T>,
     request: &HttpRequest,
 ) -> std::io::Result<()> {
-    let version = request
-        .headers
-        .get("sec-websocket-version")
-        .map(String::as_str)
-        .unwrap_or("");
-    if version.trim() != "13" {
-        write_json_error(stream, "426 Upgrade Required", "unsupported websocket version")?;
-        return Ok(());
-    }
+    let runtime = Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to build websocket runtime: {error}")))?;
 
-    let key = request
-        .headers
-        .get("sec-websocket-key")
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "missing sec-websocket-key"))?;
-    let accept = websocket_accept_key(key);
-
-    let response = format!(
-        "HTTP/1.1 101 Switching Protocols\r\n\
-         Upgrade: websocket\r\n\
-         Connection: Upgrade\r\n\
-         Sec-WebSocket-Accept: {accept}\r\n\
-         Access-Control-Allow-Origin: *\r\n\r\n"
+    let ws_request = build_websocket_request(request)?;
+    let mut response = match create_response(&ws_request) {
+        Ok(response) => response,
+        Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
+            write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
+                Error::new(
+                    ErrorKind::Other,
+                    format!("failed to write websocket handshake rejection: {error}"),
+                )
+            })?;
+            stream.flush()?;
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("invalid websocket upgrade request: {error}"),
+            ));
+        }
+    };
+    response.headers_mut().insert(
+        "Access-Control-Allow-Origin",
+        HeaderValue::from_static("*"),
     );
-    stream.write_all(response.as_bytes())?;
+    write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
+        Error::new(
+            ErrorKind::Other,
+            format!("failed to write websocket handshake response: {error}"),
+        )
+    })?;
     stream.flush()?;
+    stream.set_read_timeout(None)?;
+    stream.set_write_timeout(None)?;
+    stream.set_nonblocking(true)?;
+
+    let tokio_stream = {
+        let cloned_stream = stream.try_clone()?;
+        let _guard = runtime.enter();
+        tokio::net::TcpStream::from_std(cloned_stream).map_err(|error| {
+            Error::new(
+                ErrorKind::Other,
+                format!("failed to convert websocket stream to tokio stream: {error}"),
+            )
+        })?
+    };
+    let mut websocket = runtime.block_on(WebSocketStream::from_raw_socket(
+        tokio_stream,
+        Role::Server,
+        Some(ui_websocket_config()),
+    ));
 
     let client_id = NEXT_WS_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
     eprintln!("[ui-ws] upgraded connection to websocket (client_id={client_id})");
@@ -1115,30 +1159,32 @@ fn handle_ws_connection<T: ProjectLifecycle>(
         })
         .map_err(|_| Error::new(ErrorKind::BrokenPipe, "websocket hub unavailable"))?;
 
-    stream.set_read_timeout(Some(Duration::from_millis(250)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(3)))?;
-
-    let writer_stream = stream.try_clone()?;
-    let writer_handle = thread::spawn(move || ws_writer_loop(writer_stream, outbound_rx));
     let mut last_ping_at = Instant::now();
     let mut awaiting_pong_since = None::<Instant>;
 
-    loop {
-        let frame = match read_ws_frame(stream) {
-            Ok(Some(frame)) => Some(frame),
-            Ok(None) => break,
-            Err(err) if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock => None,
-            Err(err) => {
-                eprintln!("websocket read failed for client {client_id}: {err}");
-                break;
+    'connection: loop {
+        loop {
+            match outbound_rx.try_recv() {
+                Ok(outbound) => match send_ws_outbound(&runtime, &mut websocket, outbound) {
+                    Ok(true) => break 'connection,
+                    Ok(false) => {}
+                    Err(err) => {
+                        eprintln!("websocket write failed for client {client_id}: {err}");
+                        break 'connection;
+                    }
+                },
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => break 'connection,
             }
-        };
+        }
 
-        if let Some(frame) = frame {
-            match frame {
-                WsIncomingFrame::Text(text) => {
+        match poll_ws_message(&runtime, &mut websocket, WS_IO_POLL_INTERVAL) {
+            Ok(UiWebSocketPoll::Idle) => {}
+            Ok(UiWebSocketPoll::Closed) => break,
+            Ok(UiWebSocketPoll::Message(message)) => match message {
+                Message::Text(text) => {
                     awaiting_pong_since = None;
-                    let message: WsClientMessage = match serde_json::from_str(&text) {
+                    let message: WsClientMessage = match serde_json::from_str(text.as_ref()) {
                         Ok(message) => message,
                         Err(err) => {
                             let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
@@ -1153,14 +1199,28 @@ fn handle_ws_connection<T: ProjectLifecycle>(
                         break;
                     }
                 }
-                WsIncomingFrame::Ping(payload) => {
-                    awaiting_pong_since = None;
-                    let _ = outbound_tx.send(WsOutbound::Pong(payload));
+                Message::Binary(_) => {
+                    let _ = outbound_tx.send(WsOutbound::Message(WsServerMessage::Error {
+                        message: "binary websocket messages are not supported".to_string(),
+                        request_id: None,
+                    }));
                 }
-                WsIncomingFrame::Pong => {
+                Message::Ping(_) => {
+                    awaiting_pong_since = None;
+                    if let Err(err) = flush_ws_stream(&runtime, &mut websocket) {
+                        eprintln!("websocket flush failed for client {client_id}: {err}");
+                        break;
+                    }
+                }
+                Message::Pong(_) => {
                     awaiting_pong_since = None;
                 }
-                WsIncomingFrame::Close => break,
+                Message::Close(_) => break,
+                Message::Frame(_) => {}
+            },
+            Err(err) => {
+                eprintln!("websocket read failed for client {client_id}: {err}");
+                break;
             }
         }
 
@@ -1171,11 +1231,14 @@ fn handle_ws_connection<T: ProjectLifecycle>(
                 break;
             }
         }
-
         if now.duration_since(last_ping_at) >= WS_PING_INTERVAL {
-            if outbound_tx.send(WsOutbound::Ping(Vec::new())).is_err() {
-                eprintln!("[ui-ws] failed to queue ping for client {client_id}");
-                break;
+            match send_ws_outbound(&runtime, &mut websocket, WsOutbound::Ping(Vec::new())) {
+                Ok(true) => break,
+                Ok(false) => {}
+                Err(err) => {
+                    eprintln!("[ui-ws] failed to send ping for client {client_id}: {err}");
+                    break;
+                }
             }
             last_ping_at = now;
             if awaiting_pong_since.is_none() {
@@ -1185,11 +1248,79 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     }
 
     let _ = state.ws_hub.cmd_tx.send(WsHubCommand::UnregisterClient { client_id });
-    let _ = outbound_tx.send(WsOutbound::Close);
-    let _ = writer_handle.join();
+    let _ = runtime.block_on(websocket.close(None));
     eprintln!("[ui-ws] websocket loop ended (client_id={client_id})");
     Ok(())
 }
+
+        fn send_ws_outbound(
+            runtime: &Runtime,
+            websocket: &mut UiWebSocketStream,
+            outbound: WsOutbound,
+        ) -> std::io::Result<bool> {
+            let close_requested = matches!(outbound, WsOutbound::Close);
+            let message = match outbound {
+                WsOutbound::Message(message) => {
+                    let text = serde_json::to_string(&message).map_err(|err| {
+                        Error::new(
+                            ErrorKind::InvalidData,
+                            format!("failed to serialize websocket message: {err}"),
+                        )
+                    })?;
+                    Message::text(text)
+                }
+                WsOutbound::Ping(payload) => Message::Ping(payload.into()),
+                WsOutbound::Close => Message::Close(None),
+            };
+
+            runtime
+                .block_on(async { websocket.send(message).await })
+                .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
+            Ok(close_requested)
+        }
+
+        fn poll_ws_message(
+            runtime: &Runtime,
+            websocket: &mut UiWebSocketStream,
+            poll_interval: Duration,
+        ) -> std::io::Result<UiWebSocketPoll> {
+            match runtime.block_on(async { timeout(poll_interval, websocket.next()).await }) {
+                Err(_) => Ok(UiWebSocketPoll::Idle),
+                Ok(None) => Ok(UiWebSocketPoll::Closed),
+                Ok(Some(Ok(message))) => Ok(UiWebSocketPoll::Message(message)),
+                Ok(Some(Err(error))) => Err(Error::new(
+                    ErrorKind::Other,
+                    format!("websocket read failed: {error}"),
+                )),
+            }
+        }
+
+        fn flush_ws_stream(runtime: &Runtime, websocket: &mut UiWebSocketStream) -> std::io::Result<()> {
+            runtime
+                .block_on(async { websocket.flush().await })
+                .map_err(|error| Error::new(ErrorKind::Other, format!("failed to flush websocket stream: {error}")))
+        }
+
+        fn build_websocket_request(request: &HttpRequest) -> std::io::Result<WsRequest> {
+            let mut builder = WsRequest::builder()
+                .method(Method::GET)
+                .uri(request.path.as_str())
+                .version(Version::HTTP_11);
+
+            for (name, value) in &request.headers {
+                builder = builder.header(name.as_str(), value.as_str());
+            }
+
+            builder
+                .body(())
+                .map_err(|error| Error::new(ErrorKind::InvalidData, format!("invalid websocket request: {error}")))
+        }
+
+        fn ui_websocket_config() -> WebSocketConfig {
+            WebSocketConfig::default()
+                .max_message_size(Some(WS_MAX_PAYLOAD_BYTES))
+                .max_frame_size(Some(WS_MAX_PAYLOAD_BYTES))
+        }
 
 fn handle_ws_client_message(
     message: WsClientMessage,
@@ -1314,32 +1445,6 @@ fn handle_ws_client_message(
     }
 }
 
-fn ws_writer_loop(mut stream: TcpStream, outbound_rx: Receiver<WsOutbound>) {
-    let _ = stream.set_write_timeout(Some(Duration::from_secs(3)));
-
-    while let Ok(outbound) = outbound_rx.recv() {
-        let close_requested = matches!(outbound, WsOutbound::Close);
-        let write_result = match outbound {
-            WsOutbound::Message(message) => match serde_json::to_string(&message) {
-                Ok(text) => write_ws_frame(&mut stream, 0x1, text.as_bytes()),
-                Err(err) => Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("failed to serialize websocket message: {err}"),
-                )),
-            },
-            WsOutbound::Ping(payload) => write_ws_frame(&mut stream, 0x9, &payload),
-            WsOutbound::Pong(payload) => write_ws_frame(&mut stream, 0xA, &payload),
-            WsOutbound::Close => write_ws_frame(&mut stream, 0x8, &[]),
-        };
-
-        if write_result.is_err() || close_requested {
-            break;
-        }
-    }
-
-    let _ = stream.shutdown(Shutdown::Both);
-}
-
 fn is_websocket_upgrade_request(request: &HttpRequest) -> bool {
     request.method.eq_ignore_ascii_case("GET")
         && header_contains_token(request, "connection", "upgrade")
@@ -1356,198 +1461,6 @@ fn header_contains_token(request: &HttpRequest, header_name: &str, expected_toke
             .split(',')
             .any(|part| part.trim().eq_ignore_ascii_case(expected_token))
     })
-}
-
-fn websocket_accept_key(key: &str) -> String {
-    let mut input = Vec::<u8>::new();
-    input.extend_from_slice(key.trim().as_bytes());
-    input.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-    let digest = sha1_digest(&input);
-    base64_encode(&digest)
-}
-
-fn sha1_digest(input: &[u8]) -> [u8; 20] {
-    let mut h0: u32 = 0x6745_2301;
-    let mut h1: u32 = 0xEFCD_AB89;
-    let mut h2: u32 = 0x98BA_DCFE;
-    let mut h3: u32 = 0x1032_5476;
-    let mut h4: u32 = 0xC3D2_E1F0;
-
-    let bit_len = (input.len() as u64) * 8;
-    let mut message = input.to_vec();
-    message.push(0x80);
-    while (message.len() % 64) != 56 {
-        message.push(0);
-    }
-    message.extend_from_slice(&bit_len.to_be_bytes());
-
-    for chunk in message.chunks_exact(64) {
-        let mut w = [0u32; 80];
-        for (idx, word) in w.iter_mut().take(16).enumerate() {
-            let base = idx * 4;
-            *word = u32::from_be_bytes([chunk[base], chunk[base + 1], chunk[base + 2], chunk[base + 3]]);
-        }
-        for idx in 16..80 {
-            w[idx] = (w[idx - 3] ^ w[idx - 8] ^ w[idx - 14] ^ w[idx - 16]).rotate_left(1);
-        }
-
-        let mut a = h0;
-        let mut b = h1;
-        let mut c = h2;
-        let mut d = h3;
-        let mut e = h4;
-
-        for (idx, word) in w.iter().enumerate() {
-            let (f, k) = match idx {
-                0..=19 => ((b & c) | ((!b) & d), 0x5A82_7999),
-                20..=39 => (b ^ c ^ d, 0x6ED9_EBA1),
-                40..=59 => ((b & c) | (b & d) | (c & d), 0x8F1B_BCDC),
-                _ => (b ^ c ^ d, 0xCA62_C1D6),
-            };
-
-            let temp = a
-                .rotate_left(5)
-                .wrapping_add(f)
-                .wrapping_add(e)
-                .wrapping_add(k)
-                .wrapping_add(*word);
-            e = d;
-            d = c;
-            c = b.rotate_left(30);
-            b = a;
-            a = temp;
-        }
-
-        h0 = h0.wrapping_add(a);
-        h1 = h1.wrapping_add(b);
-        h2 = h2.wrapping_add(c);
-        h3 = h3.wrapping_add(d);
-        h4 = h4.wrapping_add(e);
-    }
-
-    let mut out = [0u8; 20];
-    out[0..4].copy_from_slice(&h0.to_be_bytes());
-    out[4..8].copy_from_slice(&h1.to_be_bytes());
-    out[8..12].copy_from_slice(&h2.to_be_bytes());
-    out[12..16].copy_from_slice(&h3.to_be_bytes());
-    out[16..20].copy_from_slice(&h4.to_be_bytes());
-    out
-}
-
-fn base64_encode(data: &[u8]) -> String {
-    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    let mut idx = 0usize;
-
-    while idx + 3 <= data.len() {
-        let n = ((data[idx] as u32) << 16) | ((data[idx + 1] as u32) << 8) | data[idx + 2] as u32;
-        out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-        out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-        out.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
-        out.push(TABLE[(n & 0x3F) as usize] as char);
-        idx += 3;
-    }
-
-    let rem = data.len() - idx;
-    if rem == 1 {
-        let n = (data[idx] as u32) << 16;
-        out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-        out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-        out.push('=');
-        out.push('=');
-    } else if rem == 2 {
-        let n = ((data[idx] as u32) << 16) | ((data[idx + 1] as u32) << 8);
-        out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-        out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-        out.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
-        out.push('=');
-    }
-
-    out
-}
-
-fn read_ws_frame(stream: &mut TcpStream) -> std::io::Result<Option<WsIncomingFrame>> {
-    let mut header = [0u8; 2];
-    match stream.read_exact(&mut header) {
-        Ok(()) => {}
-        Err(err) if err.kind() == ErrorKind::UnexpectedEof => return Ok(None),
-        Err(err) => return Err(err),
-    }
-
-    let opcode = header[0] & 0x0F;
-    let masked = (header[1] & 0x80) != 0;
-    let mut payload_len = (header[1] & 0x7F) as u64;
-
-    if payload_len == 126 {
-        let mut extended = [0u8; 2];
-        stream.read_exact(&mut extended)?;
-        payload_len = u16::from_be_bytes(extended) as u64;
-    } else if payload_len == 127 {
-        let mut extended = [0u8; 8];
-        stream.read_exact(&mut extended)?;
-        payload_len = u64::from_be_bytes(extended);
-    }
-
-    if payload_len > WS_MAX_PAYLOAD_BYTES as u64 {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "websocket frame exceeds payload limit",
-        ));
-    }
-
-    if !masked {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "client websocket frames must be masked",
-        ));
-    }
-
-    let mut mask = [0u8; 4];
-    stream.read_exact(&mut mask)?;
-
-    let mut payload = vec![0u8; payload_len as usize];
-    if !payload.is_empty() {
-        stream.read_exact(&mut payload)?;
-        for (idx, byte) in payload.iter_mut().enumerate() {
-            *byte ^= mask[idx % 4];
-        }
-    }
-
-    match opcode {
-        0x1 => {
-            let text = std::str::from_utf8(&payload)
-                .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid websocket text payload: {err}")))?;
-            Ok(Some(WsIncomingFrame::Text(text.to_string())))
-        }
-        0x8 => Ok(Some(WsIncomingFrame::Close)),
-        0x9 => Ok(Some(WsIncomingFrame::Ping(payload))),
-        0xA => Ok(Some(WsIncomingFrame::Pong)),
-        _ => Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("unsupported websocket opcode: {opcode}"),
-        )),
-    }
-}
-
-fn write_ws_frame(stream: &mut TcpStream, opcode: u8, payload: &[u8]) -> std::io::Result<()> {
-    let mut frame = Vec::<u8>::with_capacity(16 + payload.len());
-    frame.push(0x80 | (opcode & 0x0F));
-
-    if payload.len() < 126 {
-        frame.push(payload.len() as u8);
-    } else if payload.len() <= u16::MAX as usize {
-        frame.push(126);
-        frame.extend_from_slice(&(payload.len() as u16).to_be_bytes());
-    } else {
-        frame.push(127);
-        frame.extend_from_slice(&(payload.len() as u64).to_be_bytes());
-    }
-
-    frame.extend_from_slice(payload);
-    stream.write_all(&frame)?;
-    stream.flush()?;
-    Ok(())
 }
 
 fn lock_engine<T: Node>(engine: &Arc<Mutex<Engine<T>>>) -> std::sync::MutexGuard<'_, Engine<T>> {
