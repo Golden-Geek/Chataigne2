@@ -1,11 +1,12 @@
 use golden_core::app::ProjectNode;
-use golden_core::node::Node;
+use golden_core::node::{Node, FOLDER_NODE_TYPE};
 use golden_core::node::NodeMeta;
 
 use super::{
-    StreamingSendBytesCommand, StreamingSendHexStringCommand,
-    StreamingSendStringCommand, StreamingSendValuesCommand, STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
-    STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+    StreamingSendBytesCommand, StreamingSendHexStringCommand, StreamingSendStringCommand,
+    StreamingCommandValues, StreamingSendValuesAsJsonCommand, StreamingSendValuesCommand,
+    STREAMING_SEND_BYTES_COMMAND_NODE_TYPE, STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
+    STREAMING_SEND_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE,
     STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
 };
 
@@ -16,6 +17,7 @@ fn streaming_commands_are_module_command_items() {
         Box::new(StreamingSendBytesCommand::create()),
         Box::new(StreamingSendHexStringCommand::create()),
         Box::new(StreamingSendValuesCommand::create()),
+        Box::new(StreamingSendValuesAsJsonCommand::create()),
     ];
 
     for command in commands {
@@ -38,6 +40,7 @@ fn command_tester_accepts_streaming_command_items() {
         Box::new(StreamingSendBytesCommand::create()),
         Box::new(StreamingSendHexStringCommand::create()),
         Box::new(StreamingSendValuesCommand::create()),
+        Box::new(StreamingSendValuesAsJsonCommand::create()),
     ];
 
     for command in commands {
@@ -58,6 +61,7 @@ fn streaming_command_nodes_decode_from_project_node_type() {
         STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
         STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
         STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
+        STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE,
     ];
 
     for node_type in node_types {
@@ -70,4 +74,19 @@ fn streaming_command_nodes_decode_from_project_node_type() {
 
         assert_eq!(node.get_type(), node_type);
     }
+}
+
+#[test]
+fn streaming_command_values_accept_nested_folders() {
+    let values = StreamingCommandValues::new();
+
+    assert!(
+        values.user_container_accepts_item(StreamingCommandValues::NODE_TYPE, FOLDER_NODE_TYPE),
+        "streaming command values should accept nested folder items"
+    );
+
+    let nested_folder = values
+        .create_user_item(FOLDER_NODE_TYPE)
+        .expect("streaming command values should create nested folder items");
+    assert_eq!(nested_folder.get_type(), StreamingCommandValues::NODE_TYPE);
 }

@@ -1,18 +1,20 @@
 use golden_core::{
     events::{Event, EventKind},
     node,
-    node::{Node, NodeId, UserContainerRules, UserCreatableItem},
+    node::{Node, NodeId, UserContainerRules, UserCreatableItem, FOLDER_NODE_TYPE},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::module::common::streaming::commands::{
-    bytes_request, hex_string_request, string_request, values_request, LINE_ENDING_NONE,
+    bytes_request, hex_string_request, string_request, values_json_request, values_request, LINE_ENDING_NONE,
     STREAMING_SEND_BYTES_COMMAND_NODE_TYPE, STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
-    STREAMING_SEND_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_COMMAND_NODE_TYPE, StreamingSendRequest,
+    STREAMING_SEND_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE,
+    STREAMING_SEND_VALUES_COMMAND_NODE_TYPE, StreamingSendRequest,
 };
 
-const STREAMING_COMMAND_VALUE_TYPES: &[&str] = &[
+const STREAMING_COMMAND_VALUE_ITEM_KINDS: &[&str] = &[
+    FOLDER_NODE_TYPE,
     "trigger",
     "int",
     "float",
@@ -70,11 +72,13 @@ impl Node for StreamingCommandValues {
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(STREAMING_COMMAND_VALUE_TYPES))
+        Some(UserContainerRules::new(STREAMING_COMMAND_VALUE_ITEM_KINDS))
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         vec![
+            UserCreatableItem::new(Self::NODE_TYPE, FOLDER_NODE_TYPE, "Folder")
+                .with_select_when_created(false),
             UserCreatableItem::new("trigger", "trigger", "Trigger").with_select_when_created(false),
             UserCreatableItem::new("int", "int", "Int").with_select_when_created(false),
             UserCreatableItem::new("float", "float", "Float").with_select_when_created(false),
@@ -92,6 +96,10 @@ impl Node for StreamingCommandValues {
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         let normalized_node_type = node_type.trim().to_ascii_lowercase();
+        if normalized_node_type == Self::NODE_TYPE || normalized_node_type == FOLDER_NODE_TYPE {
+            return Some(Box::new(create_values_folder("Folder")));
+        }
+
         let normalized = match normalized_node_type.as_str() {
             "string" => "str",
             other => other,
@@ -108,7 +116,8 @@ impl Node for StreamingCommandValues {
 #[children(
     text: String = String::new() (
         label = "Text",
-        description = "UTF-8 text to send. Escape sequences such as \\n, \\r, \\t, and \\xNN are supported."
+        description = "UTF-8 text to send. Escape sequences such as \\n, \\r, \\t, and \\xNN are supported.",
+        widget = "textarea"
     );
     line_ending: golden_core::parameter::Enum = LINE_ENDING_NONE (
         label = "Line Ending",
@@ -177,7 +186,8 @@ impl Node for StreamingSendBytesCommand {
 #[children(
     hex: String = String::new() (
         label = "Hex",
-        description = "Hexadecimal bytes to send. Whitespace, commas, and semicolons are ignored."
+        description = "Hexadecimal bytes to send. Whitespace, commas, and semicolons are ignored.",
+        widget = "textarea"
     );
 )]
 pub struct StreamingSendHexStringCommand {
@@ -239,11 +249,8 @@ impl StreamingSendValuesCommand {
         let values_id = crate::app::module_command::resolve_module_command_child(snapshot, self.id(), "values")
             .ok_or_else(|| "missing streaming command values folder 'values'".to_string())?;
 
-        let values = snapshot
-            .child_ids(values_id)
-            .into_iter()
-            .filter_map(|child_id| snapshot.node(child_id).and_then(|child| child.param_value.clone()))
-            .collect::<Vec<_>>();
+        let mut values = Vec::new();
+        collect_values_in_child_order(snapshot, values_id, &mut values);
 
         Ok(values_request(
             values.as_slice(),
@@ -261,6 +268,44 @@ impl Node for StreamingSendValuesCommand {
     }
 
     command_node_impl!("streaming values command");
+}
+
+#[node("streaming_send_values_as_json_command", label = "Send Values As JSON")]
+#[children(
+    node values: StreamingCommandValues = StreamingCommandValues::new() (
+        label = "Values",
+        description = "Values encoded as a JSON object keyed by child label. Nested folders become nested objects."
+    );
+)]
+pub struct StreamingSendValuesAsJsonCommand {
+    base: crate::app::ModuleCommandBase,
+}
+
+impl StreamingSendValuesAsJsonCommand {
+    pub fn create() -> Self {
+        Self::new(crate::app::ModuleCommandBase::new())
+    }
+
+    fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<StreamingSendRequest, String> {
+        let values_id = crate::app::module_command::resolve_module_command_child(snapshot, self.id(), "values")
+            .ok_or_else(|| "missing streaming command values folder 'values'".to_string())?;
+
+        values_json_request(&encode_values_tree_json(snapshot, values_id))
+    }
+}
+
+#[golden_core::item(
+    "module_command",
+    node = "streaming_send_values_as_json_command",
+    via = base,
+    from_struct
+)]
+impl Node for StreamingSendValuesAsJsonCommand {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == STREAMING_SEND_VALUES_AS_JSON_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
+    command_node_impl!("streaming values as json command");
 }
 
 fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
@@ -285,6 +330,56 @@ fn create_value_parameter(label: &str, value: ParamValue) -> Parameter {
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter
+}
+
+fn create_values_folder(label: &str) -> StreamingCommandValues {
+    let mut folder = StreamingCommandValues::new();
+    folder.node_data_mut().meta.label = label.to_string();
+    crate::app::module::enable_module_authoring(folder.node_data_mut());
+    folder
+}
+
+fn collect_values_in_child_order(snapshot: &ProcessTreeSnapshot, parent_id: NodeId, output: &mut Vec<ParamValue>) {
+    for child_id in snapshot.child_ids(parent_id) {
+        let Some(child) = snapshot.node(child_id) else {
+            continue;
+        };
+
+        if let Some(value) = child.param_value.clone() {
+            output.push(value);
+            continue;
+        }
+
+        if child.node_type == StreamingCommandValues::NODE_TYPE || child.node_type == FOLDER_NODE_TYPE {
+            collect_values_in_child_order(snapshot, child_id, output);
+        }
+    }
+}
+
+fn encode_values_tree_json(snapshot: &ProcessTreeSnapshot, parent_id: NodeId) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+
+    for child_id in snapshot.child_ids(parent_id) {
+        let Some(child) = snapshot.node(child_id) else {
+            continue;
+        };
+
+        let key = child.label.trim();
+        if key.is_empty() {
+            continue;
+        }
+
+        if let Some(value) = child.param_value.as_ref() {
+            object.insert(key.to_string(), value.to_script_json());
+            continue;
+        }
+
+        if child.node_type == StreamingCommandValues::NODE_TYPE || child.node_type == FOLDER_NODE_TYPE {
+            object.insert(key.to_string(), encode_values_tree_json(snapshot, child_id));
+        }
+    }
+
+    serde_json::Value::Object(object)
 }
 
 fn value_label_for_node_type(node_type: &str) -> &str {

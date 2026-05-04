@@ -74,6 +74,74 @@ fn raw_mode_emits_one_message_per_byte() {
 }
 
 #[test]
+fn json_mode_flattens_nested_objects_into_message_paths() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig {
+        mode: STREAMING_INPUT_MODE_JSON.to_string(),
+        ..StreamingParseConfig::default()
+    };
+
+    let messages = parser
+        .push_bytes(br#"{"transport":{"connected":true,"latency":12},"name":"ws"}"#, &config)
+        .expect("json payload should parse");
+
+    assert_eq!(messages.len(), 3);
+    assert!(messages.iter().any(|message| {
+        message.path_segments == vec!["transport", "connected"]
+            && message.payload == ReceivedValuePayload::Single(ParamValue::Bool(true))
+    }));
+    assert!(messages.iter().any(|message| {
+        message.path_segments == vec!["transport", "latency"]
+            && message.payload == ReceivedValuePayload::Single(ParamValue::Int(12))
+    }));
+    assert!(messages.iter().any(|message| {
+        message.path_segments == vec!["name"]
+            && message.payload == ReceivedValuePayload::Single(ParamValue::Str("ws".to_string()))
+    }));
+}
+
+#[test]
+fn json_mode_maps_root_scalar_to_received() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig {
+        mode: STREAMING_INPUT_MODE_JSON.to_string(),
+        ..StreamingParseConfig::default()
+    };
+
+    let messages = parser.push_bytes(b"42", &config).expect("json scalar should parse");
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].path_segments, vec![DEFAULT_LINE_VALUE_NAME]);
+    assert_eq!(messages[0].payload, ReceivedValuePayload::Single(ParamValue::Int(42)));
+}
+
+#[test]
+fn json_mode_keeps_scalar_arrays_as_multi_value_payloads() {
+    let mut parser = StreamingParser::default();
+    let config = StreamingParseConfig {
+        mode: STREAMING_INPUT_MODE_JSON.to_string(),
+        ..StreamingParseConfig::default()
+    };
+
+    let messages = parser
+        .push_bytes(br#"{"levels":[1,2,3,4,5]}"#, &config)
+        .expect("json array payload should parse");
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].path_segments, vec!["levels"]);
+    assert_eq!(
+        messages[0].payload,
+        ReceivedValuePayload::Multi(vec![
+            ParamValue::Int(1),
+            ParamValue::Int(2),
+            ParamValue::Int(3),
+            ParamValue::Int(4),
+            ParamValue::Int(5),
+        ])
+    );
+}
+
+#[test]
 fn line_parser_accepts_cr_lf_and_crlf_line_breaks() {
     let mut parser = StreamingParser::default();
     let config = StreamingParseConfig::default();

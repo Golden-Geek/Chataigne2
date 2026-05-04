@@ -24,7 +24,7 @@ use crate::app::module::{
             parse_mode: Enum = "line" (
                 label = "Parse Mode",
                 description = "How incoming bytes are converted into values.",
-                enum_options = ["line (default)", "raw"]
+                enum_options = ["line (default)", "raw", "json"]
             );
             name_separator: Enum = "space" (
                 label = "Name Separator",

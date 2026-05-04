@@ -48,6 +48,14 @@ fn module_manager_uses_declared_module_item_metadata() {
             crate::app::TcpServerModule::DEFAULT_LABEL,
         ),
         (crate::app::TcpClientModule::NODE_TYPE, crate::app::TcpClientModule::DEFAULT_LABEL),
+        (
+            crate::app::WebSocketServerModule::NODE_TYPE,
+            crate::app::WebSocketServerModule::DEFAULT_LABEL,
+        ),
+        (
+            crate::app::WebSocketClientModule::NODE_TYPE,
+            crate::app::WebSocketClientModule::DEFAULT_LABEL,
+        ),
     ] {
         let item = items
             .iter()

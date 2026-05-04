@@ -9,11 +9,11 @@
 	import incomingIcon from '../../assets/icons/module/incoming.svg';
 	import outgoingIcon from '../../assets/icons/module/outgoing.svg';
 
-    let { node } = $props<{
+	let { node } = $props<{
 		node: UiNodeDto;
 	}>();
 
-    const TRAFFIC_FLASH_MS = 340;
+	const TRAFFIC_FLASH_MS = 340;
 	const MODULE_INCOMING_TRAFFIC_EVENT_TOPIC = 'chataigne.module.traffic.incoming';
 	const MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC = 'chataigne.module.traffic.outgoing';
 	const CONNECTION_DECL_IDS = ['connection', 'infos'] as const;
@@ -22,6 +22,7 @@
 	const CAN_SEND_PARAM_DECL_ID = 'can_send';
 	const LOG_INCOMING_PARAM_DECL_ID = 'log_incoming';
 	const LOG_OUTGOING_PARAM_DECL_ID = 'log_outgoing';
+	const CONNECTED_CLIENTS_PARAM_DECL_ID = 'connected_clients';
 
 	const lastPathSegment = (value: string): string => value.split('/').pop() ?? value;
 
@@ -145,6 +146,18 @@
 		logOutgoingEnabled ? 'Disable outgoing traffic logging' : 'Enable outgoing traffic logging'
 	);
 
+	let connectedClientsParamNode = $derived(
+		findConnectionParameter(graph, liveNode.node_id, CONNECTED_CLIENTS_PARAM_DECL_ID)
+	);
+
+	let connectedClientsCount = $derived.by(() => {
+		if (connectedClientsParamNode?.data.kind !== 'parameter') {
+			return null;
+		}
+		const { value } = connectedClientsParamNode.data.param;
+		return value.kind === 'int' ? value.value : null;
+	});
+
 	let incomingFlashActive = $state(false);
 	let incomingFlashKey = $state(0);
 	let outgoingFlashActive = $state(false);
@@ -239,6 +252,12 @@
 </script>
 
 <div class="module-indicators">
+	{#if connectedClientsCount != null}
+		<span class="module-connected-clients"
+		class:has-clients={connectedClientsCount > 0}>
+			{`${connectedClientsCount} client${connectedClientsCount !== 1 ? 's' : ''}`}
+		</span>
+	{/if}
 	{#if connectedParamNode}
 		<button
 			type="button"
@@ -308,8 +327,20 @@
 	.module-indicators {
 		display: inline-flex;
 		justify-content: end;
+		align-items: center;
 		gap: 0.15rem;
 		flex: 1 0 auto;
+	}
+
+	.module-connected-clients {
+		font-size: 0.75rem;
+		vertical-align: middle;
+		margin-right:.25rem;
+		color: rgb(from var(--gc-color-text) r g b / 0.3);
+	}
+
+	.module-connected-clients.has-clients {
+		color: rgb(from var(--gc-color-text) r g b / .6);
 	}
 
 	.module-status-icon {

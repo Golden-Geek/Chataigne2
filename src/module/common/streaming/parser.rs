@@ -4,6 +4,7 @@ use crate::app::module::common::received_values::ReceivedValuePayload;
 
 pub(crate) const STREAMING_INPUT_MODE_RAW: &str = "raw";
 pub(crate) const STREAMING_INPUT_MODE_LINE: &str = "line";
+pub(crate) const STREAMING_INPUT_MODE_JSON: &str = "json";
 pub(crate) const STREAMING_SEPARATOR_COMMA: &str = "comma";
 pub(crate) const STREAMING_SEPARATOR_SPACE: &str = "space";
 pub(crate) const STREAMING_SEPARATOR_COLON: &str = "colon";
@@ -99,6 +100,12 @@ impl StreamingParser {
                 .collect());
         }
 
+            if config.mode == STREAMING_INPUT_MODE_JSON {
+                self.pending_line_bytes.clear();
+                self.skip_lf_after_cr = false;
+                return parse_json_bytes(bytes);
+            }
+
         let bytes = self.trim_paired_lf_after_split_cr(bytes);
 
         self.pending_line_bytes.extend_from_slice(bytes);
@@ -129,6 +136,105 @@ impl StreamingParser {
         } else {
             bytes
         }
+    }
+}
+
+fn parse_json_bytes(bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, String> {
+    if bytes.iter().all(|byte| byte.is_ascii_whitespace()) {
+        return Ok(Vec::new());
+    }
+
+    let value: serde_json::Value =
+        serde_json::from_slice(bytes).map_err(|error| format!("invalid JSON input: {error}"))?;
+
+    let mut messages = Vec::new();
+    let mut path_segments = Vec::new();
+    collect_json_messages(&value, &mut path_segments, &mut messages)?;
+    Ok(messages)
+}
+
+fn collect_json_messages(
+    value: &serde_json::Value,
+    path_segments: &mut Vec<String>,
+    messages: &mut Vec<StreamingIncomingMessage>,
+) -> Result<(), String> {
+    if let Some(payload) = decode_json_payload(value)? {
+        messages.push(StreamingIncomingMessage {
+            path_segments: json_message_path_segments(path_segments.as_slice()),
+            payload,
+            source_description: json_source_description(path_segments.as_slice()),
+        });
+        return Ok(());
+    }
+
+    match value {
+        serde_json::Value::Object(entries) => {
+            for (key, child) in entries {
+                let key = key.trim();
+                if key.is_empty() {
+                    continue;
+                }
+
+                path_segments.push(key.to_string());
+                collect_json_messages(child, path_segments, messages)?;
+                path_segments.pop();
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for (index, child) in items.iter().enumerate() {
+                path_segments.push((index + 1).to_string());
+                collect_json_messages(child, path_segments, messages)?;
+                path_segments.pop();
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn decode_json_payload(value: &serde_json::Value) -> Result<Option<ReceivedValuePayload>, String> {
+    match value {
+        serde_json::Value::Object(_) => Ok(None),
+        serde_json::Value::Array(items) => {
+            if let Ok(value) = ParamValue::from_script_json(value) {
+                return Ok(Some(ReceivedValuePayload::Single(value)));
+            }
+
+            let mut values = Vec::with_capacity(items.len());
+            for item in items {
+                let Ok(value) = ParamValue::from_script_json(item) else {
+                    return Ok(None);
+                };
+                values.push(value);
+            }
+
+            Ok(Some(match values.len() {
+                0 => ReceivedValuePayload::Single(ParamValue::Trigger()),
+                1 => ReceivedValuePayload::Single(values.remove(0)),
+                _ => ReceivedValuePayload::Multi(values),
+            }))
+        }
+        _ => ParamValue::from_script_json(value)
+            .map(ReceivedValuePayload::Single)
+            .map(Some)
+            .map_err(|error| format!("invalid JSON value: {error}")),
+    }
+}
+
+fn json_message_path_segments(path_segments: &[String]) -> Vec<String> {
+    if path_segments.is_empty() {
+        vec![DEFAULT_LINE_VALUE_NAME.to_string()]
+    } else {
+        path_segments.to_vec()
+    }
+}
+
+fn json_source_description(path_segments: &[String]) -> String {
+    if path_segments.is_empty() {
+        "streaming json root".to_string()
+    } else {
+        format!("streaming json path '{}'", path_segments.join("/"))
     }
 }
 

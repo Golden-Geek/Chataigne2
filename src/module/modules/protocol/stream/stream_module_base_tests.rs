@@ -16,6 +16,14 @@ fn concrete_stream_modules_materialize_common_processing_params_once() {
     assert_common_processing_params_once(crate::app::TcpServerModule::create().into(), "TCP Server");
     assert_common_processing_params_once(crate::app::TcpClientModule::create().into(), "TCP");
     assert_common_processing_params_once(crate::app::UdpModule::create().into(), "UDP");
+    assert_common_processing_params_once(
+        crate::app::WebSocketServerModule::create().into(),
+        "WebSocket Server",
+    );
+    assert_common_processing_params_once(
+        crate::app::WebSocketClientModule::create().into(),
+        "WebSocket Client",
+    );
 }
 
 fn assert_common_processing_params_once(module: crate::app::AppNode, label: &str) {

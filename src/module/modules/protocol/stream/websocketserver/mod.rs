@@ -16,27 +16,34 @@ use crate::app::{
     module::common::streaming::{
         commands::StreamingSendRequest,
         module_helpers::{format_bytes_for_log, streaming_command_type_supported},
+        websocket::normalize_websocket_path,
     },
     StreamingModuleBase,
 };
 
-use self::transport::{TcpServerTransportConfig, TcpServerTransportHandle, TcpServerWorkerEvent};
+use self::transport::{
+    WebSocketServerTransportConfig, WebSocketServerTransportHandle, WebSocketServerWorkerEvent,
+};
 
-const TCP_SERVER_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const TCP_SERVER_PORT_WARNING_ID: &str = "tcp_server_port_transport";
-const TCP_SERVER_BIND_HOST: &str = "0.0.0.0";
+const WEBSOCKET_SERVER_MODULE_UPDATE_RATE_HZ: u32 = 120;
+const WEBSOCKET_SERVER_PORT_WARNING_ID: &str = "websocket_server_port_transport";
+const WEBSOCKET_SERVER_BIND_HOST: &str = "0.0.0.0";
 
-#[node("tcp_server_module", label = "TCP Server")]
+#[node("websocket_server_module", label = "WebSocket Server")]
 #[children(
     folder(connection) {
         port: i32 = 9002 [0..65535] (
             label = "Port",
-            description = "TCP port used to listen for incoming client connections.",
+            description = "WebSocket server port used to listen for incoming client connections.",
             widget = "text"
+        );
+        path: String = "/".to_string() (
+            label = "Path",
+            description = "Only accept WebSocket upgrade requests for this path. Leave empty to accept any path."
         );
         connected_clients: i32 = 0 [0..2147483647] (
             label = "Connected Clients",
-            description = "Number of currently connected TCP clients.",
+            description = "Number of currently connected WebSocket clients.",
             read_only = true,
             widget = "text"
         );
@@ -44,16 +51,16 @@ const TCP_SERVER_BIND_HOST: &str = "0.0.0.0";
         [base_children];
     }
 )]
-pub struct TcpServerModule {
+pub struct WebSocketServerModule {
     stream: StreamingModuleBase,
-    transport: Option<TcpServerTransportHandle>,
-    last_transport_config: Option<TcpServerTransportConfig>,
+    transport: Option<WebSocketServerTransportHandle>,
+    last_transport_config: Option<WebSocketServerTransportConfig>,
     transport_dirty: bool,
     client_infos: BTreeMap<String, String>,
     client_list_dirty: bool,
 }
 
-impl TcpServerModule {
+impl WebSocketServerModule {
     pub fn create() -> Self {
         Self::new(
             StreamingModuleBase::create(),
@@ -84,7 +91,7 @@ impl TcpServerModule {
         let config = match self.transport_config() {
             Ok(config) => config,
             Err(error) => {
-                logerror!("Invalid TCP server module configuration: {}", error);
+                logerror!("Invalid WebSocket server configuration: {}", error);
                 self.stop_transport();
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, error.as_str());
@@ -103,7 +110,7 @@ impl TcpServerModule {
         self.stop_transport();
         self.clear_client_state(ctx, snapshot);
 
-        match TcpServerTransportHandle::spawn(config.clone()) {
+        match WebSocketServerTransportHandle::spawn(config.clone()) {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
@@ -111,7 +118,7 @@ impl TcpServerModule {
                 self.stream.set_connected(ctx, true);
             }
             Err(error) => {
-                logerror!("Failed to start TCP server transport: {}", error);
+                logerror!("Failed to start WebSocket server transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
                 self.set_port_warning(ctx, error.as_str());
@@ -120,13 +127,22 @@ impl TcpServerModule {
         }
     }
 
-    fn transport_config(&self) -> Result<TcpServerTransportConfig, String> {
-        let bind_port = u16::try_from(self.port.get())
-            .map_err(|_| "TCP server port 'connection/port' must be between 0 and 65535".to_string())?;
+    fn transport_config(&self) -> Result<WebSocketServerTransportConfig, String> {
+        let bind_port = u16::try_from(self.port.get()).map_err(|_| {
+            "WebSocket server port 'connection/port' must be between 0 and 65535".to_string()
+        })?;
 
-        Ok(TcpServerTransportConfig {
-            bind_host: TCP_SERVER_BIND_HOST.to_string(),
+        let path = self.path.get_ref().trim();
+        let path = if path.is_empty() {
+            String::new()
+        } else {
+            normalize_websocket_path(path)
+        };
+
+        Ok(WebSocketServerTransportConfig {
+            bind_host: WEBSOCKET_SERVER_BIND_HOST.to_string(),
             bind_port,
+            path,
             receive_enabled: true,
             send_enabled: true,
         })
@@ -146,36 +162,36 @@ impl TcpServerModule {
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                TcpServerWorkerEvent::ClientConnected { client_id, info } => {
+                WebSocketServerWorkerEvent::ClientConnected { client_id, info } => {
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
-                            format!("Accepted TCP client {client_id} ({info})")
+                            format!("Accepted WebSocket client {client_id} ({info})")
                         );
                     }
                     self.client_infos.insert(client_id, info);
                     self.client_list_dirty = true;
                 }
-                TcpServerWorkerEvent::ClientDisconnected { client_id, reason } => {
+                WebSocketServerWorkerEvent::ClientDisconnected { client_id, reason } => {
                     if let Some(reason) = reason {
-                        logerror!(format!("TCP client {client_id} disconnected: {reason}"));
+                        logerror!(format!("WebSocket client {client_id} disconnected: {reason}"));
                     }
                     self.client_infos.remove(client_id.as_str());
                     self.client_list_dirty = true;
                 }
-                TcpServerWorkerEvent::Bytes { client_id, bytes } if !processing_enabled => {
+                WebSocketServerWorkerEvent::Bytes { client_id, bytes } if !processing_enabled => {
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
                             format!(
-                                "Received TCP from {} {} (processing disabled)",
+                                "Received WebSocket from {} {} (processing disabled)",
                                 client_id,
                                 format_bytes_for_log(bytes.as_slice())
                             )
                         );
                     }
                 }
-                TcpServerWorkerEvent::Bytes { client_id, bytes } => {
+                WebSocketServerWorkerEvent::Bytes { client_id, bytes } => {
                     match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
                         Ok(messages) => {
                             received_bytes = true;
@@ -183,7 +199,7 @@ impl TcpServerModule {
                                 golden_core::log!(
                                     origin = self.id();
                                     format!(
-                                        "Received TCP from {} {}",
+                                        "Received WebSocket from {} {}",
                                         client_id,
                                         format_bytes_for_log(bytes.as_slice())
                                     )
@@ -192,15 +208,15 @@ impl TcpServerModule {
                             self.stream.push_messages(messages);
                         }
                         Err(error) => {
-                            logerror!("Failed to parse TCP input from {client_id}: {}", error);
+                            logerror!("Failed to parse WebSocket input from {client_id}: {}", error);
                         }
                     }
                 }
-                TcpServerWorkerEvent::Error(error) => {
-                    logerror!("TCP server transport error: {}", error);
+                WebSocketServerWorkerEvent::Error(error) => {
+                    logerror!("WebSocket server transport error: {}", error);
                 }
-                TcpServerWorkerEvent::Stopped(error) => {
-                    logerror!("TCP server transport stopped: {}", error);
+                WebSocketServerWorkerEvent::Stopped(error) => {
+                    logerror!("WebSocket server transport stopped: {}", error);
                     self.transport_dirty = true;
                 }
             }
@@ -223,21 +239,21 @@ impl TcpServerModule {
     ) -> Result<String, String> {
         let connected_clients = self.client_infos.len();
         if connected_clients == 0 {
-            return Err("no TCP clients are connected".to_string());
+            return Err("no WebSocket clients are connected".to_string());
         }
 
         let transport = self
             .transport
             .as_ref()
-            .ok_or_else(|| "TCP server transport is not available".to_string())?;
-        transport.send(request.bytes.clone())?;
+            .ok_or_else(|| "WebSocket server transport is not available".to_string())?;
+        transport.send(request.frame_kind, request.bytes.clone())?;
         self.stream.emit_outgoing_traffic(ctx);
 
         if self.stream.log_outgoing_enabled() {
             golden_core::log!(
                 origin = self.id();
                 format!(
-                    "Sent TCP {} to {} client(s)",
+                    "Sent WebSocket {} to {} client(s)",
                     format_bytes_for_log(request.bytes.as_slice()),
                     connected_clients
                 )
@@ -245,7 +261,7 @@ impl TcpServerModule {
         }
 
         Ok(format!(
-            "Queued TCP {} for {} client(s)",
+            "Queued WebSocket {} for {} client(s)",
             request.description,
             connected_clients
         ))
@@ -265,11 +281,11 @@ impl TcpServerModule {
         let snapshot = snapshot_arc.as_ref();
 
         if let Err(error) = serde_json::from_value::<StreamingSendRequest>(request.payload)
-            .map_err(|error| format!("invalid TCP server command payload: {error}"))
+            .map_err(|error| format!("invalid WebSocket server command payload: {error}"))
             .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
         {
             logerror!(format!(
-                "Failed to handle TCP server command {:?}: {error}",
+                "Failed to handle WebSocket server command {:?}: {error}",
                 request.command_id
             ));
         }
@@ -280,7 +296,9 @@ impl TcpServerModule {
             return;
         }
 
-        if self.port.is_bound() && self.port.id() == param {
+        if (self.port.is_bound() && self.port.id() == param)
+            || (self.path.is_bound() && self.path.id() == param)
+        {
             self.transport_dirty = true;
         }
     }
@@ -345,11 +363,11 @@ impl TcpServerModule {
     }
 
     fn set_port_warning(&self, ctx: &mut ProcessCtx, message: &str) {
-        NodeHandle::new(self.port.id()).set_warning_with(ctx, Some(TCP_SERVER_PORT_WARNING_ID), message, None);
+        NodeHandle::new(self.port.id()).set_warning_with(ctx, Some(WEBSOCKET_SERVER_PORT_WARNING_ID), message, None);
     }
 
     fn clear_port_warning(&self, ctx: &mut ProcessCtx) {
-        NodeHandle::new(self.port.id()).clear_warning(ctx, Some(TCP_SERVER_PORT_WARNING_ID));
+        NodeHandle::new(self.port.id()).clear_warning(ctx, Some(WEBSOCKET_SERVER_PORT_WARNING_ID));
     }
 
     fn stop_transport(&mut self) {
@@ -361,12 +379,12 @@ impl TcpServerModule {
 
 #[golden_core::item(
     "module",
-    node = "tcp_server_module",
+    node = "websocket_server_module",
     via = stream,
     from_struct,
     menu_path = ["Generic"]
 )]
-impl Node for TcpServerModule {
+impl Node for WebSocketServerModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.stream.init(ctx);
         self.transport_dirty = true;
@@ -425,7 +443,7 @@ impl Node for TcpServerModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(TCP_SERVER_MODULE_UPDATE_RATE_HZ)
+        NodeExecutionRule::periodic(WEBSOCKET_SERVER_MODULE_UPDATE_RATE_HZ)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -468,13 +486,9 @@ impl Node for TcpServerModule {
     }
 }
 
-fn create_client_info_param(label: &str, info: &str) -> Parameter {
-    let mut parameter = Parameter::new(label, ParamValue::Str(info.to_string()), ParameterChangeCheck::ValueChange);
-    parameter.read_only = true;
-    parameter.node_data_mut().meta.description = Some("Connected TCP client information.".to_string());
+fn create_client_info_param(client_id: &str, info: &str) -> Parameter {
+    let mut parameter = Parameter::new(client_id, ParamValue::Str(info.to_string()), ParameterChangeCheck::ValueChange);
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
+    parameter.node_data_mut().meta.user_permissions = golden_core::node::NodeUserPermissions::none();
     parameter
 }
-
-#[cfg(test)]
-mod tests;
