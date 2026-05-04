@@ -1165,7 +1165,7 @@ mod tests {
 
     #[crate::node("loaded_nested_children_node")]
     #[children(
-        folder(parameters, label = "Parameters", reuse = true) {
+        folder(parameters, label = "Parameters") {
             port: String = "COM1" (label = "Port");
 
             folder(connection, label = "Connection") {

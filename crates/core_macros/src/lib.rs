@@ -33,6 +33,7 @@ impl Parse for DelegatePath {
 #[derive(Clone, Default)]
 struct PresentationMetaFields {
     color: Option<Expr>,
+    collapsed: Option<Expr>,
     warnings: Option<Expr>,
     show_child_warnings_max_depth: Option<Expr>,
     show_in_nested_inspector: Option<Expr>,
@@ -42,6 +43,7 @@ struct PresentationMetaFields {
 impl PresentationMetaFields {
     fn is_empty(&self) -> bool {
         self.color.is_none()
+            && self.collapsed.is_none()
             && self.warnings.is_none()
             && self.show_child_warnings_max_depth.is_none()
             && self.show_in_nested_inspector.is_none()
@@ -56,6 +58,8 @@ fn try_parse_presentation_meta_field(
 ) -> Result<bool> {
     let (slot, field_name): (&mut Option<Expr>, &str) = if key == "color" {
         (&mut fields.color, "color")
+    } else if key == "collapsed" {
+        (&mut fields.collapsed, "collapsed")
     } else if key == "warnings" {
         (&mut fields.warnings, "warnings")
     } else if key == "show_child_warnings_max_depth" || key == "showChildWarningsMaxDepth" {
@@ -172,7 +176,7 @@ impl Parse for NodeAttr {
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected string literal, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
+                    "unexpected attribute arguments, expected string literal, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...` or `collapsed = true`, `via = field.path`, `impl_node`, `from_struct`, `scriptable`, or `contextualizable`",
                 ));
             }
 
@@ -300,7 +304,7 @@ impl Parse for ItemAttr {
             } else {
                 return Err(Error::new(
                     input.span(),
-                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, `menu_path = [\"...\"]`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
+                    "unexpected attribute arguments, expected item kind string literal or `kind = ...`, optional node type literal or `node = ...`, `menu_path = [\"...\"]`, constructor meta assignment like `label = \"...\"` or `can_be_disabled = false`, presentation sugar like `color = ...` or `collapsed = true`, plus `via = ...`, `impl_node`, `from_struct`, `scriptable`, `contextualizable`",
                 ));
             }
 
@@ -836,7 +840,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
+                        "unsupported folder(...) argument (supported: label, description, reuse, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
                     ));
                 }
             }
@@ -853,7 +857,7 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
                 name: folder_name,
                 label: folder_label,
                 description: folder_description,
-                reuse: folder_reuse.unwrap_or(false),
+                reuse: folder_reuse.unwrap_or(true),
                 meta: folder_meta,
                 items: nested,
             }));
@@ -963,7 +967,7 @@ fn parse_node_options(input: ParseStream) -> Result<ParamsDslNodeOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
+                    "unsupported node child option (supported: label, description, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content)",
                 ));
             }
         }
@@ -1167,7 +1171,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1973,6 +1977,11 @@ fn build_presentation_assignment_tokens(
             __golden_presentation.color = Some((#expr).into());
         }
     });
+    let set_collapsed = fields.collapsed.as_ref().map(|expr| {
+        quote! {
+            __golden_presentation.collapsed = #expr;
+        }
+    });
     let set_warnings = fields.warnings.as_ref().map(|expr| {
         quote! {
             __golden_presentation.warnings = #expr;
@@ -1998,6 +2007,7 @@ fn build_presentation_assignment_tokens(
         {
             let mut __golden_presentation: golden_core::node::PresentationHint = #initial_value;
             #set_color
+            #set_collapsed
             #set_warnings
             #set_child_warning_depth
             #set_nested_inspector_visibility

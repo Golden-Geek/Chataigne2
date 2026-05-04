@@ -616,7 +616,7 @@ impl Node for ReuseFolderBaseNode {}
 
 #[crate::node("reuse_folder_via_node")]
 #[children(
-    folder(output, label = "Output", reuse = true) {
+    folder(output, label = "Output") {
         gain: f64 = 0.5 [0.0..1.0] (label = "Gain");
     }
 )]
@@ -689,6 +689,7 @@ struct DslReferenceDefaultNode {}
             label = "Curve",
             description = "Declared curve child",
             color = crate::color::Color::new(0.25, 0.5, 0.75, 1.0),
+            collapsed = true,
         );
     }
 )]
@@ -716,6 +717,7 @@ struct DslNodeChildrenNode {}
             unit: Some(String::from("section")),
         },
         color = crate::color::Color::new(0.1, 0.2, 0.3, 1.0),
+        collapsed = true,
         show_child_warnings_max_depth = 2,
     ) {
         gain: f64 = 0.5 (
@@ -1569,6 +1571,7 @@ fn children_macro_materializes_declared_node_children_and_binds_handles() {
         curve_node.node_data().meta.presentation.color,
         Some(crate::color::Color::new(0.25, 0.5, 0.75, 1.0))
     );
+    assert!(curve_node.node_data().meta.presentation.collapsed);
 }
 
 #[test]
@@ -1623,6 +1626,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
         settings_meta.presentation.color,
         Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0))
     );
+    assert!(settings_meta.presentation.collapsed);
     assert_eq!(settings_meta.presentation.show_child_warnings_max_depth, 2);
 
     let gain_meta = engine
@@ -2239,7 +2243,7 @@ fn from_struct_via_composed_nodes_forwards_generated_param_wiring_recursively() 
 }
 
 #[test]
-fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
+fn params_macro_folder_reuses_via_folder_when_decl_id_matches_by_default() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
     engine.add_node(ReuseFolderViaNode::new(ReuseFolderBaseNode::new()).into(), None);
@@ -2260,7 +2264,7 @@ fn params_macro_folder_reuse_reuses_via_folder_when_decl_id_matches() {
     let output_count = owner_decl_ids.iter().filter(|decl| decl.as_str() == "output").count();
     assert_eq!(
         output_count, 1,
-        "folder(reuse = true) should avoid creating a duplicate folder when via already queued the same decl_id"
+        "folder reuse should avoid creating a duplicate folder when via already queued the same decl_id"
     );
 
     let output = find_child_by_decl(&engine, owner, "output").expect("shared output folder should exist");

@@ -72,12 +72,19 @@ fn is_true(value: &bool) -> bool {
     *value
 }
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
     /// Preferred UI color.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Color>,
+    /// Whether UI tree/inspector containers should start collapsed until a user chooses otherwise.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub collapsed: bool,
     /// Warnings attached to this node, keyed by warning id.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<NodeWarning>,
@@ -102,6 +109,7 @@ impl Default for PresentationHint {
     fn default() -> Self {
         Self {
             color: None,
+            collapsed: false,
             warnings: Vec::new(),
             show_child_warnings_max_depth: 0,
             show_in_nested_inspector: default_nested_inspector_visibility(),
@@ -517,5 +525,22 @@ mod tests {
         let serialized = serde_json::to_value(PresentationHint::default()).expect("presentation hint should serialize");
 
         assert_eq!(serialized, json!({}));
+    }
+
+    #[test]
+    fn presentation_hint_serializes_collapsed_when_enabled() {
+        let hint = PresentationHint {
+            collapsed: true,
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(hint).expect("presentation hint should serialize");
+
+        assert_eq!(
+            serialized,
+            json!({
+                "collapsed": true
+            })
+        );
     }
 }

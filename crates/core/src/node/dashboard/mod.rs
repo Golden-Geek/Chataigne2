@@ -378,7 +378,7 @@ impl Node for DashboardLayoutSurfaceNode {}
 #[node("dashboard_page", label = "Page")]
 #[defaults(surface = DashboardLayoutSurfaceNode::new())]
 #[children(
-    folder(layout, label = "Layout", reuse = true) {
+    folder(layout, label = "Layout") {
         page_size: Vec2 = (1920.0, 1080.0) [(1.0, 1.0)..] (
             label = "Page Size",
             description = "Rendered page size in pixels. The dashboard viewer treats those values as the page render surface dimensions.",
@@ -444,7 +444,7 @@ impl Node for DashboardPageNode {
             can_be_disabled = true,
         );
     }
-    folder(layout, label = "Layout", reuse = true) {
+    folder(layout, label = "Layout") {
         position: Vec2 = (0.0, 0.0) (
             label = "Position",
             description = "Position offset in pixels relative to the selected free-layout anchor.",
