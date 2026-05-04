@@ -240,6 +240,7 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let subtree = engine.collect_subtree(0, OP, step.node)?;
+                engine.run_destroy_for_subtree(subtree.as_slice());
                 let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
                 engine.detach_node(0, OP, step.node)?;
 
@@ -278,7 +279,7 @@ impl<T: Node> HistoryStep<T> {
 
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                for node in created_ids.into_iter().rev() {
+                for node in created_ids.iter().rev().copied() {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
@@ -287,6 +288,10 @@ impl<T: Node> HistoryStep<T> {
                     child: step.node,
                     decl_id,
                 });
+
+                let mut ready_ids = created_ids;
+                ready_ids.reverse();
+                engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
             }
             Self::MoveNode(step) => {
                 const OP: &str = "UndoMoveNode";
@@ -475,7 +480,7 @@ impl<T: Node> HistoryStep<T> {
                 }
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
-                for node in created_ids.into_iter().rev() {
+                for node in created_ids.iter().rev().copied() {
                     engine.emit_event(EventKind::NodeCreated { node });
                 }
                 let decl_id = child_decl_id(engine, 0, OP, step.node)?;
@@ -484,6 +489,10 @@ impl<T: Node> HistoryStep<T> {
                     child: step.node,
                     decl_id,
                 });
+
+                let mut ready_ids = created_ids;
+                ready_ids.reverse();
+                engine.run_node_ready_for_subtree(ready_ids.as_slice(), crate::node::NodeCreationContext::Fresh)?;
             }
             Self::RemoveNode(step) => {
                 const OP: &str = "RedoRemoveNode";
@@ -493,6 +502,7 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 let subtree = engine.collect_subtree(0, OP, step.node)?;
+                engine.run_destroy_for_subtree(subtree.as_slice());
                 let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
                 engine.detach_node(0, OP, step.node)?;
 

@@ -825,6 +825,47 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    pub(crate) fn run_node_destroy(
+        &mut self,
+        node_id: NodeId,
+        tree_snapshot: &Arc<crate::process_ctx::ProcessTreeSnapshot>,
+    ) {
+        let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+        destroy_ctx.runtime_elapsed = self.runtime_elapsed;
+        destroy_ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            crate::logger::with_node_origin(node_id, || {
+                node.destroy(&mut destroy_ctx);
+            });
+        }
+    }
+
+    pub(crate) fn run_destroy_for_subtree(&mut self, node_ids: &[NodeId]) {
+        if node_ids.is_empty() {
+            return;
+        }
+
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for node_id in node_ids.iter().rev().copied() {
+            self.run_node_destroy(node_id, &tree_snapshot);
+        }
+    }
+
+    pub(crate) fn run_node_ready_for_subtree(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: NodeCreationContext,
+    ) -> Result<(), EngineEditError> {
+        for node_id in node_ids.iter().copied() {
+            if self.nodes.contains(node_id) {
+                self.run_node_ready(node_id, creation_context)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn queue_node_ready(&mut self, node_id: NodeId, creation_context: NodeCreationContext) {
         self.pending_node_ready.push((node_id, creation_context));
     }
@@ -924,6 +965,7 @@ impl<T: Node> Engine<T> {
 
         let (parent, prev_sibling, next_sibling) = self.node_position(edit_index, OP, node)?;
         let subtree = self.collect_subtree(edit_index, OP, node)?;
+        self.run_destroy_for_subtree(subtree.as_slice());
         self.detach_node(edit_index, OP, node)?;
 
         let mut detached_nodes = Vec::with_capacity(subtree.len());

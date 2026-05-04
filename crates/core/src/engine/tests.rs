@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
@@ -56,6 +57,23 @@ struct UiSchemaDescriptionNode {}
 
 #[crate::node("ui_schema_description_node", from_struct)]
 impl Node for UiSchemaDescriptionNode {}
+
+static REMOVE_LIFECYCLE_DESTROY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static REMOVE_LIFECYCLE_READY_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+#[crate::node("remove_lifecycle_probe_node")]
+struct RemoveLifecycleProbeNode {}
+
+#[crate::node("remove_lifecycle_probe_node", from_struct)]
+impl Node for RemoveLifecycleProbeNode {
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        REMOVE_LIFECYCLE_DESTROY_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
+        REMOVE_LIFECYCLE_READY_COUNT.fetch_add(1, Ordering::SeqCst);
+    }
+}
 
 #[test]
 fn item_macro_sets_user_item_kind_when_not_overridden() {
@@ -1136,6 +1154,7 @@ crate::define_node_enum!(
         ViaContextHostNode,
         UiSchemaDescriptionNode,
         SharedDeclaredDescriptionNode,
+        RemoveLifecycleProbeNode,
     }
 );
 
@@ -8859,6 +8878,71 @@ fn undo_redo_remove_node_restores_same_node_id() {
 
     assert!(engine.redo().expect("redo should succeed"));
     assert!(engine.nodes.get(child).is_none(), "redo should detach the child again",);
+}
+
+#[test]
+fn remove_node_runs_destroy_callbacks_immediately() {
+    REMOVE_LIFECYCLE_DESTROY_COUNT.store(0, Ordering::SeqCst);
+    REMOVE_LIFECYCLE_READY_COUNT.store(0, Ordering::SeqCst);
+
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(RemoveLifecycleProbeNode::new().into(), None);
+    engine.apply_edits().expect("probe add should succeed");
+
+    let child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("probe child should exist");
+
+    assert_eq!(REMOVE_LIFECYCLE_READY_COUNT.load(Ordering::SeqCst), 1);
+    assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 0);
+
+    engine.edits.push(Edit::RemoveNode { node: child });
+    engine.apply_edits().expect("probe remove should succeed");
+
+    assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 1);
+    assert!(engine.nodes.get(child).is_none(), "removed probe should be detached immediately");
+}
+
+#[test]
+fn undo_redo_remove_node_replays_ready_and_destroy_lifecycle() {
+    REMOVE_LIFECYCLE_DESTROY_COUNT.store(0, Ordering::SeqCst);
+    REMOVE_LIFECYCLE_READY_COUNT.store(0, Ordering::SeqCst);
+
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(RemoveLifecycleProbeNode::new().into(), None);
+    engine.apply_edits().expect("probe add should succeed");
+
+    let child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("probe child should exist");
+
+    engine.edits.push(Edit::RemoveNode { node: child });
+    engine.apply_edits().expect("probe remove should succeed");
+
+    assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 1);
+    assert_eq!(REMOVE_LIFECYCLE_READY_COUNT.load(Ordering::SeqCst), 1);
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .and_then(|root| root.node_data().first_child),
+        Some(child),
+        "undo should restore the removed probe at the same id",
+    );
+    assert_eq!(REMOVE_LIFECYCLE_READY_COUNT.load(Ordering::SeqCst), 2);
+    assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 1);
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert!(engine.nodes.get(child).is_none(), "redo should remove the probe again");
+    assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 2);
 }
 
 #[test]
