@@ -65,6 +65,7 @@ fn snapshot_node(
         decl_id: decl_id.to_string(),
         short_name: short_name.to_string(),
         label: label.to_string(),
+        tags: Vec::new(),
         enabled: true,
         can_be_disabled: true,
         child_count: usize::from(first_child.is_some()),

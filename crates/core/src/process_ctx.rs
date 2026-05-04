@@ -33,6 +33,8 @@ pub struct ProcessTreeNodeSnapshot {
     pub short_name: String,
     /// User-visible label.
     pub label: String,
+    /// Arbitrary classification tags from node metadata.
+    pub tags: Vec<String>,
     /// Node enabled flag.
     pub enabled: bool,
     /// Whether the enabled flag may be toggled by UI/editor code.

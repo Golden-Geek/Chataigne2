@@ -24,14 +24,12 @@ use serde::{Deserialize, Serialize};
 use tokio::runtime::{Builder, Runtime};
 use tokio::time::timeout;
 use tokio_tungstenite::{
+    WebSocketStream,
     tungstenite::{
-        handshake::server::{
-            create_response, write_response as write_ws_handshake_response, Request as WsRequest,
-        },
+        handshake::server::{Request as WsRequest, create_response, write_response as write_ws_handshake_response},
         http::{HeaderValue, Method, Version},
         protocol::{Message, Role, WebSocketConfig},
     },
-    WebSocketStream,
 };
 
 use crate::project_host;
@@ -1116,10 +1114,9 @@ fn handle_ws_connection<T: ProjectLifecycle>(
             ));
         }
     };
-    response.headers_mut().insert(
-        "Access-Control-Allow-Origin",
-        HeaderValue::from_static("*"),
-    );
+    response
+        .headers_mut()
+        .insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
     write_ws_handshake_response(&mut *stream, &response).map_err(|error| {
         Error::new(
             ErrorKind::Other,
@@ -1253,74 +1250,71 @@ fn handle_ws_connection<T: ProjectLifecycle>(
     Ok(())
 }
 
-        fn send_ws_outbound(
-            runtime: &Runtime,
-            websocket: &mut UiWebSocketStream,
-            outbound: WsOutbound,
-        ) -> std::io::Result<bool> {
-            let close_requested = matches!(outbound, WsOutbound::Close);
-            let message = match outbound {
-                WsOutbound::Message(message) => {
-                    let text = serde_json::to_string(&message).map_err(|err| {
-                        Error::new(
-                            ErrorKind::InvalidData,
-                            format!("failed to serialize websocket message: {err}"),
-                        )
-                    })?;
-                    Message::text(text)
-                }
-                WsOutbound::Ping(payload) => Message::Ping(payload.into()),
-                WsOutbound::Close => Message::Close(None),
-            };
-
-            runtime
-                .block_on(async { websocket.send(message).await })
-                .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
-            Ok(close_requested)
+fn send_ws_outbound(
+    runtime: &Runtime,
+    websocket: &mut UiWebSocketStream,
+    outbound: WsOutbound,
+) -> std::io::Result<bool> {
+    let close_requested = matches!(outbound, WsOutbound::Close);
+    let message = match outbound {
+        WsOutbound::Message(message) => {
+            let text = serde_json::to_string(&message).map_err(|err| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("failed to serialize websocket message: {err}"),
+                )
+            })?;
+            Message::text(text)
         }
+        WsOutbound::Ping(payload) => Message::Ping(payload.into()),
+        WsOutbound::Close => Message::Close(None),
+    };
 
-        fn poll_ws_message(
-            runtime: &Runtime,
-            websocket: &mut UiWebSocketStream,
-            poll_interval: Duration,
-        ) -> std::io::Result<UiWebSocketPoll> {
-            match runtime.block_on(async { timeout(poll_interval, websocket.next()).await }) {
-                Err(_) => Ok(UiWebSocketPoll::Idle),
-                Ok(None) => Ok(UiWebSocketPoll::Closed),
-                Ok(Some(Ok(message))) => Ok(UiWebSocketPoll::Message(message)),
-                Ok(Some(Err(error))) => Err(Error::new(
-                    ErrorKind::Other,
-                    format!("websocket read failed: {error}"),
-                )),
-            }
-        }
+    runtime
+        .block_on(async { websocket.send(message).await })
+        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to write websocket frame: {error}")))?;
+    Ok(close_requested)
+}
 
-        fn flush_ws_stream(runtime: &Runtime, websocket: &mut UiWebSocketStream) -> std::io::Result<()> {
-            runtime
-                .block_on(async { websocket.flush().await })
-                .map_err(|error| Error::new(ErrorKind::Other, format!("failed to flush websocket stream: {error}")))
-        }
+fn poll_ws_message(
+    runtime: &Runtime,
+    websocket: &mut UiWebSocketStream,
+    poll_interval: Duration,
+) -> std::io::Result<UiWebSocketPoll> {
+    match runtime.block_on(async { timeout(poll_interval, websocket.next()).await }) {
+        Err(_) => Ok(UiWebSocketPoll::Idle),
+        Ok(None) => Ok(UiWebSocketPoll::Closed),
+        Ok(Some(Ok(message))) => Ok(UiWebSocketPoll::Message(message)),
+        Ok(Some(Err(error))) => Err(Error::new(ErrorKind::Other, format!("websocket read failed: {error}"))),
+    }
+}
 
-        fn build_websocket_request(request: &HttpRequest) -> std::io::Result<WsRequest> {
-            let mut builder = WsRequest::builder()
-                .method(Method::GET)
-                .uri(request.path.as_str())
-                .version(Version::HTTP_11);
+fn flush_ws_stream(runtime: &Runtime, websocket: &mut UiWebSocketStream) -> std::io::Result<()> {
+    runtime
+        .block_on(async { websocket.flush().await })
+        .map_err(|error| Error::new(ErrorKind::Other, format!("failed to flush websocket stream: {error}")))
+}
 
-            for (name, value) in &request.headers {
-                builder = builder.header(name.as_str(), value.as_str());
-            }
+fn build_websocket_request(request: &HttpRequest) -> std::io::Result<WsRequest> {
+    let mut builder = WsRequest::builder()
+        .method(Method::GET)
+        .uri(request.path.as_str())
+        .version(Version::HTTP_11);
 
-            builder
-                .body(())
-                .map_err(|error| Error::new(ErrorKind::InvalidData, format!("invalid websocket request: {error}")))
-        }
+    for (name, value) in &request.headers {
+        builder = builder.header(name.as_str(), value.as_str());
+    }
 
-        fn ui_websocket_config() -> WebSocketConfig {
-            WebSocketConfig::default()
-                .max_message_size(Some(WS_MAX_PAYLOAD_BYTES))
-                .max_frame_size(Some(WS_MAX_PAYLOAD_BYTES))
-        }
+    builder
+        .body(())
+        .map_err(|error| Error::new(ErrorKind::InvalidData, format!("invalid websocket request: {error}")))
+}
+
+fn ui_websocket_config() -> WebSocketConfig {
+    WebSocketConfig::default()
+        .max_message_size(Some(WS_MAX_PAYLOAD_BYTES))
+        .max_frame_size(Some(WS_MAX_PAYLOAD_BYTES))
+}
 
 fn handle_ws_client_message(
     message: WsClientMessage,

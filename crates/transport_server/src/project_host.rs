@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use golden_engine::app::{
-    configure_loaded_engine, create_new_project_engine, load_sparse_project_file, prepare_engine_for_runtime,
-    save_sparse_project_file, shutdown_engine_for_runtime, ProjectFileSpec, ProjectLifecycle,
+    ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, load_sparse_project_file,
+    prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
 };
 use golden_engine::engine::Engine;
 

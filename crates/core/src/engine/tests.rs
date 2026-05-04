@@ -2397,23 +2397,29 @@ fn base_children_placeholder_controls_via_layout_inside_reused_folder() {
         "`[base_children]` should splice composed folder, parameter, and node children at the declaration point",
     );
 
-    let before = find_child_by_decl(&engine, connection, "connection/before_value")
-        .expect("before parameter should exist");
-    let base = find_child_by_decl(&engine, connection, "connection/base_value")
-        .expect("base parameter should exist");
-    let after = find_child_by_decl(&engine, connection, "connection/after_value")
-        .expect("after parameter should exist");
-    let after_node = find_child_by_decl(&engine, connection, "connection/after_node")
-        .expect("after node should exist");
+    let before =
+        find_child_by_decl(&engine, connection, "connection/before_value").expect("before parameter should exist");
+    let base = find_child_by_decl(&engine, connection, "connection/base_value").expect("base parameter should exist");
+    let after =
+        find_child_by_decl(&engine, connection, "connection/after_value").expect("after parameter should exist");
+    let after_node = find_child_by_decl(&engine, connection, "connection/after_node").expect("after node should exist");
 
     let MacroTestNode::BaseChildrenLayoutViaNode(node) = engine.nodes.get(owner).expect("node should exist") else {
         panic!("expected BaseChildrenLayoutViaNode variant");
     };
 
     assert_eq!(node.before_value.id(), before, "outer before handle should bind");
-    assert_eq!(node.base.base_value.id(), base, "base handle should bind through the placeholder");
+    assert_eq!(
+        node.base.base_value.id(),
+        base,
+        "base handle should bind through the placeholder"
+    );
     assert_eq!(node.after_value.id(), after, "outer after handle should bind");
-    assert_eq!(node.after_node.current_id(), Some(after_node), "declared node handle should bind");
+    assert_eq!(
+        node.after_node.current_id(),
+        Some(after_node),
+        "declared node handle should bind"
+    );
 }
 
 #[test]
@@ -8903,7 +8909,10 @@ fn remove_node_runs_destroy_callbacks_immediately() {
     engine.apply_edits().expect("probe remove should succeed");
 
     assert_eq!(REMOVE_LIFECYCLE_DESTROY_COUNT.load(Ordering::SeqCst), 1);
-    assert!(engine.nodes.get(child).is_none(), "removed probe should be detached immediately");
+    assert!(
+        engine.nodes.get(child).is_none(),
+        "removed probe should be detached immediately"
+    );
 }
 
 #[test]

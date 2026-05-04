@@ -786,7 +786,10 @@ fn parse_params_dsl_items(input: ParseStream) -> Result<Vec<ParamsDslItem>> {
 
         let ident = input.parse::<Ident>()?;
         if ident == "base_children" {
-            return Err(Error::new(ident.span(), "use `[base_children]` to place composed children"));
+            return Err(Error::new(
+                ident.span(),
+                "use `[base_children]` to place composed children",
+            ));
         }
 
         if ident == "folder" {

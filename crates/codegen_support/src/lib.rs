@@ -540,6 +540,53 @@ fn strip_for_scanning(source: &str) -> String {
         }
     }
 
+    fn char_literal_len(source: &str, at: usize) -> Option<usize> {
+        let bytes = source.as_bytes();
+        if bytes.get(at) != Some(&b'\'') {
+            return None;
+        }
+
+        let rest = source.get(at + 1..)?;
+        let mut chars = rest.chars();
+        let first = chars.next()?;
+
+        if first == '\\' {
+            let escaped = chars.next()?;
+            return match escaped {
+                'x' => {
+                    let mut tail = chars.as_str().chars();
+                    let high = tail.next()?;
+                    let low = tail.next()?;
+                    if !high.is_ascii_hexdigit() || !low.is_ascii_hexdigit() {
+                        return None;
+                    }
+
+                    let end = at + 5;
+                    (bytes.get(end) == Some(&b'\'')).then_some(end + 1 - at)
+                }
+                'u' => {
+                    let tail = chars.as_str();
+                    let stripped = tail.strip_prefix('{')?;
+                    let close = stripped.find('}')?;
+                    let digits = &stripped[..close];
+                    if digits.is_empty() || digits.len() > 6 || !digits.chars().all(|ch| ch.is_ascii_hexdigit()) {
+                        return None;
+                    }
+
+                    let end = at + 4 + close;
+                    (bytes.get(end) == Some(&b'\'')).then_some(end + 1 - at)
+                }
+                _ => {
+                    let end = at + 3;
+                    (bytes.get(end) == Some(&b'\'')).then_some(end + 1 - at)
+                }
+            };
+        }
+
+        let end = at + 1 + first.len_utf8();
+        (bytes.get(end) == Some(&b'\'')).then_some(end + 1 - at)
+    }
+
     let bytes = source.as_bytes();
     let mut out = String::with_capacity(source.len());
     let mut i = 0usize;
@@ -568,7 +615,7 @@ fn strip_for_scanning(source: &str) -> String {
                     out.push(' ');
                     i += 1;
                     mode = Mode::StringLiteral;
-                } else if bytes[i] == b'\'' {
+                } else if char_literal_len(source, i).is_some() {
                     out.push(' ');
                     i += 1;
                     mode = Mode::CharLiteral;
@@ -693,3 +740,6 @@ fn strip_for_scanning(source: &str) -> String {
 
     out
 }
+
+#[cfg(test)]
+mod tests;

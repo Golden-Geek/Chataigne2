@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use super::{normalize_project_save_path, replace_live_engine, sanitize_browser_upload_file_name};
 use golden_engine as golden_core;
-use golden_engine::app::{prepare_engine_for_runtime, ProjectFileSpec, ProjectLifecycle};
+use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::define_node_enum;
 use golden_engine::engine::Engine;
 use golden_engine::node::{Folder, Node, NodeCreationContext};
