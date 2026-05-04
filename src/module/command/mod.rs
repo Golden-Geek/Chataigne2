@@ -1,7 +1,7 @@
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{DeclId, Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules},
+    node::{DeclId, Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules, UserCreatableItem},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -221,6 +221,59 @@ impl ModuleCommandManagerBase {
     }
 }
 
+#[node("module_command_tester", label = "Command Tester")]
+pub struct ModuleCommandTester {
+    available_command_types: &'static [&'static str],
+    manager: ModuleCommandManagerBase,
+}
+
+impl ModuleCommandTester {
+    pub fn create(available_command_types: &'static [&'static str]) -> Self {
+        Self::new(available_command_types, ModuleCommandManagerBase::new())
+    }
+
+    fn command_type_available(&self, node_type: &str) -> bool {
+        self.available_command_types.contains(&node_type)
+    }
+
+    fn available_command_items(&self) -> Vec<UserCreatableItem> {
+        crate::app::declared_user_creatable_items(MODULE_COMMAND_ITEM_KIND)
+            .into_iter()
+            .filter(|item| self.command_type_available(item.node_type.as_str()))
+            .map(|item| item.with_select_when_created(false))
+            .collect()
+    }
+}
+
+#[node("module_command_tester", via = manager, from_struct)]
+impl Node for ModuleCommandTester {
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == "module_command_tester").then(|| Self::create(&[]))
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        self.manager.user_container_accepts_item(item_type, item_kind)
+            && self.command_type_available(item_type)
+            && crate::app::declared_user_item_type_matches(item_type, MODULE_COMMAND_ITEM_KIND)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        self.available_command_items()
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        self.command_type_available(node_type)
+            .then(|| crate::app::create_declared_user_item(node_type, MODULE_COMMAND_ITEM_KIND))
+            .flatten()
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        if parent == self.id() {
+            self.manager.ensure_command_tester_controls(ctx, child);
+        }
+    }
+}
+
 #[node("module_command_base", label = "Command")]
 #[children(
     trigger: ParamValue = ParamValue::Trigger() (
@@ -255,4 +308,69 @@ fn create_auto_trigger_parameter() -> Parameter {
         Some("Run this command automatically when one of its command parameters changes.".to_string());
     meta.presentation.show_in_inspector_content = false;
     parameter
+}
+
+#[cfg(test)]
+mod tests {
+    use golden_core::{
+        app::ProjectNode,
+        node::{Node, NodeMeta},
+    };
+
+    use super::{ModuleCommandTester, MODULE_COMMAND_ITEM_KIND};
+
+    #[test]
+    fn module_command_tester_uses_advertised_command_catalog() {
+        let tester = ModuleCommandTester::create(
+            crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+        );
+        let items = tester.user_creatable_items();
+
+        assert_eq!(
+            items.len(),
+            crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES.len()
+        );
+        assert!(items.iter().all(|item| item.item_kind == MODULE_COMMAND_ITEM_KIND));
+        assert!(items.iter().all(|item| !item.select_when_created));
+        assert!(items.iter().all(|item| {
+            crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES
+                .contains(&item.node_type.as_str())
+        }));
+        assert!(!items.iter().any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE));
+        assert!(
+            tester.user_container_accepts_item(
+                crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+                MODULE_COMMAND_ITEM_KIND,
+            )
+        );
+        assert!(
+            !tester.user_container_accepts_item(
+                crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+                MODULE_COMMAND_ITEM_KIND,
+            )
+        );
+
+        let created = tester
+            .create_user_item(
+                crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+            )
+            .expect("advertised command should be creatable");
+        assert_eq!(
+            created.get_type(),
+            crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+        );
+        assert!(tester.create_user_item("folder").is_none());
+    }
+
+    #[test]
+    fn module_command_tester_decodes_from_project_node_type() {
+        let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+            "module_command_tester",
+            &serde_json::Value::Null,
+            &NodeMeta::new("Command Tester".to_string()),
+        )
+        .expect("module command tester should decode from project files");
+
+        assert_eq!(node.get_type(), "module_command_tester");
+    }
 }

@@ -22,6 +22,7 @@ const OSC_RECEIVER_WARNING_ID: &str = "receiver_transport";
 const OSC_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const OSC_OUTPUT_NODE_TYPE: &str = "osc_output";
+const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
 const VALUE_LABEL_PREFIX: &str = "value ";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -57,17 +58,13 @@ pub(crate) struct OscSendCustomMessageRequest {
 
 #[node("osc_module_base", label = "OSC Module")]
 #[children(
-    folder(parameters, label = "Parameters", reuse = true) {
+    folder(connection) {
         network_interface: Enum = "any" (
             label = "Network Interface",
             description = "Network interface used to receive OSC and as the source binding for outgoing traffic.",
             enum_options = ["any (default)"]
         );
-        folder(receiver, label = "Receiver", can_be_disabled = true) {
-            auto_add: bool = true (
-                label = "Auto Add",
-                description = "Automatically create missing OSC value nodes from incoming addresses."
-            );
+        folder(input, label = "Input", can_be_disabled = true) {
             port: i32 = 9000 [0..65535] (
                 label = "Port",
                 description = "UDP port used to receive OSC messages when the receiver is enabled.",
@@ -80,11 +77,20 @@ pub(crate) struct OscSendCustomMessageRequest {
             can_be_disabled = true
         );
     }
-    node command_tester: crate::app::OscCommandTester = crate::app::OscCommandTester::create() (
+    folder(parameters) {
+        folder(processing, label = "Processing") {
+            auto_add: bool = true (
+                label = "Auto Add",
+                description = "Automatically create missing OSC value nodes from incoming addresses."
+            );
+        }
+    }
+    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(OSC_MODULE_COMMAND_TYPES) (
         label = "Command Tester",
         description = "Create and trigger ad-hoc OSC commands through this module's outputs."
     );
 )]
+
 pub struct OscModuleBase {
     base: crate::app::ModuleBase,
     interface_refresh_elapsed: f64,
@@ -280,17 +286,17 @@ impl OscModuleBase {
     }
 
     fn transport_binding(&self, snapshot: &ProcessTreeSnapshot) -> Result<OscTransportBinding, String> {
-        let parameters_id = self
+        let connection_id = self
             .base
-            .parameters_id()
-            .ok_or_else(|| "missing OSC parameters folder 'parameters'".to_string())?;
+            .connection_id()
+            .ok_or_else(|| "missing OSC connection folder 'connection'".to_string())?;
         let receiver_id = snapshot
-            .find_child(parameters_id, "receiver")
-            .ok_or_else(|| "missing OSC receiver folder 'parameters/receiver'".to_string())?;
+            .find_child_by_decl_id(connection_id, "input")
+            .ok_or_else(|| "missing OSC receiver folder 'connection/input'".to_string())?;
         let receive_enabled = snapshot
             .node(receiver_id)
             .map(|node| node.enabled)
-            .ok_or_else(|| "missing OSC receiver folder 'parameters/receiver'".to_string())?;
+            .ok_or_else(|| "missing OSC receiver folder 'connection/input'".to_string())?;
 
         let bind_port = if receive_enabled {
             u16::try_from(self.port.get())
@@ -563,9 +569,7 @@ impl OscModuleBase {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
         };
-        if request.module_id != self.id()
-            || request.command_type != crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE
-        {
+        if request.module_id != self.id() || !OSC_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
             return;
         }
         let command_id = request.command_id;
@@ -635,8 +639,8 @@ impl OscModuleBase {
     }
 
     fn receiver_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let parameters_id = self.base.parameters_id()?;
-        snapshot.find_child(parameters_id, "receiver")
+        let connection_id = self.base.connection_id()?;
+        snapshot.find_child_by_decl_id(connection_id, "input")
     }
 
     fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
@@ -646,8 +650,8 @@ impl OscModuleBase {
 
     fn outputs_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
         self.outputs.current_id().or_else(|| {
-            let parameters_id = self.base.parameters_id()?;
-            snapshot.find_child(parameters_id, "outputs")
+            let connection_id = self.base.connection_id()?;
+            snapshot.find_child_by_decl_id(connection_id, "outputs")
         })
     }
 
@@ -868,7 +872,7 @@ fn outgoing_payload_for_target(snapshot: &ProcessTreeSnapshot, target_id: NodeId
 }
 
 fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child(parent, child_name).and_then(|child_id| {
+    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
         snapshot
             .node(child_id)
             .and_then(|node| node.param_value.as_ref())
@@ -877,7 +881,7 @@ fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name
 }
 
 fn child_int_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<i32> {
-    snapshot.find_child(parent, child_name).and_then(|child_id| {
+    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
         snapshot
             .node(child_id)
             .and_then(|node| node.param_value.as_ref())

@@ -12,9 +12,7 @@ use golden_core::{
 use crate::app::{
     module::common::streaming::{
         commands::StreamingSendRequest,
-        module_helpers::{
-            child_int_param, child_string_param, format_bytes_for_log, streaming_command_type_supported,
-        },
+        module_helpers::{child_int_param, child_string_param, format_bytes_for_log, streaming_command_type_supported},
     },
     StreamingModuleBase,
 };
@@ -25,9 +23,10 @@ use self::transport::{
 
 const UDP_INTERFACE_REFRESH_INTERVAL_SECS: f64 = 1.0;
 const UDP_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const UDP_RECEIVER_WARNING_ID: &str = "udp_receiver_transport";
+const UDP_INPUT_WARNING_ID: &str = "udp_input_transport";
 const UDP_INTERFACE_WARNING_ID: &str = "udp_network_interface_options";
 const UDP_OUTPUT_NODE_TYPE: &str = "udp_output";
+const UDP_INPUT_DECL_ID: &str = "input";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct UdpOutputTarget {
@@ -89,16 +88,16 @@ impl Node for UdpOutputManager {
 
 #[node("udp_module", label = "UDP")]
 #[children(
-    folder(parameters, label = "Parameters", reuse = true) {
+    folder(connection) {
         network_interface: Enum = "any" (
             label = "Network Interface",
             description = "Network interface used to receive UDP packets and as the source binding for outgoing traffic.",
             enum_options = ["any (default)"]
         );
-        folder(receiver, label = "Receiver", reuse = true, can_be_disabled = true) {
+        folder(input, label = "Input", can_be_disabled = true) {
             port: i32 = 9001 [0..65535] (
                 label = "Port",
-                description = "UDP port used to receive packets when the receiver is enabled.",
+                description = "UDP port used to receive packets when Input is enabled.",
                 widget = "text"
             );
         }
@@ -108,7 +107,9 @@ impl Node for UdpOutputManager {
             can_be_disabled = true
         );
     }
-    node command_tester: crate::app::StreamingCommandTester = crate::app::StreamingCommandTester::create() (
+    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
+        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+    ) (
         label = "Command Tester",
         description = "Create and trigger ad-hoc streaming commands through this module."
     );
@@ -123,13 +124,7 @@ pub struct UdpModule {
 
 impl UdpModule {
     pub fn create() -> Self {
-        Self::new(
-            StreamingModuleBase::create(),
-            0.0,
-            None,
-            None,
-            true,
-        )
+        Self::new(StreamingModuleBase::create(), 0.0, None, None, true)
     }
 
     fn interface_refresh_due(&self) -> bool {
@@ -168,7 +163,7 @@ impl UdpModule {
         if !self.module_enabled(snapshot) {
             self.stop_transport();
             self.last_transport_config = None;
-            self.clear_receiver_warning(ctx, snapshot);
+            self.clear_input_warning(ctx, snapshot);
             self.stream.set_connected(ctx, false);
             return;
         }
@@ -179,7 +174,7 @@ impl UdpModule {
                 logerror!("Invalid UDP module configuration: {}", error);
                 self.stop_transport();
                 self.last_transport_config = None;
-                self.set_receiver_warning(ctx, snapshot, error.as_str());
+                self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
                 return;
             }
@@ -188,7 +183,7 @@ impl UdpModule {
         if !binding.receive_enabled && !binding.send_enabled {
             self.stop_transport();
             self.last_transport_config = None;
-            self.clear_receiver_warning(ctx, snapshot);
+            self.clear_input_warning(ctx, snapshot);
             self.stream.set_connected(ctx, false);
             return;
         }
@@ -202,7 +197,7 @@ impl UdpModule {
         };
 
         if self.transport.is_some() && self.last_transport_config.as_ref() == Some(&config) {
-            self.clear_receiver_warning(ctx, snapshot);
+            self.clear_input_warning(ctx, snapshot);
             self.stream.set_connected(ctx, true);
             return;
         }
@@ -213,32 +208,32 @@ impl UdpModule {
             Ok(handle) => {
                 self.transport = Some(handle);
                 self.last_transport_config = Some(config);
-                self.clear_receiver_warning(ctx, snapshot);
+                self.clear_input_warning(ctx, snapshot);
                 self.stream.set_connected(ctx, true);
             }
             Err(error) => {
                 logerror!("Failed to start UDP transport: {}", error);
                 self.transport = None;
                 self.last_transport_config = None;
-                self.set_receiver_warning(ctx, snapshot, error.as_str());
+                self.set_input_warning(ctx, snapshot, error.as_str());
                 self.stream.set_connected(ctx, false);
             }
         }
     }
 
     fn transport_binding(&self, snapshot: &ProcessTreeSnapshot) -> Result<UdpTransportBinding, String> {
-        let receiver_id = self
+        let input_id = self
             .stream
-            .receiver_node_id(snapshot)
-            .ok_or_else(|| "missing UDP receiver folder 'parameters/receiver'".to_string())?;
+            .connection_child_node_id(snapshot, UDP_INPUT_DECL_ID)
+            .ok_or_else(|| "missing UDP input folder 'connection/input'".to_string())?;
         let receive_enabled = snapshot
-            .node(receiver_id)
+            .node(input_id)
             .map(|node| node.enabled)
-            .ok_or_else(|| "missing UDP receiver folder 'parameters/receiver'".to_string())?;
+            .ok_or_else(|| "missing UDP input folder 'connection/input'".to_string())?;
 
         let bind_port = if receive_enabled {
             u16::try_from(self.port.get())
-                .map_err(|_| "UDP port 'parameters/receiver/port' must be between 0 and 65535".to_string())?
+                .map_err(|_| "UDP port 'connection/input/port' must be between 0 and 65535".to_string())?
         } else {
             0
         };
@@ -251,7 +246,7 @@ impl UdpModule {
         })
     }
 
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         let mut worker_events = Vec::new();
         let Some(transport) = &self.transport else {
             return;
@@ -261,10 +256,19 @@ impl UdpModule {
             worker_events.push(event);
         }
 
+        let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice()) {
+                StreamingWorkerEvent::Bytes(bytes) if !processing_enabled => {
+                    if self.stream.log_incoming_enabled() {
+                        golden_core::log!(
+                            origin = self.id();
+                            format!("Received UDP {} (processing disabled)", format_bytes_for_log(bytes.as_slice()))
+                        );
+                    }
+                }
+                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
                     Ok(messages) => {
                         received_bytes = true;
                         if self.stream.log_incoming_enabled() {
@@ -412,7 +416,10 @@ impl UdpModule {
             .map_err(|error| format!("invalid UDP command payload: {error}"))
             .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
         {
-            logerror!(format!("Failed to handle UDP command {:?}: {error}", request.command_id));
+            logerror!(format!(
+                "Failed to handle UDP command {:?}: {error}",
+                request.command_id
+            ));
         }
     }
 
@@ -431,14 +438,14 @@ impl UdpModule {
             || (self.port.is_bound() && self.port.id() == param)
     }
 
-    fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        self.stream.receiver_enabled(snapshot)
+    fn input_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
+        self.stream.connection_child_enabled(snapshot, UDP_INPUT_DECL_ID)
     }
 
     fn outputs_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
         self.outputs.current_id().or_else(|| {
-            let parameters_id = self.stream.parameters_id()?;
-            snapshot.find_child(parameters_id, "outputs")
+            let connection_id = self.stream.connection_id()?;
+            snapshot.find_child_by_decl_id(connection_id, "outputs")
         })
     }
 
@@ -451,24 +458,24 @@ impl UdpModule {
         self.stream.set_data_capabilities(
             ctx,
             crate::app::module::ModuleDataCapabilities::new(
-                self.receiver_enabled(snapshot).unwrap_or(false),
+                self.input_enabled(snapshot).unwrap_or(false),
                 self.outputs_enabled(snapshot).unwrap_or(false),
             ),
         );
     }
 
-    fn set_receiver_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
-        let Some(receiver_id) = self.stream.receiver_node_id(snapshot) else {
+    fn set_input_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
+        let Some(input_id) = self.stream.connection_child_node_id(snapshot, UDP_INPUT_DECL_ID) else {
             return;
         };
-        NodeHandle::new(receiver_id).set_warning_with(ctx, Some(UDP_RECEIVER_WARNING_ID), message, None);
+        NodeHandle::new(input_id).set_warning_with(ctx, Some(UDP_INPUT_WARNING_ID), message, None);
     }
 
-    fn clear_receiver_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let Some(receiver_id) = self.stream.receiver_node_id(snapshot) else {
+    fn clear_input_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        let Some(input_id) = self.stream.connection_child_node_id(snapshot, UDP_INPUT_DECL_ID) else {
             return;
         };
-        NodeHandle::new(receiver_id).clear_warning(ctx, Some(UDP_RECEIVER_WARNING_ID));
+        NodeHandle::new(input_id).clear_warning(ctx, Some(UDP_INPUT_WARNING_ID));
     }
 
     fn stop_transport(&mut self) {
@@ -511,7 +518,12 @@ impl Node for UdpModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events(ctx);
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+
+        self.drain_transport_events(ctx, snapshot);
         self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_interface_options = self.interface_refresh_due();
@@ -519,11 +531,6 @@ impl Node for UdpModule {
         if !needs_snapshot {
             return;
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
 
         if refresh_interface_options {
             self.refresh_interface_options(ctx);
@@ -568,7 +575,7 @@ impl Node for UdpModule {
                     self.stop_transport();
                     self.last_transport_config = None;
                     if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-                        self.clear_receiver_warning(ctx, snapshot_arc.as_ref());
+                        self.clear_input_warning(ctx, snapshot_arc.as_ref());
                     }
                     self.stream.set_connected(ctx, false);
                     self.transport_dirty = false;
@@ -620,7 +627,10 @@ mod tests {
         let (mut engine, module_id) = create_udp_module();
 
         let module = udp_module(&engine, module_id);
-        assert!(module.transport.is_some(), "UDP module should start a transport while enabled");
+        assert!(
+            module.transport.is_some(),
+            "UDP module should start a transport while enabled"
+        );
         assert!(
             module.last_transport_config.is_some(),
             "UDP module should retain its transport config while enabled"
@@ -630,7 +640,10 @@ mod tests {
         settle_transport_state(&mut engine);
 
         let module = udp_module(&engine, module_id);
-        assert!(module.transport.is_none(), "UDP module should stop its transport when disabled");
+        assert!(
+            module.transport.is_none(),
+            "UDP module should stop its transport when disabled"
+        );
         assert!(
             module.last_transport_config.is_none(),
             "UDP module should clear cached transport config while disabled"
@@ -640,7 +653,10 @@ mod tests {
         settle_transport_state(&mut engine);
 
         let module = udp_module(&engine, module_id);
-        assert!(module.transport.is_some(), "UDP module should restart its transport when re-enabled");
+        assert!(
+            module.transport.is_some(),
+            "UDP module should restart its transport when re-enabled"
+        );
         assert!(
             module.last_transport_config.is_some(),
             "UDP module should restore transport config after re-enable"
@@ -690,9 +706,7 @@ mod tests {
         engine
             .dispatch_inbox(ExecutionPhase::EngineTick)
             .expect("pending UDP edits should dispatch");
-        engine
-            .apply_edits()
-            .expect("UDP event reactions should apply");
+        engine.apply_edits().expect("UDP event reactions should apply");
         engine
             .run_tick(Duration::from_millis(20))
             .expect("UDP transport tick should succeed");

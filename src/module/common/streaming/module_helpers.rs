@@ -11,11 +11,8 @@ use crate::app::module::common::received_values::{
 };
 
 use super::{
-    commands::{
-        STREAMING_SEND_BYTES_COMMAND_NODE_TYPE, STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
-        STREAMING_SEND_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
-    },
-    parser::{decode_text_escape_sequences, StreamingIncomingMessage, StreamingParseConfig},
+    commands::STREAMING_COMMAND_NODE_TYPES,
+    parser::{StreamingIncomingMessage, StreamingParseConfig, StreamingSeparator},
 };
 
 pub(crate) struct StreamingIncomingQueue {
@@ -102,34 +99,24 @@ impl StreamingIncomingQueue {
 
 pub(crate) fn streaming_parse_config(
     mode: &str,
-    line_delimiter: &str,
-    value_separator: &str,
-    first_element: &str,
-    hierarchy_from_name: bool,
-    hierarchy_delimiter: &str,
+    name_separator: Option<&str>,
+    value_separator: Option<&str>,
+    hierarchy_separator: Option<&str>,
 ) -> StreamingParseConfig {
     StreamingParseConfig {
         mode: mode.to_string(),
-        line_delimiter: decode_text_escape_sequences(line_delimiter),
-        value_separator: decode_text_escape_sequences(value_separator),
-        first_element: first_element.to_string(),
-        hierarchy_from_name,
-        hierarchy_delimiter: decode_text_escape_sequences(hierarchy_delimiter),
+        name_separator: name_separator.and_then(StreamingSeparator::from_variant),
+        value_separator: value_separator.and_then(StreamingSeparator::from_variant),
+        hierarchy_separator: hierarchy_separator.and_then(StreamingSeparator::from_variant),
     }
 }
 
 pub(crate) fn streaming_command_type_supported(command_type: &str) -> bool {
-    matches!(
-        command_type,
-        STREAMING_SEND_STRING_COMMAND_NODE_TYPE
-            | STREAMING_SEND_BYTES_COMMAND_NODE_TYPE
-            | STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE
-            | STREAMING_SEND_VALUES_COMMAND_NODE_TYPE
-    )
+    STREAMING_COMMAND_NODE_TYPES.contains(&command_type)
 }
 
 pub(crate) fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<String> {
-    snapshot.find_child(parent, child_name).and_then(|child_id| {
+    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
         snapshot
             .node(child_id)
             .and_then(|node| node.param_value.as_ref())
@@ -138,7 +125,7 @@ pub(crate) fn child_string_param(snapshot: &ProcessTreeSnapshot, parent: NodeId,
 }
 
 pub(crate) fn child_int_param(snapshot: &ProcessTreeSnapshot, parent: NodeId, child_name: &str) -> Option<i32> {
-    snapshot.find_child(parent, child_name).and_then(|child_id| {
+    snapshot.find_child_by_decl_id(parent, child_name).and_then(|child_id| {
         snapshot
             .node(child_id)
             .and_then(|node| node.param_value.as_ref())

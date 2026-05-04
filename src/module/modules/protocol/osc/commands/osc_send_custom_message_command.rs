@@ -17,7 +17,8 @@ const OSC_SEND_CUSTOM_MESSAGE_DEFAULT_ADDRESS: &str = "/custom";
     );
     node arguments: crate::app::OscCommandArguments = crate::app::OscCommandArguments::create() (
         label = "Arguments",
-        description = "OSC arguments appended in child order. Vector-like values expand into multiple OSC arguments."
+        description = "OSC arguments appended in child order. Vector-like values expand into multiple OSC arguments.",
+        collapsed = true
     );
 )]
 pub struct OscSendCustomMessageCommand {

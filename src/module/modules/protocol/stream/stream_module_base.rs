@@ -15,8 +15,8 @@ use crate::app::module::{
 
 #[node("streaming_module_base", label = "Streaming Module")]
 #[children(
-    folder(parameters, label = "Parameters", reuse = true) {
-        folder(receiver, label = "Receiver", reuse = true, can_be_disabled = true) {
+    folder(parameters) {
+        folder(processing, label = "Processing", can_be_disabled = true) {
             auto_add: bool = true (
                 label = "Auto Add",
                 description = "Automatically create missing value nodes from incoming stream data."
@@ -26,26 +26,23 @@ use crate::app::module::{
                 description = "How incoming bytes are converted into values.",
                 enum_options = ["line (default)", "raw"]
             );
-            line_delimiter: String = "\\n".to_string() (
-                label = "Line Delimiter",
-                description = "Delimiter that terminates one incoming line. Escape sequences such as \\n, \\r, \\t, and \\xNN are supported."
+            name_separator: Enum = "space" (
+                label = "Name Separator",
+                description = "Separator between an incoming value name and its payload. Disable to receive unnamed values under 'received'.",
+                enum_options = streaming_separator_enum_options(),
+                can_be_disabled = true,
             );
-            value_separator: String = ",".to_string() (
+            value_separator: Enum = "colon" (
                 label = "Value Separator",
-                description = "Separator used to split one line into values. Leave empty to split on whitespace."
+                description = "Separator used to split one payload into multiple values. Disable to keep the payload as one value.",
+                enum_options = streaming_separator_enum_options(),
+                can_be_disabled = true,
             );
-            first_element: Enum = "name" (
-                label = "First Element",
-                description = "Whether the first line element is a parameter name or a value.",
-                enum_options = ["name (default)", "value"]
-            );
-            hierarchy_from_name: bool = true (
-                label = "Name Hierarchy",
-                description = "Split parameter names such as my.received.value into nested value folders."
-            );
-            hierarchy_delimiter: String = ".".to_string() (
-                label = "Hierarchy Delimiter",
-                description = "Delimiter used to split incoming parameter names into nested folders."
+            hierarchy_separator: Enum = "dot" (
+                label = "Hierarchy Separator",
+                description = "Separator used to split incoming value names into nested folders. Slash path segments are always supported.",
+                enum_options = streaming_separator_enum_options(),
+                can_be_disabled = true,
             );
         }
     }
@@ -69,34 +66,32 @@ impl StreamingModuleBase {
         self.base.parameters_id()
     }
 
-    pub(crate) fn parameter_child_node_id(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        child_name: &str,
-    ) -> Option<NodeId> {
-        let parameters_id = self.parameters_id()?;
-        snapshot.find_child(parameters_id, child_name)
+    pub(crate) fn connection_id(&self) -> Option<NodeId> {
+        self.base.connection_id()
     }
 
-    pub(crate) fn parameter_child_enabled(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-        child_name: &str,
-    ) -> Option<bool> {
-        let child_id = self.parameter_child_node_id(snapshot, child_name)?;
+    pub(crate) fn parameter_child_node_id(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<NodeId> {
+        let parameters_id = self.parameters_id()?;
+        snapshot.find_child_by_decl_id(parameters_id, child_decl_id)
+    }
+
+    pub(crate) fn parameter_child_enabled(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<bool> {
+        let child_id = self.parameter_child_node_id(snapshot, child_decl_id)?;
         snapshot.node(child_id).map(|node| node.enabled)
     }
 
-    pub(crate) fn receiver_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        self.parameter_child_node_id(snapshot, "receiver")
+    pub(crate) fn connection_child_node_id(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<NodeId> {
+        let connection_id = self.connection_id()?;
+        snapshot.find_child_by_decl_id(connection_id, child_decl_id)
     }
 
-    pub(crate) fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        self.parameter_child_enabled(snapshot, "receiver")
+    pub(crate) fn connection_child_enabled(&self, snapshot: &ProcessTreeSnapshot, child_decl_id: &str) -> Option<bool> {
+        let child_id = self.connection_child_node_id(snapshot, child_decl_id)?;
+        snapshot.node(child_id).map(|node| node.enabled)
     }
 
-    pub(crate) fn sender_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        self.parameter_child_enabled(snapshot, "sender")
+    pub(crate) fn processing_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
+        self.parameter_child_enabled(snapshot, "processing")
     }
 
     pub(crate) fn has_pending_messages(&self) -> bool {
@@ -107,8 +102,12 @@ impl StreamingModuleBase {
         self.incoming.take_ignored_param_change(param)
     }
 
-    pub(crate) fn parse_bytes(&mut self, bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, String> {
-        let parse_config = self.current_parse_config();
+    pub(crate) fn parse_bytes(
+        &mut self,
+        bytes: &[u8],
+        snapshot: &ProcessTreeSnapshot,
+    ) -> Result<Vec<StreamingIncomingMessage>, String> {
+        let parse_config = self.current_parse_config(snapshot);
         self.parser.push_bytes(bytes, &parse_config)
     }
 
@@ -133,11 +132,7 @@ impl StreamingModuleBase {
         self.base.set_connected(ctx, connected);
     }
 
-    pub(crate) fn set_data_capabilities(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        capabilities: ModuleDataCapabilities,
-    ) {
+    pub(crate) fn set_data_capabilities(&mut self, ctx: &mut ProcessCtx, capabilities: ModuleDataCapabilities) {
         self.base.set_data_capabilities(ctx, capabilities);
     }
 
@@ -149,15 +144,37 @@ impl StreamingModuleBase {
         self.base.emit_outgoing_traffic(ctx);
     }
 
-    fn current_parse_config(&self) -> StreamingParseConfig {
+    fn current_parse_config(&self, snapshot: &ProcessTreeSnapshot) -> StreamingParseConfig {
         streaming_parse_config(
             self.parse_mode.get_ref().as_str(),
-            self.line_delimiter.get_ref().as_str(),
-            self.value_separator.get_ref().as_str(),
-            self.first_element.get_ref().as_str(),
-            self.hierarchy_from_name.get(),
-            self.hierarchy_delimiter.get_ref().as_str(),
+            self.enabled_separator_variant(
+                snapshot,
+                self.name_separator.id(),
+                self.name_separator.get_ref().as_str(),
+            ),
+            self.enabled_separator_variant(
+                snapshot,
+                self.value_separator.id(),
+                self.value_separator.get_ref().as_str(),
+            ),
+            self.enabled_separator_variant(
+                snapshot,
+                self.hierarchy_separator.id(),
+                self.hierarchy_separator.get_ref().as_str(),
+            ),
         )
+    }
+
+    fn enabled_separator_variant<'a>(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        node: NodeId,
+        variant: &'a str,
+    ) -> Option<&'a str> {
+        match snapshot.node(node) {
+            Some(node) if !node.enabled => None,
+            _ => Some(variant),
+        }
     }
 }
 
@@ -169,39 +186,75 @@ impl Node for StreamingModuleBase {
     }
 }
 
+fn streaming_separator_enum_options() -> Vec<golden_core::parameter::ParameterEnumOption> {
+    [
+        ("comma", "Comma (,)"),
+        ("space", "Space"),
+        ("colon", "Colon (:)"),
+        ("semicolon", "Semicolon (;)"),
+        ("dot", "Dot (.)"),
+        ("tab", "Tab (\\t)"),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(
+        |(index, (variant_id, label))| golden_core::parameter::ParameterEnumOption {
+            variant_id: variant_id.to_string(),
+            value: golden_core::parameter::ParamValue::Enum(variant_id.to_string()),
+            label: label.to_string(),
+            tags: Vec::new(),
+            ordering: Some(index as i32),
+        },
+    )
+    .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use golden_core::node::{Folder, Node, NodeId};
 
-    const COMMON_RECEIVER_PARAM_DECL_IDS: &[&str] = &[
+    const COMMON_PROCESSING_PARAM_DECL_IDS: &[&str] = &[
         "auto_add",
         "parse_mode",
-        "line_delimiter",
+        "name_separator",
         "value_separator",
-        "first_element",
-        "hierarchy_from_name",
-        "hierarchy_delimiter",
+        "hierarchy_separator",
     ];
 
+    const DISABLEABLE_SEPARATOR_PARAM_DECL_IDS: &[&str] = &["name_separator", "value_separator", "hierarchy_separator"];
+
     #[test]
-    fn concrete_stream_modules_materialize_common_receiver_params_once() {
-        assert_common_receiver_params_once(crate::app::SerialModule::create().into(), "Serial");
-        assert_common_receiver_params_once(crate::app::TcpModule::create().into(), "TCP");
-        assert_common_receiver_params_once(crate::app::UdpModule::create().into(), "UDP");
+    fn concrete_stream_modules_materialize_common_processing_params_once() {
+        assert_common_processing_params_once(crate::app::SerialModule::create().into(), "Serial");
+        assert_common_processing_params_once(crate::app::TcpClientModule::create().into(), "TCP");
+        assert_common_processing_params_once(crate::app::UdpModule::create().into(), "UDP");
     }
 
-    fn assert_common_receiver_params_once(module: crate::app::AppNode, label: &str) {
+    fn assert_common_processing_params_once(module: crate::app::AppNode, label: &str) {
         let (engine, module_id) = create_engine_with_module(module);
         let parameters_id = find_child_by_key(&engine, module_id, "parameters")
             .unwrap_or_else(|| panic!("{label} module should have a parameters folder"));
-        let receiver_id = find_child_by_key(&engine, parameters_id, "receiver")
-            .unwrap_or_else(|| panic!("{label} module should have a receiver folder"));
+        let processing_id = find_child_by_key(&engine, parameters_id, "processing")
+            .unwrap_or_else(|| panic!("{label} module should have a processing folder"));
 
-        for decl_id in COMMON_RECEIVER_PARAM_DECL_IDS {
-            let count = count_direct_children_by_key(&engine, receiver_id, decl_id);
+        for decl_id in COMMON_PROCESSING_PARAM_DECL_IDS {
+            let count = count_direct_children_by_key(&engine, processing_id, decl_id);
             assert_eq!(
                 count, 1,
-                "{label} receiver should materialize exactly one '{decl_id}' parameter"
+                "{label} processing should materialize exactly one '{decl_id}' parameter"
+            );
+        }
+
+        for decl_id in DISABLEABLE_SEPARATOR_PARAM_DECL_IDS {
+            let param_id = find_child_by_key(&engine, processing_id, decl_id)
+                .unwrap_or_else(|| panic!("{label} processing should contain '{decl_id}'"));
+            let param = engine
+                .nodes
+                .get(param_id)
+                .unwrap_or_else(|| panic!("{label} processing '{decl_id}' parameter should exist"));
+            assert!(
+                param.node_data().meta.can_be_disabled,
+                "{label} processing '{decl_id}' parameter should be disableable"
             );
         }
     }
@@ -224,11 +277,7 @@ mod tests {
         (engine, module_id)
     }
 
-    fn find_child_by_key(
-        engine: &crate::app::AppEngine,
-        parent: NodeId,
-        key: &str,
-    ) -> Option<NodeId> {
+    fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) -> Option<NodeId> {
         let mut current = engine.nodes.get(parent)?.node_data().first_child;
         while let Some(child_id) = current {
             let child = engine.nodes.get(child_id)?;
@@ -240,16 +289,9 @@ mod tests {
         None
     }
 
-    fn count_direct_children_by_key(
-        engine: &crate::app::AppEngine,
-        parent: NodeId,
-        key: &str,
-    ) -> usize {
+    fn count_direct_children_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) -> usize {
         let mut count = 0;
-        let mut current = engine
-            .nodes
-            .get(parent)
-            .and_then(|node| node.node_data().first_child);
+        let mut current = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
         while let Some(child_id) = current {
             let child = engine
                 .nodes

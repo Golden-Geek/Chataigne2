@@ -7,6 +7,12 @@ pub(crate) const STREAMING_SEND_STRING_COMMAND_NODE_TYPE: &str = "streaming_send
 pub(crate) const STREAMING_SEND_BYTES_COMMAND_NODE_TYPE: &str = "streaming_send_bytes_command";
 pub(crate) const STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE: &str = "streaming_send_hex_string_command";
 pub(crate) const STREAMING_SEND_VALUES_COMMAND_NODE_TYPE: &str = "streaming_send_values_command";
+pub(crate) const STREAMING_COMMAND_NODE_TYPES: &[&str] = &[
+    STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+    STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
+    STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
+    STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
+];
 
 pub(crate) const LINE_ENDING_NONE: &str = "none";
 pub(crate) const LINE_ENDING_NL: &str = "nl";

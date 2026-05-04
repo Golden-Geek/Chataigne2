@@ -98,7 +98,7 @@ mod tests {
                 crate::app::SerialModule::DEFAULT_LABEL,
             ),
             (crate::app::UdpModule::NODE_TYPE, crate::app::UdpModule::DEFAULT_LABEL),
-            (crate::app::TcpModule::NODE_TYPE, crate::app::TcpModule::DEFAULT_LABEL),
+            (crate::app::TcpClientModule::NODE_TYPE, crate::app::TcpClientModule::DEFAULT_LABEL),
         ] {
             let item = items
                 .iter()

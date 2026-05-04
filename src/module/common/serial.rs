@@ -72,8 +72,6 @@ static SERIAL_DISCOVERY_STATE: LazyLock<Mutex<SerialDiscoveryState>> =
 pub(crate) struct SerialConnectionConfig {
     pub port_name: String,
     pub baud_rate: u32,
-    pub receive_enabled: bool,
-    pub send_enabled: bool,
     pub dtr: bool,
     pub rts: bool,
 }
@@ -489,7 +487,6 @@ fn serial_connection_worker_loop(
                     &event_tx,
                     &mut pending_writes,
                     &mut pending_write_bytes,
-                    config.send_enabled,
                 ) {
                     WorkerLoopControl::Continue => {}
                     WorkerLoopControl::Stop => break,
@@ -506,7 +503,6 @@ fn serial_connection_worker_loop(
             &event_tx,
             &mut pending_writes,
             &mut pending_write_bytes,
-            config.send_enabled,
         ) {
             WorkerLoopControl::Continue => {}
             WorkerLoopControl::Stop => break,
@@ -534,52 +530,34 @@ fn serial_connection_worker_loop(
                 continue;
             }
 
-            if config.receive_enabled {
-                match active_port.read(&mut buffer) {
-                    Ok(length) if length > 0 => {
-                        if event_tx
-                            .send(SerialConnectionEvent::Bytes(buffer[..length].to_vec()))
-                            .is_err()
-                        {
-                            return;
-                        }
-                    }
-                    Ok(_) => {}
-                    Err(error)
-                        if error.kind() == std::io::ErrorKind::TimedOut
-                            || error.kind() == std::io::ErrorKind::WouldBlock => {}
-                    Err(error) => {
-                        port = None;
-                        if !enter_recovery(
-                            &event_tx,
-                            &connected,
-                            &mut last_status,
-                            &mut reconnect_delay,
-                            &mut next_open_at,
-                            config.port_name.as_str(),
-                            format_read_error(config.port_name.as_str(), &error),
-                        ) {
-                            return;
-                        }
+            match active_port.read(&mut buffer) {
+                Ok(length) if length > 0 => {
+                    if event_tx
+                        .send(SerialConnectionEvent::Bytes(buffer[..length].to_vec()))
+                        .is_err()
+                    {
+                        return;
                     }
                 }
-                continue;
+                Ok(_) => {}
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::TimedOut
+                        || error.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(error) => {
+                    port = None;
+                    if !enter_recovery(
+                        &event_tx,
+                        &connected,
+                        &mut last_status,
+                        &mut reconnect_delay,
+                        &mut next_open_at,
+                        config.port_name.as_str(),
+                        format_read_error(config.port_name.as_str(), &error),
+                    ) {
+                        return;
+                    }
+                }
             }
-        }
-
-        match command_rx.recv_timeout(SERIAL_IO_TIMEOUT) {
-            Ok(command) => match handle_worker_command(
-                command,
-                &event_tx,
-                &mut pending_writes,
-                &mut pending_write_bytes,
-                config.send_enabled,
-            ) {
-                WorkerLoopControl::Continue => {}
-                WorkerLoopControl::Stop => break,
-            },
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
     }
 
@@ -591,7 +569,6 @@ fn drain_commands(
     event_tx: &Sender<SerialConnectionEvent>,
     pending_writes: &mut VecDeque<Vec<u8>>,
     pending_write_bytes: &mut usize,
-    send_enabled: bool,
 ) -> WorkerLoopControl {
     loop {
         match command_rx.try_recv() {
@@ -600,7 +577,6 @@ fn drain_commands(
                 event_tx,
                 pending_writes,
                 pending_write_bytes,
-                send_enabled,
             ) {
                 WorkerLoopControl::Continue => {}
                 WorkerLoopControl::Stop => return WorkerLoopControl::Stop,
@@ -616,18 +592,10 @@ fn handle_worker_command(
     event_tx: &Sender<SerialConnectionEvent>,
     pending_writes: &mut VecDeque<Vec<u8>>,
     pending_write_bytes: &mut usize,
-    send_enabled: bool,
 ) -> WorkerLoopControl {
     match command {
         SerialConnectionCommand::Stop => WorkerLoopControl::Stop,
         SerialConnectionCommand::Send(bytes) => {
-            if !send_enabled {
-                let _ = event_tx.send(SerialConnectionEvent::Warning(
-                    "serial sender is disabled; outgoing bytes were dropped".to_string(),
-                ));
-                return WorkerLoopControl::Continue;
-            }
-
             enqueue_pending_write(event_tx, pending_writes, pending_write_bytes, bytes);
             WorkerLoopControl::Continue
         }

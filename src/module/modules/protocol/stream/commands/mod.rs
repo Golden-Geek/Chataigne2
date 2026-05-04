@@ -104,69 +104,6 @@ impl Node for StreamingCommandValues {
     }
 }
 
-#[node("streaming_command_tester", label = "Command Tester")]
-pub struct StreamingCommandTester {
-    manager: crate::app::ModuleCommandManagerBase,
-}
-
-impl StreamingCommandTester {
-    pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandManagerBase::new())
-    }
-}
-
-#[node("streaming_command_tester", via = manager, from_struct)]
-impl Node for StreamingCommandTester {
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == "streaming_command_tester").then(Self::create)
-    }
-
-    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![
-            UserCreatableItem::new(
-                STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
-                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
-                "Send String",
-            )
-            .with_select_when_created(false),
-            UserCreatableItem::new(
-                STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
-                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
-                "Send Bytes",
-            )
-            .with_select_when_created(false),
-            UserCreatableItem::new(
-                STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,
-                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
-                "Send Hex String",
-            )
-            .with_select_when_created(false),
-            UserCreatableItem::new(
-                STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
-                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
-                "Send Values",
-            )
-            .with_select_when_created(false),
-        ]
-    }
-
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        match node_type {
-            STREAMING_SEND_STRING_COMMAND_NODE_TYPE => Some(Box::new(StreamingSendStringCommand::create())),
-            STREAMING_SEND_BYTES_COMMAND_NODE_TYPE => Some(Box::new(StreamingSendBytesCommand::create())),
-            STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE => Some(Box::new(StreamingSendHexStringCommand::create())),
-            STREAMING_SEND_VALUES_COMMAND_NODE_TYPE => Some(Box::new(StreamingSendValuesCommand::create())),
-            _ => None,
-        }
-    }
-
-    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            self.manager.ensure_command_tester_controls(ctx, child);
-        }
-    }
-}
-
 #[node("streaming_send_string_command", label = "Send String")]
 #[children(
     text: String = String::new() (
@@ -176,7 +113,7 @@ impl Node for StreamingCommandTester {
     line_ending: golden_core::parameter::Enum = LINE_ENDING_NONE (
         label = "Line Ending",
         description = "Optional line ending appended to the sent text.",
-        enum_options = ["none (default)", "nl", "cr", "crlf"]
+        enum_options = ["None", "NL (\\n) (default)", "CR (\\r)", "CRLF (\\r\\n)"]
     );
 )]
 pub struct StreamingSendStringCommand {
@@ -393,7 +330,7 @@ mod tests {
     use golden_core::node::NodeMeta;
 
     use super::{
-        StreamingCommandTester, StreamingSendBytesCommand, StreamingSendHexStringCommand,
+        StreamingSendBytesCommand, StreamingSendHexStringCommand,
         StreamingSendStringCommand, StreamingSendValuesCommand, STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
         STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE, STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
         STREAMING_SEND_VALUES_COMMAND_NODE_TYPE,
@@ -420,7 +357,9 @@ mod tests {
 
     #[test]
     fn command_tester_accepts_streaming_command_items() {
-        let tester = StreamingCommandTester::create();
+        let tester = crate::app::ModuleCommandTester::create(
+            crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+        );
         let commands: Vec<Box<dyn Node>> = vec![
             Box::new(StreamingSendStringCommand::create()),
             Box::new(StreamingSendBytesCommand::create()),
@@ -439,9 +378,9 @@ mod tests {
     }
 
     #[test]
-    fn streaming_command_tester_decodes_from_project_node_type() {
+    fn streaming_command_nodes_decode_from_project_node_type() {
         let node_types = [
-            "streaming_command_tester",
+            "module_command_tester",
             STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
             STREAMING_SEND_BYTES_COMMAND_NODE_TYPE,
             STREAMING_SEND_HEX_STRING_COMMAND_NODE_TYPE,

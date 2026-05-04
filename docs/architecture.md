@@ -40,6 +40,8 @@ all command implementations inherit the same trigger and tester-control placemen
 Inspector visibility is opt-out. `golden_core::node::PresentationHint` defaults nested inspector
 visibility on for every node; only nodes that should disappear from a parent inspector should set
 `show_in_nested_inspector = false`.
+Declared folders and child nodes can set `collapsed = true` in `#[children(...)]`; this is only the
+initial UI state, and local user expansion/collapse choices take precedence after interaction.
 
 Generated code is not edited by hand. See [contributor-map.md](contributor-map.md) for the generated
 file list and validation checklist.

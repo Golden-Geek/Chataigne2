@@ -62,11 +62,13 @@ impl ModuleDataCapabilities {
         );
         log_incoming: bool = false (
             label = "Log Incoming",
-            description = "Whether incoming module traffic should be recorded in logs."
+            description = "Whether incoming module traffic should be recorded in logs.",
+            show_in_inspector_content = false
         );
         log_outgoing: bool = false (
             label = "Log Outgoing",
-            description = "Whether outgoing module traffic should be recorded in logs."
+            description = "Whether outgoing module traffic should be recorded in logs.",
+            show_in_inspector_content = false
         );
     }
     folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.5, 0.1, 1.0)) {}
@@ -82,6 +84,10 @@ pub struct ModuleBase {
 }
 
 impl ModuleBase {
+    pub fn connection_id(&self) -> Option<NodeId> {
+        self.connection_folder.current_id()
+    }
+
     pub fn parameters_id(&self) -> Option<NodeId> {
         self.parameters_folder.current_id()
     }

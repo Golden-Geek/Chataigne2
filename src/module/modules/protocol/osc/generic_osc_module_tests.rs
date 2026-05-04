@@ -167,7 +167,7 @@ fn sparse_project_serialization_omits_unchanged_osc_defaults() {
         "omitted connection defaults should be restored"
     );
     assert!(
-        find_path(&loaded, loaded_module, "parameters/outputs").is_some(),
+        find_path(&loaded, loaded_module, "connection/outputs").is_some(),
         "omitted output defaults should be restored"
     );
     assert!(
@@ -199,7 +199,7 @@ fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
         .get(manager_id)
         .and_then(|manager| manager.node_data().first_child)
         .expect("osc module should be attached under manager");
-    let port_id = find_path(&engine, module_id, "parameters/receiver/port").expect("receiver port param should exist");
+    let port_id = find_path(&engine, module_id, "connection/input/port").expect("receiver port param should exist");
     set_param(&mut engine, port_id, ParamValue::Int(9001));
     engine.apply_edits().expect("receiver port edit should apply");
 
@@ -224,23 +224,23 @@ fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
         .and_then(serde_json::Value::as_array)
         .and_then(|children| children.first())
         .expect("osc module record should be saved under the module manager");
-    let parameters_record = json_child_by_decl(module_record, "parameters");
-    let receiver_record = json_child_by_decl(parameters_record, "parameters/receiver");
-    let port_record = json_child_by_decl(receiver_record, "parameters/receiver/port");
+    let connection_record = json_child_by_decl(module_record, "connection");
+    let input_record = json_child_by_decl(connection_record, "connection/input");
+    let port_record = json_child_by_decl(input_record, "connection/input/port");
 
     assert_eq!(
-        parameters_record.get("meta"),
-        Some(&serde_json::json!({ "decl_id": "parameters" })),
+        connection_record.get("meta"),
+        Some(&serde_json::json!({ "decl_id": "connection" })),
         "declared ancestor folders should only carry their declaration path"
     );
     assert_eq!(
-        receiver_record.get("meta"),
-        Some(&serde_json::json!({ "decl_id": "parameters/receiver" })),
+        input_record.get("meta"),
+        Some(&serde_json::json!({ "decl_id": "connection/input" })),
         "declared receiver folder defaults should stay app-owned"
     );
     assert_eq!(
         port_record.get("meta"),
-        Some(&serde_json::json!({ "decl_id": "parameters/receiver/port" })),
+        Some(&serde_json::json!({ "decl_id": "connection/input/port" })),
         "declared port label and static metadata should stay app-owned"
     );
     assert_eq!(
@@ -261,7 +261,7 @@ fn sparse_project_serialization_saves_only_changed_declared_osc_port_delta() {
         .and_then(|manager| manager.node_data().first_child)
         .expect("osc module should reload");
     let loaded_port =
-        find_path(&loaded, loaded_module, "parameters/receiver/port").expect("receiver port should reload");
+        find_path(&loaded, loaded_module, "connection/input/port").expect("receiver port should reload");
     let loaded_port_node = loaded.nodes.get(loaded_port).expect("receiver port node should exist");
     let snapshot = loaded_port_node
         .engine_param_snapshot()
@@ -295,10 +295,10 @@ fn osc_module_connection_indicators_follow_receiver_and_outputs() {
         .expect("module incoming capability parameter should exist");
     let can_send_param = find_path(&engine, module_id, "connection/can_send")
         .expect("module outgoing capability parameter should exist");
-    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
+    let receiver_folder = find_path(&engine, module_id, "connection/input").expect("receiver folder should exist");
     let receiver_port_param =
-        find_path(&engine, module_id, "parameters/receiver/port").expect("receiver port param should exist");
-    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
+        find_path(&engine, module_id, "connection/input/port").expect("receiver port param should exist");
+    let outputs_id = find_path(&engine, module_id, "connection/outputs").expect("outputs folder should exist");
 
     assert!(
         engine
@@ -863,7 +863,7 @@ fn create_osc_module_with_output(receiver_port: u16) -> (crate::app::AppEngine, 
         .and_then(|root| root.node_data().first_child)
         .expect("module should be attached under root");
 
-    let receiver_folder = find_path(&engine, module_id, "parameters/receiver").expect("receiver folder should exist");
+    let receiver_folder = find_path(&engine, module_id, "connection/input").expect("receiver folder should exist");
     engine.edits.push(Edit::PatchMeta {
         node: receiver_folder,
         patch: NodeMetaPatch {
@@ -872,7 +872,7 @@ fn create_osc_module_with_output(receiver_port: u16) -> (crate::app::AppEngine, 
         },
     });
 
-    let outputs_id = find_path(&engine, module_id, "parameters/outputs").expect("outputs folder should exist");
+    let outputs_id = find_path(&engine, module_id, "connection/outputs").expect("outputs folder should exist");
     let output_id = engine
         .nodes
         .get(outputs_id)

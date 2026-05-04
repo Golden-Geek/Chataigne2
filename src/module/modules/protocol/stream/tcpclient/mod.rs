@@ -19,45 +19,39 @@ use crate::app::{
 
 use self::transport::{StreamingWorkerEvent, TcpStreamingTransportConfig, TcpStreamingTransportHandle};
 
-const TCP_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const TCP_TARGET_WARNING_ID: &str = "tcp_target_transport";
+const TCP_CLIENT_MODULE_UPDATE_RATE_HZ: u32 = 120;
+const TCP_CLIENT_TARGET_WARNING_ID: &str = "tcp_client_target_transport";
 
-#[node("tcp_module", label = "TCP")]
+#[node("tcp_client_module", label = "TCP Client")]
 #[children(
-    folder(parameters, label = "Parameters", reuse = true) {
-        folder(target, label = "Target") {
-            remote_host: String = "127.0.0.1".to_string() (
-                label = "Remote Host",
-                description = "TCP server hostname or IP address."
-            );
-            remote_port: i32 = 9002 [0..65535] (
-                label = "Remote Port",
-                description = "TCP server port.",
-                widget = "text"
-            );
-        }
-        folder(sender, label = "Sender", can_be_disabled = true) {}
+    folder(connection) {
+        remote_host: String = "127.0.0.1".to_string() (
+            label = "Remote Host",
+            description = "TCP server hostname or IP address."
+        );
+        remote_port: i32 = 9002 [0..65535] (
+            label = "Remote Port",
+            description = "TCP server port to connect to.",
+            widget = "text"
+        );
     }
-    node command_tester: crate::app::StreamingCommandTester = crate::app::StreamingCommandTester::create() (
+    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
+        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+    ) (
         label = "Command Tester",
         description = "Create and trigger ad-hoc streaming commands through this module."
     );
 )]
-pub struct TcpModule {
+pub struct TcpClientModule {
     stream: StreamingModuleBase,
     transport: Option<TcpStreamingTransportHandle>,
     last_transport_config: Option<TcpStreamingTransportConfig>,
     transport_dirty: bool,
 }
 
-impl TcpModule {
+impl TcpClientModule {
     pub fn create() -> Self {
-        Self::new(
-            StreamingModuleBase::create(),
-            None,
-            None,
-            true,
-        )
+        Self::new(StreamingModuleBase::create(), None, None, true)
     }
 
     fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
@@ -75,15 +69,8 @@ impl TcpModule {
             return;
         }
 
-        let config = match self.transport_config(snapshot) {
-            Ok(Some(config)) => config,
-            Ok(None) => {
-                self.stop_transport();
-                self.last_transport_config = None;
-                self.clear_target_warning(ctx, snapshot);
-                self.stream.set_connected(ctx, false);
-                return;
-            }
+        let config = match self.transport_config() {
+            Ok(config) => config,
             Err(error) => {
                 logerror!("Invalid TCP module configuration: {}", error);
                 self.stop_transport();
@@ -119,29 +106,23 @@ impl TcpModule {
         }
     }
 
-    fn transport_config(&self, snapshot: &ProcessTreeSnapshot) -> Result<Option<TcpStreamingTransportConfig>, String> {
-        let receive_enabled = self.receiver_enabled(snapshot).unwrap_or(false);
-        let send_enabled = self.sender_enabled(snapshot).unwrap_or(false);
-        if !receive_enabled && !send_enabled {
-            return Ok(None);
-        }
-
+    fn transport_config(&self) -> Result<TcpStreamingTransportConfig, String> {
         let remote_host = self.remote_host.get_ref().clone();
         if remote_host.trim().is_empty() {
             return Err("TCP remote host cannot be empty".to_string());
         }
         let remote_port = u16::try_from(self.remote_port.get())
-            .map_err(|_| "TCP remote port 'parameters/target/remote_port' must be between 0 and 65535".to_string())?;
+            .map_err(|_| "TCP remote port 'connection/target/remote_port' must be between 0 and 65535".to_string())?;
 
-        Ok(Some(TcpStreamingTransportConfig {
+        Ok(TcpStreamingTransportConfig {
             remote_host,
             remote_port,
-            receive_enabled,
-            send_enabled,
-        }))
+            receive_enabled: true,
+            send_enabled: true,
+        })
     }
 
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         let mut worker_events = Vec::new();
         let Some(transport) = &self.transport else {
             return;
@@ -151,10 +132,19 @@ impl TcpModule {
             worker_events.push(event);
         }
 
+        let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
         let mut received_bytes = false;
         for event in worker_events {
             match event {
-                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice()) {
+                StreamingWorkerEvent::Bytes(bytes) if !processing_enabled => {
+                    if self.stream.log_incoming_enabled() {
+                        golden_core::log!(
+                            origin = self.id();
+                            format!("Received TCP {} (processing disabled)", format_bytes_for_log(bytes.as_slice()))
+                        );
+                    }
+                }
+                StreamingWorkerEvent::Bytes(bytes) => match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
                     Ok(messages) => {
                         received_bytes = true;
                         if self.stream.log_incoming_enabled() {
@@ -187,13 +177,9 @@ impl TcpModule {
     fn queue_send_request(
         &self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
+        _snapshot: &ProcessTreeSnapshot,
         request: &StreamingSendRequest,
     ) -> Result<String, String> {
-        if !self.sender_enabled(snapshot).unwrap_or(false) {
-            return Err("TCP sender is disabled".to_string());
-        }
-
         let transport = self
             .transport
             .as_ref()
@@ -228,7 +214,10 @@ impl TcpModule {
             .map_err(|error| format!("invalid TCP command payload: {error}"))
             .and_then(|payload| self.queue_send_request(ctx, snapshot, &payload))
         {
-            logerror!(format!("Failed to handle TCP command {:?}: {error}", request.command_id));
+            logerror!(format!(
+                "Failed to handle TCP command {:?}: {error}",
+                request.command_id
+            ));
         }
     }
 
@@ -247,40 +236,27 @@ impl TcpModule {
             || (self.remote_port.is_bound() && self.remote_port.id() == param)
     }
 
-    fn receiver_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        self.stream.receiver_enabled(snapshot)
-    }
-
-    fn sender_enabled(&self, snapshot: &ProcessTreeSnapshot) -> Option<bool> {
-        self.stream.sender_enabled(snapshot)
-    }
-
     fn target_node_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        self.stream.parameter_child_node_id(snapshot, "target")
+        self.stream.connection_child_node_id(snapshot, "target")
     }
 
-    fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        self.stream.set_data_capabilities(
-            ctx,
-            crate::app::module::ModuleDataCapabilities::new(
-                self.receiver_enabled(snapshot).unwrap_or(false),
-                self.sender_enabled(snapshot).unwrap_or(false),
-            ),
-        );
+    fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx, _snapshot: &ProcessTreeSnapshot) {
+        self.stream
+            .set_data_capabilities(ctx, crate::app::module::ModuleDataCapabilities::new(true, true));
     }
 
     fn set_target_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot, message: &str) {
         let Some(target_id) = self.target_node_id(snapshot) else {
             return;
         };
-        NodeHandle::new(target_id).set_warning_with(ctx, Some(TCP_TARGET_WARNING_ID), message, None);
+        NodeHandle::new(target_id).set_warning_with(ctx, Some(TCP_CLIENT_TARGET_WARNING_ID), message, None);
     }
 
     fn clear_target_warning(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         let Some(target_id) = self.target_node_id(snapshot) else {
             return;
         };
-        NodeHandle::new(target_id).clear_warning(ctx, Some(TCP_TARGET_WARNING_ID));
+        NodeHandle::new(target_id).clear_warning(ctx, Some(TCP_CLIENT_TARGET_WARNING_ID));
     }
 
     fn stop_transport(&mut self) {
@@ -292,12 +268,12 @@ impl TcpModule {
 
 #[golden_core::item(
     "module",
-    node = "tcp_module",
+    node = "tcp_client_module",
     via = stream,
     from_struct,
     menu_path = ["Generic"]
 )]
-impl Node for TcpModule {
+impl Node for TcpClientModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.stream.init(ctx);
         self.transport_dirty = true;
@@ -319,17 +295,17 @@ impl Node for TcpModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        self.drain_transport_events(ctx);
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+
+        self.drain_transport_events(ctx, snapshot);
 
         let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
-
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
 
         self.refresh_data_capabilities(ctx, snapshot);
 
@@ -349,7 +325,7 @@ impl Node for TcpModule {
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
-        NodeExecutionRule::periodic(TCP_MODULE_UPDATE_RATE_HZ)
+        NodeExecutionRule::periodic(TCP_CLIENT_MODULE_UPDATE_RATE_HZ)
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -392,10 +368,7 @@ impl Node for TcpModule {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        net::TcpListener,
-        time::Duration,
-    };
+    use std::{net::TcpListener, time::Duration};
 
     use golden_core::{
         edit::Edit,
@@ -404,7 +377,7 @@ mod tests {
         process_ctx::ExecutionPhase,
     };
 
-    use super::TcpModule;
+    use super::TcpClientModule;
 
     #[test]
     fn tcp_module_root_enable_toggle_stops_and_restarts_transport() {
@@ -414,19 +387,16 @@ mod tests {
             .expect("TCP test listener should expose a port")
             .port();
         let (mut engine, module_id) = create_tcp_module();
-        let remote_port_id = tcp_module(&engine, module_id)
-            .remote_port
-            .id();
+        let remote_port_id = tcp_module(&engine, module_id).remote_port.id();
 
-        set_param(
-            &mut engine,
-            remote_port_id,
-            ParamValue::Int(i32::from(port)),
-        );
+        set_param(&mut engine, remote_port_id, ParamValue::Int(i32::from(port)));
         settle_transport_state(&mut engine);
 
         let module = tcp_module(&engine, module_id);
-        assert!(module.transport.is_some(), "TCP module should start a transport while enabled");
+        assert!(
+            module.transport.is_some(),
+            "TCP module should start a transport while enabled"
+        );
         assert!(
             module.last_transport_config.is_some(),
             "TCP module should retain its transport config while enabled"
@@ -436,7 +406,10 @@ mod tests {
         settle_transport_state(&mut engine);
 
         let module = tcp_module(&engine, module_id);
-        assert!(module.transport.is_none(), "TCP module should stop its transport when disabled");
+        assert!(
+            module.transport.is_none(),
+            "TCP module should stop its transport when disabled"
+        );
         assert!(
             module.last_transport_config.is_none(),
             "TCP module should clear cached transport config while disabled"
@@ -446,7 +419,10 @@ mod tests {
         settle_transport_state(&mut engine);
 
         let module = tcp_module(&engine, module_id);
-        assert!(module.transport.is_some(), "TCP module should restart its transport when re-enabled");
+        assert!(
+            module.transport.is_some(),
+            "TCP module should restart its transport when re-enabled"
+        );
         assert!(
             module.last_transport_config.is_some(),
             "TCP module should restore transport config after re-enable"
@@ -458,7 +434,7 @@ mod tests {
     fn create_tcp_module() -> (crate::app::AppEngine, NodeId) {
         let root: crate::app::AppNode = Folder::new("root").into();
         let mut engine = crate::app::AppEngine::new(root);
-        engine.add_node(TcpModule::create().into(), None);
+        engine.add_node(TcpClientModule::create().into(), None);
         engine.apply_edits().expect("TCP module should attach");
         for _ in 0..4 {
             engine.apply_edits().expect("TCP defaults should materialize");
@@ -474,10 +450,11 @@ mod tests {
         (engine, module_id)
     }
 
-    fn tcp_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &TcpModule {
-        let crate::app::AppNode::TcpModule(module) = engine.nodes.get(module_id).expect("TCP module should exist")
+    fn tcp_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &TcpClientModule {
+        let crate::app::AppNode::TcpClientModule(module) =
+            engine.nodes.get(module_id).expect("TCP module should exist")
         else {
-            panic!("expected TcpModule node");
+            panic!("expected TcpClientModule node");
         };
 
         module
@@ -506,9 +483,7 @@ mod tests {
         engine
             .dispatch_inbox(ExecutionPhase::EngineTick)
             .expect("pending TCP edits should dispatch");
-        engine
-            .apply_edits()
-            .expect("TCP event reactions should apply");
+        engine.apply_edits().expect("TCP event reactions should apply");
         engine
             .run_tick(Duration::from_millis(20))
             .expect("TCP transport tick should succeed");

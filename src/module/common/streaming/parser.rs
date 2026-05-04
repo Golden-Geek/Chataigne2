@@ -4,30 +4,65 @@ use crate::app::module::common::received_values::ReceivedValuePayload;
 
 pub(crate) const STREAMING_INPUT_MODE_RAW: &str = "raw";
 pub(crate) const STREAMING_INPUT_MODE_LINE: &str = "line";
-pub(crate) const STREAMING_FIRST_ELEMENT_VALUE: &str = "value";
-pub(crate) const STREAMING_FIRST_ELEMENT_NAME: &str = "name";
+pub(crate) const STREAMING_SEPARATOR_COMMA: &str = "comma";
+pub(crate) const STREAMING_SEPARATOR_SPACE: &str = "space";
+pub(crate) const STREAMING_SEPARATOR_COLON: &str = "colon";
+pub(crate) const STREAMING_SEPARATOR_SEMICOLON: &str = "semicolon";
+pub(crate) const STREAMING_SEPARATOR_DOT: &str = "dot";
+pub(crate) const STREAMING_SEPARATOR_TAB: &str = "tab";
 pub(crate) const DEFAULT_RAW_VALUE_NAME: &str = "byte";
 pub(crate) const DEFAULT_LINE_VALUE_NAME: &str = "received";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StreamingSeparator {
+    Comma,
+    Space,
+    Colon,
+    Semicolon,
+    Dot,
+    Tab,
+}
+
+impl StreamingSeparator {
+    pub(crate) fn from_variant(variant: &str) -> Option<Self> {
+        match variant {
+            STREAMING_SEPARATOR_COMMA | "," => Some(Self::Comma),
+            STREAMING_SEPARATOR_SPACE | " " => Some(Self::Space),
+            STREAMING_SEPARATOR_COLON | ":" => Some(Self::Colon),
+            STREAMING_SEPARATOR_SEMICOLON | ";" => Some(Self::Semicolon),
+            STREAMING_SEPARATOR_DOT | "." => Some(Self::Dot),
+            STREAMING_SEPARATOR_TAB | "\\t" | "\t" => Some(Self::Tab),
+            _ => None,
+        }
+    }
+
+    fn character(self) -> char {
+        match self {
+            Self::Comma => ',',
+            Self::Space => ' ',
+            Self::Colon => ':',
+            Self::Semicolon => ';',
+            Self::Dot => '.',
+            Self::Tab => '\t',
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct StreamingParseConfig {
     pub mode: String,
-    pub line_delimiter: String,
-    pub value_separator: String,
-    pub first_element: String,
-    pub hierarchy_from_name: bool,
-    pub hierarchy_delimiter: String,
+    pub name_separator: Option<StreamingSeparator>,
+    pub value_separator: Option<StreamingSeparator>,
+    pub hierarchy_separator: Option<StreamingSeparator>,
 }
 
 impl Default for StreamingParseConfig {
     fn default() -> Self {
         Self {
             mode: STREAMING_INPUT_MODE_LINE.to_string(),
-            line_delimiter: "\n".to_string(),
-            value_separator: ",".to_string(),
-            first_element: STREAMING_FIRST_ELEMENT_NAME.to_string(),
-            hierarchy_from_name: true,
-            hierarchy_delimiter: ".".to_string(),
+            name_separator: Some(StreamingSeparator::Space),
+            value_separator: Some(StreamingSeparator::Colon),
+            hierarchy_separator: Some(StreamingSeparator::Dot),
         }
     }
 }
@@ -42,6 +77,7 @@ pub(crate) struct StreamingIncomingMessage {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct StreamingParser {
     pending_line_bytes: Vec<u8>,
+    skip_lf_after_cr: bool,
 }
 
 impl StreamingParser {
@@ -52,6 +88,7 @@ impl StreamingParser {
     ) -> Result<Vec<StreamingIncomingMessage>, String> {
         if config.mode == STREAMING_INPUT_MODE_RAW {
             self.pending_line_bytes.clear();
+            self.skip_lf_after_cr = false;
             return Ok(bytes
                 .iter()
                 .map(|byte| StreamingIncomingMessage {
@@ -62,18 +99,17 @@ impl StreamingParser {
                 .collect());
         }
 
-        let delimiter = config.line_delimiter.as_bytes();
-        if delimiter.is_empty() {
-            return Err("line delimiter cannot be empty".to_string());
-        }
+        let bytes = self.trim_paired_lf_after_split_cr(bytes);
 
         self.pending_line_bytes.extend_from_slice(bytes);
 
         let mut messages = Vec::new();
-        while let Some(delimiter_index) = find_subslice(self.pending_line_bytes.as_slice(), delimiter) {
+        while let Some((delimiter_index, delimiter_len, skip_lf_after_cr)) =
+            find_line_break(self.pending_line_bytes.as_slice())
+        {
             let line_bytes = self.pending_line_bytes[..delimiter_index].to_vec();
-            self.pending_line_bytes
-                .drain(..delimiter_index + delimiter.len());
+            self.pending_line_bytes.drain(..delimiter_index + delimiter_len);
+            self.skip_lf_after_cr = skip_lf_after_cr;
             if let Some(message) = parse_line(line_bytes.as_slice(), config) {
                 messages.push(message);
             }
@@ -81,37 +117,36 @@ impl StreamingParser {
 
         Ok(messages)
     }
+
+    fn trim_paired_lf_after_split_cr<'a>(&mut self, bytes: &'a [u8]) -> &'a [u8] {
+        if !self.skip_lf_after_cr {
+            return bytes;
+        }
+
+        self.skip_lf_after_cr = false;
+        if bytes.first() == Some(&b'\n') {
+            &bytes[1..]
+        } else {
+            bytes
+        }
+    }
 }
 
 pub(crate) fn parse_line(line_bytes: &[u8], config: &StreamingParseConfig) -> Option<StreamingIncomingMessage> {
     let line = String::from_utf8_lossy(line_bytes);
     let line = line.trim_matches(|character| character == '\r' || character == '\n');
-    if line.trim().is_empty() {
+    let line = line.trim();
+    if line.is_empty() {
         return None;
     }
 
-    let fields = split_fields(line, config.value_separator.as_str());
-    if fields.is_empty() {
+    let (name, value_text) = name_and_value_text(line, config.name_separator)?;
+    if name.is_empty() {
         return None;
     }
 
-    let (name, values) = if config.first_element == STREAMING_FIRST_ELEMENT_NAME {
-        let name = fields[0].trim();
-        if name.is_empty() {
-            return None;
-        }
-        (name.to_string(), fields[1..].to_vec())
-    } else if config.first_element == STREAMING_FIRST_ELEMENT_VALUE {
-        (DEFAULT_LINE_VALUE_NAME.to_string(), fields)
-    } else {
-        (DEFAULT_LINE_VALUE_NAME.to_string(), fields)
-    };
-
-    let path_segments = name_segments(
-        name.as_str(),
-        config.hierarchy_from_name,
-        config.hierarchy_delimiter.as_str(),
-    );
+    let values = split_value_fields(value_text, config.value_separator);
+    let path_segments = name_segments(name.as_str(), config.hierarchy_separator);
     if path_segments.is_empty() {
         return None;
     }
@@ -181,12 +216,7 @@ pub(crate) fn decode_value_fields(fields: &[String]) -> ReceivedValuePayload {
         return ReceivedValuePayload::Single(value);
     }
 
-    ReceivedValuePayload::Multi(
-        fields
-            .iter()
-            .map(|field| parse_scalar_value(field.as_str()))
-            .collect(),
-    )
+    ReceivedValuePayload::Multi(fields.iter().map(|field| parse_scalar_value(field.as_str())).collect())
 }
 
 pub(crate) fn parse_scalar_value(input: &str) -> ParamValue {
@@ -221,6 +251,22 @@ pub(crate) fn parse_scalar_value(input: &str) -> ParamValue {
     ParamValue::Str(trimmed.to_string())
 }
 
+fn name_and_value_text(line: &str, name_separator: Option<StreamingSeparator>) -> Option<(String, &str)> {
+    let Some(separator) = name_separator else {
+        return Some((DEFAULT_LINE_VALUE_NAME.to_string(), line));
+    };
+
+    if let Some((name, value_text)) = split_once_by_separator(line, separator) {
+        let name = name.trim();
+        if name.is_empty() {
+            return None;
+        }
+        return Some((name.to_string(), value_text.trim()));
+    }
+
+    Some((line.trim().to_string(), ""))
+}
+
 fn decode_vector_like_value(fields: &[String]) -> Option<ParamValue> {
     let numeric_values = fields
         .iter()
@@ -246,20 +292,20 @@ fn decode_vector_like_value(fields: &[String]) -> Option<ParamValue> {
     }
 }
 
-fn split_fields(line: &str, separator: &str) -> Vec<String> {
-    if separator.is_empty() {
-        return line
-            .split_whitespace()
-            .map(str::trim)
-            .filter(|field| !field.is_empty())
-            .map(str::to_string)
-            .collect();
+fn split_value_fields(text: &str, separator: Option<StreamingSeparator>) -> Vec<String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Vec::new();
     }
 
-    line.split(separator).map(str::trim).map(str::to_string).collect()
+    let Some(separator) = separator else {
+        return vec![text.to_string()];
+    };
+
+    split_all_by_separator(text, separator)
 }
 
-fn name_segments(name: &str, hierarchy_from_name: bool, hierarchy_delimiter: &str) -> Vec<String> {
+fn name_segments(name: &str, hierarchy_separator: Option<StreamingSeparator>) -> Vec<String> {
     let slash_segments = name
         .trim()
         .trim_matches('/')
@@ -269,20 +315,35 @@ fn name_segments(name: &str, hierarchy_from_name: bool, hierarchy_delimiter: &st
 
     let mut output = Vec::new();
     for slash_segment in slash_segments {
-        if hierarchy_from_name && !hierarchy_delimiter.is_empty() {
-            output.extend(
-                slash_segment
-                    .split(hierarchy_delimiter)
-                    .map(str::trim)
-                    .filter(|segment| !segment.is_empty())
-                    .map(str::to_string),
-            );
+        if let Some(separator) = hierarchy_separator {
+            output.extend(split_all_by_separator(slash_segment, separator));
         } else {
             output.push(slash_segment.to_string());
         }
     }
 
     output
+}
+
+fn split_once_by_separator(input: &str, separator: StreamingSeparator) -> Option<(&str, &str)> {
+    let separator = separator.character();
+    let index = input.find(separator)?;
+    let value_start = input[index..]
+        .char_indices()
+        .find(|(_, character)| *character != separator)
+        .map(|(offset, _)| index + offset)
+        .unwrap_or(input.len());
+
+    Some((&input[..index], &input[value_start..]))
+}
+
+fn split_all_by_separator(input: &str, separator: StreamingSeparator) -> Vec<String> {
+    input
+        .split(separator.character())
+        .map(str::trim)
+        .filter(|field| !field.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn parse_numeric_field(input: &str) -> Option<f64> {
@@ -294,9 +355,7 @@ fn parse_numeric_field(input: &str) -> Option<f64> {
 }
 
 fn parse_hex_int(input: &str) -> Option<i32> {
-    let without_prefix = input
-        .strip_prefix("0x")
-        .or_else(|| input.strip_prefix("0X"))?;
+    let without_prefix = input.strip_prefix("0x").or_else(|| input.strip_prefix("0X"))?;
     i32::from_str_radix(without_prefix, 16).ok()
 }
 
@@ -316,11 +375,21 @@ fn is_integer_text(input: &str) -> bool {
     parse_hex_int(trimmed).is_some() || trimmed.parse::<i32>().is_ok()
 }
 
-fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() {
-        return None;
+fn find_line_break(bytes: &[u8]) -> Option<(usize, usize, bool)> {
+    for (index, byte) in bytes.iter().enumerate() {
+        match *byte {
+            b'\n' => return Some((index, 1, false)),
+            b'\r' => {
+                if bytes.get(index + 1) == Some(&b'\n') {
+                    return Some((index, 2, false));
+                }
+                return Some((index, 1, index + 1 == bytes.len()));
+            }
+            _ => {}
+        }
     }
-    haystack.windows(needle.len()).position(|window| window == needle)
+
+    None
 }
 
 #[cfg(test)]
@@ -332,27 +401,54 @@ mod tests {
     #[test]
     fn line_parser_splits_named_hierarchy() {
         let config = StreamingParseConfig::default();
-        let message = parse_line(b"my.received.value,42\n", &config).expect("line should parse");
+        let message = parse_line(b"my.received.value 42\n", &config).expect("line should parse");
 
         assert_eq!(message.path_segments, vec!["my", "received", "value"]);
+        assert_eq!(message.payload, ReceivedValuePayload::Single(ParamValue::Int(42)));
+    }
+
+    #[test]
+    fn line_parser_supports_separate_name_and_value_separators() {
+        let config = StreamingParseConfig {
+            value_separator: Some(StreamingSeparator::Comma),
+            ..StreamingParseConfig::default()
+        };
+        let message = parse_line(b"my.value cool,3\n", &config).expect("line should parse");
+
+        assert_eq!(message.path_segments, vec!["my", "value"]);
         assert_eq!(
             message.payload,
-            ReceivedValuePayload::Single(ParamValue::Int(42))
+            ReceivedValuePayload::Multi(vec![ParamValue::Str("cool".to_string()), ParamValue::Int(3),])
         );
     }
 
     #[test]
-    fn line_parser_uses_default_name_for_value_lines() {
+    fn line_parser_uses_default_name_when_name_separator_is_disabled() {
         let config = StreamingParseConfig {
-            first_element: STREAMING_FIRST_ELEMENT_VALUE.to_string(),
+            name_separator: None,
             ..StreamingParseConfig::default()
         };
-        let message = parse_line(b"1.5,2.5\n", &config).expect("line should parse");
+        let message = parse_line(b"1.5:2.5\n", &config).expect("line should parse");
 
         assert_eq!(message.path_segments, vec![DEFAULT_LINE_VALUE_NAME]);
         assert_eq!(
             message.payload,
             ReceivedValuePayload::Single(ParamValue::Vec2(1.5, 2.5))
+        );
+    }
+
+    #[test]
+    fn line_parser_keeps_value_text_whole_when_value_separator_is_disabled() {
+        let config = StreamingParseConfig {
+            value_separator: None,
+            ..StreamingParseConfig::default()
+        };
+        let message = parse_line(b"message hello,3\n", &config).expect("line should parse");
+
+        assert_eq!(message.path_segments, vec!["message"]);
+        assert_eq!(
+            message.payload,
+            ReceivedValuePayload::Single(ParamValue::Str("hello,3".to_string()))
         );
     }
 
@@ -369,13 +465,42 @@ mod tests {
             .expect("raw bytes should parse");
 
         assert_eq!(messages.len(), 2);
-        assert_eq!(
-            messages[0].payload,
-            ReceivedValuePayload::Single(ParamValue::Int(1))
-        );
-        assert_eq!(
-            messages[1].payload,
-            ReceivedValuePayload::Single(ParamValue::Int(255))
-        );
+        assert_eq!(messages[0].payload, ReceivedValuePayload::Single(ParamValue::Int(1)));
+        assert_eq!(messages[1].payload, ReceivedValuePayload::Single(ParamValue::Int(255)));
+    }
+
+    #[test]
+    fn line_parser_accepts_cr_lf_and_crlf_line_breaks() {
+        let mut parser = StreamingParser::default();
+        let config = StreamingParseConfig::default();
+
+        let messages = parser
+            .push_bytes(b"first 1\r\nsecond 2\nthird 3\r", &config)
+            .expect("lines should parse");
+
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0].path_segments, vec!["first"]);
+        assert_eq!(messages[1].path_segments, vec!["second"]);
+        assert_eq!(messages[2].path_segments, vec!["third"]);
+    }
+
+    #[test]
+    fn line_parser_treats_split_crlf_as_one_line_break() {
+        let mut parser = StreamingParser::default();
+        let config = StreamingParseConfig::default();
+
+        let first = parser
+            .push_bytes(b"first 1\r", &config)
+            .expect("first line should parse");
+        let second = parser
+            .push_bytes(b"\nsecond 2", &config)
+            .expect("split LF should be consumed");
+        let third = parser.push_bytes(b"\n", &config).expect("second line should parse");
+
+        assert_eq!(first.len(), 1);
+        assert!(second.is_empty());
+        assert_eq!(third.len(), 1);
+        assert_eq!(first[0].path_segments, vec!["first"]);
+        assert_eq!(third[0].path_segments, vec!["second"]);
     }
 }
