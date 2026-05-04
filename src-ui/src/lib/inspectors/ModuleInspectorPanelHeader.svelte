@@ -14,29 +14,12 @@
 
 {#snippet moduleHeaderExtra()}
 	{#if showModuleIndicators}
-		<span class="inspector-header-module-indicators">
 			<ModuleIndicators {node} />
-		</span>
 	{/if}
 {/snippet}
 
 {@render defaultHeader?.(moduleHeaderExtra)}
 
 <style>
-	.inspector-header-module-indicators {
-		display: inline-flex;
-		align-items: center;
-		margin-left: 0.2rem;
-		min-width: 0;
-	}
-
-	.inspector-header-module-indicators :global(.module-indicators) {
-		flex: 0 0 auto;
-		gap: 0.1rem;
-	}
-
-	.inspector-header-module-indicators :global(.module-status-icon) {
-		width: 1.15rem;
-		height: 1.15rem;
-	}
+	
 </style>
