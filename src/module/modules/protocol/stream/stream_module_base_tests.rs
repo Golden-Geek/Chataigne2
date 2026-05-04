@@ -13,6 +13,7 @@ const DISABLEABLE_SEPARATOR_PARAM_DECL_IDS: &[&str] = &["name_separator", "value
 #[test]
 fn concrete_stream_modules_materialize_common_processing_params_once() {
     assert_common_processing_params_once(crate::app::SerialModule::create().into(), "Serial");
+    assert_common_processing_params_once(crate::app::TcpServerModule::create().into(), "TCP Server");
     assert_common_processing_params_once(crate::app::TcpClientModule::create().into(), "TCP");
     assert_common_processing_params_once(crate::app::UdpModule::create().into(), "UDP");
 }

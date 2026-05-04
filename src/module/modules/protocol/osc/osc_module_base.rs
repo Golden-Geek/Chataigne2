@@ -85,10 +85,6 @@ pub(crate) struct OscSendCustomMessageRequest {
             );
         }
     }
-    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(OSC_MODULE_COMMAND_TYPES) (
-        label = "Command Tester",
-        description = "Create and trigger ad-hoc OSC commands through this module's outputs."
-    );
 )]
 
 pub struct OscModuleBase {
@@ -114,6 +110,10 @@ impl OscModuleBase {
             HashSet::new(),
             Vec::new(),
         )
+    }
+
+    pub(crate) const fn module_command_types() -> &'static [&'static str] {
+        OSC_MODULE_COMMAND_TYPES
     }
 
     pub(crate) fn process_pending_incoming<F>(
@@ -694,6 +694,7 @@ impl OscModuleBase {
 impl Node for OscModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
+        self.base.ensure_command_tester(ctx, Self::module_command_types());
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
 

@@ -43,6 +43,10 @@ fn module_manager_uses_declared_module_item_metadata() {
             crate::app::SerialModule::DEFAULT_LABEL,
         ),
         (crate::app::UdpModule::NODE_TYPE, crate::app::UdpModule::DEFAULT_LABEL),
+        (
+            crate::app::TcpServerModule::NODE_TYPE,
+            crate::app::TcpServerModule::DEFAULT_LABEL,
+        ),
         (crate::app::TcpClientModule::NODE_TYPE, crate::app::TcpClientModule::DEFAULT_LABEL),
     ] {
         let item = items

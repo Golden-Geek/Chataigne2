@@ -3,7 +3,7 @@ use golden_core::{
     events::CustomEvent,
     node,
     node::{
-        Node, NodeId, UserContainerRules, UserContextNode, UserCreatableItem,
+        DeclId, Node, NodeHandle, NodeId, UserContainerRules, UserContextNode, UserCreatableItem,
         USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
     process_ctx::ProcessCtx,
@@ -22,6 +22,7 @@ pub(crate) use reference_filters::{register_module_reference_filters, resolve_en
 const SCRIPT_ITEM_KIND: &str = "script";
 const SCRIPT_NODE_TYPE: &str = "script";
 const SCRIPT_DEFAULT_LABEL: &str = "Script";
+const COMMAND_TESTER_DECL_ID: &str = "command_tester";
 
 pub(crate) const MODULE_INCOMING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.incoming";
 pub(crate) const MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.outgoing";
@@ -106,6 +107,40 @@ impl ModuleBase {
 
     pub fn set_connected(&mut self, ctx: &mut ProcessCtx, connected: bool) {
         self.connected.set(ctx, connected);
+    }
+
+    pub(crate) fn ensure_command_tester(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        available_command_types: &'static [&'static str],
+    ) {
+        let existing_command_tester_id = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), COMMAND_TESTER_DECL_ID));
+
+        if let Some(command_tester_id) = existing_command_tester_id {
+            let is_shared_command_tester = ctx
+                .tree_snapshot()
+                .and_then(|snapshot| snapshot.node(command_tester_id))
+                .is_some_and(|node| node.node_type == crate::app::ModuleCommandTester::NODE_TYPE);
+
+            if is_shared_command_tester {
+                NodeHandle::new(command_tester_id).with_mut::<crate::app::ModuleCommandTester, _>(
+                    ctx,
+                    move |tester, _| tester.set_available_command_types(available_command_types),
+                );
+            } else {
+                NodeHandle::new(command_tester_id)
+                    .replace_with(ctx, crate::app::ModuleCommandTester::create(available_command_types));
+            }
+            return;
+        }
+
+        let mut tester = crate::app::ModuleCommandTester::create(available_command_types);
+        let meta = &mut tester.node_data_mut().meta;
+        meta.decl_id = DeclId(COMMAND_TESTER_DECL_ID.to_string());
+        meta.short_name = COMMAND_TESTER_DECL_ID.to_string();
+        ctx.add_child_boxed(self.id(), Box::new(tester), None);
     }
 
     pub(crate) fn set_data_capabilities(&mut self, ctx: &mut ProcessCtx, capabilities: ModuleDataCapabilities) {

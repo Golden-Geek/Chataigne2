@@ -108,12 +108,6 @@ impl Node for UdpOutputManager {
         );
         [base_children];
     }
-    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
-        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
-    ) (
-        label = "Command Tester",
-        description = "Create and trigger ad-hoc streaming commands through this module."
-    );
 )]
 pub struct UdpModule {
     stream: StreamingModuleBase,

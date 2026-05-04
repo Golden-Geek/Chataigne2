@@ -51,12 +51,6 @@ const SERIAL_PORT_CONNECTION_WARNING_ID: &str = "serial_port_connection";
         );
         [base_children];
     }
-    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create(
-        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
-    ) (
-        label = "Command Tester",
-        description = "Create and trigger ad-hoc streaming commands through this module."
-    );
 )]
 pub struct SerialModule {
     stream: StreamingModuleBase,

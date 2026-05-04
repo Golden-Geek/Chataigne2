@@ -229,7 +229,14 @@ pub struct ModuleCommandTester {
 
 impl ModuleCommandTester {
     pub fn create(available_command_types: &'static [&'static str]) -> Self {
-        Self::new(available_command_types, ModuleCommandManagerBase::new())
+        let mut tester = Self::new(available_command_types, ModuleCommandManagerBase::new());
+        tester.node_data_mut().meta.description =
+            Some("Create and trigger ad-hoc commands through this module.".to_string());
+        tester
+    }
+
+    pub(crate) fn set_available_command_types(&mut self, available_command_types: &'static [&'static str]) {
+        self.available_command_types = available_command_types;
     }
 
     fn command_type_available(&self, node_type: &str) -> bool {

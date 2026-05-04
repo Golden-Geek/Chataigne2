@@ -47,6 +47,20 @@ fn serial_parameters_keep_port_before_input_and_no_sender_folder() {
 }
 
 #[test]
+fn serial_module_keeps_command_tester_at_module_root() {
+    let (engine, module_id) = create_serial_module();
+
+    assert!(
+        find_path(&engine, module_id, "command_tester").is_some(),
+        "serial module should materialize a root command tester"
+    );
+    assert!(
+        find_path(&engine, module_id, "parameters/command_tester").is_none(),
+        "serial module should not splice the command tester into Parameters"
+    );
+}
+
+#[test]
 fn serial_input_and_output_capabilities_are_always_enabled() {
     let (engine, module_id) = create_serial_module();
     let processing_id =
