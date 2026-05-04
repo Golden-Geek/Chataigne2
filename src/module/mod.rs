@@ -69,7 +69,7 @@ impl ModuleDataCapabilities {
             description = "Whether outgoing module traffic should be recorded in logs."
         );
     }
-    folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.75, 0.1, 1.0)) {}
+    folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.5, 0.1, 1.0)) {}
     folder(values, label = "Values", color = color::Color::new(0.1, 0.45, 0.75, 1.0)) {}
 )]
 pub struct ModuleBase {
