@@ -56,6 +56,8 @@ npm run format
 - Do not import submodule internals by filesystem path from app crates or build scripts.
 - Do not use `#[path = "..."]` to reach into another crate's private files.
 - Inside `golden_engine`, keep `src/` as the real module tree. Do not reintroduce runtime `#[path]` wiring or split one concept across `thing.rs` and `thing/`.
+- Keep tests in separate files across this repository. Do not mix production/runtime code and inline `mod tests { ... }` in the same source file.
+- For module-local tests, use sibling test files such as `tests.rs` or `*_tests.rs`.
 - Inside `golden_ui`, do not add new `$app/*` dependencies or app-local alias coupling. Treat it
   as a package boundary even while it is checked out under `src-ui/src/lib/`.
 - If shared build logic is needed, expose it through a dedicated public crate or module.

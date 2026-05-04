@@ -72,6 +72,8 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Do not keep ultra-wide formatting or dense one-line source files.
 - Use standard formatters with sane line widths.
 - Reformat touched code consistently with the repository formatter instead of preserving unreadable layout.
+- Keep runtime and tests in separate files. Do not leave inline `mod tests { ... }` blocks in implementation files.
+- When tests belong to a module, place them in a sibling test module file (for example `tests.rs` or `*_tests.rs`).
 - Keep comments for intent and tradeoffs, not narration.
 - New top-level docs should explain where responsibilities live before pointing people into implementation details.
 
