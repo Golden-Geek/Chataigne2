@@ -1,5 +1,8 @@
 mod transport;
 
+#[cfg(test)]
+mod transport_tests;
+
 use std::collections::BTreeMap;
 
 use golden_core::{
@@ -382,7 +385,7 @@ impl WebSocketServerModule {
     node = "websocket_server_module",
     via = stream,
     from_struct,
-    menu_path = ["Generic"]
+    menu_path = ["Network"]
 )]
 impl Node for WebSocketServerModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {

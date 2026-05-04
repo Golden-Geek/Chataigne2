@@ -66,6 +66,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Treat warnings, clippy findings, and awkward APIs as signs to improve the design.
 - Prefer conventional crate layouts where module paths match the filesystem.
 - Avoid `#[path]` module wiring unless there is a strong generation-related reason.
+- When asked to implement a feature or functionality needing a full protocol implementation or API interfacing, check if there are reliable crates that are already providing this (like midi, osc, serial, websocket, hid...) instead of recreating the protocol.
 
 ## Readability And Reviewability
 - Optimize for readable diffs, reviewable formatting, and newcomer legibility.

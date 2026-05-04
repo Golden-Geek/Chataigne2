@@ -1,3 +1,8 @@
+use midly::{
+    live::{LiveEvent, MtcQuarterFrameMessage, SystemCommon, SystemRealtime},
+    num::{u4, u7, u14},
+    MidiMessage as MidlyMidiMessage, PitchBend,
+};
 use serde::{Deserialize, Serialize};
 
 pub(crate) const MIDI_CHANNEL_MIN: u8 = 1;
@@ -67,73 +72,47 @@ pub(crate) enum MidiSystemMessage {
     Sysex { bytes: Vec<u8> },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct MidiChannelVoiceStatus {
-    pub channel: u8,
-    pub kind: MidiChannelVoiceKind,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum MidiChannelVoiceKind {
-    NoteOff,
-    NoteOn,
-    PolyPressure,
-    ControlChange,
-    ProgramChange,
-    ChannelPressure,
-    PitchBend,
-}
-
 pub(crate) fn decode_midi_message(bytes: &[u8]) -> Option<MidiMessage> {
-    let (&status, payload) = bytes.split_first()?;
-    if status == 0xF0 {
-        return Some(MidiMessage::System(MidiSystemMessage::Sysex {
-            bytes: normalize_sysex_bytes(bytes),
-        }));
-    }
-
-    if status >= 0xF0 {
-        return decode_system_message(status, payload);
-    }
-
-    let voice = decode_channel_voice_status(status)?;
-    match voice.kind {
-        MidiChannelVoiceKind::NoteOff => Some(MidiMessage::NoteOff {
-            channel: voice.channel,
-            note: data_byte(payload.first().copied()?)?,
-            velocity: data_byte(payload.get(1).copied()?)?,
-        }),
-        MidiChannelVoiceKind::NoteOn => Some(MidiMessage::NoteOn {
-            channel: voice.channel,
-            note: data_byte(payload.first().copied()?)?,
-            velocity: data_byte(payload.get(1).copied()?)?,
-        }),
-        MidiChannelVoiceKind::PolyPressure => Some(MidiMessage::PolyPressure {
-            channel: voice.channel,
-            note: data_byte(payload.first().copied()?)?,
-            pressure: data_byte(payload.get(1).copied()?)?,
-        }),
-        MidiChannelVoiceKind::ControlChange => Some(MidiMessage::ControlChange {
-            channel: voice.channel,
-            controller: data_byte(payload.first().copied()?)?,
-            value: data_byte(payload.get(1).copied()?)?,
-        }),
-        MidiChannelVoiceKind::ProgramChange => Some(MidiMessage::ProgramChange {
-            channel: voice.channel,
-            program: data_byte(payload.first().copied()?)?,
-        }),
-        MidiChannelVoiceKind::ChannelPressure => Some(MidiMessage::ChannelPressure {
-            channel: voice.channel,
-            pressure: data_byte(payload.first().copied()?)?,
-        }),
-        MidiChannelVoiceKind::PitchBend => {
-            let lsb = data_byte(payload.first().copied()?)?;
-            let msb = data_byte(payload.get(1).copied()?)?;
-            Some(MidiMessage::PitchBend {
-                channel: voice.channel,
-                value: u14_from_msb_lsb(msb, lsb),
-            })
+    match LiveEvent::parse(bytes).ok()? {
+        LiveEvent::Midi { channel, message } => {
+            let channel = channel.as_int() + 1;
+            match message {
+                MidlyMidiMessage::NoteOff { key, vel } => Some(MidiMessage::NoteOff {
+                    channel,
+                    note: key.as_int(),
+                    velocity: vel.as_int(),
+                }),
+                MidlyMidiMessage::NoteOn { key, vel } => Some(MidiMessage::NoteOn {
+                    channel,
+                    note: key.as_int(),
+                    velocity: vel.as_int(),
+                }),
+                MidlyMidiMessage::Aftertouch { key, vel } => Some(MidiMessage::PolyPressure {
+                    channel,
+                    note: key.as_int(),
+                    pressure: vel.as_int(),
+                }),
+                MidlyMidiMessage::Controller { controller, value } => Some(MidiMessage::ControlChange {
+                    channel,
+                    controller: controller.as_int(),
+                    value: value.as_int(),
+                }),
+                MidlyMidiMessage::ProgramChange { program } => Some(MidiMessage::ProgramChange {
+                    channel,
+                    program: program.as_int(),
+                }),
+                MidlyMidiMessage::ChannelAftertouch { vel } => Some(MidiMessage::ChannelPressure {
+                    channel,
+                    pressure: vel.as_int(),
+                }),
+                MidlyMidiMessage::PitchBend { bend } => Some(MidiMessage::PitchBend {
+                    channel,
+                    value: bend.0.as_int(),
+                }),
+            }
         }
+        LiveEvent::Common(message) => decode_system_message(message),
+        LiveEvent::Realtime(message) => decode_realtime_message(message),
     }
 }
 
@@ -143,36 +122,64 @@ pub(crate) fn encode_midi_message(message: &MidiMessage) -> Vec<u8> {
             channel,
             note,
             velocity,
-        } => vec![status_byte(0x80, *channel), clamp_data(*note), clamp_data(*velocity)],
+        } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::NoteOff {
+                key: midi_u7(*note),
+                vel: midi_u7(*velocity),
+            },
+        }),
         MidiMessage::NoteOn {
             channel,
             note,
             velocity,
-        } => vec![status_byte(0x90, *channel), clamp_data(*note), clamp_data(*velocity)],
+        } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::NoteOn {
+                key: midi_u7(*note),
+                vel: midi_u7(*velocity),
+            },
+        }),
         MidiMessage::PolyPressure {
             channel,
             note,
             pressure,
-        } => vec![status_byte(0xA0, *channel), clamp_data(*note), clamp_data(*pressure)],
+        } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::Aftertouch {
+                key: midi_u7(*note),
+                vel: midi_u7(*pressure),
+            },
+        }),
         MidiMessage::ControlChange {
             channel,
             controller,
             value,
-        } => vec![
-            status_byte(0xB0, *channel),
-            clamp_data(*controller),
-            clamp_data(*value),
-        ],
-        MidiMessage::ProgramChange { channel, program } => {
-            vec![status_byte(0xC0, *channel), clamp_data(*program)]
-        }
-        MidiMessage::ChannelPressure { channel, pressure } => {
-            vec![status_byte(0xD0, *channel), clamp_data(*pressure)]
-        }
-        MidiMessage::PitchBend { channel, value } => {
-            let (msb, lsb) = split_u14(*value);
-            vec![status_byte(0xE0, *channel), lsb, msb]
-        }
+        } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::Controller {
+                controller: midi_u7(*controller),
+                value: midi_u7(*value),
+            },
+        }),
+        MidiMessage::ProgramChange { channel, program } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::ProgramChange {
+                program: midi_u7(*program),
+            },
+        }),
+        MidiMessage::ChannelPressure { channel, pressure } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::ChannelAftertouch {
+                vel: midi_u7(*pressure),
+            },
+        }),
+        MidiMessage::PitchBend { channel, value } => write_live_event(LiveEvent::Midi {
+            channel: midi_channel(*channel),
+            message: MidlyMidiMessage::PitchBend {
+                bend: PitchBend(u14::new((*value).min(MIDI_U14_MAX))),
+            },
+        }),
         MidiMessage::System(system) => encode_system_message(system),
     }
 }
@@ -210,10 +217,6 @@ pub(crate) fn note_label(note: u8) -> String {
     let name = NOTE_NAMES_SHARP[(note % 12) as usize];
     let octave = i16::from(note / 12) - 1;
     format!("{name}{octave}")
-}
-
-pub(crate) fn note_name_for_pitch(note: u8) -> &'static str {
-    NOTE_NAMES_SHARP[(note.min(MIDI_DATA_MAX) % 12) as usize]
 }
 
 pub(crate) fn note_pitch_from_name_octave(note_name: &str, octave: i32) -> Option<u8> {
@@ -331,64 +334,68 @@ pub(crate) fn clamp_channel_i32(value: i32) -> u8 {
     value.clamp(i32::from(MIDI_CHANNEL_MIN), i32::from(MIDI_CHANNEL_MAX)) as u8
 }
 
-fn decode_channel_voice_status(status: u8) -> Option<MidiChannelVoiceStatus> {
-    let channel = (status & 0x0F) + 1;
-    let kind = match status & 0xF0 {
-        0x80 => MidiChannelVoiceKind::NoteOff,
-        0x90 => MidiChannelVoiceKind::NoteOn,
-        0xA0 => MidiChannelVoiceKind::PolyPressure,
-        0xB0 => MidiChannelVoiceKind::ControlChange,
-        0xC0 => MidiChannelVoiceKind::ProgramChange,
-        0xD0 => MidiChannelVoiceKind::ChannelPressure,
-        0xE0 => MidiChannelVoiceKind::PitchBend,
-        _ => return None,
+fn decode_system_message(message: SystemCommon<'_>) -> Option<MidiMessage> {
+    let message = match message {
+        SystemCommon::SysEx(payload) => MidiSystemMessage::Sysex {
+            bytes: sysex_bytes_from_payload(payload),
+        },
+        SystemCommon::MidiTimeCodeQuarterFrame(message, value) => MidiSystemMessage::TimeCodeQuarterFrame {
+            value: encode_mtc_quarter_frame(message, value),
+        },
+        SystemCommon::SongPosition(position) => MidiSystemMessage::SongPosition {
+            position: position.as_int(),
+        },
+        SystemCommon::SongSelect(song) => MidiSystemMessage::SongSelect {
+            song: song.as_int(),
+        },
+        SystemCommon::TuneRequest => MidiSystemMessage::TuneRequest,
+        SystemCommon::Undefined(_, _) => return None,
     };
-    Some(MidiChannelVoiceStatus { channel, kind })
+
+    Some(MidiMessage::System(message))
 }
 
-fn decode_system_message(status: u8, payload: &[u8]) -> Option<MidiMessage> {
-    let message = match status {
-        0xF1 => MidiSystemMessage::TimeCodeQuarterFrame {
-            value: data_byte(payload.first().copied()?)?,
-        },
-        0xF2 => {
-            let lsb = data_byte(payload.first().copied()?)?;
-            let msb = data_byte(payload.get(1).copied()?)?;
-            MidiSystemMessage::SongPosition {
-                position: u14_from_msb_lsb(msb, lsb),
-            }
-        }
-        0xF3 => MidiSystemMessage::SongSelect {
-            song: data_byte(payload.first().copied()?)?,
-        },
-        0xF6 => MidiSystemMessage::TuneRequest,
-        0xF8 => MidiSystemMessage::TimingClock,
-        0xFA => MidiSystemMessage::Start,
-        0xFB => MidiSystemMessage::Continue,
-        0xFC => MidiSystemMessage::Stop,
-        0xFE => MidiSystemMessage::ActiveSensing,
-        0xFF => MidiSystemMessage::Reset,
-        _ => return None,
+fn decode_realtime_message(message: SystemRealtime) -> Option<MidiMessage> {
+    let message = match message {
+        SystemRealtime::TimingClock => MidiSystemMessage::TimingClock,
+        SystemRealtime::Start => MidiSystemMessage::Start,
+        SystemRealtime::Continue => MidiSystemMessage::Continue,
+        SystemRealtime::Stop => MidiSystemMessage::Stop,
+        SystemRealtime::ActiveSensing => MidiSystemMessage::ActiveSensing,
+        SystemRealtime::Reset => MidiSystemMessage::Reset,
+        SystemRealtime::Undefined(_) => return None,
     };
+
     Some(MidiMessage::System(message))
 }
 
 fn encode_system_message(message: &MidiSystemMessage) -> Vec<u8> {
     match message {
-        MidiSystemMessage::TimeCodeQuarterFrame { value } => vec![0xF1, clamp_data(*value)],
-        MidiSystemMessage::SongPosition { position } => {
-            let (msb, lsb) = split_u14(*position);
-            vec![0xF2, lsb, msb]
+        MidiSystemMessage::TimeCodeQuarterFrame { value } => {
+            let (message, nibble) = decode_mtc_quarter_frame(*value);
+            write_live_event(LiveEvent::Common(SystemCommon::MidiTimeCodeQuarterFrame(
+                message, nibble,
+            )))
         }
-        MidiSystemMessage::SongSelect { song } => vec![0xF3, clamp_data(*song)],
-        MidiSystemMessage::TuneRequest => vec![0xF6],
-        MidiSystemMessage::TimingClock => vec![0xF8],
-        MidiSystemMessage::Start => vec![0xFA],
-        MidiSystemMessage::Continue => vec![0xFB],
-        MidiSystemMessage::Stop => vec![0xFC],
-        MidiSystemMessage::ActiveSensing => vec![0xFE],
-        MidiSystemMessage::Reset => vec![0xFF],
-        MidiSystemMessage::Sysex { bytes } => normalize_sysex_bytes(bytes),
+        MidiSystemMessage::SongPosition { position } => write_live_event(LiveEvent::Common(
+            SystemCommon::SongPosition(u14::new((*position).min(MIDI_U14_MAX))),
+        )),
+        MidiSystemMessage::SongSelect { song } => write_live_event(LiveEvent::Common(
+            SystemCommon::SongSelect(midi_u7(*song)),
+        )),
+        MidiSystemMessage::TuneRequest => write_live_event(LiveEvent::Common(SystemCommon::TuneRequest)),
+        MidiSystemMessage::TimingClock => write_live_event(LiveEvent::Realtime(SystemRealtime::TimingClock)),
+        MidiSystemMessage::Start => write_live_event(LiveEvent::Realtime(SystemRealtime::Start)),
+        MidiSystemMessage::Continue => write_live_event(LiveEvent::Realtime(SystemRealtime::Continue)),
+        MidiSystemMessage::Stop => write_live_event(LiveEvent::Realtime(SystemRealtime::Stop)),
+        MidiSystemMessage::ActiveSensing => write_live_event(LiveEvent::Realtime(SystemRealtime::ActiveSensing)),
+        MidiSystemMessage::Reset => write_live_event(LiveEvent::Realtime(SystemRealtime::Reset)),
+        MidiSystemMessage::Sysex { bytes } => {
+            let payload = sysex_payload_bytes(bytes);
+            write_live_event(LiveEvent::Common(SystemCommon::SysEx(u7::slice_from_int(
+                payload.as_slice(),
+            ))))
+        }
     }
 }
 
@@ -410,16 +417,24 @@ fn system_message_description(message: &MidiSystemMessage) -> String {
     }
 }
 
-fn data_byte(value: u8) -> Option<u8> {
-    (value <= MIDI_DATA_MAX).then_some(value)
-}
-
 fn clamp_data(value: u8) -> u8 {
     value.min(MIDI_DATA_MAX)
 }
 
-fn status_byte(base: u8, channel: u8) -> u8 {
-    base | (channel.clamp(MIDI_CHANNEL_MIN, MIDI_CHANNEL_MAX) - 1)
+fn midi_channel(channel: u8) -> u4 {
+    u4::new(channel.clamp(MIDI_CHANNEL_MIN, MIDI_CHANNEL_MAX) - 1)
+}
+
+fn midi_u7(value: u8) -> u7 {
+    u7::new(clamp_data(value))
+}
+
+fn write_live_event(event: LiveEvent<'_>) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    event
+        .write_std(&mut bytes)
+        .expect("writing MIDI events into Vec<u8> should not fail");
+    bytes
 }
 
 fn split_u14(value: u16) -> (u8, u8) {
@@ -427,6 +442,56 @@ fn split_u14(value: u16) -> (u8, u8) {
     (((value >> 7) & 0x7F) as u8, (value & 0x7F) as u8)
 }
 
-fn u14_from_msb_lsb(msb: u8, lsb: u8) -> u16 {
-    (u16::from(msb.min(MIDI_DATA_MAX)) << 7) | u16::from(lsb.min(MIDI_DATA_MAX))
+fn sysex_payload_bytes(bytes: &[u8]) -> Vec<u8> {
+    let normalized = normalize_sysex_bytes(bytes);
+    normalized[1..normalized.len() - 1]
+        .iter()
+        .copied()
+        .map(clamp_data)
+        .collect()
 }
+
+fn sysex_bytes_from_payload(payload: &[u7]) -> Vec<u8> {
+    u7::slice_as_int(payload).to_vec()
+}
+
+fn encode_mtc_quarter_frame(message: MtcQuarterFrameMessage, value: u4) -> u8 {
+    (mtc_quarter_frame_index(message) << 4) | value.as_int()
+}
+
+fn decode_mtc_quarter_frame(raw: u8) -> (MtcQuarterFrameMessage, u4) {
+    (
+        mtc_quarter_frame_message((raw >> 4) & 0x07),
+        u4::new(raw & 0x0F),
+    )
+}
+
+fn mtc_quarter_frame_index(message: MtcQuarterFrameMessage) -> u8 {
+    match message {
+        MtcQuarterFrameMessage::FramesLow => 0,
+        MtcQuarterFrameMessage::FramesHigh => 1,
+        MtcQuarterFrameMessage::SecondsLow => 2,
+        MtcQuarterFrameMessage::SecondsHigh => 3,
+        MtcQuarterFrameMessage::MinutesLow => 4,
+        MtcQuarterFrameMessage::MinutesHigh => 5,
+        MtcQuarterFrameMessage::HoursLow => 6,
+        MtcQuarterFrameMessage::HoursHigh => 7,
+    }
+}
+
+fn mtc_quarter_frame_message(index: u8) -> MtcQuarterFrameMessage {
+    match index {
+        0 => MtcQuarterFrameMessage::FramesLow,
+        1 => MtcQuarterFrameMessage::FramesHigh,
+        2 => MtcQuarterFrameMessage::SecondsLow,
+        3 => MtcQuarterFrameMessage::SecondsHigh,
+        4 => MtcQuarterFrameMessage::MinutesLow,
+        5 => MtcQuarterFrameMessage::MinutesHigh,
+        6 => MtcQuarterFrameMessage::HoursLow,
+        7 => MtcQuarterFrameMessage::HoursHigh,
+        _ => MtcQuarterFrameMessage::FramesLow,
+    }
+}
+
+#[cfg(test)]
+mod midi_message_tests;

@@ -1,5 +1,8 @@
 mod transport;
 
+#[cfg(test)]
+mod transport_tests;
+
 use std::sync::mpsc::TryRecvError;
 
 use golden_core::{

@@ -1,5 +1,5 @@
 use std::{
-    net::{Shutdown, SocketAddr, TcpStream, ToSocketAddrs},
+    net::{SocketAddr, ToSocketAddrs},
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -9,10 +9,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use futures_util::{SinkExt, StreamExt};
+use tokio::runtime::{Builder, Runtime};
+use tokio::time::timeout;
+use tokio_tungstenite::{client_async_with_config, tungstenite::protocol::Message, WebSocketStream};
+
 use crate::app::module::common::streaming::commands::StreamingSendFrameKind;
 use crate::app::module::common::streaming::websocket::{
-    WebSocketFrameKind, WebSocketIncomingFrame, WebSocketReadStatus, perform_client_handshake,
-    read_available_bytes, try_take_frame, write_control_frame, write_data_frame,
+    websocket_client_url, websocket_config, websocket_message,
 };
 
 const WEBSOCKET_CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
@@ -20,6 +24,8 @@ const WEBSOCKET_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const WEBSOCKET_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 const WEBSOCKET_WORKER_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
+
+type ClientWebSocketStream = WebSocketStream<tokio::net::TcpStream>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct WebSocketClientTransportConfig {
@@ -107,6 +113,17 @@ enum WebSocketClientWorkerCommand {
     Stop,
 }
 
+enum WebSocketPollOutcome {
+    Message(Message),
+    Closed,
+    Idle,
+}
+
+enum ReceiveOutcome {
+    Open,
+    Closed,
+}
+
 fn worker_loop(
     config: WebSocketClientTransportConfig,
     remote_address: SocketAddr,
@@ -114,8 +131,17 @@ fn worker_loop(
     event_tx: Sender<StreamingWorkerEvent>,
     connected: Arc<AtomicBool>,
 ) {
+    let runtime = match Builder::new_current_thread().enable_all().build() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            let _ = event_tx.send(StreamingWorkerEvent::Error(format!(
+                "failed to build WebSocket client runtime: {error}"
+            )));
+            return;
+        }
+    };
+
     let mut stream = None;
-    let mut pending_bytes = Vec::new();
     let mut reconnect_delay = WEBSOCKET_RECONNECT_BASE_DELAY;
     let mut next_connect_at = Instant::now();
     let mut last_status = None;
@@ -123,9 +149,8 @@ fn worker_loop(
     'worker: loop {
         if stream.is_none() {
             if Instant::now() >= next_connect_at {
-                match connect_stream(&config, remote_address) {
+                match connect_stream(&runtime, &config, remote_address) {
                     Ok(open_stream) => {
-                        pending_bytes.clear();
                         stream = Some(open_stream);
                         reconnect_delay = WEBSOCKET_RECONNECT_BASE_DELAY;
                         if !emit_status(
@@ -180,133 +205,18 @@ fn worker_loop(
         }
 
         if config.receive_enabled {
-            let read_status = {
+            let receive_result = {
                 let Some(active_stream) = stream.as_mut() else {
                     continue;
                 };
 
-                match read_available_bytes(active_stream, &mut pending_bytes) {
-                    Ok(status) => status,
-                    Err(error) => {
-                        close_stream(&mut stream, &connected);
-                        if !enter_recovery(
-                            &event_tx,
-                            &connected,
-                            &mut last_status,
-                            &mut reconnect_delay,
-                            &mut next_connect_at,
-                            remote_address,
-                            format!("WebSocket client receive error: {error}"),
-                        ) {
-                            return;
-                        }
-                        continue 'worker;
-                    }
-                }
+                receive_messages(&runtime, active_stream, &event_tx)
             };
 
-            loop {
-                let frame = match try_take_frame(&mut pending_bytes, false) {
-                    Ok(Some(frame)) => frame,
-                    Ok(None) => break,
-                    Err(error) => {
-                        close_stream(&mut stream, &connected);
-                        if !enter_recovery(
-                            &event_tx,
-                            &connected,
-                            &mut last_status,
-                            &mut reconnect_delay,
-                            &mut next_connect_at,
-                            remote_address,
-                            format!("WebSocket client frame decode error: {error}"),
-                        ) {
-                            return;
-                        }
-                        continue 'worker;
-                    }
-                };
-
-                match frame {
-                    WebSocketIncomingFrame::Text(text) => {
-                        if event_tx
-                            .send(StreamingWorkerEvent::Bytes(text.into_bytes()))
-                            .is_err()
-                        {
-                            return;
-                        }
-                    }
-                    WebSocketIncomingFrame::Binary(bytes) => {
-                        if event_tx.send(StreamingWorkerEvent::Bytes(bytes)).is_err() {
-                            return;
-                        }
-                    }
-                    WebSocketIncomingFrame::Ping(payload) => {
-                        let Some(active_stream) = stream.as_mut() else {
-                            continue 'worker;
-                        };
-
-                        if let Err(error) =
-                            write_control_frame(active_stream, 0xA, payload.as_slice(), true)
-                        {
-                            close_stream(&mut stream, &connected);
-                            if !enter_recovery(
-                                &event_tx,
-                                &connected,
-                                &mut last_status,
-                                &mut reconnect_delay,
-                                &mut next_connect_at,
-                                remote_address,
-                                format!("failed to respond to WebSocket ping: {error}"),
-                            ) {
-                                return;
-                            }
-                            continue 'worker;
-                        }
-                    }
-                    WebSocketIncomingFrame::Pong(_) => {}
-                    WebSocketIncomingFrame::Close => {
-                        close_stream(&mut stream, &connected);
-                        if !enter_recovery(
-                            &event_tx,
-                            &connected,
-                            &mut last_status,
-                            &mut reconnect_delay,
-                            &mut next_connect_at,
-                            remote_address,
-                            "WebSocket peer closed the connection".to_string(),
-                        ) {
-                            return;
-                        }
-                        continue 'worker;
-                    }
-                }
-            }
-
-            if matches!(read_status, WebSocketReadStatus::Closed) {
-                close_stream(&mut stream, &connected);
-                if !enter_recovery(
-                    &event_tx,
-                    &connected,
-                    &mut last_status,
-                    &mut reconnect_delay,
-                    &mut next_connect_at,
-                    remote_address,
-                    "WebSocket peer closed the connection".to_string(),
-                ) {
-                    return;
-                }
-                continue;
-            }
-        }
-
-        match command_rx.recv_timeout(WEBSOCKET_WORKER_POLL_INTERVAL) {
-            Ok(WebSocketClientWorkerCommand::Send { frame_kind, bytes }) => {
-                let Some(active_stream) = stream.as_mut() else {
-                    continue;
-                };
-
-                if let Err(error) = send_bytes(active_stream, frame_kind, bytes.as_slice()) {
-                    close_stream(&mut stream, &connected);
+            match receive_result {
+                Ok(ReceiveOutcome::Open) => {}
+                Ok(ReceiveOutcome::Closed) => {
+                    close_stream(&runtime, &mut stream, &connected);
                     if !enter_recovery(
                         &event_tx,
                         &connected,
@@ -314,70 +224,193 @@ fn worker_loop(
                         &mut reconnect_delay,
                         &mut next_connect_at,
                         remote_address,
-                        format!("failed to send WebSocket frame: {error}"),
+                        "WebSocket peer closed the connection".to_string(),
                     ) {
                         return;
                     }
+                    continue;
+                }
+                Err(error) => {
+                    close_stream(&runtime, &mut stream, &connected);
+                    if !enter_recovery(
+                        &event_tx,
+                        &connected,
+                        &mut last_status,
+                        &mut reconnect_delay,
+                        &mut next_connect_at,
+                        remote_address,
+                        error,
+                    ) {
+                        return;
+                    }
+                    continue 'worker;
                 }
             }
-            Ok(WebSocketClientWorkerCommand::Stop) => break,
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        } else {
+            match command_rx.recv_timeout(WEBSOCKET_WORKER_POLL_INTERVAL) {
+                Ok(WebSocketClientWorkerCommand::Send { frame_kind, bytes }) => {
+                    let Some(active_stream) = stream.as_mut() else {
+                        continue 'worker;
+                    };
+
+                    if let Err(error) = send_bytes(&runtime, active_stream, frame_kind, bytes.as_slice()) {
+                        close_stream(&runtime, &mut stream, &connected);
+                        if !enter_recovery(
+                            &event_tx,
+                            &connected,
+                            &mut last_status,
+                            &mut reconnect_delay,
+                            &mut next_connect_at,
+                            remote_address,
+                            format!("failed to send WebSocket frame: {error}"),
+                        ) {
+                            return;
+                        }
+                    }
+                }
+                Ok(WebSocketClientWorkerCommand::Stop) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+
+            continue;
+        }
+
+        loop {
+            match command_rx.try_recv() {
+                Ok(WebSocketClientWorkerCommand::Send { frame_kind, bytes }) => {
+                    let Some(active_stream) = stream.as_mut() else {
+                        continue 'worker;
+                    };
+
+                    if let Err(error) = send_bytes(&runtime, active_stream, frame_kind, bytes.as_slice()) {
+                        close_stream(&runtime, &mut stream, &connected);
+                        if !enter_recovery(
+                            &event_tx,
+                            &connected,
+                            &mut last_status,
+                            &mut reconnect_delay,
+                            &mut next_connect_at,
+                            remote_address,
+                            format!("failed to send WebSocket frame: {error}"),
+                        ) {
+                            return;
+                        }
+                        continue 'worker;
+                    }
+                }
+                Ok(WebSocketClientWorkerCommand::Stop) => break 'worker,
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => break 'worker,
+            }
         }
     }
 
-    close_stream(&mut stream, &connected);
+    close_stream(&runtime, &mut stream, &connected);
 }
 
-fn connect_stream(config: &WebSocketClientTransportConfig, remote_address: SocketAddr) -> Result<TcpStream, String> {
-    let mut stream = TcpStream::connect_timeout(&remote_address, WEBSOCKET_CONNECT_TIMEOUT)
-        .map_err(|error| format!("failed to connect WebSocket client socket to {remote_address}: {error}"))?;
+fn receive_messages(
+    runtime: &Runtime,
+    stream: &mut ClientWebSocketStream,
+    event_tx: &Sender<StreamingWorkerEvent>,
+) -> Result<ReceiveOutcome, String> {
+    let mut poll_interval = WEBSOCKET_WORKER_POLL_INTERVAL;
 
-    stream
-        .set_nodelay(true)
-        .map_err(|error| format!("failed to enable TCP_NODELAY for WebSocket client: {error}"))?;
-    stream
-        .set_read_timeout(Some(WEBSOCKET_HANDSHAKE_TIMEOUT))
-        .map_err(|error| format!("failed to set WebSocket handshake read timeout: {error}"))?;
-    stream
-        .set_write_timeout(Some(WEBSOCKET_HANDSHAKE_TIMEOUT))
-        .map_err(|error| format!("failed to set WebSocket handshake write timeout: {error}"))?;
+    loop {
+        match poll_next_message(runtime, stream, poll_interval)? {
+            WebSocketPollOutcome::Idle => return Ok(ReceiveOutcome::Open),
+            WebSocketPollOutcome::Closed => return Ok(ReceiveOutcome::Closed),
+            WebSocketPollOutcome::Message(message) => match message {
+                Message::Text(text) => {
+                    if event_tx
+                        .send(StreamingWorkerEvent::Bytes(text.to_string().into_bytes()))
+                        .is_err()
+                    {
+                        return Err("WebSocket client event channel disconnected".to_string());
+                    }
+                }
+                Message::Binary(bytes) => {
+                    if event_tx.send(StreamingWorkerEvent::Bytes(bytes.to_vec())).is_err() {
+                        return Err("WebSocket client event channel disconnected".to_string());
+                    }
+                }
+                Message::Ping(_) => {
+                    flush_stream(runtime, stream)
+                        .map_err(|error| format!("failed to flush WebSocket ping response: {error}"))?;
+                }
+                Message::Pong(_) | Message::Frame(_) => {}
+                Message::Close(_) => return Ok(ReceiveOutcome::Closed),
+            },
+        }
 
-    perform_client_handshake(
-        &mut stream,
+        poll_interval = Duration::ZERO;
+    }
+}
+
+fn poll_next_message(
+    runtime: &Runtime,
+    stream: &mut ClientWebSocketStream,
+    poll_interval: Duration,
+) -> Result<WebSocketPollOutcome, String> {
+    match runtime.block_on(async { timeout(poll_interval, stream.next()).await }) {
+        Err(_) => Ok(WebSocketPollOutcome::Idle),
+        Ok(None) => Ok(WebSocketPollOutcome::Closed),
+        Ok(Some(Ok(message))) => Ok(WebSocketPollOutcome::Message(message)),
+        Ok(Some(Err(error))) => Err(format!("WebSocket client receive error: {error}")),
+    }
+}
+
+fn flush_stream(runtime: &Runtime, stream: &mut ClientWebSocketStream) -> Result<(), String> {
+    runtime
+        .block_on(async { stream.flush().await })
+        .map_err(|error| error.to_string())
+}
+
+fn connect_stream(
+    runtime: &Runtime,
+    config: &WebSocketClientTransportConfig,
+    remote_address: SocketAddr,
+) -> Result<ClientWebSocketStream, String> {
+    let request = websocket_client_url(
         config.remote_host.as_str(),
         config.remote_port,
         config.path.as_str(),
-    )
-    .map_err(|error| format!("failed WebSocket client handshake: {error}"))?;
+    );
 
-    stream
-        .set_read_timeout(None)
-        .map_err(|error| format!("failed to clear WebSocket client read timeout: {error}"))?;
-    stream
-        .set_write_timeout(None)
-        .map_err(|error| format!("failed to clear WebSocket client write timeout: {error}"))?;
-    stream
-        .set_nonblocking(true)
-        .map_err(|error| format!("failed to set WebSocket client stream to non-blocking mode: {error}"))?;
+    runtime.block_on(async {
+        let stream = timeout(WEBSOCKET_CONNECT_TIMEOUT, tokio::net::TcpStream::connect(remote_address))
+            .await
+            .map_err(|_| format!("timed out connecting WebSocket client socket to {remote_address}"))?
+            .map_err(|error| {
+                format!("failed to connect WebSocket client socket to {remote_address}: {error}")
+            })?;
 
-    Ok(stream)
+        stream
+            .set_nodelay(true)
+            .map_err(|error| format!("failed to enable TCP_NODELAY for WebSocket client: {error}"))?;
+
+        let (stream, _response) = timeout(
+            WEBSOCKET_HANDSHAKE_TIMEOUT,
+            client_async_with_config(request, stream, Some(websocket_config())),
+        )
+        .await
+        .map_err(|_| format!("timed out performing WebSocket handshake with {remote_address}"))?
+        .map_err(|error| format!("failed WebSocket client handshake: {error}"))?;
+
+        Ok(stream)
+    })
 }
 
 fn send_bytes(
-    stream: &mut TcpStream,
+    runtime: &Runtime,
+    stream: &mut ClientWebSocketStream,
     frame_kind: StreamingSendFrameKind,
     bytes: &[u8],
 ) -> Result<(), String> {
-    write_data_frame(stream, websocket_frame_kind(frame_kind), bytes, true)
+    let message = websocket_message(frame_kind, bytes)?;
+    runtime
+        .block_on(async { stream.send(message).await })
         .map_err(|error| format!("failed to write WebSocket frame: {error}"))
-}
-
-fn websocket_frame_kind(frame_kind: StreamingSendFrameKind) -> WebSocketFrameKind {
-    match frame_kind {
-        StreamingSendFrameKind::Text => WebSocketFrameKind::Text,
-        StreamingSendFrameKind::Binary => WebSocketFrameKind::Binary,
-    }
 }
 
 fn emit_status(
@@ -420,11 +453,16 @@ fn reconnect_wait(next_connect_at: Instant) -> Duration {
     next_connect_at.saturating_duration_since(Instant::now())
 }
 
-fn close_stream(stream: &mut Option<TcpStream>, connected: &Arc<AtomicBool>) {
+fn close_stream(
+    runtime: &Runtime,
+    stream: &mut Option<ClientWebSocketStream>,
+    connected: &Arc<AtomicBool>,
+) {
     connected.store(false, Ordering::Release);
-    if let Some(stream) = stream.take() {
-        let _ = stream.shutdown(Shutdown::Both);
+    if let Some(active_stream) = stream.as_mut() {
+        let _ = runtime.block_on(active_stream.close(None));
     }
+    stream.take();
 }
 
 fn resolve_socket_addr(host: &str, port: u16) -> Result<SocketAddr, String> {
