@@ -54,8 +54,6 @@ impl<T: Node> Engine<T> {
                 items.push(item);
             }
         }
-
-        items.sort_by(|left, right| left.node_type.cmp(&right.node_type));
         items
     }
 
