@@ -26,8 +26,8 @@ use self::{
     },
     midi_runtime::{
         MidiInputConfig, MidiInputEvent, MidiInputHandle, MidiOutputConfig, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
-        available_midi_port_options, format_midi_bytes, midi_input_port_options, midi_output_port_options,
-        midi_port_selected, sync_midi_port_enum_options,
+        available_midi_port_options, format_midi_bytes, midi_input_port_available, midi_input_port_options,
+        midi_output_port_available, midi_output_port_options, midi_port_selected, sync_midi_port_enum_options,
     },
 };
 
@@ -269,7 +269,8 @@ impl MidiModule {
             return;
         };
 
-        if self.input.is_some() && self.last_input_config.as_ref() == Some(&config) {
+        let input_port_available = midi_input_port_available(config.port_variant.as_str()).unwrap_or(true);
+        if self.input.is_some() && self.last_input_config.as_ref() == Some(&config) && input_port_available {
             self.clear_input_warning(ctx);
             self.refresh_connected(ctx);
             return;
@@ -311,7 +312,8 @@ impl MidiModule {
             return;
         };
 
-        if self.output.is_some() && self.last_output_config.as_ref() == Some(&config) {
+        let output_port_available = midi_output_port_available(config.port_variant.as_str()).unwrap_or(true);
+        if self.output.is_some() && self.last_output_config.as_ref() == Some(&config) && output_port_available {
             self.clear_output_warning(ctx);
             self.refresh_connected(ctx);
             return;
@@ -347,8 +349,15 @@ impl MidiModule {
     }
 
     fn refresh_connected(&mut self, ctx: &mut ProcessCtx) {
-        self.base
-            .set_connected(ctx, self.input.is_some() || self.output.is_some());
+        self.base.set_connected(
+            ctx,
+            midi_transport_connected(
+                self.input_config().is_some(),
+                self.input.is_some(),
+                self.output_config().is_some(),
+                self.output.is_some(),
+            ),
+        );
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx) {
@@ -1498,6 +1507,8 @@ impl Node for MidiModule {
         if refresh_ports {
             self.refresh_port_options(ctx);
             self.port_refresh_elapsed = 0.0;
+            self.input_dirty = true;
+            self.output_dirty = true;
         }
 
         self.refresh_data_capabilities(ctx);
@@ -1570,6 +1581,20 @@ impl Node for MidiModule {
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::create)
+    }
+}
+
+fn midi_transport_connected(
+    input_selected: bool,
+    input_ready: bool,
+    output_selected: bool,
+    output_ready: bool,
+) -> bool {
+    match (input_selected, output_selected) {
+        (false, false) => false,
+        (true, false) => input_ready,
+        (false, true) => output_ready,
+        (true, true) => input_ready && output_ready,
     }
 }
 

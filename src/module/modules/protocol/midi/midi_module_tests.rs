@@ -8,9 +8,21 @@ use golden_core::{
 };
 
 use super::{
-    MidiMessage, MidiModule,
+    MidiMessage, MidiModule, midi_transport_connected,
     midi_message::{cc_decl_id, note_decl_id},
 };
+
+#[test]
+fn midi_transport_connected_requires_every_selected_port_ready() {
+    assert!(!midi_transport_connected(false, false, false, false));
+    assert!(midi_transport_connected(true, true, false, false));
+    assert!(!midi_transport_connected(true, false, false, false));
+    assert!(midi_transport_connected(false, false, true, true));
+    assert!(!midi_transport_connected(false, false, true, false));
+    assert!(midi_transport_connected(true, true, true, true));
+    assert!(!midi_transport_connected(true, false, true, true));
+    assert!(!midi_transport_connected(true, true, true, false));
+}
 
 #[test]
 fn midi_module_command_tester_advertises_all_midi_commands() {

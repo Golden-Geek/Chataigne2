@@ -131,8 +131,9 @@ fn handle_midi_command_param_change<TCommand, TPayload, TRequest>(
     }
 }
 
-#[node("midi_send_note_on_command", label = "Send Note On")]
+#[node("midi_note_command_base", label = "Note Command")]
 #[children(
+    [base_children];
     channel: i32 = DEFAULT_CHANNEL [1..16] (
         label = "Channel",
         description = "1-based MIDI channel."
@@ -144,35 +145,62 @@ fn handle_midi_command_param_change<TCommand, TPayload, TRequest>(
     );
     pitch: i32 = DEFAULT_PITCH [0..127] (
         label = "Pitch",
-        description = "MIDI note pitch used when Note Mode is Pitch."
+        description = "MIDI note pitch used when Note Mode is Pitch.",
+        dependency = note_mode == NOTE_MODE_PITCH
     );
     octave: i32 = DEFAULT_OCTAVE [-1..9] (
         label = "Octave",
-        description = "Octave used when Note Mode is Octave + Note."
+        description = "Octave used when Note Mode is Octave + Note.",
+        dependency = note_mode == NOTE_MODE_OCTAVE_NOTE
     );
     note: Enum = DEFAULT_NOTE_NAME (
         label = "Note",
         description = "Note name used when Note Mode is Octave + Note.",
-        enum_options = note_name_options()
+        enum_options = note_name_options(),
+        dependency = note_mode == NOTE_MODE_OCTAVE_NOTE
     );
+)]
+struct MidiNoteCommandBase {
+    base: crate::app::ModuleCommandBase,
+}
+
+impl MidiNoteCommandBase {
+    fn create() -> Self {
+        Self::new(crate::app::ModuleCommandBase::new())
+    }
+}
+
+#[node("midi_note_command_base", via = base, from_struct)]
+impl Node for MidiNoteCommandBase {}
+
+#[derive(Clone, Copy)]
+struct MidiNoteTarget {
+    channel: u8,
+    note: u8,
+}
+
+#[node("midi_send_note_on_command", label = "Send Note On")]
+#[children(
+    [base_children];
     velocity: i32 = DEFAULT_VELOCITY [0..127] (
         label = "Velocity",
         description = "Note-on velocity."
     );
 )]
 pub struct MidiSendNoteOnCommand {
-    base: crate::app::ModuleCommandBase,
+    base: MidiNoteCommandBase,
 }
 
 impl MidiSendNoteOnCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(MidiNoteCommandBase::create())
     }
 
     fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MidiSendRequest, String> {
+        let target = command_note_target(snapshot, self.id())?;
         Ok(MidiSendRequest::immediate(MidiMessage::NoteOn {
-            channel: command_channel(snapshot, self.id()),
-            note: command_note_pitch(snapshot, self.id())?,
+            channel: target.channel,
+            note: target.note,
             velocity: command_u7(snapshot, self.id(), "velocity", DEFAULT_VELOCITY),
         }))
     }
@@ -197,46 +225,26 @@ impl Node for MidiSendNoteOnCommand {
 
 #[node("midi_send_note_off_command", label = "Send Note Off")]
 #[children(
-    channel: i32 = DEFAULT_CHANNEL [1..16] (
-        label = "Channel",
-        description = "1-based MIDI channel."
-    );
-    note_mode: Enum = NOTE_MODE_PITCH (
-        label = "Note Mode",
-        description = "Whether the note is selected by MIDI pitch or by octave and note name.",
-        enum_options = note_mode_options()
-    );
-    pitch: i32 = DEFAULT_PITCH [0..127] (
-        label = "Pitch",
-        description = "MIDI note pitch used when Note Mode is Pitch."
-    );
-    octave: i32 = DEFAULT_OCTAVE [-1..9] (
-        label = "Octave",
-        description = "Octave used when Note Mode is Octave + Note."
-    );
-    note: Enum = DEFAULT_NOTE_NAME (
-        label = "Note",
-        description = "Note name used when Note Mode is Octave + Note.",
-        enum_options = note_name_options()
-    );
+    [base_children];
     velocity: i32 = 0 [0..127] (
         label = "Velocity",
         description = "Note-off release velocity."
     );
 )]
 pub struct MidiSendNoteOffCommand {
-    base: crate::app::ModuleCommandBase,
+    base: MidiNoteCommandBase,
 }
 
 impl MidiSendNoteOffCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(MidiNoteCommandBase::create())
     }
 
     fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MidiSendRequest, String> {
+        let target = command_note_target(snapshot, self.id())?;
         Ok(MidiSendRequest::immediate(MidiMessage::NoteOff {
-            channel: command_channel(snapshot, self.id()),
-            note: command_note_pitch(snapshot, self.id())?,
+            channel: target.channel,
+            note: target.note,
             velocity: command_u7(snapshot, self.id(), "velocity", 0),
         }))
     }
@@ -261,28 +269,7 @@ impl Node for MidiSendNoteOffCommand {
 
 #[node("midi_send_full_note_command", label = "Send Full Note")]
 #[children(
-    channel: i32 = DEFAULT_CHANNEL [1..16] (
-        label = "Channel",
-        description = "1-based MIDI channel."
-    );
-    note_mode: Enum = NOTE_MODE_PITCH (
-        label = "Note Mode",
-        description = "Whether the note is selected by MIDI pitch or by octave and note name.",
-        enum_options = note_mode_options()
-    );
-    pitch: i32 = DEFAULT_PITCH [0..127] (
-        label = "Pitch",
-        description = "MIDI note pitch used when Note Mode is Pitch."
-    );
-    octave: i32 = DEFAULT_OCTAVE [-1..9] (
-        label = "Octave",
-        description = "Octave used when Note Mode is Octave + Note."
-    );
-    note: Enum = DEFAULT_NOTE_NAME (
-        label = "Note",
-        description = "Note name used when Note Mode is Octave + Note.",
-        enum_options = note_name_options()
-    );
+    [base_children];
     velocity: i32 = DEFAULT_VELOCITY [0..127] (
         label = "Velocity",
         description = "Note-on velocity."
@@ -298,29 +285,28 @@ impl Node for MidiSendNoteOffCommand {
     );
 )]
 pub struct MidiSendFullNoteCommand {
-    base: crate::app::ModuleCommandBase,
+    base: MidiNoteCommandBase,
 }
 
 impl MidiSendFullNoteCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(MidiNoteCommandBase::create())
     }
 
     fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MidiSendRequest, String> {
-        let channel = command_channel(snapshot, self.id());
-        let note = command_note_pitch(snapshot, self.id())?;
+        let target = command_note_target(snapshot, self.id())?;
         let duration_ms = command_int(snapshot, self.id(), "duration_ms", 100).max(0) as u64;
         Ok(MidiSendRequest {
             packets: vec![
                 MidiSendPacket::immediate(MidiMessage::NoteOn {
-                    channel,
-                    note,
+                    channel: target.channel,
+                    note: target.note,
                     velocity: command_u7(snapshot, self.id(), "velocity", DEFAULT_VELOCITY),
                 }),
                 MidiSendPacket::delayed(
                     MidiMessage::NoteOff {
-                        channel,
-                        note,
+                        channel: target.channel,
+                        note: target.note,
                         velocity: command_u7(snapshot, self.id(), "off_velocity", 0),
                     },
                     duration_ms,
@@ -565,46 +551,26 @@ impl Node for MidiSendChannelPressureCommand {
 
 #[node("midi_send_poly_pressure_command", label = "Send Poly Pressure")]
 #[children(
-    channel: i32 = DEFAULT_CHANNEL [1..16] (
-        label = "Channel",
-        description = "1-based MIDI channel."
-    );
-    note_mode: Enum = NOTE_MODE_PITCH (
-        label = "Note Mode",
-        description = "Whether the note is selected by MIDI pitch or by octave and note name.",
-        enum_options = note_mode_options()
-    );
-    pitch: i32 = DEFAULT_PITCH [0..127] (
-        label = "Pitch",
-        description = "MIDI note pitch used when Note Mode is Pitch."
-    );
-    octave: i32 = DEFAULT_OCTAVE [-1..9] (
-        label = "Octave",
-        description = "Octave used when Note Mode is Octave + Note."
-    );
-    note: Enum = DEFAULT_NOTE_NAME (
-        label = "Note",
-        description = "Note name used when Note Mode is Octave + Note.",
-        enum_options = note_name_options()
-    );
+    [base_children];
     pressure: i32 = 0 [0..127] (
         label = "Pressure",
         description = "Polyphonic pressure value."
     );
 )]
 pub struct MidiSendPolyPressureCommand {
-    base: crate::app::ModuleCommandBase,
+    base: MidiNoteCommandBase,
 }
 
 impl MidiSendPolyPressureCommand {
     pub fn create() -> Self {
-        Self::new(crate::app::ModuleCommandBase::new())
+        Self::new(MidiNoteCommandBase::create())
     }
 
     fn request_payload(&self, snapshot: &ProcessTreeSnapshot) -> Result<MidiSendRequest, String> {
+        let target = command_note_target(snapshot, self.id())?;
         Ok(MidiSendRequest::immediate(MidiMessage::PolyPressure {
-            channel: command_channel(snapshot, self.id()),
-            note: command_note_pitch(snapshot, self.id())?,
+            channel: target.channel,
+            note: target.note,
             pressure: command_u7(snapshot, self.id(), "pressure", 0),
         }))
     }
@@ -884,6 +850,13 @@ impl Node for MidiSendRawBytesCommand {
 
 fn command_channel(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> u8 {
     clamp_channel_i32(command_int(snapshot, command_id, "channel", DEFAULT_CHANNEL))
+}
+
+fn command_note_target(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Result<MidiNoteTarget, String> {
+    Ok(MidiNoteTarget {
+        channel: command_channel(snapshot, command_id),
+        note: command_note_pitch(snapshot, command_id)?,
+    })
 }
 
 fn command_note_pitch(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Result<u8, String> {

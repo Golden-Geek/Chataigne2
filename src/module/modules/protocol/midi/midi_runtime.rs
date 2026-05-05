@@ -122,6 +122,14 @@ pub(crate) fn midi_output_port_options(ports: &[DiscoveredMidiPort]) -> Vec<Para
     midi_port_options("No Output", ports)
 }
 
+pub(crate) fn midi_input_port_available(selection: &str) -> Result<bool, String> {
+    midi_port_available(selection, available_input_ports)
+}
+
+pub(crate) fn midi_output_port_available(selection: &str) -> Result<bool, String> {
+    midi_port_available(selection, available_output_ports)
+}
+
 pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
@@ -173,6 +181,20 @@ pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId
 pub(crate) fn midi_port_selected(variant_id: &str) -> bool {
     let trimmed = variant_id.trim();
     !trimmed.is_empty() && trimmed != NO_MIDI_PORT_VARIANT
+}
+
+fn midi_port_available<F>(selection: &str, discover_ports: F) -> Result<bool, String>
+where
+    F: FnOnce() -> Result<Vec<DiscoveredMidiPort>, String>,
+{
+    if !midi_port_selected(selection) {
+        return Ok(false);
+    }
+
+    let selection_label = human_midi_port_variant(selection);
+    Ok(discover_ports()?
+        .into_iter()
+        .any(|port| port.variant_id == selection || port.label == selection_label))
 }
 
 pub(crate) fn format_midi_bytes(bytes: &[u8]) -> String {

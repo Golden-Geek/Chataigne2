@@ -32,7 +32,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ### Golden Package Boundary
 - `golden_core` and `golden_ui` must stay app-agnostic reusable packages.
-- Do not put `Chataigne2`-specific nodes, MIDI behavior, module behavior, or product policy inside any `golden_*` package.
+- Do not put `Chataigne2`-specific nodes, module behavior, or product policy inside any `golden_*` package.
 - When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
 - No app-layer code inside `golden_*`.
 
