@@ -62,10 +62,6 @@ impl StreamingModuleBase {
         )
     }
 
-    pub(crate) const fn module_command_types() -> &'static [&'static str] {
-        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES
-    }
-
     pub(crate) fn parameters_id(&self) -> Option<NodeId> {
         self.base.parameters_id()
     }
@@ -186,7 +182,8 @@ impl StreamingModuleBase {
 impl Node for StreamingModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
-        self.base.ensure_command_tester(ctx, Self::module_command_types());
+        self.base
+            .configure_command_tester(ctx, crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES);
         crate::app::module::enable_module_authoring(self.node_data_mut());
     }
 }

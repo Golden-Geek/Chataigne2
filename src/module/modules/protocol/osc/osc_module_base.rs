@@ -116,10 +116,6 @@ impl OscModuleBase {
         )
     }
 
-    pub(crate) const fn module_command_types() -> &'static [&'static str] {
-        OSC_MODULE_COMMAND_TYPES
-    }
-
     pub(crate) fn process_pending_incoming<F>(
         &mut self,
         ctx: &mut ProcessCtx,
@@ -617,24 +613,26 @@ impl OscModuleBase {
         }
     }
 
-    fn on_meta_changed_inner(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+    fn on_meta_changed_inner(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if let Some(enabled) = patch.enabled {
-            if node == self.id() {
-                if enabled {
-                    self.transport_dirty = true;
-                } else {
-                    self.stop_transport();
-                    self.last_transport_config = None;
-                    if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-                        self.clear_receiver_warning(ctx, snapshot_arc.as_ref());
-                    }
-                    self.base.set_connected(ctx, false);
-                    self.transport_dirty = false;
-                }
-                return;
+            if node != self.id() {
+                let _ = enabled;
+                self.transport_dirty = true;
             }
+        }
+    }
 
+    fn on_effective_enabled_changed_inner(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        if enabled {
             self.transport_dirty = true;
+        } else {
+            self.stop_transport();
+            self.last_transport_config = None;
+            if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+                self.clear_receiver_warning(ctx, snapshot_arc.as_ref());
+            }
+            self.base.set_connected(ctx, false);
+            self.transport_dirty = false;
         }
     }
 
@@ -699,7 +697,7 @@ impl OscModuleBase {
 impl Node for OscModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
-        self.base.ensure_command_tester(ctx, Self::module_command_types());
+        self.base.configure_command_tester(ctx, OSC_MODULE_COMMAND_TYPES);
         self.transport_dirty = true;
         crate::app::module::enable_module_authoring(self.node_data_mut());
 
@@ -774,6 +772,10 @@ impl Node for OscModuleBase {
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         self.on_meta_changed_inner(ctx, node, patch);
+    }
+
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.on_effective_enabled_changed_inner(ctx, enabled);
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {

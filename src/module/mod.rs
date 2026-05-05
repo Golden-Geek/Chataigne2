@@ -3,7 +3,7 @@ use golden_core::{
     events::CustomEvent,
     node,
     node::{
-        DeclId, Node, NodeHandle, NodeId, UserContainerRules, UserContextNode, UserCreatableItem,
+        Node, NodeHandle, NodeId, UserContainerRules, UserContextNode, UserCreatableItem,
         USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
     process_ctx::ProcessCtx,
@@ -22,8 +22,6 @@ pub(crate) use reference_filters::{register_module_reference_filters, resolve_en
 const SCRIPT_ITEM_KIND: &str = "script";
 const SCRIPT_NODE_TYPE: &str = "script";
 const SCRIPT_DEFAULT_LABEL: &str = "Script";
-const COMMAND_TESTER_DECL_ID: &str = "command_tester";
-
 pub(crate) const MODULE_INCOMING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.incoming";
 pub(crate) const MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.outgoing";
 pub(crate) const MODULE_TRAFFIC_INCOMING_DIRECTION: &str = "incoming";
@@ -74,6 +72,10 @@ impl ModuleDataCapabilities {
     }
     folder(parameters, label = "Parameters", color = color::Color::new(0.8, 0.5, 0.1, 1.0)) {}
     folder(values, label = "Values", color = color::Color::new(0.1, 0.45, 0.75, 1.0)) {}
+    node command_tester: crate::app::ModuleCommandTester = crate::app::ModuleCommandTester::create_empty() (
+        label = "Command Tester",
+        description = "Create and trigger ad-hoc commands through this module."
+    );
 )]
 pub struct ModuleBase {
     #[potential_node(decl_id = "connection")]
@@ -97,6 +99,10 @@ impl ModuleBase {
         self.values_folder.current_id()
     }
 
+    pub fn command_tester_id(&self) -> Option<NodeId> {
+        self.command_tester.current_id()
+    }
+
     pub fn log_incoming_enabled(&self) -> bool {
         self.log_incoming.get()
     }
@@ -109,38 +115,33 @@ impl ModuleBase {
         self.connected.set(ctx, connected);
     }
 
-    pub(crate) fn ensure_command_tester(
+    pub(crate) fn configure_command_tester(
         &mut self,
         ctx: &mut ProcessCtx,
         available_command_types: &'static [&'static str],
     ) {
-        let existing_command_tester_id = ctx
+        let Some(command_tester_id) = self
+            .command_tester_id()
+            .or_else(|| ctx.tree_snapshot().and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), "command_tester")))
+        else {
+            return;
+        };
+
+        let is_command_tester = ctx
             .tree_snapshot()
-            .and_then(|snapshot| snapshot.find_child_by_decl_id(self.id(), COMMAND_TESTER_DECL_ID));
+            .and_then(|snapshot| snapshot.node(command_tester_id))
+            .is_some_and(|node| node.node_type == crate::app::ModuleCommandTester::NODE_TYPE);
 
-        if let Some(command_tester_id) = existing_command_tester_id {
-            let is_shared_command_tester = ctx
-                .tree_snapshot()
-                .and_then(|snapshot| snapshot.node(command_tester_id))
-                .is_some_and(|node| node.node_type == crate::app::ModuleCommandTester::NODE_TYPE);
-
-            if is_shared_command_tester {
-                NodeHandle::new(command_tester_id).with_mut::<crate::app::ModuleCommandTester, _>(
-                    ctx,
-                    move |tester, _| tester.set_available_command_types(available_command_types),
-                );
-            } else {
-                NodeHandle::new(command_tester_id)
-                    .replace_with(ctx, crate::app::ModuleCommandTester::create(available_command_types));
-            }
+        if is_command_tester {
+            NodeHandle::new(command_tester_id).with_mut::<crate::app::ModuleCommandTester, _>(
+                ctx,
+                move |tester, _| tester.set_available_command_types(available_command_types),
+            );
             return;
         }
 
-        let mut tester = crate::app::ModuleCommandTester::create(available_command_types);
-        let meta = &mut tester.node_data_mut().meta;
-        meta.decl_id = DeclId(COMMAND_TESTER_DECL_ID.to_string());
-        meta.short_name = COMMAND_TESTER_DECL_ID.to_string();
-        ctx.add_child_boxed(self.id(), Box::new(tester), None);
+        NodeHandle::new(command_tester_id)
+            .replace_with(ctx, crate::app::ModuleCommandTester::create(available_command_types));
     }
 
     pub(crate) fn set_data_capabilities(&mut self, ctx: &mut ProcessCtx, capabilities: ModuleDataCapabilities) {

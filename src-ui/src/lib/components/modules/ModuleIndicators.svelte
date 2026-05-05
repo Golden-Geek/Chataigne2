@@ -253,8 +253,7 @@
 
 <div class="module-indicators">
 	{#if connectedClientsCount != null}
-		<span class="module-connected-clients"
-		class:has-clients={connectedClientsCount > 0}>
+		<span class="module-connected-clients" class:has-clients={connectedClientsCount > 0}>
 			{`${connectedClientsCount} client${connectedClientsCount !== 1 ? 's' : ''}`}
 		</span>
 	{/if}
@@ -299,6 +298,8 @@
 					aria-hidden="true" />
 			{/key}
 		</button>
+	{:else}
+		<span class="traffic-placeholder"> </span>
 	{/if}
 
 	{#if canSend && logOutgoingParamNode}
@@ -320,6 +321,8 @@
 					aria-hidden="true" />
 			{/key}
 		</button>
+	{:else}
+		<span class="traffic-placeholder"> </span>
 	{/if}
 </div>
 
@@ -335,20 +338,20 @@
 	.module-connected-clients {
 		font-size: 0.75rem;
 		vertical-align: middle;
-		margin-right:.25rem;
+		margin-right: 0.25rem;
 		color: rgb(from var(--gc-color-text) r g b / 0.3);
 	}
 
 	.module-connected-clients.has-clients {
-		color: rgb(from var(--gc-color-text) r g b / .6);
+		color: rgb(from var(--gc-color-text) r g b / 0.6);
 	}
 
 	.module-status-icon {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.35rem;
-		height: 1.35rem;
+		width: 1.2rem;
+		height: 1.2rem;
 		background: transparent;
 		cursor: pointer;
 		border-radius: 0.8rem;
@@ -375,7 +378,7 @@
 		cursor: normal;
 		pointer-events: none;
 		border: solid 1px;
-		padding: 0.2rem;
+		padding: 0.15rem;
 	}
 
 	.module-connection-icon.connected {
@@ -392,12 +395,18 @@
 		background: rgb(from var(--gc-color-background) r g b / 0.2);
 	}
 
-	.module-traffic-icon {
-		padding: 0.1rem;
-		border: solid 1px transparent;
+	.traffic-placeholder {
+		width:1.2rem;
+		height:1.2rem;
+		margin:0;
+	}
 
+	.module-traffic-icon {
+		padding: 0rem;
+		border: solid 1px transparent;
 		transition: border-color 0.12s ease;
 	}
+	
 
 	.module-traffic-icon.logging.traffic-incoming {
 		border-color: rgba(0, 150, 255, 1);

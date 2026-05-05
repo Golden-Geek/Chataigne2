@@ -459,21 +459,23 @@ impl Node for SerialModule {
         self.on_param_change_inner(param);
     }
 
-    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if node != self.id() {
-            return;
-        }
-
-        if let Some(enabled) = patch.enabled {
-            if enabled {
+            if patch.enabled.is_some() {
                 self.transport_dirty = true;
-            } else {
-                self.stop_transport();
-                self.last_transport_config = None;
-                self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
-                self.stream.set_connected(ctx, false);
-                self.transport_dirty = false;
             }
+        }
+    }
+
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        if enabled {
+            self.transport_dirty = true;
+        } else {
+            self.stop_transport();
+            self.last_transport_config = None;
+            self.clear_port_warning(ctx, SERIAL_PORT_CONNECTION_WARNING_ID);
+            self.stream.set_connected(ctx, false);
+            self.transport_dirty = false;
         }
     }
 

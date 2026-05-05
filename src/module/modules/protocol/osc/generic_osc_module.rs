@@ -139,6 +139,10 @@ impl Node for GenericOscModule {
         self.base.on_meta_changed(ctx, node, patch);
     }
 
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.base.on_effective_enabled_changed(ctx, enabled);
+    }
+
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         self.base.on_custom_event(ctx, event);
     }

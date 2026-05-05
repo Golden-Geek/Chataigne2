@@ -563,22 +563,25 @@ impl Node for UdpModule {
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if let Some(enabled) = patch.enabled {
-            if node == self.id() {
-                if enabled {
-                    self.transport_dirty = true;
-                } else {
-                    self.stop_transport();
-                    self.last_transport_config = None;
-                    if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-                        self.clear_input_warning(ctx, snapshot_arc.as_ref());
-                    }
-                    self.stream.set_connected(ctx, false);
-                    self.transport_dirty = false;
-                }
-                return;
+            if node != self.id() {
+                let _ = ctx;
+                let _ = enabled;
+                self.transport_dirty = true;
             }
+        }
+    }
 
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        if enabled {
             self.transport_dirty = true;
+        } else {
+            self.stop_transport();
+            self.last_transport_config = None;
+            if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+                self.clear_input_warning(ctx, snapshot_arc.as_ref());
+            }
+            self.stream.set_connected(ctx, false);
+            self.transport_dirty = false;
         }
     }
 

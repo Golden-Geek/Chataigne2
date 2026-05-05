@@ -64,7 +64,48 @@ fn module_command_tester_decodes_from_project_node_type() {
 }
 
 #[test]
-fn decoded_module_command_tester_accepts_declared_module_commands_until_scoped() {
+fn decoded_module_command_tester_restores_persisted_command_catalog() {
+    let tester = ModuleCommandTester::create(
+        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+    );
+    let data = tester
+        .project_encode_data()
+        .expect("module command tester should encode its advertised catalog");
+
+    let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
+        "module_command_tester",
+        &data,
+        &NodeMeta::new("Command Tester".to_string()),
+    )
+    .expect("module command tester should decode from project files");
+
+    let items = node.user_creatable_items();
+    let item_types = items.iter().map(|item| item.node_type.as_str()).collect::<Vec<_>>();
+
+    assert_eq!(
+        item_types,
+        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+        "decoded testers should restore their persisted advertised command order"
+    );
+    assert!(!items.iter().any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE));
+    assert!(
+        node.user_container_accepts_item(
+            crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE,
+            MODULE_COMMAND_ITEM_KIND,
+        ),
+        "decoded testers should accept persisted advertised command items"
+    );
+    assert!(
+        !node.user_container_accepts_item(
+            crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+            MODULE_COMMAND_ITEM_KIND,
+        ),
+        "decoded testers should reject commands outside their persisted advertised catalog"
+    );
+}
+
+#[test]
+fn decoded_legacy_module_command_tester_accepts_declared_module_commands_without_catalog_data() {
     let node = <crate::app::AppNode as ProjectNode>::project_decode_node(
         "module_command_tester",
         &serde_json::Value::Null,
@@ -77,19 +118,19 @@ fn decoded_module_command_tester_accepts_declared_module_commands_until_scoped()
         items
             .iter()
             .any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE),
-        "decoded testers should accept saved OSC command items before module init scopes the catalog"
+        "legacy decoded testers should accept saved OSC command items without persisted catalog data"
     );
     assert!(
         items.iter().any(|item| {
             item.node_type == crate::app::module::common::streaming::commands::STREAMING_SEND_STRING_COMMAND_NODE_TYPE
         }),
-        "decoded testers should accept saved streaming command items before module init scopes the catalog"
+        "legacy decoded testers should accept saved streaming command items without persisted catalog data"
     );
     assert!(
         node.user_container_accepts_item(
             crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
             MODULE_COMMAND_ITEM_KIND,
         ),
-        "decoded testers should accept saved OSC command items before module init scopes the catalog"
+        "legacy decoded testers should accept saved OSC command items without persisted catalog data"
     );
 }

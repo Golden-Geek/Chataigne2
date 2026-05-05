@@ -355,10 +355,6 @@ impl MidiModule {
         self.auto_add.get()
     }
 
-    fn module_command_types() -> &'static [&'static str] {
-        MIDI_MODULE_COMMAND_TYPES
-    }
-
     fn clear_pending_auto_child(&mut self, parent_id: NodeId, decl_id: &str) {
         self.pending_auto_children.remove(&(parent_id, decl_id.to_string()));
     }
@@ -1841,7 +1837,7 @@ impl MidiModule {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
         };
-        if request.module_id != self.id() || !Self::module_command_types().contains(&request.command_type.as_str()) {
+        if request.module_id != self.id() || !MIDI_MODULE_COMMAND_TYPES.contains(&request.command_type.as_str()) {
             return;
         }
 
@@ -1967,7 +1963,7 @@ impl MidiModule {
 impl Node for MidiModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.base.init(ctx);
-        self.base.ensure_command_tester(ctx, Self::module_command_types());
+        self.base.configure_command_tester(ctx, MIDI_MODULE_COMMAND_TYPES);
         crate::app::module::enable_module_authoring(self.node_data_mut());
         self.input_dirty = true;
         self.output_dirty = true;
@@ -2060,26 +2056,29 @@ impl Node for MidiModule {
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
         if let Some(enabled) = patch.enabled {
-            if node == self.id() {
-                if enabled {
-                    self.input_dirty = true;
-                    self.output_dirty = true;
-                } else {
-                    self.stop_input();
-                    self.stop_output();
-                    self.last_input_config = None;
-                    self.last_output_config = None;
-                    self.clear_input_warning(ctx);
-                    self.clear_output_warning(ctx);
-                    self.base.set_connected(ctx, false);
-                    self.input_dirty = false;
-                    self.output_dirty = false;
-                }
-                return;
+            let _ = ctx;
+            if node != self.id() {
+                let _ = enabled;
+                self.input_dirty = true;
+                self.output_dirty = true;
             }
+        }
+    }
 
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        if enabled {
             self.input_dirty = true;
             self.output_dirty = true;
+        } else {
+            self.stop_input();
+            self.stop_output();
+            self.last_input_config = None;
+            self.last_output_config = None;
+            self.clear_input_warning(ctx);
+            self.clear_output_warning(ctx);
+            self.base.set_connected(ctx, false);
+            self.input_dirty = false;
+            self.output_dirty = false;
         }
     }
 

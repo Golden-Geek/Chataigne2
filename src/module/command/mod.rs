@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
+pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
+pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
 
@@ -223,42 +225,49 @@ impl ModuleCommandManagerBase {
     }
 }
 
-#[node("module_command_tester", label = "Command Tester")]
+#[node("module_command_tester", label = MODULE_COMMAND_TESTER_LABEL)]
 pub struct ModuleCommandTester {
-    available_command_types: Option<&'static [&'static str]>,
+    #[state(default = None::<Vec<String>>, persist)]
+    available_command_types: Option<Vec<String>>,
     manager: ModuleCommandManagerBase,
 }
 
 impl ModuleCommandTester {
     pub fn create(available_command_types: &'static [&'static str]) -> Self {
-        Self::create_with_available_command_types(Some(available_command_types))
+        Self::create_with_available_command_types(Some(command_type_names(available_command_types)))
+    }
+
+    pub fn create_empty() -> Self {
+        Self::create_with_available_command_types(Some(Vec::new()))
     }
 
     fn create_for_project_decode() -> Self {
         Self::create_with_available_command_types(None)
     }
 
-    fn create_with_available_command_types(available_command_types: Option<&'static [&'static str]>) -> Self {
-        let mut tester = Self::new(available_command_types, ModuleCommandManagerBase::new());
+    fn create_with_available_command_types(available_command_types: Option<Vec<String>>) -> Self {
+        let mut tester = Self::new(ModuleCommandManagerBase::new());
+        tester.available_command_types = available_command_types;
         tester.node_data_mut().meta.description =
-            Some("Create and trigger ad-hoc commands through this module.".to_string());
+            Some(MODULE_COMMAND_TESTER_DESCRIPTION.to_string());
         tester
     }
 
     pub(crate) fn set_available_command_types(&mut self, available_command_types: &'static [&'static str]) {
-        self.available_command_types = Some(available_command_types);
+        self.available_command_types = Some(command_type_names(available_command_types));
     }
 
     fn command_type_available(&self, node_type: &str) -> bool {
         self.available_command_types
-            .map(|available_command_types| available_command_types.contains(&node_type))
+            .as_ref()
+            .map(|available_command_types| available_command_types.iter().any(|available| available == node_type))
             .unwrap_or_else(|| crate::app::declared_user_item_type_matches(node_type, MODULE_COMMAND_ITEM_KIND))
     }
 
     fn available_command_items(&self) -> Vec<UserCreatableItem> {
         let declared_items = crate::app::declared_user_creatable_items(MODULE_COMMAND_ITEM_KIND);
 
-        match self.available_command_types {
+        match self.available_command_types.as_ref() {
             Some(available_command_types) => {
                 let mut items_by_type = declared_items
                     .into_iter()
@@ -267,7 +276,7 @@ impl ModuleCommandTester {
 
                 available_command_types
                     .iter()
-                    .filter_map(|node_type| items_by_type.remove(*node_type))
+                    .filter_map(|node_type| items_by_type.remove(node_type))
                     .map(|item| item.with_select_when_created(false))
                     .collect()
             }
@@ -307,6 +316,13 @@ impl Node for ModuleCommandTester {
             self.manager.ensure_command_tester_controls(ctx, child);
         }
     }
+}
+
+fn command_type_names(available_command_types: &[&str]) -> Vec<String> {
+    available_command_types
+        .iter()
+        .map(|node_type| (*node_type).to_string())
+        .collect()
 }
 
 #[node("module_command_base", label = "Command")]

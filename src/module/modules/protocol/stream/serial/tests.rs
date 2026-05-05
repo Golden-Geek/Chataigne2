@@ -8,6 +8,7 @@ use golden_core::{
 };
 
 use super::SerialModule;
+use crate::app::ModuleManager;
 
 #[test]
 fn serial_parameters_keep_port_before_input_and_no_sender_folder() {
@@ -183,6 +184,52 @@ fn serial_module_root_enable_toggle_stops_and_restarts_transport_while_recoverin
     );
 }
 
+#[test]
+fn disabling_module_manager_stops_and_restarts_child_serial_transport() {
+    let (mut engine, module_manager_id, module_id) = create_serial_module_under_manager();
+    let port_name_id = serial_module(&engine, module_id).port_name.id();
+
+    allow_serial_port_variant(&mut engine, port_name_id, "missing-test-port");
+    set_param(
+        &mut engine,
+        port_name_id,
+        ParamValue::Enum("missing-test-port".to_string()),
+    );
+    settle_transport_state(&mut engine, "serial transport config should settle under module manager");
+
+    let module = serial_module(&engine, module_id);
+    assert!(
+        module.transport.is_some(),
+        "serial module should start its transport while the enclosing module manager is enabled"
+    );
+
+    set_node_enabled(&mut engine, module_manager_id, false);
+    settle_transport_state(&mut engine, "module manager disable should settle child module state");
+
+    let module = serial_module(&engine, module_id);
+    assert!(
+        module.transport.is_none(),
+        "disabling the module manager should stop transports for child modules"
+    );
+    assert!(
+        module.last_transport_config.is_none(),
+        "disabling the module manager should clear child transport config just like disabling the module directly"
+    );
+
+    set_node_enabled(&mut engine, module_manager_id, true);
+    settle_transport_state(&mut engine, "module manager re-enable should restart child module transport");
+
+    let module = serial_module(&engine, module_id);
+    assert!(
+        module.transport.is_some(),
+        "re-enabling the module manager should restart child module transport"
+    );
+    assert!(
+        module.last_transport_config.is_some(),
+        "re-enabling the module manager should restore child transport config"
+    );
+}
+
 fn create_serial_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
@@ -200,6 +247,34 @@ fn create_serial_module() -> (crate::app::AppEngine, NodeId) {
         .expect("serial module should be attached under root");
 
     (engine, module_id)
+}
+
+fn create_serial_module_under_manager() -> (crate::app::AppEngine, NodeId, NodeId) {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(ModuleManager::new().into(), None);
+    engine.apply_edits().expect("module manager should attach");
+
+    let module_manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module manager should be attached under root");
+
+    engine.add_node(SerialModule::create().into(), Some(module_manager_id));
+    engine.apply_edits().expect("serial module should attach under module manager");
+    for _ in 0..4 {
+        engine.apply_edits().expect("serial defaults should materialize under module manager");
+    }
+    engine.resolve().expect("serial runtime schedule should resolve under module manager");
+
+    let module_id = engine
+        .nodes
+        .get(module_manager_id)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("serial module should be attached under module manager");
+
+    (engine, module_manager_id, module_id)
 }
 
 fn serial_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &SerialModule {

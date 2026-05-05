@@ -49,12 +49,12 @@ fn midi_module_command_tester_advertises_all_midi_commands() {
 
     assert_eq!(
         available_types.len(),
-        MidiModule::module_command_types().len(),
+        super::MIDI_MODULE_COMMAND_TYPES.len(),
         "midi command tester catalog should advertise the full MIDI command catalog"
     );
     assert_eq!(
         available_types,
-        MidiModule::module_command_types(),
+        super::MIDI_MODULE_COMMAND_TYPES,
         "midi command tester catalog should preserve the declared MIDI command order"
     );
 }
