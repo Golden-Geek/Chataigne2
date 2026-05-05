@@ -165,6 +165,15 @@ impl<T: Node> Engine<T> {
     ) -> Result<PatchMetaEffect, EngineEditError> {
         const OP: &str = "PatchMeta";
 
+        let subtree_ids = patch
+            .enabled
+            .map(|_| self.collect_subtree_node_ids(node))
+            .unwrap_or_default();
+        let old_effective_enabled = subtree_ids
+            .iter()
+            .map(|node_id| (*node_id, self.is_effectively_enabled(*node_id)))
+            .collect::<Vec<_>>();
+
         let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
             edit_index,
             operation: OP,
@@ -181,6 +190,17 @@ impl<T: Node> Engine<T> {
 
         if old_meta.enabled != new_meta.enabled {
             self.mark_schedule_dirty();
+        }
+
+        if old_meta.enabled != new_meta.enabled {
+            let effective_enabled_changes = old_effective_enabled
+                .into_iter()
+                .filter_map(|(node_id, was_enabled)| {
+                    let enabled = self.is_effectively_enabled(node_id);
+                    (enabled != was_enabled).then_some((node_id, enabled))
+                })
+                .collect::<Vec<_>>();
+            self.queue_effective_enabled_callbacks(&effective_enabled_changes)?;
         }
 
         self.emit_event(EventKind::MetaChanged { node, patch });

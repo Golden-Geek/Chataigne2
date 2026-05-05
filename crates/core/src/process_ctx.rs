@@ -35,7 +35,9 @@ pub struct ProcessTreeNodeSnapshot {
     pub label: String,
     /// Arbitrary classification tags from node metadata.
     pub tags: Vec<String>,
-    /// Node enabled flag.
+    /// Effective enabled flag.
+    ///
+    /// This is `true` only when the node itself and every ancestor are enabled.
     pub enabled: bool,
     /// Whether the enabled flag may be toggled by UI/editor code.
     pub can_be_disabled: bool,

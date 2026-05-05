@@ -913,6 +913,7 @@ pub trait Node: Send + Any {
     fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
     fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {}
     fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {}
+    fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, _enabled: bool) {}
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {}
 }
 

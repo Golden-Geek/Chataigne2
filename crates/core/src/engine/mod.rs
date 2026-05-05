@@ -7,7 +7,7 @@ use std::time::Duration;
 use crate::edit::{Edit, EditQueue, EditRequest};
 use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
-use crate::process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
+use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -557,6 +557,98 @@ impl<T: Node> Engine<T> {
             }
         }
 
+        if nodes.contains_key(&self.root) {
+            let mut stack = vec![(self.root, true)];
+            while let Some((node_id, ancestors_enabled)) = stack.pop() {
+                let (first_child, effective_enabled) = match nodes.get(&node_id) {
+                    Some(node) => (node.first_child, ancestors_enabled && node.enabled),
+                    None => continue,
+                };
+
+                if let Some(node) = nodes.get_mut(&node_id) {
+                    node.enabled = effective_enabled;
+                }
+
+                let mut child = first_child;
+                while let Some(child_id) = child {
+                    let next_sibling = nodes.get(&child_id).and_then(|node| node.next_sibling);
+                    stack.push((child_id, effective_enabled));
+                    child = next_sibling;
+                }
+            }
+        }
+
         Arc::new(ProcessTreeSnapshot::new(self.root, nodes))
+    }
+
+    pub(crate) fn is_effectively_enabled(&self, node: NodeId) -> bool {
+        let mut current = Some(node);
+        while let Some(node_id) = current {
+            let Some(entry) = self.nodes.get(node_id) else {
+                return false;
+            };
+            if !entry.node_data().meta.enabled {
+                return false;
+            }
+            current = entry.node_data().parent;
+        }
+
+        true
+    }
+
+    pub(crate) fn collect_subtree_node_ids(&self, root: NodeId) -> Vec<NodeId> {
+        if !self.nodes.contains(root) {
+            return Vec::new();
+        }
+
+        let mut out = Vec::new();
+        let mut stack = vec![root];
+        while let Some(node_id) = stack.pop() {
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+
+            out.push(node_id);
+
+            let mut child = node.node_data().first_child;
+            while let Some(child_id) = child {
+                let next_sibling = self
+                    .nodes
+                    .get(child_id)
+                    .and_then(|entry| entry.node_data().next_sibling);
+                stack.push(child_id);
+                child = next_sibling;
+            }
+        }
+
+        out
+    }
+
+    pub(crate) fn queue_effective_enabled_callbacks(
+        &mut self,
+        changes: &[(NodeId, bool)],
+    ) -> Result<(), EngineEditError> {
+        if changes.is_empty() {
+            return Ok(());
+        }
+
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for (node_id, enabled) in changes {
+            let Some(node) = self.nodes.get_mut(*node_id) else {
+                continue;
+            };
+
+            let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+
+            crate::logger::with_node_origin(*node_id, || {
+                node.on_effective_enabled_changed(&mut ctx, *enabled);
+            });
+
+            self.absorb_edits(&mut ctx)?;
+        }
+
+        Ok(())
     }
 }

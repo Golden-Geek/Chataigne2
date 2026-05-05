@@ -1012,6 +1012,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn on_effective_enabled_changed(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, enabled: bool) {
+                $crate::__dispatch_node_enum!(self, on_effective_enabled_changed, ctx, enabled; $($variant),*)
+            }
+
+            #[inline(always)]
             fn on_custom_event(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx, event: $crate::events::CustomEvent) {
                 $crate::__dispatch_node_enum!(self, on_custom_event, ctx, event; $($variant),*)
             }
