@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::Duration};
+use std::{collections::{HashSet, VecDeque}, time::Duration};
 
 pub(crate) mod midi_message;
 pub(crate) mod midi_runtime;
@@ -20,14 +20,15 @@ use self::{
     midi_message::{
         MIDI_DATA_MAX, MIDI_PITCH_BEND_CENTER, MIDI_U14_MAX, MidiMessage, MidiSystemMessage, ROTARY_ABSOLUTE,
         ROTARY_BINARY_OFFSET, ROTARY_SIGN_MAGNITUDE, ROTARY_TWOS_COMPLEMENT, cc_decl_id, cc_label, cc_supports_14_bit,
-        channel_decl_id, channel_folder_label, clamp_i32_to_u7, clamp_i32_to_u14, decode_midi_message,
-        decode_rotary_delta, encode_14_bit_control_change, encode_midi_message, encode_rotary_delta,
-        message_description, note_decl_id, note_label,
+        channel_decl_id, channel_folder_label, clamp_i32_to_u7, clamp_i32_to_u14, decode_rotary_delta,
+        encode_14_bit_control_change, encode_midi_message, encode_rotary_delta, message_description, note_decl_id,
+        note_label,
     },
     midi_runtime::{
-        MidiInputConfig, MidiInputEvent, MidiInputHandle, MidiOutputConfig, MidiOutputHandle, NO_MIDI_PORT_VARIANT,
-        available_midi_port_options, format_midi_bytes, midi_input_port_available, midi_input_port_options,
-        midi_output_port_available, midi_output_port_options, midi_port_selected, sync_midi_port_enum_options,
+        MidiClockTiming, MidiInputConfig, MidiInputEvent, MidiInputHandle, MidiOutputConfig, MidiOutputHandle,
+        NO_MIDI_PORT_VARIANT, available_midi_port_options, format_midi_bytes, midi_input_port_available,
+        midi_input_port_options, midi_output_port_available, midi_output_port_options, midi_port_selected,
+        sync_midi_port_enum_options,
     },
 };
 
@@ -67,6 +68,11 @@ const SYSEX_LENGTH_DECL_ID: &str = "length";
 const MIDI_7_BIT_VALUE_RANGE: (i32, i32) = (0, 127);
 const MIDI_14_BIT_VALUE_RANGE: (i32, i32) = (0, MIDI_U14_MAX as i32);
 const MIDI_NONNEGATIVE_INT_RANGE: (i32, i32) = (0, i32::MAX);
+const MIDI_CLOCK_PLAYING_TIMEOUT_SECS: f64 = 0.5;
+const MTC_PLAYING_TIMEOUT_SECS: f64 = 0.25;
+const MIDI_CLOCK_PULSES_PER_BEAT: u8 = 24;
+const MIDI_CLOCK_BPM_WINDOW_BEATS: usize = 4;
+const DEFAULT_MIDI_CLOCK_BPM_PRECISION: i32 = 2;
 
 const MIDI_MODULE_COMMAND_TYPES: &[&str] = &[
     crate::app::MidiSendNoteOnCommand::NODE_TYPE,
@@ -90,6 +96,28 @@ struct Cc14BitState {
     lsb: Option<u8>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct LastNoteInfo {
+    channel: u8,
+    note: u8,
+    velocity: u8,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+struct MidiClockState {
+    running: bool,
+    bpm: f64,
+    tick_in_beat: u8,
+    last_tick_at: Option<Duration>,
+    last_beat_at: Option<Duration>,
+    recent_beat_durations: VecDeque<Duration>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct MtcQuarterFrameState {
+    nibbles: [Option<u8>; 8],
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct MidiCcTagConfig {
     rotary_mechanism: &'static str,
@@ -106,6 +134,13 @@ struct PendingMidiPacket {
     due_at: Duration,
     bytes: Vec<u8>,
     description: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct PendingIncomingMessage {
+    message: MidiMessage,
+    received_at: Option<Duration>,
+    clock_timing: Option<MidiClockTiming>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -128,6 +163,7 @@ enum MidiApplyResult {
             description = "MIDI output port used for commands and automatic feedback.",
             enum_options = ["none (No Output)"]
         );
+        [base_children];
     }
     folder(parameters) {
         folder(processing, label = "Processing") {
@@ -138,6 +174,10 @@ enum MidiApplyResult {
             auto_feedback: bool = false (
                 label = "Auto Feedback",
                 description = "Send MIDI when values in the MIDI value tree are edited."
+            );
+            clock_bpm_precision: i32 = 0 [0..6] (
+                label = "Clock BPM Precision",
+                description = "Number of decimal places used for the exposed MIDI clock BPM. 0 rounds to a whole BPM."
             );
         }
         folder(fourteen_bit_channels, label = "14-bit Channels", collapsed = true) {
@@ -158,6 +198,100 @@ enum MidiApplyResult {
             channel_15: bool = false (label = "Channel 15", description = "Treat CC 0-31 on MIDI channel 15 as 14-bit controls paired with CC 32-63.");
             channel_16: bool = false (label = "Channel 16", description = "Treat CC 0-31 on MIDI channel 16 as 14-bit controls paired with CC 32-63.");
         }
+        [base_children];
+    }
+    folder(values) {
+        folder(mtc, label = "MTC", collapsed = true) {
+            rate: String = "24 fps".to_string() (
+                label = "Rate",
+                description = "Decoded MTC frame rate.",
+                read_only = true
+            );
+            mtc_playing: bool = false (
+                label = "Playing",
+                description = "Whether MTC quarter-frame messages are actively arriving.",
+                read_only = true,
+                short_name = "playing"
+            );
+            time: f64 = 0.0 [0.0..] (
+                label = "Time",
+                description = "Decoded MTC time in seconds.",
+                read_only = true,
+                widget = "time"
+            );
+            timecode: String = "00:00:00:00".to_string() (
+                label = "Timecode",
+                description = "Decoded MTC timecode.",
+                read_only = true
+            );
+        }
+        folder(midi_clock, label = "MIDI Clock", collapsed = true) {
+            beat: ParamValue = ParamValue::Trigger() (
+                label = "Beat",
+                description = "Fires on each received MIDI clock beat (24 pulses).",
+                read_only = true,
+                short_name = "beat"
+            );
+            start: ParamValue = ParamValue::Trigger() (
+                label = "Start",
+                description = "Fires when MIDI clock start is received.",
+                read_only = true
+            );
+            r#continue: ParamValue = ParamValue::Trigger() (
+                label = "Continue",
+                description = "Fires when MIDI clock continue is received.",
+                read_only = true,
+                short_name = "continue"
+            );
+            stop: ParamValue = ParamValue::Trigger() (
+                label = "Stop",
+                description = "Fires when MIDI clock stop is received.",
+                read_only = true
+            );
+            reset: ParamValue = ParamValue::Trigger() (
+                label = "Reset",
+                description = "Fires when MIDI clock reset is received.",
+                read_only = true
+            );
+            playing: bool = false (
+                label = "Playing",
+                description = "Whether the incoming MIDI clock transport is running.",
+                read_only = true
+            );
+            bpm: f64 = 0.0 [0.0..] (
+                label = "BPM",
+                description = "Tempo estimated from recent incoming MIDI clock ticks.",
+                read_only = true
+            );
+        }
+        folder(note_info, label = "Note Info", collapsed = true) {
+            note_played: ParamValue = ParamValue::Trigger() (
+                label = "Note Played",
+                description = "Fires when a note-on is received."
+                // read_only = true
+            );
+            current_note_on: i32 = 0 [0..2147483647] (
+                label = "Current Note On",
+                description = "Number of notes currently held on.",
+                read_only = true
+            );
+            last_channel: i32 = 0 [0..16] (
+                label = "Last Channel",
+                description = "Channel of the last received note-on.",
+                read_only = true
+            );
+            last_pitch: i32 = 0 [0..127] (
+                label = "Last Pitch",
+                description = "Pitch of the last received note-on.",
+                read_only = true
+            );
+            last_velocity: i32 = 0 [0..127] (
+                label = "Last Velocity",
+                description = "Velocity of the last received note-on.",
+                read_only = true
+            );
+        }
+        [base_children];
     }
 )]
 pub struct MidiModule {
@@ -169,10 +303,16 @@ pub struct MidiModule {
     last_output_config: Option<MidiOutputConfig>,
     input_dirty: bool,
     output_dirty: bool,
-    pending_incoming_messages: Vec<MidiMessage>,
+    pending_incoming_messages: Vec<PendingIncomingMessage>,
     ignored_param_changes: HashSet<NodeId>,
     pending_packets: Vec<PendingMidiPacket>,
     cc_14_bit_state: [[Cc14BitState; 32]; 16],
+    active_notes: HashSet<(u8, u8)>,
+    last_note_on: Option<LastNoteInfo>,
+    midi_clock_state: MidiClockState,
+    mtc_state: MtcQuarterFrameState,
+    mtc_stream_active: bool,
+    last_mtc_quarter_frame_at: Option<Duration>,
     pending_auto_children: HashSet<(NodeId, String)>,
 }
 
@@ -192,12 +332,22 @@ impl MidiModule {
             Vec::new(),
             [[Cc14BitState::default(); 32]; 16],
             HashSet::new(),
+            None,
+            MidiClockState::default(),
+            MtcQuarterFrameState::default(),
+            false,
+            None,
+            HashSet::new(),
         )
     }
 
     #[cfg(test)]
     pub(crate) fn enqueue_incoming_message_for_test(&mut self, message: MidiMessage) {
-        self.pending_incoming_messages.push(message);
+        self.pending_incoming_messages.push(PendingIncomingMessage {
+            message,
+            received_at: None,
+            clock_timing: None,
+        });
     }
 
     #[cfg(test)]
@@ -391,19 +541,26 @@ impl MidiModule {
         let mut received = false;
         for event in events {
             match event {
-                MidiInputEvent::Message(bytes) => match decode_midi_message(bytes.as_slice()) {
-                    Some(message) => {
-                        received = true;
-                        self.log_incoming_message(&message, bytes.as_slice());
-                        self.pending_incoming_messages.push(message);
-                    }
-                    None => {
-                        logerror!(
-                            "Ignored unsupported MIDI message {}",
-                            format_midi_bytes(bytes.as_slice())
-                        );
-                    }
-                },
+                MidiInputEvent::Message {
+                    bytes,
+                    message,
+                    received_at,
+                    clock_timing,
+                } => {
+                    received = true;
+                    self.log_incoming_message(&message, bytes.as_slice());
+                    self.pending_incoming_messages.push(PendingIncomingMessage {
+                        message,
+                        received_at: Some(received_at),
+                        clock_timing,
+                    });
+                }
+                MidiInputEvent::UnsupportedMessage { bytes, .. } => {
+                    logerror!(
+                        "Ignored unsupported MIDI message {}",
+                        format_midi_bytes(bytes.as_slice())
+                    );
+                }
             }
         }
 
@@ -419,11 +576,18 @@ impl MidiModule {
 
         let mut remaining = Vec::new();
         let mut messages = std::mem::take(&mut self.pending_incoming_messages).into_iter();
-        while let Some(message) = messages.next() {
-            match self.apply_incoming_message(ctx, snapshot, &message) {
+        while let Some(pending) = messages.next() {
+            let received_at = pending.received_at.unwrap_or(ctx.runtime_elapsed);
+            match self.apply_incoming_message(
+                ctx,
+                snapshot,
+                &pending.message,
+                received_at,
+                pending.clock_timing.as_ref(),
+            ) {
                 MidiApplyResult::Applied | MidiApplyResult::Ignored => {}
                 MidiApplyResult::Retry => {
-                    remaining.push(message);
+                    remaining.push(pending);
                     remaining.extend(messages);
                     self.pending_incoming_messages = remaining;
                     return true;
@@ -440,6 +604,8 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         message: &MidiMessage,
+        received_at: Duration,
+        clock_timing: Option<&MidiClockTiming>,
     ) -> MidiApplyResult {
         match message {
             MidiMessage::NoteOn {
@@ -494,7 +660,9 @@ impl MidiModule {
                 i32::from(*value),
                 Some((0, i32::from(MIDI_U14_MAX))),
             ),
-            MidiMessage::System(system) => self.apply_system_message(ctx, snapshot, system),
+            MidiMessage::System(system) => {
+                self.apply_system_message(ctx, snapshot, system, received_at, clock_timing)
+            }
         }
     }
 
@@ -506,13 +674,27 @@ impl MidiModule {
         note: u8,
         velocity: u8,
     ) -> MidiApplyResult {
+        self.active_notes.insert((channel, note));
+        self.last_note_on = Some(LastNoteInfo {
+            channel,
+            note,
+            velocity,
+        });
+
+        let note_info_result = self.apply_note_info(ctx, snapshot, true);
+        if note_info_result == MidiApplyResult::Retry {
+            return note_info_result;
+        }
+
         let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
         let Some(notes_id) = self.ensure_folder(ctx, snapshot, channel_id, "Notes", NOTES_FOLDER_DECL_ID) else {
             return MidiApplyResult::Retry;
         };
-        self.apply_direct_int_parameter(
+        merge_apply_results(
+            note_info_result,
+            self.apply_direct_int_parameter(
             ctx,
             snapshot,
             notes_id,
@@ -520,6 +702,7 @@ impl MidiModule {
             note_decl_id(note).as_str(),
             i32::from(velocity),
             Some(MIDI_7_BIT_VALUE_RANGE),
+            ),
         )
     }
 
@@ -531,13 +714,22 @@ impl MidiModule {
         note: u8,
         _velocity: u8,
     ) -> MidiApplyResult {
+        self.active_notes.remove(&(channel, note));
+
+        let note_info_result = self.apply_note_info(ctx, snapshot, false);
+        if note_info_result == MidiApplyResult::Retry {
+            return note_info_result;
+        }
+
         let Some(channel_id) = self.ensure_channel_folder(ctx, snapshot, channel) else {
             return MidiApplyResult::Retry;
         };
         let Some(notes_id) = self.ensure_folder(ctx, snapshot, channel_id, "Notes", NOTES_FOLDER_DECL_ID) else {
             return MidiApplyResult::Retry;
         };
-        self.apply_direct_int_parameter(
+        merge_apply_results(
+            note_info_result,
+            self.apply_direct_int_parameter(
             ctx,
             snapshot,
             notes_id,
@@ -545,7 +737,44 @@ impl MidiModule {
             note_decl_id(note).as_str(),
             0,
             Some(MIDI_7_BIT_VALUE_RANGE),
+            ),
         )
+    }
+
+    fn apply_note_info(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _snapshot: &ProcessTreeSnapshot,
+        note_played: bool,
+    ) -> MidiApplyResult {
+        if !self.current_note_on.is_bound()
+            || !self.last_channel.is_bound()
+            || !self.last_pitch.is_bound()
+            || !self.last_velocity.is_bound()
+            || (note_played && !self.note_played.is_bound())
+        {
+            return MidiApplyResult::Retry;
+        }
+
+        if note_played {
+            self.set_internal_param(ctx, self.note_played.id(), ParamValue::Trigger());
+        }
+
+        self.set_internal_param(
+            ctx,
+            self.current_note_on.id(),
+            ParamValue::Int(clamp_usize_to_i32(self.active_notes.len())),
+        );
+
+        let last_channel = self.last_note_on.map(|info| i32::from(info.channel)).unwrap_or(0);
+        self.set_internal_param(ctx, self.last_channel.id(), ParamValue::Int(last_channel));
+
+        let last_pitch = self.last_note_on.map(|info| i32::from(info.note)).unwrap_or(0);
+        self.set_internal_param(ctx, self.last_pitch.id(), ParamValue::Int(last_pitch));
+
+        let last_velocity = self.last_note_on.map(|info| i32::from(info.velocity)).unwrap_or(0);
+        self.set_internal_param(ctx, self.last_velocity.id(), ParamValue::Int(last_velocity));
+        MidiApplyResult::Applied
     }
 
     fn cc_parameter_range(
@@ -683,57 +912,324 @@ impl MidiModule {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         message: &MidiSystemMessage,
+        received_at: Duration,
+        clock_timing: Option<&MidiClockTiming>,
     ) -> MidiApplyResult {
-        let Some(values_id) = self.base.values_id() else {
-            return MidiApplyResult::Ignored;
-        };
-        let Some(system_id) = self.ensure_folder(ctx, snapshot, values_id, "System", SYSTEM_FOLDER_DECL_ID) else {
-            return MidiApplyResult::Retry;
-        };
-
         match message {
-            MidiSystemMessage::TimeCodeQuarterFrame { value } => self.apply_direct_int_parameter(
+            MidiSystemMessage::TimeCodeQuarterFrame { value } => {
+                self.apply_time_code_quarter_frame(ctx, snapshot, *value, received_at)
+            }
+            MidiSystemMessage::SongPosition { position } => self.apply_system_int_parameter(
                 ctx,
                 snapshot,
-                system_id,
-                "Time Code Quarter Frame",
-                TIME_CODE_QUARTER_FRAME_DECL_ID,
-                i32::from(*value),
-                Some(MIDI_7_BIT_VALUE_RANGE),
-            ),
-            MidiSystemMessage::SongPosition { position } => self.apply_direct_int_parameter(
-                ctx,
-                snapshot,
-                system_id,
                 "Song Position",
                 SONG_POSITION_DECL_ID,
                 i32::from(*position),
                 Some(MIDI_14_BIT_VALUE_RANGE),
             ),
-            MidiSystemMessage::SongSelect { song } => self.apply_direct_int_parameter(
+            MidiSystemMessage::SongSelect { song } => self.apply_system_int_parameter(
                 ctx,
                 snapshot,
-                system_id,
                 "Song Select",
                 SONG_SELECT_DECL_ID,
                 i32::from(*song),
                 Some(MIDI_7_BIT_VALUE_RANGE),
             ),
-            MidiSystemMessage::TuneRequest => {
-                self.apply_trigger(ctx, snapshot, system_id, "Tune Request", TUNE_REQUEST_DECL_ID)
-            }
+            MidiSystemMessage::TuneRequest => self.apply_system_trigger(ctx, snapshot, "Tune Request", TUNE_REQUEST_DECL_ID),
             MidiSystemMessage::TimingClock => {
-                self.apply_trigger(ctx, snapshot, system_id, "Timing Clock", TIMING_CLOCK_DECL_ID)
+                self.apply_midi_clock_tick(ctx, snapshot, received_at, clock_timing.copied())
             }
-            MidiSystemMessage::Start => self.apply_trigger(ctx, snapshot, system_id, "Start", START_DECL_ID),
-            MidiSystemMessage::Continue => self.apply_trigger(ctx, snapshot, system_id, "Continue", CONTINUE_DECL_ID),
-            MidiSystemMessage::Stop => self.apply_trigger(ctx, snapshot, system_id, "Stop", STOP_DECL_ID),
+            MidiSystemMessage::Start => {
+                self.apply_midi_clock_transport_event(ctx, snapshot, START_DECL_ID, true, true)
+            }
+            MidiSystemMessage::Continue => {
+                self.apply_midi_clock_transport_event(ctx, snapshot, CONTINUE_DECL_ID, true, false)
+            }
+            MidiSystemMessage::Stop => {
+                self.apply_midi_clock_transport_event(ctx, snapshot, STOP_DECL_ID, false, false)
+            }
             MidiSystemMessage::ActiveSensing => {
-                self.apply_trigger(ctx, snapshot, system_id, "Active Sensing", ACTIVE_SENSING_DECL_ID)
+                self.apply_system_trigger(ctx, snapshot, "Active Sensing", ACTIVE_SENSING_DECL_ID)
             }
-            MidiSystemMessage::Reset => self.apply_trigger(ctx, snapshot, system_id, "Reset", RESET_DECL_ID),
-            MidiSystemMessage::Sysex { bytes } => self.apply_sysex(ctx, snapshot, system_id, bytes.as_slice()),
+            MidiSystemMessage::Reset => {
+                self.apply_midi_clock_transport_event(ctx, snapshot, RESET_DECL_ID, false, true)
+            }
+            MidiSystemMessage::Sysex { bytes } => self.apply_sysex_to_system(ctx, snapshot, bytes.as_slice()),
         }
+    }
+
+    fn apply_system_int_parameter(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        label: &str,
+        decl_id: &str,
+        value: i32,
+        range: Option<(i32, i32)>,
+    ) -> MidiApplyResult {
+        let Some(system_id) = self.ensure_system_folder(ctx, snapshot) else {
+            return MidiApplyResult::Retry;
+        };
+
+        self.apply_direct_int_parameter(ctx, snapshot, system_id, label, decl_id, value, range)
+    }
+
+    fn apply_system_trigger(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        label: &str,
+        decl_id: &str,
+    ) -> MidiApplyResult {
+        let Some(system_id) = self.ensure_system_folder(ctx, snapshot) else {
+            return MidiApplyResult::Retry;
+        };
+
+        self.apply_trigger(ctx, snapshot, system_id, label, decl_id)
+    }
+
+    fn ensure_system_folder(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+        let values_id = self.base.values_id()?;
+        self.ensure_folder(ctx, snapshot, values_id, "System", SYSTEM_FOLDER_DECL_ID)
+    }
+
+    fn apply_time_code_quarter_frame(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _snapshot: &ProcessTreeSnapshot,
+        raw_value: u8,
+        received_at: Duration,
+    ) -> MidiApplyResult {
+        self.mtc_state.apply(raw_value);
+        let was_active = self.mtc_stream_active;
+        self.last_mtc_quarter_frame_at = Some(received_at);
+        self.mtc_stream_active = true;
+
+        if !self.rate.is_bound() || !self.mtc_playing.is_bound() || !self.time.is_bound() || !self.timecode.is_bound() {
+            return MidiApplyResult::Retry;
+        }
+
+        if !was_active {
+            self.set_internal_param(ctx, self.mtc_playing.id(), ParamValue::Bool(true));
+        }
+        self.set_internal_param(
+            ctx,
+            self.rate.id(),
+            ParamValue::Str(mtc_rate_label(self.mtc_state.rate_code()).to_string()),
+        );
+        self.set_internal_param(ctx, self.time.id(), ParamValue::Float(self.mtc_state.time_seconds()));
+        self.set_internal_param(ctx, self.timecode.id(), ParamValue::Str(self.mtc_state.timecode_string()));
+        MidiApplyResult::Applied
+    }
+
+    fn apply_midi_clock_tick(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        received_at: Duration,
+        clock_timing: Option<MidiClockTiming>,
+    ) -> MidiApplyResult {
+        let (beat_triggered, values_changed) = if let Some(clock_timing) = clock_timing {
+            let mut values_changed = false;
+            if !self.midi_clock_state.running {
+                self.midi_clock_state.running = true;
+                values_changed = true;
+            }
+
+            self.midi_clock_state.last_tick_at = Some(received_at);
+
+            if let Some(next_bpm) = clock_timing.bpm {
+                let previous_units = self.quantized_midi_clock_bpm_units(self.midi_clock_state.bpm);
+                let next_units = self.quantized_midi_clock_bpm_units(next_bpm);
+                self.midi_clock_state.bpm = next_bpm;
+                if next_units != previous_units {
+                    values_changed = true;
+                }
+            }
+
+            (clock_timing.beat_triggered, values_changed)
+        } else {
+            self.record_midi_clock_tick_fallback(received_at)
+        };
+
+        let mut result = MidiApplyResult::Applied;
+
+        if beat_triggered {
+            if !self.beat.is_bound() {
+                return MidiApplyResult::Retry;
+            }
+            self.set_internal_param(ctx, self.beat.id(), ParamValue::Trigger());
+        }
+
+        if values_changed {
+            result = merge_apply_results(result, self.apply_midi_clock_values(ctx, snapshot));
+        }
+
+        result
+    }
+
+    fn apply_midi_clock_transport_event(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        decl_id: &str,
+        running: bool,
+        reset_ticks: bool,
+    ) -> MidiApplyResult {
+        self.midi_clock_state.tick_in_beat = 0;
+        self.midi_clock_state.last_tick_at = None;
+        self.midi_clock_state.last_beat_at = None;
+        self.midi_clock_state.recent_beat_durations.clear();
+        self.midi_clock_state.running = running;
+
+        if reset_ticks || matches!(decl_id, START_DECL_ID) {
+            self.midi_clock_state.bpm = 0.0;
+        }
+
+        let trigger_id = match decl_id {
+            START_DECL_ID if self.start.is_bound() => Some(self.start.id()),
+            CONTINUE_DECL_ID if self.r#continue.is_bound() => Some(self.r#continue.id()),
+            STOP_DECL_ID if self.stop.is_bound() => Some(self.stop.id()),
+            RESET_DECL_ID if self.reset.is_bound() => Some(self.reset.id()),
+            _ => None,
+        };
+        let Some(trigger_id) = trigger_id else {
+            return MidiApplyResult::Retry;
+        };
+
+        merge_apply_results(
+            {
+                self.set_internal_param(ctx, trigger_id, ParamValue::Trigger());
+                MidiApplyResult::Applied
+            },
+            self.apply_midi_clock_values(ctx, snapshot),
+        )
+    }
+
+    fn apply_midi_clock_values(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _snapshot: &ProcessTreeSnapshot,
+    ) -> MidiApplyResult {
+        if !self.playing.is_bound() || !self.bpm.is_bound() {
+            return MidiApplyResult::Retry;
+        }
+
+        self.set_internal_param(ctx, self.playing.id(), ParamValue::Bool(self.midi_clock_state.running));
+        self.set_internal_param(ctx, self.bpm.id(), ParamValue::Float(self.quantized_midi_clock_bpm(self.midi_clock_state.bpm)));
+        MidiApplyResult::Applied
+    }
+
+    fn midi_clock_bpm_precision_digits(&self) -> u32 {
+        if !self.clock_bpm_precision.is_bound() {
+            return DEFAULT_MIDI_CLOCK_BPM_PRECISION as u32;
+        }
+
+        self.clock_bpm_precision.get().clamp(0, 6) as u32
+    }
+
+    fn quantized_midi_clock_bpm(&self, bpm: f64) -> f64 {
+        quantize_decimal(bpm, self.midi_clock_bpm_precision_digits())
+    }
+
+    fn quantized_midi_clock_bpm_units(&self, bpm: f64) -> i64 {
+        quantize_decimal_units(bpm, self.midi_clock_bpm_precision_digits())
+    }
+
+    fn record_midi_clock_tick_fallback(&mut self, now: Duration) -> (bool, bool) {
+        let mut values_changed = false;
+        if !self.midi_clock_state.running {
+            self.midi_clock_state.running = true;
+            values_changed = true;
+        }
+
+        self.midi_clock_state.last_tick_at = Some(now);
+        self.midi_clock_state.tick_in_beat = self.midi_clock_state.tick_in_beat.saturating_add(1);
+        if self.midi_clock_state.tick_in_beat < MIDI_CLOCK_PULSES_PER_BEAT {
+            return (false, values_changed);
+        }
+
+        self.midi_clock_state.tick_in_beat = 0;
+
+        if let Some(last_beat_at) = self.midi_clock_state.last_beat_at {
+            let beat_duration = now.saturating_sub(last_beat_at);
+            if !beat_duration.is_zero() {
+                self.midi_clock_state.recent_beat_durations.push_back(beat_duration);
+                while self.midi_clock_state.recent_beat_durations.len() > MIDI_CLOCK_BPM_WINDOW_BEATS {
+                    self.midi_clock_state.recent_beat_durations.pop_front();
+                }
+
+                if let Some(next_bpm) = stable_midi_clock_bpm(&self.midi_clock_state.recent_beat_durations) {
+                    let previous_units = self.quantized_midi_clock_bpm_units(self.midi_clock_state.bpm);
+                    let next_units = self.quantized_midi_clock_bpm_units(next_bpm);
+                    self.midi_clock_state.bpm = next_bpm;
+                    if next_units != previous_units {
+                        values_changed = true;
+                    }
+                }
+            }
+        }
+
+        self.midi_clock_state.last_beat_at = Some(now);
+
+        (true, values_changed)
+    }
+
+    fn refresh_transport_activity(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        let now = self.midi_receive_now(ctx);
+
+        if self.midi_clock_state.running
+            && self
+                .midi_clock_state
+                .last_tick_at
+                .is_some_and(|last_tick_at| now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS)
+        {
+            self.midi_clock_state.running = false;
+            let _ = self.apply_midi_clock_values(ctx, snapshot);
+        }
+
+        if self.mtc_stream_active
+            && self
+                .last_mtc_quarter_frame_at
+                .is_some_and(|last_mtc_at| now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS)
+        {
+            self.mtc_stream_active = false;
+            if self.mtc_playing.is_bound() {
+                self.set_internal_param(ctx, self.mtc_playing.id(), ParamValue::Bool(false));
+            }
+        }
+    }
+
+    fn transport_activity_timeout_due(&self, now: Duration) -> bool {
+        (self.midi_clock_state.running
+            && self
+                .midi_clock_state
+                .last_tick_at
+                .is_some_and(|last_tick_at| now.saturating_sub(last_tick_at).as_secs_f64() > MIDI_CLOCK_PLAYING_TIMEOUT_SECS))
+            || (self.mtc_stream_active
+                && self
+                    .last_mtc_quarter_frame_at
+                    .is_some_and(|last_mtc_at| now.saturating_sub(last_mtc_at).as_secs_f64() > MTC_PLAYING_TIMEOUT_SECS))
+    }
+
+    fn midi_receive_now(&self, ctx: &ProcessCtx) -> Duration {
+        self.input
+            .as_ref()
+            .map(MidiInputHandle::elapsed)
+            .unwrap_or(ctx.runtime_elapsed)
+    }
+
+    fn apply_sysex_to_system(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        bytes: &[u8],
+    ) -> MidiApplyResult {
+        let Some(system_id) = self.ensure_system_folder(ctx, snapshot) else {
+            return MidiApplyResult::Retry;
+        };
+
+        self.apply_sysex(ctx, snapshot, system_id, bytes)
     }
 
     fn apply_sysex(
@@ -1397,6 +1893,11 @@ impl MidiModule {
             return;
         }
 
+        if self.clock_bpm_precision.is_bound() && self.clock_bpm_precision.id() == param {
+            let _ = self.apply_midi_clock_values(ctx, snapshot);
+            return;
+        }
+
         self.handle_feedback_param_change(ctx, snapshot, param, old_value);
     }
 
@@ -1490,9 +1991,11 @@ impl Node for MidiModule {
         self.port_refresh_elapsed += ctx.delta_time.as_secs_f64();
 
         let refresh_ports = self.port_refresh_due();
+        let receive_now = self.midi_receive_now(ctx);
         let needs_work = refresh_ports
             || self.input_dirty
             || self.output_dirty
+            || self.transport_activity_timeout_due(receive_now)
             || !self.pending_incoming_messages.is_empty()
             || !self.pending_packets.is_empty();
         if !needs_work {
@@ -1521,6 +2024,7 @@ impl Node for MidiModule {
         }
 
         self.process_pending_incoming(ctx, snapshot);
+        self.refresh_transport_activity(ctx, snapshot);
         self.flush_pending_packets(ctx);
     }
 
@@ -1529,6 +2033,10 @@ impl Node for MidiModule {
         self.stop_output();
         self.pending_packets.clear();
         self.pending_incoming_messages.clear();
+        self.active_notes.clear();
+        self.midi_clock_state = MidiClockState::default();
+        self.mtc_stream_active = false;
+        self.last_mtc_quarter_frame_at = None;
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -1962,6 +2470,117 @@ fn midi_cc_channel_is_14_bit(snapshot: &ProcessTreeSnapshot, start: NodeId, chan
         .and_then(|node| node.param_value.as_ref())
         .and_then(ParamValue::as_bool)
         .unwrap_or(false)
+}
+
+fn merge_apply_results(current: MidiApplyResult, next: MidiApplyResult) -> MidiApplyResult {
+    match (current, next) {
+        (MidiApplyResult::Retry, _) | (_, MidiApplyResult::Retry) => MidiApplyResult::Retry,
+        (MidiApplyResult::Applied, _) | (_, MidiApplyResult::Applied) => MidiApplyResult::Applied,
+        _ => MidiApplyResult::Ignored,
+    }
+}
+
+fn clamp_usize_to_i32(value: usize) -> i32 {
+    i32::try_from(value).unwrap_or(i32::MAX)
+}
+
+fn quantize_decimal_units(value: f64, decimals: u32) -> i64 {
+    let scale = 10_i64.pow(decimals.min(9));
+    (value * scale as f64).round() as i64
+}
+
+fn quantize_decimal(value: f64, decimals: u32) -> f64 {
+    let scale = 10_i64.pow(decimals.min(9)) as f64;
+    (value * scale).round() / scale
+}
+
+fn stable_midi_clock_bpm(beat_durations: &VecDeque<Duration>) -> Option<f64> {
+    if beat_durations.is_empty() {
+        return None;
+    }
+
+    let mut samples = beat_durations.iter().map(Duration::as_secs_f64).collect::<Vec<_>>();
+    samples.sort_by(f64::total_cmp);
+
+    let trimmed = if samples.len() >= 4 {
+        &samples[1..samples.len() - 1]
+    } else {
+        samples.as_slice()
+    };
+    let average_beat_seconds = trimmed.iter().sum::<f64>() / trimmed.len() as f64;
+    if average_beat_seconds <= 0.0 {
+        return None;
+    }
+
+    Some(60.0 / average_beat_seconds)
+}
+
+impl MtcQuarterFrameState {
+    fn apply(&mut self, raw_value: u8) {
+        let part_index = usize::from((raw_value >> 4) & 0x07);
+        self.nibbles[part_index] = Some(raw_value & 0x0F);
+    }
+
+    fn frames(&self) -> i32 {
+        i32::from(self.nibble(0) | ((self.nibble(1) & 0x01) << 4))
+    }
+
+    fn seconds(&self) -> i32 {
+        i32::from(self.nibble(2) | ((self.nibble(3) & 0x03) << 4))
+    }
+
+    fn minutes(&self) -> i32 {
+        i32::from(self.nibble(4) | ((self.nibble(5) & 0x03) << 4))
+    }
+
+    fn hours(&self) -> i32 {
+        i32::from(self.nibble(6) | ((self.nibble(7) & 0x01) << 4))
+    }
+
+    fn rate_code(&self) -> i32 {
+        i32::from((self.nibble(7) >> 1) & 0x03)
+    }
+
+    fn rate_fps(&self) -> f64 {
+        match self.rate_code() {
+            0 => 24.0,
+            1 => 25.0,
+            2 => 29.97,
+            3 => 30.0,
+            _ => 24.0,
+        }
+    }
+
+    fn time_seconds(&self) -> f64 {
+        f64::from(self.hours()) * 3600.0
+            + f64::from(self.minutes()) * 60.0
+            + f64::from(self.seconds())
+            + (f64::from(self.frames()) / self.rate_fps())
+    }
+
+    fn timecode_string(&self) -> String {
+        format!(
+            "{:02}:{:02}:{:02}:{:02}",
+            self.hours(),
+            self.minutes(),
+            self.seconds(),
+            self.frames()
+        )
+    }
+
+    fn nibble(&self, index: usize) -> u8 {
+        self.nibbles.get(index).copied().flatten().unwrap_or(0) & 0x0F
+    }
+}
+
+fn mtc_rate_label(rate_code: i32) -> &'static str {
+    match rate_code {
+        0 => "24 fps",
+        1 => "25 fps",
+        2 => "29.97 drop",
+        3 => "30 fps",
+        _ => "24 fps",
+    }
 }
 
 #[cfg(test)]

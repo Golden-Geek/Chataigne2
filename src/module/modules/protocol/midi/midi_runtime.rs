@@ -1,4 +1,8 @@
-use std::sync::mpsc::{self, Receiver};
+use std::{
+    collections::VecDeque,
+    sync::mpsc::{self, Receiver},
+    time::{Duration, Instant},
+};
 
 use golden_core::{
     node::{Node, NodeId},
@@ -7,7 +11,12 @@ use golden_core::{
 };
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 
+use super::midi_message::{MidiMessage, decode_midi_message};
+
 pub(crate) const NO_MIDI_PORT_VARIANT: &str = "none";
+const MIDI_CLOCK_STATUS: u8 = 0xF8;
+const MIDI_CLOCK_PULSES_PER_BEAT: u8 = 24;
+const MIDI_CLOCK_BPM_WINDOW_BEATS: usize = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DiscoveredMidiPort {
@@ -32,14 +41,37 @@ pub(crate) struct MidiOutputConfig {
     pub port_variant: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum MidiInputEvent {
-    Message(Vec<u8>),
+    Message {
+        bytes: Vec<u8>,
+        message: MidiMessage,
+        received_at: Duration,
+        clock_timing: Option<MidiClockTiming>,
+    },
+    UnsupportedMessage {
+        bytes: Vec<u8>,
+        received_at: Duration,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct MidiClockTiming {
+    pub beat_triggered: bool,
+    pub bpm: Option<f64>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct MidiClockAnalyzer {
+    tick_in_beat: u8,
+    last_beat_at: Option<Duration>,
+    recent_beat_durations: VecDeque<Duration>,
 }
 
 pub(crate) struct MidiInputHandle {
     connection: Option<MidiInputConnection<()>>,
     event_rx: Receiver<MidiInputEvent>,
+    time_origin: Instant,
 }
 
 pub(crate) struct MidiOutputHandle {
@@ -55,12 +87,26 @@ impl MidiInputHandle {
         let (port, label) = resolve_input_port(input.ports(), &input, config.port_variant.as_str())?
             .ok_or_else(|| "MIDI input port is not selected".to_string())?;
         let (event_tx, event_rx) = mpsc::channel();
+        let callback_origin = Instant::now();
+        let mut clock_analyzer = MidiClockAnalyzer::default();
         let connection = input
             .connect(
                 &port,
                 "chataigne2-midi-input-connection",
                 move |_timestamp, message, _| {
-                    let _ = event_tx.send(MidiInputEvent::Message(message.to_vec()));
+                    let bytes = message.to_vec();
+                    let received_at = callback_origin.elapsed();
+                    let clock_timing = clock_analyzer.observe(bytes.as_slice(), received_at);
+                    let event = match decode_midi_message(bytes.as_slice()) {
+                        Some(message) => MidiInputEvent::Message {
+                            bytes,
+                            message,
+                            received_at,
+                            clock_timing,
+                        },
+                        None => MidiInputEvent::UnsupportedMessage { bytes, received_at },
+                    };
+                    let _ = event_tx.send(event);
                 },
                 (),
             )
@@ -69,11 +115,16 @@ impl MidiInputHandle {
         Ok(Self {
             connection: Some(connection),
             event_rx,
+            time_origin: callback_origin,
         })
     }
 
     pub(crate) fn try_recv(&self) -> Result<MidiInputEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn elapsed(&self) -> std::time::Duration {
+        self.time_origin.elapsed()
     }
 
     pub(crate) fn stop(&mut self) {
@@ -85,6 +136,61 @@ impl Drop for MidiInputHandle {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+impl MidiClockAnalyzer {
+    fn observe(&mut self, bytes: &[u8], received_at: Duration) -> Option<MidiClockTiming> {
+        if bytes != [MIDI_CLOCK_STATUS] {
+            return None;
+        }
+
+        self.tick_in_beat = self.tick_in_beat.saturating_add(1);
+        if self.tick_in_beat < MIDI_CLOCK_PULSES_PER_BEAT {
+            return Some(MidiClockTiming {
+                beat_triggered: false,
+                bpm: None,
+            });
+        }
+
+        self.tick_in_beat = 0;
+        let mut bpm = None;
+        if let Some(last_beat_at) = self.last_beat_at {
+            let beat_duration = received_at.saturating_sub(last_beat_at);
+            if !beat_duration.is_zero() {
+                self.recent_beat_durations.push_back(beat_duration);
+                while self.recent_beat_durations.len() > MIDI_CLOCK_BPM_WINDOW_BEATS {
+                    self.recent_beat_durations.pop_front();
+                }
+                bpm = stable_midi_clock_bpm(&self.recent_beat_durations);
+            }
+        }
+        self.last_beat_at = Some(received_at);
+
+        Some(MidiClockTiming {
+            beat_triggered: true,
+            bpm,
+        })
+    }
+}
+
+fn stable_midi_clock_bpm(beat_durations: &VecDeque<Duration>) -> Option<f64> {
+    if beat_durations.is_empty() {
+        return None;
+    }
+
+    let mut samples = beat_durations.iter().map(Duration::as_secs_f64).collect::<Vec<_>>();
+    samples.sort_by(f64::total_cmp);
+    let trimmed = if samples.len() >= 4 {
+        &samples[1..samples.len() - 1]
+    } else {
+        samples.as_slice()
+    };
+    let average_beat_seconds = trimmed.iter().sum::<f64>() / trimmed.len() as f64;
+    if average_beat_seconds <= 0.0 {
+        return None;
+    }
+
+    Some(60.0 / average_beat_seconds)
 }
 
 impl MidiOutputHandle {

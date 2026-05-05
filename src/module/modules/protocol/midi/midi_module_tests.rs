@@ -112,8 +112,17 @@ fn incoming_note_messages_create_one_direct_velocity_param() {
 
     assert_eq!(
         child_count(&engine, values_id),
-        1,
-        "values should only contain one channel folder after one note; children were {values_children:?}"
+        4,
+        "values should contain the static receive folders plus the created channel folder; children were {values_children:?}"
+    );
+    assert_eq!(
+        child_decl_ids(&engine, values_id),
+        vec![
+            "values/mtc".to_string(),
+            "values/midi_clock".to_string(),
+            "values/note_info".to_string(),
+            "channel_1".to_string()
+        ]
     );
     assert_eq!(
         child_count(&engine, channel_id),
@@ -164,6 +173,321 @@ fn incoming_note_messages_create_one_direct_velocity_param() {
         1,
         "note-off should not duplicate note parameters"
     );
+}
+
+#[test]
+fn incoming_note_messages_update_note_info_folder() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(MidiModule::create().into(), None);
+    engine.apply_edits().expect("midi module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    module.enqueue_incoming_message_for_test(MidiMessage::NoteOn {
+        channel: 2,
+        note: 60,
+        velocity: 100,
+    });
+    module.enqueue_incoming_message_for_test(MidiMessage::NoteOn {
+        channel: 3,
+        note: 64,
+        velocity: 90,
+    });
+    module.enqueue_incoming_message_for_test(MidiMessage::NoteOff {
+        channel: 2,
+        note: 60,
+        velocity: 0,
+    });
+
+    for _ in 0..10 {
+        run_midi_runtime_tick(&mut engine, "runtime tick should update note info receive values");
+    }
+
+    let note_info_id = find_path(&engine, module_id, "values/note_info").expect("note info folder should exist");
+    assert!(
+        find_path(&engine, module_id, "values/note_info/note_played").is_some(),
+        "note info should expose a note-played trigger"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/note_info/current_note_on").expect("current note-on should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Int(1)),
+        "current note-on count should track held notes across note-on and note-off messages"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/note_info/last_channel").expect("last channel should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Int(3))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/note_info/last_pitch").expect("last pitch should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Int(64))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/note_info/last_velocity").expect("last velocity should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Int(90))
+    );
+    assert_node_permissions_none(&engine, note_info_id);
+}
+
+#[test]
+fn incoming_system_messages_populate_mtc_and_midi_clock_folders() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(MidiModule::create().into(), None);
+    engine.apply_edits().expect("midi module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    for raw in [0x0A, 0x10, 0x2D, 0x32, 0x47, 0x51, 0x61, 0x76] {
+        module.enqueue_incoming_message_for_test(MidiMessage::System(
+            super::midi_message::MidiSystemMessage::TimeCodeQuarterFrame { value: raw },
+        ));
+    }
+    module.enqueue_incoming_message_for_test(MidiMessage::System(
+        super::midi_message::MidiSystemMessage::Start,
+    ));
+
+    for _ in 0..4 {
+        run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MTC and clock start messages");
+    }
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/mtc/playing").expect("MTC playing should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(true))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/midi_clock/playing").expect("clock playing should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(true))
+    );
+
+    for _ in 0..48 {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+            panic!("expected MidiModule node");
+        };
+        module.enqueue_incoming_message_for_test(MidiMessage::System(
+            super::midi_message::MidiSystemMessage::TimingClock,
+        ));
+        run_midi_runtime_tick(&mut engine, "runtime tick should accumulate MIDI clock tempo from timed ticks");
+    }
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    module.enqueue_incoming_message_for_test(MidiMessage::System(
+        super::midi_message::MidiSystemMessage::Stop,
+    ));
+    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock stop message");
+
+    let mtc_id = find_path(&engine, module_id, "values/mtc").expect("MTC folder should exist");
+    let clock_id = find_path(&engine, module_id, "values/midi_clock").expect("MIDI clock folder should exist");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/mtc/rate").expect("MTC rate should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Str("30 fps".to_string()))
+    );
+    assert_float_param(
+        &engine,
+        find_path(&engine, module_id, "values/mtc/time").expect("MTC time should exist"),
+        5025.333_333_333_333,
+        1e-6,
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/mtc/timecode").expect("MTC timecode should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Str("01:23:45:10".to_string()))
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/mtc/playing").expect("MTC playing should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(false))
+    );
+
+    assert!(
+        find_path(&engine, module_id, "values/midi_clock/beat").is_some(),
+        "MIDI clock folder should expose a beat trigger"
+    );
+    assert!(
+        find_path(&engine, module_id, "values/midi_clock/start").is_some(),
+        "MIDI clock folder should expose a start trigger"
+    );
+    assert!(
+        find_path(&engine, module_id, "values/midi_clock/continue").is_some(),
+        "MIDI clock folder should expose a continue trigger"
+    );
+    assert!(
+        find_path(&engine, module_id, "values/midi_clock/stop").is_some(),
+        "MIDI clock folder should expose a stop trigger"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(find_path(&engine, module_id, "values/midi_clock/playing").expect("clock state should exist"))
+            .and_then(|node| node.engine_param_snapshot())
+            .map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(false))
+    );
+    assert_float_param(
+        &engine,
+        find_path(&engine, module_id, "values/midi_clock/bpm").expect("clock BPM should exist"),
+        125.0,
+        1e-6,
+    );
+
+    assert_node_permissions_none(&engine, mtc_id);
+    assert_node_permissions_none(&engine, clock_id);
+}
+
+#[test]
+fn incoming_midi_clock_bpm_stays_steady_within_a_beat() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(MidiModule::create().into(), None);
+    engine.apply_edits().expect("midi module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    module.enqueue_incoming_message_for_test(MidiMessage::System(
+        super::midi_message::MidiSystemMessage::Start,
+    ));
+    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock start message");
+
+    for _ in 0..48 {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+            panic!("expected MidiModule node");
+        };
+        module.enqueue_incoming_message_for_test(MidiMessage::System(
+            super::midi_message::MidiSystemMessage::TimingClock,
+        ));
+        run_midi_runtime_tick(&mut engine, "runtime tick should establish a stable BPM over two beats");
+    }
+
+    let bpm_id = find_path(&engine, module_id, "values/midi_clock/bpm").expect("clock BPM should exist");
+    assert_float_param(&engine, bpm_id, 125.0, 1e-6);
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    module.enqueue_incoming_message_for_test(MidiMessage::System(
+        super::midi_message::MidiSystemMessage::TimingClock,
+    ));
+    run_midi_runtime_tick_with_delta(
+        &mut engine,
+        Duration::from_millis(30),
+        "runtime tick should not perturb BPM mid-beat from one late pulse",
+    );
+
+    assert_float_param(&engine, bpm_id, 125.0, 1e-6);
+}
+
+#[test]
+fn incoming_midi_clock_bpm_precision_controls_exposed_decimals() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(MidiModule::create().into(), None);
+    engine.apply_edits().expect("midi module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+    let precision_id = find_path(&engine, module_id, "parameters/processing/clock_bpm_precision")
+        .expect("clock BPM precision parameter should exist");
+    let bpm_id = find_path(&engine, module_id, "values/midi_clock/bpm").expect("clock BPM should exist");
+
+    set_param(&mut engine, precision_id, ParamValue::Int(2));
+    settle_midi_module_edits(&mut engine);
+
+    let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+        panic!("expected MidiModule node");
+    };
+    module.enqueue_incoming_message_for_test(MidiMessage::System(
+        super::midi_message::MidiSystemMessage::Start,
+    ));
+    run_midi_runtime_tick(&mut engine, "runtime tick should process the queued MIDI clock start message");
+
+    for _ in 0..48 {
+        let crate::app::AppNode::MidiModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
+            panic!("expected MidiModule node");
+        };
+        module.enqueue_incoming_message_for_test(MidiMessage::System(
+            super::midi_message::MidiSystemMessage::TimingClock,
+        ));
+        run_midi_runtime_tick_with_delta(
+            &mut engine,
+            Duration::from_millis(21),
+            "runtime tick should establish a fractional BPM for precision testing",
+        );
+    }
+
+    assert_float_param(&engine, bpm_id, 119.05, 1e-6);
+
+    set_param(&mut engine, precision_id, ParamValue::Int(0));
+    settle_midi_module_edits(&mut engine);
+    assert_float_param(&engine, bpm_id, 119.0, 1e-6);
+
+    set_param(&mut engine, precision_id, ParamValue::Int(3));
+    settle_midi_module_edits(&mut engine);
+    assert_float_param(&engine, bpm_id, 119.048, 1e-6);
 }
 
 #[test]
@@ -492,12 +816,29 @@ fn child_decl_ids(engine: &crate::app::AppEngine, parent: NodeId) -> Vec<String>
     decl_ids
 }
 
+fn assert_float_param(engine: &crate::app::AppEngine, node_id: NodeId, expected: f64, tolerance: f64) {
+    let actual = engine
+        .nodes
+        .get(node_id)
+        .and_then(|node| node.engine_param_snapshot())
+        .and_then(|snapshot| snapshot.value.as_float())
+        .expect("float parameter should exist");
+    assert!(
+        (actual - expected).abs() <= tolerance,
+        "expected float parameter value {expected}, got {actual}"
+    );
+}
+
 fn run_midi_runtime_tick(engine: &mut crate::app::AppEngine, context: &str) {
+    run_midi_runtime_tick_with_delta(engine, Duration::from_millis(20), context);
+}
+
+fn run_midi_runtime_tick_with_delta(engine: &mut crate::app::AppEngine, delta: Duration, context: &str) {
     engine
         .dispatch_inbox(ExecutionPhase::EngineTick)
         .expect("pending MIDI events should dispatch");
     engine.apply_edits().expect("pending MIDI event reactions should apply");
-    engine.run_tick(Duration::from_millis(20)).expect(context);
+    engine.run_tick(delta).expect(context);
     engine.apply_edits().expect("pending MIDI edits should apply");
     engine
         .resolve()

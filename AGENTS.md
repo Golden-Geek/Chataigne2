@@ -119,6 +119,7 @@ When a task spans multiple architectural areas, prefer this order:
 ## Working Rules For Agents
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
+- Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.
 - Do not preserve broken boundaries for convenience.
 - Do not introduce compatibility shims unless the task explicitly requires them.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.
