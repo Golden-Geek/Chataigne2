@@ -11,6 +11,7 @@ fn module_command_tester_uses_advertised_command_catalog() {
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
     );
     let items = tester.user_creatable_items();
+    let item_types = items.iter().map(|item| item.node_type.as_str()).collect::<Vec<_>>();
 
     assert_eq!(
         items.len(),
@@ -21,6 +22,11 @@ fn module_command_tester_uses_advertised_command_catalog() {
     assert!(items.iter().all(|item| {
         crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES.contains(&item.node_type.as_str())
     }));
+    assert_eq!(
+        item_types,
+        crate::app::module::common::streaming::commands::STREAMING_COMMAND_NODE_TYPES,
+        "module command tester should preserve the advertised command order"
+    );
     assert!(!items.iter().any(|item| item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE));
     assert!(
         tester.user_container_accepts_item(

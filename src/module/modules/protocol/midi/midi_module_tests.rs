@@ -42,10 +42,7 @@ fn midi_module_command_tester_advertises_all_midi_commands() {
     let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
 
     let available_types = engine
-        .nodes
-        .get(command_tester_id)
-        .expect("command tester should exist")
-        .user_creatable_items()
+        .catalog_creatable_items(command_tester_id)
         .into_iter()
         .map(|item| item.node_type)
         .collect::<Vec<_>>();
@@ -53,15 +50,13 @@ fn midi_module_command_tester_advertises_all_midi_commands() {
     assert_eq!(
         available_types.len(),
         MidiModule::module_command_types().len(),
-        "midi command tester should advertise the full MIDI command catalog"
+        "midi command tester catalog should advertise the full MIDI command catalog"
     );
-
-    for command_type in MidiModule::module_command_types() {
-        assert!(
-            available_types.iter().any(|item_type| item_type == command_type),
-            "missing MIDI command type {command_type}; available types were {available_types:?}"
-        );
-    }
+    assert_eq!(
+        available_types,
+        MidiModule::module_command_types(),
+        "midi command tester catalog should preserve the declared MIDI command order"
+    );
 }
 
 #[test]

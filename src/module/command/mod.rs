@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use golden_core::{
     events::CustomEvent,
     node,
@@ -254,11 +256,27 @@ impl ModuleCommandTester {
     }
 
     fn available_command_items(&self) -> Vec<UserCreatableItem> {
-        crate::app::declared_user_creatable_items(MODULE_COMMAND_ITEM_KIND)
-            .into_iter()
-            .filter(|item| self.command_type_available(item.node_type.as_str()))
-            .map(|item| item.with_select_when_created(false))
-            .collect()
+        let declared_items = crate::app::declared_user_creatable_items(MODULE_COMMAND_ITEM_KIND);
+
+        match self.available_command_types {
+            Some(available_command_types) => {
+                let mut items_by_type = declared_items
+                    .into_iter()
+                    .map(|item| (item.node_type.clone(), item))
+                    .collect::<HashMap<_, _>>();
+
+                available_command_types
+                    .iter()
+                    .filter_map(|node_type| items_by_type.remove(*node_type))
+                    .map(|item| item.with_select_when_created(false))
+                    .collect()
+            }
+            None => declared_items
+                .into_iter()
+                .filter(|item| self.command_type_available(item.node_type.as_str()))
+                .map(|item| item.with_select_when_created(false))
+                .collect(),
+        }
     }
 }
 
