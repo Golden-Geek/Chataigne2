@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ModuleIndicators from "$lib/components/modules/ModuleIndicators.svelte";
-	import type { UiNodeDto } from "$lib/golden_ui/generated/rust_protocol/UiNodeDto";
+	import type { UiNodeDto } from "$lib/golden_ui/types";
 	import { appState } from "$lib/golden_ui/store/app-state.svelte";
 
 
