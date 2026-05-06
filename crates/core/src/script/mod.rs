@@ -207,6 +207,48 @@ fn include_stack_contains(stack: &[String], key: &str) -> bool {
     stack.iter().any(|item| item == key)
 }
 
+fn core_include_path(include_relative_path: &Path) -> Option<PathBuf> {
+    let mut components = include_relative_path.components();
+    match components.next() {
+        Some(Component::Normal(segment)) if segment.to_string_lossy().eq_ignore_ascii_case("core") => {
+            let remainder = components.as_path().to_path_buf();
+            if remainder.as_os_str().is_empty() {
+                None
+            } else {
+                Some(remainder)
+            }
+        }
+        _ => None,
+    }
+}
+
+fn resolve_include_path(include_relative_path: &Path, root_dir: &Path) -> Result<(PathBuf, PathBuf, String), String> {
+    let (target_root, resolved_relative_path, include_key) = if let Some(core_path) = core_include_path(include_relative_path) {
+        let include_key = format!("core/{}", core_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase());
+        (script_template_root_dir(), core_path, include_key)
+    } else {
+        (
+            root_dir.to_path_buf(),
+            include_relative_path.to_path_buf(),
+            include_relative_path
+                .to_string_lossy()
+                .replace('\\', "/")
+                .to_ascii_lowercase(),
+        )
+    };
+
+    let include_path = target_root.join(&resolved_relative_path);
+    if include_path.is_file() {
+        return Ok((include_path, target_root, include_key));
+    }
+
+    Err(format!(
+        "failed to read template include '{}': looked in {}",
+        include_relative_path.display(),
+        include_path.display()
+    ))
+}
+
 fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec<String>) -> Result<String, String> {
     let mut output = String::with_capacity(source.len());
     let mut cursor = source;
@@ -220,10 +262,7 @@ fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec
 
         let include_path = &after_prefix[..end_index];
         let include_relative_path = normalize_include_path(include_path)?;
-        let include_key = include_relative_path
-            .to_string_lossy()
-            .replace('\\', "/")
-            .to_ascii_lowercase();
+        let (include_path, include_root_dir, include_key) = resolve_include_path(&include_relative_path, root_dir)?;
         if include_stack_contains(include_stack, &include_key) {
             let cycle = include_stack
                 .iter()
@@ -234,11 +273,10 @@ fn expand_template_source(source: &str, root_dir: &Path, include_stack: &mut Vec
             return Err(format!("template include cycle detected: {cycle}"));
         }
 
-        let include_path = root_dir.join(&include_relative_path);
         let include_source = std::fs::read_to_string(&include_path)
             .map_err(|err| format!("failed to read template include '{}': {err}", include_path.display()))?;
         include_stack.push(include_key);
-        let expanded = expand_template_source(&include_source, root_dir, include_stack);
+        let expanded = expand_template_source(&include_source, &include_root_dir, include_stack);
         include_stack.pop();
         output.push_str(&expanded?);
         cursor = &after_prefix[end_index + SCRIPT_TEMPLATE_INCLUDE_SUFFIX.len()..];
@@ -267,8 +305,7 @@ fn default_embedded_template() -> String {
         .unwrap_or_else(|_| SCRIPT_TEMPLATE_DEFAULT_SOURCE.to_string())
 }
 
-fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
-    let root_dir = script_template_root_dir();
+fn resolve_template_for_host_in_dir(host_node_type: &str, root_dir: &Path) -> Option<ScriptTemplateResolved> {
     for basename in template_candidate_basenames(host_node_type) {
         for extension in SCRIPT_TEMPLATE_EXTENSIONS {
             let path = root_dir.join(format!("{basename}.{extension}"));
@@ -278,7 +315,7 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
 
             match read_template_from_path(&path, &root_dir) {
                 Ok(source) => {
-                    return ScriptTemplateResolved { source };
+                    return Some(ScriptTemplateResolved { source });
                 }
                 Err(error) => {
                     let _ = logger::log_message(
@@ -290,6 +327,15 @@ fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
                 }
             }
         }
+    }
+
+    None
+}
+
+fn resolve_template_for_host(host_node_type: &str) -> ScriptTemplateResolved {
+    let root_dir = script_template_root_dir();
+    if let Some(template) = resolve_template_for_host_in_dir(host_node_type, &root_dir) {
+        return template;
     }
 
     ScriptTemplateResolved {
@@ -311,6 +357,23 @@ impl ScriptNodeConfig {
         Self {
             source: ScriptSource::Inline(template.source),
         }
+    }
+
+    /// Tries to create default script config from a caller-provided template directory.
+    pub fn try_for_host_node_type_in_template_dir(
+        host_node_type: &str,
+        template_dir: impl AsRef<Path>,
+    ) -> Option<Self> {
+        let template = resolve_template_for_host_in_dir(host_node_type, template_dir.as_ref())?;
+        Some(Self {
+            source: ScriptSource::Inline(template.source),
+        })
+    }
+
+    /// Creates default script config for a host node type using a caller-provided template directory.
+    pub fn for_host_node_type_in_template_dir(host_node_type: &str, template_dir: impl AsRef<Path>) -> Self {
+        Self::try_for_host_node_type_in_template_dir(host_node_type, template_dir)
+            .unwrap_or_else(|| Self::for_host_node_type(host_node_type))
     }
 
     fn validate_source_kind(&self) -> Result<(), ScriptRuntimeError> {
@@ -633,6 +696,12 @@ pub struct ScriptEvent {
     pub payload: JsonValue,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct ScriptCallbackInvocation {
+    name: String,
+    args: Vec<JsonValue>,
+}
+
 impl From<&Event> for ScriptEvent {
     fn from(event: &Event) -> Self {
         let (kind, origin, old_value) = match &event.kind {
@@ -660,6 +729,42 @@ impl From<&Event> for ScriptEvent {
             old_value,
             payload,
         }
+    }
+}
+
+impl ScriptEvent {
+    fn custom_payload(&self) -> Option<&JsonValue> {
+        if self.kind != "custom" {
+            return None;
+        }
+
+        self.payload
+            .get("Custom")
+            .and_then(|custom| custom.get("payload"))
+            .or_else(|| self.payload.get("payload"))
+    }
+
+    fn custom_callback_invocation(&self) -> Option<ScriptCallbackInvocation> {
+        let payload = self.custom_payload()?;
+        let object = payload.as_object()?;
+        let name = object
+            .get("callback")
+            .or_else(|| object.get("callbackName"))
+            .and_then(JsonValue::as_str)?
+            .trim();
+        if name.is_empty() {
+            return None;
+        }
+
+        let args = object
+            .get("args")
+            .and_then(JsonValue::as_array)
+            .cloned()
+            .unwrap_or_default();
+        Some(ScriptCallbackInvocation {
+            name: name.to_string(),
+            args,
+        })
     }
 }
 
@@ -1998,6 +2103,39 @@ globalThis.emit = (topic, payload) => globalThis.gc.emit(topic, payload);
         Ok(None)
     }
 
+    fn script_callback_arg_node_id(value: &JsonValue) -> Option<u64> {
+        let object = value.as_object()?;
+        let kind = object.get("kind").and_then(JsonValue::as_str);
+        if kind != Some("node") {
+            return None;
+        }
+        object.get("id").and_then(JsonValue::as_u64)
+    }
+
+    fn callback_arg_to_quickjs_value<'js>(
+        ctx: &QuickJsCtx<'js>,
+        globals: &QuickJsObject<'js>,
+        value: &JsonValue,
+    ) -> Result<QuickJsValue<'js>, ScriptRuntimeError> {
+        if let Some(node_id) = Self::script_callback_arg_node_id(value) {
+            if let Some(gc) = globals.get::<_, Option<QuickJsObject>>("gc")? {
+                let factory = if let Some(factory) = gc.get::<_, Option<QuickJsFunction>>("__eventNodeHandle")? {
+                    Some(factory)
+                } else {
+                    gc.get::<_, Option<QuickJsFunction>>("__nodeHandle")?
+                };
+                if let Some(factory) = factory {
+                    return Ok(factory.call::<_, QuickJsValue>((node_id as f64,))?);
+                }
+            }
+        }
+
+        let json = serde_json::to_string(value).map_err(|err| {
+            ScriptRuntimeError::InvalidManifest(format!("failed to serialize callback argument: {err}"))
+        })?;
+        Ok(ctx.json_parse(json.as_str())?)
+    }
+
     fn to_quickjs_value<'js>(
         &self,
         ctx: &QuickJsCtx<'js>,
@@ -2518,7 +2656,11 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
         } else {
             None
         };
-        if event_callback_name.is_none() && param_changed_callback_name.is_none() {
+        let custom_callback_invocation = event.custom_callback_invocation();
+        if event_callback_name.is_none()
+            && param_changed_callback_name.is_none()
+            && custom_callback_invocation.is_none()
+        {
             return Ok(());
         }
 
@@ -2530,6 +2672,16 @@ if (globalThis.gc && typeof globalThis.gc === "object") {
             self.context.with(|ctx| -> Result<(), ScriptRuntimeError> {
                 let result = (|| -> Result<(), ScriptRuntimeError> {
                     let globals = ctx.globals();
+
+                    if let Some(invocation) = custom_callback_invocation.as_ref() {
+                        if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(invocation.name.as_str())? {
+                            let mut call_args = QuickJsArgs::new(ctx.clone(), invocation.args.len());
+                            for arg in &invocation.args {
+                                call_args.push_arg(Self::callback_arg_to_quickjs_value(&ctx, &globals, arg)?)?;
+                            }
+                            callback.call_arg::<()>(call_args)?;
+                        }
+                    }
 
                     if let Some(callback_name) = param_changed_callback_name.as_deref() {
                         if let Some(callback) = globals.get::<_, Option<QuickJsFunction>>(callback_name)? {

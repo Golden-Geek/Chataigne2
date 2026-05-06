@@ -137,6 +137,11 @@ pub trait Node: Send + Any {
         None
     }
 
+    fn create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
+        let _ = host_node_type;
+        self.create_user_item(node_type)
+    }
+
     #[doc(hidden)]
     fn engine_set_param_value(&mut self, _value: ParamValue) -> Option<ParamValue> {
         None
@@ -949,6 +954,11 @@ pub trait ViaTarget {
         None
     }
 
+    fn via_create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
+        let _ = host_node_type;
+        self.via_create_user_item(node_type)
+    }
+
     fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)
     }
@@ -1023,6 +1033,10 @@ impl<T: Node + ?Sized> ViaTarget for T {
 
     fn via_create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         self.create_user_item(node_type)
+    }
+
+    fn via_create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
+        self.create_user_item_for_host(host_node_type, node_type)
     }
 
     fn via_project_encode_data(&self) -> Result<serde_json::Value, String> {

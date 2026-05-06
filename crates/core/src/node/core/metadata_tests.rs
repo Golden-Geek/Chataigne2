@@ -1,6 +1,8 @@
 use serde_json::json;
 
-use super::PresentationHint;
+use crate::parameter::ParamValue;
+
+use super::{DeclId, NodeData, NodeScriptDescriptor, PresentationHint};
 
 #[test]
 fn presentation_hint_defaults_to_nested_inspector_visibility() {
@@ -62,5 +64,42 @@ fn presentation_hint_serializes_collapsed_when_enabled() {
         json!({
             "collapsed": true
         })
+    );
+}
+
+#[test]
+fn node_script_descriptor_for_node_exposes_standard_proxy_surface() {
+    let mut node_data = NodeData::new("Test Node".to_string());
+    node_data.meta.enabled = false;
+    node_data.meta.decl_id = DeclId("test_decl".to_string());
+
+    let descriptor = NodeScriptDescriptor::for_node(&node_data, "test_type");
+
+    assert_eq!(
+        descriptor.properties.get("name"),
+        Some(&ParamValue::Str("Test Node".to_string()))
+    );
+    assert_eq!(descriptor.properties.get("enabled"), Some(&ParamValue::Bool(false)));
+    assert_eq!(
+        descriptor.properties.get("type"),
+        Some(&ParamValue::Str("test_type".to_string()))
+    );
+    assert_eq!(
+        descriptor.properties.get("declId"),
+        Some(&ParamValue::Str("test_decl".to_string()))
+    );
+    assert!(descriptor.methods.iter().any(|method| method == "setParam"));
+    assert!(descriptor.methods.iter().any(|method| method == "getChild"));
+}
+
+#[test]
+fn node_script_descriptor_add_methods_keeps_unique_method_names() {
+    let mut descriptor = NodeScriptDescriptor::default();
+
+    descriptor.add_methods(["sendText", "sendText", "sendBytes"]);
+
+    assert_eq!(
+        descriptor.methods,
+        vec!["sendText".to_string(), "sendBytes".to_string()]
     );
 }

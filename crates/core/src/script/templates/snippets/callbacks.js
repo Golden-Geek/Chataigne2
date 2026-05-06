@@ -2,7 +2,7 @@ let utilitiesFolder = null;
 
 function init() {
   utilitiesFolder = script.addNode("folder", "Utilities");
-  log(`script initialized (${String(GC_TEMPLATE)})`, gainParam, utilitiesFolder);
+  log(gainParam, utilitiesFolder);
 
   // `local` is the local node proxy. Use it to mutate the live tree.
   // Example:

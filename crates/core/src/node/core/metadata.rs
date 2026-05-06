@@ -475,5 +475,60 @@ pub struct NodeScriptDescriptor {
     pub methods: Vec<String>,
 }
 
+impl NodeScriptDescriptor {
+    /// Creates the standard script descriptor shared by all node proxies.
+    pub fn for_node(node_data: &NodeData, node_type: &str) -> Self {
+        let mut descriptor = Self::default();
+        descriptor
+            .properties
+            .insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
+        descriptor
+            .properties
+            .insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
+        descriptor
+            .properties
+            .insert("type".to_string(), ParamValue::Str(node_type.to_string()));
+        descriptor
+            .properties
+            .insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
+
+        descriptor.add_methods([
+            "setName",
+            "setEnabled",
+            "setDescription",
+            "setReadOnly",
+            "addNode",
+            "removeNode",
+            "addParameter",
+            "removeParameter",
+            "addFolder",
+            "setParam",
+            "listen",
+            "unlisten",
+            "getProperties",
+            "getChildren",
+            "getChild",
+            "toString",
+        ]);
+        descriptor
+    }
+
+    /// Adds one script-callable method if it is not already present.
+    pub fn add_method(&mut self, method: impl AsRef<str>) {
+        let method = method.as_ref();
+        if self.methods.iter().any(|candidate| candidate == method) {
+            return;
+        }
+        self.methods.push(method.to_string());
+    }
+
+    /// Adds script-callable methods if they are not already present.
+    pub fn add_methods<'a>(&mut self, methods: impl IntoIterator<Item = &'a str>) {
+        for method in methods {
+            self.add_method(method);
+        }
+    }
+}
+
 #[cfg(test)]
 mod metadata_tests;

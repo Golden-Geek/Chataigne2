@@ -3651,7 +3651,11 @@ fn expand_impl(
             let segments = &path.segments;
             input.items.push(parse_quote! {
                 fn create_user_item(&self, node_type: &str) -> Option<Box<dyn golden_core::node::Node>> {
-                    golden_core::node::ViaTarget::via_create_user_item(&self.#(#segments).*, node_type)
+                    golden_core::node::ViaTarget::via_create_user_item_for_host(
+                        &self.#(#segments).*,
+                        #resolved_type_name,
+                        node_type,
+                    )
                 }
             });
         }

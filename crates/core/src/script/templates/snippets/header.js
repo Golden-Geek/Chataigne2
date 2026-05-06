@@ -59,7 +59,9 @@
 //   event.kind   : "paramChanged", "childAdded", "childRemoved", "metaChanged", "custom", ...
 //   event.origin : origin node id (or null)
 //   event.payload: raw event payload object
-const GC_TEMPLATE = "default";
+
+script.setApiVersion(1);
+
 
 let gainParam = script.addParameter("My Gain", {
   type: "float",

@@ -101,48 +101,6 @@ pub(crate) fn lookup_script_child_by_key_and_type(
     }
 }
 
-fn push_unique_script_method(methods: &mut Vec<String>, method: &str) {
-    if methods.iter().any(|candidate| candidate == method) {
-        return;
-    }
-    methods.push(method.to_string());
-}
-
 pub(crate) fn core_node_script_descriptor(node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
-    let mut descriptor = NodeScriptDescriptor::default();
-    descriptor
-        .properties
-        .insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
-    descriptor
-        .properties
-        .insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
-    descriptor
-        .properties
-        .insert("type".to_string(), ParamValue::Str(node_type.to_string()));
-    descriptor
-        .properties
-        .insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
-
-    for method in [
-        "setName",
-        "setEnabled",
-        "setDescription",
-        "setReadOnly",
-        "addNode",
-        "removeNode",
-        "addParameter",
-        "removeParameter",
-        "addFolder",
-        "setParam",
-        "listen",
-        "unlisten",
-        "getProperties",
-        "getChildren",
-        "getChild",
-        "toString",
-    ] {
-        push_unique_script_method(&mut descriptor.methods, method);
-    }
-
-    descriptor
+    NodeScriptDescriptor::for_node(node_data, node_type)
 }
