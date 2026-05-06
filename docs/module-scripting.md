@@ -5,8 +5,9 @@ only dispatches named callbacks from custom event payloads; callback names, argu
 module send methods live with the module family that owns them.
 
 Default module script source comes from `src/module/script_templates/`. Each concrete module gets
-its own template file, such as `midi_module.js`, `osc_module.js`, `serial_module.js`, or
-`websocket_server_module.js`, and those files compose shared snippets with `{{include:...}}`.
+its own template file, such as `midi_module.js`, `mqtt_module.js`, `osc_module.js`,
+`serial_module.js`, or `websocket_server_module.js`, and those files compose shared snippets with
+`{{include:...}}`.
 Reusable JS documentation snippets in `src/module/script_templates/snippets/` are comment-only
 quick references for the functions available on `local`, the module host proxy.
 
@@ -34,6 +35,10 @@ MIDI modules emit:
 OSC modules emit:
 
 - `messageReceived(address, payload, message)`
+
+MQTT modules emit:
+
+- `messageReceived(topic, payload, message)`
 
 Streaming modules emit:
 
@@ -67,6 +72,9 @@ MIDI modules expose:
 
 OSC modules expose `sendMessage(address, ...values)`, `sendOSC(address, ...values)`, and
 `sendOsc(address, ...values)`.
+
+MQTT modules expose `publish(topic, payload, qos, retain)`, `publishText(topic, text, qos, retain)`,
+and `publishJson(topic, value, qos, retain)`.
 
 Streaming modules expose:
 

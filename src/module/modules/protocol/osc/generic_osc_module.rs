@@ -11,7 +11,7 @@ use crate::app::{OscDecodedMessage, OscIncomingApplyResult, OscValuePayload};
 
 const VALUE_LABEL_PREFIX: &str = "value ";
 
-#[golden_core::node("osc", label = "OSC")]
+#[golden_core::node("osc_module", label = "OSC")]
 pub struct GenericOscModule {
     base: crate::app::OscModuleBase,
 }

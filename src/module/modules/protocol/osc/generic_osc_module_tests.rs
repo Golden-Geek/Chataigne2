@@ -228,7 +228,7 @@ fn sparse_project_serialization_omits_unchanged_osc_defaults() {
 
     assert_eq!(
         module_record.get("type"),
-        Some(&serde_json::Value::String("osc".to_string()))
+        Some(&serde_json::Value::String("osc_module".to_string()))
     );
     assert!(
         module_record.get("children").is_none(),
