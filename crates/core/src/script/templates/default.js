@@ -4,7 +4,6 @@
 
 script.setApiVersion(1);
 {{include:snippets/update_rate.js}}
-{{include:snippets/parameters/basic_gain.js}}
 {{include:snippets/subscriptions/host.js}}
 {{include:snippets/exports/ping.js}}
 

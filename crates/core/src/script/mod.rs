@@ -3062,7 +3062,7 @@ struct NodeScriptHostBridge<'a> {
     host_node: Option<NodeId>,
     started_elapsed: Duration,
     runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
-    load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
+    load_declared_children: Option<&'a mut Vec<ManagedLoadChild>>,
     ctx: &'a mut ProcessCtx,
 }
 
@@ -3072,7 +3072,7 @@ impl<'a> NodeScriptHostBridge<'a> {
         host_node: Option<NodeId>,
         started_elapsed: Duration,
         runtime_subscriptions: &'a mut Vec<crate::node::EventSubscription>,
-        load_declared_children: Option<&'a mut HashSet<ManagedLoadChild>>,
+        load_declared_children: Option<&'a mut Vec<ManagedLoadChild>>,
         ctx: &'a mut ProcessCtx,
     ) -> Self {
         Self {
@@ -3133,7 +3133,9 @@ impl ScriptHostBridge for NodeScriptHostBridge<'_> {
     fn call_node_script_method(&mut self, node: NodeId, method: String, args: Vec<ParamValue>) -> Result<(), String> {
         if let Some(load_declared_children) = self.load_declared_children.as_deref_mut() {
             if let Some(managed_child) = managed_child_from_script_call(node, method.as_str(), args.as_slice()) {
-                load_declared_children.insert(managed_child);
+                if !load_declared_children.contains(&managed_child) {
+                    load_declared_children.push(managed_child);
+                }
             }
         }
 
@@ -3279,6 +3281,7 @@ pub struct ScriptNode {
     effective_update_rate_hz: Option<u32>,
     runtime_subscriptions: Vec<crate::node::EventSubscription>,
     managed_load_children: HashSet<ManagedLoadChild>,
+    pending_manifest_apply: Option<Vec<ManagedLoadChild>>,
     reload_requested: bool,
     runtime_started_elapsed: Duration,
 }
@@ -3296,6 +3299,7 @@ impl ScriptNode {
             effective_update_rate_hz: None,
             runtime_subscriptions: Vec::new(),
             managed_load_children: HashSet::new(),
+            pending_manifest_apply: None,
             reload_requested: false,
             runtime_started_elapsed: Duration::ZERO,
         }
@@ -3473,7 +3477,7 @@ impl ScriptNode {
         let source_name = self.config.source.runtime_source_name();
         let script_node = self.id();
         let host_node = self.node_data.parent;
-        let mut declared_load_children = HashSet::new();
+        let mut declared_load_children = Vec::new();
         let manifest = {
             let mut host = NodeScriptHostBridge::new(
                 script_node,
@@ -3496,8 +3500,10 @@ impl ScriptNode {
             );
             runtime.call_on_init(&mut host)?;
         }
-        self.reconcile_load_declared_children(ctx, &declared_load_children);
+        let declared_set: HashSet<_> = declared_load_children.iter().cloned().collect();
+        self.reconcile_load_declared_children(ctx, &declared_set);
 
+        self.pending_manifest_apply = Some(declared_load_children);
         self.effective_update_rate_hz = manifest.update_rate_hz;
         self.manifest = Some(manifest);
         self.runtime = Some(ActiveRuntime { runtime });
@@ -3577,6 +3583,7 @@ impl Node for ScriptNode {
         self.effective_update_rate_hz = None;
         self.runtime_subscriptions.clear();
         self.managed_load_children.clear();
+        self.pending_manifest_apply = None;
         self.reload_requested = false;
         self.runtime_started_elapsed = Duration::ZERO;
         Ok(())
@@ -3630,6 +3637,91 @@ impl Node for ScriptNode {
             if let Err(error) = self.load_or_reload_internal(ctx, false) {
                 self.handle_runtime_error(ctx, &error);
                 return;
+            }
+        }
+
+        if let Some(declared) = self.pending_manifest_apply.take() {
+            if let Some(snapshot) = ctx.tree_snapshot_arc() {
+                let mut prev_sibling = None;
+                for declared_child in declared {
+                    let mut found_id = None;
+                    let mut child = snapshot.node(declared_child.parent).and_then(|node| node.first_child);
+                    while let Some(child_id) = child {
+                        let Some(child_snapshot) = snapshot.node(child_id) else {
+                            break;
+                        };
+                        if managed_child_key_matches(child_snapshot, declared_child.key.as_str()) {
+                            found_id = Some(child_id);
+                            break;
+                        }
+                        child = child_snapshot.next_sibling;
+                    }
+
+                    if let Some(child_id) = found_id {
+                        ctx.edits.push(crate::edit::Edit::MoveNode {
+                            node: child_id,
+                            new_parent: declared_child.parent,
+                            new_prev_sibling: prev_sibling,
+                        });
+                        prev_sibling = Some(child_id);
+
+                        if let Some(manifest) = &self.manifest {
+                            for spec in &manifest.parameters {
+                                if spec.decl_id.0 == declared_child.key || spec.name == declared_child.key {
+                                    let mut meta_patch = crate::node::NodeMetaPatch::default();
+                                    let mut needs_patch = false;
+
+                                    if let Some(child_snapshot) = snapshot.node(child_id) {
+                                        if let Some(label) = &spec.label {
+                                            if label != &child_snapshot.label {
+                                                meta_patch.label = Some(label.clone());
+                                                needs_patch = true;
+                                            }
+                                        }
+
+                                        if child_snapshot.param_constraints.as_ref() != Some(&spec.constraints) {
+                                            ctx.edits.push(crate::edit::Edit::SetParamConstraints {
+                                                node: child_id,
+                                                constraints: spec.constraints.clone(),
+                                            });
+                                        }
+                                    }
+
+                                    if needs_patch {
+                                        ctx.patch_node_meta(child_id, meta_patch);
+                                    }
+
+                                    let hints = spec.ui_hints.clone();
+                                    let read_only = spec.read_only;
+                                    let new_default = spec.default_value.clone();
+                                    ctx.edits.push(crate::edit::Edit::CallNodeMutation {
+                                        node: child_id,
+                                        callback: Box::new(move |node_dyn, ctx| {
+                                            if let Some(param) = node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>() {
+                                                param.ui_hints = hints;
+                                                param.read_only = read_only;
+
+                                                if param.default_value != new_default {
+                                                    let is_at_default = param.value == param.default_value;
+                                                    param.default_value = new_default.clone();
+                                                    
+                                                    if is_at_default && param.value != new_default {
+                                                        ctx.edits.push(crate::edit::Edit::SetParam {
+                                                            node: child_id,
+                                                            value: new_default,
+                                                            behaviour: crate::parameter::ParameterEventBehaviour::Coalesce,
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                            Ok(())
+                                        }),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

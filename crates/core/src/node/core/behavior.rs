@@ -359,21 +359,9 @@ pub trait Node: Send + Any {
                             )
                         });
 
-                    if let Some((is_parameter, node_type, label, param_value)) = existing_snapshot {
+                    if let Some((is_parameter, node_type, _, _)) = existing_snapshot {
                         if is_parameter && lookup.primary_matches_type && node_type.eq_ignore_ascii_case(expected_type)
                         {
-                            if label != parameter_id {
-                                ctx.patch_node_meta(
-                                    existing_node,
-                                    NodeMetaPatch {
-                                        label: Some(parameter_id.clone()),
-                                        ..Default::default()
-                                    },
-                                );
-                            }
-                            if param_value.as_ref() != Some(&default_value) {
-                                ctx.set_param(existing_node, default_value);
-                            }
                             return Ok(true);
                         }
                     }

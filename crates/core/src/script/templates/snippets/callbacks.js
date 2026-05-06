@@ -1,8 +1,6 @@
-let gainParam = null;
 let utilitiesFolder = null;
 
 function init() {
-  gainParam = script.addParameter("gain", { type: "float", default: 0.5 });
   utilitiesFolder = script.addNode("folder", "Utilities");
   log(`script initialized (${String(GC_TEMPLATE)})`, gainParam, utilitiesFolder);
 

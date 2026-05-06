@@ -60,3 +60,12 @@
 //   event.origin : origin node id (or null)
 //   event.payload: raw event payload object
 const GC_TEMPLATE = "default";
+
+let gainParam = script.addParameter("My Gain", {
+  type: "float",
+  default: 0.5,
+  min: 0.0,
+  max: 1.0,
+  step: 0.01,
+//   label: "Gain",
+});
