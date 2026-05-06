@@ -217,3 +217,6 @@ fn path_segment(decl_id: &str, label: &str) -> String {
         .unwrap_or(label)
         .to_string()
 }
+
+#[cfg(test)]
+mod tests;
