@@ -10,12 +10,25 @@ use golden_core::{
     node::{Folder, Node, NodeId, NodeMetaPatch},
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
+    script::ScriptSource,
 };
 
 use super::{
     transport::{TcpServerTransportConfig, TcpServerTransportHandle, TcpServerWorkerEvent},
     TcpServerModule,
 };
+
+#[test]
+fn tcp_server_script_template_scaffolds_server_stream_callbacks() {
+    let config = crate::app::module::script_api::module_script_config(TcpServerModule::NODE_TYPE);
+    let ScriptSource::Inline(source) = config.source else {
+        panic!("tcp server module script template should resolve to inline source");
+    };
+
+    assert!(source.contains("function textReceived"));
+    assert!(source.contains("function clientConnected"));
+    assert!(!source.contains("function noteOnReceived"));
+}
 
 #[test]
 fn tcp_server_module_root_enable_toggle_stops_and_restarts_transport() {

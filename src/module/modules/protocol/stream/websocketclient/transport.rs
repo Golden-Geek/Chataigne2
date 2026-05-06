@@ -44,7 +44,10 @@ pub(crate) enum WebSocketClientConnectionStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum StreamingWorkerEvent {
-    Bytes(Vec<u8>),
+    Bytes {
+        frame_kind: StreamingSendFrameKind,
+        bytes: Vec<u8>,
+    },
     Error(String),
     Status(WebSocketClientConnectionStatus),
 }
@@ -323,14 +326,23 @@ fn receive_messages(
             WebSocketPollOutcome::Message(message) => match message {
                 Message::Text(text) => {
                     if event_tx
-                        .send(StreamingWorkerEvent::Bytes(text.to_string().into_bytes()))
+                        .send(StreamingWorkerEvent::Bytes {
+                            frame_kind: StreamingSendFrameKind::Text,
+                            bytes: text.to_string().into_bytes(),
+                        })
                         .is_err()
                     {
                         return Err("WebSocket client event channel disconnected".to_string());
                     }
                 }
                 Message::Binary(bytes) => {
-                    if event_tx.send(StreamingWorkerEvent::Bytes(bytes.to_vec())).is_err() {
+                    if event_tx
+                        .send(StreamingWorkerEvent::Bytes {
+                            frame_kind: StreamingSendFrameKind::Binary,
+                            bytes: bytes.to_vec(),
+                        })
+                        .is_err()
+                    {
                         return Err("WebSocket client event channel disconnected".to_string());
                     }
                 }

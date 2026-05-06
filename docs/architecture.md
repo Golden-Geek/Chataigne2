@@ -37,6 +37,12 @@ out of the normal inspector content through node presentation metadata instead o
 node type in the UI. Shared command inspectors should attach to the `module_command` item kind so
 all command implementations inherit the same trigger and tester-control placement.
 
+Module scripting is split at the app/runtime boundary. `golden_core` owns generic script runtime
+dispatch and node proxy descriptors; Chataigne2 owns module callback names, callback argument
+payloads, JavaScript templates, and module-specific send methods in `src/module/`. Module-specific
+script API details stay with the owning module family rather than in one global registry. See
+[module-scripting.md](module-scripting.md) for the supported module callback and send-method surface.
+
 Inspector visibility is opt-out. `golden_core::node::PresentationHint` defaults nested inspector
 visibility on for every node; only nodes that should disappear from a parent inspector should set
 `show_in_nested_inspector = false`.

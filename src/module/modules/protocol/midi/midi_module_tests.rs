@@ -5,6 +5,7 @@ use golden_core::{
     node::{Folder, Node, NodeId, NodeUserPermissions},
     parameter::{ParamValue, ParameterEventBehaviour, RangeConstraint},
     process_ctx::ExecutionPhase,
+    script::ScriptSource,
 };
 
 use super::{
@@ -57,6 +58,37 @@ fn midi_module_command_tester_advertises_all_midi_commands() {
         super::MIDI_MODULE_COMMAND_TYPES,
         "midi command tester catalog should preserve the declared MIDI command order"
     );
+}
+
+#[test]
+fn midi_module_script_descriptor_advertises_send_methods() {
+    let descriptor = MidiModule::create().engine_script_descriptor();
+
+    for method in [
+        "sendNoteOn",
+        "sendNoteOff",
+        "sendFullNote",
+        "sendCC",
+        "sendSysEx",
+        "sendRawBytes",
+    ] {
+        assert!(
+            descriptor.methods.iter().any(|candidate| candidate == method),
+            "midi script descriptor should advertise '{method}'"
+        );
+    }
+}
+
+#[test]
+fn midi_module_script_template_scaffolds_midi_callbacks_only() {
+    let config = crate::app::module::script_api::module_script_config(MidiModule::NODE_TYPE);
+    let ScriptSource::Inline(source) = config.source else {
+        panic!("midi module script template should resolve to inline source");
+    };
+
+    assert!(source.contains("function noteOnReceived"));
+    assert!(source.contains("function sysExReceived"));
+    assert!(!source.contains("function clientConnected"));
 }
 
 #[test]

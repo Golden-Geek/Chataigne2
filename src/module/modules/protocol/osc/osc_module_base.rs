@@ -7,7 +7,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch},
+    node::{Node, NodeCreationContext, NodeData, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{Enum, ParamValue},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -24,6 +24,8 @@ const OSC_MODULE_UPDATE_RATE_HZ: u32 = 120;
 const OSC_OUTPUT_NODE_TYPE: &str = "osc_output";
 const OSC_MODULE_COMMAND_TYPES: &[&str] = &[crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE];
 const VALUE_LABEL_PREFIX: &str = "value ";
+const OSC_MESSAGE_RECEIVED_CALLBACK: &str = "messageReceived";
+const OSC_SCRIPT_METHODS: &[&str] = &["sendMessage", "sendOSC", "sendOsc"];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OscTransportBinding {
@@ -134,7 +136,9 @@ impl OscModuleBase {
 
         while let Some(message) = messages.next() {
             match apply_message(self, ctx, snapshot, &message) {
-                OscIncomingApplyResult::Applied | OscIncomingApplyResult::Ignored => {}
+                OscIncomingApplyResult::Applied | OscIncomingApplyResult::Ignored => {
+                    self.emit_osc_message_received_callback(ctx, &message);
+                }
                 OscIncomingApplyResult::Retry => {
                     remaining.push(message);
                     remaining.extend(messages);
@@ -174,6 +178,10 @@ impl OscModuleBase {
         if let Some(mut transport) = self.transport.take() {
             transport.stop();
         }
+    }
+
+    pub(crate) fn script_descriptor_for_node(&self, node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
+        crate::app::module::script_api::descriptor_for_node(node_data, node_type, OSC_SCRIPT_METHODS)
     }
 
     #[cfg(test)]
@@ -565,6 +573,46 @@ impl OscModuleBase {
         Ok(format!("Queued OSC {} for {} output(s)", request.address, queued))
     }
 
+    fn emit_osc_message_received_callback(&self, ctx: &mut ProcessCtx, message: &OscDecodedMessage) {
+        crate::app::module::script_api::emit_script_callback(
+            ctx,
+            self.id(),
+            OSC_MESSAGE_RECEIVED_CALLBACK,
+            vec![
+                serde_json::json!(message.address.as_str()),
+                osc_payload_script_arg(&message.payload),
+                serde_json::json!({
+                    "address": message.address.as_str(),
+                    "payload": osc_payload_script_arg(&message.payload),
+                }),
+            ],
+        );
+    }
+
+    fn handle_script_send_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Option<Result<(), String>> {
+        match method {
+            "sendMessage" | "sendOSC" | "sendOsc" => {}
+            _ => return None,
+        }
+
+        let Some(address) = args.first().and_then(ParamValue::as_str) else {
+            return Some(Err(format!("method '{method}' expects an OSC address string")));
+        };
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return Some(Err(format!("method '{method}' is unavailable without a tree snapshot")));
+        };
+        let request = OscSendCustomMessageRequest {
+            address,
+            arguments: args.iter().skip(1).cloned().collect(),
+        };
+        Some(self.queue_custom_message(ctx, snapshot_arc.as_ref(), &request).map(|_| ()))
+    }
+
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
@@ -693,6 +741,15 @@ impl OscModuleBase {
     }
 }
 
+fn osc_payload_script_arg(payload: &OscValuePayload) -> serde_json::Value {
+    match payload {
+        OscValuePayload::Single(value) => value.to_script_json(),
+        OscValuePayload::Multi(values) | OscValuePayload::Arguments(values) => {
+            crate::app::module::script_api::param_values_arg(values.as_slice())
+        }
+    }
+}
+
 #[node("osc_module_base", via = base, from_struct)]
 impl Node for OscModuleBase {
     fn init(&mut self, ctx: &mut ProcessCtx) {
@@ -766,7 +823,29 @@ impl Node for OscModuleBase {
         u32::MAX
     }
 
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        self.script_descriptor_for_node(self.node_data(), self.get_type())
+    }
+
+    fn engine_call_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
+        if let Some(result) = self.handle_script_send_method(ctx, method, args) {
+            result?;
+            return Ok(true);
+        }
+
+        self.base.engine_call_script_method(ctx, method, args)
+    }
+
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            self.base
+                .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &_old_value);
+        }
         self.on_param_change_inner(ctx, param);
     }
 

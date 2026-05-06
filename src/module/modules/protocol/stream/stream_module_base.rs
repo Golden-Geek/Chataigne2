@@ -144,6 +144,17 @@ impl StreamingModuleBase {
         self.base.emit_outgoing_traffic(ctx);
     }
 
+    pub(crate) fn emit_script_param_callback(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        param: NodeId,
+        old_value: &golden_core::parameter::ParamValue,
+    ) {
+        self.base
+            .emit_script_param_callback(ctx, snapshot, param, old_value);
+    }
+
     fn current_parse_config(&self, snapshot: &ProcessTreeSnapshot) -> StreamingParseConfig {
         streaming_parse_config(
             self.parse_mode.get_ref().as_str(),

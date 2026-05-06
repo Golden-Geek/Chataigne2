@@ -2,7 +2,7 @@ use golden_core::{
     edit::Edit,
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
-    node::{Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch},
+    node::{Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -85,7 +85,7 @@ impl GenericOscModule {
 
 #[golden_core::item(
     "module",
-    node = "osc",
+    node = "osc_module",
     via = base,
     from_struct,
     menu_path = ["Network"]
@@ -129,6 +129,19 @@ impl Node for GenericOscModule {
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         self.base.child_event_interest_depth(event)
+    }
+
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        self.base.script_descriptor_for_node(self.node_data(), self.get_type())
+    }
+
+    fn engine_call_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
+        self.base.engine_call_script_method(ctx, method, args)
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {

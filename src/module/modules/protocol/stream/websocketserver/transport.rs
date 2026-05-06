@@ -39,7 +39,11 @@ pub(crate) struct WebSocketServerTransportConfig {
 pub(crate) enum WebSocketServerWorkerEvent {
     ClientConnected { client_id: String, info: String },
     ClientDisconnected { client_id: String, reason: Option<String> },
-    Bytes { client_id: String, bytes: Vec<u8> },
+    Bytes {
+        client_id: String,
+        frame_kind: StreamingSendFrameKind,
+        bytes: Vec<u8>,
+    },
     Error(String),
     Stopped(String),
 }
@@ -345,6 +349,7 @@ fn receive_messages(
                     if event_tx
                         .send(WebSocketServerWorkerEvent::Bytes {
                             client_id: client_id.to_string(),
+                            frame_kind: StreamingSendFrameKind::Text,
                             bytes: text.to_string().into_bytes(),
                         })
                         .is_err()
@@ -356,6 +361,7 @@ fn receive_messages(
                     if event_tx
                         .send(WebSocketServerWorkerEvent::Bytes {
                             client_id: client_id.to_string(),
+                            frame_kind: StreamingSendFrameKind::Binary,
                             bytes: bytes.to_vec(),
                         })
                         .is_err()

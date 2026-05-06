@@ -97,6 +97,80 @@ pub(crate) fn values_json_request(value: &serde_json::Value) -> Result<Streaming
     })
 }
 
+pub(crate) fn streaming_script_send_request(
+    method: &str,
+    args: &[ParamValue],
+) -> Option<Result<StreamingSendRequest, String>> {
+    match method {
+        "sendText" | "sendString" => {
+            let text = args.first().and_then(ParamValue::as_str).unwrap_or_default();
+            let line_ending = args
+                .get(1)
+                .and_then(ParamValue::as_str)
+                .unwrap_or_else(|| LINE_ENDING_NONE.to_string());
+            Some(Ok(string_request(text.as_str(), line_ending.as_str())))
+        }
+        "sendBytes" | "sendData" => {
+            if args.len() == 1 {
+                if let Some(text) = args[0].as_str() {
+                    return Some(bytes_request(text.as_str()));
+                }
+            }
+            Some(script_bytes_request(args))
+        }
+        "sendHex" | "sendHexString" => {
+            let text = args.first().and_then(ParamValue::as_str).unwrap_or_default();
+            Some(hex_string_request(text.as_str()))
+        }
+        _ => None,
+    }
+}
+
+fn script_bytes_request(args: &[ParamValue]) -> Result<StreamingSendRequest, String> {
+    Ok(StreamingSendRequest {
+        bytes: script_bytes_from_args(args)?,
+        description: "bytes".to_string(),
+        frame_kind: StreamingSendFrameKind::Binary,
+    })
+}
+
+fn script_bytes_from_args(args: &[ParamValue]) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    for value in args {
+        if let Some(text) = value.as_str() {
+            bytes.extend(parse_byte_list(text.as_str())?);
+            continue;
+        }
+        if let Some((x, y)) = value.as_vec2() {
+            bytes.push(script_f64_byte(x)?);
+            bytes.push(script_f64_byte(y)?);
+            continue;
+        }
+        if let Some((x, y, z)) = value.as_vec3() {
+            bytes.push(script_f64_byte(x)?);
+            bytes.push(script_f64_byte(y)?);
+            bytes.push(script_f64_byte(z)?);
+            continue;
+        }
+        let Some(value) = value
+            .as_int()
+            .or_else(|| value.as_float().map(|value| value.round() as i32))
+        else {
+            return Err("byte arguments must be numbers or byte-list strings".to_string());
+        };
+        bytes.push(script_i32_byte(value)?);
+    }
+    Ok(bytes)
+}
+
+fn script_f64_byte(value: f64) -> Result<u8, String> {
+    script_i32_byte(value.round() as i32)
+}
+
+fn script_i32_byte(value: i32) -> Result<u8, String> {
+    u8::try_from(value).map_err(|_| format!("byte {value} is outside the 0-255 range"))
+}
+
 pub(crate) fn value_to_streaming_string(value: &ParamValue) -> String {
     match value {
         ParamValue::Trigger() => "trigger".to_string(),

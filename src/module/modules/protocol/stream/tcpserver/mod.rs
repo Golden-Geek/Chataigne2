@@ -7,15 +7,16 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::{CustomEvent, Event},
     logerror, node,
-    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch},
+    node::{Node, NodeCreationContext, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::{
     module::common::streaming::{
-        commands::StreamingSendRequest,
+        commands::{streaming_script_send_request, StreamingSendRequest},
         module_helpers::{format_bytes_for_log, streaming_command_type_supported},
+        script as streaming_script,
     },
     StreamingModuleBase,
 };
@@ -147,6 +148,7 @@ impl TcpServerModule {
         for event in worker_events {
             match event {
                 TcpServerWorkerEvent::ClientConnected { client_id, info } => {
+                    streaming_script::emit_client_connected(ctx, self.id(), client_id.as_str(), info.clone());
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
@@ -157,6 +159,7 @@ impl TcpServerModule {
                     self.client_list_dirty = true;
                 }
                 TcpServerWorkerEvent::ClientDisconnected { client_id, reason } => {
+                    streaming_script::emit_client_disconnected(ctx, self.id(), client_id.as_str(), reason.as_deref());
                     if let Some(reason) = reason {
                         logerror!(format!("TCP client {client_id} disconnected: {reason}"));
                     }
@@ -164,6 +167,13 @@ impl TcpServerModule {
                     self.client_list_dirty = true;
                 }
                 TcpServerWorkerEvent::Bytes { client_id, bytes } if !processing_enabled => {
+                    streaming_script::emit_stream_bytes_callbacks(
+                        ctx,
+                        self.id(),
+                        bytes.as_slice(),
+                        Some(client_id.as_str()),
+                        true,
+                    );
                     if self.stream.log_incoming_enabled() {
                         golden_core::log!(
                             origin = self.id();
@@ -176,6 +186,13 @@ impl TcpServerModule {
                     }
                 }
                 TcpServerWorkerEvent::Bytes { client_id, bytes } => {
+                    streaming_script::emit_stream_bytes_callbacks(
+                        ctx,
+                        self.id(),
+                        bytes.as_slice(),
+                        Some(client_id.as_str()),
+                        true,
+                    );
                     match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
                         Ok(messages) => {
                             received_bytes = true;
@@ -432,7 +449,33 @@ impl Node for TcpServerModule {
         u32::MAX
     }
 
-    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+    fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
+        streaming_script::descriptor_for_node(self.node_data(), self.get_type())
+    }
+
+    fn engine_call_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Result<bool, String> {
+        if let Some(request) = streaming_script_send_request(method, args) {
+            let request = request?;
+            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+                return Err(format!("method '{method}' is unavailable without a tree snapshot"));
+            };
+            self.queue_send_request(ctx, snapshot_arc.as_ref(), &request)?;
+            return Ok(true);
+        }
+
+        self.stream.engine_call_script_method(ctx, method, args)
+    }
+
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
+        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            self.stream
+                .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &old_value);
+        }
         self.on_param_change_inner(param);
     }
 

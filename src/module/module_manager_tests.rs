@@ -33,28 +33,41 @@ fn module_manager_uses_declared_module_item_metadata() {
     let manager = ModuleManager::new();
     let items = manager.user_creatable_items();
 
-    for (node_type, label) in [
+    for (node_type, label, menu_path) in [
         (
             crate::app::GenericOscModule::NODE_TYPE,
             crate::app::GenericOscModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
         ),
         (
             crate::app::SerialModule::NODE_TYPE,
             crate::app::SerialModule::DEFAULT_LABEL,
+            vec!["Hardware".to_string()],
         ),
-        (crate::app::UdpModule::NODE_TYPE, crate::app::UdpModule::DEFAULT_LABEL),
+        (
+            crate::app::UdpModule::NODE_TYPE,
+            crate::app::UdpModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
+        ),
         (
             crate::app::TcpServerModule::NODE_TYPE,
             crate::app::TcpServerModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
         ),
-        (crate::app::TcpClientModule::NODE_TYPE, crate::app::TcpClientModule::DEFAULT_LABEL),
+        (
+            crate::app::TcpClientModule::NODE_TYPE,
+            crate::app::TcpClientModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
+        ),
         (
             crate::app::WebSocketServerModule::NODE_TYPE,
             crate::app::WebSocketServerModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
         ),
         (
             crate::app::WebSocketClientModule::NODE_TYPE,
             crate::app::WebSocketClientModule::DEFAULT_LABEL,
+            vec!["Network".to_string()],
         ),
     ] {
         let item = items
@@ -63,7 +76,7 @@ fn module_manager_uses_declared_module_item_metadata() {
             .unwrap_or_else(|| panic!("module manager should expose module item type {node_type}"));
         assert_eq!(item.item_kind, crate::app::module::MODULE_ITEM_KIND);
         assert_eq!(item.label, label);
-        assert_eq!(item.menu_path, vec!["Network".to_string()]);
+        assert_eq!(item.menu_path, menu_path);
 
         let created = manager
             .create_user_item(node_type)

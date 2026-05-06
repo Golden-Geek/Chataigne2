@@ -5,6 +5,7 @@ use golden_core::{
     node::{Folder, Node, NodeId, NodeMetaPatch},
     parameter::{ParamValue, ParameterConstraints, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
+    script::ScriptSource,
 };
 
 use super::SerialModule;
@@ -59,6 +60,31 @@ fn serial_module_keeps_command_tester_at_module_root() {
         find_path(&engine, module_id, "parameters/command_tester").is_none(),
         "serial module should not splice the command tester into Parameters"
     );
+}
+
+#[test]
+fn serial_module_script_descriptor_advertises_stream_send_methods() {
+    let descriptor = SerialModule::create().engine_script_descriptor();
+
+    for method in ["sendText", "sendBytes", "sendHex"] {
+        assert!(
+            descriptor.methods.iter().any(|candidate| candidate == method),
+            "serial script descriptor should advertise '{method}'"
+        );
+    }
+}
+
+#[test]
+fn serial_module_script_template_scaffolds_stream_callbacks_only() {
+    let config = crate::app::module::script_api::module_script_config(SerialModule::NODE_TYPE);
+    let ScriptSource::Inline(source) = config.source else {
+        panic!("serial module script template should resolve to inline source");
+    };
+
+    assert!(source.contains("function textReceived"));
+    assert!(source.contains("function dataReceived"));
+    assert!(!source.contains("function clientConnected"));
+    assert!(!source.contains("function noteOnReceived"));
 }
 
 #[test]

@@ -7,13 +7,14 @@ use golden_core::{
         USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
     },
     process_ctx::ProcessCtx,
-    script::{ScriptNode, ScriptNodeConfig},
+    script::ScriptNode,
 };
 
 pub(crate) mod common;
 mod constants;
 mod permissions;
 mod reference_filters;
+pub(crate) mod script_api;
 
 pub(crate) use constants::MODULE_ITEM_KIND;
 pub(crate) use permissions::{enable_module_authoring, enable_module_manager_authoring};
@@ -149,6 +150,25 @@ impl ModuleBase {
         self.can_send.set(ctx, capabilities.outgoing);
     }
 
+    pub(crate) fn emit_script_param_callback(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &golden_core::process_ctx::ProcessTreeSnapshot,
+        param: NodeId,
+        old_value: &golden_core::parameter::ParamValue,
+    ) {
+        script_api::emit_standard_module_param_callback(
+            ctx,
+            snapshot,
+            self.id(),
+            self.connection_id(),
+            self.parameters_id(),
+            self.values_id(),
+            param,
+            old_value,
+        );
+    }
+
     pub fn emit_incoming_traffic(&self, ctx: &mut ProcessCtx) {
         self.emit_traffic(
             ctx,
@@ -206,11 +226,15 @@ impl Node for ModuleBase {
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        self.create_user_item_for_host(self.get_type(), node_type)
+    }
+
+    fn create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
         let node_type = node_type.trim().to_ascii_lowercase();
         if node_type == SCRIPT_NODE_TYPE && self.script_host_policy().is_some_and(|policy| policy.enabled) {
             return Some(Box::new(ScriptNode::new(
                 SCRIPT_DEFAULT_LABEL,
-                ScriptNodeConfig::for_host_node_type(self.get_type()),
+                script_api::module_script_config_for_node(self.node_data(), host_node_type),
             )));
         }
 

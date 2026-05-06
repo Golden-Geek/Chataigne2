@@ -17,6 +17,8 @@
 - `src/module/command/`: reusable module command contracts, command manager base behavior, and command execution event helpers.
 - `src/module/permissions.rs`: authoring permission policy for app-owned module nodes.
 - `src/module/reference_filters.rs`: module reference-filter registration and candidate predicates.
+- `src/module/script_api.rs`: generic module script plumbing, including callback event emission and app-owned template-directory selection. Module-specific callback names and script methods stay with their module families. See [module-scripting.md](module-scripting.md).
+- `src/module/script_templates/`: app-owned JavaScript templates and snippets for module scripts.
 - `src/module/common/`: reusable module infrastructure shared across module families, such as network-interface discovery/helpers.
 - `src/module/modules/`: concrete module families grouped by domain (`generic/`, `hardware/`, `protocol/`, `software/`).
 - `src/module/modules/protocol/osc/`: OSC module stack, including `OscModuleBase`, parameter-hosted receive/output nodes, auto-added OSC value trees, and its async `rosc` transport helpers.
