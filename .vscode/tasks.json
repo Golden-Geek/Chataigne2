@@ -39,7 +39,7 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "isBackground": true,
+      "isBackground": true, 
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

@@ -1,0 +1,87 @@
+{
+  "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "chataigneTestFilter",
+      "type": "promptString",
+      "description": "Rust test filter for Chataigne2 unit tests",
+      "default": "creating_script_under_osc_module_stabilizes"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "Debug Chataigne2 (--dev)",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin",
+          "Chataigne2"
+        ],
+        "filter": {
+          "name": "Chataigne2",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "--dev"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "full",
+        "RUST_MIN_STACK": "33554432"
+      },
+      "terminal": "integrated",
+      "sourceLanguages": [
+        "rust"
+      ],
+      "showDisassembly": "never",
+      "initCommands": [
+        "command alias btall thread backtrace all",
+        "settings set target.process.thread.step-avoid-regexp '^(std|core|alloc)::'"
+      ],
+      "preRunCommands": [
+        "target stop-hook add -o 'thread backtrace all'"
+      ]
+    },
+    {
+      "name": "Debug Chataigne2 Unit Test",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin",
+          "Chataigne2"
+        ],
+        "filter": {
+          "name": "Chataigne2",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "${input:chataigneTestFilter}",
+        "--nocapture"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "full",
+        "RUST_MIN_STACK": "33554432"
+      },
+      "terminal": "integrated",
+      "sourceLanguages": [
+        "rust"
+      ],
+      "showDisassembly": "never",
+      "initCommands": [
+        "command alias btall thread backtrace all",
+        "settings set target.process.thread.step-avoid-regexp '^(std|core|alloc)::'"
+      ],
+      "preRunCommands": [
+        "target stop-hook add -o 'thread backtrace all'"
+      ]
+    }
+  ]
+}
