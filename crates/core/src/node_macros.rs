@@ -170,7 +170,7 @@ macro_rules! __dispatch_node_enum {
 macro_rules! __downcast_node_enum_variant {
     ($any:ident, $variant:ident, $node_ty:ty) => {
         let $any = match $any.downcast::<$node_ty>() {
-            Ok(node) => return Some(Self::$variant(*node)),
+            Ok(node) => return Some(Self::$variant(node)),
             Err(any) => any,
         };
     };
@@ -608,29 +608,29 @@ macro_rules! define_user_item_factory_methods {
 macro_rules! define_node_enum {
     ($vis:vis enum $enum_name:ident { $($variant:ident($node_ty:ty)),* $(,)? }) => {
         $vis enum $enum_name {
-            Folder($crate::node::Folder),
-            UserContext($crate::node::UserContextNode),
-            Parameter($crate::parameter::Parameter),
-            Dashboard($crate::node::DashboardNode),
-            DashboardPage($crate::node::DashboardPageNode),
-            DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode),
-            DashboardNodeWidget($crate::node::DashboardNodeWidgetNode),
-            DashboardGenericWidget($crate::node::DashboardGenericWidgetNode),
-            DashboardNodeWidgetInspectorOptions($crate::node::DashboardNodeWidgetInspectorOptionsNode),
-            DashboardNodeWidgetParameterEditorOptions($crate::node::DashboardNodeWidgetParameterEditorOptionsNode),
-            DashboardNodeWidgetNumberSliderOptions($crate::node::DashboardNodeWidgetNumberSliderOptionsNode),
-            DashboardNodeWidgetNumberRotaryOptions($crate::node::DashboardNodeWidgetNumberRotaryOptionsNode),
-            DashboardNodeWidgetVec2PadOptions($crate::node::DashboardNodeWidgetVec2PadOptionsNode),
-            DashboardNodeWidgetVec2EditorOptions($crate::node::DashboardNodeWidgetVec2EditorOptionsNode),
-            DashboardNodeWidgetVec3EditorOptions($crate::node::DashboardNodeWidgetVec3EditorOptionsNode),
-            DashboardNodeWidgetColorEditorOptions($crate::node::DashboardNodeWidgetColorEditorOptionsNode),
-            ParameterAnimationControl($crate::parameter::ParameterAnimationControlNode),
-            Curve($crate::node::CurveNode),
-            CurveRange($crate::node::CurveRangeNode),
-            CurveKey($crate::node::CurveKeyNode),
-            CurveEasing($crate::node::CurveEasingNode),
-            Script($crate::script::ScriptNode),
-            $($variant($node_ty),)*
+            Folder(Box<$crate::node::Folder>),
+            UserContext(Box<$crate::node::UserContextNode>),
+            Parameter(Box<$crate::parameter::Parameter>),
+            Dashboard(Box<$crate::node::DashboardNode>),
+            DashboardPage(Box<$crate::node::DashboardPageNode>),
+            DashboardWidgetContainer(Box<$crate::node::DashboardWidgetContainerNode>),
+            DashboardNodeWidget(Box<$crate::node::DashboardNodeWidgetNode>),
+            DashboardGenericWidget(Box<$crate::node::DashboardGenericWidgetNode>),
+            DashboardNodeWidgetInspectorOptions(Box<$crate::node::DashboardNodeWidgetInspectorOptionsNode>),
+            DashboardNodeWidgetParameterEditorOptions(Box<$crate::node::DashboardNodeWidgetParameterEditorOptionsNode>),
+            DashboardNodeWidgetNumberSliderOptions(Box<$crate::node::DashboardNodeWidgetNumberSliderOptionsNode>),
+            DashboardNodeWidgetNumberRotaryOptions(Box<$crate::node::DashboardNodeWidgetNumberRotaryOptionsNode>),
+            DashboardNodeWidgetVec2PadOptions(Box<$crate::node::DashboardNodeWidgetVec2PadOptionsNode>),
+            DashboardNodeWidgetVec2EditorOptions(Box<$crate::node::DashboardNodeWidgetVec2EditorOptionsNode>),
+            DashboardNodeWidgetVec3EditorOptions(Box<$crate::node::DashboardNodeWidgetVec3EditorOptionsNode>),
+            DashboardNodeWidgetColorEditorOptions(Box<$crate::node::DashboardNodeWidgetColorEditorOptionsNode>),
+            ParameterAnimationControl(Box<$crate::parameter::ParameterAnimationControlNode>),
+            Curve(Box<$crate::node::CurveNode>),
+            CurveRange(Box<$crate::node::CurveRangeNode>),
+            CurveKey(Box<$crate::node::CurveKeyNode>),
+            CurveEasing(Box<$crate::node::CurveEasingNode>),
+            Script(Box<$crate::script::ScriptNode>),
+            $($variant(Box<$node_ty>),)*
         }
 
         impl $crate::node::Node for $enum_name {
@@ -652,58 +652,58 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn as_any(&self) -> &dyn std::any::Any {
                 match self {
-                    Self::Folder(node) => node,
-                    Self::UserContext(node) => node,
-                    Self::Parameter(node) => node,
-                    Self::Dashboard(node) => node,
-                    Self::DashboardPage(node) => node,
-                    Self::DashboardWidgetContainer(node) => node,
-                    Self::DashboardNodeWidget(node) => node,
-                    Self::DashboardGenericWidget(node) => node,
-                    Self::DashboardNodeWidgetInspectorOptions(node) => node,
-                    Self::DashboardNodeWidgetParameterEditorOptions(node) => node,
-                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node,
-                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node,
-                    Self::DashboardNodeWidgetVec2PadOptions(node) => node,
-                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node,
-                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
-                    Self::DashboardNodeWidgetColorEditorOptions(node) => node,
-                    Self::ParameterAnimationControl(node) => node,
-                    Self::Curve(node) => node,
-                    Self::CurveRange(node) => node,
-                    Self::CurveKey(node) => node,
-                    Self::CurveEasing(node) => node,
-                    Self::Script(node) => node,
-                    $(Self::$variant(node) => node,)*
+                    Self::Folder(node) => node.as_ref(),
+                    Self::UserContext(node) => node.as_ref(),
+                    Self::Parameter(node) => node.as_ref(),
+                    Self::Dashboard(node) => node.as_ref(),
+                    Self::DashboardPage(node) => node.as_ref(),
+                    Self::DashboardWidgetContainer(node) => node.as_ref(),
+                    Self::DashboardNodeWidget(node) => node.as_ref(),
+                    Self::DashboardGenericWidget(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetInspectorOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetParameterEditorOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetVec2PadOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node.as_ref(),
+                    Self::DashboardNodeWidgetColorEditorOptions(node) => node.as_ref(),
+                    Self::ParameterAnimationControl(node) => node.as_ref(),
+                    Self::Curve(node) => node.as_ref(),
+                    Self::CurveRange(node) => node.as_ref(),
+                    Self::CurveKey(node) => node.as_ref(),
+                    Self::CurveEasing(node) => node.as_ref(),
+                    Self::Script(node) => node.as_ref(),
+                    $(Self::$variant(node) => node.as_ref(),)*
                 }
             }
 
             #[inline(always)]
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 match self {
-                    Self::Folder(node) => node,
-                    Self::UserContext(node) => node,
-                    Self::Parameter(node) => node,
-                    Self::Dashboard(node) => node,
-                    Self::DashboardPage(node) => node,
-                    Self::DashboardWidgetContainer(node) => node,
-                    Self::DashboardNodeWidget(node) => node,
-                    Self::DashboardGenericWidget(node) => node,
-                    Self::DashboardNodeWidgetInspectorOptions(node) => node,
-                    Self::DashboardNodeWidgetParameterEditorOptions(node) => node,
-                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node,
-                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node,
-                    Self::DashboardNodeWidgetVec2PadOptions(node) => node,
-                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node,
-                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node,
-                    Self::DashboardNodeWidgetColorEditorOptions(node) => node,
-                    Self::ParameterAnimationControl(node) => node,
-                    Self::Curve(node) => node,
-                    Self::CurveRange(node) => node,
-                    Self::CurveKey(node) => node,
-                    Self::CurveEasing(node) => node,
-                    Self::Script(node) => node,
-                    $(Self::$variant(node) => node,)*
+                    Self::Folder(node) => node.as_mut(),
+                    Self::UserContext(node) => node.as_mut(),
+                    Self::Parameter(node) => node.as_mut(),
+                    Self::Dashboard(node) => node.as_mut(),
+                    Self::DashboardPage(node) => node.as_mut(),
+                    Self::DashboardWidgetContainer(node) => node.as_mut(),
+                    Self::DashboardNodeWidget(node) => node.as_mut(),
+                    Self::DashboardGenericWidget(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetInspectorOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetParameterEditorOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetNumberSliderOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetNumberRotaryOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetVec2PadOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetVec2EditorOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetVec3EditorOptions(node) => node.as_mut(),
+                    Self::DashboardNodeWidgetColorEditorOptions(node) => node.as_mut(),
+                    Self::ParameterAnimationControl(node) => node.as_mut(),
+                    Self::Curve(node) => node.as_mut(),
+                    Self::CurveRange(node) => node.as_mut(),
+                    Self::CurveKey(node) => node.as_mut(),
+                    Self::CurveEasing(node) => node.as_mut(),
+                    Self::Script(node) => node.as_mut(),
+                    $(Self::$variant(node) => node.as_mut(),)*
                 }
             }
 
@@ -1067,93 +1067,93 @@ macro_rules! define_node_enum {
         impl $crate::app::ProjectNode for $enum_name {
             fn project_create_node(node_type: &str) -> Option<Self> {
                 if let Some(node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type) {
-                    return Some(Self::Folder(node));
+                    return Some(Self::Folder(Box::new(node)));
                 }
                 if let Some(node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type) {
-                    return Some(Self::UserContext(node));
+                    return Some(Self::UserContext(Box::new(node)));
                 }
                 if let Some(node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
-                    return Some(Self::Parameter(node));
+                    return Some(Self::Parameter(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_TYPE {
-                    return Some(Self::Dashboard($crate::node::DashboardNode::new()));
+                    return Some(Self::Dashboard(Box::new($crate::node::DashboardNode::new())));
                 }
                 if node_type == $crate::node::DASHBOARD_PAGE_NODE_TYPE {
-                    return Some(Self::DashboardPage($crate::node::DashboardPageNode::new()));
+                    return Some(Self::DashboardPage(Box::new($crate::node::DashboardPageNode::new())));
                 }
                 if node_type == $crate::node::DASHBOARD_WIDGET_CONTAINER_NODE_TYPE {
-                    return Some(Self::DashboardWidgetContainer($crate::node::DashboardWidgetContainerNode::new()));
+                    return Some(Self::DashboardWidgetContainer(Box::new($crate::node::DashboardWidgetContainerNode::new())));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NODE_TYPE {
-                    return Some(Self::DashboardNodeWidget($crate::node::DashboardNodeWidgetNode::new()));
+                    return Some(Self::DashboardNodeWidget(Box::new($crate::node::DashboardNodeWidgetNode::new())));
                 }
                 if node_type == $crate::node::DASHBOARD_GENERIC_WIDGET_NODE_TYPE {
-                    return Some(Self::DashboardGenericWidget($crate::node::DashboardGenericWidgetNode::new()));
+                    return Some(Self::DashboardGenericWidget(Box::new($crate::node::DashboardGenericWidgetNode::new())));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetInspectorOptions(
-                        $crate::node::DashboardNodeWidgetInspectorOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetInspectorOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetParameterEditorOptions(
-                        $crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetNumberSliderOptions(
-                        $crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetNumberRotaryOptions(
-                        $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetVec2PadOptions(
-                        $crate::node::DashboardNodeWidgetVec2PadOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetVec2PadOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetVec2EditorOptions(
-                        $crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetVec3EditorOptions(
-                        $crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE {
                     return Some(Self::DashboardNodeWidgetColorEditorOptions(
-                        $crate::node::DashboardNodeWidgetColorEditorOptionsNode::new(),
+                        Box::new($crate::node::DashboardNodeWidgetColorEditorOptionsNode::new()),
                     ));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CONTROL_NODE_TYPE {
                     return Some(Self::ParameterAnimationControl(
-                        $crate::parameter::ParameterAnimationControlNode::new("Animation"),
+                        Box::new($crate::parameter::ParameterAnimationControlNode::new("Animation")),
                     ));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CURVE_NODE_TYPE {
-                    return Some(Self::Curve($crate::node::CurveNode::new_with_label("Curve")));
+                    return Some(Self::Curve(Box::new($crate::node::CurveNode::new_with_label("Curve"))));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_RANGE_NODE_TYPE {
-                    return Some(Self::CurveRange($crate::node::CurveRangeNode::new(None, true)));
+                    return Some(Self::CurveRange(Box::new($crate::node::CurveRangeNode::new(None, true))));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_KEY_NODE_TYPE {
-                    return Some(Self::CurveKey($crate::node::CurveKeyNode::new_with_label("Key")));
+                    return Some(Self::CurveKey(Box::new($crate::node::CurveKeyNode::new_with_label("Key"))));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
-                    return Some(Self::CurveEasing($crate::node::CurveEasingNode::new()));
+                    return Some(Self::CurveEasing(Box::new($crate::node::CurveEasingNode::new())));
                 }
                 if let Some(node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
-                    return Some(Self::Script(node));
+                    return Some(Self::Script(Box::new(node)));
                 }
 
                 $(
                     if let Some(node) = <$node_ty as $crate::node::Node>::project_create(node_type) {
-                        return Some(Self::$variant(node));
+                        return Some(Self::$variant(Box::new(node)));
                     }
                 )*
 
@@ -1164,133 +1164,133 @@ macro_rules! define_node_enum {
                 if let Some(mut node) = <$crate::node::Folder as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::Folder(node));
+                    return Ok(Self::Folder(Box::new(node)));
                 }
                 if let Some(mut node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::UserContext(node));
+                    return Ok(Self::UserContext(Box::new(node)));
                 }
                 if let Some(mut node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::Parameter(node));
+                    return Ok(Self::Parameter(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_TYPE {
                     let mut node = $crate::node::DashboardNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::Dashboard(node));
+                    return Ok(Self::Dashboard(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_PAGE_NODE_TYPE {
                     let mut node = $crate::node::DashboardPageNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardPage(node));
+                    return Ok(Self::DashboardPage(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_WIDGET_CONTAINER_NODE_TYPE {
                     let mut node = $crate::node::DashboardWidgetContainerNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardWidgetContainer(node));
+                    return Ok(Self::DashboardWidgetContainer(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidget(node));
+                    return Ok(Self::DashboardNodeWidget(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_GENERIC_WIDGET_NODE_TYPE {
                     let mut node = $crate::node::DashboardGenericWidgetNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardGenericWidget(node));
+                    return Ok(Self::DashboardGenericWidget(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_INSPECTOR_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetInspectorOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetInspectorOptions(node));
+                    return Ok(Self::DashboardNodeWidgetInspectorOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_PARAMETER_EDITOR_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetParameterEditorOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetParameterEditorOptions(node));
+                    return Ok(Self::DashboardNodeWidgetParameterEditorOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_SLIDER_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetNumberSliderOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetNumberSliderOptions(node));
+                    return Ok(Self::DashboardNodeWidgetNumberSliderOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_NUMBER_ROTARY_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetNumberRotaryOptions(node));
+                    return Ok(Self::DashboardNodeWidgetNumberRotaryOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_PAD_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetVec2PadOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetVec2PadOptions(node));
+                    return Ok(Self::DashboardNodeWidgetVec2PadOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC2_EDITOR_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetVec2EditorOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetVec2EditorOptions(node));
+                    return Ok(Self::DashboardNodeWidgetVec2EditorOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_VEC3_EDITOR_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetVec3EditorOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetVec3EditorOptions(node));
+                    return Ok(Self::DashboardNodeWidgetVec3EditorOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::DASHBOARD_NODE_WIDGET_COLOR_EDITOR_OPTIONS_NODE_TYPE {
                     let mut node = $crate::node::DashboardNodeWidgetColorEditorOptionsNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::DashboardNodeWidgetColorEditorOptions(node));
+                    return Ok(Self::DashboardNodeWidgetColorEditorOptions(Box::new(node)));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CONTROL_NODE_TYPE {
                     let mut node = $crate::parameter::ParameterAnimationControlNode::new(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::ParameterAnimationControl(node));
+                    return Ok(Self::ParameterAnimationControl(Box::new(node)));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_CURVE_NODE_TYPE {
                     let mut node = $crate::node::CurveNode::new_with_label(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::Curve(node));
+                    return Ok(Self::Curve(Box::new(node)));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_RANGE_NODE_TYPE {
                     let mut node = $crate::node::CurveRangeNode::new(None, true);
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::CurveRange(node));
+                    return Ok(Self::CurveRange(Box::new(node)));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_KEY_NODE_TYPE {
                     let mut node = $crate::node::CurveKeyNode::new_with_label(meta.label.clone());
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::CurveKey(node));
+                    return Ok(Self::CurveKey(Box::new(node)));
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
                     let mut node = $crate::node::CurveEasingNode::new();
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::CurveEasing(node));
+                    return Ok(Self::CurveEasing(Box::new(node)));
                 }
                 if let Some(mut node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
-                    return Ok(Self::Script(node));
+                    return Ok(Self::Script(Box::new(node)));
                 }
 
                 $(
                     if let Some(mut node) = <$node_ty as $crate::node::Node>::project_create(node_type) {
                         $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                         $crate::node::Node::project_decode_data(&mut node, data)?;
-                        return Ok(Self::$variant(node));
+                        return Ok(Self::$variant(Box::new(node)));
                     }
                 )*
 
@@ -1300,133 +1300,133 @@ macro_rules! define_node_enum {
 
         impl From<$crate::node::Folder> for $enum_name {
             fn from(node: $crate::node::Folder) -> Self {
-                Self::Folder(node)
+                Self::Folder(Box::new(node))
             }
         }
 
         impl From<$crate::node::UserContextNode> for $enum_name {
             fn from(node: $crate::node::UserContextNode) -> Self {
-                Self::UserContext(node)
+                Self::UserContext(Box::new(node))
             }
         }
 
         impl From<$crate::parameter::Parameter> for $enum_name {
             fn from(node: $crate::parameter::Parameter) -> Self {
-                Self::Parameter(node)
+                Self::Parameter(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNode> for $enum_name {
             fn from(node: $crate::node::DashboardNode) -> Self {
-                Self::Dashboard(node)
+                Self::Dashboard(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardPageNode> for $enum_name {
             fn from(node: $crate::node::DashboardPageNode) -> Self {
-                Self::DashboardPage(node)
+                Self::DashboardPage(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardWidgetContainerNode> for $enum_name {
             fn from(node: $crate::node::DashboardWidgetContainerNode) -> Self {
-                Self::DashboardWidgetContainer(node)
+                Self::DashboardWidgetContainer(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetNode) -> Self {
-                Self::DashboardNodeWidget(node)
+                Self::DashboardNodeWidget(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardGenericWidgetNode> for $enum_name {
             fn from(node: $crate::node::DashboardGenericWidgetNode) -> Self {
-                Self::DashboardGenericWidget(node)
+                Self::DashboardGenericWidget(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetInspectorOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetInspectorOptionsNode) -> Self {
-                Self::DashboardNodeWidgetInspectorOptions(node)
+                Self::DashboardNodeWidgetInspectorOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetParameterEditorOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetParameterEditorOptionsNode) -> Self {
-                Self::DashboardNodeWidgetParameterEditorOptions(node)
+                Self::DashboardNodeWidgetParameterEditorOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetNumberSliderOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetNumberSliderOptionsNode) -> Self {
-                Self::DashboardNodeWidgetNumberSliderOptions(node)
+                Self::DashboardNodeWidgetNumberSliderOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetNumberRotaryOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetNumberRotaryOptionsNode) -> Self {
-                Self::DashboardNodeWidgetNumberRotaryOptions(node)
+                Self::DashboardNodeWidgetNumberRotaryOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetVec2PadOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetVec2PadOptionsNode) -> Self {
-                Self::DashboardNodeWidgetVec2PadOptions(node)
+                Self::DashboardNodeWidgetVec2PadOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetVec2EditorOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetVec2EditorOptionsNode) -> Self {
-                Self::DashboardNodeWidgetVec2EditorOptions(node)
+                Self::DashboardNodeWidgetVec2EditorOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetVec3EditorOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetVec3EditorOptionsNode) -> Self {
-                Self::DashboardNodeWidgetVec3EditorOptions(node)
+                Self::DashboardNodeWidgetVec3EditorOptions(Box::new(node))
             }
         }
 
         impl From<$crate::node::DashboardNodeWidgetColorEditorOptionsNode> for $enum_name {
             fn from(node: $crate::node::DashboardNodeWidgetColorEditorOptionsNode) -> Self {
-                Self::DashboardNodeWidgetColorEditorOptions(node)
+                Self::DashboardNodeWidgetColorEditorOptions(Box::new(node))
             }
         }
 
         impl From<$crate::parameter::ParameterAnimationControlNode> for $enum_name {
             fn from(node: $crate::parameter::ParameterAnimationControlNode) -> Self {
-                Self::ParameterAnimationControl(node)
+                Self::ParameterAnimationControl(Box::new(node))
             }
         }
 
         impl From<$crate::node::CurveNode> for $enum_name {
             fn from(node: $crate::node::CurveNode) -> Self {
-                Self::Curve(node)
+                Self::Curve(Box::new(node))
             }
         }
 
         impl From<$crate::node::CurveRangeNode> for $enum_name {
             fn from(node: $crate::node::CurveRangeNode) -> Self {
-                Self::CurveRange(node)
+                Self::CurveRange(Box::new(node))
             }
         }
 
         impl From<$crate::node::CurveKeyNode> for $enum_name {
             fn from(node: $crate::node::CurveKeyNode) -> Self {
-                Self::CurveKey(node)
+                Self::CurveKey(Box::new(node))
             }
         }
 
         impl From<$crate::node::CurveEasingNode> for $enum_name {
             fn from(node: $crate::node::CurveEasingNode) -> Self {
-                Self::CurveEasing(node)
+                Self::CurveEasing(Box::new(node))
             }
         }
 
         impl From<$crate::script::ScriptNode> for $enum_name {
             fn from(node: $crate::script::ScriptNode) -> Self {
-                Self::Script(node)
+                Self::Script(Box::new(node))
             }
         }
 
@@ -1434,7 +1434,7 @@ macro_rules! define_node_enum {
         $(
             impl From<$node_ty> for $enum_name {
                 fn from(node: $node_ty) -> Self {
-                    Self::$variant(node)
+                    Self::$variant(Box::new(node))
                 }
             }
         )*
