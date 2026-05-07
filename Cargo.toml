@@ -12,6 +12,7 @@ if-addrs = "0.15.0"
 midir = "0.11.0"
 midly = "0.5.3"
 rand = "0.10.0"
+reqwest = { version = "0.13", features = ["blocking", "form", "json", "multipart"] }
 rosc = "0.11.4"
 rumqttc = { version = "0.25.1", default-features = false }
 serialport = "4"

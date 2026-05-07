@@ -15,9 +15,19 @@ pub(crate) enum ReceivedValuePayload {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReceivedValueApplyResult {
-    Applied,
+    Applied {
+        needs_snapshot_refresh: bool,
+    },
     Retry,
     Ignored,
+}
+
+impl ReceivedValueApplyResult {
+    pub(crate) fn applied(needs_snapshot_refresh: bool) -> Self {
+        Self::Applied {
+            needs_snapshot_refresh,
+        }
+    }
 }
 
 pub(crate) fn apply_received_value_payload(
@@ -130,6 +140,7 @@ fn apply_single_value_message(
             if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
                 if param_types_match(existing_value, &value) {
                     ctx.set_param_with_behaviour(existing_id, value, options.event_behaviour);
+                    return ReceivedValueApplyResult::applied(false);
                 } else if options.auto_add {
                     ctx.replace_node_boxed(
                         existing_id,
@@ -139,6 +150,7 @@ fn apply_single_value_message(
                             Some(format!("Auto-created from {}", options.source_description)),
                         )),
                     );
+                    return ReceivedValueApplyResult::applied(true);
                 }
             } else if options.auto_add {
                 ctx.replace_node_boxed(
@@ -149,9 +161,10 @@ fn apply_single_value_message(
                         Some(format!("Auto-created from {}", options.source_description)),
                     )),
                 );
+                return ReceivedValueApplyResult::applied(true);
             }
 
-            ReceivedValueApplyResult::Applied
+            ReceivedValueApplyResult::applied(false)
         }
         None => {
             if !options.auto_add {
@@ -167,7 +180,7 @@ fn apply_single_value_message(
                 )),
                 None,
             );
-            ReceivedValueApplyResult::Applied
+            ReceivedValueApplyResult::applied(true)
         }
     }
 }
@@ -206,8 +219,7 @@ fn apply_multi_value_message(
         }
     };
 
-    sync_multi_value_folder(ctx, snapshot, folder_id, values, options);
-    ReceivedValueApplyResult::Applied
+    ReceivedValueApplyResult::applied(sync_multi_value_folder(ctx, snapshot, folder_id, values, options))
 }
 
 fn sync_multi_value_folder(
@@ -216,7 +228,9 @@ fn sync_multi_value_folder(
     folder_id: NodeId,
     values: &[ParamValue],
     options: ReceivedValueApplyOptions<'_>,
-) {
+) -> bool {
+    let mut structure_changed = false;
+
     for (index, value) in values.iter().enumerate() {
         let label = indexed_value_label(index);
         match snapshot.find_child(folder_id, label.as_str()) {
@@ -233,12 +247,14 @@ fn sync_multi_value_folder(
                             existing_id,
                             Box::new(create_parameter_node(label.as_str(), value.clone(), None)),
                         );
+                        structure_changed = true;
                     }
                 } else if options.auto_add {
                     ctx.replace_node_boxed(
                         existing_id,
                         Box::new(create_parameter_node(label.as_str(), value.clone(), None)),
                     );
+                    structure_changed = true;
                 }
             }
             None => {
@@ -251,6 +267,7 @@ fn sync_multi_value_folder(
                     Box::new(create_parameter_node(label.as_str(), value.clone(), None)),
                     None,
                 );
+                structure_changed = true;
             }
         }
     }
@@ -262,9 +279,12 @@ fn sync_multi_value_folder(
         if let Some(index) = indexed_value_label_index(child_snapshot.label.as_str()) {
             if index >= values.len() {
                 ctx.edits.push(Edit::RemoveNode { node: child_id });
+                structure_changed = true;
             }
         }
     }
+
+    structure_changed
 }
 
 fn create_parameter_node(label: &str, value: ParamValue, description: Option<String>) -> Parameter {

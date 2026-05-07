@@ -418,9 +418,20 @@ impl MqttModule {
                     },
                 );
 
-                if result == ReceivedValueApplyResult::Retry {
-                    retry = true;
-                    break;
+                match result {
+                    ReceivedValueApplyResult::Applied {
+                        needs_snapshot_refresh,
+                    } => {
+                        if needs_snapshot_refresh {
+                            retry = true;
+                            break;
+                        }
+                    }
+                    ReceivedValueApplyResult::Ignored => {}
+                    ReceivedValueApplyResult::Retry => {
+                        retry = true;
+                        break;
+                    }
                 }
             }
 

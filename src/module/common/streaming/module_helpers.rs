@@ -77,9 +77,16 @@ impl StreamingIncomingQueue {
             );
 
             match result {
-                ReceivedValueApplyResult::Applied => {
+                ReceivedValueApplyResult::Applied {
+                    needs_snapshot_refresh,
+                } => {
                     for param in changed_parameter_targets(snapshot, values_id, message.path_segments.as_slice()) {
                         self.ignore_next_param_change(param);
+                    }
+                    if needs_snapshot_refresh {
+                        remaining.extend(messages);
+                        self.pending_messages = remaining;
+                        return true;
                     }
                 }
                 ReceivedValueApplyResult::Ignored => {}
