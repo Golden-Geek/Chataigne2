@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+buttplug = "10.0.2"
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
 gilrs = "0.11.1"

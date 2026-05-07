@@ -35,6 +35,18 @@ const GAMEPAD_CALLBACK_DOCS: &[&str] = &[
     "gamepadButtonPressed(button, value, gamepad)",
 ];
 
+const BUTTPLUG_FUNCTION_DOCS: &[&str] = &[
+    "Buttplug module functions",
+    "local.vibrate(value, device = \"selected\")",
+    "local.setOutput(output, value, device = \"selected\", durationMs = 1000)",
+    "local.positionWithDuration(value, durationMs = 1000, device = \"selected\")",
+];
+
+const BUTTPLUG_CALLBACK_DOCS: &[&str] = &[
+    "buttplugDeviceAdded(device)",
+    "buttplugScanningFinished()",
+];
+
 const SERVER_STREAM_FUNCTION_DOCS: &[&str] = &[
     "Server stream modules use the stream send functions above to broadcast",
     "source client id",
@@ -45,6 +57,11 @@ fn module_script_templates_document_available_functions_for_each_module() {
     let osc_module_type = <crate::app::GenericOscModule as DeclaredUserItemNode>::ITEM_NODE_TYPE;
     let cases: &[(&str, &[&str], &[&str])] = &[
         ("module_base", &[], &[]),
+        (
+            crate::app::ButtplugModule::NODE_TYPE,
+            BUTTPLUG_FUNCTION_DOCS,
+            BUTTPLUG_CALLBACK_DOCS,
+        ),
         (crate::app::GamepadModule::NODE_TYPE, GAMEPAD_CALLBACK_DOCS, &[]),
         (crate::app::MidiModule::NODE_TYPE, MIDI_FUNCTION_DOCS, &[]),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
