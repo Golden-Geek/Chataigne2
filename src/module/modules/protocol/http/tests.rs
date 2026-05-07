@@ -156,7 +156,7 @@ fn non_json_response_does_not_add_values() {
 }
 
 #[test]
-fn large_json_response_auto_adds_incrementally_until_complete() {
+fn large_json_response_auto_adds_values_in_one_runtime_tick() {
     let (mut engine, module_id) = create_http_module();
 
     let crate::app::AppNode::HttpModule(module) = engine.nodes.get_mut(module_id).expect("module should exist") else {
@@ -168,7 +168,7 @@ fn large_json_response_auto_adds_incrementally_until_complete() {
         rick_and_morty_like_response(),
     ));
 
-    run_http_until_drained(&mut engine, module_id, 500);
+    run_http_runtime_ticks(&mut engine, 1);
 
     assert_eq!(
         param_value(
@@ -198,6 +198,13 @@ fn large_json_response_auto_adds_incrementally_until_complete() {
         &engine,
         find_path(&engine, module_id, "values").expect("values root should exist"),
     );
+    let crate::app::AppNode::HttpModule(module) = engine.nodes.get(module_id).expect("module should still exist") else {
+        panic!("expected HttpModule node");
+    };
+    assert!(
+        !module.has_pending_responses_for_test(),
+        "large HTTP JSON responses should drain in one runtime tick"
+    );
 }
 
 #[test]
@@ -216,7 +223,7 @@ fn repeated_large_json_responses_update_existing_values_without_duplicate_folder
         module.enqueue_response_for_test(response.clone());
     }
 
-    run_http_until_drained(&mut engine, module_id, 1000);
+    run_http_runtime_ticks(&mut engine, 1);
 
     assert_no_duplicate_child_keys(
         &engine,

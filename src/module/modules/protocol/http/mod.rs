@@ -20,7 +20,7 @@ use crate::app::module::common::{
         HTTP_TEXT_CONTENT_TYPE,
     },
     received_values::{
-        apply_received_value_payload, ReceivedValueApplyOptions, ReceivedValueApplyResult,
+        apply_received_value_batch, ReceivedValueBatchMessage, ReceivedValueBatchOptions,
     },
 };
 
@@ -30,7 +30,6 @@ use self::transport::{
 };
 
 const HTTP_MODULE_UPDATE_RATE_HZ: u32 = 120;
-const HTTP_RECEIVED_VALUES_PER_TICK: usize = 64;
 const HTTP_BASE_WARNING_ID: &str = "http_base_address";
 const HTTP_AUTH_DECL_ID: &str = "auth";
 const HTTP_RESPONSE_RECEIVED_CALLBACK: &str = "responseReceived";
@@ -55,7 +54,6 @@ const HTTP_SCRIPT_METHODS: &[&str] = &[
 struct PendingHttpResponse {
     response: HttpResponse,
     received_values: Option<Vec<HttpReceivedValue>>,
-    next_value_index: usize,
 }
 
 #[node("http_module", label = "HTTP")]
@@ -131,7 +129,6 @@ pub struct HttpModule {
     last_transport_config: Option<HttpTransportConfig>,
     transport_dirty: bool,
     pending_responses: Vec<PendingHttpResponse>,
-    pending_response_wait_tick: Option<u64>,
 }
 
 impl HttpModule {
@@ -142,7 +139,6 @@ impl HttpModule {
             None,
             true,
             Vec::new(),
-            None,
         )
     }
 
@@ -338,7 +334,6 @@ impl HttpModule {
         self.pending_responses.push(PendingHttpResponse {
             response,
             received_values,
-            next_value_index: 0,
         });
     }
 
@@ -348,77 +343,37 @@ impl HttpModule {
         snapshot: &ProcessTreeSnapshot,
     ) -> bool {
         if self.pending_responses.is_empty() {
-            self.pending_response_wait_tick = None;
             return false;
         }
-        if self.pending_response_wait_tick == Some(ctx.time.tick) {
-            return true;
-        }
-        self.pending_response_wait_tick = None;
 
         let values_id = self.base.values_id();
-        let mut remaining = Vec::new();
-        let mut responses = std::mem::take(&mut self.pending_responses).into_iter();
-        let mut applied_this_tick = 0usize;
+        let responses = std::mem::take(&mut self.pending_responses);
 
-        while let Some(mut pending) = responses.next() {
-            if let (Some(values_id), Some(received_values)) = (values_id, pending.received_values.as_ref()) {
-                while pending.next_value_index < received_values.len() {
-                    if applied_this_tick >= HTTP_RECEIVED_VALUES_PER_TICK {
-                        remaining.push(pending);
-                        remaining.extend(responses);
-                        self.pending_responses = remaining;
-                        self.pending_response_wait_tick = Some(ctx.time.tick);
-                        return true;
-                    }
+        if let Some(values_id) = values_id {
+            apply_received_value_batch(
+                ctx,
+                snapshot,
+                values_id,
+                responses
+                    .iter()
+                    .filter_map(|pending| pending.received_values.as_ref())
+                    .flat_map(|received_values| received_values.iter())
+                    .map(|received| ReceivedValueBatchMessage {
+                        path_segments: received.path_segments.as_slice(),
+                        payload: &received.payload,
+                        source_description: received.source_description.as_str(),
+                    }),
+                ReceivedValueBatchOptions {
+                    auto_add: self.auto_add.get(),
+                    event_behaviour: ParameterEventBehaviour::Append,
+                },
+            );
+        }
 
-                    let received = &received_values[pending.next_value_index];
-                    let result = apply_received_value_payload(
-                        ctx,
-                        snapshot,
-                        values_id,
-                        received.path_segments.as_slice(),
-                        &received.payload,
-                        ReceivedValueApplyOptions {
-                            auto_add: self.auto_add.get(),
-                            source_description: received.source_description.as_str(),
-                            event_behaviour: ParameterEventBehaviour::Append,
-                        },
-                    );
-
-                    match result {
-                        ReceivedValueApplyResult::Applied {
-                            needs_snapshot_refresh,
-                        } => {
-                            pending.next_value_index += 1;
-                            applied_this_tick += 1;
-
-                            if needs_snapshot_refresh {
-                                remaining.push(pending);
-                                remaining.extend(responses);
-                                self.pending_responses = remaining;
-                                self.pending_response_wait_tick = Some(ctx.time.tick);
-                                return true;
-                            }
-                        }
-                        ReceivedValueApplyResult::Ignored => {
-                            pending.next_value_index += 1;
-                        }
-                        ReceivedValueApplyResult::Retry => {
-                            remaining.push(pending);
-                            remaining.extend(responses);
-                            self.pending_responses = remaining;
-                            self.pending_response_wait_tick = Some(ctx.time.tick);
-                            return true;
-                        }
-                    }
-                }
-            }
-
+        for pending in responses {
             self.emit_response_received_callback(ctx, &pending.response);
         }
 
-        self.pending_responses = remaining;
         false
     }
 
