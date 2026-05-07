@@ -93,6 +93,8 @@ ensure_linux_system_deps() {
       file
       libxdo-dev
       libssl-dev
+      libudev-dev
+      pkg-config
       libayatana-appindicator3-dev
       librsvg2-dev
     )
@@ -113,6 +115,8 @@ ensure_linux_system_deps() {
     local packages=(
       webkit2gtk4.1-devel
       openssl-devel
+      systemd-devel
+      pkgconf-pkg-config
       curl
       wget
       file
@@ -143,6 +147,8 @@ ensure_linux_system_deps() {
       wget \
       file \
       openssl \
+      pkgconf \
+      systemd \
       appmenu-gtk-module \
       libappindicator-gtk3 \
       librsvg \
@@ -151,6 +157,8 @@ ensure_linux_system_deps() {
     local packages=(
       webkit2gtk3-devel
       libopenssl-devel
+      libudev-devel
+      pkg-config
       curl
       wget
       file
@@ -181,6 +189,8 @@ ensure_linux_system_deps() {
       wget \
       file \
       openssl \
+      pkgconf \
+      eudev-dev \
       libayatana-appindicator-dev \
       librsvg
   else

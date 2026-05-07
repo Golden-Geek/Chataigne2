@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
+gilrs = "0.11.1"
 if-addrs = "0.15.0"
 midir = "0.11.0"
 midly = "0.5.3"

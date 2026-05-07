@@ -125,6 +125,7 @@ When a task spans multiple architectural areas, prefer this order:
 - Do not introduce compatibility shims unless the task explicitly requires them.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.
 - When asked to create a new module, treat the module as incomplete unless its command nodes, script-callable functions, script callbacks, and app-owned script template snippets are designed and wired in at the same module boundary.
+- Any implementation involving connection to an endpoint (hardware or software) needs to have an autoreconnect / device recovery strategy 
 - For reused Params DSL folders, do not restate inherited metadata such as `label` unless the change intentionally diverges from the base declaration.
 - Do not leave path-based imports into private submodule internals in app code or build scripts.
 - When the repository already violates these rules, treat that as cleanup pressure, not as precedent.

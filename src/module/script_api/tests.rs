@@ -29,6 +29,12 @@ const STREAM_FUNCTION_DOCS: &[&str] = &[
     "local.sendHexString(hex)",
 ];
 
+const GAMEPAD_CALLBACK_DOCS: &[&str] = &[
+    "Gamepad module callbacks",
+    "gamepadAxisChanged(axis, value, rawValue, gamepad)",
+    "gamepadButtonPressed(button, value, gamepad)",
+];
+
 const SERVER_STREAM_FUNCTION_DOCS: &[&str] = &[
     "Server stream modules use the stream send functions above to broadcast",
     "source client id",
@@ -39,6 +45,7 @@ fn module_script_templates_document_available_functions_for_each_module() {
     let osc_module_type = <crate::app::GenericOscModule as DeclaredUserItemNode>::ITEM_NODE_TYPE;
     let cases: &[(&str, &[&str], &[&str])] = &[
         ("module_base", &[], &[]),
+        (crate::app::GamepadModule::NODE_TYPE, GAMEPAD_CALLBACK_DOCS, &[]),
         (crate::app::MidiModule::NODE_TYPE, MIDI_FUNCTION_DOCS, &[]),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
         (crate::app::SerialModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),

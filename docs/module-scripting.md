@@ -40,6 +40,15 @@ MQTT modules emit:
 
 - `messageReceived(topic, payload, message)`
 
+Gamepad modules emit:
+
+- `gamepadConnected(gamepad)`
+- `gamepadDisconnected(gamepad)`
+- `gamepadAxisChanged(axis, value, rawValue, gamepad)`
+- `gamepadButtonPressed(button, value, gamepad)`
+- `gamepadButtonReleased(button, value, gamepad)`
+- `gamepadButtonChanged(button, value, pressed, gamepad)`
+
 Streaming modules emit:
 
 - `textReceived(text, source)`
