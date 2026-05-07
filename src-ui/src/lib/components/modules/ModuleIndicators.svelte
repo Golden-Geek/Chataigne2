@@ -403,7 +403,7 @@
 
 	.module-traffic-icon {
 		padding: 0rem;
-		border: solid 1px transparent;
+		border: solid 2px transparent;
 		transition: border-color 0.12s ease;
 	}
 	
