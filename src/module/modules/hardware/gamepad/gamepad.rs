@@ -231,6 +231,9 @@ pub struct GamepadModule {
     axis_values: [f64; 8],
     pending_runtime_events: Vec<GamepadRuntimeEvent>,
     runtime_start_suppressed: bool,
+    dpad_button_state: (bool, bool, bool, bool), // (up, down, left, right)
+    last_connected_device_id: Option<String>,
+    button_state: Vec<bool>, // Track previous button states to avoid duplicate logs
 }
 
 impl GamepadModule {
@@ -244,6 +247,9 @@ impl GamepadModule {
             [0.0; 8],
             Vec::new(),
             false,
+            (false, false, false, false),
+            None,
+            vec![false; GamepadButton::ALL.len()],
         )
     }
 
@@ -290,6 +296,9 @@ impl GamepadModule {
     fn stop_runtime(&mut self) {
         self.runtime = None;
         self.known_devices.clear();
+        self.last_connected_device_id = None;
+        self.dpad_button_state = (false, false, false, false);
+        self.button_state.iter_mut().for_each(|b| *b = false);
     }
 
     fn drain_runtime_events(&mut self) -> Vec<GamepadRuntimeEvent> {
@@ -350,11 +359,16 @@ impl GamepadModule {
 
         match selected {
             Some(device) => {
+                if self.last_connected_device_id.as_ref() != Some(&device.variant_id) {
+                    golden_core::logsuccess!(origin = self.id(); format!("Connected to gamepad: {} ({})", device.label, device.details));
+                    self.last_connected_device_id = Some(device.variant_id.clone());
+                }
                 self.set_int_param(ctx, InfoParam::DeviceIndex, clamp_usize_to_i32(device.index));
                 self.set_string_param(ctx, InfoParam::DeviceId, device.variant_id.as_str());
                 self.set_string_param(ctx, InfoParam::DeviceName, device.label.as_str());
             }
             None => {
+                self.last_connected_device_id = None;
                 self.set_int_param(ctx, InfoParam::DeviceIndex, -1);
                 self.set_string_param(ctx, InfoParam::DeviceId, "");
                 self.set_string_param(ctx, InfoParam::DeviceName, "");
@@ -376,6 +390,8 @@ impl GamepadModule {
     }
 
     fn reset_values(&mut self, ctx: &mut ProcessCtx) {
+        self.dpad_button_state = (false, false, false, false);
+        self.button_state.iter_mut().for_each(|b| *b = false);
         for axis in GamepadAxis::ALL {
             self.set_axis_value(ctx, axis, 0.0);
         }
@@ -623,18 +639,20 @@ impl GamepadModule {
                 );
             }
             GamepadAxis::DPadX => {
+                let y = self.axis_values[axis_index(GamepadAxis::DPadY)];
                 self.set_vec2_param(
                     ctx,
                     Vec2Param::DPad,
                     value,
-                    self.axis_values[axis_index(GamepadAxis::DPadY)],
+                    y,
                 );
             }
             GamepadAxis::DPadY => {
+                let x = self.axis_values[axis_index(GamepadAxis::DPadX)];
                 self.set_vec2_param(
                     ctx,
                     Vec2Param::DPad,
-                    self.axis_values[axis_index(GamepadAxis::DPadX)],
+                    x,
                     value,
                 );
             }
@@ -664,7 +682,45 @@ impl GamepadModule {
     }
 
     fn set_button_value(&mut self, ctx: &mut ProcessCtx, button: GamepadButton, pressed: bool) {
+        let button_index = button_state_index(button);
+        let old_pressed = self.button_state.get(button_index).copied().unwrap_or(false);
+        
+        // Only log if state actually changed
+        if old_pressed != pressed && self.base.log_incoming_enabled() {
+            golden_core::log!(origin = self.id(); format!("Button {} {}", button.label(), if pressed { "pressed" } else { "released" }));
+        }
+        
+        if old_pressed == pressed && !matches!(button, GamepadButton::DPadUp | GamepadButton::DPadDown | GamepadButton::DPadLeft | GamepadButton::DPadRight) {
+            return; // No change, skip update
+        }
+        
+        // Update state tracking
+        if button_index < self.button_state.len() {
+            self.button_state[button_index] = pressed;
+        }
+        
+        // Track D-pad button state and synthesize axis values
         match button {
+            GamepadButton::DPadUp => {
+                self.dpad_button_state.0 = pressed;
+                self.update_dpad_from_buttons(ctx);
+                self.set_bool_param(ctx, InfoParam::DPadUp, pressed);
+            }
+            GamepadButton::DPadDown => {
+                self.dpad_button_state.1 = pressed;
+                self.update_dpad_from_buttons(ctx);
+                self.set_bool_param(ctx, InfoParam::DPadDown, pressed);
+            }
+            GamepadButton::DPadLeft => {
+                self.dpad_button_state.2 = pressed;
+                self.update_dpad_from_buttons(ctx);
+                self.set_bool_param(ctx, InfoParam::DPadLeft, pressed);
+            }
+            GamepadButton::DPadRight => {
+                self.dpad_button_state.3 = pressed;
+                self.update_dpad_from_buttons(ctx);
+                self.set_bool_param(ctx, InfoParam::DPadRight, pressed);
+            }
             GamepadButton::South => self.set_bool_param(ctx, InfoParam::South, pressed),
             GamepadButton::East => self.set_bool_param(ctx, InfoParam::East, pressed),
             GamepadButton::North => self.set_bool_param(ctx, InfoParam::North, pressed),
@@ -680,11 +736,18 @@ impl GamepadModule {
             GamepadButton::Mode => self.set_bool_param(ctx, InfoParam::Mode, pressed),
             GamepadButton::LeftThumb => self.set_bool_param(ctx, InfoParam::LeftThumb, pressed),
             GamepadButton::RightThumb => self.set_bool_param(ctx, InfoParam::RightThumb, pressed),
-            GamepadButton::DPadUp => self.set_bool_param(ctx, InfoParam::DPadUp, pressed),
-            GamepadButton::DPadDown => self.set_bool_param(ctx, InfoParam::DPadDown, pressed),
-            GamepadButton::DPadLeft => self.set_bool_param(ctx, InfoParam::DPadLeft, pressed),
-            GamepadButton::DPadRight => self.set_bool_param(ctx, InfoParam::DPadRight, pressed),
         }
+    }
+
+    fn update_dpad_from_buttons(&mut self, ctx: &mut ProcessCtx) {
+        let (up, down, left, right) = self.dpad_button_state;
+        let x = if right { 1.0 } else if left { -1.0 } else { 0.0 };
+        let y = if up { 1.0 } else if down { -1.0 } else { 0.0 };
+        
+        self.axis_values[axis_index(GamepadAxis::DPadX)] = x;
+        self.axis_values[axis_index(GamepadAxis::DPadY)] = y;
+        
+        self.set_vec2_param(ctx, Vec2Param::DPad, x, y);
     }
 
     fn set_bool_param(&mut self, ctx: &mut ProcessCtx, param: InfoParam, value: bool) {
@@ -1163,6 +1226,10 @@ fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOpt
         tags: Vec::new(),
         ordering: Some(ordering),
     }
+}
+
+fn button_state_index(button: GamepadButton) -> usize {
+    GamepadButton::ALL.iter().position(|&b| b == button).unwrap_or(0)
 }
 
 #[cfg(test)]
