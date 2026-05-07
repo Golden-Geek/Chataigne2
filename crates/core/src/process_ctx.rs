@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::edit::{Edit, EditOrigin, EditQueue};
+use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
 use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
 use crate::node::{
@@ -429,6 +429,15 @@ impl ProcessCtx {
             parent,
             prev_sibling: after,
             node: child,
+        });
+    }
+
+    /// Queues insertion of a detached child subtree.
+    pub fn add_child_tree(&mut self, parent: NodeId, tree: NodeTree, after: Option<NodeId>) {
+        self.edits.push(Edit::AddNodeTree {
+            parent,
+            prev_sibling: after,
+            tree,
         });
     }
 

@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::edit::{Edit, EditQueue, EditRequest};
+use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
@@ -411,6 +411,18 @@ impl<T: Node> Engine<T> {
                         prev_sibling,
                     });
                 }
+                Edit::AddNodeTree {
+                    tree,
+                    parent,
+                    prev_sibling,
+                } => {
+                    let tree = self.coerce_node_tree_for_engine(edit_index, "AddNodeTree", tree)?;
+                    validated_edits.push(Edit::AddNodeTree {
+                        tree,
+                        parent,
+                        prev_sibling,
+                    });
+                }
                 Edit::AddUserItem {
                     node,
                     parent,
@@ -516,6 +528,29 @@ impl<T: Node> Engine<T> {
         }
 
         Ok(())
+    }
+
+    fn coerce_node_tree_for_engine(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        tree: NodeTree,
+    ) -> Result<NodeTree, EngineEditError> {
+        let provided_node_type = tree.node.get_type().to_string();
+        let Some(node) = T::from_boxed_node(tree.node) else {
+            return Err(EngineEditError::NodeTypeMismatch {
+                edit_index,
+                operation,
+                provided_node_type,
+                expected_engine_node_type: type_name::<T>(),
+            });
+        };
+
+        let mut coerced = NodeTree::new(node);
+        for child in tree.children {
+            coerced.push_child(self.coerce_node_tree_for_engine(edit_index, operation, child)?);
+        }
+        Ok(coerced)
     }
 
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {

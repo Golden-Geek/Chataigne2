@@ -1,12 +1,24 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::edit::NodeTree;
 use crate::events::EventKind;
-use crate::node::{Node, NodeCreationContext, NodeId, NodeUserPermissions, UserNodeRole};
+use crate::node::{DeclId, Node, NodeCreationContext, NodeId, NodeUserPermissions, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
 use super::{Engine, EngineEditError};
+
+struct PendingNodeTree<T: Node> {
+    node: T,
+    children: Vec<PendingNodeTree<T>>,
+}
+
+struct InsertedNode {
+    id: NodeId,
+    parent: NodeId,
+    decl_id: DeclId,
+}
 
 impl<T: Node> Engine<T> {
     /// Attaches `node` under `parent`, resolving insertion position from `prev_sibling`.
@@ -498,6 +510,20 @@ impl<T: Node> Engine<T> {
         permissions
     }
 
+    fn prepare_node_for_insert(&self, node: &mut T, parent: NodeId, user_role: UserNodeRole) {
+        let inferred_permissions = self.default_user_permissions_for_new_node(node, parent, user_role);
+        let node_data = node.node_data_mut();
+        node_data.parent = None;
+        node_data.first_child = None;
+        node_data.last_child = None;
+        node_data.prev_sibling = None;
+        node_data.next_sibling = None;
+        node_data.user_role = user_role;
+        if node_data.meta.user_permissions == NodeUserPermissions::default() {
+            node_data.meta.user_permissions = inferred_permissions;
+        }
+    }
+
     fn ensure_item_kind_allowed(
         &self,
         edit_index: usize,
@@ -589,6 +615,158 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    fn coerce_pending_node_tree(
+        &self,
+        edit_index: usize,
+        operation: &'static str,
+        tree: NodeTree,
+    ) -> Result<PendingNodeTree<T>, EngineEditError> {
+        let node = self.coerce_node_for_engine(edit_index, operation, tree.node)?;
+        let mut children = Vec::with_capacity(tree.children.len());
+        for child in tree.children {
+            children.push(self.coerce_pending_node_tree(edit_index, operation, child)?);
+        }
+        Ok(PendingNodeTree { node, children })
+    }
+
+    fn insert_pending_node_tree(
+        &mut self,
+        edit_index: usize,
+        operation: &'static str,
+        mut tree: PendingNodeTree<T>,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        user_role: UserNodeRole,
+        inserted: &mut Vec<InsertedNode>,
+    ) -> Result<NodeId, EngineEditError> {
+        self.prepare_node_for_insert(&mut tree.node, parent, user_role);
+        let node_id = self.nodes.insert(tree.node);
+        self.attach_node(edit_index, operation, node_id, parent, prev_sibling)?;
+        let decl_id = self
+            .nodes
+            .get(node_id)
+            .ok_or(EngineEditError::NodeNotFound {
+                edit_index,
+                operation,
+                node: node_id,
+            })?
+            .node_data()
+            .meta
+            .decl_id
+            .clone();
+        inserted.push(InsertedNode {
+            id: node_id,
+            parent,
+            decl_id,
+        });
+
+        let mut child_prev_sibling = None;
+        for child in tree.children {
+            let child_id = self.insert_pending_node_tree(
+                edit_index,
+                operation,
+                child,
+                node_id,
+                child_prev_sibling,
+                UserNodeRole::Regular,
+                inserted,
+            )?;
+            child_prev_sibling = Some(child_id);
+        }
+
+        Ok(node_id)
+    }
+
+    fn run_node_attached_for_batch(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
+        if node_ids.is_empty() {
+            return Ok(());
+        }
+
+        let event_cursor = self.inbox.events.len();
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for node_id in node_ids.iter().copied() {
+            let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                crate::logger::with_node_origin(node_id, || {
+                    node.engine_on_attached(&mut ctx);
+                });
+            }
+            self.absorb_edits(&mut ctx)?;
+        }
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor, creation_context)?;
+        }
+
+        Ok(())
+    }
+
+    fn run_node_init_for_batch(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<(), EngineEditError> {
+        if node_ids.is_empty() {
+            return Ok(());
+        }
+
+        let event_cursor = self.inbox.events.len();
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for node_id in node_ids.iter().copied() {
+            let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                crate::logger::with_node_origin(node_id, || {
+                    node.init(&mut ctx);
+                });
+            }
+            self.absorb_edits(&mut ctx)?;
+        }
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor, creation_context)?;
+        }
+
+        Ok(())
+    }
+
+    fn run_node_ready_for_batch(
+        &mut self,
+        node_ids: &[NodeId],
+        creation_context: NodeCreationContext,
+    ) -> Result<(), EngineEditError> {
+        if node_ids.is_empty() {
+            return Ok(());
+        }
+
+        let event_cursor = self.inbox.events.len();
+        let tree_snapshot = self.build_process_tree_snapshot();
+        for node_id in node_ids.iter().copied() {
+            let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
+            ctx.runtime_elapsed = self.runtime_elapsed;
+            ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));
+
+            if let Some(node) = self.nodes.get_mut(node_id) {
+                crate::logger::with_node_origin(node_id, || {
+                    node.on_node_ready(&mut ctx, creation_context);
+                });
+            }
+            self.absorb_edits(&mut ctx)?;
+        }
+        if self.stabilization_scope_depth == 0 {
+            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
+        }
+
+        Ok(())
+    }
+
     /// Applies queued structural side effects and preprocesses newly emitted events
     /// until the add/bootstrap pipeline reaches a fixed point.
     pub(crate) fn stabilize_added_node_structure(
@@ -642,7 +820,6 @@ impl<T: Node> Engine<T> {
         }
 
         let mut node = self.coerce_node_for_engine(edit_index, operation, node)?;
-        let inferred_permissions = self.default_user_permissions_for_new_node(&node, parent, user_role);
 
         if validate_as_user_item {
             let container =
@@ -655,19 +832,7 @@ impl<T: Node> Engine<T> {
             self.ensure_item_kind_allowed(edit_index, operation, container, node.get_type(), node.user_item_kind())?;
         }
 
-        {
-            let node_data = node.node_data_mut();
-            node_data.parent = None;
-            node_data.first_child = None;
-            node_data.last_child = None;
-            node_data.prev_sibling = None;
-            node_data.next_sibling = None;
-            node_data.user_role = user_role;
-            if node_data.meta.user_permissions == NodeUserPermissions::default() {
-                node_data.meta.user_permissions = inferred_permissions;
-            }
-        }
-
+        self.prepare_node_for_insert(&mut node, parent, user_role);
         let child_id = self.nodes.insert(node);
         self.attach_node(edit_index, operation, child_id, parent, prev_sibling)?;
 
@@ -754,6 +919,76 @@ impl<T: Node> Engine<T> {
             false,
             creation_context,
         )
+    }
+
+    /// Applies an add-node-tree edit and returns history data for the inserted root.
+    pub(crate) fn apply_add_node_tree(
+        &mut self,
+        edit_index: usize,
+        tree: NodeTree,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<AddNodeEffect, EngineEditError> {
+        const OP: &str = "AddNodeTree";
+
+        if !self.nodes.contains(parent) {
+            return Err(EngineEditError::ParentNotFound {
+                edit_index,
+                operation: OP,
+                parent,
+            });
+        }
+
+        let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
+        let mut inserted = Vec::new();
+        let root_id = self.insert_pending_node_tree(
+            edit_index,
+            OP,
+            tree,
+            parent,
+            prev_sibling,
+            UserNodeRole::Regular,
+            &mut inserted,
+        )?;
+
+        let (attached_prev_sibling, attached_next_sibling) = {
+            let attached_data = self
+                .nodes
+                .get(root_id)
+                .ok_or(EngineEditError::NodeNotFound {
+                    edit_index,
+                    operation: OP,
+                    node: root_id,
+                })?
+                .node_data();
+            (attached_data.prev_sibling, attached_data.next_sibling)
+        };
+
+        for inserted_node in &inserted {
+            self.emit_event(EventKind::NodeCreated {
+                node: inserted_node.id,
+            });
+            self.emit_event(EventKind::ChildAdded {
+                parent: inserted_node.parent,
+                child: inserted_node.id,
+                decl_id: inserted_node.decl_id.clone(),
+            });
+        }
+
+        let inserted_ids = inserted.iter().map(|node| node.id).collect::<Vec<_>>();
+        self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
+        self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
+        if let Some(context) = creation_context {
+            self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+        }
+
+        Ok(AddNodeEffect {
+            node: root_id,
+            parent,
+            prev_sibling: attached_prev_sibling,
+            next_sibling: attached_next_sibling,
+        })
     }
 
     /// Applies an add-user-item edit and returns history data required for undo/redo.

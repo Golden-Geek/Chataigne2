@@ -8,6 +8,48 @@ use serde::{Deserialize, Serialize};
 /// Deferred mutable node callback executed during edit application.
 pub type NodeMutation = Box<dyn FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send>;
 
+/// Detached node subtree that can be inserted into the engine as one structural edit.
+pub struct NodeTree {
+    /// Root node for this subtree.
+    pub node: Box<dyn Node>,
+    /// Ordered child subtrees.
+    pub children: Vec<NodeTree>,
+}
+
+impl NodeTree {
+    /// Creates a node subtree from a typed root node.
+    pub fn new<N: Node + 'static>(node: N) -> Self {
+        Self {
+            node: Box::new(node),
+            children: Vec::new(),
+        }
+    }
+
+    /// Creates a node subtree from a boxed root node.
+    pub fn boxed(node: Box<dyn Node>) -> Self {
+        Self {
+            node,
+            children: Vec::new(),
+        }
+    }
+
+    /// Appends one child subtree.
+    pub fn push_child(&mut self, child: NodeTree) {
+        self.children.push(child);
+    }
+
+    /// Appends one child subtree and returns the updated tree.
+    pub fn with_child(mut self, child: NodeTree) -> Self {
+        self.push_child(child);
+        self
+    }
+
+    /// Returns the runtime node type of the subtree root.
+    pub fn node_type(&self) -> &str {
+        self.node.get_type()
+    }
+}
+
 /// Origin of an edit session boundary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EditOrigin {
@@ -84,6 +126,15 @@ pub enum Edit {
         /// Node instance to insert.
         node: Box<dyn Node>,
         /// Parent receiving the node.
+        parent: NodeId,
+        /// Optional sibling after which insertion occurs.
+        prev_sibling: Option<NodeId>,
+    },
+    /// Insert a detached node subtree under `parent`, optionally after a sibling.
+    AddNodeTree {
+        /// Detached subtree to insert.
+        tree: NodeTree,
+        /// Parent receiving the subtree root.
         parent: NodeId,
         /// Optional sibling after which insertion occurs.
         prev_sibling: Option<NodeId>,

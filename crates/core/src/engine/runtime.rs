@@ -783,6 +783,16 @@ impl<T: Node> Engine<T> {
                 self.describe_node(*parent),
                 self.describe_optional_node(*prev_sibling)
             ),
+            Edit::AddNodeTree {
+                tree,
+                parent,
+                prev_sibling,
+            } => format!(
+                "AddNodeTree root_type='{}' parent={} after={}",
+                tree.node_type(),
+                self.describe_node(*parent),
+                self.describe_optional_node(*prev_sibling)
+            ),
             Edit::AddUserItem {
                 node,
                 parent,

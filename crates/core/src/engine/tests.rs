@@ -375,6 +375,38 @@ fn external_edit_sender_adds_node_from_another_thread() {
 }
 
 #[test]
+fn add_node_tree_attaches_subtree_and_replays_history_as_one_root() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let root_id = engine.root;
+
+    engine.edits.push(Edit::AddNodeTree {
+        parent: root_id,
+        prev_sibling: None,
+        tree: crate::edit::NodeTree::new(Folder::new("parent".to_string()))
+            .with_child(crate::edit::NodeTree::new(Folder::new("child".to_string()))),
+    });
+    engine.apply_edits().expect("node tree edit should apply");
+
+    let parent = find_child_by_decl_any(&engine, root_id, "parent").expect("parent should exist");
+    let child = find_child_by_decl_any(&engine, parent, "child").expect("child should exist");
+    assert_eq!(engine.undo_len(), 1, "subtree insert should be one undo transaction");
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert!(engine.nodes.get(parent).is_none(), "undo should detach the subtree root");
+    assert!(engine.nodes.get(child).is_none(), "undo should detach subtree descendants");
+
+    assert!(engine.redo().expect("redo should succeed"));
+    assert!(
+        engine.nodes.get(parent).is_some(),
+        "redo should restore the same subtree root id"
+    );
+    assert!(
+        engine.nodes.get(child).is_some(),
+        "redo should restore the same subtree child id"
+    );
+}
+
+#[test]
 fn run_tick_drains_external_edits_without_manual_apply_call() {
     let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);

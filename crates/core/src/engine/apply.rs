@@ -150,6 +150,16 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling, creation_context)?;
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::AddNodeTree {
+                    tree,
+                    parent,
+                    prev_sibling,
+                } => {
+                    missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
+                    let effect = self.apply_add_node_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
+                    (Ok(Some(effect.into())), true)
+                }
                 Edit::AddUserItem {
                     node,
                     parent,
