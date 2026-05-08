@@ -615,16 +615,26 @@ fn dispatch_ws_batches<T: Node>(
     clients: &mut HashMap<u64, WsClientState>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
 ) {
+    let total_started = Instant::now();
     let mut pending = Vec::<(u64, WsServerMessage)>::new();
 
+    let mut lock_wait_ms = 0;
+    let mut collect_ms = 0;
+    let mut events_count = 0;
+    let mut subscriptions_count = 0;
+
+    let lock_started = Instant::now();
     let first_retained = {
         let mut guard = lock_engine(engine);
+        lock_wait_ms = lock_started.elapsed().as_millis();
+        let collect_started = Instant::now();
         guard.sync_logger_ui_events();
         let server_time = guard.time;
         let first_retained = guard.ui_event_log().first().map(|event| event.time);
 
         for (client_id, client) in clients.iter_mut() {
             for (subscription_id, subscription) in client.subscriptions.iter_mut() {
+                subscriptions_count += 1;
                 if let Some(cursor) = subscription.cursor {
                     if cursor > server_time {
                         subscription.cursor = None;
@@ -672,6 +682,7 @@ fn dispatch_ws_batches<T: Node>(
                 }
 
                 if !visible_events.is_empty() {
+                    events_count += visible_events.len();
                     pending.push((
                         *client_id,
                         WsServerMessage::Batch {
@@ -686,6 +697,7 @@ fn dispatch_ws_batches<T: Node>(
                 }
             }
         }
+        collect_ms = collect_started.elapsed().as_millis();
 
         first_retained
     };
@@ -697,6 +709,7 @@ fn dispatch_ws_batches<T: Node>(
     }
 
     let mut disconnected = Vec::<u64>::new();
+    let send_started = Instant::now();
     for (client_id, message) in pending {
         if let Some(client) = clients.get(&client_id) {
             if client.outbound.send(WsOutbound::Message(message)).is_err() {
@@ -704,11 +717,26 @@ fn dispatch_ws_batches<T: Node>(
             }
         }
     }
+    let send_ms = send_started.elapsed().as_millis();
 
     disconnected.sort_unstable();
     disconnected.dedup();
     for client_id in disconnected {
         clients.remove(&client_id);
+    }
+    
+    let total_ms = total_started.elapsed().as_millis();
+    if events_count > 0 || total_ms >= 5 {
+        eprintln!(
+            "[ui-ws] dispatch clients={} subscriptions={} lock_wait_ms={} collect_ms={} serialize_ms=0 send_ms={} events={} total_ms={}",
+            clients.len(),
+            subscriptions_count,
+            lock_wait_ms,
+            collect_ms,
+            send_ms,
+            events_count,
+            total_ms
+        );
     }
 }
 
@@ -801,6 +829,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             write_json(stream, "200 OK", &contexts)?;
         }
         ("POST", "/api/ui/snapshot") => {
+            let request_started = Instant::now();
             let payload: SnapshotRequest = if request.body.is_empty() {
                 SnapshotRequest {
                     scope: UiSubscriptionScope::WholeGraph,
@@ -810,16 +839,24 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 serde_json::from_slice(&request.body)
                     .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?
             };
-            let request_started = Instant::now();
+            let request_parse_elapsed = request_started.elapsed();
             let scope = payload.scope;
+            let cancel_active_edit_session = payload.cancel_active_edit_session;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
+            
+            let lock_started = Instant::now();
             let guard = lock_engine(&state.engine);
+            let lock_wait_elapsed = lock_started.elapsed();
             let mut guard = guard;
+            
+            let cancel_edit_started = Instant::now();
             if payload.cancel_active_edit_session {
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
                 }
             }
+            let cancel_edit_elapsed = cancel_edit_started.elapsed();
+            
             let build_started = Instant::now();
             let mut snapshot = guard.ui_snapshot(scope.clone());
             snapshot.project_file = T::project_file_spec().into();
@@ -830,16 +867,26 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let body = serde_json::to_vec(&snapshot)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("failed to serialize json: {err}")))?;
             let serialize_elapsed = serialize_started.elapsed();
+
+            let write_response_started = Instant::now();
+            let write_result = write_response(stream, "200 OK", "application/json; charset=utf-8", &body);
+            let write_response_elapsed = write_response_started.elapsed();
+
             eprintln!(
-                "[ui-http] snapshot scope={scope:?} nodes={} bytes={} build_ms={} serialize_ms={} total_ms={}",
+                "[ui-http] snapshot scope={scope:?} nodes={} bytes={} request_parse_ms={} lock_wait_ms={} cancel_edit_ms={} build_ms={} serialize_ms={} write_response_ms={} cancel_active_edit_session={} total_ms={}",
                 snapshot.nodes.len(),
                 body.len(),
+                request_parse_elapsed.as_millis(),
+                lock_wait_elapsed.as_millis(),
+                cancel_edit_elapsed.as_millis(),
                 build_elapsed.as_millis(),
                 serialize_elapsed.as_millis(),
+                write_response_elapsed.as_millis(),
+                cancel_active_edit_session,
                 request_started.elapsed().as_millis()
             );
 
-            write_response(stream, "200 OK", "application/json; charset=utf-8", &body)?;
+            write_result?;
         }
         ("POST", "/api/ui/replay") => {
             let payload: ReplayRequest = serde_json::from_slice(&request.body)

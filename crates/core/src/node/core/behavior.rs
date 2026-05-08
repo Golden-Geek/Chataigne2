@@ -860,6 +860,9 @@ pub trait Node: Send + Any {
                 EventKind::MetaChanged { node, patch } => {
                     self.on_meta_changed(ctx, node, patch);
                 }
+                EventKind::GraphTransaction { .. } => {
+                    // Handled implicitly by on_structure_changed or individual ops if destructured later.
+                }
                 EventKind::Custom(event) => {
                     self.on_custom_event(ctx, event);
                 }

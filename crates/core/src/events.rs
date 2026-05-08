@@ -154,6 +154,12 @@ pub enum EventKind {
         patch: NodeMetaPatch,
     },
 
+    /// An atomic graph transaction containing multiple operations.
+    GraphTransaction {
+        /// The transaction payload.
+        transaction: crate::ui_sync::UiGraphTransaction,
+    },
+
     /// User-defined event emitted through the edit pipeline.
     Custom(CustomEvent),
 }
@@ -173,6 +179,7 @@ impl EventKind {
             Self::NodeCreated { node } => Some(*node),
             Self::NodeDeleted { .. } => None,
             Self::MetaChanged { node, .. } => Some(*node),
+            Self::GraphTransaction { .. } => None,
             Self::Custom(event) => event.origin,
         }
     }

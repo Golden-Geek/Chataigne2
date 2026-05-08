@@ -592,10 +592,104 @@ pub struct UiCreateUserItemInitialParam {
     pub value: ParamValue,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiChildrenOrderPatch {
+    pub parent: NodeId,
+    pub children: Vec<NodeId>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiNodeMetaPatch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<Option<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_permissions: Option<NodeUserPermissions>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiParamPatch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<ParamValue>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control: Option<UiParameterControlStateDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub constraints: Option<ParameterConstraints>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum UiGraphOp {
+    NodeCreated {
+        snapshot: UiNodeDto,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent: Option<NodeId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index: Option<usize>,
+    },
+    SubtreeRemoved {
+        root: NodeId,
+        removed_ids: Vec<NodeId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent_after: Option<UiChildrenOrderPatch>,
+    },
+    NodeMoved {
+        node: NodeId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        old_parent: Option<NodeId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        new_parent: Option<NodeId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        old_parent_after: Option<UiChildrenOrderPatch>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        new_parent_after: Option<UiChildrenOrderPatch>,
+    },
+    ChildrenReordered {
+        parent: NodeId,
+        children: Vec<NodeId>,
+    },
+    NodeMetaPatched {
+        node: NodeId,
+        patch: UiNodeMetaPatch,
+    },
+    ParamPatched {
+        node: NodeId,
+        param: NodeId,
+        patch: UiParamPatch,
+    },
+    HistoryPatched {
+        history: UiHistoryState,
+    },
+    LoggerPatched {
+        records_added: Vec<LogRecord>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        dropped_before: Option<u64>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiGraphTransaction {
+    pub tx_id: u64,
+    pub epoch: u64,
+    pub base_graph_version: u64,
+    pub next_graph_version: u64,
+    pub ops: Vec<UiGraphOp>,
+}
+
 /// UI-facing event kind.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UiEventKind {
+    /// Graph transaction containing multiple atomic updates.
+    GraphTransaction {
+        #[serde(flatten)]
+        transaction: UiGraphTransaction,
+    },
     /// Parameter changed.
     ParamChanged {
         /// Parameter node id.

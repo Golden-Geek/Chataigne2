@@ -135,11 +135,17 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
         .ok_or_else(|| "project-save path cannot be empty".to_string())?;
 
     let started = Instant::now();
+    
+    let lock_started = Instant::now();
     let guard = match engine.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
+    let lock_wait_elapsed = lock_started.elapsed();
     let node_count = guard.nodes.iter().count();
+    
+    let clone_or_snapshot_ms = 0;
+    
     let serialize_started = Instant::now();
     let json = to_sparse_project_json_pretty(&guard).map_err(|err| err.to_string())?;
     let serialize_elapsed = serialize_started.elapsed();
@@ -149,10 +155,12 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
     fs::write(path.as_str(), json.as_bytes()).map_err(|err| err.to_string())?;
     let write_elapsed = write_started.elapsed();
     eprintln!(
-        "[project-host] save_project path='{}' nodes={} bytes={} serialize_ms={} write_ms={} total_ms={}",
+        "[project-host] save_project path='{}' nodes={} bytes={} lock_wait_ms={} clone_or_snapshot_ms={} serialize_ms={} write_ms={} total_ms={}",
         path,
         node_count,
         json.len(),
+        lock_wait_elapsed.as_millis(),
+        clone_or_snapshot_ms,
         serialize_elapsed.as_millis(),
         write_elapsed.as_millis(),
         started.elapsed().as_millis()

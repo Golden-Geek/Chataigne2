@@ -720,6 +720,7 @@ impl From<&Event> for ScriptEvent {
             EventKind::NodeCreated { node } => ("nodeCreated".to_string(), Some(*node), None),
             EventKind::NodeDeleted { .. } => ("nodeDeleted".to_string(), None, None),
             EventKind::MetaChanged { node, .. } => ("metaChanged".to_string(), Some(*node), None),
+            EventKind::GraphTransaction { .. } => ("graphTransaction".to_string(), None, None),
             EventKind::Custom(custom) => ("custom".to_string(), custom.origin, None),
         };
         let payload = serde_json::to_value(&event.kind).unwrap_or(JsonValue::Null);
