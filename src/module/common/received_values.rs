@@ -833,7 +833,7 @@ fn resolve_or_create_parent(
         return ParentResolution::Ignored;
     };
 
-    for segment in parents {
+    for (index, segment) in parents.iter().enumerate() {
         match snapshot.find_child(current, segment.as_str()) {
             Some(child_id) => {
                 let Some(child_snapshot) = snapshot.node(child_id) else {
@@ -855,7 +855,7 @@ fn resolve_or_create_parent(
                     return ParentResolution::Ignored;
                 }
 
-                ctx.add_child_boxed(current, Box::new(create_auto_values_folder(segment.as_str())), None);
+                ctx.add_child_tree(current, folder_path_tree(&parents[index..]), None);
                 return ParentResolution::Retry;
             }
         }
@@ -958,8 +958,8 @@ fn apply_multi_value_message(
                 return ReceivedValueApplyResult::Ignored;
             }
 
-            ctx.add_child_boxed(parent_id, Box::new(create_auto_values_folder(leaf_name.as_str())), None);
-            return ReceivedValueApplyResult::Retry;
+            ctx.add_child_tree(parent_id, multi_value_folder_tree(leaf_name.as_str(), values), None);
+            return ReceivedValueApplyResult::applied(true);
         }
     };
 
@@ -1042,6 +1042,26 @@ fn create_auto_values_folder(label: &str) -> Folder {
     let mut folder = Folder::new(label);
     crate::app::module::enable_module_authoring(folder.node_data_mut());
     folder
+}
+
+fn folder_path_tree(segments: &[String]) -> NodeTree {
+    let (head, tail) = segments
+        .split_first()
+        .expect("folder_path_tree requires at least one segment");
+    let mut tree = NodeTree::new(create_auto_values_folder(head.as_str()));
+    if !tail.is_empty() {
+        tree.push_child(folder_path_tree(tail));
+    }
+    tree
+}
+
+fn multi_value_folder_tree(leaf_name: &str, values: &[ParamValue]) -> NodeTree {
+    let mut tree = NodeTree::new(create_auto_values_folder(leaf_name));
+    for (index, value) in values.iter().enumerate() {
+        let label = indexed_value_label(index);
+        tree.push_child(NodeTree::new(create_parameter_node(label.as_str(), value.clone(), None)));
+    }
+    tree
 }
 
 fn indexed_value_label(index: usize) -> String {

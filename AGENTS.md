@@ -74,6 +74,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Prefer conventional crate layouts where module paths match the filesystem.
 - Avoid `#[path]` module wiring unless there is a strong generation-related reason.
 - When asked to implement a feature or functionality needing a full protocol implementation or API interfacing, check if there are reliable crates that are already providing this (like midi, osc, serial, websocket, hid...) instead of recreating the protocol.
+- Before implementing structural graph changes, reason about worst-case node counts, lifecycle callbacks, snapshot rebuilds, and event fan-out. When a known subtree or missing path can be materialized in one operation, prefer `NodeTree` / `AddNodeTree` over sequential child edits and retry loops.
 
 ## Readability And Reviewability
 - Optimize for readable diffs, reviewable formatting, and newcomer legibility.
@@ -121,6 +122,7 @@ When a task spans multiple architectural areas, prefer this order:
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
 - Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.
+- For large or data-driven structure creation, design the edit shape before coding: batch detached subtrees, avoid repeated full-tree snapshot rebuilds, and add timing or tests when the expected graph size can grow significantly.
 - Do not preserve broken boundaries for convenience.
 - Do not introduce compatibility shims unless the task explicitly requires them.
 - Do not duplicate protocol, persistence, or host declarations across languages or layers.

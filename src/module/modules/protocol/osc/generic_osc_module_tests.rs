@@ -160,6 +160,62 @@ fn incoming_message_auto_adds_value_nodes_under_values_folder() {
 }
 
 #[test]
+fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(GenericOscModule::create().into(), None);
+    engine.apply_edits().expect("osc module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    module.disable_transport_for_test();
+    module.enqueue_incoming_message_for_test(OscDecodedMessage {
+        address: "/rig/arm/pose".to_string(),
+        payload: OscValuePayload::Multi(vec![
+            ParamValue::Float(1.0),
+            ParamValue::Float(2.0),
+            ParamValue::Float(3.0),
+        ]),
+    });
+
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("first runtime tick should materialize missing parent path");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("second runtime tick should materialize multi-value leaf subtree");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    assert!(
+        !module.has_pending_incoming_messages_for_test(),
+        "batched missing path and multi-value leaf creation should drain the incoming queue"
+    );
+
+    let first_value = find_path(&engine, module_id, "values/rig/arm/pose/value 1")
+        .expect("first multi-value parameter should exist");
+    let second_value = find_path(&engine, module_id, "values/rig/arm/pose/value 2")
+        .expect("second multi-value parameter should exist");
+    let third_value = find_path(&engine, module_id, "values/rig/arm/pose/value 3")
+        .expect("third multi-value parameter should exist");
+
+    assert_eq!(param_value(&engine, first_value), ParamValue::Float(1.0));
+    assert_eq!(param_value(&engine, second_value), ParamValue::Float(2.0));
+    assert_eq!(param_value(&engine, third_value), ParamValue::Float(3.0));
+}
+
+#[test]
 fn new_module_command_tester_starts_empty() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
@@ -946,6 +1002,15 @@ fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: b
             ..Default::default()
         },
     });
+}
+
+fn param_value(engine: &crate::app::AppEngine, node: NodeId) -> ParamValue {
+    engine
+        .nodes
+        .get(node)
+        .and_then(|candidate| candidate.engine_param_snapshot())
+        .map(|snapshot| snapshot.value)
+        .unwrap_or_else(|| panic!("expected parameter value for node {node:?}"))
 }
 
 fn settle_osc_module_state(engine: &mut crate::app::AppEngine) {
