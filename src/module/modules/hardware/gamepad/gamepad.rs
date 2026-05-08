@@ -234,6 +234,8 @@ pub struct GamepadModule {
     dpad_button_state: (bool, bool, bool, bool), // (up, down, left, right)
     last_connected_device_id: Option<String>,
     button_state: Vec<bool>, // Track previous button states to avoid duplicate logs
+    devices_dirty: bool,
+    was_selected: bool,
 }
 
 impl GamepadModule {
@@ -250,6 +252,8 @@ impl GamepadModule {
             (false, false, false, false),
             None,
             vec![false; GamepadButton::ALL.len()],
+            true,
+            false,
         )
     }
 
@@ -270,7 +274,11 @@ impl GamepadModule {
     }
 
     fn ensure_runtime(&mut self, ctx: &mut ProcessCtx) {
-        if self.runtime_start_suppressed || self.runtime.is_some() {
+        if self.runtime_start_suppressed {
+            self.runtime_dirty = false;
+            return;
+        }
+        if self.runtime.is_some() {
             return;
         }
         if !self.runtime_dirty && self.runtime_retry_elapsed < GAMEPAD_RUNTIME_RETRY_INTERVAL_SECS {
@@ -283,6 +291,7 @@ impl GamepadModule {
             Ok(runtime) => {
                 golden_core::log!(origin = self.id(); "Started gamepad input runtime.");
                 self.runtime = Some(runtime);
+                self.devices_dirty = true;
                 self.clear_device_warning(ctx, GAMEPAD_RUNTIME_WARNING_ID);
             }
             Err(error) => {
@@ -295,7 +304,10 @@ impl GamepadModule {
 
     fn stop_runtime(&mut self) {
         self.runtime = None;
-        self.known_devices.clear();
+        if !self.known_devices.is_empty() {
+            self.known_devices.clear();
+            self.devices_dirty = true;
+        }
         self.last_connected_device_id = None;
         self.dpad_button_state = (false, false, false, false);
         self.button_state.iter_mut().for_each(|b| *b = false);
@@ -307,11 +319,15 @@ impl GamepadModule {
             events.extend(runtime.poll_events());
         }
 
+        let devices_before = self.known_devices.len();
         for event in &events {
             self.apply_runtime_device_event(event);
         }
         if let Some(runtime) = self.runtime.as_ref() {
             self.known_devices = runtime.connected_gamepads();
+        }
+        if self.known_devices.len() != devices_before {
+            self.devices_dirty = true;
         }
 
         events
@@ -941,21 +957,36 @@ impl Node for GamepadModule {
         self.ensure_runtime(ctx);
 
         let events = self.drain_runtime_events();
-        self.sync_device_options(ctx);
+        if self.devices_dirty {
+            self.sync_device_options(ctx);
+            self.devices_dirty = false;
+        }
         let selected = self.selected_device();
+        let is_selected = selected.is_some();
         self.refresh_selection_warning(ctx, selected.as_ref());
         self.update_connection_state(ctx, selected.as_ref());
 
         for event in events {
             self.handle_runtime_event(ctx, event, selected.as_ref());
         }
-        self.sync_selected_state(ctx);
+
+        if is_selected || self.was_selected {
+            self.sync_selected_state(ctx);
+        }
+        self.was_selected = is_selected;
     }
 
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
         self.stop_runtime();
         self.pending_runtime_events.clear();
         self.runtime_dirty = false;
+    }
+
+    fn needs_update(&self) -> bool {
+        self.runtime.is_some()
+            || self.runtime_dirty
+            || self.devices_dirty
+            || !self.pending_runtime_events.is_empty()
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {

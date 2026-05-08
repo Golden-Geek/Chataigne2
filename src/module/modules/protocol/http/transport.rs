@@ -11,8 +11,8 @@ use reqwest::{
 };
 
 use crate::app::module::common::http::{
-    HttpAuthConfig, HttpAuthMode, HttpHeader, HttpRequestBody, HttpRequestPayload, HTTP_AUTH_BASIC,
-    HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
+    HttpAuthConfig, HttpAuthMode, HttpHeader, HttpReceivedValue, HttpRequestBody, HttpRequestPayload,
+    response_json_received_values, HTTP_AUTH_BASIC, HTTP_AUTH_BEARER, HTTP_AUTH_HEADER,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,6 +52,7 @@ pub(crate) struct HttpResponse {
     pub headers: Vec<HttpHeader>,
     pub content_type: Option<String>,
     pub body: Vec<u8>,
+    pub received_values: Result<Option<Vec<HttpReceivedValue>>, String>,
     pub elapsed_ms: u128,
     pub attempts: u32,
 }
@@ -238,6 +239,13 @@ fn execute_once(
         .map_err(|error| format!("failed to read HTTP response from {url_text}: {error}"))?
         .to_vec();
 
+    let received_values = response_json_received_values(
+        body.as_slice(),
+        content_type.as_deref(),
+        request.payload.path.as_str(),
+        request.payload.value_path.as_str(),
+    );
+
     Ok(HttpResponse {
         origin: request.origin.clone(),
         request: request.payload.clone(),
@@ -247,6 +255,7 @@ fn execute_once(
         headers,
         content_type,
         body,
+        received_values,
         elapsed_ms: started_at.elapsed().as_millis(),
         attempts,
     })

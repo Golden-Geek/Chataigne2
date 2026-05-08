@@ -357,7 +357,13 @@ fn test_response(path: &str, content_type: Option<&str>, body: Vec<u8>) -> HttpR
         status_text: "OK".to_string(),
         headers: Vec::new(),
         content_type: content_type.map(str::to_string),
-        body,
+        body: body.clone(),
+        received_values: crate::app::module::common::http::response_json_received_values(
+            body.as_slice(),
+            content_type,
+            path,
+            "",
+        ),
         elapsed_ms: 1,
         attempts: 1,
     }

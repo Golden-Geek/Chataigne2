@@ -14,7 +14,7 @@ use golden_core::{
 use crate::app::module::common::{
     http::{
         body_looks_like_json, content_type_is_json, http_auth_mode_enum_options, parse_header_lines,
-        response_json_received_values, response_script_body_arg, response_script_json_arg,
+        response_script_body_arg, response_script_json_arg,
         HttpAuthConfig, HttpAuthMode, HttpFilePart, HttpHeader, HttpMethod, HttpReceivedValue,
         HttpRequestBody, HttpRequestPayload, HTTP_AUTH_NONE, HTTP_COMMAND_NODE_TYPES,
         HTTP_TEXT_CONTENT_TYPE,
@@ -314,13 +314,8 @@ impl HttpModule {
     }
 
     fn enqueue_pending_response(&mut self, response: HttpResponse) {
-        let received_values = match response_json_received_values(
-            response.body.as_slice(),
-            response.content_type.as_deref(),
-            response.request.path.as_str(),
-            response.request.value_path.as_str(),
-        ) {
-            Ok(received_values) => received_values,
+        let received_values = match &response.received_values {
+            Ok(received_values) => received_values.clone(),
             Err(error) => {
                 logerror!(
                     "Failed to parse HTTP response from '{}': {}",

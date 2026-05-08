@@ -14,6 +14,8 @@ pub(crate) mod common;
 mod constants;
 mod permissions;
 mod reference_filters;
+#[cfg(test)]
+mod perf_tests;
 pub(crate) mod script_api;
 
 pub(crate) use constants::MODULE_ITEM_KIND;

@@ -2420,6 +2420,16 @@ impl Node for MidiModule {
         self.last_mtc_quarter_frame_at = None;
     }
 
+    fn needs_update(&self) -> bool {
+        self.input_dirty
+            || self.output_dirty
+            || !self.pending_incoming_messages.is_empty()
+            || !self.pending_packets.is_empty()
+            || self.input.is_some()
+            || self.output.is_some()
+            || self.port_refresh_elapsed >= MIDI_PORT_REFRESH_INTERVAL_SECS
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
         true
     }
