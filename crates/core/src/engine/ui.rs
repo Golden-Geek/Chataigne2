@@ -59,6 +59,12 @@ impl<T: Node> Engine<T> {
         self.time.seq = self.time.seq.saturating_add(1);
     }
 
+    pub(crate) fn push_ui_event_kind(&mut self, kind: EventKind) {
+        let event = Event { time: self.time, kind };
+        self.push_ui_event_log(event);
+        self.time.seq = self.time.seq.saturating_add(1);
+    }
+
     /// Flushes newly buffered logger records into the UI event replay log.
     pub fn sync_logger_ui_events(&mut self) {
         let records = crate::logger::records_since_cursor(

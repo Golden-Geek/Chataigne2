@@ -486,6 +486,7 @@ impl<T: Node> Engine<T> {
             &uuid_map,
             &mut decode_node,
         )?;
+        let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
 
         self.replay_loaded_subtree_lifecycle(
             duplicated_root,
@@ -496,11 +497,7 @@ impl<T: Node> Engine<T> {
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
-        self.push_ui_custom_event(
-            "__transport.resync_required",
-            Some(duplicated_root),
-            serde_json::json!({ "reason": "duplicate_subtree_loaded" }),
-        );
+        self.push_loaded_subtree_ui_events(duplicated_node_ids.as_slice())?;
         self.record_single_history_step(
             AddNodeEffect {
                 node: duplicated_root,
@@ -520,6 +517,36 @@ impl<T: Node> Engine<T> {
         Ok(duplicated_root)
     }
 
+    fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
+        for node in node_ids {
+            self.push_ui_event_kind(EventKind::NodeCreated { node: *node });
+        }
+
+        for node in node_ids {
+            let (parent, decl_id) = {
+                let node_data = self
+                    .nodes
+                    .get(*node)
+                    .ok_or(ProjectPersistenceError::MissingNode(*node))?
+                    .node_data();
+                let Some(parent) = node_data.parent else {
+                    continue;
+                };
+                (parent, node_data.meta.decl_id.clone())
+            };
+            if parent == *node {
+                continue;
+            }
+            self.push_ui_event_kind(EventKind::ChildAdded {
+                parent,
+                child: *node,
+                decl_id,
+            });
+        }
+
+        Ok(())
+    }
+
     fn replay_loaded_subtree_lifecycle(
         &mut self,
         root: NodeId,
@@ -533,7 +560,9 @@ impl<T: Node> Engine<T> {
         self.run_node_init_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
 
         match ready_mode {
-            LoadedReadyMode::Immediate => self.run_node_ready_for_batch(loaded_node_ids.as_slice(), creation_context)?,
+            LoadedReadyMode::Immediate => {
+                self.run_node_ready_for_batch(loaded_node_ids.as_slice(), creation_context)?
+            }
             LoadedReadyMode::Deferred => {
                 for node_id in loaded_node_ids {
                     self.queue_node_ready(node_id, creation_context);

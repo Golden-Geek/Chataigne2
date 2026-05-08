@@ -27,7 +27,9 @@ use crate::parameter::{
 };
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiConfig, ScriptUiSource};
-use crate::ui_sync::{UiAckStatus, UiEditIntent, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope};
+use crate::ui_sync::{
+    UiAckStatus, UiEditIntent, UiEventKind, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope,
+};
 
 #[crate::node]
 struct ItemMacroAutoKindNode {}
@@ -392,8 +394,14 @@ fn add_node_tree_attaches_subtree_and_replays_history_as_one_root() {
     assert_eq!(engine.undo_len(), 1, "subtree insert should be one undo transaction");
 
     assert!(engine.undo().expect("undo should succeed"));
-    assert!(engine.nodes.get(parent).is_none(), "undo should detach the subtree root");
-    assert!(engine.nodes.get(child).is_none(), "undo should detach subtree descendants");
+    assert!(
+        engine.nodes.get(parent).is_none(),
+        "undo should detach the subtree root"
+    );
+    assert!(
+        engine.nodes.get(child).is_none(),
+        "undo should detach subtree descendants"
+    );
 
     assert!(engine.redo().expect("redo should succeed"));
     assert!(
@@ -4365,13 +4373,25 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
         "duplicate subtree should not enqueue structural inbox events like a live node add"
     );
     assert!(
-        engine.ui_event_log().iter().any(|event| matches!(
+        !engine.ui_event_log().iter().any(|event| matches!(
             &event.kind,
-            EventKind::Custom(custom)
-                if custom.topic == "__transport.resync_required"
-                    && custom.payload.get("reason") == Some(&serde_json::json!("duplicate_subtree_loaded"))
+            EventKind::Custom(custom) if custom.topic == "__transport.resync_required"
         )),
-        "duplicate subtree should request a UI snapshot resync"
+        "duplicate subtree should not force a whole-graph UI snapshot resync"
+    );
+    assert!(
+        engine
+            .ui_event_log()
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::NodeCreated { node } if node == duplicated_group)),
+        "duplicate subtree should publish an incremental UI node-created event for the duplicated root"
+    );
+    assert!(
+        engine.ui_event_log().iter().any(|event| matches!(
+            event.kind,
+            EventKind::ChildAdded { parent, child, .. } if parent == engine.root && child == duplicated_group
+        )),
+        "duplicate subtree should publish an incremental UI child-added event for the duplicated root"
     );
 
     assert_eq!(
@@ -4390,6 +4410,43 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
         .get(duplicated_target)
         .and_then(|node| node.node_data().next_sibling)
         .expect("duplicated reference child should exist");
+
+    let ui_batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let duplicated_root_snapshot = ui_batch
+        .events
+        .iter()
+        .find_map(|event| match &event.kind {
+            UiEventKind::NodeCreated {
+                node,
+                snapshot: Some(snapshot),
+            } if *node == duplicated_group => Some(snapshot),
+            _ => None,
+        })
+        .expect("duplicated root node-created event should carry an incremental node snapshot");
+    assert_eq!(
+        duplicated_root_snapshot.children,
+        vec![duplicated_target, duplicated_target_ref],
+        "incremental duplicate root snapshot should include direct children"
+    );
+    let duplicate_parent_children = ui_batch
+        .events
+        .iter()
+        .find_map(|event| match &event.kind {
+            UiEventKind::ChildAdded {
+                parent,
+                child,
+                parent_children: Some(parent_children),
+                ..
+            } if *parent == engine.root && *child == duplicated_group => Some(parent_children),
+            _ => None,
+        })
+        .expect("duplicated root child-added event should carry parent child order");
+    assert_eq!(
+        duplicate_parent_children,
+        &vec![group, duplicated_group],
+        "incremental duplicate event should preserve insertion order without a snapshot resync"
+    );
+
     let duplicated_target_uuid = engine
         .nodes
         .get(duplicated_target)

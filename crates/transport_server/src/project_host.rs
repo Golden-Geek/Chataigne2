@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, load_sparse_project_file,
-    prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
+    prepare_engine_for_runtime, shutdown_engine_for_runtime, to_sparse_project_json_pretty,
 };
 use golden_engine::engine::Engine;
 
@@ -134,11 +134,30 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
     let path = normalize_project_save_path(raw_path, &file_spec)
         .ok_or_else(|| "project-save path cannot be empty".to_string())?;
 
+    let started = Instant::now();
     let guard = match engine.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    save_sparse_project_file(&guard, path.as_str()).map_err(|err| err.to_string())
+    let node_count = guard.nodes.iter().count();
+    let serialize_started = Instant::now();
+    let json = to_sparse_project_json_pretty(&guard).map_err(|err| err.to_string())?;
+    let serialize_elapsed = serialize_started.elapsed();
+    drop(guard);
+
+    let write_started = Instant::now();
+    fs::write(path.as_str(), json.as_bytes()).map_err(|err| err.to_string())?;
+    let write_elapsed = write_started.elapsed();
+    eprintln!(
+        "[project-host] save_project path='{}' nodes={} bytes={} serialize_ms={} write_ms={} total_ms={}",
+        path,
+        node_count,
+        json.len(),
+        serialize_elapsed.as_millis(),
+        write_elapsed.as_millis(),
+        started.elapsed().as_millis()
+    );
+    Ok(())
 }
 
 pub(crate) fn load_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, raw_path: &str) -> Result<(), String> {

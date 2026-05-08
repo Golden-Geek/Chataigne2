@@ -631,6 +631,9 @@ pub enum UiEventKind {
         child: NodeId,
         /// Declared slot id.
         decl_id: DeclId,
+        /// Current direct child order for the parent when available.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent_children: Option<Vec<NodeId>>,
     },
     /// Child removed.
     ChildRemoved {
@@ -658,6 +661,12 @@ pub enum UiEventKind {
         old_parent: NodeId,
         /// New parent id.
         new_parent: NodeId,
+        /// Current direct child order for the previous parent when available.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        old_parent_children: Option<Vec<NodeId>>,
+        /// Current direct child order for the new parent when available.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        new_parent_children: Option<Vec<NodeId>>,
     },
     /// Child reordered.
     ChildReordered {
@@ -665,11 +674,17 @@ pub enum UiEventKind {
         parent: NodeId,
         /// Child id.
         child: NodeId,
+        /// Current direct child order for the parent when available.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent_children: Option<Vec<NodeId>>,
     },
     /// Node created.
     NodeCreated {
         /// Node id.
         node: NodeId,
+        /// Node snapshot for incremental UI insertion when the node is still live.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        snapshot: Option<UiNodeDto>,
     },
     /// Node deleted.
     NodeDeleted {
@@ -734,7 +749,12 @@ impl From<Event> for UiEventDto {
                 old_constraints,
                 new_constraints,
             },
-            EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded { parent, child, decl_id },
+            EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded {
+                parent,
+                child,
+                decl_id,
+                parent_children: None,
+            },
             EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved { parent, child },
             EventKind::ChildReplaced {
                 parent,
@@ -755,9 +775,15 @@ impl From<Event> for UiEventDto {
                 child,
                 old_parent,
                 new_parent,
+                old_parent_children: None,
+                new_parent_children: None,
             },
-            EventKind::ChildReordered { parent, child } => UiEventKind::ChildReordered { parent, child },
-            EventKind::NodeCreated { node } => UiEventKind::NodeCreated { node },
+            EventKind::ChildReordered { parent, child } => UiEventKind::ChildReordered {
+                parent,
+                child,
+                parent_children: None,
+            },
+            EventKind::NodeCreated { node } => UiEventKind::NodeCreated { node, snapshot: None },
             EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node },
             EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged { node, patch },
             EventKind::Custom(custom) => UiEventKind::Custom {
@@ -1171,10 +1197,11 @@ impl<T: Node> Engine<T> {
         let mut events = Vec::<UiEventDto>::new();
         let source_events = &self.ui_event_log()[start_index..];
         events.reserve(source_events.len());
+        let mut child_order_cache = HashMap::<NodeId, Option<Vec<NodeId>>>::new();
 
         for event in source_events {
             if self.event_matches_scope(&scope, event) {
-                events.push(UiEventDto::from(event.clone()));
+                events.push(self.ui_event_dto_with_child_order_cache(event, &mut child_order_cache));
             }
         }
 
@@ -1873,6 +1900,197 @@ impl<T: Node> Engine<T> {
             active_edit_session: self.has_active_edit_session(),
             current_history_state_id: self.current_history_state_id(),
         }
+    }
+
+    fn ui_direct_children(&self, parent: NodeId) -> Option<Vec<NodeId>> {
+        let mut children = Vec::new();
+        let mut child = self.nodes.get(parent)?.node_data().first_child;
+        while let Some(child_id) = child {
+            children.push(child_id);
+            child = self.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
+        }
+        Some(children)
+    }
+
+    fn ui_direct_children_cached(
+        &self,
+        parent: NodeId,
+        cache: &mut HashMap<NodeId, Option<Vec<NodeId>>>,
+    ) -> Option<Vec<NodeId>> {
+        if let Some(children) = cache.get(&parent) {
+            return children.clone();
+        }
+        let children = self.ui_direct_children(parent);
+        cache.insert(parent, children.clone());
+        children
+    }
+
+    fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
+        let node = self.nodes.get(node_id)?;
+        let node_data = node.node_data();
+        let node_type = node.get_type().to_string();
+        let children = self.ui_direct_children(node_id).unwrap_or_default();
+
+        let data = if let Some(param) = node.engine_param_snapshot() {
+            UiNodeDataDto::Parameter {
+                param: UiParamDto::from(param),
+            }
+        } else {
+            UiNodeDataDto::Node {
+                node_type: node_type.clone(),
+            }
+        };
+
+        let listed_user_items = node.user_creatable_items();
+        let can_query_creatable_items = node.get_type() == FOLDER_NODE_TYPE
+            || node.user_container_rules().is_some()
+            || !listed_user_items.is_empty();
+
+        let mut creatable_user_items = Vec::new();
+        if can_query_creatable_items {
+            for item in self.catalog_creatable_items(node_id).into_iter() {
+                creatable_user_items.push(UiCreatableUserItemDto::from(item));
+            }
+        }
+
+        let mut accepted_user_item_kinds: Vec<String> = node
+            .user_container_rules()
+            .map(|rules| {
+                rules
+                    .accepts_item_kinds
+                    .iter()
+                    .map(|kind| (*kind).to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        for item in &listed_user_items {
+            if !accepted_user_item_kinds.iter().any(|kind| kind == &item.item_kind) {
+                accepted_user_item_kinds.push(item.item_kind.clone());
+            }
+        }
+
+        let description = node_data
+            .meta
+            .description
+            .as_deref()
+            .or(node_data.meta.declared_description.as_deref())
+            .or_else(|| node.type_description())
+            .filter(|description| !description.trim().is_empty())
+            .map(str::to_string);
+
+        Some(UiNodeDto {
+            node_id,
+            uuid: node_data.meta.uuid,
+            decl_id: node_data.meta.decl_id.clone(),
+            node_type,
+            meta: UiNodeMetaDto {
+                short_name: node_data.meta.short_name.clone(),
+                label: node_data.meta.label.clone(),
+                enabled: node_data.meta.enabled,
+                can_be_disabled: node_data.meta.can_be_disabled,
+                user_permissions: node_data.meta.user_permissions.clone(),
+                description,
+                declared_description_key: None,
+                description_overridden: false,
+                tags: node_data.meta.tags.clone(),
+                presentation: node_data.meta.presentation.clone(),
+            },
+            data,
+            user_role: node_data.user_role,
+            user_item_kind: node.user_item_kind().to_string(),
+            accepted_user_item_kinds,
+            creatable_user_items,
+            children,
+        })
+    }
+
+    fn ui_event_dto_with_child_order_cache(
+        &self,
+        event: &Event,
+        child_order_cache: &mut HashMap<NodeId, Option<Vec<NodeId>>>,
+    ) -> UiEventDto {
+        let kind = match &event.kind {
+            EventKind::ParamChanged {
+                param,
+                old_value,
+                new_value,
+            } => UiEventKind::ParamChanged {
+                param: *param,
+                old_value: old_value.clone(),
+                new_value: new_value.clone(),
+            },
+            EventKind::ParamControlChanged {
+                param,
+                old_state,
+                new_state,
+            } => UiEventKind::ParamControlChanged {
+                param: *param,
+                old_state: old_state.clone().into(),
+                new_state: new_state.clone().into(),
+            },
+            EventKind::ParamConstraintsChanged {
+                param,
+                old_constraints,
+                new_constraints,
+            } => UiEventKind::ParamConstraintsChanged {
+                param: *param,
+                old_constraints: old_constraints.clone(),
+                new_constraints: new_constraints.clone(),
+            },
+            EventKind::ChildAdded { parent, child, decl_id } => UiEventKind::ChildAdded {
+                parent: *parent,
+                child: *child,
+                decl_id: decl_id.clone(),
+                parent_children: self.ui_direct_children_cached(*parent, child_order_cache),
+            },
+            EventKind::ChildRemoved { parent, child } => UiEventKind::ChildRemoved {
+                parent: *parent,
+                child: *child,
+            },
+            EventKind::ChildReplaced {
+                parent,
+                old,
+                new,
+                decl_id,
+            } => UiEventKind::ChildReplaced {
+                parent: *parent,
+                old: *old,
+                new: *new,
+                decl_id: decl_id.clone(),
+            },
+            EventKind::ChildMoved {
+                child,
+                old_parent,
+                new_parent,
+            } => UiEventKind::ChildMoved {
+                child: *child,
+                old_parent: *old_parent,
+                new_parent: *new_parent,
+                old_parent_children: self.ui_direct_children_cached(*old_parent, child_order_cache),
+                new_parent_children: self.ui_direct_children_cached(*new_parent, child_order_cache),
+            },
+            EventKind::ChildReordered { parent, child } => UiEventKind::ChildReordered {
+                parent: *parent,
+                child: *child,
+                parent_children: self.ui_direct_children_cached(*parent, child_order_cache),
+            },
+            EventKind::NodeCreated { node } => UiEventKind::NodeCreated {
+                node: *node,
+                snapshot: self.ui_node_dto_for_event(*node),
+            },
+            EventKind::NodeDeleted { node } => UiEventKind::NodeDeleted { node: *node },
+            EventKind::MetaChanged { node, patch } => UiEventKind::MetaChanged {
+                node: *node,
+                patch: patch.clone(),
+            },
+            EventKind::Custom(custom) => UiEventKind::Custom {
+                topic: custom.topic.clone(),
+                origin: custom.origin,
+                payload: custom.payload.clone(),
+            },
+        };
+
+        UiEventDto { time: event.time, kind }
     }
 
     fn collect_scope_nodes(&self, scope: UiSubscriptionScope) -> Vec<NodeId> {
