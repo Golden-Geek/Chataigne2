@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,7 +11,7 @@ use crate::node::{
     DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
     PresentationHint, SemanticsHint, UserNodeRole,
 };
-use crate::process_ctx::{ExecutionPhase, ProcessCtx};
+use crate::process_ctx::ExecutionPhase;
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -529,17 +528,16 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), ProjectPersistenceError> {
         let loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
 
-        for node_id in &loaded_node_ids {
-            self.replay_loaded_node_attached(*node_id, creation_context)?;
-        }
-
+        self.run_node_attached_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
         self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
+        self.run_node_init_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
 
-        for node_id in loaded_node_ids {
-            self.replay_loaded_node_init(node_id, creation_context)?;
-            match ready_mode {
-                LoadedReadyMode::Immediate => self.replay_loaded_node_ready(node_id, creation_context)?,
-                LoadedReadyMode::Deferred => self.queue_node_ready(node_id, creation_context),
+        match ready_mode {
+            LoadedReadyMode::Immediate => self.run_node_ready_for_batch(loaded_node_ids.as_slice(), creation_context)?,
+            LoadedReadyMode::Deferred => {
+                for node_id in loaded_node_ids {
+                    self.queue_node_ready(node_id, creation_context);
+                }
             }
         }
 
@@ -639,69 +637,6 @@ impl<T: Node> Engine<T> {
         }
 
         Ok(ordered)
-    }
-
-    fn replay_loaded_node_attached(
-        &mut self,
-        node_id: NodeId,
-        creation_context: NodeCreationContext,
-    ) -> Result<(), ProjectPersistenceError> {
-        let tree_snapshot = Some(self.build_process_tree_snapshot());
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        ctx.runtime_elapsed = self.runtime_elapsed;
-        if let Some(tree_snapshot) = &tree_snapshot {
-            ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
-        }
-
-        if let Some(node) = self.nodes.get_mut(node_id) {
-            crate::logger::with_node_origin(node_id, || {
-                node.engine_on_attached(&mut ctx);
-            });
-        }
-
-        let event_cursor = self.inbox.events.len();
-        self.absorb_edits(&mut ctx)?;
-        if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
-        }
-
-        Ok(())
-    }
-
-    fn replay_loaded_node_init(
-        &mut self,
-        node_id: NodeId,
-        creation_context: NodeCreationContext,
-    ) -> Result<(), ProjectPersistenceError> {
-        let tree_snapshot = Some(self.build_process_tree_snapshot());
-        let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
-        ctx.runtime_elapsed = self.runtime_elapsed;
-        if let Some(tree_snapshot) = &tree_snapshot {
-            ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
-        }
-
-        if let Some(node) = self.nodes.get_mut(node_id) {
-            crate::logger::with_node_origin(node_id, || {
-                node.init(&mut ctx);
-            });
-        }
-
-        let event_cursor = self.inbox.events.len();
-        self.absorb_edits(&mut ctx)?;
-        if self.stabilization_scope_depth == 0 {
-            self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
-        }
-
-        Ok(())
-    }
-
-    fn replay_loaded_node_ready(
-        &mut self,
-        node_id: NodeId,
-        creation_context: NodeCreationContext,
-    ) -> Result<(), ProjectPersistenceError> {
-        self.run_node_ready(node_id, creation_context)?;
-        Ok(())
     }
 
     fn encode_node_record_with<F>(

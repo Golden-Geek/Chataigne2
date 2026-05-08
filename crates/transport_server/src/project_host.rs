@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, load_sparse_project_file,
@@ -86,22 +87,39 @@ fn replace_live_engine<T: ProjectLifecycle>(
     next_engine: Engine<T>,
     reason: &str,
 ) -> Result<(), String> {
+    let started = Instant::now();
+    let next_node_count = next_engine.nodes.iter().count();
     let mut guard = match engine.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
+    let shutdown_started = Instant::now();
     shutdown_engine_for_runtime(&mut *guard);
+    let shutdown_elapsed = shutdown_started.elapsed();
+
+    let drop_started = Instant::now();
     let previous_engine = std::mem::replace(&mut *guard, next_engine);
     drop(previous_engine);
+    let drop_elapsed = drop_started.elapsed();
 
     // apply_edits runs node-ready callbacks, which can bind transports.
     // Fully unload and drop the previous engine before the replacement starts runtime work.
+    let prepare_started = Instant::now();
     prepare_engine_for_runtime(&mut *guard).map_err(|err| err.to_string())?;
+    let prepare_elapsed = prepare_started.elapsed();
     guard.clear_ui_event_log();
     guard.push_ui_custom_event(
         "__transport.resync_required",
         None,
         serde_json::json!({ "reason": reason }),
+    );
+    eprintln!(
+        "[project-host] replace_engine reason={reason} nodes={} shutdown_ms={} drop_ms={} prepare_ms={} total_ms={}",
+        next_node_count,
+        shutdown_elapsed.as_millis(),
+        drop_elapsed.as_millis(),
+        prepare_elapsed.as_millis(),
+        started.elapsed().as_millis()
     );
     Ok(())
 }
@@ -126,9 +144,30 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
 pub(crate) fn load_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, raw_path: &str) -> Result<(), String> {
     let path = normalize_project_path(raw_path).ok_or_else(|| "project-load path cannot be empty".to_string())?;
 
+    let started = Instant::now();
+    let load_started = Instant::now();
     let mut next_engine = load_sparse_project_file::<T, _>(path.as_str()).map_err(|err| err.to_string())?;
+    let load_elapsed = load_started.elapsed();
+    let node_count = next_engine.nodes.iter().count();
+
+    let configure_started = Instant::now();
     configure_loaded_engine(&mut next_engine)?;
-    replace_live_engine(engine, next_engine, "project_loaded")
+    let configure_elapsed = configure_started.elapsed();
+
+    let replace_started = Instant::now();
+    replace_live_engine(engine, next_engine, "project_loaded")?;
+    let replace_elapsed = replace_started.elapsed();
+
+    eprintln!(
+        "[project-host] load_project path='{}' nodes={} rebuild_ms={} configure_ms={} replace_ms={} total_ms={}",
+        path,
+        node_count,
+        load_elapsed.as_millis(),
+        configure_elapsed.as_millis(),
+        replace_elapsed.as_millis(),
+        started.elapsed().as_millis()
+    );
+    Ok(())
 }
 
 pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(

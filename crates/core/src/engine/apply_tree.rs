@@ -677,7 +677,7 @@ impl<T: Node> Engine<T> {
         Ok(node_id)
     }
 
-    fn run_node_attached_for_batch(
+    pub(crate) fn run_node_attached_for_batch(
         &mut self,
         node_ids: &[NodeId],
         creation_context: Option<NodeCreationContext>,
@@ -707,7 +707,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn run_node_init_for_batch(
+    pub(crate) fn run_node_init_for_batch(
         &mut self,
         node_ids: &[NodeId],
         creation_context: Option<NodeCreationContext>,
@@ -737,7 +737,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    fn run_node_ready_for_batch(
+    pub(crate) fn run_node_ready_for_batch(
         &mut self,
         node_ids: &[NodeId],
         creation_context: NodeCreationContext,
@@ -1092,13 +1092,12 @@ impl<T: Node> Engine<T> {
         node_ids: &[NodeId],
         creation_context: NodeCreationContext,
     ) -> Result<(), EngineEditError> {
-        for node_id in node_ids.iter().copied() {
-            if self.nodes.contains(node_id) {
-                self.run_node_ready(node_id, creation_context)?;
-            }
-        }
-
-        Ok(())
+        let ready_ids = node_ids
+            .iter()
+            .copied()
+            .filter(|node_id| self.nodes.contains(*node_id))
+            .collect::<Vec<_>>();
+        self.run_node_ready_for_batch(ready_ids.as_slice(), creation_context)
     }
 
     pub(crate) fn queue_node_ready(&mut self, node_id: NodeId, creation_context: NodeCreationContext) {
@@ -1107,10 +1106,26 @@ impl<T: Node> Engine<T> {
 
     pub(crate) fn run_pending_node_ready_callbacks(&mut self) -> Result<(), EngineEditError> {
         let pending = std::mem::take(&mut self.pending_node_ready);
+        let mut current_context = None::<NodeCreationContext>;
+        let mut ready_ids = Vec::<NodeId>::new();
+
         for (node_id, creation_context) in pending {
-            if self.nodes.contains(node_id) {
-                self.run_node_ready(node_id, creation_context)?;
+            if !self.nodes.contains(node_id) {
+                continue;
             }
+
+            if current_context.is_some_and(|context| context != creation_context) {
+                let context = current_context.expect("current_context should exist for a non-empty batch");
+                self.run_node_ready_for_batch(ready_ids.as_slice(), context)?;
+                ready_ids.clear();
+            }
+
+            current_context = Some(creation_context);
+            ready_ids.push(node_id);
+        }
+
+        if let Some(context) = current_context {
+            self.run_node_ready_for_batch(ready_ids.as_slice(), context)?;
         }
 
         Ok(())
