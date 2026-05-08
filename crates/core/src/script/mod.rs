@@ -223,19 +223,23 @@ fn core_include_path(include_relative_path: &Path) -> Option<PathBuf> {
 }
 
 fn resolve_include_path(include_relative_path: &Path, root_dir: &Path) -> Result<(PathBuf, PathBuf, String), String> {
-    let (target_root, resolved_relative_path, include_key) = if let Some(core_path) = core_include_path(include_relative_path) {
-        let include_key = format!("core/{}", core_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase());
-        (script_template_root_dir(), core_path, include_key)
-    } else {
-        (
-            root_dir.to_path_buf(),
-            include_relative_path.to_path_buf(),
-            include_relative_path
-                .to_string_lossy()
-                .replace('\\', "/")
-                .to_ascii_lowercase(),
-        )
-    };
+    let (target_root, resolved_relative_path, include_key) =
+        if let Some(core_path) = core_include_path(include_relative_path) {
+            let include_key = format!(
+                "core/{}",
+                core_path.to_string_lossy().replace('\\', "/").to_ascii_lowercase()
+            );
+            (script_template_root_dir(), core_path, include_key)
+        } else {
+            (
+                root_dir.to_path_buf(),
+                include_relative_path.to_path_buf(),
+                include_relative_path
+                    .to_string_lossy()
+                    .replace('\\', "/")
+                    .to_ascii_lowercase(),
+            )
+        };
 
     let include_path = target_root.join(&resolved_relative_path);
     if include_path.is_file() {
@@ -3850,19 +3854,22 @@ impl Node for ScriptNode {
                                     ctx.edits.push(crate::edit::Edit::CallNodeMutation {
                                         node: child_id,
                                         callback: Box::new(move |node_dyn, ctx| {
-                                            if let Some(param) = node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>() {
+                                            if let Some(param) =
+                                                node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>()
+                                            {
                                                 param.ui_hints = hints;
                                                 param.read_only = read_only;
 
                                                 if param.default_value != new_default {
                                                     let is_at_default = param.value == param.default_value;
                                                     param.default_value = new_default.clone();
-                                                    
+
                                                     if is_at_default && param.value != new_default {
                                                         ctx.edits.push(crate::edit::Edit::SetParam {
                                                             node: child_id,
                                                             value: new_default,
-                                                            behaviour: crate::parameter::ParameterEventBehaviour::Coalesce,
+                                                            behaviour:
+                                                                crate::parameter::ParameterEventBehaviour::Coalesce,
                                                         });
                                                     }
                                                 }

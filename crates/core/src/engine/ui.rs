@@ -1,5 +1,6 @@
 use crate::events::{CustomEvent, Event, EventKind};
-use crate::node::Node;
+use crate::node::{Node, NodeId};
+use crate::ui_sync::{UiChildrenOrderPatch, UiGraphOp, UiGraphTransaction};
 
 use super::{Engine, EngineTime};
 
@@ -63,6 +64,42 @@ impl<T: Node> Engine<T> {
         let event = Event { time: self.time, kind };
         self.push_ui_event_log(event);
         self.time.seq = self.time.seq.saturating_add(1);
+    }
+
+    pub(crate) fn push_ui_graph_transaction(&mut self, ops: Vec<UiGraphOp>) {
+        if ops.is_empty() {
+            return;
+        }
+
+        let base_graph_version = self.ui_graph_version;
+        let next_graph_version = base_graph_version.saturating_add(1);
+        self.ui_graph_version = next_graph_version;
+
+        let tx_id = self.next_ui_tx_id;
+        self.next_ui_tx_id = self.next_ui_tx_id.saturating_add(1);
+
+        self.push_ui_event_kind(EventKind::GraphTransaction {
+            transaction: UiGraphTransaction {
+                tx_id,
+                epoch: self.ui_epoch,
+                base_graph_version,
+                next_graph_version,
+                ops,
+            },
+        });
+    }
+
+    pub(crate) fn ui_children_order_patch(&self, parent: NodeId) -> Option<UiChildrenOrderPatch> {
+        Some(UiChildrenOrderPatch {
+            parent,
+            children: self.ui_direct_children(parent)?,
+        })
+    }
+
+    pub(crate) fn ui_child_index(&self, parent: NodeId, child: NodeId) -> Option<usize> {
+        self.ui_direct_children(parent)?
+            .into_iter()
+            .position(|candidate| candidate == child)
     }
 
     /// Flushes newly buffered logger records into the UI event replay log.

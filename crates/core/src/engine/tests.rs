@@ -28,7 +28,7 @@ use crate::parameter::{
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::{ScriptHostPolicy, ScriptNode, ScriptNodeConfig, ScriptUiConfig, ScriptUiSource};
 use crate::ui_sync::{
-    UiAckStatus, UiEditIntent, UiEventKind, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope,
+    UiAckStatus, UiEditIntent, UiEventKind, UiGraphOp, UiNodeDataDto, UiParameterControlStateDto, UiSubscriptionScope,
 };
 
 #[crate::node]
@@ -4321,6 +4321,17 @@ fn direct_children<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<NodeId> {
     children
 }
 
+fn first_graph_transaction_ops(batch: &crate::ui_sync::UiEventBatch) -> &[UiGraphOp] {
+    batch
+        .events
+        .iter()
+        .find_map(|event| match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => Some(transaction.ops.as_slice()),
+            _ => None,
+        })
+        .expect("expected graph transaction event")
+}
+
 #[test]
 fn rename_node_does_not_require_whole_graph_resync() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
@@ -4347,13 +4358,14 @@ fn rename_node_does_not_require_whole_graph_resync() {
     );
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
     assert!(
-        batch.events.iter().any(|event| matches!(
-            &event.kind,
-            UiEventKind::MetaChanged { node, patch }
+        ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::NodeMetaPatched { node, patch }
                 if *node == child && patch.label.as_deref() == Some("renamed")
         )),
-        "rename should emit an incremental metadata patch"
+        "rename should emit an incremental metadata patch transaction"
     );
 }
 
@@ -4377,20 +4389,17 @@ fn remove_node_does_not_require_whole_graph_resync() {
     );
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
     assert!(
-        batch.events.iter().any(|event| matches!(
-            &event.kind,
-            UiEventKind::ChildRemoved { parent, child: removed_child }
-                if *parent == engine.root && *removed_child == child
+        ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::SubtreeRemoved {
+                root,
+                removed_ids,
+                parent_after: Some(parent_after),
+            } if *root == child && removed_ids == &vec![child] && parent_after.parent == engine.root && parent_after.children.is_empty()
         )),
-        "remove should emit an incremental child removal"
-    );
-    assert!(
-        batch.events.iter().any(|event| matches!(
-            &event.kind,
-            UiEventKind::NodeDeleted { node } if *node == child
-        )),
-        "remove should emit an incremental node deletion"
+        "remove should emit an incremental subtree-removal transaction"
     );
 }
 
@@ -4421,22 +4430,25 @@ fn move_node_does_not_require_whole_graph_resync() {
     );
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
     assert!(
-        batch.events.iter().any(|event| matches!(
-            &event.kind,
-            UiEventKind::ChildMoved {
-                child: moved_child,
+        ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::NodeMoved {
+                node: moved_child,
                 old_parent: moved_old_parent,
                 new_parent: moved_new_parent,
-                old_parent_children: Some(old_parent_children),
-                new_parent_children: Some(new_parent_children),
+                old_parent_after: Some(old_parent_after),
+                new_parent_after: Some(new_parent_after),
             } if *moved_child == child
-                && *moved_old_parent == old_parent
-                && *moved_new_parent == new_parent
-                && old_parent_children.is_empty()
-                && new_parent_children == &vec![child]
+                && *moved_old_parent == Some(old_parent)
+                && *moved_new_parent == Some(new_parent)
+                && old_parent_after.parent == old_parent
+                && old_parent_after.children.is_empty()
+                && new_parent_after.parent == new_parent
+                && new_parent_after.children == vec![child]
         )),
-        "move should emit an incremental move with post-transaction parent orders"
+        "move should emit an incremental move transaction with post-transaction parent orders"
     );
 }
 
@@ -4464,16 +4476,16 @@ fn reorder_children_does_not_require_whole_graph_resync() {
     );
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
     assert!(
-        batch.events.iter().any(|event| matches!(
-            &event.kind,
-            UiEventKind::ChildReordered {
+        ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::ChildrenReordered {
                 parent,
-                child,
-                parent_children: Some(parent_children),
-            } if *parent == engine.root && *child == child_a && parent_children == &vec![child_b, child_a]
+                children,
+            } if *parent == engine.root && children == &vec![child_b, child_a]
         )),
-        "reorder should emit an incremental child order patch"
+        "reorder should emit an incremental child order transaction"
     );
 }
 
@@ -4588,19 +4600,32 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
         )),
         "duplicate subtree should not force a whole-graph UI snapshot resync"
     );
+    let transaction_ops = engine
+        .ui_event_log()
+        .iter()
+        .find_map(|event| match &event.kind {
+            EventKind::GraphTransaction { transaction } => Some(transaction.ops.as_slice()),
+            _ => None,
+        })
+        .expect("duplicate subtree should publish one graph transaction");
     assert!(
-        engine
-            .ui_event_log()
-            .iter()
-            .any(|event| matches!(event.kind, EventKind::NodeCreated { node } if node == duplicated_group)),
-        "duplicate subtree should publish an incremental UI node-created event for the duplicated root"
+        transaction_ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::NodeCreated {
+                snapshot,
+                parent: Some(parent),
+                ..
+            } if snapshot.node_id == duplicated_group && *parent == engine.root
+        )),
+        "duplicate subtree should publish an incremental UI node-created op for the duplicated root"
     );
     assert!(
-        engine.ui_event_log().iter().any(|event| matches!(
-            event.kind,
-            EventKind::ChildAdded { parent, child, .. } if parent == engine.root && child == duplicated_group
+        transaction_ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::ChildrenReordered { parent, children }
+                if *parent == engine.root && children == &vec![group, duplicated_group]
         )),
-        "duplicate subtree should publish an incremental UI child-added event for the duplicated root"
+        "duplicate subtree should publish a parent child-order op for the duplicated root"
     );
 
     assert_eq!(
@@ -4621,35 +4646,26 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
         .expect("duplicated reference child should exist");
 
     let ui_batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
-    let duplicated_root_snapshot = ui_batch
-        .events
+    let ops = first_graph_transaction_ops(&ui_batch);
+    let duplicated_root_snapshot = ops
         .iter()
-        .find_map(|event| match &event.kind {
-            UiEventKind::NodeCreated {
-                node,
-                snapshot: Some(snapshot),
-            } if *node == duplicated_group => Some(snapshot),
+        .find_map(|op| match op {
+            UiGraphOp::NodeCreated { snapshot, .. } if snapshot.node_id == duplicated_group => Some(snapshot),
             _ => None,
         })
-        .expect("duplicated root node-created event should carry an incremental node snapshot");
+        .expect("duplicated root node-created op should carry an incremental node snapshot");
     assert_eq!(
         duplicated_root_snapshot.children,
         vec![duplicated_target, duplicated_target_ref],
         "incremental duplicate root snapshot should include direct children"
     );
-    let duplicate_parent_children = ui_batch
-        .events
+    let duplicate_parent_children = ops
         .iter()
-        .find_map(|event| match &event.kind {
-            UiEventKind::ChildAdded {
-                parent,
-                child,
-                parent_children: Some(parent_children),
-                ..
-            } if *parent == engine.root && *child == duplicated_group => Some(parent_children),
+        .find_map(|op| match op {
+            UiGraphOp::ChildrenReordered { parent, children } if *parent == engine.root => Some(children),
             _ => None,
         })
-        .expect("duplicated root child-added event should carry parent child order");
+        .expect("duplicated root transaction should carry parent child order");
     assert_eq!(
         duplicate_parent_children,
         &vec![group, duplicated_group],

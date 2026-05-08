@@ -321,8 +321,7 @@ impl<T: Node> Engine<T> {
         })
     }
 
-    /// Pushes an event into the inbox and advances the per-tick event sequence counter.
-    pub(crate) fn emit_event(&mut self, kind: EventKind) {
+    fn apply_event_side_effects(&mut self, kind: &EventKind) {
         match &kind {
             EventKind::NodeCreated { node } => {
                 self.last_update_elapsed_by_node
@@ -337,10 +336,23 @@ impl<T: Node> Engine<T> {
             }
             _ => {}
         }
+    }
+
+    /// Pushes an engine event to the UI log and inbox, then advances the per-tick event sequence counter.
+    pub(crate) fn emit_event(&mut self, kind: EventKind) {
+        self.apply_event_side_effects(&kind);
         let time = self.time;
         let event = Event { time, kind };
         self.push_ui_event_log(event.clone());
         self.inbox.push(event);
+        self.time.seq = self.time.seq.saturating_add(1);
+    }
+
+    /// Pushes an engine-internal event to the inbox without exposing it to UI replay.
+    pub(crate) fn emit_inbox_event(&mut self, kind: EventKind) {
+        self.apply_event_side_effects(&kind);
+        let time = self.time;
+        self.inbox.push(Event { time, kind });
         self.time.seq = self.time.seq.saturating_add(1);
     }
 }

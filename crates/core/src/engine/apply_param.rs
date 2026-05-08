@@ -4,6 +4,7 @@ use crate::node::{Node, NodeId, NodeMetaPatch, NodeWarning};
 use crate::parameter::{ParamValue, ParameterChangeCheck, ParameterConstraints, ParameterEventBehaviour};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use crate::script::ScriptNodeConfig;
+use crate::ui_sync::{UiGraphOp, UiNodeMetaPatch};
 
 use super::history::{PatchMetaEffect, SetParamConstraintsEffect, SetParamEffect, SetScriptConfigEffect};
 use super::{Engine, EngineEditError};
@@ -203,7 +204,11 @@ impl<T: Node> Engine<T> {
             self.queue_effective_enabled_callbacks(&effective_enabled_changes)?;
         }
 
-        self.emit_event(EventKind::MetaChanged { node, patch });
+        let ui_patch = UiNodeMetaPatch::from(&patch);
+        self.emit_inbox_event(EventKind::MetaChanged { node, patch });
+        if !ui_patch.is_empty() {
+            self.push_ui_graph_transaction(vec![UiGraphOp::NodeMetaPatched { node, patch: ui_patch }]);
+        }
         Ok(PatchMetaEffect {
             node,
             old_meta,

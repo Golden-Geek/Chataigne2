@@ -5,6 +5,7 @@ use crate::edit::NodeTree;
 use crate::events::EventKind;
 use crate::node::{DeclId, Node, NodeCreationContext, NodeId, NodeUserPermissions, UserNodeRole};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
+use crate::ui_sync::UiGraphOp;
 
 use super::history::{AddNodeEffect, MoveNodeEffect, RemoveNodeEffect, ReplaceNodeEffect};
 use super::{Engine, EngineEditError};
@@ -966,9 +967,7 @@ impl<T: Node> Engine<T> {
         };
 
         for inserted_node in &inserted {
-            self.emit_event(EventKind::NodeCreated {
-                node: inserted_node.id,
-            });
+            self.emit_event(EventKind::NodeCreated { node: inserted_node.id });
             self.emit_event(EventKind::ChildAdded {
                 parent: inserted_node.parent,
                 child: inserted_node.id,
@@ -1215,6 +1214,7 @@ impl<T: Node> Engine<T> {
 
         let (parent, prev_sibling, next_sibling) = self.node_position(edit_index, OP, node)?;
         let subtree = self.collect_subtree(edit_index, OP, node)?;
+        let removed_ids = subtree.clone();
         self.run_destroy_for_subtree(subtree.as_slice());
         self.detach_node(edit_index, OP, node)?;
 
@@ -1227,10 +1227,15 @@ impl<T: Node> Engine<T> {
             })?;
             detached_nodes.push((removed, detached_node));
             self.blueprints.unregister_instance(removed);
-            self.emit_event(EventKind::NodeDeleted { node: removed });
+            self.emit_inbox_event(EventKind::NodeDeleted { node: removed });
         }
 
-        self.emit_event(EventKind::ChildRemoved { parent, child: node });
+        self.emit_inbox_event(EventKind::ChildRemoved { parent, child: node });
+        self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeRemoved {
+            root: node,
+            removed_ids,
+            parent_after: self.ui_children_order_patch(parent),
+        }]);
 
         Ok(RemoveNodeEffect {
             node,
@@ -1324,16 +1329,29 @@ impl<T: Node> Engine<T> {
         let new_next_sibling = new_node_data.next_sibling;
 
         if detached_parent == new_parent {
-            self.emit_event(EventKind::ChildReordered {
+            self.emit_inbox_event(EventKind::ChildReordered {
                 parent: new_parent,
                 child: node,
             });
+            if let Some(children) = self.ui_direct_children(new_parent) {
+                self.push_ui_graph_transaction(vec![UiGraphOp::ChildrenReordered {
+                    parent: new_parent,
+                    children,
+                }]);
+            }
         } else {
-            self.emit_event(EventKind::ChildMoved {
+            self.emit_inbox_event(EventKind::ChildMoved {
                 child: node,
                 old_parent: detached_parent,
                 new_parent,
             });
+            self.push_ui_graph_transaction(vec![UiGraphOp::NodeMoved {
+                node,
+                old_parent: Some(detached_parent),
+                new_parent: Some(new_parent),
+                old_parent_after: self.ui_children_order_patch(detached_parent),
+                new_parent_after: self.ui_children_order_patch(new_parent),
+            }]);
         }
 
         Ok(MoveNodeEffect {

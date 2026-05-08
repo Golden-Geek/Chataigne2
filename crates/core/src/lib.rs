@@ -47,6 +47,9 @@ pub mod app;
 /// UI sync DTOs and transport-agnostic protocol helpers.
 pub mod ui_sync;
 
+/// Immutable UI read projection used by host read paths.
+pub mod ui_read_model;
+
 /// Scripting schemas and runtime integrations.
 pub mod script;
 

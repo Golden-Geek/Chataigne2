@@ -390,7 +390,7 @@ impl<T: Node> Engine<T> {
     /// Executes one runtime tick with an elapsed wall-clock delta.
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let tick_started = Instant::now();
-        
+
         let resolve1_started = Instant::now();
         self.resolve_if_needed()?;
         let resolve1_ms = resolve1_started.elapsed().as_millis();
@@ -403,7 +403,7 @@ impl<T: Node> Engine<T> {
         let absorb_started = Instant::now();
         self.absorb_external_edits()?;
         let absorb_external_edits_ms = absorb_started.elapsed().as_millis();
-        
+
         let pending_edits = self.edits.pending.len();
         let apply_started = Instant::now();
         if !self.edits.pending.is_empty() {
@@ -411,7 +411,7 @@ impl<T: Node> Engine<T> {
             self.resolve_if_needed()?;
         }
         let apply_external_edits_ms = apply_started.elapsed().as_millis();
-        
+
         let inbox_events = self.inbox.events.len();
         let mut inbox_precompute_ms = 0;
         let mut inbox_preprocess_ms = 0;
@@ -419,7 +419,7 @@ impl<T: Node> Engine<T> {
             let precompute_started = Instant::now();
             let precomputed = self.precompute_inbox_dispatch();
             inbox_precompute_ms = precompute_started.elapsed().as_millis();
-            
+
             let preprocess_started = Instant::now();
             self.preprocess_precomputed_inbox(ExecutionPhase::EngineTick, precomputed)?;
             if !self.edits.pending.is_empty() {
@@ -432,7 +432,7 @@ impl<T: Node> Engine<T> {
         let control_started = Instant::now();
         self.run_control_pass()?;
         let control_ms = control_started.elapsed().as_millis();
-        
+
         let scheduled_started = Instant::now();
         self.run_scheduled_updates(elapsed)?;
         let scheduled_ms = scheduled_started.elapsed().as_millis();
@@ -440,13 +440,13 @@ impl<T: Node> Engine<T> {
         let stabilization_started = Instant::now();
         self.run_stabilization_rounds()?;
         let stabilization_ms = stabilization_started.elapsed().as_millis();
-        
+
         let sync_started = Instant::now();
         self.sync_logger_ui_events();
         let logger_sync_ms = sync_started.elapsed().as_millis();
-        
+
         let total_ms = tick_started.elapsed().as_millis();
-        const PERF_LOG_TICK_THRESHOLD_MS: u128 = 8;
+        const PERF_LOG_TICK_THRESHOLD_MS: u128 = 30;
         if total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
             eprintln!(
                 "[engine] tick total_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
@@ -976,7 +976,11 @@ impl<T: Node> Engine<T> {
                 format!("{time} MetaChanged target={}", self.describe_node(*node))
             }
             EventKind::GraphTransaction { transaction } => {
-                format!("{time} GraphTransaction tx_id={} ops={}", transaction.tx_id, transaction.ops.len())
+                format!(
+                    "{time} GraphTransaction tx_id={} ops={}",
+                    transaction.tx_id,
+                    transaction.ops.len()
+                )
             }
             EventKind::Custom(event) => format!(
                 "{time} Custom topic='{}' origin={}",

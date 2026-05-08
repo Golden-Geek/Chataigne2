@@ -10,11 +10,11 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
-use golden_engine::events::EventKind;
 use golden_engine::node::Node;
+use golden_engine::ui_read_model::{UiReadModel, UiReadModelReplaceReason};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
-    UiEventBatch, UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest,
+    UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest,
     UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
     UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
     UiReplayRequest as ReplayRequest, UiScriptConfigRequest as ScriptConfigRequest,
@@ -80,6 +80,7 @@ impl Default for UiServerConfig {
 
 struct ServerState<T: ProjectLifecycle> {
     engine: Arc<Mutex<Engine<T>>>,
+    read_model: Arc<UiReadModel>,
     ws_hub: WsHubHandle,
     frontend_assets: &'static [UiAsset],
 }
@@ -88,6 +89,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
     fn clone(&self) -> Self {
         Self {
             engine: self.engine.clone(),
+            read_model: self.read_model.clone(),
             ws_hub: self.ws_hub.clone(),
             frontend_assets: self.frontend_assets,
         }
@@ -162,13 +164,6 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
     }
 }
 
-fn ui_event_is_resync_required(kind: &EventKind) -> bool {
-    matches!(
-        kind,
-        EventKind::Custom(custom) if custom.topic == "__transport.resync_required"
-    )
-}
-
 struct UiIntentTiming {
     kind: &'static str,
     lock_wait_ms: u128,
@@ -180,6 +175,7 @@ struct UiIntentTiming {
 }
 
 fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
+    read_model: &UiReadModel,
     engine: &mut Engine<T>,
     intent: UiEditIntent,
     ui_client_instance_id: Option<&str>,
@@ -194,11 +190,11 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
     let apply_ms = apply_started.elapsed().as_millis();
 
     let event_collect_started = Instant::now();
-    let produced_events = &engine.ui_event_log()[before_len..];
-    let requires_resync = produced_events
-        .iter()
-        .any(|event| ui_event_is_resync_required(&event.kind));
-    let produced_times = produced_events.iter().map(|event| event.time).collect::<Vec<_>>();
+    let batch = read_model.publish_engine_events_since(engine, before_len, T::project_file_spec());
+    let requires_resync = batch.events.iter().any(
+        |event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"),
+    );
+    let produced_times = batch.events.iter().map(|event| event.time).collect::<Vec<_>>();
     let event_collect_ms = event_collect_started.elapsed().as_millis();
 
     let timing = UiIntentTiming {
@@ -225,6 +221,19 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
         timing.requires_resync,
         timing.total_ms
     );
+}
+
+fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    read_model: &Arc<UiReadModel>,
+) {
+    let guard = lock_engine(engine);
+    read_model.replace_from_engine(
+        &*guard,
+        T::project_file_spec(),
+        UiReadModelReplaceReason::ProjectReplaced,
+    );
+    read_model.publish_engine_events_since(&*guard, 0, T::project_file_spec());
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -394,9 +403,14 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     engine: Arc<Mutex<Engine<T>>>,
     config: UiServerConfig,
 ) -> std::io::Result<()> {
-    spawn_runtime_loop(engine.clone(), config.tick_interval);
+    let read_model = {
+        let guard = lock_engine(&engine);
+        Arc::new(UiReadModel::from_engine(&*guard, T::project_file_spec()))
+    };
+    spawn_runtime_loop(engine.clone(), read_model.clone(), config.tick_interval);
     let ws_hub = spawn_ws_hub(
         engine.clone(),
+        read_model.clone(),
         config.tick_interval.max(WS_RETRY_INTERVAL),
         make_server_session_id(),
     );
@@ -410,6 +424,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
 
     let state = ServerState {
         engine,
+        read_model,
         ws_hub,
         frontend_assets: config.frontend_assets,
     };
@@ -433,7 +448,11 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     Ok(())
 }
 
-fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_interval: Duration) {
+fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
+    engine: Arc<Mutex<Engine<T>>>,
+    read_model: Arc<UiReadModel>,
+    tick_interval: Duration,
+) {
     thread::spawn(move || {
         let mut last_tick_start = Instant::now();
 
@@ -447,8 +466,11 @@ fn spawn_runtime_loop<T: Node + 'static>(engine: Arc<Mutex<Engine<T>>>, tick_int
                 Err(poisoned) => poisoned.into_inner(),
             };
 
+            let before_len = guard.ui_event_log().len();
             if let Err(err) = guard.run_tick(elapsed) {
                 report_runtime_tick_failure(&err);
+            } else {
+                read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
             }
             drop(guard);
 
@@ -475,16 +497,18 @@ fn report_runtime_tick_failure(err: &impl std::fmt::Display) {
 
 fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     engine: Arc<Mutex<Engine<T>>>,
+    read_model: Arc<UiReadModel>,
     dispatch_interval: Duration,
     session_id: String,
 ) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
-    thread::spawn(move || ws_hub_loop(engine, cmd_rx, dispatch_interval, session_id));
+    thread::spawn(move || ws_hub_loop(engine, read_model, cmd_rx, dispatch_interval, session_id));
     WsHubHandle { cmd_tx }
 }
 
 fn ws_hub_loop<T: ProjectLifecycle>(
     engine: Arc<Mutex<Engine<T>>>,
+    read_model: Arc<UiReadModel>,
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
     session_id: String,
@@ -498,6 +522,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
             Ok(command) => {
                 handle_ws_hub_command(
                     &engine,
+                    &read_model,
                     &mut clients,
                     &mut client_instances,
                     &mut origins,
@@ -507,6 +532,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                 while let Ok(next) = cmd_rx.try_recv() {
                     handle_ws_hub_command(
                         &engine,
+                        &read_model,
                         &mut clients,
                         &mut client_instances,
                         &mut origins,
@@ -519,12 +545,13 @@ fn ws_hub_loop<T: ProjectLifecycle>(
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        dispatch_ws_batches(&engine, &mut clients, &mut origins);
+        dispatch_ws_batches(&read_model, &mut clients, &mut origins);
     }
 }
 
 fn handle_ws_hub_command<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
+    read_model: &Arc<UiReadModel>,
     clients: &mut HashMap<u64, WsClientState>,
     client_instances: &mut HashMap<String, u64>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
@@ -583,7 +610,9 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     }
 
                     let mut guard = lock_engine(engine);
+                    let before_len = guard.ui_event_log().len();
                     let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
+                    read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
                 }
             }
         }
@@ -599,7 +628,9 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 }
 
                 let mut guard = lock_engine(engine);
+                let before_len = guard.ui_event_log().len();
                 let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+                read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
             }
             eprintln!(
                 "[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})",
@@ -643,7 +674,14 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 let client_instance_id = clients
                     .get(&client_id)
                     .and_then(|client| client.client_instance_id.as_deref());
-                apply_ui_intent_with_timing(&mut guard, intent, client_instance_id, lock_wait_ms, total_started)
+                apply_ui_intent_with_timing(
+                    read_model,
+                    &mut guard,
+                    intent,
+                    client_instance_id,
+                    lock_wait_ms,
+                    total_started,
+                )
             };
             log_ui_intent_timing("ui-ws", &timing);
 
@@ -681,6 +719,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     let intent_started = if index == 0 { total_started } else { Instant::now() };
                     let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
                     let (ack, intent_times, timing) = apply_ui_intent_with_timing(
+                        read_model,
                         &mut guard,
                         intent,
                         client_instance_id,
@@ -722,8 +761,8 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     }
 }
 
-fn dispatch_ws_batches<T: Node>(
-    engine: &Arc<Mutex<Engine<T>>>,
+fn dispatch_ws_batches(
+    read_model: &Arc<UiReadModel>,
     clients: &mut HashMap<u64, WsClientState>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
 ) {
@@ -733,84 +772,77 @@ fn dispatch_ws_batches<T: Node>(
     let mut events_count = 0;
     let mut subscriptions_count = 0;
 
-    let lock_started = Instant::now();
-    let (first_retained, lock_wait_ms, collect_ms) = {
-        let mut guard = lock_engine(engine);
-        let lock_wait_ms = lock_started.elapsed().as_millis();
-        let collect_started = Instant::now();
-        guard.sync_logger_ui_events();
-        let server_time = guard.time;
-        let first_retained = guard.ui_event_log().first().map(|event| event.time);
+    let lock_wait_ms = 0;
+    let collect_started = Instant::now();
+    let server_time = read_model.current_snapshot().at;
+    let first_retained = read_model.first_retained_event_time();
 
-        for (client_id, client) in clients.iter_mut() {
-            for (subscription_id, subscription) in client.subscriptions.iter_mut() {
-                subscriptions_count += 1;
-                if let Some(cursor) = subscription.cursor {
-                    if cursor > server_time {
-                        subscription.cursor = None;
+    for (client_id, client) in clients.iter_mut() {
+        for (subscription_id, subscription) in client.subscriptions.iter_mut() {
+            subscriptions_count += 1;
+            if let Some(cursor) = subscription.cursor {
+                if cursor > server_time {
+                    subscription.cursor = None;
+                    pending.push((
+                        *client_id,
+                        WsServerMessage::ResyncRequired {
+                            subscription_id: subscription_id.clone(),
+                            reason: "cursor_ahead_of_server_time".to_string(),
+                        },
+                    ));
+                    continue;
+                }
+
+                if let Some(first_time) = first_retained {
+                    if cursor < first_time {
+                        subscription.cursor = Some(first_time);
                         pending.push((
                             *client_id,
                             WsServerMessage::ResyncRequired {
                                 subscription_id: subscription_id.clone(),
-                                reason: "cursor_ahead_of_server_time".to_string(),
+                                reason: "cursor_out_of_retention_window".to_string(),
                             },
                         ));
                         continue;
                     }
-
-                    if let Some(first_time) = first_retained {
-                        if cursor < first_time {
-                            subscription.cursor = Some(first_time);
-                            pending.push((
-                                *client_id,
-                                WsServerMessage::ResyncRequired {
-                                    subscription_id: subscription_id.clone(),
-                                    reason: "cursor_out_of_retention_window".to_string(),
-                                },
-                            ));
-                            continue;
-                        }
-                    }
-                }
-
-                let batch = guard.ui_event_batch(subscription.cursor, subscription.scope.clone());
-                if let Some(to) = batch.to {
-                    subscription.cursor = Some(to);
-                }
-                if batch.events.is_empty() {
-                    continue;
-                }
-
-                let mut visible_events = Vec::with_capacity(batch.events.len());
-                for event in batch.events {
-                    let skip_for_sender = origins
-                        .get(&event.time)
-                        .is_some_and(|origin| origin.client_id == *client_id && !origin.include_self_events);
-                    if !skip_for_sender {
-                        visible_events.push(event);
-                    }
-                }
-
-                if !visible_events.is_empty() {
-                    events_count += visible_events.len();
-                    pending.push((
-                        *client_id,
-                        WsServerMessage::Batch {
-                            subscription_id: subscription_id.clone(),
-                            batch: UiEventBatch {
-                                from: batch.from,
-                                to: batch.to,
-                                events: visible_events,
-                            },
-                        },
-                    ));
                 }
             }
-        }
-        let collect_ms = collect_started.elapsed().as_millis();
 
-        (first_retained, lock_wait_ms, collect_ms)
-    };
+            let batch = read_model.replay(subscription.cursor, subscription.scope.clone());
+            if let Some(to) = batch.to {
+                subscription.cursor = Some(to);
+            }
+            if batch.events.is_empty() {
+                continue;
+            }
+
+            let mut visible_events = Vec::with_capacity(batch.events.len());
+            for event in batch.events {
+                let skip_for_sender = origins
+                    .get(&event.time)
+                    .is_some_and(|origin| origin.client_id == *client_id && !origin.include_self_events);
+                if !skip_for_sender {
+                    visible_events.push(event);
+                }
+            }
+
+            if !visible_events.is_empty() {
+                events_count += visible_events.len();
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Batch {
+                        subscription_id: subscription_id.clone(),
+                        batch: UiEventBatch {
+                            from: batch.from,
+                            to: batch.to,
+                            events: visible_events,
+                        },
+                    },
+                ));
+            }
+        }
+    }
+    let collect_ms = collect_started.elapsed().as_millis();
 
     if let Some(first_time) = first_retained {
         origins.retain(|time, _| *time >= first_time);
@@ -871,21 +903,6 @@ fn make_server_session_id() -> String {
     format!("{}-{epoch_nanos}", std::process::id())
 }
 
-fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &str) -> UiEventBatch {
-    UiEventBatch {
-        from,
-        to: Some(time),
-        events: vec![UiEventDto {
-            time,
-            kind: UiEventKind::Custom {
-                topic: "__transport.resync_required".to_string(),
-                origin: None,
-                payload: serde_json::json!({ "reason": reason }),
-            },
-        }],
-    }
-}
-
 fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &ServerState<T>) -> std::io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(3)))?;
     stream.set_write_timeout(Some(Duration::from_secs(3)))?;
@@ -932,11 +949,8 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
         }
         ("GET", "/api/ui/user-contexts") => {
-            let guard = lock_engine(&state.engine);
-            let contexts = guard.ui_user_contexts();
-            drop(guard);
-
-            write_json(stream, "200 OK", &contexts)?;
+            let snapshot = state.read_model.current_snapshot();
+            write_json(stream, "200 OK", &snapshot.user_contexts)?;
         }
         ("POST", "/api/ui/snapshot") => {
             let request_started = Instant::now();
@@ -954,24 +968,27 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let cancel_active_edit_session = payload.cancel_active_edit_session;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
-            let lock_started = Instant::now();
-            let guard = lock_engine(&state.engine);
-            let lock_wait_elapsed = lock_started.elapsed();
-            let mut guard = guard;
-
             let cancel_edit_started = Instant::now();
-            if payload.cancel_active_edit_session {
+            let lock_wait_elapsed = if payload.cancel_active_edit_session {
+                let lock_started = Instant::now();
+                let mut guard = lock_engine(&state.engine);
+                let lock_wait_elapsed = lock_started.elapsed();
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
+                    let before_len = guard.ui_event_log().len();
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+                    state
+                        .read_model
+                        .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
                 }
-            }
+                lock_wait_elapsed
+            } else {
+                Duration::ZERO
+            };
             let cancel_edit_elapsed = cancel_edit_started.elapsed();
 
             let build_started = Instant::now();
-            let mut snapshot = guard.ui_snapshot(scope.clone());
-            snapshot.project_file = T::project_file_spec().into();
+            let snapshot = state.read_model.snapshot_for_scope(scope.clone());
             let build_elapsed = build_started.elapsed();
-            drop(guard);
 
             let serialize_started = Instant::now();
             let body = serde_json::to_vec(&snapshot)
@@ -1003,25 +1020,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid replay payload: {err}")))?;
             eprintln!("[ui-http] replay scope={:?} from={:?}", payload.scope, payload.from);
 
-            let mut guard = lock_engine(&state.engine);
-            guard.sync_logger_ui_events();
-            let first_retained = guard.ui_event_log().first().map(|event| event.time);
-            let batch = if let Some(from) = payload.from {
-                if from > guard.time {
-                    make_resync_event_batch(payload.from, guard.time, "cursor_ahead_of_server_time")
-                } else if let Some(first_time) = first_retained {
-                    if from < first_time {
-                        make_resync_event_batch(payload.from, guard.time, "cursor_out_of_retention_window")
-                    } else {
-                        guard.ui_event_batch(payload.from, payload.scope)
-                    }
-                } else {
-                    guard.ui_event_batch(payload.from, payload.scope)
-                }
-            } else {
-                guard.ui_event_batch(payload.from, payload.scope)
-            };
-            drop(guard);
+            let batch = state.read_model.replay(payload.from, payload.scope);
 
             write_json(stream, "200 OK", &batch)?;
         }
@@ -1096,7 +1095,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
 
             let mut guard = lock_engine(&state.engine);
+            let before_len = guard.ui_event_log().len();
             let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
+            state
+                .read_model
+                .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
             drop(guard);
 
             match update_result {
@@ -1113,7 +1116,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
 
             let mut guard = lock_engine(&state.engine);
+            let before_len = guard.ui_event_log().len();
             let reload_result = guard.ui_reload_script(payload.node);
+            state
+                .read_model
+                .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
             drop(guard);
 
             match reload_result {
@@ -1127,6 +1134,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         }
         ("POST", "/api/ui/project-new") => match project_host::create_new_project(&state.engine) {
             Ok(()) => {
+                refresh_read_model_after_project_replace(&state.engine, &state.read_model);
                 write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
             }
             Err(err) => {
@@ -1150,6 +1158,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
             match project_host::load_project(&state.engine, &payload.path) {
                 Ok(()) => {
+                    refresh_read_model_after_project_replace(&state.engine, &state.read_model);
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1166,6 +1175,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             })?;
             match project_host::upload_project_and_load(&state.engine, &payload.file_name, &payload.contents) {
                 Ok(path) => {
+                    refresh_read_model_after_project_replace(&state.engine, &state.read_model);
                     write_json(stream, "200 OK", &ProjectPathDto { path })?;
                 }
                 Err(err) => {
@@ -1183,6 +1193,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let mut guard = lock_engine(&state.engine);
             let lock_wait_ms = lock_started.elapsed().as_millis();
             let (ack, _produced_times, timing) = apply_ui_intent_with_timing(
+                &state.read_model,
                 &mut guard,
                 intent,
                 client_instance_id.as_deref(),
@@ -1210,6 +1221,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 let intent_started = if index == 0 { total_started } else { Instant::now() };
                 let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
                 let (ack, produced_times, timing) = apply_ui_intent_with_timing(
+                    &state.read_model,
                     &mut guard,
                     intent,
                     client_instance_id.as_deref(),

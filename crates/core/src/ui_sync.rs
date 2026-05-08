@@ -613,12 +613,49 @@ pub struct UiNodeMetaPatch {
     /// Replacement enabled state.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
+    /// Replacement disablement capability.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub can_be_disabled: Option<bool>,
     /// Replacement optional description, where `Some(None)` clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<Option<String>>,
     /// Replacement user-edit permissions.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_permissions: Option<NodeUserPermissions>,
+    /// Replacement tag list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// Replacement presentation hints.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation: Option<PresentationHint>,
+}
+
+impl UiNodeMetaPatch {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.label.is_none()
+            && self.short_name.is_none()
+            && self.enabled.is_none()
+            && self.can_be_disabled.is_none()
+            && self.description.is_none()
+            && self.user_permissions.is_none()
+            && self.tags.is_none()
+            && self.presentation.is_none()
+    }
+}
+
+impl From<&NodeMetaPatch> for UiNodeMetaPatch {
+    fn from(patch: &NodeMetaPatch) -> Self {
+        Self {
+            label: patch.label.clone(),
+            short_name: patch.short_name.clone(),
+            enabled: patch.enabled,
+            can_be_disabled: patch.can_be_disabled,
+            description: patch.description.clone(),
+            user_permissions: patch.user_permissions.clone(),
+            tags: patch.tags.clone(),
+            presentation: patch.presentation.clone(),
+        }
+    }
 }
 
 /// Incremental parameter patch for one UI parameter node.
@@ -2047,7 +2084,7 @@ impl<T: Node> Engine<T> {
         }
     }
 
-    fn ui_direct_children(&self, parent: NodeId) -> Option<Vec<NodeId>> {
+    pub(crate) fn ui_direct_children(&self, parent: NodeId) -> Option<Vec<NodeId>> {
         let mut children = Vec::new();
         let mut child = self.nodes.get(parent)?.node_data().first_child;
         while let Some(child_id) = child {
@@ -2070,7 +2107,7 @@ impl<T: Node> Engine<T> {
         children
     }
 
-    fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
+    pub(crate) fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
         let node = self.nodes.get(node_id)?;
         let node_data = node.node_data();
         let node_type = node.get_type().to_string();

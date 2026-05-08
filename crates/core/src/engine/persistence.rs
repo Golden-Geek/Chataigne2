@@ -12,6 +12,7 @@ use crate::node::{
     PresentationHint, SemanticsHint, UserNodeRole,
 };
 use crate::process_ctx::ExecutionPhase;
+use crate::ui_sync::UiGraphOp;
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -518,31 +519,40 @@ impl<T: Node> Engine<T> {
     }
 
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
-        for node in node_ids {
-            self.push_ui_event_kind(EventKind::NodeCreated { node: *node });
-        }
+        let mut ops = Vec::<UiGraphOp>::with_capacity(node_ids.len().saturating_add(1));
+        let mut root_parent = None;
 
         for node in node_ids {
-            let (parent, decl_id) = {
+            let parent = {
                 let node_data = self
                     .nodes
                     .get(*node)
                     .ok_or(ProjectPersistenceError::MissingNode(*node))?
                     .node_data();
-                let Some(parent) = node_data.parent else {
-                    continue;
-                };
-                (parent, node_data.meta.decl_id.clone())
+                node_data.parent
             };
-            if parent == *node {
-                continue;
+            if root_parent.is_none() {
+                root_parent = parent;
             }
-            self.push_ui_event_kind(EventKind::ChildAdded {
+
+            let snapshot = self
+                .ui_node_dto_for_event(*node)
+                .ok_or(ProjectPersistenceError::MissingNode(*node))?;
+            let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
+            ops.push(UiGraphOp::NodeCreated {
+                snapshot,
                 parent,
-                child: *node,
-                decl_id,
+                index,
             });
         }
+
+        if let Some(parent) = root_parent {
+            if let Some(children) = self.ui_direct_children(parent) {
+                ops.push(UiGraphOp::ChildrenReordered { parent, children });
+            }
+        }
+
+        self.push_ui_graph_transaction(ops);
 
         Ok(())
     }

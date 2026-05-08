@@ -125,6 +125,12 @@ pub struct Engine<T: Node> {
     ui_event_log_start: usize,
     /// Maximum number of events retained in `ui_event_log`.
     ui_event_log_capacity: usize,
+    /// Project epoch used by UI graph transactions.
+    ui_epoch: u64,
+    /// Next UI graph transaction id within `ui_epoch`.
+    next_ui_tx_id: u64,
+    /// Monotonic UI graph version advanced once per graph transaction.
+    ui_graph_version: u64,
     /// Logger sync cursor for projecting retained logger state into UI events.
     last_synced_logger_record_id: u64,
     /// Last repeat count observed for the synced logger cursor record.
@@ -192,6 +198,9 @@ impl<T: Node> Engine<T> {
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,
+            ui_epoch: 0,
+            next_ui_tx_id: 1,
+            ui_graph_version: 0,
             last_synced_logger_record_id: 0,
             last_synced_logger_repeat_count: 0,
             undo_stack: Vec::new(),
