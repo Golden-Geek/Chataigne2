@@ -4299,6 +4299,215 @@ fn project_roundtrip_keeps_cached_reference_name_when_target_is_missing() {
     }
 }
 
+fn ui_event_log_requires_resync<T: Node>(engine: &Engine<T>) -> bool {
+    engine.ui_event_log().iter().any(|event| {
+        matches!(
+            &event.kind,
+            EventKind::Custom(custom) if custom.topic == "__transport.resync_required"
+        )
+    })
+}
+
+fn direct_children<T: Node>(engine: &Engine<T>, parent: NodeId) -> Vec<NodeId> {
+    let mut children = Vec::new();
+    let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+    while let Some(child_id) = child {
+        children.push(child_id);
+        child = engine
+            .nodes
+            .get(child_id)
+            .and_then(|node| node.node_data().next_sibling);
+    }
+    children
+}
+
+#[test]
+fn rename_node_does_not_require_whole_graph_resync() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child".to_string()), None);
+    engine.apply_edits().expect("child add should succeed");
+    let child = direct_children(&engine, engine.root)
+        .first()
+        .copied()
+        .expect("child should exist");
+
+    engine.clear_ui_event_log();
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: child,
+        patch: NodeMetaPatch {
+            label: Some("renamed".to_string()),
+            ..Default::default()
+        },
+    });
+
+    assert!(ack.success, "rename intent should apply: {:?}", ack.error_message);
+    assert!(
+        !ui_event_log_requires_resync(&engine),
+        "rename should not force a whole-graph UI snapshot resync"
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::MetaChanged { node, patch }
+                if *node == child && patch.label.as_deref() == Some("renamed")
+        )),
+        "rename should emit an incremental metadata patch"
+    );
+}
+
+#[test]
+fn remove_node_does_not_require_whole_graph_resync() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child".to_string()), None);
+    engine.apply_edits().expect("child add should succeed");
+    let child = direct_children(&engine, engine.root)
+        .first()
+        .copied()
+        .expect("child should exist");
+
+    engine.clear_ui_event_log();
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: child });
+
+    assert!(ack.success, "remove intent should apply: {:?}", ack.error_message);
+    assert!(
+        !ui_event_log_requires_resync(&engine),
+        "remove should not force a whole-graph UI snapshot resync"
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::ChildRemoved { parent, child: removed_child }
+                if *parent == engine.root && *removed_child == child
+        )),
+        "remove should emit an incremental child removal"
+    );
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::NodeDeleted { node } if *node == child
+        )),
+        "remove should emit an incremental node deletion"
+    );
+}
+
+#[test]
+fn move_node_does_not_require_whole_graph_resync() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("old_parent".to_string()), None);
+    engine.add_node(Folder::new("new_parent".to_string()), None);
+    engine.apply_edits().expect("parent add should succeed");
+    let parents = direct_children(&engine, engine.root);
+    let old_parent = parents[0];
+    let new_parent = parents[1];
+    engine.add_node(Folder::new("child".to_string()), Some(old_parent));
+    engine.apply_edits().expect("child add should succeed");
+    let child = direct_children(&engine, old_parent)[0];
+
+    engine.clear_ui_event_log();
+    let ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: child,
+        new_parent,
+        new_prev_sibling: None,
+    });
+
+    assert!(ack.success, "move intent should apply: {:?}", ack.error_message);
+    assert!(
+        !ui_event_log_requires_resync(&engine),
+        "move should not force a whole-graph UI snapshot resync"
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::ChildMoved {
+                child: moved_child,
+                old_parent: moved_old_parent,
+                new_parent: moved_new_parent,
+                old_parent_children: Some(old_parent_children),
+                new_parent_children: Some(new_parent_children),
+            } if *moved_child == child
+                && *moved_old_parent == old_parent
+                && *moved_new_parent == new_parent
+                && old_parent_children.is_empty()
+                && new_parent_children == &vec![child]
+        )),
+        "move should emit an incremental move with post-transaction parent orders"
+    );
+}
+
+#[test]
+fn reorder_children_does_not_require_whole_graph_resync() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child_a".to_string()), None);
+    engine.add_node(Folder::new("child_b".to_string()), None);
+    engine.apply_edits().expect("child add should succeed");
+    let children = direct_children(&engine, engine.root);
+    let child_a = children[0];
+    let child_b = children[1];
+
+    engine.clear_ui_event_log();
+    let ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: child_a,
+        new_parent: engine.root,
+        new_prev_sibling: Some(child_b),
+    });
+
+    assert!(ack.success, "reorder intent should apply: {:?}", ack.error_message);
+    assert!(
+        !ui_event_log_requires_resync(&engine),
+        "reorder should not force a whole-graph UI snapshot resync"
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::ChildReordered {
+                parent,
+                child,
+                parent_children: Some(parent_children),
+            } if *parent == engine.root && *child == child_a && parent_children == &vec![child_b, child_a]
+        )),
+        "reorder should emit an incremental child order patch"
+    );
+}
+
+#[test]
+fn set_param_does_not_require_whole_graph_resync() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+
+    engine.clear_ui_event_log();
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: engine.root,
+        value: ParamValue::Int(42),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+
+    assert!(ack.success, "set_param intent should apply: {:?}", ack.error_message);
+    assert!(
+        !ui_event_log_requires_resync(&engine),
+        "set_param should not force a whole-graph UI snapshot resync"
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch.events.iter().any(|event| matches!(
+            &event.kind,
+            UiEventKind::ParamChanged {
+                param,
+                new_value: ParamValue::Int(42),
+                ..
+            } if *param == engine.root
+        )),
+        "set_param should emit an incremental parameter value patch"
+    );
+}
+
 #[test]
 fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
     let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);

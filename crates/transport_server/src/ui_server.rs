@@ -10,6 +10,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
+use golden_engine::events::EventKind;
 use golden_engine::node::Node;
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
@@ -133,6 +134,97 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
         },
         other => engine.apply_ui_intent_from_client(other, ui_client_instance_id),
     }
+}
+
+fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
+    match intent {
+        UiEditIntent::BeginEdit { .. } => "begin_edit",
+        UiEditIntent::EndEdit { .. } => "end_edit",
+        UiEditIntent::SetParam { .. } => "set_param",
+        UiEditIntent::SetParamControlState { .. } => "set_param_control_state",
+        UiEditIntent::SetParamConstraints { .. } => "set_param_constraints",
+        UiEditIntent::MoveNode { .. } => "move",
+        UiEditIntent::RemoveNode { .. } => "remove",
+        UiEditIntent::RemoveNodes { .. } => "remove_nodes",
+        UiEditIntent::CreateUserItem { .. } => "create_user_item",
+        UiEditIntent::DuplicateNode { .. } => "duplicate",
+        UiEditIntent::FitAnimationCurvePath { .. } => "fit_animation_curve_path",
+        UiEditIntent::PatchMeta { .. } => "rename",
+        UiEditIntent::EnsureUserContextScope { .. } => "ensure_user_context_scope",
+        UiEditIntent::RemoveUserContextScope { .. } => "remove_user_context_scope",
+        UiEditIntent::UpsertUserContextEntry { .. } => "upsert_user_context_entry",
+        UiEditIntent::RemoveUserContextEntry { .. } => "remove_user_context_entry",
+        UiEditIntent::ReevaluateGraph => "reevaluate_graph",
+        UiEditIntent::ClearLogs => "clear_logs",
+        UiEditIntent::SetLogMaxEntries { .. } => "set_log_max_entries",
+        UiEditIntent::Undo => "undo",
+        UiEditIntent::Redo => "redo",
+    }
+}
+
+fn ui_event_is_resync_required(kind: &EventKind) -> bool {
+    matches!(
+        kind,
+        EventKind::Custom(custom) if custom.topic == "__transport.resync_required"
+    )
+}
+
+struct UiIntentTiming {
+    kind: &'static str,
+    lock_wait_ms: u128,
+    apply_ms: u128,
+    event_collect_ms: u128,
+    events: usize,
+    requires_resync: bool,
+    total_ms: u128,
+}
+
+fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
+    engine: &mut Engine<T>,
+    intent: UiEditIntent,
+    ui_client_instance_id: Option<&str>,
+    lock_wait_ms: u128,
+    intent_started: Instant,
+) -> (UiAck, Vec<EngineTime>, UiIntentTiming) {
+    let kind = ui_intent_kind(&intent);
+    let before_len = engine.ui_event_log().len();
+
+    let apply_started = Instant::now();
+    let ack = apply_ui_intent_with_transport(engine, intent, ui_client_instance_id);
+    let apply_ms = apply_started.elapsed().as_millis();
+
+    let event_collect_started = Instant::now();
+    let produced_events = &engine.ui_event_log()[before_len..];
+    let requires_resync = produced_events
+        .iter()
+        .any(|event| ui_event_is_resync_required(&event.kind));
+    let produced_times = produced_events.iter().map(|event| event.time).collect::<Vec<_>>();
+    let event_collect_ms = event_collect_started.elapsed().as_millis();
+
+    let timing = UiIntentTiming {
+        kind,
+        lock_wait_ms,
+        apply_ms,
+        event_collect_ms,
+        events: produced_times.len(),
+        requires_resync,
+        total_ms: intent_started.elapsed().as_millis(),
+    };
+
+    (ack, produced_times, timing)
+}
+
+fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
+    eprintln!(
+        "[{channel}] intent kind={} lock_wait_ms={} apply_ms={} event_collect_ms={} events={} requires_resync={} total_ms={}",
+        timing.kind,
+        timing.lock_wait_ms,
+        timing.apply_ms,
+        timing.event_collect_ms,
+        timing.events,
+        timing.requires_resync,
+        timing.total_ms
+    );
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -543,21 +635,17 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             intent,
             include_self_events,
         } => {
-            let (ack, produced_times) = {
+            let total_started = Instant::now();
+            let lock_started = Instant::now();
+            let (ack, produced_times, timing) = {
                 let mut guard = lock_engine(engine);
-                let before_len = guard.ui_event_log().len();
+                let lock_wait_ms = lock_started.elapsed().as_millis();
                 let client_instance_id = clients
                     .get(&client_id)
                     .and_then(|client| client.client_instance_id.as_deref());
-                let ack = apply_ui_intent_with_transport(&mut guard, intent, client_instance_id);
-                let produced_times = guard
-                    .ui_event_log()
-                    .iter()
-                    .skip(before_len)
-                    .map(|event| event.time)
-                    .collect::<Vec<_>>();
-                (ack, produced_times)
+                apply_ui_intent_with_timing(&mut guard, intent, client_instance_id, lock_wait_ms, total_started)
             };
+            log_ui_intent_timing("ui-ws", &timing);
 
             for time in produced_times {
                 origins.insert(
@@ -577,23 +665,47 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             intents,
             include_self_events,
         } => {
-            let (acks, produced_times) = {
+            let total_started = Instant::now();
+            let lock_started = Instant::now();
+            let (acks, produced_times, timing_rows) = {
                 let mut guard = lock_engine(engine);
+                let first_lock_wait_ms = lock_started.elapsed().as_millis();
                 let mut acks = Vec::<UiAck>::with_capacity(intents.len());
                 let mut produced_times = Vec::<EngineTime>::new();
+                let mut timing_rows = Vec::<UiIntentTiming>::new();
                 let client_instance_id = clients
                     .get(&client_id)
                     .and_then(|client| client.client_instance_id.as_deref());
 
-                for intent in intents {
-                    let before_len = guard.ui_event_log().len();
-                    let ack = apply_ui_intent_with_transport(&mut guard, intent, client_instance_id);
+                for (index, intent) in intents.into_iter().enumerate() {
+                    let intent_started = if index == 0 { total_started } else { Instant::now() };
+                    let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
+                    let (ack, intent_times, timing) = apply_ui_intent_with_timing(
+                        &mut guard,
+                        intent,
+                        client_instance_id,
+                        lock_wait_ms,
+                        intent_started,
+                    );
                     acks.push(ack);
-                    produced_times.extend(guard.ui_event_log().iter().skip(before_len).map(|event| event.time));
+                    produced_times.extend(intent_times);
+                    timing_rows.push(timing);
                 }
 
-                (acks, produced_times)
+                (acks, produced_times, timing_rows)
             };
+            let batch_total_ms = total_started.elapsed().as_millis();
+            for timing in &timing_rows {
+                log_ui_intent_timing("ui-ws", timing);
+            }
+            if acks.len() > 1 || batch_total_ms >= 5 {
+                eprintln!(
+                    "[ui-ws] intent_batch count={} events={} total_ms={}",
+                    acks.len(),
+                    produced_times.len(),
+                    batch_total_ms
+                );
+            }
 
             for time in produced_times {
                 origins.insert(
@@ -618,15 +730,13 @@ fn dispatch_ws_batches<T: Node>(
     let total_started = Instant::now();
     let mut pending = Vec::<(u64, WsServerMessage)>::new();
 
-    let mut lock_wait_ms = 0;
-    let mut collect_ms = 0;
     let mut events_count = 0;
     let mut subscriptions_count = 0;
 
     let lock_started = Instant::now();
-    let first_retained = {
+    let (first_retained, lock_wait_ms, collect_ms) = {
         let mut guard = lock_engine(engine);
-        lock_wait_ms = lock_started.elapsed().as_millis();
+        let lock_wait_ms = lock_started.elapsed().as_millis();
         let collect_started = Instant::now();
         guard.sync_logger_ui_events();
         let server_time = guard.time;
@@ -697,9 +807,9 @@ fn dispatch_ws_batches<T: Node>(
                 }
             }
         }
-        collect_ms = collect_started.elapsed().as_millis();
+        let collect_ms = collect_started.elapsed().as_millis();
 
-        first_retained
+        (first_retained, lock_wait_ms, collect_ms)
     };
 
     if let Some(first_time) = first_retained {
@@ -724,7 +834,7 @@ fn dispatch_ws_batches<T: Node>(
     for client_id in disconnected {
         clients.remove(&client_id);
     }
-    
+
     let total_ms = total_started.elapsed().as_millis();
     if events_count > 0 || total_ms >= 5 {
         eprintln!(
@@ -843,12 +953,12 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let scope = payload.scope;
             let cancel_active_edit_session = payload.cancel_active_edit_session;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
-            
+
             let lock_started = Instant::now();
             let guard = lock_engine(&state.engine);
             let lock_wait_elapsed = lock_started.elapsed();
             let mut guard = guard;
-            
+
             let cancel_edit_started = Instant::now();
             if payload.cancel_active_edit_session {
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
@@ -856,7 +966,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 }
             }
             let cancel_edit_elapsed = cancel_edit_started.elapsed();
-            
+
             let build_started = Instant::now();
             let mut snapshot = guard.ui_snapshot(scope.clone());
             snapshot.project_file = T::project_file_spec().into();
@@ -1068,9 +1178,19 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent payload: {err}")))?;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
+            let total_started = Instant::now();
+            let lock_started = Instant::now();
             let mut guard = lock_engine(&state.engine);
-            let ack = apply_ui_intent_with_transport(&mut guard, intent, client_instance_id.as_deref());
+            let lock_wait_ms = lock_started.elapsed().as_millis();
+            let (ack, _produced_times, timing) = apply_ui_intent_with_timing(
+                &mut guard,
+                intent,
+                client_instance_id.as_deref(),
+                lock_wait_ms,
+                total_started,
+            );
             drop(guard);
+            log_ui_intent_timing("ui-http", &timing);
 
             write_json(stream, "200 OK", &ack)?;
         }
@@ -1079,16 +1199,40 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid intent batch payload: {err}")))?;
             let client_instance_id = ui_client_instance_id_from_headers(&request.headers);
 
+            let total_started = Instant::now();
+            let lock_started = Instant::now();
             let mut guard = lock_engine(&state.engine);
+            let first_lock_wait_ms = lock_started.elapsed().as_millis();
             let mut acks = Vec::<UiAck>::with_capacity(intents.len());
-            for intent in intents {
-                acks.push(apply_ui_intent_with_transport(
+            let mut timing_rows = Vec::<UiIntentTiming>::new();
+            let mut total_events = 0usize;
+            for (index, intent) in intents.into_iter().enumerate() {
+                let intent_started = if index == 0 { total_started } else { Instant::now() };
+                let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
+                let (ack, produced_times, timing) = apply_ui_intent_with_timing(
                     &mut guard,
                     intent,
                     client_instance_id.as_deref(),
-                ));
+                    lock_wait_ms,
+                    intent_started,
+                );
+                total_events += produced_times.len();
+                acks.push(ack);
+                timing_rows.push(timing);
             }
             drop(guard);
+            let batch_total_ms = total_started.elapsed().as_millis();
+            for timing in &timing_rows {
+                log_ui_intent_timing("ui-http", timing);
+            }
+            if acks.len() > 1 || batch_total_ms >= 5 {
+                eprintln!(
+                    "[ui-http] intent_batch count={} events={} total_ms={}",
+                    acks.len(),
+                    total_events,
+                    batch_total_ms
+                );
+            }
 
             write_json(stream, "200 OK", &acks)?;
         }
