@@ -863,8 +863,8 @@ impl<T: Node> Engine<T> {
             .decl_id
             .clone();
 
-        self.emit_event(EventKind::NodeCreated { node: child_id });
-        self.emit_event(EventKind::ChildAdded {
+        self.emit_inbox_event(EventKind::NodeCreated { node: child_id });
+        self.emit_inbox_event(EventKind::ChildAdded {
             parent,
             child: child_id,
             decl_id,
@@ -892,6 +892,8 @@ impl<T: Node> Engine<T> {
         if let Some(context) = creation_context {
             self.run_node_ready(child_id, context)?;
         }
+
+        self.push_added_subtree_ui_events(child_id, parent);
 
         Ok(AddNodeEffect {
             node: child_id,
@@ -967,8 +969,8 @@ impl<T: Node> Engine<T> {
         };
 
         for inserted_node in &inserted {
-            self.emit_event(EventKind::NodeCreated { node: inserted_node.id });
-            self.emit_event(EventKind::ChildAdded {
+            self.emit_inbox_event(EventKind::NodeCreated { node: inserted_node.id });
+            self.emit_inbox_event(EventKind::ChildAdded {
                 parent: inserted_node.parent,
                 child: inserted_node.id,
                 decl_id: inserted_node.decl_id.clone(),
@@ -981,6 +983,8 @@ impl<T: Node> Engine<T> {
         if let Some(context) = creation_context {
             self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
         }
+
+        self.push_added_subtree_ui_events(root_id, parent);
 
         Ok(AddNodeEffect {
             node: root_id,
@@ -1363,5 +1367,31 @@ impl<T: Node> Engine<T> {
             new_prev_sibling,
             new_next_sibling,
         })
+    }
+
+    /// Emits a `GraphTransaction` covering all nodes in the subtree rooted at `root`
+    /// so that the UI can insert them without a full resync.
+    ///
+    /// Must be called AFTER all lifecycle hooks (attached / init / ready) so that
+    /// any declared children added during init are also included in the transaction.
+    fn push_added_subtree_ui_events(&mut self, root: NodeId, root_parent: NodeId) {
+        let node_ids = self.collect_subtree_node_ids(root);
+
+        let mut ops = Vec::with_capacity(node_ids.len() + 1);
+        for node_id in &node_ids {
+            let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
+            let Some(snapshot) = self.ui_node_dto_for_event(*node_id) else {
+                continue;
+            };
+            let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
+            ops.push(UiGraphOp::NodeCreated { snapshot, parent, index });
+        }
+
+        // Append the final child order for the insertion parent so the UI knows where `root` sits.
+        if let Some(children) = self.ui_direct_children(root_parent) {
+            ops.push(UiGraphOp::ChildrenReordered { parent: root_parent, children });
+        }
+
+        self.push_ui_graph_transaction(ops);
     }
 }

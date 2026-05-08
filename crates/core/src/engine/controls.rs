@@ -359,10 +359,17 @@ impl<T: Node> Engine<T> {
     ///
     /// Returns `true` when it changed queued edits or updated control diagnostics.
     pub(crate) fn evaluate_parameter_controls(&mut self) -> bool {
-        let has_active_controls = self.nodes.values().any(|node| {
-            node.engine_param_control_state()
-                .is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty())
-        });
+        let has_active_controls = match self.has_active_controls_cache {
+            Some(cached) => cached,
+            None => {
+                let result = self.nodes.values().any(|node| {
+                    node.engine_param_control_state()
+                        .is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty())
+                });
+                self.has_active_controls_cache = Some(result);
+                result
+            }
+        };
         if !has_active_controls {
             if !self.expression_runtime.is_empty() {
                 let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
@@ -623,6 +630,7 @@ impl<T: Node> Engine<T> {
             return Err(format!("parameter node {} was not found", param.0));
         };
         node.engine_set_param_control_state(state)?;
+        self.has_active_controls_cache = None;
         self.emit_event(EventKind::ParamControlChanged {
             param,
             old_state: current_state,

@@ -65,6 +65,11 @@ impl<T: Node> NodeStore<T> {
         self.inner.contains_key(Self::key_from_id(id))
     }
 
+    /// Returns the number of nodes in the store.
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     /// Iterates over node values.
     pub fn values(&self) -> impl Iterator<Item = &T> {
         self.inner.values()

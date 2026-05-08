@@ -97,6 +97,9 @@ impl<T: Node> Engine<T> {
         });
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
+        if !self.parameter_values_dirty {
+            self.parameter_values_cache.insert(node, new_value.clone());
+        }
 
         Ok(Some(SetParamEffect {
             node,
@@ -183,11 +186,6 @@ impl<T: Node> Engine<T> {
         let old_meta = target.node_data().meta.clone();
         patch.apply_to(&mut target.node_data_mut().meta);
         let new_meta = target.node_data().meta.clone();
-
-        eprintln!(
-            "[gc-engine] apply_patch_meta node={:?} label='{}' enabled={} -> '{}'/{}",
-            node, old_meta.label, old_meta.enabled, new_meta.label, new_meta.enabled
-        );
 
         if old_meta.enabled != new_meta.enabled {
             self.mark_schedule_dirty();
@@ -356,7 +354,7 @@ impl<T: Node> Engine<T> {
         const OP: &str = "CallNodeScriptMethod";
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         ctx.runtime_elapsed = self.runtime_elapsed;
-        ctx.set_tree_snapshot(self.build_process_tree_snapshot());
+        ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
         let handled = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
                 edit_index,
@@ -404,7 +402,7 @@ impl<T: Node> Engine<T> {
         const OP: &str = "CallNodeMutation";
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         ctx.runtime_elapsed = self.runtime_elapsed;
-        ctx.set_tree_snapshot(self.build_process_tree_snapshot());
+        ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
 
         {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {

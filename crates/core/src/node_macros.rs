@@ -914,6 +914,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn needs_update(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, needs_update; $($variant),*)
+            }
+
+            #[inline(always)]
             fn update_requires_tree_snapshot(&self) -> bool {
                 $crate::__dispatch_node_enum!(self, update_requires_tree_snapshot; $($variant),*)
             }

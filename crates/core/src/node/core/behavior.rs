@@ -658,6 +658,14 @@ pub trait Node: Send + Any {
     fn update(&mut self, _ctx: &mut ProcessCtx) {}
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {}
 
+    /// Returns `false` when [`Self::update`] is guaranteed to be a no-op this tick,
+    /// allowing the engine to skip context setup and `engine_sync_bound_param_handles`.
+    /// Default is `true` (always update). Override for modules that can determine
+    /// cheaply whether they have work to do.
+    fn needs_update(&self) -> bool {
+        true
+    }
+
     /// Returns `true` when [`Self::update`] requires a tree snapshot in `ProcessCtx`.
     fn update_requires_tree_snapshot(&self) -> bool {
         false

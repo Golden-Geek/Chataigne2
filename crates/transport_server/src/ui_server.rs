@@ -11,7 +11,7 @@ use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::node::Node;
-use golden_engine::ui_read_model::{UiReadModel, UiReadModelReplaceReason};
+use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
     UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest,
@@ -181,7 +181,7 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
     ui_client_instance_id: Option<&str>,
     lock_wait_ms: u128,
     intent_started: Instant,
-) -> (UiAck, Vec<EngineTime>, UiIntentTiming) {
+) -> (UiAck, UiEventCapture, UiIntentTiming) {
     let kind = ui_intent_kind(&intent);
     let before_len = engine.ui_event_log().len();
 
@@ -189,12 +189,12 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
     let ack = apply_ui_intent_with_transport(engine, intent, ui_client_instance_id);
     let apply_ms = apply_started.elapsed().as_millis();
 
+    // Collect cheaply while the engine lock is still held; O(N) apply happens outside the lock.
     let event_collect_started = Instant::now();
-    let batch = read_model.publish_engine_events_since(engine, before_len, T::project_file_spec());
-    let requires_resync = batch.events.iter().any(
+    let capture = read_model.collect_event_batch(engine, before_len);
+    let requires_resync = capture.batch().events.iter().any(
         |event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"),
     );
-    let produced_times = batch.events.iter().map(|event| event.time).collect::<Vec<_>>();
     let event_collect_ms = event_collect_started.elapsed().as_millis();
 
     let timing = UiIntentTiming {
@@ -202,12 +202,12 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
         lock_wait_ms,
         apply_ms,
         event_collect_ms,
-        events: produced_times.len(),
+        events: capture.batch().events.len(),
         requires_resync,
         total_ms: intent_started.elapsed().as_millis(),
     };
 
-    (ack, produced_times, timing)
+    (ack, capture, timing)
 }
 
 fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
@@ -461,18 +461,22 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
             let elapsed = tick_start.saturating_duration_since(last_tick_start);
             last_tick_start = tick_start;
 
-            let mut guard = match engine.lock() {
-                Ok(guard) => guard,
-                Err(poisoned) => poisoned.into_inner(),
-            };
-
-            let before_len = guard.ui_event_log().len();
-            if let Err(err) = guard.run_tick(elapsed) {
-                report_runtime_tick_failure(&err);
-            } else {
-                read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+            // Apply events inside the engine lock so tick events are never appended to the
+            // ring buffer concurrently with intent events from the WS hub or HTTP threads.
+            // Out-of-order ring entries would cause the frontend to receive paramChanged for
+            // newly-created nodes before the graphTransaction that creates them.
+            {
+                let mut guard = match engine.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                let before_len = guard.ui_event_log().len();
+                if let Err(err) = guard.run_tick(elapsed) {
+                    report_runtime_tick_failure(&err);
+                } else {
+                    read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                }
             }
-            drop(guard);
 
             let spent = tick_start.elapsed();
             if spent < tick_interval {
@@ -609,10 +613,13 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         let _ = previous_client.outbound.send(WsOutbound::Close);
                     }
 
-                    let mut guard = lock_engine(engine);
-                    let before_len = guard.ui_event_log().len();
-                    let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
-                    read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                    let capture = {
+                        let mut guard = lock_engine(engine);
+                        let before_len = guard.ui_event_log().len();
+                        let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
+                        read_model.collect_event_batch(&*guard, before_len)
+                    };
+                    read_model.apply_event_capture(capture, T::project_file_spec());
                 }
             }
         }
@@ -627,10 +634,13 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     client_instances.remove(client_instance_id);
                 }
 
-                let mut guard = lock_engine(engine);
-                let before_len = guard.ui_event_log().len();
-                let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
-                read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                let capture = {
+                    let mut guard = lock_engine(engine);
+                    let before_len = guard.ui_event_log().len();
+                    let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
+                    read_model.collect_event_batch(&*guard, before_len)
+                };
+                read_model.apply_event_capture(capture, T::project_file_spec());
             }
             eprintln!(
                 "[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})",
@@ -668,7 +678,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
         } => {
             let total_started = Instant::now();
             let lock_started = Instant::now();
-            let (ack, produced_times, timing) = {
+            let (ack, capture, timing) = {
                 let mut guard = lock_engine(engine);
                 let lock_wait_ms = lock_started.elapsed().as_millis();
                 let client_instance_id = clients
@@ -682,10 +692,11 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     lock_wait_ms,
                     total_started,
                 )
-            };
+            }; // engine lock dropped here
+            let batch = read_model.apply_event_capture(capture, T::project_file_spec());
             log_ui_intent_timing("ui-ws", &timing);
 
-            for time in produced_times {
+            for time in batch.events.iter().map(|e| e.time) {
                 origins.insert(
                     time,
                     WsEventOrigin {
@@ -705,11 +716,11 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
         } => {
             let total_started = Instant::now();
             let lock_started = Instant::now();
-            let (acks, produced_times, timing_rows) = {
+            let (acks, captures, timing_rows) = {
                 let mut guard = lock_engine(engine);
                 let first_lock_wait_ms = lock_started.elapsed().as_millis();
                 let mut acks = Vec::<UiAck>::with_capacity(intents.len());
-                let mut produced_times = Vec::<EngineTime>::new();
+                let mut captures = Vec::<UiEventCapture>::with_capacity(intents.len());
                 let mut timing_rows = Vec::<UiIntentTiming>::new();
                 let client_instance_id = clients
                     .get(&client_id)
@@ -718,7 +729,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 for (index, intent) in intents.into_iter().enumerate() {
                     let intent_started = if index == 0 { total_started } else { Instant::now() };
                     let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
-                    let (ack, intent_times, timing) = apply_ui_intent_with_timing(
+                    let (ack, capture, timing) = apply_ui_intent_with_timing(
                         read_model,
                         &mut guard,
                         intent,
@@ -727,12 +738,17 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         intent_started,
                     );
                     acks.push(ack);
-                    produced_times.extend(intent_times);
+                    captures.push(capture);
                     timing_rows.push(timing);
                 }
 
-                (acks, produced_times, timing_rows)
-            };
+                (acks, captures, timing_rows)
+            }; // engine lock dropped here
+            let mut produced_times = Vec::<EngineTime>::new();
+            for capture in captures {
+                let batch = read_model.apply_event_capture(capture, T::project_file_spec());
+                produced_times.extend(batch.events.iter().map(|e| e.time));
+            }
             let batch_total_ms = total_started.elapsed().as_millis();
             for timing in &timing_rows {
                 log_ui_intent_timing("ui-ws", timing);
@@ -774,7 +790,9 @@ fn dispatch_ws_batches(
 
     let lock_wait_ms = 0;
     let collect_started = Instant::now();
-    let server_time = read_model.current_snapshot().at;
+    let server_time = read_model
+        .current_event_time()
+        .unwrap_or_else(|| read_model.current_snapshot().at);
     let first_retained = read_model.first_retained_event_time();
 
     for (client_id, client) in clients.iter_mut() {
@@ -1190,17 +1208,19 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
 
             let total_started = Instant::now();
             let lock_started = Instant::now();
-            let mut guard = lock_engine(&state.engine);
-            let lock_wait_ms = lock_started.elapsed().as_millis();
-            let (ack, _produced_times, timing) = apply_ui_intent_with_timing(
-                &state.read_model,
-                &mut guard,
-                intent,
-                client_instance_id.as_deref(),
-                lock_wait_ms,
-                total_started,
-            );
-            drop(guard);
+            let (ack, capture, timing) = {
+                let mut guard = lock_engine(&state.engine);
+                let lock_wait_ms = lock_started.elapsed().as_millis();
+                apply_ui_intent_with_timing(
+                    &state.read_model,
+                    &mut guard,
+                    intent,
+                    client_instance_id.as_deref(),
+                    lock_wait_ms,
+                    total_started,
+                )
+            }; // engine lock dropped here
+            state.read_model.apply_event_capture(capture, T::project_file_spec());
             log_ui_intent_timing("ui-http", &timing);
 
             write_json(stream, "200 OK", &ack)?;
@@ -1212,27 +1232,34 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
 
             let total_started = Instant::now();
             let lock_started = Instant::now();
-            let mut guard = lock_engine(&state.engine);
-            let first_lock_wait_ms = lock_started.elapsed().as_millis();
-            let mut acks = Vec::<UiAck>::with_capacity(intents.len());
-            let mut timing_rows = Vec::<UiIntentTiming>::new();
+            let (acks, captures, timing_rows) = {
+                let mut guard = lock_engine(&state.engine);
+                let first_lock_wait_ms = lock_started.elapsed().as_millis();
+                let mut acks = Vec::<UiAck>::with_capacity(intents.len());
+                let mut captures = Vec::<UiEventCapture>::with_capacity(intents.len());
+                let mut timing_rows = Vec::<UiIntentTiming>::new();
+                for (index, intent) in intents.into_iter().enumerate() {
+                    let intent_started = if index == 0 { total_started } else { Instant::now() };
+                    let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
+                    let (ack, capture, timing) = apply_ui_intent_with_timing(
+                        &state.read_model,
+                        &mut guard,
+                        intent,
+                        client_instance_id.as_deref(),
+                        lock_wait_ms,
+                        intent_started,
+                    );
+                    acks.push(ack);
+                    captures.push(capture);
+                    timing_rows.push(timing);
+                }
+                (acks, captures, timing_rows)
+            }; // engine lock dropped here
             let mut total_events = 0usize;
-            for (index, intent) in intents.into_iter().enumerate() {
-                let intent_started = if index == 0 { total_started } else { Instant::now() };
-                let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
-                let (ack, produced_times, timing) = apply_ui_intent_with_timing(
-                    &state.read_model,
-                    &mut guard,
-                    intent,
-                    client_instance_id.as_deref(),
-                    lock_wait_ms,
-                    intent_started,
-                );
-                total_events += produced_times.len();
-                acks.push(ack);
-                timing_rows.push(timing);
+            for capture in captures {
+                let batch = state.read_model.apply_event_capture(capture, T::project_file_spec());
+                total_events += batch.events.len();
             }
-            drop(guard);
             let batch_total_ms = total_started.elapsed().as_millis();
             for timing in &timing_rows {
                 log_ui_intent_timing("ui-http", timing);

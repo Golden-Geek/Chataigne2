@@ -17,6 +17,7 @@ use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 use super::{Engine, EngineEditError};
 
 const RUNTIME_LOOP_CAP_INTERVAL: Duration = Duration::from_micros(1_000);
+const PERF_LOG_TICK_THRESHOLD_MS: u128 = 8;
 #[cfg(debug_assertions)]
 const DEBUG_VERBOSE_STABILIZATION_THRESHOLD: usize = 100;
 #[cfg(debug_assertions)]
@@ -210,12 +211,11 @@ impl ScheduleMgr {
         topo_order: Vec<NodeId>,
         rules: &HashMap<NodeId, NodeExecutionRule>,
     ) -> Result<(), EngineRuntimeError> {
-        self.topo_order = topo_order;
         self.bucket_by_node.clear();
         self.buckets.clear();
 
         let mut buckets_by_rate: BTreeMap<NodeUpdateRate, Vec<NodeId>> = BTreeMap::new();
-        for node_id in &self.topo_order {
+        for node_id in &topo_order {
             let Some(rule) = rules.get(node_id) else {
                 continue;
             };
@@ -241,6 +241,12 @@ impl ScheduleMgr {
             }
             self.buckets.push(ScheduleBucket::new(rate_hz, nodes));
         }
+
+        // Keep only scheduled nodes so collect_due_nodes is O(N_scheduled) not O(N_total).
+        self.topo_order = topo_order
+            .into_iter()
+            .filter(|node_id| self.bucket_by_node.contains_key(node_id))
+            .collect();
 
         Ok(())
     }
@@ -299,6 +305,9 @@ impl ScheduleMgr {
 impl<T: Node> Engine<T> {
     pub(crate) fn mark_schedule_dirty(&mut self) {
         self.runtime_resolve_pending = true;
+        self.has_active_controls_cache = None;
+        self.tick_tree_snapshot = None;
+        self.parameter_values_dirty = true;
     }
 
     /// Returns whether runtime schedule recomputation is pending.
@@ -390,6 +399,7 @@ impl<T: Node> Engine<T> {
     /// Executes one runtime tick with an elapsed wall-clock delta.
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let tick_started = Instant::now();
+        self.tick_tree_snapshot = None;
 
         let resolve1_started = Instant::now();
         self.resolve_if_needed()?;
@@ -446,7 +456,6 @@ impl<T: Node> Engine<T> {
         let logger_sync_ms = sync_started.elapsed().as_millis();
 
         let total_ms = tick_started.elapsed().as_millis();
-        const PERF_LOG_TICK_THRESHOLD_MS: u128 = 30;
         if total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
             eprintln!(
                 "[engine] tick total_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
@@ -594,12 +603,18 @@ impl<T: Node> Engine<T> {
                 .get(*node_id)
                 .is_some_and(|node| node.update_requires_tree_snapshot())
         });
-        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
-        let mut parameter_values = self
-            .nodes
-            .iter()
-            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
-            .collect::<HashMap<_, _>>();
+        let tree_snapshot = needs_tree_snapshot.then(|| self.get_or_build_tick_snapshot());
+
+        if self.parameter_values_dirty {
+            self.parameter_values_cache.clear();
+            for (node_id, node) in self.nodes.iter() {
+                if let Some(snapshot) = node.engine_param_snapshot() {
+                    self.parameter_values_cache.insert(node_id, snapshot.value);
+                }
+            }
+            self.parameter_values_dirty = false;
+        }
+        let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
         let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
@@ -639,6 +654,11 @@ impl<T: Node> Engine<T> {
                 *remaining_delta = remaining_delta.saturating_sub(dt);
                 dt
             };
+
+            // Skip expensive context setup when the node has nothing to do this tick.
+            if !self.nodes.get(node_id).is_some_and(|n| n.needs_update()) {
+                continue;
+            }
 
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.delta_time = delta_time;
@@ -686,15 +706,23 @@ impl<T: Node> Engine<T> {
             }
         }
 
+        // Return the updated map to the cache for reuse next tick.
+        self.parameter_values_cache = parameter_values;
+
         Ok(())
     }
 
     fn run_stabilization_rounds(&mut self) -> Result<(), EngineRuntimeError> {
         let mut pass = 0usize;
+        let mut control_ms_total = 0u128;
+        let mut dispatch_ms_total = 0u128;
+        let mut apply_edits_ms_total = 0u128;
 
         loop {
             self.absorb_external_edits()?;
+            let control_started = Instant::now();
             self.run_control_pass()?;
+            control_ms_total = control_ms_total.saturating_add(control_started.elapsed().as_millis());
 
             if self.inbox.events.is_empty() && self.edits.pending.is_empty() {
                 break;
@@ -716,15 +744,27 @@ impl<T: Node> Engine<T> {
             self.time.seq = 0;
 
             if !self.inbox.events.is_empty() {
+                let dispatch_started = Instant::now();
                 self.dispatch_inbox(ExecutionPhase::EndOfTickStabilization)?;
+                dispatch_ms_total = dispatch_ms_total.saturating_add(dispatch_started.elapsed().as_millis());
             }
 
             if !self.edits.pending.is_empty() {
+                let apply_started = Instant::now();
                 self.apply_edits_without_history()?;
                 self.resolve_if_needed()?;
+                apply_edits_ms_total = apply_edits_ms_total.saturating_add(apply_started.elapsed().as_millis());
             }
 
             pass += 1;
+        }
+
+        let stabilization_total_ms = control_ms_total + dispatch_ms_total + apply_edits_ms_total;
+        if stabilization_total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
+            eprintln!(
+                "[engine] stabilization passes={} control_ms={} dispatch_ms={} apply_edits_ms={}",
+                pass, control_ms_total, dispatch_ms_total, apply_edits_ms_total
+            );
         }
 
         Ok(())

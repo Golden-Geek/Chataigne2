@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
 use crate::node::{EventSubscription, *};
+use crate::parameter::ParamValue;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -168,6 +169,19 @@ pub struct Engine<T: Node> {
     /// When non-zero, add-node inline stabilization is deferred to the outer pass
     /// to avoid deep recursive `apply_edits` chains.
     pub(crate) stabilization_scope_depth: usize,
+    /// Cached answer to "does any parameter have a non-Manual control or diagnostics?"
+    /// Set to `None` whenever the tree structure or a control state changes, triggering
+    /// a full rescan on the next `evaluate_parameter_controls` call.
+    pub(crate) has_active_controls_cache: Option<bool>,
+    /// Tree snapshot built at most once per tick and reused across all `CallNodeMutation`
+    /// edits in that tick. Cleared at tick start and on any structural change.
+    pub(crate) tick_tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
+    /// Cached map of parameter node → current value, used by `run_scheduled_updates` so
+    /// N due nodes share one O(N_nodes) scan per tick rather than one per node.
+    /// Maintained incrementally via `apply_set_param`; rebuilt from scratch when
+    /// `parameter_values_dirty` is true (set by `mark_schedule_dirty`).
+    pub(crate) parameter_values_cache: HashMap<NodeId, ParamValue>,
+    pub(crate) parameter_values_dirty: bool,
 }
 
 impl<T: Node> Engine<T> {
@@ -218,6 +232,10 @@ impl<T: Node> Engine<T> {
             expression_runtime: HashMap::new(),
             pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
+            has_active_controls_cache: None,
+            tick_tree_snapshot: None,
+            parameter_values_cache: HashMap::new(),
+            parameter_values_dirty: true,
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
@@ -562,8 +580,19 @@ impl<T: Node> Engine<T> {
         Ok(coerced)
     }
 
+    /// Returns a cached snapshot for the current tick, building it on first call.
+    /// Used by `apply_call_node_mutation` so N mutations share one build per tick.
+    pub(crate) fn get_or_build_tick_snapshot(&mut self) -> Arc<ProcessTreeSnapshot> {
+        if let Some(snapshot) = &self.tick_tree_snapshot {
+            return Arc::clone(snapshot);
+        }
+        let snapshot = self.build_process_tree_snapshot();
+        self.tick_tree_snapshot = Some(Arc::clone(&snapshot));
+        snapshot
+    }
+
     pub(crate) fn build_process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
-        let mut nodes = HashMap::with_capacity(self.nodes.iter().count());
+        let mut nodes = HashMap::with_capacity(self.nodes.len());
         for (node_id, node) in self.nodes.iter() {
             let node_data = node.node_data();
             let descriptor = node.engine_script_descriptor();
