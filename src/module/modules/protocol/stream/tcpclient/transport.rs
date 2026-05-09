@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 const TCP_CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 const TCP_RECONNECT_BASE_DELAY: Duration = Duration::from_millis(250);
 const TCP_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
@@ -39,7 +41,7 @@ pub(crate) enum StreamingWorkerEvent {
 
 pub(crate) struct TcpStreamingTransportHandle {
     command_tx: Sender<TcpStreamingWorkerCommand>,
-    event_rx: Receiver<StreamingWorkerEvent>,
+    event_rx: PendingReceiver<StreamingWorkerEvent>,
     connected: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -49,7 +51,7 @@ impl TcpStreamingTransportHandle {
         let remote_address = resolve_socket_addr(config.remote_host.as_str(), config.remote_port)?;
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
 
@@ -80,6 +82,14 @@ impl TcpStreamingTransportHandle {
         self.event_rx.try_recv()
     }
 
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
+    }
+
     pub(crate) fn stop(&mut self) {
         let _ = self.command_tx.send(TcpStreamingWorkerCommand::Stop);
         if let Some(worker) = self.worker.take() {
@@ -103,7 +113,7 @@ fn worker_loop(
     config: TcpStreamingTransportConfig,
     remote_address: SocketAddr,
     command_rx: Receiver<TcpStreamingWorkerCommand>,
-    event_tx: Sender<StreamingWorkerEvent>,
+    event_tx: PendingSender<StreamingWorkerEvent>,
     connected: Arc<AtomicBool>,
 ) {
     let mut buffer = [0u8; 8192];
@@ -269,7 +279,7 @@ fn worker_loop(
 
 fn drain_commands(
     command_rx: &Receiver<TcpStreamingWorkerCommand>,
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     mut stream: Option<&mut TcpStream>,
     send_enabled: bool,
 ) -> bool {
@@ -288,7 +298,7 @@ fn drain_commands(
 }
 
 fn write_bytes(
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     stream: Option<&mut TcpStream>,
     send_enabled: bool,
     bytes: Vec<u8>,
@@ -343,7 +353,7 @@ fn poll_stream_health(stream: &TcpStream) -> Result<(), String> {
 }
 
 fn emit_status(
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<TcpStreamingConnectionStatus>,
     next_status: TcpStreamingConnectionStatus,
@@ -362,7 +372,7 @@ fn emit_status(
 }
 
 fn enter_recovery(
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<TcpStreamingConnectionStatus>,
     reconnect_delay: &mut Duration,

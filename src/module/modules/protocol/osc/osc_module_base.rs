@@ -326,6 +326,7 @@ impl OscModuleBase {
             return;
         };
 
+        transport.clear_pending();
         while let Ok(event) = transport.try_recv() {
             worker_events.push(event);
         }
@@ -815,13 +816,17 @@ impl Node for OscModuleBase {
         self.transport_dirty
             || !self.pending_outbound_nodes.is_empty()
             || !self.pending_incoming_messages.is_empty()
-            || self.transport.is_some()
+            || self.transport.as_ref().is_some_and(|t| t.has_pending())
             || self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport.is_some()
-            || self.interface_refresh_due()
+        // transport.is_some() intentionally excluded: drain_transport_events() is
+        // cheap and safe without a snapshot. Messages from this tick's drain land in
+        // pending_incoming_messages and will be processed next tick when that flag
+        // triggers the snapshot. Removing it avoids a build_process_tree_snapshot()
+        // call (O(N_total_nodes)) every tick for every idle-but-connected OSC module.
+        self.interface_refresh_due()
             || self.transport_dirty
             || !self.pending_outbound_nodes.is_empty()
             || !self.pending_incoming_messages.is_empty()

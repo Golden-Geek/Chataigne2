@@ -14,6 +14,7 @@ use tokio::runtime::{Builder, Runtime};
 use tokio::time::timeout;
 use tokio_tungstenite::{client_async_with_config, tungstenite::protocol::Message, WebSocketStream};
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
 use crate::app::module::common::streaming::commands::StreamingSendFrameKind;
 use crate::app::module::common::streaming::websocket::{
     websocket_client_url, websocket_config, websocket_message,
@@ -54,7 +55,7 @@ pub(crate) enum StreamingWorkerEvent {
 
 pub(crate) struct WebSocketClientTransportHandle {
     command_tx: Sender<WebSocketClientWorkerCommand>,
-    event_rx: Receiver<StreamingWorkerEvent>,
+    event_rx: PendingReceiver<StreamingWorkerEvent>,
     connected: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -63,7 +64,7 @@ impl WebSocketClientTransportHandle {
     pub(crate) fn spawn(config: WebSocketClientTransportConfig) -> Result<Self, String> {
         let remote_address = resolve_socket_addr(config.remote_host.as_str(), config.remote_port)?;
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
 
@@ -92,6 +93,14 @@ impl WebSocketClientTransportHandle {
 
     pub(crate) fn try_recv(&self) -> Result<StreamingWorkerEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -131,7 +140,7 @@ fn worker_loop(
     config: WebSocketClientTransportConfig,
     remote_address: SocketAddr,
     command_rx: Receiver<WebSocketClientWorkerCommand>,
-    event_tx: Sender<StreamingWorkerEvent>,
+    event_tx: PendingSender<StreamingWorkerEvent>,
     connected: Arc<AtomicBool>,
 ) {
     let runtime = match Builder::new_current_thread().enable_all().build() {
@@ -315,7 +324,7 @@ fn worker_loop(
 fn receive_messages(
     runtime: &Runtime,
     stream: &mut ClientWebSocketStream,
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
 ) -> Result<ReceiveOutcome, String> {
     let mut poll_interval = WEBSOCKET_WORKER_POLL_INTERVAL;
 
@@ -426,7 +435,7 @@ fn send_bytes(
 }
 
 fn emit_status(
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     last_status: &mut Option<WebSocketClientConnectionStatus>,
     status: WebSocketClientConnectionStatus,
 ) -> bool {
@@ -439,7 +448,7 @@ fn emit_status(
 }
 
 fn enter_recovery(
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<WebSocketClientConnectionStatus>,
     reconnect_delay: &mut Duration,

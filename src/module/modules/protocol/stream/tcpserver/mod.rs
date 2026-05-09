@@ -133,17 +133,18 @@ impl TcpServerModule {
         })
     }
 
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
         let mut worker_events = Vec::new();
         let Some(transport) = &self.transport else {
             return;
         };
 
+        transport.clear_pending();
         while let Ok(event) = transport.try_recv() {
             worker_events.push(event);
         }
 
-        let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
+        let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
@@ -193,7 +194,7 @@ impl TcpServerModule {
                         Some(client_id.as_str()),
                         true,
                     );
-                    match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
+                    match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
                             if self.stream.log_incoming_enabled() {
@@ -223,9 +224,7 @@ impl TcpServerModule {
             }
         }
 
-        if self.client_list_dirty {
-            self.sync_client_nodes(ctx, snapshot);
-        }
+        // client_list_dirty sync is deferred to update() where snapshot is available.
 
         if received_bytes {
             self.stream.emit_incoming_traffic(ctx);
@@ -408,18 +407,22 @@ impl Node for TcpServerModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
+        // Drain transport bytes using only cached config — no snapshot needed.
+        self.drain_transport_events(ctx);
+
+        let needs_snapshot =
+            self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty;
+        if !needs_snapshot {
+            return;
+        }
+
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
 
-        self.drain_transport_events(ctx, snapshot);
-
-        let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty;
-        if !needs_snapshot {
-            return;
-        }
-
+        // Refresh cached config while we have the snapshot so the next drain is accurate.
+        self.stream.refresh_config_cache(snapshot);
         self.refresh_data_capabilities(ctx, snapshot);
 
         if self.transport_dirty {
@@ -437,8 +440,15 @@ impl Node for TcpServerModule {
         self.stop_transport();
     }
 
+    fn needs_update(&self) -> bool {
+        self.transport_dirty
+            || self.stream.has_pending_messages()
+            || self.client_list_dirty
+            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport.is_some() || self.transport_dirty || self.stream.has_pending_messages()
+        self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

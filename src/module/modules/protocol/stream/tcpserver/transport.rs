@@ -6,6 +6,8 @@ use std::{
     time::Duration,
 };
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct TcpServerTransportConfig {
     pub bind_host: String,
@@ -25,7 +27,7 @@ pub(crate) enum TcpServerWorkerEvent {
 
 pub(crate) struct TcpServerTransportHandle {
     command_tx: Sender<TcpServerWorkerCommand>,
-    event_rx: Receiver<TcpServerWorkerEvent>,
+    event_rx: PendingReceiver<TcpServerWorkerEvent>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -39,7 +41,7 @@ impl TcpServerTransportHandle {
             .map_err(|error| format!("failed to set TCP server listener to non-blocking mode: {error}"))?;
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
 
         let worker = thread::Builder::new()
             .name(format!("streaming-tcp-server-{}", bind_address.port()))
@@ -61,6 +63,14 @@ impl TcpServerTransportHandle {
 
     pub(crate) fn try_recv(&self) -> Result<TcpServerWorkerEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -91,7 +101,7 @@ fn worker_loop(
     listener: TcpListener,
     config: TcpServerTransportConfig,
     command_rx: Receiver<TcpServerWorkerCommand>,
-    event_tx: Sender<TcpServerWorkerEvent>,
+    event_tx: PendingSender<TcpServerWorkerEvent>,
 ) {
     let mut clients = Vec::new();
 
@@ -125,7 +135,7 @@ fn worker_loop(
 
 fn drain_commands(
     command_rx: &Receiver<TcpServerWorkerCommand>,
-    event_tx: &Sender<TcpServerWorkerEvent>,
+    event_tx: &PendingSender<TcpServerWorkerEvent>,
     clients: &mut Vec<TcpClientConnection>,
     send_enabled: bool,
 ) -> bool {
@@ -145,7 +155,7 @@ fn drain_commands(
 
 fn accept_new_clients(
     listener: &TcpListener,
-    event_tx: &Sender<TcpServerWorkerEvent>,
+    event_tx: &PendingSender<TcpServerWorkerEvent>,
     clients: &mut Vec<TcpClientConnection>,
 ) -> Result<(), ()> {
     loop {
@@ -183,7 +193,7 @@ fn accept_new_clients(
 }
 
 fn read_client_bytes(
-    event_tx: &Sender<TcpServerWorkerEvent>,
+    event_tx: &PendingSender<TcpServerWorkerEvent>,
     clients: &mut Vec<TcpClientConnection>,
 ) -> Result<(), ()> {
     let mut client_index = 0usize;
@@ -257,7 +267,7 @@ fn read_client_bytes(
 }
 
 fn broadcast_bytes(
-    event_tx: &Sender<TcpServerWorkerEvent>,
+    event_tx: &PendingSender<TcpServerWorkerEvent>,
     clients: &mut Vec<TcpClientConnection>,
     send_enabled: bool,
     bytes: &[u8],

@@ -5,6 +5,8 @@ use std::{
     time::Duration,
 };
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UdpStreamingTransportConfig {
     pub bind_interface_host: String,
@@ -27,7 +29,7 @@ pub(crate) enum StreamingWorkerEvent {
 
 pub(crate) struct UdpStreamingTransportHandle {
     command_tx: Sender<UdpStreamingWorkerCommand>,
-    event_rx: Receiver<StreamingWorkerEvent>,
+    event_rx: PendingReceiver<StreamingWorkerEvent>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -42,7 +44,7 @@ impl UdpStreamingTransportHandle {
             .map_err(|error| format!("failed to set UDP socket to non-blocking mode: {error}"))?;
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
 
         let worker = thread::Builder::new()
             .name(format!("streaming-udp-{}", bind_address.port()))
@@ -64,6 +66,14 @@ impl UdpStreamingTransportHandle {
 
     pub(crate) fn try_recv(&self) -> Result<StreamingWorkerEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -89,7 +99,7 @@ fn worker_loop(
     socket: UdpSocket,
     receive_enabled: bool,
     command_rx: Receiver<UdpStreamingWorkerCommand>,
-    event_tx: Sender<StreamingWorkerEvent>,
+    event_tx: PendingSender<StreamingWorkerEvent>,
 ) {
     let mut buffer = [0u8; 65_535];
 
@@ -135,7 +145,7 @@ fn worker_loop(
 
 fn drain_commands(
     command_rx: &Receiver<UdpStreamingWorkerCommand>,
-    event_tx: &Sender<StreamingWorkerEvent>,
+    event_tx: &PendingSender<StreamingWorkerEvent>,
     socket: &UdpSocket,
 ) -> bool {
     loop {
@@ -152,7 +162,7 @@ fn should_ignore_receive_error(error: &std::io::Error) -> bool {
     error.raw_os_error() == Some(10054) || (cfg!(windows) && error.kind() == std::io::ErrorKind::ConnectionReset)
 }
 
-fn send_packet(socket: &UdpSocket, event_tx: &Sender<StreamingWorkerEvent>, packet: UdpStreamingOutboundPacket) {
+fn send_packet(socket: &UdpSocket, event_tx: &PendingSender<StreamingWorkerEvent>, packet: UdpStreamingOutboundPacket) {
     let remote_address = match resolve_socket_addr(packet.remote_host.as_str(), packet.remote_port) {
         Ok(address) => address,
         Err(error) => {

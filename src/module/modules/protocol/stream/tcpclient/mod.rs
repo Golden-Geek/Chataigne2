@@ -122,12 +122,13 @@ impl TcpClientModule {
         })
     }
 
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
         let (worker_events, worker_disconnected) = {
             let Some(transport) = &self.transport else {
                 return;
             };
 
+            transport.clear_pending();
             let mut worker_events = Vec::new();
             let mut worker_disconnected = false;
             loop {
@@ -144,7 +145,7 @@ impl TcpClientModule {
             (worker_events, worker_disconnected)
         };
 
-        let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
+        let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
@@ -174,7 +175,7 @@ impl TcpClientModule {
                         None,
                         true,
                     );
-                    match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
+                    match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
                             if self.stream.log_incoming_enabled() {
@@ -199,13 +200,15 @@ impl TcpClientModule {
                             origin = self.id();
                             format!("Connected TCP stream to {remote_address}.")
                         );
-                        self.clear_target_warning(ctx, snapshot);
                         self.stream.set_connected(ctx, true);
+                        // Warning clear is a no-op (no "target" node in connection folder);
+                        // mark dirty so refresh_transport can do any needed cleanup next tick.
+                        self.transport_dirty = true;
                     }
                     TcpStreamingConnectionStatus::Recovering { message, .. } => {
                         logerror!("TCP transport recovering: {}", message);
-                        self.set_target_warning(ctx, snapshot, message.as_str());
                         self.stream.set_connected(ctx, false);
+                        self.transport_dirty = true;
                     }
                 },
             }
@@ -215,11 +218,6 @@ impl TcpClientModule {
             logerror!("TCP transport worker stopped unexpectedly; restarting.");
             self.stop_transport();
             self.last_transport_config = None;
-            self.set_target_warning(
-                ctx,
-                snapshot,
-                "TCP transport worker stopped unexpectedly. Restarting.",
-            );
             self.stream.set_connected(ctx, false);
             self.transport_dirty = true;
         }
@@ -350,18 +348,21 @@ impl Node for TcpClientModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        self.drain_transport_events(ctx, snapshot);
+        // Drain transport bytes using only cached config — no snapshot needed.
+        self.drain_transport_events(ctx);
 
         let needs_snapshot = self.transport_dirty || self.stream.has_pending_messages();
         if !needs_snapshot {
             return;
         }
 
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+
+        // Refresh cached config while we have the snapshot so the next drain is accurate.
+        self.stream.refresh_config_cache(snapshot);
         self.refresh_data_capabilities(ctx, snapshot);
 
         if self.transport_dirty {
@@ -375,8 +376,14 @@ impl Node for TcpClientModule {
         self.stop_transport();
     }
 
+    fn needs_update(&self) -> bool {
+        self.transport_dirty
+            || self.stream.has_pending_messages()
+            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport.is_some() || self.transport_dirty || self.stream.has_pending_messages()
+        self.transport_dirty || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

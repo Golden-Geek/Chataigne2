@@ -119,6 +119,10 @@ impl Node for GenericOscModule {
         self.base.destroy(ctx);
     }
 
+    fn needs_update(&self) -> bool {
+        self.base.needs_update()
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
         self.base.update_requires_tree_snapshot()
     }

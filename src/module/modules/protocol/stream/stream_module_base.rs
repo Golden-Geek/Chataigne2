@@ -51,6 +51,8 @@ pub struct StreamingModuleBase {
     base: crate::app::ModuleBase,
     parser: StreamingParser,
     incoming: StreamingIncomingQueue,
+    cached_parse_config: StreamingParseConfig,
+    cached_processing_enabled: bool,
 }
 
 impl StreamingModuleBase {
@@ -59,6 +61,8 @@ impl StreamingModuleBase {
             crate::app::ModuleBase::new(),
             StreamingParser::default(),
             StreamingIncomingQueue::new(),
+            StreamingParseConfig::default(),
+            true,
         )
     }
 
@@ -94,6 +98,19 @@ impl StreamingModuleBase {
         self.parameter_child_enabled(snapshot, "processing")
     }
 
+    /// Returns the cached processing-enabled state, updated by `refresh_config_cache`.
+    pub(crate) fn processing_enabled_cached(&self) -> bool {
+        self.cached_processing_enabled
+    }
+
+    /// Refreshes `cached_parse_config` and `cached_processing_enabled` from the snapshot.
+    /// Call this whenever the snapshot is available (e.g. when `transport_dirty` or
+    /// `has_pending_messages`) so the hot drain path can run without a snapshot.
+    pub(crate) fn refresh_config_cache(&mut self, snapshot: &ProcessTreeSnapshot) {
+        self.cached_parse_config = self.current_parse_config(snapshot);
+        self.cached_processing_enabled = self.processing_enabled(snapshot).unwrap_or(true);
+    }
+
     pub(crate) fn has_pending_messages(&self) -> bool {
         self.incoming.has_pending_messages()
     }
@@ -102,13 +119,8 @@ impl StreamingModuleBase {
         self.incoming.take_ignored_param_change(param)
     }
 
-    pub(crate) fn parse_bytes(
-        &mut self,
-        bytes: &[u8],
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Result<Vec<StreamingIncomingMessage>, String> {
-        let parse_config = self.current_parse_config(snapshot);
-        self.parser.push_bytes(bytes, &parse_config)
+    pub(crate) fn parse_bytes_cached(&mut self, bytes: &[u8]) -> Result<Vec<StreamingIncomingMessage>, String> {
+        self.parser.push_bytes(bytes, &self.cached_parse_config)
     }
 
     pub(crate) fn push_messages(&mut self, messages: Vec<StreamingIncomingMessage>) {

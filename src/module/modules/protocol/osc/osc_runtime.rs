@@ -5,6 +5,8 @@ use std::{
     time::Duration,
 };
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 use rosc::{decoder, encoder};
 
 use super::osc_message::{decode_packet_messages, encode_packet, OscDecodedMessage, OscValuePayload};
@@ -32,7 +34,7 @@ pub(crate) enum OscWorkerEvent {
 
 pub(crate) struct OscTransportHandle {
     command_tx: Sender<OscWorkerCommand>,
-    event_rx: Receiver<OscWorkerEvent>,
+    event_rx: PendingReceiver<OscWorkerEvent>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -47,7 +49,7 @@ impl OscTransportHandle {
             .map_err(|error| format!("failed to set OSC socket to non-blocking mode: {error}"))?;
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
 
         let worker = thread::Builder::new()
             .name(format!("osc-module-{}", bind_address.port()))
@@ -69,6 +71,14 @@ impl OscTransportHandle {
 
     pub(crate) fn try_recv(&self) -> Result<OscWorkerEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -94,7 +104,7 @@ fn worker_loop(
     socket: UdpSocket,
     receive_enabled: bool,
     command_rx: Receiver<OscWorkerCommand>,
-    event_tx: Sender<OscWorkerEvent>,
+    event_tx: PendingSender<OscWorkerEvent>,
 ) {
     let mut buffer = [0u8; 65_535];
 
@@ -160,7 +170,7 @@ fn worker_loop(
 
 fn drain_commands(
     command_rx: &Receiver<OscWorkerCommand>,
-    event_tx: &Sender<OscWorkerEvent>,
+    event_tx: &PendingSender<OscWorkerEvent>,
     socket: &UdpSocket,
 ) -> bool {
     loop {
@@ -177,7 +187,7 @@ fn should_ignore_receive_error(error: &std::io::Error) -> bool {
     error.raw_os_error() == Some(10054) || (cfg!(windows) && error.kind() == std::io::ErrorKind::ConnectionReset)
 }
 
-fn send_message(socket: &UdpSocket, event_tx: &Sender<OscWorkerEvent>, message: OscOutboundMessage) {
+fn send_message(socket: &UdpSocket, event_tx: &PendingSender<OscWorkerEvent>, message: OscOutboundMessage) {
     let packet = match encode_packet(message.address.as_str(), &message.payload) {
         Ok(packet) => packet,
         Err(error) => {

@@ -5,6 +5,8 @@ use std::{
     time::Duration,
 };
 
+use crate::app::module::common::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 use futures_util::{SinkExt, StreamExt};
 use tokio::runtime::{Builder, Runtime};
 use tokio::time::timeout;
@@ -50,7 +52,7 @@ pub(crate) enum WebSocketServerWorkerEvent {
 
 pub(crate) struct WebSocketServerTransportHandle {
     command_tx: Sender<WebSocketServerWorkerCommand>,
-    event_rx: Receiver<WebSocketServerWorkerEvent>,
+    event_rx: PendingReceiver<WebSocketServerWorkerEvent>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -64,7 +66,7 @@ impl WebSocketServerTransportHandle {
             .map_err(|error| format!("failed to set WebSocket server listener to non-blocking mode: {error}"))?;
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
 
         let worker = thread::Builder::new()
             .name(format!("streaming-websocket-server-{}", bind_address.port()))
@@ -86,6 +88,14 @@ impl WebSocketServerTransportHandle {
 
     pub(crate) fn try_recv(&self) -> Result<WebSocketServerWorkerEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -130,7 +140,7 @@ fn worker_loop(
     listener: TcpListener,
     config: WebSocketServerTransportConfig,
     command_rx: Receiver<WebSocketServerWorkerCommand>,
-    event_tx: Sender<WebSocketServerWorkerEvent>,
+    event_tx: PendingSender<WebSocketServerWorkerEvent>,
 ) {
     let runtime = match Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => runtime,
@@ -197,7 +207,7 @@ fn worker_loop(
 fn drain_commands(
     runtime: &Runtime,
     command_rx: &Receiver<WebSocketServerWorkerCommand>,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
     send_enabled: bool,
 ) -> bool {
@@ -220,7 +230,7 @@ fn drain_commands(
 fn accept_new_clients(
     runtime: &Runtime,
     listener: &tokio::net::TcpListener,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
     expected_path: &str,
 ) -> Result<(), ()> {
@@ -288,7 +298,7 @@ fn accept_new_clients(
 }
 
 fn register_client(
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
     remote_address: SocketAddr,
     request_path: String,
@@ -305,7 +315,7 @@ fn register_client(
 
 fn read_client_frames(
     runtime: &Runtime,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
 ) -> Result<(), ()> {
     let mut client_index = 0usize;
@@ -336,7 +346,7 @@ fn receive_messages(
     runtime: &Runtime,
     stream: &mut ServerWebSocketStream,
     client_id: &str,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
 ) -> Result<ReceiveOutcome, String> {
     let mut poll_interval = Duration::ZERO;
 
@@ -403,7 +413,7 @@ fn flush_stream(runtime: &Runtime, stream: &mut ServerWebSocketStream) -> Result
 
 fn disconnect_client(
     runtime: &Runtime,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
     client_index: usize,
     client_id: String,
@@ -418,7 +428,7 @@ fn disconnect_client(
 
 fn broadcast_bytes(
     runtime: &Runtime,
-    event_tx: &Sender<WebSocketServerWorkerEvent>,
+    event_tx: &PendingSender<WebSocketServerWorkerEvent>,
     clients: &mut Vec<WebSocketClientConnection>,
     send_enabled: bool,
     frame_kind: StreamingSendFrameKind,

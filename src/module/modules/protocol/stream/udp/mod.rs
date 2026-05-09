@@ -242,17 +242,18 @@ impl UdpModule {
         })
     }
 
-    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    fn drain_transport_events(&mut self, ctx: &mut ProcessCtx) {
         let mut worker_events = Vec::new();
         let Some(transport) = &self.transport else {
             return;
         };
 
+        transport.clear_pending();
         while let Ok(event) = transport.try_recv() {
             worker_events.push(event);
         }
 
-        let processing_enabled = self.stream.processing_enabled(snapshot).unwrap_or(true);
+        let processing_enabled = self.stream.processing_enabled_cached();
         let mut received_bytes = false;
         for event in worker_events {
             match event {
@@ -279,7 +280,7 @@ impl UdpModule {
                         None,
                         true,
                     );
-                    match self.stream.parse_bytes(bytes.as_slice(), snapshot) {
+                    match self.stream.parse_bytes_cached(bytes.as_slice()) {
                         Ok(messages) => {
                             received_bytes = true;
                             if self.stream.log_incoming_enabled() {
@@ -530,21 +531,25 @@ impl Node for UdpModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
+        // Drain transport bytes using only cached config — no snapshot needed.
+        self.drain_transport_events(ctx);
+        self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
+
+        let needs_snapshot =
+            self.interface_refresh_due() || self.transport_dirty || self.stream.has_pending_messages();
+        if !needs_snapshot {
+            return;
+        }
+
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
 
-        self.drain_transport_events(ctx, snapshot);
-        self.interface_refresh_elapsed += ctx.delta_time.as_secs_f64();
+        // Refresh cached config while we have the snapshot so the next drain is accurate.
+        self.stream.refresh_config_cache(snapshot);
 
-        let refresh_interface_options = self.interface_refresh_due();
-        let needs_snapshot = refresh_interface_options || self.transport_dirty || self.stream.has_pending_messages();
-        if !needs_snapshot {
-            return;
-        }
-
-        if refresh_interface_options {
+        if self.interface_refresh_due() {
             self.refresh_interface_options(ctx);
             self.interface_refresh_elapsed = 0.0;
         }
@@ -562,8 +567,15 @@ impl Node for UdpModule {
         self.stop_transport();
     }
 
+    fn needs_update(&self) -> bool {
+        self.transport_dirty
+            || self.stream.has_pending_messages()
+            || self.interface_refresh_due()
+            || self.transport.as_ref().is_some_and(|t| t.has_pending())
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport.is_some() || self.transport_dirty || self.stream.has_pending_messages() || self.interface_refresh_due()
+        self.transport_dirty || self.stream.has_pending_messages() || self.interface_refresh_due()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

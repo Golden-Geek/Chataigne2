@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use super::pending_channel::{pending_channel, PendingReceiver, PendingSender};
+
 #[cfg(not(windows))]
 use std::path::Path;
 
@@ -91,7 +93,7 @@ pub(crate) enum SerialConnectionEvent {
 
 pub(crate) struct SerialConnectionHandle {
     command_tx: Sender<SerialConnectionCommand>,
-    event_rx: Receiver<SerialConnectionEvent>,
+    event_rx: PendingReceiver<SerialConnectionEvent>,
     connected: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -198,7 +200,7 @@ impl SerialConnectionHandle {
         }
 
         let (command_tx, command_rx) = mpsc::channel();
-        let (event_tx, event_rx) = mpsc::channel();
+        let (event_tx, event_rx) = pending_channel();
         let connected = Arc::new(AtomicBool::new(false));
         let worker_connected = Arc::clone(&connected);
 
@@ -227,6 +229,14 @@ impl SerialConnectionHandle {
 
     pub(crate) fn try_recv(&self) -> Result<SerialConnectionEvent, mpsc::TryRecvError> {
         self.event_rx.try_recv()
+    }
+
+    pub(crate) fn has_pending(&self) -> bool {
+        self.event_rx.has_pending()
+    }
+
+    pub(crate) fn clear_pending(&self) {
+        self.event_rx.clear_pending();
     }
 
     pub(crate) fn stop(&mut self) {
@@ -430,7 +440,7 @@ enum WorkerLoopControl {
 fn serial_connection_worker_loop(
     config: SerialConnectionConfig,
     command_rx: Receiver<SerialConnectionCommand>,
-    event_tx: Sender<SerialConnectionEvent>,
+    event_tx: PendingSender<SerialConnectionEvent>,
     connected: Arc<AtomicBool>,
 ) {
     let mut buffer = [0u8; 8192];
@@ -566,7 +576,7 @@ fn serial_connection_worker_loop(
 
 fn drain_commands(
     command_rx: &Receiver<SerialConnectionCommand>,
-    event_tx: &Sender<SerialConnectionEvent>,
+    event_tx: &PendingSender<SerialConnectionEvent>,
     pending_writes: &mut VecDeque<Vec<u8>>,
     pending_write_bytes: &mut usize,
 ) -> WorkerLoopControl {
@@ -589,7 +599,7 @@ fn drain_commands(
 
 fn handle_worker_command(
     command: SerialConnectionCommand,
-    event_tx: &Sender<SerialConnectionEvent>,
+    event_tx: &PendingSender<SerialConnectionEvent>,
     pending_writes: &mut VecDeque<Vec<u8>>,
     pending_write_bytes: &mut usize,
 ) -> WorkerLoopControl {
@@ -603,7 +613,7 @@ fn handle_worker_command(
 }
 
 fn enqueue_pending_write(
-    event_tx: &Sender<SerialConnectionEvent>,
+    event_tx: &PendingSender<SerialConnectionEvent>,
     pending_writes: &mut VecDeque<Vec<u8>>,
     pending_write_bytes: &mut usize,
     bytes: Vec<u8>,
@@ -652,7 +662,7 @@ fn open_serial_port(
 }
 
 fn emit_status(
-    event_tx: &Sender<SerialConnectionEvent>,
+    event_tx: &PendingSender<SerialConnectionEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<SerialConnectionStatus>,
     next_status: SerialConnectionStatus,
@@ -671,7 +681,7 @@ fn emit_status(
 }
 
 fn enter_recovery(
-    event_tx: &Sender<SerialConnectionEvent>,
+    event_tx: &PendingSender<SerialConnectionEvent>,
     connected: &Arc<AtomicBool>,
     last_status: &mut Option<SerialConnectionStatus>,
     reconnect_delay: &mut Duration,
