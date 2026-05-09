@@ -643,6 +643,7 @@ impl<T: Node> Engine<T> {
         self.prepare_node_for_insert(&mut tree.node, parent, user_role);
         let node_id = self.nodes.insert(tree.node);
         self.attach_node(edit_index, operation, node_id, parent, prev_sibling)?;
+        self.populate_param_cache_entry(node_id);
         let decl_id = self
             .nodes
             .get(node_id)
@@ -845,6 +846,7 @@ impl<T: Node> Engine<T> {
                 n.node_data_mut().effective_enabled = enabled;
             }
         }
+        self.populate_param_cache_entry(child_id);
 
         let (attached_prev_sibling, attached_next_sibling) = {
             let attached_data = self
@@ -1197,7 +1199,9 @@ impl<T: Node> Engine<T> {
             operation: OP,
             node,
         })?;
+        self.purge_param_cache_entry(node);
         self.nodes.reattach(node, replacement);
+        self.populate_param_cache_entry(node);
         self.mark_schedule_dirty();
         self.blueprints.unregister_instance(node);
 
@@ -1248,6 +1252,7 @@ impl<T: Node> Engine<T> {
                 node: removed,
             })?;
             detached_nodes.push((removed, detached_node));
+            self.purge_param_cache_entry(removed);
             self.blueprints.unregister_instance(removed);
             self.emit_inbox_event(EventKind::NodeDeleted { node: removed });
         }

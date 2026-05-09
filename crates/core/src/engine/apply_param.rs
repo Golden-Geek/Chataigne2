@@ -97,8 +97,16 @@ impl<T: Node> Engine<T> {
         });
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
-        if !self.parameter_values_dirty {
-            self.parameter_values_cache.insert(node, new_value.clone());
+        self.parameter_values_cache.insert(node, new_value.clone());
+        #[cfg(debug_assertions)]
+        {
+            if let Some(live) = self.nodes.get(node).and_then(|n| n.engine_param_snapshot()) {
+                debug_assert_eq!(
+                    live.value, new_value,
+                    "param cache consistency: cache and node disagree after SetParam on {:?}",
+                    node
+                );
+            }
         }
 
         Ok(Some(SetParamEffect {
@@ -147,6 +155,10 @@ impl<T: Node> Engine<T> {
         if old_snapshot.constraints == new_snapshot.constraints && old_snapshot.value == new_snapshot.value {
             return Ok(None);
         }
+
+        // The tick snapshot caches param_constraints; invalidate it so subsequent
+        // CallNodeMutation closures compare against the updated constraints.
+        self.tick_tree_snapshot = None;
 
         self.emit_param_events_for_state_change(node, &old_snapshot.value, &new_snapshot.value);
         self.emit_param_constraints_event(node, old_snapshot.constraints.clone(), new_snapshot.constraints.clone());
@@ -623,6 +635,7 @@ impl<T: Node> Engine<T> {
         });
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
+        self.parameter_values_cache.insert(node, new_value.clone());
     }
 
     fn emit_param_constraints_event(

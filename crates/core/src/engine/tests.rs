@@ -2488,6 +2488,8 @@ fn bound_handle_refreshes_from_runtime_parameter_value_without_param_changed_eve
         panic!("expected Parameter variant");
     };
     feedback_param.value = ParamValue::Float(0.9);
+    // Bypass-mutated the node directly, so resync the cache entry to match.
+    engine.populate_param_cache_entry(feedback);
 
     engine.edits.push(Edit::EmitCustomEvent {
         event: CustomEvent::new("owner.ping", Some(owner), serde_json::Value::Null),
@@ -6329,7 +6331,7 @@ fn control_mode_expression_tracks_dependency_listeners() {
 
     let listeners = engine
         .event_listeners
-        .get(&result)
+        .get_subscriptions(result)
         .expect("expression target should register listeners");
     assert!(
         listeners.contains(&EventSubscription::node(a)),
@@ -6401,7 +6403,7 @@ fn control_mode_expression_updates_and_cleans_listeners() {
 
     let listeners = engine
         .event_listeners
-        .get(&result)
+        .get_subscriptions(result)
         .expect("expression target should register listeners");
     assert!(listeners.contains(&EventSubscription::node(a)));
     assert!(listeners.contains(&EventSubscription::node(b)));
@@ -6414,7 +6416,7 @@ fn control_mode_expression_updates_and_cleans_listeners() {
 
     let listeners = engine
         .event_listeners
-        .get(&result)
+        .get_subscriptions(result)
         .expect("expression target should keep listeners after rebind");
     assert!(
         !listeners.contains(&EventSubscription::node(a)),
@@ -6442,7 +6444,7 @@ fn control_mode_expression_updates_and_cleans_listeners() {
     assert!(
         engine
             .event_listeners
-            .get(&result)
+            .get_subscriptions(result)
             .is_none_or(|subscriptions| subscriptions.is_empty()),
         "expression listeners should be removed after leaving expression mode",
     );
@@ -9809,7 +9811,7 @@ fn runtime_listener_can_be_added_and_removed_via_ctx() {
     assert!(
         engine
             .event_listeners
-            .get(&watcher)
+            .get_subscriptions(watcher)
             .is_some_and(|subscriptions| subscriptions.contains(&EventSubscription::node(source))),
         "watcher should have runtime listener to source",
     );
@@ -9891,7 +9893,7 @@ fn runtime_listener_is_removed_automatically_when_target_is_deleted() {
     assert!(
         !engine
             .event_listeners
-            .values()
+            .all_subscriber_subscriptions()
             .any(|subscriptions| subscriptions.iter().any(|subscription| subscription.node == source)),
         "listeners targeting deleted node should be purged automatically",
     );
@@ -10538,4 +10540,75 @@ fn bench_stress_20k_nodes_fast_updates_and_edits() {
     );
 
     assert!(benchmark_updates > 0, "benchmark should execute update callbacks");
+}
+
+#[test]
+fn param_cache_is_updated_incrementally_by_set_param_and_structural_changes() {
+    let root = Parameter::new("root_param", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine: Engine<Parameter> = Engine::new(root);
+    let root_id = engine.root;
+    engine.resolve().expect("resolve should succeed");
+
+    // SetParam → cache entry reflects new value immediately.
+    engine.edits.push(Edit::SetParam {
+        node: root_id,
+        value: ParamValue::Int(42),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().expect("apply_edits should succeed");
+    assert_eq!(
+        engine.parameter_values_cache.get(&root_id).cloned(),
+        Some(ParamValue::Int(42)),
+        "cache should be updated after SetParam"
+    );
+
+    // AddNode of a param child → cache entry populated.
+    let child_param = Parameter::new("child_param", ParamValue::Float(3.14), ParameterChangeCheck::None);
+    engine.edits.push(Edit::AddNode {
+        parent: root_id,
+        node: Box::new(child_param),
+        prev_sibling: None,
+    });
+    engine.apply_edits().expect("add_node apply should succeed");
+    let child_id = engine
+        .nodes
+        .get(root_id)
+        .and_then(|n| n.node_data().first_child)
+        .expect("child param should exist");
+    assert_eq!(
+        engine.parameter_values_cache.get(&child_id).cloned(),
+        Some(ParamValue::Float(3.14)),
+        "cache should be populated after AddNode of a param node"
+    );
+
+    // SetParam on child → cache entry updated, root entry unchanged.
+    engine.edits.push(Edit::SetParam {
+        node: child_id,
+        value: ParamValue::Float(99.0),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().expect("set_param on child should succeed");
+    assert_eq!(
+        engine.parameter_values_cache.get(&child_id).cloned(),
+        Some(ParamValue::Float(99.0)),
+        "child cache entry should reflect updated value"
+    );
+    assert_eq!(
+        engine.parameter_values_cache.get(&root_id).cloned(),
+        Some(ParamValue::Int(42)),
+        "root cache entry should be unaffected by child SetParam"
+    );
+
+    // RemoveNode → cache entry purged for removed node, root entry intact.
+    engine.edits.push(Edit::RemoveNode { node: child_id });
+    engine.apply_edits().expect("remove should succeed");
+    assert!(
+        !engine.parameter_values_cache.contains_key(&child_id),
+        "cache should be purged after RemoveNode"
+    );
+    assert_eq!(
+        engine.parameter_values_cache.get(&root_id).cloned(),
+        Some(ParamValue::Int(42)),
+        "root cache entry should survive unrelated RemoveNode"
+    );
 }

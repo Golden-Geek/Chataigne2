@@ -252,6 +252,7 @@ impl<T: Node> HistoryStep<T> {
                         node: removed,
                     })?;
                     detached_nodes.push((removed, detached));
+                    engine.purge_param_cache_entry(removed);
                     engine.emit_event(EventKind::NodeDeleted { node: removed });
                 }
 
@@ -275,6 +276,7 @@ impl<T: Node> HistoryStep<T> {
                 let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
                 for (id, node) in detached_nodes {
                     engine.nodes.reattach(id, node);
+                    engine.populate_param_cache_entry(id);
                 }
 
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
@@ -360,7 +362,9 @@ impl<T: Node> HistoryStep<T> {
                         operation: OP,
                         node: step.new_id,
                     })?;
+                    engine.purge_param_cache_entry(step.new_id);
                     engine.nodes.reattach(step.old_id, old_node);
+                    engine.populate_param_cache_entry(step.old_id);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
@@ -380,8 +384,10 @@ impl<T: Node> HistoryStep<T> {
                     operation: OP,
                     node: step.new_id,
                 })?;
+                engine.purge_param_cache_entry(step.new_id);
 
                 engine.nodes.reattach(step.old_id, old_node);
+                engine.populate_param_cache_entry(step.old_id);
                 engine.attach_node_between(0, OP, step.old_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 let first_child = engine
@@ -477,6 +483,7 @@ impl<T: Node> HistoryStep<T> {
                 let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
                 for (id, node) in detached_nodes {
                     engine.nodes.reattach(id, node);
+                    engine.populate_param_cache_entry(id);
                 }
                 engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
@@ -514,6 +521,7 @@ impl<T: Node> HistoryStep<T> {
                         node: removed,
                     })?;
                     detached_nodes.push((removed, detached));
+                    engine.purge_param_cache_entry(removed);
                     engine.emit_event(EventKind::NodeDeleted { node: removed });
                 }
 
@@ -594,7 +602,9 @@ impl<T: Node> HistoryStep<T> {
                         operation: OP,
                         node: step.old_id,
                     })?;
+                    engine.purge_param_cache_entry(step.old_id);
                     engine.nodes.reattach(step.new_id, new_node);
+                    engine.populate_param_cache_entry(step.new_id);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
                     engine.emit_event(EventKind::ChildReplaced {
@@ -614,8 +624,10 @@ impl<T: Node> HistoryStep<T> {
                     operation: OP,
                     node: step.old_id,
                 })?;
+                engine.purge_param_cache_entry(step.old_id);
 
                 engine.nodes.reattach(step.new_id, new_node);
+                engine.populate_param_cache_entry(step.new_id);
                 engine.attach_node_between(0, OP, step.new_id, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 let first_child = engine

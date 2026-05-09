@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
-use crate::node::{EventSubscription, *};
+use crate::node::*;
 use crate::parameter::ParamValue;
 use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot};
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,8 @@ mod contexts;
 mod controls;
 /// Event bubbling and inbox dispatch orchestration.
 mod dispatch;
+/// Two-way listener index for O(tree_depth) subscription routing.
+mod listener_index;
 /// Engine edit error type definitions.
 mod error;
 /// Undo/redo history transaction and effect models.
@@ -112,8 +114,8 @@ pub struct Engine<T: Node> {
     external_edits_tx: Sender<Edit>,
     /// Cross-thread receiver drained by the engine before edit application.
     external_edits_rx: Receiver<Edit>,
-    /// Runtime listener subscriptions keyed by subscriber node id.
-    pub event_listeners: HashMap<NodeId, HashSet<EventSubscription>>,
+    /// Runtime listener subscriptions — two-way index for O(tree_depth) routing.
+    pub(crate) event_listeners: listener_index::ListenerIndex,
     /// App-registered reference filters keyed by `ReferenceConstraints.custom_filter_key`.
     reference_filters: HashMap<String, Box<ReferenceFilterFn<T>>>,
     /// Unified catalog registry for blueprint-backed dynamic node types.
@@ -177,11 +179,16 @@ pub struct Engine<T: Node> {
     /// edits in that tick. Cleared at tick start and on any structural change.
     pub(crate) tick_tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
     /// Cached map of parameter node → current value, used by `run_scheduled_updates` so
-    /// N due nodes share one O(N_nodes) scan per tick rather than one per node.
-    /// Maintained incrementally via `apply_set_param`; rebuilt from scratch when
-    /// `parameter_values_dirty` is true (set by `mark_schedule_dirty`).
+    /// N due nodes share the same resolution table rather than rebuilding per node.
+    ///
+    /// INVALIDATED BY:
+    ///   - AddNode / AddNodeTree / AddUserItem: `populate_param_cache_entry` after insert
+    ///   - RemoveNode: `purge_param_cache_entry` for each node in subtree
+    ///   - ReplaceNode: purge then populate around the in-place swap
+    ///   - SetParam / SetParamConstraints: updated in `apply_set_param` and `emit_param_events_for_state_change`
+    ///   - History undo/redo: populate/purge alongside every `nodes.reattach` / `nodes.detach`
+    ///   - NodeCreated/NodeDeleted events during absorb_edits: scanned in run_scheduled_updates and dispatch
     pub(crate) parameter_values_cache: HashMap<NodeId, ParamValue>,
-    pub(crate) parameter_values_dirty: bool,
 }
 
 impl<T: Node> Engine<T> {
@@ -205,7 +212,7 @@ impl<T: Node> Engine<T> {
             edits: EditQueue::new(),
             external_edits_tx,
             external_edits_rx,
-            event_listeners: HashMap::new(),
+            event_listeners: listener_index::ListenerIndex::default(),
             reference_filters: HashMap::new(),
             blueprints: crate::blueprints::BlueprintRegistry::new(),
             user_contexts: crate::contexts::UserContextRegistry::new(),
@@ -235,7 +242,6 @@ impl<T: Node> Engine<T> {
             has_active_controls_cache: None,
             tick_tree_snapshot: None,
             parameter_values_cache: HashMap::new(),
-            parameter_values_dirty: true,
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::events::Event;
+use crate::events::{Event, EventKind};
 use crate::node::{EventPropagation, EventSubscription, Node, NodeId};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
@@ -31,26 +31,16 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        self.event_listeners.entry(subscriber).or_default().insert(subscription);
+        self.event_listeners.add(subscriber, subscription);
         Ok(())
     }
 
     pub(crate) fn apply_remove_event_listener(&mut self, subscriber: NodeId, subscription: EventSubscription) {
-        if let Some(subscriptions) = self.event_listeners.get_mut(&subscriber) {
-            subscriptions.remove(&subscription);
-            if subscriptions.is_empty() {
-                self.event_listeners.remove(&subscriber);
-            }
-        }
+        self.event_listeners.remove(subscriber, subscription);
     }
 
     pub(crate) fn purge_event_listeners_for_node(&mut self, node: NodeId) {
-        self.event_listeners.remove(&node);
-        for subscriptions in self.event_listeners.values_mut() {
-            subscriptions.retain(|subscription| subscription.node != node);
-        }
-        self.event_listeners
-            .retain(|_, subscriptions| !subscriptions.is_empty());
+        self.event_listeners.purge_for_node(node);
     }
 
     /// Precomputes per-node inbox payloads from currently buffered engine events.
@@ -113,18 +103,8 @@ impl<T: Node> Engine<T> {
         per_node_events: Vec<(NodeId, Vec<Event>)>,
         run_app_callbacks: bool,
     ) -> Result<(), EngineEditError> {
-        // Rebuild the param cache when stale (structural change since last update).
-        if self.parameter_values_dirty {
-            self.parameter_values_cache.clear();
-            for (node_id, node) in self.nodes.iter() {
-                if let Some(snapshot) = node.engine_param_snapshot() {
-                    self.parameter_values_cache.insert(node_id, snapshot.value);
-                }
-            }
-            self.parameter_values_dirty = false;
-        }
         // Take ownership to avoid borrow conflicts with the &mut self calls below.
-        let parameter_values = std::mem::take(&mut self.parameter_values_cache);
+        let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let tree_snapshot = (!per_node_events.is_empty()).then(|| self.build_process_tree_snapshot());
 
         for (node_id, events) in per_node_events {
@@ -139,6 +119,7 @@ impl<T: Node> Engine<T> {
                 ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
             }
 
+            let events_before = self.inbox.events.len();
             if let Some(node) = self.nodes.get_mut(node_id) {
                 crate::logger::with_node_origin(node_id, || {
                     node.engine_preprocess_inbox(&mut ctx);
@@ -149,6 +130,24 @@ impl<T: Node> Engine<T> {
                     }
                 });
                 self.absorb_edits(&mut ctx)?;
+            }
+            for event in self.inbox.events.iter().skip(events_before) {
+                match &event.kind {
+                    EventKind::ParamChanged { param, new_value, .. } => {
+                        parameter_values.insert(*param, new_value.clone());
+                    }
+                    EventKind::NodeCreated { node } => {
+                        if let Some(n) = self.nodes.get(*node) {
+                            if let Some(snapshot) = n.engine_param_snapshot() {
+                                parameter_values.insert(*node, snapshot.value);
+                            }
+                        }
+                    }
+                    EventKind::NodeDeleted { node } => {
+                        parameter_values.remove(node);
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -278,30 +277,21 @@ impl<T: Node> Engine<T> {
             return;
         }
 
-        for (subscriber_id, subscriptions) in &self.event_listeners {
-            let Some(subscriber) = self.nodes.get(*subscriber_id) else {
-                continue;
-            };
-            let propagation = subscriber.event_propagation(event, 0);
-            if propagation == EventPropagation::PassOn {
-                continue;
-            }
-
-            let matches_runtime = subscriptions
-                .iter()
-                .copied()
-                .any(|subscription| Self::subscription_matches_origin(ancestry_depths, subscription));
-            let matches_subscription = matches_runtime;
-
-            if matches_subscription && dedupe.insert(*subscriber_id) {
-                recipients.push(*subscriber_id);
+        for (&origin, &depth) in ancestry_depths {
+            for &(subscriber_id, max_depth) in self.event_listeners.listeners_for_origin(origin) {
+                if depth > max_depth || dedupe.contains(&subscriber_id) {
+                    continue;
+                }
+                let Some(subscriber) = self.nodes.get(subscriber_id) else {
+                    continue;
+                };
+                if subscriber.event_propagation(event, 0) == EventPropagation::PassOn {
+                    continue;
+                }
+                if dedupe.insert(subscriber_id) {
+                    recipients.push(subscriber_id);
+                }
             }
         }
-    }
-
-    fn subscription_matches_origin(ancestry_depths: &HashMap<NodeId, u32>, subscription: EventSubscription) -> bool {
-        ancestry_depths
-            .get(&subscription.node)
-            .is_some_and(|depth| *depth <= subscription.max_depth)
     }
 }

@@ -307,7 +307,21 @@ impl<T: Node> Engine<T> {
         self.runtime_resolve_pending = true;
         self.has_active_controls_cache = None;
         self.tick_tree_snapshot = None;
-        self.parameter_values_dirty = true;
+    }
+
+    /// Inserts or refreshes the param cache entry for `node_id`.
+    /// Cheap no-op when the node has no parameter snapshot.
+    pub(crate) fn populate_param_cache_entry(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get(node_id) {
+            if let Some(snapshot) = node.engine_param_snapshot() {
+                self.parameter_values_cache.insert(node_id, snapshot.value);
+            }
+        }
+    }
+
+    /// Removes the param cache entry for `node_id` (idempotent).
+    pub(crate) fn purge_param_cache_entry(&mut self, node_id: NodeId) {
+        self.parameter_values_cache.remove(&node_id);
     }
 
     /// Returns whether runtime schedule recomputation is pending.
@@ -601,15 +615,6 @@ impl<T: Node> Engine<T> {
         });
         let tree_snapshot = needs_tree_snapshot.then(|| self.get_or_build_tick_snapshot());
 
-        if self.parameter_values_dirty {
-            self.parameter_values_cache.clear();
-            for (node_id, node) in self.nodes.iter() {
-                if let Some(snapshot) = node.engine_param_snapshot() {
-                    self.parameter_values_cache.insert(node_id, snapshot.value);
-                }
-            }
-            self.parameter_values_dirty = false;
-        }
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut callback_count = 0usize;
         let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
@@ -688,8 +693,21 @@ impl<T: Node> Engine<T> {
             }
             self.absorb_edits(&mut ctx)?;
             for event in self.inbox.events.iter().skip(events_before_update) {
-                if let EventKind::ParamChanged { param, new_value, .. } = &event.kind {
-                    parameter_values.insert(*param, new_value.clone());
+                match &event.kind {
+                    EventKind::ParamChanged { param, new_value, .. } => {
+                        parameter_values.insert(*param, new_value.clone());
+                    }
+                    EventKind::NodeCreated { node } => {
+                        if let Some(n) = self.nodes.get(*node) {
+                            if let Some(snapshot) = n.engine_param_snapshot() {
+                                parameter_values.insert(*node, snapshot.value);
+                            }
+                        }
+                    }
+                    EventKind::NodeDeleted { node } => {
+                        parameter_values.remove(node);
+                    }
+                    _ => {}
                 }
             }
 
