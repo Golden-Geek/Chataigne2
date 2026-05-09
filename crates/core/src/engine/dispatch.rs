@@ -47,20 +47,29 @@ impl<T: Node> Engine<T> {
     ///
     /// The returned vector preserves first-seen node order while events remain in
     /// engine emission order for each node.
-    pub fn precompute_inbox_dispatch(&self) -> Vec<(NodeId, Vec<Event>)> {
+    pub fn precompute_inbox_dispatch(&mut self) -> Vec<(NodeId, Vec<Event>)> {
         self.precompute_inbox_dispatch_since(0)
     }
 
     /// Precomputes per-node inbox payloads for events emitted at or after `start`.
     ///
-    /// `start` is clamped to the current inbox length.
-    pub(crate) fn precompute_inbox_dispatch_since(&self, start: usize) -> Vec<(NodeId, Vec<Event>)> {
+    /// `start` is clamped to the current inbox length. Uses `tick_scratch` routing buffers
+    /// to avoid per-event heap allocations on the tick path.
+    pub(crate) fn precompute_inbox_dispatch_since(&mut self, start: usize) -> Vec<(NodeId, Vec<Event>)> {
         let mut index_by_node: HashMap<NodeId, usize> = HashMap::new();
         let mut per_node_events: Vec<(NodeId, Vec<Event>)> = Vec::new();
 
-        let start = start.min(self.inbox.events.len());
-        for event in self.inbox.events.iter().skip(start) {
-            for recipient in self.route_event_recipients(event) {
+        // Take routing scratch buffers out so &self is freely available inside the loop.
+        let mut recipients = std::mem::take(&mut self.tick_scratch.recipients);
+        let mut dedupe = std::mem::take(&mut self.tick_scratch.recipients_dedupe);
+        let mut ancestry_depths = std::mem::take(&mut self.tick_scratch.ancestry_depths);
+
+        let event_count = self.inbox.events.len();
+        let start = start.min(event_count);
+        for i in start..event_count {
+            let event = &self.inbox.events[i];
+            self.route_event_recipients_into(event, &mut recipients, &mut dedupe, &mut ancestry_depths);
+            for &recipient in &recipients {
                 let index = match index_by_node.get(&recipient).copied() {
                     Some(index) => index,
                     None => {
@@ -70,9 +79,17 @@ impl<T: Node> Engine<T> {
                         index
                     }
                 };
-                per_node_events[index].1.push(event.clone());
+                per_node_events[index].1.push(self.inbox.events[i].clone());
             }
         }
+
+        // Return routing scratch buffers.
+        recipients.clear();
+        dedupe.clear();
+        ancestry_depths.clear();
+        self.tick_scratch.recipients = recipients;
+        self.tick_scratch.recipients_dedupe = dedupe;
+        self.tick_scratch.ancestry_depths = ancestry_depths;
 
         per_node_events
     }
@@ -167,27 +184,45 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
+    /// Routes `event` and returns owned recipient list. For non-tick callers that don't hold
+    /// a `TickScratch`; allocates fresh containers each call.
     pub(crate) fn route_event_recipients(&self, event: &Event) -> Vec<NodeId> {
-        let Some(origin) = event.kind.propagation_origin() else {
-            return Vec::new();
-        };
-
-        if !self.nodes.contains(origin) {
-            return Vec::new();
-        }
-
-        let ancestry_depths = self.origin_ancestry_depths(origin);
         let mut recipients = Vec::new();
         let mut dedupe = HashSet::new();
-
-        self.collect_bubbling_recipients(event, origin, &mut recipients, &mut dedupe);
-        self.collect_subscription_recipients(event, &ancestry_depths, &mut recipients, &mut dedupe);
-
+        let mut ancestry_depths = HashMap::new();
+        self.route_event_recipients_into(event, &mut recipients, &mut dedupe, &mut ancestry_depths);
         recipients
     }
 
-    fn origin_ancestry_depths(&self, origin: NodeId) -> HashMap<NodeId, u32> {
-        let mut out = HashMap::new();
+    /// Routes `event` into caller-provided scratch buffers to avoid per-event allocation.
+    ///
+    /// Clears all three buffers before writing. On return, `recipients` contains the ordered
+    /// recipient list.
+    pub(crate) fn route_event_recipients_into(
+        &self,
+        event: &Event,
+        recipients: &mut Vec<NodeId>,
+        dedupe: &mut HashSet<NodeId>,
+        ancestry_depths: &mut HashMap<NodeId, u32>,
+    ) {
+        recipients.clear();
+        dedupe.clear();
+
+        let Some(origin) = event.kind.propagation_origin() else {
+            return;
+        };
+
+        if !self.nodes.contains(origin) {
+            return;
+        }
+
+        self.origin_ancestry_depths_into(origin, ancestry_depths);
+        self.collect_bubbling_recipients(event, origin, recipients, dedupe);
+        self.collect_subscription_recipients(event, ancestry_depths, recipients, dedupe);
+    }
+
+    fn origin_ancestry_depths_into(&self, origin: NodeId, out: &mut HashMap<NodeId, u32>) {
+        out.clear();
         let mut current = Some(origin);
         let mut depth = 0u32;
 
@@ -199,8 +234,6 @@ impl<T: Node> Engine<T> {
             current = self.nodes.get(node_id).and_then(|node| node.node_data().parent);
             depth = depth.saturating_add(1);
         }
-
-        out
     }
 
     fn collect_bubbling_recipients(

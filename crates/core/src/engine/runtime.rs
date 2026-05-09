@@ -18,6 +18,8 @@ use super::{Engine, EngineEditError};
 
 const RUNTIME_LOOP_CAP_INTERVAL: Duration = Duration::from_micros(1_000);
 const PERF_LOG_TICK_THRESHOLD_MS: u128 = 8;
+/// Warn when stabilization passes reach this count — graph likely has a feedback cycle.
+const STABILIZATION_WARN_PASSES: usize = 4;
 #[cfg(debug_assertions)]
 const DEBUG_VERBOSE_STABILIZATION_THRESHOLD: usize = 100;
 #[cfg(debug_assertions)]
@@ -84,7 +86,7 @@ pub struct RuntimeLimits {
 impl Default for RuntimeLimits {
     fn default() -> Self {
         Self {
-            max_stabilization_passes_per_tick: 256,
+            max_stabilization_passes_per_tick: 16,
             max_update_callbacks_per_tick: 100_000,
             max_bucket_catch_up_per_tick: 4,
         }
@@ -251,9 +253,11 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn collect_due_nodes(&mut self, elapsed: Duration, max_bucket_catch_up: u32) -> Vec<NodeId> {
+    fn collect_due_nodes_into(&mut self, out: &mut Vec<NodeId>, elapsed: Duration, max_bucket_catch_up: u32) {
+        out.clear();
+
         if self.buckets.is_empty() {
-            return Vec::new();
+            return;
         }
 
         let catch_up_limit = max_bucket_catch_up.max(1);
@@ -272,17 +276,16 @@ impl ScheduleMgr {
         }
 
         if max_due == 0 {
-            return Vec::new();
+            return;
         }
 
-        let mut due_nodes = Vec::new();
         for round in 0..max_due {
             for node_id in &self.topo_order {
                 let Some(bucket_index) = self.bucket_by_node.get(node_id).copied() else {
                     continue;
                 };
                 if self.buckets[bucket_index].due_count > round {
-                    due_nodes.push(*node_id);
+                    out.push(*node_id);
                 }
             }
         }
@@ -290,8 +293,6 @@ impl ScheduleMgr {
         for bucket in &mut self.buckets {
             bucket.due_count = 0;
         }
-
-        due_nodes
     }
 
     fn bucket_nodes(&self, rate_hz: NodeUpdateRate) -> Option<&[NodeId]> {
@@ -402,9 +403,24 @@ impl<T: Node> Engine<T> {
     }
 
     /// Executes one runtime tick with an elapsed wall-clock delta.
+    ///
+    /// # Phase diagram
+    ///
+    /// | Phase | Reads | Writes | May emit events | May append edits |
+    /// |-------|-------|--------|-----------------|-----------------|
+    /// | 1. resolve | schedule state | topo_order, buckets | no | no |
+    /// | 2. absorb external edits | external_edits_rx | edits.pending | no | yes |
+    /// | 3. apply external edits | edits.pending | nodes, schedule | yes (ChildAdded etc.) | no |
+    /// | 4. inbox precompute | inbox.events, nodes | per_node_events | no | no |
+    /// | 5. inbox preprocess (on_child_added) | per_node_events | nodes | yes | yes |
+    /// | 6. control pass | nodes (param controls) | edits.pending | yes (ParamChanged) | yes |
+    /// | 7. scheduled updates (node.update) | nodes, parameter_values_cache | nodes, inbox | yes | yes |
+    /// | 8. stabilization rounds | inbox, edits.pending | nodes | yes | yes |
+    /// | 9. logger sync | logger state | ui_event_log | no | no |
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let tick_started = Instant::now();
         self.tick_tree_snapshot = None;
+        self.tick_scratch.clear_scheduled();
 
         let resolve1_started = Instant::now();
         self.resolve_if_needed()?;
@@ -596,15 +612,20 @@ impl<T: Node> Engine<T> {
     }
 
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
-        let due_nodes = self
-            .runtime_schedule
-            .collect_due_nodes(elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        // Reuse scratch buffer to avoid per-tick Vec allocation.
+        let mut due_nodes = std::mem::take(&mut self.tick_scratch.due_nodes);
+        self.runtime_schedule
+            .collect_due_nodes_into(&mut due_nodes, elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+
         if due_nodes.is_empty() {
+            self.tick_scratch.due_nodes = due_nodes;
             return Ok(());
         }
 
         // Skip all expensive setup when every due node has nothing to do this tick.
         if !due_nodes.iter().any(|id| self.nodes.get(*id).is_some_and(|n| n.needs_update())) {
+            due_nodes.clear();
+            self.tick_scratch.due_nodes = due_nodes;
             return Ok(());
         }
 
@@ -617,9 +638,10 @@ impl<T: Node> Engine<T> {
 
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut callback_count = 0usize;
-        let mut due_counts: HashMap<NodeId, usize> = HashMap::new();
-        let mut remaining_delta_by_node: HashMap<NodeId, Duration> = HashMap::new();
-        let mut seen_by_node: HashMap<NodeId, usize> = HashMap::new();
+        // Take scratch HashMap buffers to avoid per-tick allocation.
+        let mut due_counts = std::mem::take(&mut self.tick_scratch.due_counts);
+        let mut remaining_delta_by_node = std::mem::take(&mut self.tick_scratch.remaining_delta_by_node);
+        let mut seen_by_node = std::mem::take(&mut self.tick_scratch.seen_by_node);
 
         for node_id in &due_nodes {
             *due_counts.entry(*node_id).or_default() += 1;
@@ -634,7 +656,8 @@ impl<T: Node> Engine<T> {
             remaining_delta_by_node.insert(*node_id, self.runtime_elapsed.saturating_sub(previous));
         }
 
-        for node_id in due_nodes {
+        for node_id in &due_nodes {
+            let node_id = *node_id;
             if !self.is_enabled(node_id, true) {
                 continue;
             }
@@ -720,7 +743,15 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        // Return the updated map to the cache for reuse next tick.
+        // Return scratch buffers and the updated param cache for reuse next tick.
+        due_nodes.clear();
+        due_counts.clear();
+        remaining_delta_by_node.clear();
+        seen_by_node.clear();
+        self.tick_scratch.due_nodes = due_nodes;
+        self.tick_scratch.due_counts = due_counts;
+        self.tick_scratch.remaining_delta_by_node = remaining_delta_by_node;
+        self.tick_scratch.seen_by_node = seen_by_node;
         self.parameter_values_cache = parameter_values;
 
         Ok(())
@@ -744,6 +775,13 @@ impl<T: Node> Engine<T> {
 
             #[cfg(debug_assertions)]
             self.log_verbose_stabilization_trace(pass, "post-control");
+
+            if pass == STABILIZATION_WARN_PASSES {
+                eprintln!(
+                    "[engine] stabilization warning: {} passes at tick {} — possible feedback cycle",
+                    pass, self.time.tick
+                );
+            }
 
             if pass >= self.runtime_limits.max_stabilization_passes_per_tick {
                 #[cfg(debug_assertions)]

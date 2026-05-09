@@ -31,6 +31,8 @@ mod controls;
 mod dispatch;
 /// Two-way listener index for O(tree_depth) subscription routing.
 mod listener_index;
+/// Pre-allocated scratch buffers reused across tick phases.
+mod tick_scratch;
 /// Engine edit error type definitions.
 mod error;
 /// Undo/redo history transaction and effect models.
@@ -189,6 +191,10 @@ pub struct Engine<T: Node> {
     ///   - History undo/redo: populate/purge alongside every `nodes.reattach` / `nodes.detach`
     ///   - NodeCreated/NodeDeleted events during absorb_edits: scanned in run_scheduled_updates and dispatch
     pub(crate) parameter_values_cache: HashMap<NodeId, ParamValue>,
+    /// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.
+    ///
+    /// INVALIDATED BY: cleared at the start of each phase that uses it; never persisted.
+    pub(crate) tick_scratch: tick_scratch::TickScratch,
 }
 
 impl<T: Node> Engine<T> {
@@ -242,6 +248,7 @@ impl<T: Node> Engine<T> {
             has_active_controls_cache: None,
             tick_tree_snapshot: None,
             parameter_values_cache: HashMap::new(),
+            tick_scratch: tick_scratch::TickScratch::default(),
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();

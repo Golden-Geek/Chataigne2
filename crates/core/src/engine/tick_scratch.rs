@@ -1,0 +1,38 @@
+use std::collections::{HashMap, HashSet};
+use std::time::Duration;
+
+use crate::node::NodeId;
+
+/// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.
+///
+/// Cleared at the start of each relevant phase. Buffers retain their allocated capacity between
+/// ticks so the allocator amortizes cost after the first few busy ticks.
+///
+/// INVALIDATED BY: `run_tick` clears scheduled buffers before `run_scheduled_updates`.
+/// Event-routing buffers are cleared at the start of each `route_event_recipients_into` call.
+#[derive(Default)]
+pub(crate) struct TickScratch {
+    /// Due nodes collected by `collect_due_nodes_into`.
+    pub(crate) due_nodes: Vec<NodeId>,
+    /// Per-node firing count for the current scheduled-update pass.
+    pub(crate) due_counts: HashMap<NodeId, usize>,
+    /// Remaining delta tracking for multi-fire nodes within one scheduled pass.
+    pub(crate) remaining_delta_by_node: HashMap<NodeId, Duration>,
+    /// Per-node seen count within the current scheduled-update pass.
+    pub(crate) seen_by_node: HashMap<NodeId, usize>,
+    /// Recipient list for event routing; cleared per `route_event_recipients_into` call.
+    pub(crate) recipients: Vec<NodeId>,
+    /// Dedup set for event routing; cleared per `route_event_recipients_into` call.
+    pub(crate) recipients_dedupe: HashSet<NodeId>,
+    /// Ancestor depth map for subscription routing; cleared per `route_event_recipients_into` call.
+    pub(crate) ancestry_depths: HashMap<NodeId, u32>,
+}
+
+impl TickScratch {
+    pub(crate) fn clear_scheduled(&mut self) {
+        self.due_nodes.clear();
+        self.due_counts.clear();
+        self.remaining_delta_by_node.clear();
+        self.seen_by_node.clear();
+    }
+}
