@@ -221,6 +221,11 @@ pub struct NodeData {
     pub user_role: UserNodeRole,
     /// User-facing metadata.
     pub meta: NodeMeta,
+    /// Effective enabled state accounting for all ancestors.
+    /// Written by the engine before each `on_effective_enabled_changed` call;
+    /// nodes can read this instead of querying the tree snapshot.
+    #[serde(skip)]
+    pub effective_enabled: bool,
 }
 
 impl NodeData {
@@ -237,6 +242,7 @@ impl NodeData {
             next_sibling: None,
             user_role: UserNodeRole::Regular,
             meta,
+            effective_enabled: true,
         }
     }
 }

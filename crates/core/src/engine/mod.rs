@@ -711,6 +711,8 @@ impl<T: Node> Engine<T> {
                 continue;
             };
 
+            node.node_data_mut().effective_enabled = *enabled;
+
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
             ctx.set_tree_snapshot(Arc::clone(&tree_snapshot));

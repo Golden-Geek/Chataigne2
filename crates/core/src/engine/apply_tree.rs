@@ -978,6 +978,15 @@ impl<T: Node> Engine<T> {
         }
 
         let inserted_ids = inserted.iter().map(|node| node.id).collect::<Vec<_>>();
+
+        // Initialize effective_enabled before any node callbacks fire.
+        for node_id in &inserted_ids {
+            let enabled = self.is_effectively_enabled(*node_id);
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().effective_enabled = enabled;
+            }
+        }
+
         self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
         self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
         if let Some(context) = creation_context {

@@ -598,10 +598,15 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
+        // Skip all expensive setup when every due node has nothing to do this tick.
+        if !due_nodes.iter().any(|id| self.nodes.get(*id).is_some_and(|n| n.needs_update())) {
+            return Ok(());
+        }
+
         let needs_tree_snapshot = due_nodes.iter().any(|node_id| {
             self.nodes
                 .get(*node_id)
-                .is_some_and(|node| node.update_requires_tree_snapshot())
+                .is_some_and(|node| node.needs_update() && node.update_requires_tree_snapshot())
         });
         let tree_snapshot = needs_tree_snapshot.then(|| self.get_or_build_tick_snapshot());
 
