@@ -130,13 +130,13 @@ impl ProjectNodeMeta {
             enabled: Some(meta.enabled),
             can_be_disabled: Some(meta.can_be_disabled),
             label: Some(meta.label.clone()),
-            description: Some(meta.description.clone()),
+            description: meta.description.clone().map(Some),
             declared_description_key: Some(meta.declared_description_key.clone()),
             declared_description: Some(meta.declared_description.clone()),
-            tags: Some(meta.tags.clone()),
+            tags: (!meta.tags.is_empty()).then(|| meta.tags.clone()),
             user_permissions: Some(meta.user_permissions.clone()),
-            semantics: Some(meta.semantics.clone()),
-            presentation: Some(meta.presentation.clone()),
+            semantics: (meta.semantics != SemanticsHint::default()).then(|| meta.semantics.clone()),
+            presentation: (meta.presentation != PresentationHint::default()).then(|| meta.presentation.clone()),
         }
     }
 

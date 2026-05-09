@@ -246,10 +246,11 @@ fn resolve_include_path(include_relative_path: &Path, root_dir: &Path) -> Result
         return Ok((include_path, target_root, include_key));
     }
 
+    let rel_forward = include_relative_path.to_string_lossy().replace('\\', "/");
     Err(format!(
         "failed to read template include '{}': looked in {}",
-        include_relative_path.display(),
-        include_path.display()
+        rel_forward,
+        target_root.join(&rel_forward).display()
     ))
 }
 
