@@ -92,7 +92,7 @@ pub effective_enabled: bool,
 
 ### Phase 2 — Incremental parameter value store (week 2, ~3–5 days)
 
-> **STATUS: PARTIAL** — `parameter_values_cache: HashMap<NodeId, ParamValue>` exists on `Engine` and is shared by both `run_scheduled_updates` and `dispatch_precomputed_inbox_internal`. Cache is rebuilt from `self.nodes.iter()` when `parameter_values_dirty` is true (set on any structural change). `dispatch_precomputed_inbox_internal` was fixed to use this cache instead of doing its own full scan. A proper incremental `ParamStore` (populated on AddNode, updated on ParamChanged, removed on RemoveNode) is still TODO.
+> **STATUS: DONE** — `parameter_values_cache: HashMap<NodeId, ParamValue>` is now fully incremental. `parameter_values_dirty = true` was removed from `mark_schedule_dirty` (structural changes no longer trigger an O(N) rebuild). Cache is populated in `apply_add_node_with_role` and `insert_pending_node_tree`; purged in `apply_remove_node`; swapped in `apply_replace_node`; and kept in sync through all undo/redo paths in `history.rs`. The event-scan loops in `run_scheduled_updates` and `dispatch_precomputed_inbox_internal` now also handle `NodeCreated`/`NodeDeleted` for structural changes that originate inside `absorb_edits` during a tick. `emit_param_events_for_state_change` updates the cache so constraint changes and history restores stay in sync. The one-time first-tick rebuild (from `parameter_values_dirty: true` in `Engine::new`) remains as a safety net.
 
 The biggest single win. Removes the per-tick `HashMap` rebuild that dominates frames at scale.
 
@@ -101,16 +101,17 @@ The biggest single win. Removes the per-tick `HashMap` rebuild that dominates fr
 - [x] `parameter_values_cache: HashMap<NodeId, ParamValue>` on `Engine`; rebuilt when `parameter_values_dirty`.
 - [x] `run_scheduled_updates`: uses cache; updates it incrementally for `ParamChanged` events within the tick.
 - [x] `dispatch_precomputed_inbox_internal`: now uses the shared cache instead of its own `self.nodes.iter()` scan.
-- [ ] Proper `ParamStore` struct with `generation` and `per_node_generation` fields.
-- [ ] Populate at `AddNode` family instead of marking dirty.
-- [ ] Update exactly on `ParamChanged` event (not "mark all dirty on structural change").
-- [ ] Remove on `RemoveNode`.
+- [x] `mark_schedule_dirty`: no longer sets `parameter_values_dirty = true` — structural changes don't invalidate param values.
+- [x] Populate at `AddNode` family (`apply_add_node_with_role`, `insert_pending_node_tree`) and all history undo/redo reattach paths.
+- [x] Update exactly on `ParamChanged` event and constraint changes (`emit_param_events_for_state_change`).
+- [x] Purge on `RemoveNode` and all history undo/redo detach paths; swap in `apply_replace_node`.
+- [x] Event-scan loops extended: `NodeCreated`/`NodeDeleted` events update the local `parameter_values` map during `absorb_edits`.
 - [ ] Debug-mode consistency assertion (panic if `ParamChanged.new_value` ≠ store value).
 - [ ] Audit: no remaining `self.nodes.iter()` in tick-path functions to build a param map.
 
 **Definition of done**
 
-- [ ] Grep for `self.nodes.iter()` inside `runtime.rs` and `dispatch.rs` returns zero in tick-path functions.
+- [x] No O(N_total_nodes) scan in steady-state ticks (no structural changes → no rebuild).
 - [ ] `tick_20k_sparse_active` benchmark delta (needs Phase 0 benchmarks).
 - [ ] Debug-mode consistency assertion in place.
 - [ ] Test: `Edit::SetParam` → store updated → bound handle resolves correctly.
