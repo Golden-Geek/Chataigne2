@@ -38,7 +38,7 @@ pub(crate) fn apply_received_value_payload(
     values_id: NodeId,
     path_segments: &[String],
     payload: &ReceivedValuePayload,
-    options: ReceivedValueApplyOptions<'_>,
+    options: ReceivedValueApplyOptions,
 ) -> ReceivedValueApplyResult {
     if path_segments.is_empty() {
         return ReceivedValueApplyResult::Ignored;
@@ -67,9 +67,8 @@ pub(crate) fn apply_received_value_payload(
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct ReceivedValueApplyOptions<'a> {
+pub(crate) struct ReceivedValueApplyOptions {
     pub(crate) auto_add: bool,
-    pub(crate) source_description: &'a str,
     pub(crate) event_behaviour: ParameterEventBehaviour,
 }
 
@@ -765,8 +764,9 @@ fn planned_child_index(children: &[PlannedReceivedNode], key: &str) -> Option<us
     children.iter().position(|child| child.label() == key)
 }
 
-fn planned_description(source_description: &str, include: bool) -> Option<String> {
-    include.then(|| format!("Auto-created from {source_description}"))
+fn planned_description(_source_description: &str, _include: bool) -> Option<String> {
+    None
+    // include.then(|| format!("Auto-created from {source_description}"))
 }
 
 fn queue_planned_node(ctx: &mut ProcessCtx, parent: NodeId, node: PlannedReceivedNode) {
@@ -873,8 +873,8 @@ fn apply_single_value_message(
     parent_id: NodeId,
     leaf_name: String,
     value: ParamValue,
-    options: ReceivedValueApplyOptions<'_>,
-) -> ReceivedValueApplyResult {
+    options: ReceivedValueApplyOptions,
+) -> ReceivedValueApplyResult { 
     match snapshot.find_child(parent_id, leaf_name.as_str()) {
         Some(existing_id) => {
             let Some(existing_snapshot) = snapshot.node(existing_id) else {
@@ -891,7 +891,7 @@ fn apply_single_value_message(
                         Box::new(create_parameter_node(
                             leaf_name.as_str(),
                             value,
-                            Some(format!("Auto-created from {}", options.source_description)),
+                            None//(format!("Auto-created from {}", options.source_description)),
                         )),
                     );
                     return ReceivedValueApplyResult::applied(true);
@@ -902,7 +902,7 @@ fn apply_single_value_message(
                     Box::new(create_parameter_node(
                         leaf_name.as_str(),
                         value,
-                        Some(format!("Auto-created from {}", options.source_description)),
+                        None//(format!("Auto-created from {}", options.source_description)),
                     )),
                 );
                 return ReceivedValueApplyResult::applied(true);
@@ -920,7 +920,7 @@ fn apply_single_value_message(
                 Box::new(create_parameter_node(
                     leaf_name.as_str(),
                     value,
-                    Some(format!("Auto-created from {}", options.source_description)),
+                    None//(format!("Auto-created from {}", options.source_description)),
                 )),
                 None,
             );
@@ -935,7 +935,7 @@ fn apply_multi_value_message(
     parent_id: NodeId,
     leaf_name: String,
     values: &[ParamValue],
-    options: ReceivedValueApplyOptions<'_>,
+    options: ReceivedValueApplyOptions,
 ) -> ReceivedValueApplyResult {
     let folder_id = match snapshot.find_child(parent_id, leaf_name.as_str()) {
         Some(existing_id) => {
@@ -971,7 +971,7 @@ fn sync_multi_value_folder(
     snapshot: &ProcessTreeSnapshot,
     folder_id: NodeId,
     values: &[ParamValue],
-    options: ReceivedValueApplyOptions<'_>,
+    options: ReceivedValueApplyOptions,
 ) -> bool {
     let mut structure_changed = false;
 

@@ -119,10 +119,6 @@ impl Node for GenericOscModule {
         self.base.destroy(ctx);
     }
 
-    fn needs_update(&self) -> bool {
-        self.base.needs_update()
-    }
-
     fn update_requires_tree_snapshot(&self) -> bool {
         self.base.update_requires_tree_snapshot()
     }
@@ -229,7 +225,7 @@ fn apply_single_value_message(
     leaf_name: String,
     value: ParamValue,
     auto_add: bool,
-    address: &str,
+    _address: &str,
 ) -> OscIncomingApplyResult {
     match snapshot.find_child(parent_id, leaf_name.as_str()) {
         Some(existing_id) => {
@@ -246,7 +242,7 @@ fn apply_single_value_message(
                         Box::new(create_parameter_node(
                             leaf_name.as_str(),
                             value,
-                            Some(format!("Auto-created from OSC address '{address}'")),
+                            None //(format!("Auto-created from OSC address '{address}'")),
                         )),
                     );
                 }
@@ -256,7 +252,7 @@ fn apply_single_value_message(
                     Box::new(create_parameter_node(
                         leaf_name.as_str(),
                         value,
-                        Some(format!("Auto-created from OSC address '{address}'")),
+                        None //(format!("Auto-created from OSC address '{address}'")),
                     )),
                 );
             }
@@ -273,7 +269,7 @@ fn apply_single_value_message(
                 Box::new(create_parameter_node(
                     leaf_name.as_str(),
                     value,
-                    Some(format!("Auto-created from OSC address '{address}'")),
+                    None //(format!("Auto-created from OSC address '{address}'")),
                 )),
                 None,
             );

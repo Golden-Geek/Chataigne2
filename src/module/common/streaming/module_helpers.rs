@@ -71,7 +71,7 @@ impl StreamingIncomingQueue {
                 &message.payload,
                 ReceivedValueApplyOptions {
                     auto_add,
-                    source_description: message.source_description.as_str(),
+                    //source_description: message.source_description.as_str(),
                     event_behaviour: ParameterEventBehaviour::Append,
                 },
             );

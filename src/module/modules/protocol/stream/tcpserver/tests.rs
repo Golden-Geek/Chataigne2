@@ -32,10 +32,9 @@ fn tcp_server_script_template_scaffolds_server_stream_callbacks() {
 
 #[test]
 fn tcp_server_module_root_enable_toggle_stops_and_restarts_transport() {
-    let port = free_tcp_port();
-    let (mut engine, module_id) = create_tcp_server_module();
+    let _guard = TCP_SERVER_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (mut engine, module_id, port) = create_tcp_server_module();
     let port_id = tcp_server_module(&engine, module_id).port.id();
-
     set_param(&mut engine, port_id, ParamValue::Int(i32::from(port)));
     settle_transport_state(&mut engine);
 
@@ -78,10 +77,9 @@ fn tcp_server_module_root_enable_toggle_stops_and_restarts_transport() {
 
 #[test]
 fn tcp_server_module_tracks_live_clients_in_runtime_folder() {
-    let port = free_tcp_port();
-    let (mut engine, module_id) = create_tcp_server_module();
+    let _guard = TCP_SERVER_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let (mut engine, module_id, port) = create_tcp_server_module();
     let port_id = tcp_server_module(&engine, module_id).port.id();
-
     set_param(&mut engine, port_id, ParamValue::Int(i32::from(port)));
     settle_transport_state(&mut engine);
 
@@ -153,7 +151,21 @@ fn tcp_server_transport_closes_client_connections_when_stopped() {
     }
 }
 
-fn create_tcp_server_module() -> (crate::app::AppEngine, NodeId) {
+/// Prevents the two TCP server module tests that go through `create_tcp_server_module`
+/// from running in parallel.  Both tests start with the module on the default port 9002
+/// (the first `apply_edits` loop triggers `on_node_ready` which binds 9002 before the
+/// test has a chance to switch to an ephemeral port).  Holding this lock for the
+/// duration of each affected test ensures at most one `on_node_ready` bind attempt is
+/// in flight at a time.
+static TCP_SERVER_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Creates a TCP server module engine.  The module starts on the default port 9002
+/// until `settle_transport_state` is called with a new ephemeral port configured.
+/// Returns `(engine, module_id, ephemeral_port)` — `ephemeral_port` is an OS-allocated
+/// free port that the caller should set on the module before starting the transport.
+fn create_tcp_server_module() -> (crate::app::AppEngine, NodeId, u16) {
+    let ephemeral_port = free_tcp_port();
+
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(TcpServerModule::create().into(), None);
@@ -169,7 +181,7 @@ fn create_tcp_server_module() -> (crate::app::AppEngine, NodeId) {
         .and_then(|root| root.node_data().first_child)
         .expect("TCP server module should be attached under root");
 
-    (engine, module_id)
+    (engine, module_id, ephemeral_port)
 }
 
 fn tcp_server_module(engine: &crate::app::AppEngine, module_id: NodeId) -> &TcpServerModule {
@@ -191,14 +203,6 @@ fn set_node_enabled(engine: &mut crate::app::AppEngine, node: NodeId, enabled: b
             enabled: Some(enabled),
             ..Default::default()
         },
-    });
-}
-
-fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
-    engine.edits.push(Edit::SetParam {
-        node,
-        value,
-        behaviour: ParameterEventBehaviour::Coalesce,
     });
 }
 
@@ -243,6 +247,14 @@ fn client_disconnect_detected(error: &std::io::Error) -> bool {
             | std::io::ErrorKind::BrokenPipe
             | std::io::ErrorKind::UnexpectedEof
     ) || error.raw_os_error() == Some(10054)
+}
+
+fn set_param(engine: &mut crate::app::AppEngine, node: NodeId, value: ParamValue) {
+    engine.edits.push(Edit::SetParam {
+        node,
+        value,
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
 }
 
 fn free_tcp_port() -> u16 {

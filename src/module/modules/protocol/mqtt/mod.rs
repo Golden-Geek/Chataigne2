@@ -413,7 +413,7 @@ impl MqttModule {
                     &received.payload,
                     ReceivedValueApplyOptions {
                         auto_add: self.auto_add.get(),
-                        source_description: received.source_description.as_str(),
+                        // source_description: received.source_description.as_str(),
                         event_behaviour: ParameterEventBehaviour::Append,
                     },
                 );

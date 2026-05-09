@@ -448,7 +448,10 @@ impl Node for TcpServerModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.transport_dirty || self.stream.has_pending_messages() || self.client_list_dirty
+        self.transport_dirty
+            || self.stream.has_pending_messages()
+            || self.client_list_dirty
+            || self.transport.as_ref().is_some_and(|t| t.has_pending())
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
