@@ -360,7 +360,11 @@ impl<T: Node> Engine<T> {
 
     /// Returns whether `node` is enabled.
     ///
-    /// When `in_hierarchy` is `true`, all ancestors (including self) must be enabled.
+    /// When `in_hierarchy` is `true`, uses the cached `effective_enabled` field on
+    /// `NodeData` to avoid a parent-chain walk.
+    ///
+    /// INVALIDATED BY: AddNode/AddUserItem/AddNodeTree (init from parent), MoveNode
+    ///   (subtree recompute), PatchMeta when `enabled` changes (subtree recompute).
     pub fn is_enabled(&self, node: NodeId, in_hierarchy: bool) -> bool {
         let Some(entry) = self.nodes.get(node) else {
             return false;
@@ -370,20 +374,7 @@ impl<T: Node> Engine<T> {
             return entry.node_data().meta.enabled;
         }
 
-        let mut cursor = Some(node);
-        while let Some(current) = cursor {
-            let Some(current_entry) = self.nodes.get(current) else {
-                return false;
-            };
-
-            if !current_entry.node_data().meta.enabled {
-                return false;
-            }
-
-            cursor = current_entry.node_data().parent;
-        }
-
-        true
+        entry.node_data().effective_enabled
     }
 
     /// Returns the current global topological order used by runtime updates.

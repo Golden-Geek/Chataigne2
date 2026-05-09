@@ -113,11 +113,18 @@ impl<T: Node> Engine<T> {
         per_node_events: Vec<(NodeId, Vec<Event>)>,
         run_app_callbacks: bool,
     ) -> Result<(), EngineEditError> {
-        let parameter_values: HashMap<NodeId, crate::parameter::ParamValue> = self
-            .nodes
-            .iter()
-            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot.value)))
-            .collect();
+        // Rebuild the param cache when stale (structural change since last update).
+        if self.parameter_values_dirty {
+            self.parameter_values_cache.clear();
+            for (node_id, node) in self.nodes.iter() {
+                if let Some(snapshot) = node.engine_param_snapshot() {
+                    self.parameter_values_cache.insert(node_id, snapshot.value);
+                }
+            }
+            self.parameter_values_dirty = false;
+        }
+        // Take ownership to avoid borrow conflicts with the &mut self calls below.
+        let parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let tree_snapshot = (!per_node_events.is_empty()).then(|| self.build_process_tree_snapshot());
 
         for (node_id, events) in per_node_events {
@@ -144,6 +151,9 @@ impl<T: Node> Engine<T> {
                 self.absorb_edits(&mut ctx)?;
             }
         }
+
+        // Return the cache so it can be reused next call (same as run_scheduled_updates).
+        self.parameter_values_cache = parameter_values;
 
         Ok(())
     }

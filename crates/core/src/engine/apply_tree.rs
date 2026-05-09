@@ -837,6 +837,15 @@ impl<T: Node> Engine<T> {
         let child_id = self.nodes.insert(node);
         self.attach_node(edit_index, operation, child_id, parent, prev_sibling)?;
 
+        // Initialize effective_enabled now that the parent link is established.
+        // Uses the parent-chain walk (init path only — not a hot path).
+        {
+            let enabled = self.is_effectively_enabled(child_id);
+            if let Some(n) = self.nodes.get_mut(child_id) {
+                n.node_data_mut().effective_enabled = enabled;
+            }
+        }
+
         let (attached_prev_sibling, attached_next_sibling) = {
             let attached_data = self
                 .nodes
@@ -1367,6 +1376,12 @@ impl<T: Node> Engine<T> {
             }]);
         }
 
+        // When the parent changed the effective_enabled of the whole subtree may have changed.
+        if detached_parent != new_parent {
+            let changes = self.subtree_effective_enabled_changes(node);
+            self.queue_effective_enabled_callbacks(&changes)?;
+        }
+
         Ok(MoveNodeEffect {
             node,
             old_parent,
@@ -1376,6 +1391,38 @@ impl<T: Node> Engine<T> {
             new_prev_sibling,
             new_next_sibling,
         })
+    }
+
+    /// Computes which nodes in the subtree rooted at `root` need their `effective_enabled`
+    /// updated based on the current parent chain and `meta.enabled` flags.
+    ///
+    /// Returns `(node_id, new_effective_enabled)` only for nodes whose cached value differs.
+    fn subtree_effective_enabled_changes(&self, root: NodeId) -> Vec<(NodeId, bool)> {
+        let parent_effective = self
+            .nodes
+            .get(root)
+            .and_then(|n| n.node_data().parent)
+            .map(|p| self.nodes.get(p).map(|n| n.node_data().effective_enabled).unwrap_or(false))
+            .unwrap_or(true);
+
+        let mut changes = Vec::new();
+        let mut stack = vec![(root, parent_effective)];
+        while let Some((node_id, parent_enabled)) = stack.pop() {
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+            let new_effective = parent_enabled && node.node_data().meta.enabled;
+            if new_effective != node.node_data().effective_enabled {
+                changes.push((node_id, new_effective));
+            }
+            let mut child = node.node_data().first_child;
+            while let Some(child_id) = child {
+                let next = self.nodes.get(child_id).and_then(|n| n.node_data().next_sibling);
+                stack.push((child_id, new_effective));
+                child = next;
+            }
+        }
+        changes
     }
 
     /// Emits a `GraphTransaction` covering all nodes in the subtree rooted at `root`
