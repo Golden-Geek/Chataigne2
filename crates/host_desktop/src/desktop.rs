@@ -225,16 +225,32 @@ where
     let endpoint = resolve_ui_endpoint(&config.bind_addr);
     config.frontend_assets = frontend_assets;
 
-    if args.headless {
-        return run_with_ui_server_config(engine, config);
-    }
-
     let configured_frontend_url = std::env::var("GC_UI_FRONTEND_URL")
         .ok()
         .filter(|value| !value.trim().is_empty());
     let frontend_url = configured_frontend_url
         .clone()
         .unwrap_or_else(|| default_frontend_url(&endpoint, frontend_assets, args.dev, dev_server));
+
+    if args.headless {
+        let dev_server_process = if args.dev && configured_frontend_url.is_none() {
+            spawn_frontend_dev_server(dev_server, &frontend_url, args.show_output)?
+        } else {
+            None
+        };
+
+        if let Some(connect_addr) = url_connect_addr(&frontend_url) {
+            if let Err(err) = wait_for_ui_server(&connect_addr, UI_STARTUP_TIMEOUT) {
+                eprintln!(
+                    "warning: frontend UI at {frontend_url} was not reachable yet ({err}); continuing with headless runtime"
+                );
+            }
+        }
+
+        let run_result = run_with_ui_server_config(engine, config);
+        drop(dev_server_process);
+        return run_result;
+    }
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
     thread::spawn(move || {
