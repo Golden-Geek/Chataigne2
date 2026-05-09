@@ -6,7 +6,7 @@ use golden_core::{
     logerror, node,
     node::{Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour, Vec2},
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use self::gamepad_runtime::{
@@ -267,10 +267,6 @@ impl GamepadModule {
     #[cfg(test)]
     pub(crate) fn enqueue_runtime_event_for_test(&mut self, event: GamepadRuntimeEvent) {
         self.pending_runtime_events.push(event);
-    }
-
-    fn module_enabled(&self, snapshot: &ProcessTreeSnapshot) -> bool {
-        snapshot.node(self.id()).map(|node| node.enabled).unwrap_or(false)
     }
 
     fn ensure_runtime(&mut self, ctx: &mut ProcessCtx) {
@@ -941,13 +937,8 @@ impl Node for GamepadModule {
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
         self.runtime_retry_elapsed += ctx.delta_time.as_secs_f64();
-        if !self.module_enabled(snapshot) {
+        if !self.node_data().effective_enabled {
             self.stop_runtime();
             self.update_connection_state(ctx, None);
             self.reset_values(ctx);
@@ -990,7 +981,7 @@ impl Node for GamepadModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        false
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

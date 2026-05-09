@@ -645,7 +645,7 @@ impl Node for HttpModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.transport_dirty || !self.pending_responses.is_empty()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

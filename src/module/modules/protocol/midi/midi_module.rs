@@ -2431,7 +2431,13 @@ impl Node for MidiModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.port_refresh_due()
+            || self.input_dirty
+            || self.output_dirty
+            || !self.pending_incoming_messages.is_empty()
+            || !self.pending_packets.is_empty()
+            || self.midi_clock_state.running
+            || self.mtc_stream_active
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

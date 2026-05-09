@@ -376,7 +376,7 @@ impl Node for TcpClientModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.transport.is_some() || self.transport_dirty || self.stream.has_pending_messages()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

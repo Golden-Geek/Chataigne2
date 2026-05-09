@@ -814,12 +814,17 @@ impl Node for OscModuleBase {
     fn needs_update(&self) -> bool {
         self.transport_dirty
             || !self.pending_outbound_nodes.is_empty()
+            || !self.pending_incoming_messages.is_empty()
             || self.transport.is_some()
             || self.interface_refresh_elapsed >= OSC_INTERFACE_REFRESH_INTERVAL_SECS
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.transport.is_some()
+            || self.interface_refresh_due()
+            || self.transport_dirty
+            || !self.pending_outbound_nodes.is_empty()
+            || !self.pending_incoming_messages.is_empty()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

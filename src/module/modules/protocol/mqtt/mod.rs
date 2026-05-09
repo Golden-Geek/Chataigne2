@@ -703,7 +703,7 @@ impl Node for MqttModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.transport_dirty || !self.pending_incoming_messages.is_empty()
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {

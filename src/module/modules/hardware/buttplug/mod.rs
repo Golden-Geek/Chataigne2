@@ -645,7 +645,7 @@ impl Node for ButtplugModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.transport_dirty
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
