@@ -33,7 +33,7 @@ You cannot fix what you cannot measure. Do this first or every later step is gue
 
 **Tasks**
 
-- [x] Add per-phase timing inside `run_tick` (resolve, absorb, apply, precompute, preprocess, control, scheduled, stabilization, logger-sync).  Timing is always on and logged to stderr above `PERF_LOG_TICK_THRESHOLD_MS = 8 ms`.
+- [X] Add per-phase timing inside `run_tick` (resolve, absorb, apply, precompute, preprocess, control, scheduled, stabilization, logger-sync).  Timing is always on and logged to stderr above `PERF_LOG_TICK_THRESHOLD_MS = 8 ms`.
 - [ ] Gate timing behind a `perf` feature flag so release builds with no perf concern pay nothing.
 - [ ] Add a per-tick counter struct (`tick_stats()` accessor): nodes due, callbacks fired, events emitted/routed, edits applied, stabilization passes, snapshot rebuilds, param-map rebuilds.
 - [ ] Add a Criterion benchmark crate at `crates/core/benches/`. Three scenarios:
@@ -58,13 +58,13 @@ Cheapest big win. Removes parent-chain walks from hot paths.
 
 **Tasks**
 
-- [x] Cache field: `effective_enabled: bool` on `NodeData` (default `true`; `#[serde(skip)]`).
-- [x] `AddNode` / `AddUserItem`: initialize from parent in `apply_add_node_with_role` after `attach_node`.
-- [x] `AddNodeTree`: initialize entire subtree before any callbacks fire (`apply_add_node_tree`).
-- [x] `MoveNode`: recompute subtree via `subtree_effective_enabled_changes` + `queue_effective_enabled_callbacks` (`apply_move_node`). Only fires when parent actually changes.
-- [x] `PatchMeta` when `enabled` changes: existing `queue_effective_enabled_callbacks` path in `apply_patch_meta`.
-- [x] `is_enabled(node, true)` delegates to `effective_enabled` field (no parent walk). Doc-comment names invalidation events.
-- [x] `is_effectively_enabled()` kept as parent-chain walker — used only for initialization, not in the hot path.
+- [X] Cache field: `effective_enabled: bool` on `NodeData` (default `true`; `#[serde(skip)]`).
+- [X] `AddNode` / `AddUserItem`: initialize from parent in `apply_add_node_with_role` after `attach_node`.
+- [X] `AddNodeTree`: initialize entire subtree before any callbacks fire (`apply_add_node_tree`).
+- [X] `MoveNode`: recompute subtree via `subtree_effective_enabled_changes` + `queue_effective_enabled_callbacks` (`apply_move_node`). Only fires when parent actually changes.
+- [X] `PatchMeta` when `enabled` changes: existing `queue_effective_enabled_callbacks` path in `apply_patch_meta`.
+- [X] `is_enabled(node, true)` delegates to `effective_enabled` field (no parent walk). Doc-comment names invalidation events.
+- [X] `is_effectively_enabled()` kept as parent-chain walker — used only for initialization, not in the hot path.
 
 **Invalidation owner** (now on `NodeData`):
 
@@ -84,7 +84,7 @@ pub effective_enabled: bool,
 
 **Definition of done**
 
-- [x] No parent-chain walk inside `run_tick` — `is_enabled(true)` is now an O(1) field read.
+- [X] No parent-chain walk inside `run_tick` — `is_enabled(true)` is now an O(1) field read.
 - [ ] `tick_20k_passive` benchmark delta (needs Phase 0 benchmarks first).
 - [ ] Unit test: toggle a parent's `enabled`, verify all descendants' cached values flip.
 
@@ -98,20 +98,20 @@ The biggest single win. Removes the per-tick `HashMap` rebuild that dominates fr
 
 **Tasks**
 
-- [x] `parameter_values_cache: HashMap<NodeId, ParamValue>` on `Engine`; rebuilt when `parameter_values_dirty`.
-- [x] `run_scheduled_updates`: uses cache; updates it incrementally for `ParamChanged` events within the tick.
-- [x] `dispatch_precomputed_inbox_internal`: now uses the shared cache instead of its own `self.nodes.iter()` scan.
-- [x] `mark_schedule_dirty`: no longer sets `parameter_values_dirty = true` — structural changes don't invalidate param values.
-- [x] Populate at `AddNode` family (`apply_add_node_with_role`, `insert_pending_node_tree`) and all history undo/redo reattach paths.
-- [x] Update exactly on `ParamChanged` event and constraint changes (`emit_param_events_for_state_change`).
-- [x] Purge on `RemoveNode` and all history undo/redo detach paths; swap in `apply_replace_node`.
-- [x] Event-scan loops extended: `NodeCreated`/`NodeDeleted` events update the local `parameter_values` map during `absorb_edits`.
+- [X] `parameter_values_cache: HashMap<NodeId, ParamValue>` on `Engine`; rebuilt when `parameter_values_dirty`.
+- [X] `run_scheduled_updates`: uses cache; updates it incrementally for `ParamChanged` events within the tick.
+- [X] `dispatch_precomputed_inbox_internal`: now uses the shared cache instead of its own `self.nodes.iter()` scan.
+- [X] `mark_schedule_dirty`: no longer sets `parameter_values_dirty = true` — structural changes don't invalidate param values.
+- [X] Populate at `AddNode` family (`apply_add_node_with_role`, `insert_pending_node_tree`) and all history undo/redo reattach paths.
+- [X] Update exactly on `ParamChanged` event and constraint changes (`emit_param_events_for_state_change`).
+- [X] Purge on `RemoveNode` and all history undo/redo detach paths; swap in `apply_replace_node`.
+- [X] Event-scan loops extended: `NodeCreated`/`NodeDeleted` events update the local `parameter_values` map during `absorb_edits`.
 - [ ] Debug-mode consistency assertion (panic if `ParamChanged.new_value` ≠ store value).
 - [ ] Audit: no remaining `self.nodes.iter()` in tick-path functions to build a param map.
 
 **Definition of done**
 
-- [x] No O(N_total_nodes) scan in steady-state ticks (no structural changes → no rebuild).
+- [X] No O(N_total_nodes) scan in steady-state ticks (no structural changes → no rebuild).
 - [ ] `tick_20k_sparse_active` benchmark delta (needs Phase 0 benchmarks).
 - [ ] Debug-mode consistency assertion in place.
 - [ ] Test: `Edit::SetParam` → store updated → bound handle resolves correctly.
@@ -120,7 +120,7 @@ The biggest single win. Removes the per-tick `HashMap` rebuild that dominates fr
 
 ### Phase 3 — Listener reverse index (week 2, ~2 days)
 
-> **STATUS: NOT STARTED** — `event_listeners: HashMap<NodeId, HashSet<EventSubscription>>` is the flat forward-only map. `collect_subscription_recipients` still iterates all subscribers.
+> **STATUS: DONE** — `ListenerIndex` (in `listener_index.rs`) replaces the flat `HashMap<NodeId, HashSet<EventSubscription>>`. Two-way index: `by_subscriber` (forward) + `by_origin` (reverse). `collect_subscription_recipients` now O(tree_depth × avg_listeners_per_origin). All add/remove/purge/query paths wired. 8 unit tests in `listener_index.rs`. Full test suite green.
 
 Fixes the per-event listener scan in `collect_subscription_recipients`.
 
@@ -172,6 +172,7 @@ Now that the big-O wins are in, tighten the tick loop itself.
       recipients_dedupe: HashSet<NodeId>,
   }
   ```
+
   Clear, don't drop, between ticks.
 
 **Definition of done**
@@ -381,6 +382,7 @@ done
 ### R6 — New node callbacks declare their cost
 
 **Rule**: When a node implements `Node`, it must state in doc comments:
+
 - Update rate (or "passive")
 - Whether `update_requires_tree_snapshot` returns true (and why)
 - Expected event fan-out per call (rough order of magnitude)
@@ -403,6 +405,7 @@ done
 ### R9 — No new fields without invalidation thinking
 
 **Rule**: Adding a new field to `Engine` that derives from other state requires:
+
 1. The doc comment from R2.
 2. A test that mutates the source state and verifies the derived field updates.
 3. A test that performs an inverse mutation and verifies the derived field unwinds.
@@ -423,40 +426,41 @@ Phase 0 starts with three. Build out to this set over the first two months.
 
 ### Tick benchmarks
 
-| Name | Setup | Measures |
-| --- | --- | --- |
-| `tick_20k_passive` | 20k nodes, none with update rate | Pure overhead floor; full-graph scans show up here |
-| `tick_20k_sparse_1pct_active_200fps` | 20k nodes, 200 active at 200 Hz | Realistic sparse-update perf |
-| `tick_10k_dense_20pct_active_100fps` | 10k nodes, 2k active at 100 Hz | Mid-density stress |
-| `tick_5k_all_active_60fps` | 5k nodes, all active at 60 Hz | Worst case: every node active |
-| `tick_with_param_changes` | 5k nodes, 100 param changes per tick | ParamStore + dispatch + dependent updates |
+| Name                                   | Setup                                | Measures                                           |
+| -------------------------------------- | ------------------------------------ | -------------------------------------------------- |
+| `tick_20k_passive`                   | 20k nodes, none with update rate     | Pure overhead floor; full-graph scans show up here |
+| `tick_20k_sparse_1pct_active_200fps` | 20k nodes, 200 active at 200 Hz      | Realistic sparse-update perf                       |
+| `tick_10k_dense_20pct_active_100fps` | 10k nodes, 2k active at 100 Hz       | Mid-density stress                                 |
+| `tick_5k_all_active_60fps`           | 5k nodes, all active at 60 Hz        | Worst case: every node active                      |
+| `tick_with_param_changes`            | 5k nodes, 100 param changes per tick | ParamStore + dispatch + dependent updates          |
 
 ### Dispatch benchmarks
 
-| Name | Setup | Measures |
-| --- | --- | --- |
-| `dispatch_10k_with_1k_listeners` | 10k nodes, 1k subscribers, 100 events/tick | Listener index efficiency |
-| `dispatch_20k_sparse_subscriptions` | 20k nodes, 50 subscribers, 10 events/tick | Best-case routing |
-| `dispatch_bubbling_deep_tree` | 1k nodes in a 100-deep chain, events bubble up | Bubbling cost |
+| Name                                  | Setup                                          | Measures                  |
+| ------------------------------------- | ---------------------------------------------- | ------------------------- |
+| `dispatch_10k_with_1k_listeners`    | 10k nodes, 1k subscribers, 100 events/tick     | Listener index efficiency |
+| `dispatch_20k_sparse_subscriptions` | 20k nodes, 50 subscribers, 10 events/tick      | Best-case routing         |
+| `dispatch_bubbling_deep_tree`       | 1k nodes in a 100-deep chain, events bubble up | Bubbling cost             |
 
 ### Structural benchmarks
 
-| Name | Setup | Measures |
-| --- | --- | --- |
-| `load_add_node_tree_20k` | Load a 20k-node tree via `AddNodeTree` | Bulk insert path |
-| `duplicate_subtree_5k` | Duplicate a 5k-node subtree under existing parent | Realistic duplicate |
-| `remove_subtree_5k` | Remove a 5k-node subtree | Cleanup path; tests listener purge, param store cleanup |
+| Name                       | Setup                                             | Measures                                                |
+| -------------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| `load_add_node_tree_20k` | Load a 20k-node tree via `AddNodeTree`          | Bulk insert path                                        |
+| `duplicate_subtree_5k`   | Duplicate a 5k-node subtree under existing parent | Realistic duplicate                                     |
+| `remove_subtree_5k`      | Remove a 5k-node subtree                          | Cleanup path; tests listener purge, param store cleanup |
 
 ### Stress benchmarks
 
-| Name | Setup | Measures |
-| --- | --- | --- |
+| Name                            | Setup                                                          | Measures                   |
+| ------------------------------- | -------------------------------------------------------------- | -------------------------- |
 | `stabilization_chain_20_deep` | A param chain where each node depends on the previous, 20 deep | Stabilization round budget |
-| `event_storm_1000_per_tick` | 1k custom events per tick to 100 listeners | Inbox throughput |
+| `event_storm_1000_per_tick`   | 1k custom events per tick to 100 listeners                     | Inbox throughput           |
 
 ### What every benchmark reports
 
 Always:
+
 - p50, p95, p99, max tick time
 - Allocations per tick (via `dhat` or `tracking-allocator` in a separate non-criterion run)
 - Per-tick stats from Phase 0 (events emitted, callbacks fired, snapshot rebuilds, etc.)
@@ -589,17 +593,17 @@ Performance work without correctness tests is how you ship a fast wrong engine.
 
 For 200 fps you have 5 ms per tick. Here's the suggested distribution. These are targets to design against, not measurements.
 
-| Phase | Budget at 200 fps | Notes |
-| --- | --- | --- |
-| `absorb_external_edits` | 0.2 ms | Should be near-zero in steady state |
-| `apply_edits` (early) | 0.5 ms | Steady state: empty |
-| `inbox precompute + preprocess` | 0.5 ms | Routing + per-node preprocessing |
-| `apply_edits` (post-inbox) | 0.3 ms | Edits triggered by inbox preprocessing |
-| `run_control_pass` | 0.3 ms | Param control evaluation |
-| `run_scheduled_updates` | 2.5 ms | The main work |
-| `run_stabilization_rounds` | 0.5 ms | Should usually do 0 passes |
-| UI/log emit | 0.2 ms | Outbound only |
-| **Total** | **5.0 ms** | |
+| Phase                             | Budget at 200 fps | Notes                                  |
+| --------------------------------- | ----------------- | -------------------------------------- |
+| `absorb_external_edits`         | 0.2 ms            | Should be near-zero in steady state    |
+| `apply_edits` (early)           | 0.5 ms            | Steady state: empty                    |
+| `inbox precompute + preprocess` | 0.5 ms            | Routing + per-node preprocessing       |
+| `apply_edits` (post-inbox)      | 0.3 ms            | Edits triggered by inbox preprocessing |
+| `run_control_pass`              | 0.3 ms            | Param control evaluation               |
+| `run_scheduled_updates`         | 2.5 ms            | The main work                          |
+| `run_stabilization_rounds`      | 0.5 ms            | Should usually do 0 passes             |
+| UI/log emit                       | 0.2 ms            | Outbound only                          |
+| **Total**                   | **5.0 ms**  |                                        |
 
 When a phase blows its budget, the per-phase timer from Phase 0 will tell you. Without that timer, you're guessing.
 
@@ -624,19 +628,19 @@ A list of plausible-sounding ideas that will hurt this project. AI assistants wi
 
 ## 10. Milestone summary
 
-| Week | Phase | Headline outcome |
-| --- | --- | --- |
-| 1 | 0 | Baseline measured, three benchmarks running, per-tick stats accessible |
-| 1 | 1 | `effective_enabled` cached; no parent walks in tick path |
-| 2 | 2 | `ParamStore` is the only source; per-tick `HashMap` rebuild gone |
-| 2 | 3 | Listener reverse index; dispatch scales with subscriber count, not graph size |
-| 3 | 4 | Tick path has zero steady-state allocations; stabilization budget is 16 |
-| 3 | 5 | Bucket collection scales with due-node count |
-| 4 | 6 | Compact subtree events; bulk operations don't flood the UI |
-| 4 | 7 | Files split; no module over 400 lines |
-| 5 | 8 | Topological sort cleanup; faster resolves |
-| 5 | 9 | Fixed-step accumulator; sequence timing is decoupled from frame jitter |
-| 6 | 10 | CI benchmarks gating PRs; regressions caught automatically |
+| Week | Phase | Headline outcome                                                              |
+| ---- | ----- | ----------------------------------------------------------------------------- |
+| 1    | 0     | Baseline measured, three benchmarks running, per-tick stats accessible        |
+| 1    | 1     | `effective_enabled` cached; no parent walks in tick path                    |
+| 2    | 2     | `ParamStore` is the only source; per-tick `HashMap` rebuild gone          |
+| 2    | 3     | Listener reverse index; dispatch scales with subscriber count, not graph size |
+| 3    | 4     | Tick path has zero steady-state allocations; stabilization budget is 16       |
+| 3    | 5     | Bucket collection scales with due-node count                                  |
+| 4    | 6     | Compact subtree events; bulk operations don't flood the UI                    |
+| 4    | 7     | Files split; no module over 400 lines                                         |
+| 5    | 8     | Topological sort cleanup; faster resolves                                     |
+| 5    | 9     | Fixed-step accumulator; sequence timing is decoupled from frame jitter        |
+| 6    | 10    | CI benchmarks gating PRs; regressions caught automatically                    |
 
 After week 6, you have a foundation that lets you scale to 20k nodes at 200 fps with confidence, and a rule set that protects that foundation from drift as more contributors (human and AI) touch the codebase.
 
