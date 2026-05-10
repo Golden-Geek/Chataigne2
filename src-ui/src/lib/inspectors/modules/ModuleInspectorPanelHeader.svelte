@@ -14,12 +14,11 @@
 
 {#snippet moduleHeaderExtra()}
 	{#if showModuleIndicators}
-			<ModuleIndicators {node} />
+		<ModuleIndicators {node} />
 	{/if}
 {/snippet}
 
 {@render defaultHeader?.(moduleHeaderExtra)}
 
 <style>
-	
 </style>

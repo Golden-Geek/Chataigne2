@@ -73,7 +73,10 @@
 			{/if}
 			{#if triggerNode}
 				<span class="command-header-trigger">
-					<TriggerEditor node={triggerNode} layoutMode="widget" insideLabel={triggerNode.meta.label} />
+					<TriggerEditor
+						node={triggerNode}
+						layoutMode="widget"
+						insideLabel={triggerNode.meta.label} />
 				</span>
 			{/if}
 		</span>
@@ -115,7 +118,8 @@
 		padding: 0;
 	}
 
-	.command-header-auto-trigger :global(.widget-checkbox-button.with-inline-label .widget-checkbox-mark) {
+	.command-header-auto-trigger
+		:global(.widget-checkbox-button.with-inline-label .widget-checkbox-mark) {
 		padding-inline: 0.25rem;
 		font-size: 0.62rem;
 		font-weight: 600;

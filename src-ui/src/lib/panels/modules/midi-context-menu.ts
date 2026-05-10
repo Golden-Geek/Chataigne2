@@ -24,9 +24,9 @@ const stripMidiCcConfigTags = (tags: readonly string[]): string[] => {
 
 const midiCcConfigFromTags = (tags: readonly string[]): { rotaryMode: string } => {
 	const rotaryMode =
-		tags.find((tag) => tag.startsWith(MIDI_CC_ROTARY_TAG_PREFIX))?.slice(
-			MIDI_CC_ROTARY_TAG_PREFIX.length
-		) ?? ROTARY_ABSOLUTE;
+		tags
+			.find((tag) => tag.startsWith(MIDI_CC_ROTARY_TAG_PREFIX))
+			?.slice(MIDI_CC_ROTARY_TAG_PREFIX.length) ?? ROTARY_ABSOLUTE;
 	return { rotaryMode };
 };
 

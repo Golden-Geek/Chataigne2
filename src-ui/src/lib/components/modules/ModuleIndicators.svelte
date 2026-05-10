@@ -396,9 +396,9 @@
 	}
 
 	.traffic-placeholder {
-		width:1.2rem;
-		height:1.2rem;
-		margin:0;
+		width: 1.2rem;
+		height: 1.2rem;
+		margin: 0;
 	}
 
 	.module-traffic-icon {
@@ -406,7 +406,6 @@
 		border: solid 2px transparent;
 		transition: border-color 0.12s ease;
 	}
-	
 
 	.module-traffic-icon.logging.traffic-incoming {
 		border-color: rgba(0, 150, 255, 1);

@@ -22,7 +22,7 @@
 		panelHeaderComponent: ModuleInspectorPanelHeader
 	});
 
-		registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
+	registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
 
 	// registerOutlinerRowSupplement('module', {
 	// 	component: ModuleItem
