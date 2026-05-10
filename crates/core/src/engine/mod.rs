@@ -29,14 +29,12 @@ mod contexts;
 mod controls;
 /// Event bubbling and inbox dispatch orchestration.
 mod dispatch;
-/// Two-way listener index for O(tree_depth) subscription routing.
-mod listener_index;
-/// Pre-allocated scratch buffers reused across tick phases.
-mod tick_scratch;
 /// Engine edit error type definitions.
 mod error;
 /// Undo/redo history transaction and effect models.
 mod history;
+/// Two-way listener index for O(tree_depth) subscription routing.
+mod listener_index;
 #[cfg(test)]
 mod param_constraints_tests;
 /// Project save/load support.
@@ -47,6 +45,8 @@ mod refs;
 mod runtime;
 #[cfg(test)]
 mod tests;
+/// Pre-allocated scratch buffers reused across tick phases.
+mod tick_scratch;
 /// UI-facing event outbox helpers.
 mod ui;
 

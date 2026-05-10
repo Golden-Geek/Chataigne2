@@ -135,7 +135,7 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
         .ok_or_else(|| "project-save path cannot be empty".to_string())?;
 
     let started = Instant::now();
-    
+
     let lock_started = Instant::now();
     let guard = match engine.lock() {
         Ok(guard) => guard,
@@ -143,9 +143,9 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
     };
     let lock_wait_elapsed = lock_started.elapsed();
     let node_count = guard.nodes.iter().count();
-    
+
     let clone_or_snapshot_ms = 0;
-    
+
     let serialize_started = Instant::now();
     let json = to_sparse_project_json_pretty(&guard).map_err(|err| err.to_string())?;
     let serialize_elapsed = serialize_started.elapsed();

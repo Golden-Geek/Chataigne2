@@ -1407,7 +1407,12 @@ impl<T: Node> Engine<T> {
             .nodes
             .get(root)
             .and_then(|n| n.node_data().parent)
-            .map(|p| self.nodes.get(p).map(|n| n.node_data().effective_enabled).unwrap_or(false))
+            .map(|p| {
+                self.nodes
+                    .get(p)
+                    .map(|n| n.node_data().effective_enabled)
+                    .unwrap_or(false)
+            })
             .unwrap_or(true);
 
         let mut changes = Vec::new();
@@ -1445,12 +1450,19 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
-            ops.push(UiGraphOp::NodeCreated { snapshot, parent, index });
+            ops.push(UiGraphOp::NodeCreated {
+                snapshot,
+                parent,
+                index,
+            });
         }
 
         // Append the final child order for the insertion parent so the UI knows where `root` sits.
         if let Some(children) = self.ui_direct_children(root_parent) {
-            ops.push(UiGraphOp::ChildrenReordered { parent: root_parent, children });
+            ops.push(UiGraphOp::ChildrenReordered {
+                parent: root_parent,
+                children,
+            });
         }
 
         self.push_ui_graph_transaction(ops);

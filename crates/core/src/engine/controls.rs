@@ -363,8 +363,9 @@ impl<T: Node> Engine<T> {
             Some(cached) => cached,
             None => {
                 let result = self.nodes.values().any(|node| {
-                    node.engine_param_control_state()
-                        .is_some_and(|state| state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty())
+                    node.engine_param_control_state().is_some_and(|state| {
+                        state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()
+                    })
                 });
                 self.has_active_controls_cache = Some(result);
                 result

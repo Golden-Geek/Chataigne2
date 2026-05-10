@@ -614,8 +614,11 @@ impl<T: Node> Engine<T> {
     fn run_scheduled_updates(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         // Reuse scratch buffer to avoid per-tick Vec allocation.
         let mut due_nodes = std::mem::take(&mut self.tick_scratch.due_nodes);
-        self.runtime_schedule
-            .collect_due_nodes_into(&mut due_nodes, elapsed, self.runtime_limits.max_bucket_catch_up_per_tick);
+        self.runtime_schedule.collect_due_nodes_into(
+            &mut due_nodes,
+            elapsed,
+            self.runtime_limits.max_bucket_catch_up_per_tick,
+        );
 
         if due_nodes.is_empty() {
             self.tick_scratch.due_nodes = due_nodes;
@@ -623,7 +626,10 @@ impl<T: Node> Engine<T> {
         }
 
         // Skip all expensive setup when every due node has nothing to do this tick.
-        if !due_nodes.iter().any(|id| self.nodes.get(*id).is_some_and(|n| n.needs_update())) {
+        if !due_nodes
+            .iter()
+            .any(|id| self.nodes.get(*id).is_some_and(|n| n.needs_update()))
+        {
             due_nodes.clear();
             self.tick_scratch.due_nodes = due_nodes;
             return Ok(());

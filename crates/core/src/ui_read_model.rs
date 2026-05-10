@@ -18,9 +18,9 @@ use crate::contexts::UiUserContextsDto;
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::ui_sync::{
-    UI_PROTOCOL_VERSION, UiChildrenOrderPatch, UiEventBatch, UiEventDto, UiEventKind, UiGraphOp,
-    UiHistoryState, UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec,
-    UiSchemaView, UiSnapshot, UiSubscriptionScope,
+    UI_PROTOCOL_VERSION, UiChildrenOrderPatch, UiEventBatch, UiEventDto, UiEventKind, UiGraphOp, UiHistoryState,
+    UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec, UiSchemaView, UiSnapshot,
+    UiSubscriptionScope,
 };
 
 const DEFAULT_UI_READ_MODEL_EVENT_CAPACITY: usize = 8192;
@@ -149,7 +149,10 @@ impl UiReadModel {
             *self.latest_event_time.lock().expect("ui read model poisoned") = Some(at);
         }
 
-        if matches!(reason, UiReadModelReplaceReason::ProjectReplaced | UiReadModelReplaceReason::Initial) {
+        if matches!(
+            reason,
+            UiReadModelReplaceReason::ProjectReplaced | UiReadModelReplaceReason::Initial
+        ) {
             self.events.lock().expect("ui read model event log poisoned").clear();
         }
     }
@@ -168,7 +171,11 @@ impl UiReadModel {
         let batch = engine.ui_event_batch(from, UiSubscriptionScope::WholeGraph);
         let history = engine.ui_history_state();
         let user_contexts = engine.ui_user_contexts();
-        UiEventCapture { batch, history, user_contexts }
+        UiEventCapture {
+            batch,
+            history,
+            user_contexts,
+        }
     }
 
     /// Applies a previously collected capture **outside the engine lock**.
@@ -177,7 +184,11 @@ impl UiReadModel {
     /// and rebuild `current` from pre-built DTOs — no engine traversal needed.
     /// Pure value-change events (params, custom) only advance `latest_event_time`.
     pub fn apply_event_capture(&self, capture: UiEventCapture, project_file: ProjectFileSpec) -> UiEventBatch {
-        let UiEventCapture { batch, history, user_contexts } = capture;
+        let UiEventCapture {
+            batch,
+            history,
+            user_contexts,
+        } = capture;
         if batch.events.is_empty() {
             return batch;
         }
@@ -196,7 +207,11 @@ impl UiReadModel {
                 self.latest_event_time
                     .lock()
                     .expect("ui read model poisoned")
-                    .unwrap_or(EngineTime { tick: 0, micro: 0, seq: 0 })
+                    .unwrap_or(EngineTime {
+                        tick: 0,
+                        micro: 0,
+                        seq: 0,
+                    })
             });
 
             {
@@ -376,13 +391,21 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, op: &UiGraphOp) {
         UiGraphOp::NodeCreated { snapshot, .. } => {
             store.insert(snapshot.node_id, snapshot.clone());
         }
-        UiGraphOp::SubtreeRemoved { removed_ids, parent_after, .. } => {
+        UiGraphOp::SubtreeRemoved {
+            removed_ids,
+            parent_after,
+            ..
+        } => {
             for id in removed_ids {
                 store.remove(id);
             }
             apply_children_order(store, parent_after.as_ref());
         }
-        UiGraphOp::NodeMoved { old_parent_after, new_parent_after, .. } => {
+        UiGraphOp::NodeMoved {
+            old_parent_after,
+            new_parent_after,
+            ..
+        } => {
             apply_children_order(store, old_parent_after.as_ref());
             apply_children_order(store, new_parent_after.as_ref());
         }
@@ -520,7 +543,12 @@ fn event_candidate_nodes(event: &UiEventDto) -> Vec<NodeId> {
         UiEventKind::ChildAdded { parent, child, .. } => vec![*parent, *child],
         UiEventKind::ChildRemoved { parent, child } => vec![*parent, *child],
         UiEventKind::ChildReplaced { parent, old, new, .. } => vec![*parent, *old, *new],
-        UiEventKind::ChildMoved { child, old_parent, new_parent, .. } => vec![*child, *old_parent, *new_parent],
+        UiEventKind::ChildMoved {
+            child,
+            old_parent,
+            new_parent,
+            ..
+        } => vec![*child, *old_parent, *new_parent],
         UiEventKind::ChildReordered { parent, child, .. } => vec![*parent, *child],
         UiEventKind::NodeCreated { node, .. } => vec![*node],
         UiEventKind::NodeDeleted { node } => vec![*node],
@@ -529,12 +557,7 @@ fn event_candidate_nodes(event: &UiEventDto) -> Vec<NodeId> {
     }
 }
 
-fn snapshot_node_within_subtree(
-    snapshot: &UiSnapshot,
-    node: NodeId,
-    root: NodeId,
-    max_depth: u32,
-) -> bool {
+fn snapshot_node_within_subtree(snapshot: &UiSnapshot, node: NodeId, root: NodeId, max_depth: u32) -> bool {
     if node == root {
         return true;
     }
