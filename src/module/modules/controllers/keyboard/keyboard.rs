@@ -756,7 +756,7 @@ impl KeyboardModule {
     node = "keyboard_module",
     via = base,
     from_struct,
-    menu_path = ["Hardware"]
+    menu_path = ["Controllers"]
 )]
 impl Node for KeyboardModule {
     fn init(&mut self, ctx: &mut ProcessCtx) {

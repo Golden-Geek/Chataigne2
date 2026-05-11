@@ -9,11 +9,13 @@ use std::process::{Command, Stdio};
 use golden_codegen_support::generate_app_nodes;
 
 const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
+const GC_KINECT20_DLL: &str = "GC_KINECT20_DLL";
 const GC_SKIP_UI_BUILD: &str = "GC_SKIP_UI_BUILD";
 const GC_UI_ASSUME_BUILT: &str = "GC_UI_ASSUME_BUILT";
 const REQUIRED_NODE_RANGE: &str = "Node.js 20.19+ or 22.12+";
 
 struct BuildPaths {
+    out_dir: PathBuf,
     bundled_ui_dir: PathBuf,
     ui_assets_rs: PathBuf,
     app_nodes_rs: PathBuf,
@@ -25,12 +27,17 @@ impl BuildPaths {
     fn from_env() -> Self {
         let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is not set"));
         Self {
+            out_dir: out_dir.clone(),
             bundled_ui_dir: out_dir.join("ui-dist"),
             ui_assets_rs: out_dir.join("ui_assets.rs"),
             app_nodes_rs: out_dir.join("app_nodes.rs"),
             npm_ci_stamp: out_dir.join("src-ui-package-lock.hash"),
             ui_root: PathBuf::from("src-ui"),
         }
+    }
+
+    fn cargo_profile_dir(&self) -> Option<&Path> {
+        self.out_dir.ancestors().nth(3)
     }
 }
 
@@ -39,6 +46,7 @@ fn main() -> std::io::Result<()> {
 
     emit_rerun_tracking(&paths)?;
     prepare_ui_assets(&paths)?;
+    prepare_native_sidecars(&paths)?;
     run_tauri_build();
     generate_rust_code(&paths);
 
@@ -47,10 +55,98 @@ fn main() -> std::io::Result<()> {
 
 fn emit_rerun_tracking(paths: &BuildPaths) -> std::io::Result<()> {
     println!("cargo:rerun-if-env-changed={GC_FORCE_NPM_CI}");
+    println!("cargo:rerun-if-env-changed={GC_KINECT20_DLL}");
     println!("cargo:rerun-if-env-changed={GC_SKIP_UI_BUILD}");
     println!("cargo:rerun-if-env-changed={GC_UI_ASSUME_BUILT}");
 
     track_ui_inputs(&paths.ui_root)?;
+    Ok(())
+}
+
+fn prepare_native_sidecars(paths: &BuildPaths) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        sidecar_kinect_runtime(paths)?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = paths;
+    }
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn sidecar_kinect_runtime(paths: &BuildPaths) -> std::io::Result<()> {
+    let Some(source) = find_kinect20_dll() else {
+        println!(
+            "cargo:warning=Kinect20.dll was not found on this Windows build machine; Kinect 2 support will compile, but deployment must sidecar the runtime DLL manually."
+        );
+        return Ok(());
+    };
+
+    println!("cargo:rerun-if-changed={}", source.display());
+
+    let Some(profile_dir) = paths.cargo_profile_dir() else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!(
+                "failed to resolve Cargo profile output directory from OUT_DIR {}",
+                paths.out_dir.display()
+            ),
+        ));
+    };
+
+    for destination_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
+        if !destination_dir.exists() {
+            fs::create_dir_all(&destination_dir)?;
+        }
+        copy_sidecar_if_needed(&source, &destination_dir.join("Kinect20.dll"))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn find_kinect20_dll() -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(value) = std::env::var_os(GC_KINECT20_DLL) {
+        let path = PathBuf::from(value);
+        if path.is_file() {
+            return Some(path);
+        }
+        candidates.push(path);
+    }
+
+    if let Some(system_root) = std::env::var_os("SystemRoot") {
+        candidates.push(PathBuf::from(system_root).join("System32").join("Kinect20.dll"));
+    }
+
+    if let Some(sdk_dir) = std::env::var_os("KINECTSDK20_DIR") {
+        candidates.push(PathBuf::from(&sdk_dir).join("Redist").join("Kinect20.dll"));
+        candidates.push(PathBuf::from(&sdk_dir).join("Kinect20.dll"));
+    }
+
+    candidates.into_iter().find(|candidate| candidate.is_file())
+}
+
+#[cfg(windows)]
+fn copy_sidecar_if_needed(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let should_copy = match fs::metadata(destination) {
+        Ok(existing) => {
+            let source_meta = fs::metadata(source)?;
+            existing.len() != source_meta.len()
+                || existing.modified().ok() != source_meta.modified().ok()
+        }
+        Err(_) => true,
+    };
+
+    if should_copy {
+        fs::copy(source, destination)?;
+    }
+
     Ok(())
 }
 

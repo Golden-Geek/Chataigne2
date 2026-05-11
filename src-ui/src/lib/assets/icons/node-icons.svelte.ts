@@ -3,6 +3,7 @@ import moduleIcon from './nodes/module.svg';
 import moduleManagerIcon from './nodes/module_manager.svg';
 import moduleCategoryNetworkIcon from './module/network.svg';
 import moduleCategoryHardwareIcon from './module/hardware.svg';
+import moduleCategoryControllersIcon from './module/controllers.svg';
 import moduleCategoryAudioIcon from './module/audio.svg';
 import moduleCategoryVideoIcon from './module/video.svg';
 import moduleCategorySystemIcon from './module/system.svg';
@@ -15,6 +16,7 @@ export const appIcons: NodeIconSet = {
 	categories: {
 		Network: moduleCategoryNetworkIcon,
 		Hardware: moduleCategoryHardwareIcon,
+		Controllers: moduleCategoryControllersIcon,
 		Audio: moduleCategoryAudioIcon,
 		Video: moduleCategoryVideoIcon,
 		System: moduleCategorySystemIcon
