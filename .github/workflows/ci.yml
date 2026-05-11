@@ -104,6 +104,8 @@ jobs:
             label: RPI 32-bit (Linux armhf)
             runs_on: ubuntu-24.04
             target: armv7-unknown-linux-gnueabihf
+            emulated_arch: armv7
+            emulated_distro: ubuntu24.04
           - id: rpi-aarch64
             label: RPI 64-bit (Linux aarch64)
             runs_on: ubuntu-24.04-arm
@@ -146,22 +148,20 @@ jobs:
         env:
           GC_UI_ASSUME_BUILT: 1
         run: cargo build --target ${{ matrix.target }}
-      - name: App build (arm runner armhf)
+      - name: App build (emulated armhf)
         if: ${{ matrix.id == 'rpi-armhf' }}
-        uses: pguyot/arm-runner-action@v2
+        uses: uraimo/run-on-arch-action@v3
         with:
-          base_image: raspi_2_bookworm:20231109
-          cpu: cortex-a7
-          shell: /bin/bash -eo pipefail
-          commands: |
-            apt-get update
-            apt-get install -y \
+          arch: ${{ matrix.emulated_arch }}
+          distro: ${{ matrix.emulated_distro }}
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y \
               build-essential \
-              clang \
               curl \
               file \
               git \
-              libclang-dev \
               libasound2-dev \
               libayatana-appindicator3-dev \
               librsvg2-dev \
@@ -169,12 +169,12 @@ jobs:
               libudev-dev \
               libwebkit2gtk-4.1-dev \
               libxdo-dev \
-              llvm-dev \
               pkg-config \
               wget
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
-            source "$HOME/.cargo/env"
+          env: |
+            GC_UI_ASSUME_BUILT: 1
+          run: |
+            . "$HOME/.cargo/env"
             rustup target add ${{ matrix.target }}
-            export GC_UI_ASSUME_BUILT=1
-            export LIBCLANG_PATH="$(llvm-config --libdir)"
             cargo build --target ${{ matrix.target }}
