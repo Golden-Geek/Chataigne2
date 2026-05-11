@@ -4,31 +4,23 @@ on:
   push:
   pull_request:
 
-jobs:
-  rust:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
-      - name: Root fmt
-        run: cargo fmt --all --check
-      - name: golden_core fmt
-        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
-      - name: Root check
-        run: cargo check
-      - name: golden_core check
-        run: cargo check --manifest-path submodules/golden_core/Cargo.toml
-      - name: golden_core build
-        run: cargo build --manifest-path submodules/golden_core/Cargo.toml
+env:
+  LINUX_BUILD_PACKAGES: >-
+    libwebkit2gtk-4.1-dev
+    build-essential
+    curl
+    wget
+    file
+    libxdo-dev
+    libssl-dev
+    libudev-dev
+    pkg-config
+    libayatana-appindicator3-dev
+    librsvg2-dev
 
-  ui:
+jobs:
+  validate:
+    name: Validate
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -40,6 +32,8 @@ jobs:
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -48,6 +42,10 @@ jobs:
       - name: Install UI deps
         working-directory: src-ui
         run: npm ci
+      - name: Root fmt
+        run: cargo fmt --all --check
+      - name: golden_core fmt
+        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
       - name: UI lint
         working-directory: src-ui
         run: npm run lint
@@ -57,7 +55,124 @@ jobs:
       - name: UI build
         working-directory: src-ui
         run: npm run build
-      - name: App build
+      - name: Root check
         env:
           GC_UI_ASSUME_BUILT: 1
-        run: cargo build
+        run: cargo check
+      - name: golden_core check
+        run: cargo check --manifest-path submodules/golden_core/Cargo.toml
+      - name: golden_core build
+        run: cargo build --manifest-path submodules/golden_core/Cargo.toml
+      - name: Upload UI build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-build
+          path: src-ui/build
+          if-no-files-found: error
+
+  build:
+    name: Build (${{ matrix.label }})
+    needs: validate
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: win-x64
+            label: Win x64
+            runs_on: windows-latest
+            target: x86_64-pc-windows-msvc
+          - id: win-arm64
+            label: Win arm64
+            runs_on: windows-11-arm
+            target: aarch64-pc-windows-msvc
+          - id: macos-arm64
+            label: macOS silicon
+            runs_on: macos-15
+            target: aarch64-apple-darwin
+          - id: macos-x64
+            label: macOS intel
+            runs_on: macos-15-intel
+            target: x86_64-apple-darwin
+          - id: linux-x64
+            label: Linux x64
+            runs_on: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            install_linux_deps: true
+          - id: rpi-armhf
+            label: RPI 32-bit (Linux armhf)
+            runs_on: ubuntu-24.04
+            target: armv7-unknown-linux-gnueabihf
+            emulated_arch: armv7
+            emulated_distro: ubuntu24.04
+          - id: rpi-aarch64
+            label: RPI 64-bit (Linux aarch64)
+            runs_on: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            install_linux_deps: true
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Clear UI build directory
+        shell: pwsh
+        run: |
+          if (Test-Path 'src-ui/build') {
+            Remove-Item 'src-ui/build' -Recurse -Force
+          }
+      - name: Download UI build
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: src-ui/build
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ matrix.id != 'rpi-armhf' }}
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        if: ${{ matrix.id != 'rpi-armhf' }}
+        with:
+          key: ${{ matrix.target }}
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
+      - name: Install Linux desktop deps
+        if: ${{ matrix.install_linux_deps }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y $LINUX_BUILD_PACKAGES
+      - name: App build
+        if: ${{ matrix.id != 'rpi-armhf' }}
+        env:
+          GC_UI_ASSUME_BUILT: 1
+        run: cargo build --target ${{ matrix.target }}
+      - name: App build (emulated armhf)
+        if: ${{ matrix.id == 'rpi-armhf' }}
+        uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: ${{ matrix.emulated_arch }}
+          distro: ${{ matrix.emulated_distro }}
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update -q -y
+            apt-get install -q -y \
+              build-essential \
+              curl \
+              file \
+              git \
+              libayatana-appindicator3-dev \
+              librsvg2-dev \
+              libssl-dev \
+              libudev-dev \
+              libwebkit2gtk-4.1-dev \
+              libxdo-dev \
+              pkg-config \
+              wget
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
+          env: |
+            GC_UI_ASSUME_BUILT: 1
+          run: |
+            . "$HOME/.cargo/env"
+            rustup target add ${{ matrix.target }}
+            cargo build --target ${{ matrix.target }}
