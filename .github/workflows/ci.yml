@@ -8,6 +8,7 @@ env:
   LINUX_BUILD_PACKAGES: >-
     libwebkit2gtk-4.1-dev
     libasound2-dev
+    libusb-1.0-0-dev
     build-essential
     curl
     wget
@@ -163,6 +164,7 @@ jobs:
               file \
               git \
               libasound2-dev \
+              libusb-1.0-0-dev \
               libayatana-appindicator3-dev \
               librsvg2-dev \
               libssl-dev \

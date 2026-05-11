@@ -88,6 +88,7 @@ ensure_linux_system_deps() {
     local packages=(
       libwebkit2gtk-4.1-dev
       libasound2-dev
+      libusb-1.0-0-dev
       build-essential
       curl
       wget
@@ -116,6 +117,7 @@ ensure_linux_system_deps() {
     local packages=(
       webkit2gtk4.1-devel
       alsa-lib-devel
+      libusb1-devel
       openssl-devel
       systemd-devel
       pkgconf-pkg-config
@@ -145,6 +147,7 @@ ensure_linux_system_deps() {
     run_sudo pacman -Syu --needed \
       webkit2gtk-4.1 \
       alsa-lib \
+      libusb \
       base-devel \
       curl \
       wget \
@@ -160,6 +163,7 @@ ensure_linux_system_deps() {
     local packages=(
       webkit2gtk3-devel
       alsa-devel
+      libusb-1_0-devel
       libopenssl-devel
       libudev-devel
       pkg-config
@@ -190,6 +194,7 @@ ensure_linux_system_deps() {
       build-base \
       webkit2gtk-4.1-dev \
       alsa-lib-dev \
+      libusb-dev \
       curl \
       wget \
       file \
