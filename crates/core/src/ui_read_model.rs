@@ -162,13 +162,15 @@ impl UiReadModel {
     // -----------------------------------------------------------------------
 
     /// Collects new events and cheap metadata **while the engine lock is held**.
+    /// Pass the latest retained event time captured before the mutation/tick started,
+    /// not a retained-slice length, so log compaction cannot move the cursor forward.
     /// Drop the engine lock, then call [`apply_event_capture`].
-    pub fn collect_event_batch<T: Node>(&self, engine: &Engine<T>, previous_event_len: usize) -> UiEventCapture {
-        let from = previous_event_len
-            .checked_sub(1)
-            .and_then(|index| engine.ui_event_log().get(index))
-            .map(|event| event.time);
-        let batch = engine.ui_event_batch(from, UiSubscriptionScope::WholeGraph);
+    pub fn collect_event_batch<T: Node>(
+        &self,
+        engine: &Engine<T>,
+        previous_event_time: Option<EngineTime>,
+    ) -> UiEventCapture {
+        let batch = engine.ui_event_batch(previous_event_time, UiSubscriptionScope::WholeGraph);
         let history = engine.ui_history_state();
         let user_contexts = engine.ui_user_contexts();
         UiEventCapture {
@@ -242,10 +244,10 @@ impl UiReadModel {
     pub fn publish_engine_events_since<T: Node>(
         &self,
         engine: &Engine<T>,
-        previous_event_len: usize,
+        previous_event_time: Option<EngineTime>,
         project_file: ProjectFileSpec,
     ) -> UiEventBatch {
-        let capture = self.collect_event_batch(engine, previous_event_len);
+        let capture = self.collect_event_batch(engine, previous_event_time);
         self.apply_event_capture(capture, project_file)
     }
 

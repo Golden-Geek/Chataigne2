@@ -101,7 +101,7 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
     intent: UiEditIntent,
     ui_client_instance_id: Option<&str>,
 ) -> UiAck {
-    let before_len = engine.ui_event_log().len();
+    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
 
     match intent {
         UiEditIntent::DuplicateNode {
@@ -122,7 +122,11 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
                 status: UiAckStatus::Applied,
                 error_code: None,
                 error_message: None,
-                earliest_event_time: engine.ui_event_log().get(before_len).map(|event| event.time),
+                earliest_event_time: engine
+                    .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
+                    .events
+                    .first()
+                    .map(|event| event.time),
                 history: engine.ui_history_state(),
             },
             Err(err) => UiAck {
@@ -183,7 +187,7 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
     intent_started: Instant,
 ) -> (UiAck, UiEventCapture, UiIntentTiming) {
     let kind = ui_intent_kind(&intent);
-    let before_len = engine.ui_event_log().len();
+    let before_event_time = engine.ui_event_log().last().map(|event| event.time);
 
     let apply_started = Instant::now();
     let ack = apply_ui_intent_with_transport(engine, intent, ui_client_instance_id);
@@ -191,7 +195,7 @@ fn apply_ui_intent_with_timing<T: ProjectLifecycle>(
 
     // Collect cheaply while the engine lock is still held; O(N) apply happens outside the lock.
     let event_collect_started = Instant::now();
-    let capture = read_model.collect_event_batch(engine, before_len);
+    let capture = read_model.collect_event_batch(engine, before_event_time);
     let requires_resync = capture.batch().events.iter().any(
         |event| matches!(&event.kind, UiEventKind::Custom { topic, .. } if topic == "__transport.resync_required"),
     );
@@ -233,7 +237,7 @@ fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
         T::project_file_spec(),
         UiReadModelReplaceReason::ProjectReplaced,
     );
-    read_model.publish_engine_events_since(&*guard, 0, T::project_file_spec());
+    read_model.publish_engine_events_since(&*guard, None, T::project_file_spec());
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -470,11 +474,15 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
                     Ok(guard) => guard,
                     Err(poisoned) => poisoned.into_inner(),
                 };
-                let before_len = guard.ui_event_log().len();
+                let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                 if let Err(err) = guard.run_tick(elapsed) {
                     report_runtime_tick_failure(&err);
                 } else {
-                    read_model.publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                    read_model.publish_engine_events_since(
+                        &*guard,
+                        before_event_time,
+                        T::project_file_spec(),
+                    );
                 }
             }
 
@@ -615,9 +623,9 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
 
                     let capture = {
                         let mut guard = lock_engine(engine);
-                        let before_len = guard.ui_event_log().len();
+                        let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                         let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
-                        read_model.collect_event_batch(&*guard, before_len)
+                        read_model.collect_event_batch(&*guard, before_event_time)
                     };
                     read_model.apply_event_capture(capture, T::project_file_spec());
                 }
@@ -636,9 +644,9 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
 
                 let capture = {
                     let mut guard = lock_engine(engine);
-                    let before_len = guard.ui_event_log().len();
+                    let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
-                    read_model.collect_event_batch(&*guard, before_len)
+                    read_model.collect_event_batch(&*guard, before_event_time)
                 };
                 read_model.apply_event_capture(capture, T::project_file_spec());
             }
@@ -992,11 +1000,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 let mut guard = lock_engine(&state.engine);
                 let lock_wait_elapsed = lock_started.elapsed();
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
-                    let before_len = guard.ui_event_log().len();
+                    let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
                     state
                         .read_model
-                        .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                        .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
                 }
                 lock_wait_elapsed
             } else {
@@ -1113,11 +1121,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-config payload: {err}")))?;
 
             let mut guard = lock_engine(&state.engine);
-            let before_len = guard.ui_event_log().len();
+            let before_event_time = guard.ui_event_log().last().map(|event| event.time);
             let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
             state
                 .read_model
-                .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
             drop(guard);
 
             match update_result {
@@ -1134,11 +1142,11 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid script-reload payload: {err}")))?;
 
             let mut guard = lock_engine(&state.engine);
-            let before_len = guard.ui_event_log().len();
+            let before_event_time = guard.ui_event_log().last().map(|event| event.time);
             let reload_result = guard.ui_reload_script(payload.node);
             state
                 .read_model
-                .publish_engine_events_since(&*guard, before_len, T::project_file_spec());
+                .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
             drop(guard);
 
             match reload_result {

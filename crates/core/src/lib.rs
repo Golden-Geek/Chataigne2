@@ -50,6 +50,9 @@ pub mod ui_sync;
 /// Immutable UI read projection used by host read paths.
 pub mod ui_read_model;
 
+#[cfg(test)]
+mod ui_read_model_tests;
+
 /// Scripting schemas and runtime integrations.
 pub mod script;
 
