@@ -1,7 +1,9 @@
-#[cfg(windows)]
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-#[cfg(windows)]
 use std::thread::JoinHandle;
+#[cfg(not(windows))]
+use std::time::Duration;
+#[cfg(not(windows))]
+use std::{sync::mpsc::Sender, thread};
 
 use device_query::{DeviceQuery, DeviceState};
 use rdev::{display_size, simulate, Button as RdevButton, EventType, SimulateError};
@@ -151,10 +153,27 @@ enum MouseInputRuntimeInner {
 }
 
 #[cfg(not(windows))]
+#[derive(Clone)]
+struct GlobalWorkerReady {
+    devices: Vec<DiscoveredMouseDevice>,
+}
+
+#[cfg(not(windows))]
+#[derive(Clone, Debug)]
+enum GlobalWorkerEvent {
+    Input {
+        device: String,
+        event: MouseInputEvent,
+    },
+    Error(String),
+}
+
+#[cfg(not(windows))]
 struct GlobalMouseInputRuntime {
-    device_state: DeviceState,
-    last_state: Option<MouseObservedState>,
-    sent_device_list: bool,
+    event_rx: Receiver<GlobalWorkerEvent>,
+    pending_events: Vec<MouseRuntimeEvent>,
+    shutdown_tx: Sender<()>,
+    worker: Option<JoinHandle<()>>,
 }
 
 #[cfg(not(windows))]
@@ -164,34 +183,110 @@ impl GlobalMouseInputRuntime {
             return Err("blocking OS mouse input is only supported on Windows".to_string());
         }
 
-        let device_state = DeviceState::checked_new()
-            .ok_or_else(|| "failed to access the local mouse input backend".to_string())?;
+        let (event_tx, event_rx) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let (shutdown_tx, shutdown_rx) = mpsc::channel();
+        let worker = spawn_global_worker(event_tx, ready_tx, shutdown_rx)?;
+        let ready = ready_rx
+            .recv()
+            .map_err(|_| "mouse global-input worker exited before becoming ready".to_string())??;
+
         Ok(Self {
-            device_state,
-            last_state: None,
-            sent_device_list: false,
+            event_rx,
+            pending_events: vec![MouseRuntimeEvent::DevicesChanged(ready.devices)],
+            shutdown_tx,
+            worker: Some(worker),
         })
     }
 
     fn poll_events(&mut self) -> Result<Vec<MouseRuntimeEvent>, String> {
-        let mut events = Vec::new();
-        if !self.sent_device_list {
-            self.sent_device_list = true;
-            events.push(MouseRuntimeEvent::DevicesChanged(vec![global_mouse_device()]));
+        let mut events = std::mem::take(&mut self.pending_events);
+        loop {
+            match self.event_rx.try_recv() {
+                Ok(GlobalWorkerEvent::Input { device, event }) => {
+                    events.push(MouseRuntimeEvent::Input { device, event });
+                }
+                Ok(GlobalWorkerEvent::Error(error)) => return Err(error),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    return Err("mouse global-input worker stopped unexpectedly".to_string())
+                }
+            }
         }
 
-        let next_state = MouseObservedState::from_device_state(&self.device_state);
-        if let Some(previous_state) = self.last_state.as_ref() {
-            events.extend(
-                diff_mouse_states(previous_state, &next_state)
-                    .into_iter()
-                    .map(|event| MouseRuntimeEvent::Input {
+        Ok(events)
+    }
+}
+
+#[cfg(not(windows))]
+impl Drop for GlobalMouseInputRuntime {
+    fn drop(&mut self) {
+        let _ = self.shutdown_tx.send(());
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn spawn_global_worker(
+    event_tx: Sender<GlobalWorkerEvent>,
+    ready_tx: mpsc::SyncSender<Result<GlobalWorkerReady, String>>,
+    shutdown_rx: Receiver<()>,
+) -> Result<JoinHandle<()>, String> {
+    thread::Builder::new()
+        .name("mouse-global-input".to_string())
+        .spawn(move || {
+            if let Err(error) = global_worker_main(event_tx.clone(), ready_tx, shutdown_rx) {
+                let _ = event_tx.send(GlobalWorkerEvent::Error(error));
+            }
+        })
+        .map_err(|error| format!("failed to spawn the mouse global-input worker: {error}"))
+}
+
+#[cfg(not(windows))]
+fn global_worker_main(
+    event_tx: Sender<GlobalWorkerEvent>,
+    ready_tx: mpsc::SyncSender<Result<GlobalWorkerReady, String>>,
+    shutdown_rx: Receiver<()>,
+) -> Result<(), String> {
+    let Some(device_state) = DeviceState::checked_new() else {
+        let error = "failed to access the local mouse input backend".to_string();
+        let _ = ready_tx.send(Err(error.clone()));
+        return Err(error);
+    };
+
+    if ready_tx
+        .send(Ok(GlobalWorkerReady {
+            devices: vec![global_mouse_device()],
+        }))
+        .is_err()
+    {
+        return Ok(());
+    }
+
+    let mut last_state = None;
+    loop {
+        match shutdown_rx.try_recv() {
+            Ok(()) | Err(TryRecvError::Disconnected) => break,
+            Err(TryRecvError::Empty) => {}
+        }
+
+        let next_state = MouseObservedState::from_device_state(&device_state);
+        if let Some(previous_state) = last_state.as_ref() {
+            for event in diff_mouse_states(previous_state, &next_state) {
+                if event_tx
+                    .send(GlobalWorkerEvent::Input {
                         device: GLOBAL_MOUSE_VARIANT.to_string(),
                         event,
-                    }),
-            );
-        } else {
-            events.push(MouseRuntimeEvent::Input {
+                    })
+                    .is_err()
+                {
+                    return Ok(());
+                }
+            }
+        } else if event_tx
+            .send(GlobalWorkerEvent::Input {
                 device: GLOBAL_MOUSE_VARIANT.to_string(),
                 event: MouseInputEvent::Moved {
                     x: next_state.x,
@@ -199,12 +294,17 @@ impl GlobalMouseInputRuntime {
                     dx: 0,
                     dy: 0,
                 },
-            });
+            })
+            .is_err()
+        {
+            return Ok(());
         }
-        self.last_state = Some(next_state);
+        last_state = Some(next_state);
 
-        Ok(events)
+        thread::sleep(Duration::from_millis(8));
     }
+
+    Ok(())
 }
 
 #[cfg(not(windows))]
@@ -1016,15 +1116,11 @@ pub(crate) fn capture_target_matches_selection(
     windows_raw_input::capture_target_matches_public_selection(selection, devices, device)
 }
 
-pub(crate) struct MouseOutputController {
-    device_state: Option<DeviceState>,
-}
+pub(crate) struct MouseOutputController;
 
 impl MouseOutputController {
     pub(crate) fn create() -> Result<Self, String> {
-        Ok(Self {
-            device_state: DeviceState::checked_new(),
-        })
+        Ok(Self)
     }
 
     pub(crate) fn execute_move(&mut self, request: &MouseMoveRequest) -> Result<String, String> {
@@ -1101,7 +1197,7 @@ impl MouseOutputController {
                 round_f64_to_i32(request.y, "mouse y")?,
             )),
             (MouseMoveCoordinate::Relative, MouseMoveUnits::Pixels) => {
-                let Some(device_state) = self.device_state.as_ref() else {
+                let Some(device_state) = DeviceState::checked_new() else {
                     return Err(
                         "relative mouse movement requires a readable current mouse position"
                             .to_string(),

@@ -1,9 +1,11 @@
 #[cfg(not(windows))]
 use std::collections::BTreeSet;
-#[cfg(windows)]
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-#[cfg(windows)]
 use std::thread::JoinHandle;
+#[cfg(not(windows))]
+use std::time::Duration;
+#[cfg(not(windows))]
+use std::{sync::mpsc::Sender, thread};
 
 #[cfg(not(windows))]
 use device_query::{DeviceQuery, DeviceState};
@@ -117,57 +119,153 @@ enum KeyboardInputRuntimeInner {
 }
 
 #[cfg(not(windows))]
+#[derive(Clone)]
+struct GlobalWorkerReady {
+    devices: Vec<DiscoveredKeyboardDevice>,
+}
+
+#[cfg(not(windows))]
+#[derive(Clone, Debug)]
+enum GlobalWorkerEvent {
+    Input {
+        device: String,
+        event: KeyboardInputEvent,
+    },
+    Error(String),
+}
+
+#[cfg(not(windows))]
 struct GlobalKeyboardInputRuntime {
-    device_state: DeviceState,
-    last_state: Option<KeyboardObservedState>,
-    sent_device_list: bool,
+    event_rx: Receiver<GlobalWorkerEvent>,
+    pending_events: Vec<KeyboardRuntimeEvent>,
+    shutdown_tx: Sender<()>,
+    worker: Option<JoinHandle<()>>,
 }
 
 #[cfg(not(windows))]
 impl GlobalKeyboardInputRuntime {
     fn create() -> Result<Self, String> {
-        let device_state = DeviceState::checked_new()
-            .ok_or_else(|| "failed to access the local keyboard input backend".to_string())?;
+        let (event_tx, event_rx) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let (shutdown_tx, shutdown_rx) = mpsc::channel();
+        let worker = spawn_global_worker(event_tx, ready_tx, shutdown_rx)?;
+        let ready = ready_rx
+            .recv()
+            .map_err(|_| "keyboard global-input worker exited before becoming ready".to_string())??;
+
         Ok(Self {
-            device_state,
-            last_state: None,
-            sent_device_list: false,
+            event_rx,
+            pending_events: vec![KeyboardRuntimeEvent::DevicesChanged(ready.devices)],
+            shutdown_tx,
+            worker: Some(worker),
         })
     }
 
     fn poll_events(&mut self) -> Result<Vec<KeyboardRuntimeEvent>, String> {
-        let mut events = Vec::new();
-        if !self.sent_device_list {
-            self.sent_device_list = true;
-            events.push(KeyboardRuntimeEvent::DevicesChanged(vec![global_keyboard_device()]));
+        let mut events = std::mem::take(&mut self.pending_events);
+        loop {
+            match self.event_rx.try_recv() {
+                Ok(GlobalWorkerEvent::Input { device, event }) => {
+                    events.push(KeyboardRuntimeEvent::Input { device, event });
+                }
+                Ok(GlobalWorkerEvent::Error(error)) => return Err(error),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    return Err("keyboard global-input worker stopped unexpectedly".to_string());
+                }
+            }
         }
-
-        let next_state = KeyboardObservedState::from_device_state(&self.device_state);
-        if let Some(previous_state) = self.last_state.as_ref() {
-            events.extend(
-                diff_keyboard_states(previous_state, &next_state)
-                    .into_iter()
-                    .map(|event| KeyboardRuntimeEvent::Input {
-                        device: GLOBAL_KEYBOARD_VARIANT.to_string(),
-                        event,
-                    }),
-            );
-        } else {
-            events.extend(
-                next_state
-                    .pressed_keys
-                    .iter()
-                    .copied()
-                    .map(|key| KeyboardRuntimeEvent::Input {
-                        device: GLOBAL_KEYBOARD_VARIANT.to_string(),
-                        event: KeyboardInputEvent::KeyChanged { key, pressed: true },
-                    }),
-            );
-        }
-        self.last_state = Some(next_state);
 
         Ok(events)
     }
+}
+
+#[cfg(not(windows))]
+impl Drop for GlobalKeyboardInputRuntime {
+    fn drop(&mut self) {
+        let _ = self.shutdown_tx.send(());
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn spawn_global_worker(
+    event_tx: Sender<GlobalWorkerEvent>,
+    ready_tx: mpsc::SyncSender<Result<GlobalWorkerReady, String>>,
+    shutdown_rx: Receiver<()>,
+) -> Result<JoinHandle<()>, String> {
+    thread::Builder::new()
+        .name("keyboard-global-input".to_string())
+        .spawn(move || {
+            if let Err(error) = global_worker_main(event_tx.clone(), ready_tx, shutdown_rx) {
+                let _ = event_tx.send(GlobalWorkerEvent::Error(error));
+            }
+        })
+        .map_err(|error| format!("failed to spawn the keyboard global-input worker: {error}"))
+}
+
+#[cfg(not(windows))]
+fn global_worker_main(
+    event_tx: Sender<GlobalWorkerEvent>,
+    ready_tx: mpsc::SyncSender<Result<GlobalWorkerReady, String>>,
+    shutdown_rx: Receiver<()>,
+) -> Result<(), String> {
+    let Some(device_state) = DeviceState::checked_new() else {
+        let error = "failed to access the local keyboard input backend".to_string();
+        let _ = ready_tx.send(Err(error.clone()));
+        return Err(error);
+    };
+
+    if ready_tx
+        .send(Ok(GlobalWorkerReady {
+            devices: vec![global_keyboard_device()],
+        }))
+        .is_err()
+    {
+        return Ok(());
+    }
+
+    let mut last_state = None;
+    loop {
+        match shutdown_rx.try_recv() {
+            Ok(()) | Err(TryRecvError::Disconnected) => break,
+            Err(TryRecvError::Empty) => {}
+        }
+
+        let next_state = KeyboardObservedState::from_device_state(&device_state);
+        if let Some(previous_state) = last_state.as_ref() {
+            for event in diff_keyboard_states(previous_state, &next_state) {
+                if event_tx
+                    .send(GlobalWorkerEvent::Input {
+                        device: GLOBAL_KEYBOARD_VARIANT.to_string(),
+                        event,
+                    })
+                    .is_err()
+                {
+                    return Ok(());
+                }
+            }
+        } else {
+            for key in next_state.pressed_keys.iter().copied() {
+                if event_tx
+                    .send(GlobalWorkerEvent::Input {
+                        device: GLOBAL_KEYBOARD_VARIANT.to_string(),
+                        event: KeyboardInputEvent::KeyChanged { key, pressed: true },
+                    })
+                    .is_err()
+                {
+                    return Ok(());
+                }
+            }
+        }
+        last_state = Some(next_state);
+
+        thread::sleep(Duration::from_millis(8));
+    }
+
+    Ok(())
 }
 
 #[cfg(not(windows))]
