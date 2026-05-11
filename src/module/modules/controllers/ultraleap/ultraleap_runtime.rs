@@ -8,6 +8,7 @@ use leaprs::{Connection, ConnectionConfig, Error as LeapError, EventRef, HandTyp
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 const ULTRALEAP_WORKER_POLL_TIMEOUT_MS: u32 = 25;
+const MILLIMETERS_PER_METER: f64 = 1000.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct UltraleapVec3 {
@@ -32,28 +33,6 @@ impl UltraleapVec3 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct UltraleapQuat {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-    pub w: f64,
-}
-
-impl UltraleapQuat {
-    pub const IDENTITY: Self = Self::new(0.0, 0.0, 0.0, 1.0);
-
-    pub const fn new(x: f64, y: f64, z: f64, w: f64) -> Self {
-        Self { x, y, z, w }
-    }
-}
-
-impl Default for UltraleapQuat {
-    fn default() -> Self {
-        Self::IDENTITY
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UltraleapHandSnapshot {
     pub active: bool,
     pub grab_strength: f64,
@@ -69,7 +48,6 @@ pub struct UltraleapHandSnapshot {
     pub palm_velocity: UltraleapVec3,
     pub palm_direction: UltraleapVec3,
     pub palm_normal: UltraleapVec3,
-    pub palm_orientation: UltraleapQuat,
 }
 
 impl Default for UltraleapHandSnapshot {
@@ -89,7 +67,6 @@ impl Default for UltraleapHandSnapshot {
             palm_velocity: UltraleapVec3::ZERO,
             palm_direction: UltraleapVec3::ZERO,
             palm_normal: UltraleapVec3::ZERO,
-            palm_orientation: UltraleapQuat::IDENTITY,
         }
     }
 }
@@ -445,18 +422,17 @@ fn snapshot_from_hand(hand: leaprs::HandRef<'_>) -> UltraleapHandSnapshot {
         active: true,
         grab_strength: hand.grab_strength as f64,
         pinch_strength: hand.pinch_strength as f64,
-        pinch_distance: hand.pinch_distance as f64,
+        pinch_distance: millimeters_to_meters(hand.pinch_distance as f64),
         thumb_extended: hand.thumb().is_extended(),
         index_extended: hand.index().is_extended(),
         middle_extended: hand.middle().is_extended(),
         ring_extended: hand.ring().is_extended(),
         pinky_extended: hand.pinky().is_extended(),
-        palm_position: leap_vec3(palm.position()),
-        palm_stabilized_position: leap_vec3(palm.stabilized_position()),
-        palm_velocity: leap_vec3(palm.velocity()),
+        palm_position: leap_vec3_meters(palm.position()),
+        palm_stabilized_position: leap_vec3_meters(palm.stabilized_position()),
+        palm_velocity: leap_vec3_meters(palm.velocity()),
         palm_direction: leap_vec3(palm.direction()),
         palm_normal: leap_vec3(palm.normal()),
-        palm_orientation: leap_quat(palm.orientation()),
     }
 }
 
@@ -467,7 +443,15 @@ fn leap_vec3(vector: leaprs::LeapVectorRef<'_>) -> UltraleapVec3 {
 }
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-fn leap_quat(quaternion: leaprs::QuaternionRef<'_>) -> UltraleapQuat {
-    let [x, y, z, w] = quaternion.array();
-    UltraleapQuat::new(x as f64, y as f64, z as f64, w as f64)
+fn leap_vec3_meters(vector: leaprs::LeapVectorRef<'_>) -> UltraleapVec3 {
+    let vector = leap_vec3(vector);
+    UltraleapVec3::new(
+        millimeters_to_meters(vector.x),
+        millimeters_to_meters(vector.y),
+        millimeters_to_meters(vector.z),
+    )
+}
+
+fn millimeters_to_meters(value: f64) -> f64 {
+    value / MILLIMETERS_PER_METER
 }

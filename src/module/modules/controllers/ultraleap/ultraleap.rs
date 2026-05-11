@@ -46,7 +46,7 @@ const ULTRALEAP_MODULE_COMMAND_TYPES: &[&str] = &[];
                 description = "Whether at least one hand is visible in the latest tracking frame.",
                 read_only = true
             );
-            connected_devices: i32 = 0 [0..2147483647] (
+            connected_devices: i32 = 0 (
                 label = "Connected Devices",
                 description = "Number of Ultraleap devices visible to the runtime.",
                 read_only = true
@@ -63,9 +63,9 @@ const ULTRALEAP_MODULE_COMMAND_TYPES: &[&str] = &[];
             );
         }
         folder(metrics, label = "Metrics") {
-            hands_distance: f64 = 0.0 [0.0..2000.0] (
+            hands_distance: f64 = 0.0 [0.0..2.0] (
                 label = "Hands Distance",
-                description = "Distance in millimeters between left and right palm positions when both hands are visible.",
+                description = "Distance in meters between left and right palm positions when both hands are visible.",
                 read_only = true
             );
         }
@@ -73,41 +73,33 @@ const ULTRALEAP_MODULE_COMMAND_TYPES: &[&str] = &[];
             left_active: bool = false (label = "Active", read_only = true);
             left_grab_strength: f64 = 0.0 [0.0..1.0] (label = "Grab Strength", read_only = true);
             left_pinch_strength: f64 = 0.0 [0.0..1.0] (label = "Pinch Strength", read_only = true);
-            left_pinch_distance: f64 = 0.0 [0.0..200.0] (label = "Pinch Distance", read_only = true);
+            left_pinch_distance: f64 = 0.0 [0.0..0.2] (label = "Pinch Distance", read_only = true);
             left_thumb_extended: bool = false (label = "Thumb Extended", read_only = true);
             left_index_extended: bool = false (label = "Index Extended", read_only = true);
             left_middle_extended: bool = false (label = "Middle Extended", read_only = true);
             left_ring_extended: bool = false (label = "Ring Extended", read_only = true);
             left_pinky_extended: bool = false (label = "Pinky Extended", read_only = true);
-            left_palm_position: Vec3 = (0.0, 0.0, 0.0) [(-1000.0,-1000.0,-1000.0)..(1000.0,1000.0,1000.0)] (label = "Palm Position", read_only = true);
-            left_palm_stabilized_position: Vec3 = (0.0, 0.0, 0.0) [(-1000.0,-1000.0,-1000.0)..(1000.0,1000.0,1000.0)] (label = "Stabilized Position", read_only = true);
-            left_palm_velocity: Vec3 = (0.0, 0.0, 0.0) [(-3000.0,-3000.0,-3000.0)..(3000.0,3000.0,3000.0)] (label = "Palm Velocity", read_only = true);
+            left_palm_position: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Position", read_only = true);
+            left_palm_stabilized_position: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Stabilized Position", read_only = true);
+            left_palm_velocity: Vec3 = (0.0, 0.0, 0.0) [(-3.0,-3.0,-3.0)..(3.0,3.0,3.0)] (label = "Palm Velocity", read_only = true);
             left_palm_direction: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Direction", read_only = true);
             left_palm_normal: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Normal", read_only = true);
-            left_palm_orientation_x: f64 = 0.0 [-1.0..1.0] (label = "Orientation X", read_only = true);
-            left_palm_orientation_y: f64 = 0.0 [-1.0..1.0] (label = "Orientation Y", read_only = true);
-            left_palm_orientation_z: f64 = 0.0 [-1.0..1.0] (label = "Orientation Z", read_only = true);
-            left_palm_orientation_w: f64 = 1.0 [-1.0..1.0] (label = "Orientation W", read_only = true);
         }
         folder(right_hand, label = "Right Hand", collapsed = true) {
             right_active: bool = false (label = "Active", read_only = true);
             right_grab_strength: f64 = 0.0 [0.0..1.0] (label = "Grab Strength", read_only = true);
             right_pinch_strength: f64 = 0.0 [0.0..1.0] (label = "Pinch Strength", read_only = true);
-            right_pinch_distance: f64 = 0.0 [0.0..200.0] (label = "Pinch Distance", read_only = true);
+            right_pinch_distance: f64 = 0.0 [0.0..0.2] (label = "Pinch Distance", read_only = true);
             right_thumb_extended: bool = false (label = "Thumb Extended", read_only = true);
             right_index_extended: bool = false (label = "Index Extended", read_only = true);
             right_middle_extended: bool = false (label = "Middle Extended", read_only = true);
             right_ring_extended: bool = false (label = "Ring Extended", read_only = true);
             right_pinky_extended: bool = false (label = "Pinky Extended", read_only = true);
-            right_palm_position: Vec3 = (0.0, 0.0, 0.0) [(-1000.0,-1000.0,-1000.0)..(1000.0,1000.0,1000.0)] (label = "Palm Position", read_only = true);
-            right_palm_stabilized_position: Vec3 = (0.0, 0.0, 0.0) [(-1000.0,-1000.0,-1000.0)..(1000.0,1000.0,1000.0)] (label = "Stabilized Position", read_only = true);
-            right_palm_velocity: Vec3 = (0.0, 0.0, 0.0) [(-3000.0,-3000.0,-3000.0)..(3000.0,3000.0,3000.0)] (label = "Palm Velocity", read_only = true);
+            right_palm_position: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Position", read_only = true);
+            right_palm_stabilized_position: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Stabilized Position", read_only = true);
+            right_palm_velocity: Vec3 = (0.0, 0.0, 0.0) [(-3.0,-3.0,-3.0)..(3.0,3.0,3.0)] (label = "Palm Velocity", read_only = true);
             right_palm_direction: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Direction", read_only = true);
             right_palm_normal: Vec3 = (0.0, 0.0, 0.0) [(-1.0,-1.0,-1.0)..(1.0,1.0,1.0)] (label = "Palm Normal", read_only = true);
-            right_palm_orientation_x: f64 = 0.0 [-1.0..1.0] (label = "Orientation X", read_only = true);
-            right_palm_orientation_y: f64 = 0.0 [-1.0..1.0] (label = "Orientation Y", read_only = true);
-            right_palm_orientation_z: f64 = 0.0 [-1.0..1.0] (label = "Orientation Z", read_only = true);
-            right_palm_orientation_w: f64 = 1.0 [-1.0..1.0] (label = "Orientation W", read_only = true);
         }
         [base_children];
     }
@@ -329,7 +321,6 @@ impl UltraleapModule {
     fn set_hands_distance(&mut self, ctx: &mut ProcessCtx, value: f64) {
         if self.hands_distance.is_bound() && float_changed(self.hands_distance.get(), value) {
             self.hands_distance.set(ctx, value);
-            println!("Hands distance: {value}");
             if self.base.log_incoming_enabled() {
                 golden_core::log!(origin = self.id(); format!("Hands distance: {value}"));
             }
@@ -400,26 +391,6 @@ impl UltraleapModule {
                 Vec3::new(hand.palm_normal.x, hand.palm_normal.y, hand.palm_normal.z),
             );
         }
-        if self.left_palm_orientation_x.is_bound()
-            && float_changed(self.left_palm_orientation_x.get(), hand.palm_orientation.x)
-        {
-            self.left_palm_orientation_x.set(ctx, hand.palm_orientation.x);
-        }
-        if self.left_palm_orientation_y.is_bound()
-            && float_changed(self.left_palm_orientation_y.get(), hand.palm_orientation.y)
-        {
-            self.left_palm_orientation_y.set(ctx, hand.palm_orientation.y);
-        }
-        if self.left_palm_orientation_z.is_bound()
-            && float_changed(self.left_palm_orientation_z.get(), hand.palm_orientation.z)
-        {
-            self.left_palm_orientation_z.set(ctx, hand.palm_orientation.z);
-        }
-        if self.left_palm_orientation_w.is_bound()
-            && float_changed(self.left_palm_orientation_w.get(), hand.palm_orientation.w)
-        {
-            self.left_palm_orientation_w.set(ctx, hand.palm_orientation.w);
-        }
     }
 
     fn set_right_hand_snapshot(&mut self, ctx: &mut ProcessCtx, hand: &UltraleapHandSnapshot) {
@@ -485,26 +456,6 @@ impl UltraleapModule {
                 ctx,
                 Vec3::new(hand.palm_normal.x, hand.palm_normal.y, hand.palm_normal.z),
             );
-        }
-        if self.right_palm_orientation_x.is_bound()
-            && float_changed(self.right_palm_orientation_x.get(), hand.palm_orientation.x)
-        {
-            self.right_palm_orientation_x.set(ctx, hand.palm_orientation.x);
-        }
-        if self.right_palm_orientation_y.is_bound()
-            && float_changed(self.right_palm_orientation_y.get(), hand.palm_orientation.y)
-        {
-            self.right_palm_orientation_y.set(ctx, hand.palm_orientation.y);
-        }
-        if self.right_palm_orientation_z.is_bound()
-            && float_changed(self.right_palm_orientation_z.get(), hand.palm_orientation.z)
-        {
-            self.right_palm_orientation_z.set(ctx, hand.palm_orientation.z);
-        }
-        if self.right_palm_orientation_w.is_bound()
-            && float_changed(self.right_palm_orientation_w.get(), hand.palm_orientation.w)
-        {
-            self.right_palm_orientation_w.set(ctx, hand.palm_orientation.w);
         }
     }
 }

@@ -104,7 +104,7 @@ const JOYCON_MODULE_COMMAND_TYPES: &[&str] = &[JOYCON_VIBRATE_COMMAND_NODE_TYPE,
                 left_capture: bool = false (label = "Capture", read_only = true);
             }
             folder(left_motion, label = "Motion", collapsed = true) {
-                left_orientation: Vec2 = (0.0, 0.0) [(-180.0, -180.0)..(180.0, 180.0)] (
+                left_orientation: Vec2 = (0.0, 0.0) [(-90.0, -180.0)..(90.0, 180.0)] (
                     label = "Orientation",
                     description = "Derived pitch and roll from the latest accelerometer frame.",
                     read_only = true
@@ -141,7 +141,7 @@ const JOYCON_MODULE_COMMAND_TYPES: &[&str] = &[JOYCON_VIBRATE_COMMAND_NODE_TYPE,
                 right_home: bool = false (label = "Home", read_only = true);
             }
             folder(right_motion, label = "Motion", collapsed = true) {
-                right_orientation: Vec2 = (0.0, 0.0) [(-180.0, -180.0)..(180.0, 180.0)] (
+                right_orientation: Vec2 = (0.0, 0.0) [(-90.0, -180.0)..(90.0, 180.0)] (
                     label = "Orientation",
                     description = "Derived pitch and roll from the latest accelerometer frame.",
                     read_only = true

@@ -36,7 +36,7 @@ const JOYCON_STICK_QUANTUM: f64 = 0.001;
 const JOYCON_ORIENTATION_QUANTUM_DEGREES: f64 = 0.25;
 const JOYCON_RAW_IMU_QUANTUM: f64 = 4.0;
 const JOYCON_ACCELEROMETER_FILTER_ALPHA: f64 = 0.2;
-const JOYCON_ORIENTATION_FILTER_ALPHA: f64 = 0.3;
+const JOYCON_ORIENTATION_FILTER_ALPHA: f64 = 0.8;
 
 type SharedJoyConDevice = Arc<Mutex<JoyConDevice>>;
 type JoyConMode = StandardFullMode<SimpleJoyConDriver>;

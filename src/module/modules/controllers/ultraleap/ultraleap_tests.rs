@@ -8,9 +8,7 @@ use golden_core::{
 };
 
 use super::{
-    ultraleap_runtime::{
-        UltraleapFrameSnapshot, UltraleapHandSnapshot, UltraleapQuat, UltraleapRuntimePoll, UltraleapVec3,
-    },
+    ultraleap_runtime::{UltraleapFrameSnapshot, UltraleapHandSnapshot, UltraleapRuntimePoll, UltraleapVec3},
     UltraleapModule,
 };
 
@@ -41,26 +39,24 @@ fn ultraleap_frame_updates_hand_values_and_distance() {
                 left: hand_snapshot(
                     0.65,
                     0.85,
-                    14.0,
+                    0.014,
                     (true, true, false, false, false),
-                    UltraleapVec3::new(-40.0, 120.0, 15.0),
-                    UltraleapVec3::new(-38.0, 118.0, 14.0),
-                    UltraleapVec3::new(120.0, 0.0, 0.0),
+                    UltraleapVec3::new(-0.04, 0.12, 0.015),
+                    UltraleapVec3::new(-0.038, 0.118, 0.014),
+                    UltraleapVec3::new(0.12, 0.0, 0.0),
                     UltraleapVec3::new(0.0, 0.0, -1.0),
                     UltraleapVec3::new(0.0, 1.0, 0.0),
-                    UltraleapQuat::new(0.1, 0.2, 0.3, 0.9),
                 ),
                 right: hand_snapshot(
                     0.10,
                     0.20,
-                    42.0,
+                    0.042,
                     (true, true, true, true, true),
-                    UltraleapVec3::new(60.0, 120.0, 15.0),
-                    UltraleapVec3::new(58.0, 118.0, 14.0),
-                    UltraleapVec3::new(-120.0, 0.0, 0.0),
+                    UltraleapVec3::new(0.06, 0.12, 0.015),
+                    UltraleapVec3::new(0.058, 0.118, 0.014),
+                    UltraleapVec3::new(-0.12, 0.0, 0.0),
                     UltraleapVec3::new(0.0, 0.0, -1.0),
                     UltraleapVec3::new(0.0, 1.0, 0.0),
-                    UltraleapQuat::new(-0.1, -0.2, -0.3, 0.9),
                 ),
             }),
             last_event: Some("Ultraleap device connected".to_string()),
@@ -96,21 +92,17 @@ fn ultraleap_frame_updates_hand_values_and_distance() {
 
     assert_vec3_close(
         vec3_param_value(&engine, module_id, "values/left_hand/left_palm_position"),
-        (-40.0, 120.0, 15.0),
+        (-0.04, 0.12, 0.015),
         "left palm position should follow the tracking frame",
     );
     assert_vec3_close(
         vec3_param_value(&engine, module_id, "values/right_hand/right_palm_velocity"),
-        (-120.0, 0.0, 0.0),
+        (-0.12, 0.0, 0.0),
         "right palm velocity should follow the tracking frame",
     );
     assert_eq!(
         float_param_value(&engine, module_id, "values/metrics/hands_distance"),
-        Some(100.0)
-    );
-    assert_eq!(
-        float_param_value(&engine, module_id, "values/left_hand/left_palm_orientation_w"),
-        Some(0.9)
+        Some(0.1)
     );
     assert_eq!(
         float_param_value(&engine, module_id, "values/left_hand/left_grab_strength"),
@@ -122,7 +114,7 @@ fn ultraleap_frame_updates_hand_values_and_distance() {
     );
     assert_eq!(
         float_param_value(&engine, module_id, "values/left_hand/left_pinch_distance"),
-        Some(14.0)
+        Some(0.014)
     );
     assert_eq!(
         bool_param_value(&engine, module_id, "values/left_hand/left_thumb_extended"),
@@ -153,14 +145,13 @@ fn ultraleap_disconnect_resets_tracking_outputs() {
                 left: hand_snapshot(
                     0.25,
                     0.5,
-                    12.0,
+                    0.012,
                     (true, false, false, false, false),
-                    UltraleapVec3::new(1.0, 2.0, 3.0),
-                    UltraleapVec3::new(1.0, 2.0, 3.0),
+                    UltraleapVec3::new(0.001, 0.002, 0.003),
+                    UltraleapVec3::new(0.001, 0.002, 0.003),
                     UltraleapVec3::ZERO,
                     UltraleapVec3::new(0.0, 0.0, -1.0),
                     UltraleapVec3::new(0.0, 1.0, 0.0),
-                    UltraleapQuat::IDENTITY,
                 ),
                 right: UltraleapHandSnapshot::default(),
             }),
@@ -279,7 +270,6 @@ fn hand_snapshot(
     velocity: UltraleapVec3,
     direction: UltraleapVec3,
     normal: UltraleapVec3,
-    orientation: UltraleapQuat,
 ) -> UltraleapHandSnapshot {
     UltraleapHandSnapshot {
         active: true,
@@ -296,7 +286,6 @@ fn hand_snapshot(
         palm_velocity: velocity,
         palm_direction: direction,
         palm_normal: normal,
-        palm_orientation: orientation,
     }
 }
 
