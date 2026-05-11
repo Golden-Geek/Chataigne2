@@ -12,6 +12,7 @@ const GC_FORCE_NPM_CI: &str = "GC_FORCE_NPM_CI";
 const GC_KINECT20_DLL: &str = "GC_KINECT20_DLL";
 const GC_SKIP_UI_BUILD: &str = "GC_SKIP_UI_BUILD";
 const GC_UI_ASSUME_BUILT: &str = "GC_UI_ASSUME_BUILT";
+const LEAPSDK_LIB_PATH: &str = "LEAPSDK_LIB_PATH";
 const REQUIRED_NODE_RANGE: &str = "Node.js 20.19+ or 22.12+";
 
 struct BuildPaths {
@@ -58,12 +59,15 @@ fn emit_rerun_tracking(paths: &BuildPaths) -> std::io::Result<()> {
     println!("cargo:rerun-if-env-changed={GC_KINECT20_DLL}");
     println!("cargo:rerun-if-env-changed={GC_SKIP_UI_BUILD}");
     println!("cargo:rerun-if-env-changed={GC_UI_ASSUME_BUILT}");
+    println!("cargo:rerun-if-env-changed={LEAPSDK_LIB_PATH}");
 
     track_ui_inputs(&paths.ui_root)?;
     Ok(())
 }
 
 fn prepare_native_sidecars(paths: &BuildPaths) -> std::io::Result<()> {
+    configure_ultraleap_sdk(paths)?;
+
     #[cfg(windows)]
     {
         sidecar_kinect_runtime(paths)?;
@@ -72,6 +76,120 @@ fn prepare_native_sidecars(paths: &BuildPaths) -> std::io::Result<()> {
     #[cfg(not(windows))]
     {
         let _ = paths;
+    }
+
+    Ok(())
+}
+
+fn configure_ultraleap_sdk(paths: &BuildPaths) -> std::io::Result<()> {
+    println!("cargo:rustc-link-lib=dylib=LeapC");
+
+    let Some(link_dir) = find_ultraleap_link_dir() else {
+        println!(
+            "cargo:warning=LeapC SDK library directory was not found; Ultraleap support will compile only on machines with a configured {LEAPSDK_LIB_PATH} or a standard Ultraleap SDK install."
+        );
+        return Ok(());
+    };
+
+    println!("cargo:rustc-link-search=native={}", link_dir.display());
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", link_dir.display());
+
+    #[cfg(windows)]
+    sidecar_ultraleap_runtime(paths, &link_dir)?;
+
+    #[cfg(not(windows))]
+    let _ = paths;
+
+    Ok(())
+}
+
+fn find_ultraleap_link_dir() -> Option<PathBuf> {
+    ultraleap_sdk_candidates()
+        .into_iter()
+        .find(|candidate| ultraleap_link_artifact(candidate).is_file())
+}
+
+fn ultraleap_sdk_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Some(value) = std::env::var_os(LEAPSDK_LIB_PATH) {
+        candidates.push(PathBuf::from(value));
+    }
+
+    #[cfg(windows)]
+    {
+        candidates.push(PathBuf::from(r"C:\Program Files\Ultraleap\LeapSDK\lib\x64"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push(PathBuf::from(
+            r"/Applications/Ultraleap Hand Tracking Service.app/Contents/LeapSDK/lib",
+        ));
+        candidates.push(PathBuf::from(
+            r"/Applications/Ultraleap Hand Tracking.app/Contents/LeapSDK/lib",
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        candidates.push(PathBuf::from("/usr/lib/ultraleap-hand-tracking-service"));
+        candidates.push(PathBuf::from("/usr/share/doc/ultraleap-hand-tracking-service"));
+    }
+
+    candidates
+}
+
+#[cfg(windows)]
+fn ultraleap_link_artifact(candidate: &Path) -> PathBuf {
+    candidate.join("LeapC.lib")
+}
+
+#[cfg(target_os = "macos")]
+fn ultraleap_link_artifact(candidate: &Path) -> PathBuf {
+    candidate.join("libLeapC.dylib")
+}
+
+#[cfg(target_os = "linux")]
+fn ultraleap_link_artifact(candidate: &Path) -> PathBuf {
+    candidate.join("libLeapC.so")
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+fn ultraleap_link_artifact(candidate: &Path) -> PathBuf {
+    candidate.join("LeapC")
+}
+
+#[cfg(windows)]
+fn sidecar_ultraleap_runtime(paths: &BuildPaths, link_dir: &Path) -> std::io::Result<()> {
+    let source = link_dir.join("LeapC.dll");
+    if !source.is_file() {
+        println!(
+            "cargo:warning=LeapC.dll was not found in {}; Ultraleap support will need the runtime DLL available on PATH or next to the executable.",
+            link_dir.display()
+        );
+        return Ok(());
+    }
+
+    println!("cargo:rerun-if-changed={}", source.display());
+
+    let Some(profile_dir) = paths.cargo_profile_dir() else {
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!(
+                "failed to resolve Cargo profile output directory from OUT_DIR {}",
+                paths.out_dir.display()
+            ),
+        ));
+    };
+
+    for destination_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
+        if !destination_dir.exists() {
+            fs::create_dir_all(&destination_dir)?;
+        }
+        copy_sidecar_if_needed(&source, &destination_dir.join("LeapC.dll"))?;
     }
 
     Ok(())
