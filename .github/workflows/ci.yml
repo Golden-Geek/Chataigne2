@@ -100,20 +100,17 @@ jobs:
             runs_on: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             install_linux_deps: true
-            pkg_config_path: /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig
           - id: rpi-armhf
             label: RPI 32-bit (Linux armhf)
             runs_on: ubuntu-24.04
             target: armv7-unknown-linux-gnueabihf
             emulated_arch: armv7
             emulated_distro: ubuntu24.04
-            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig
           - id: rpi-aarch64
             label: RPI 64-bit (Linux aarch64)
             runs_on: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             install_linux_deps: true
-            pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
     steps:
       - uses: actions/checkout@v6
         with:
@@ -146,22 +143,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y $LINUX_BUILD_PACKAGES
-      - name: Verify ALSA pkg-config
-        if: ${{ matrix.install_linux_deps }}
-        shell: bash
-        env:
-          PKG_CONFIG_ALLOW_CROSS: 1
-          PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
-          TARGET_PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
-        run: |
-          pkg-config --modversion alsa
       - name: App build
         if: ${{ matrix.id != 'rpi-armhf' }}
         env:
           GC_UI_ASSUME_BUILT: 1
-          PKG_CONFIG_ALLOW_CROSS: 1
-          PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
-          TARGET_PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
         run: cargo build --target ${{ matrix.target }}
       - name: App build (emulated armhf)
         if: ${{ matrix.id == 'rpi-armhf' }}
@@ -189,11 +174,7 @@ jobs:
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
           env: |
             GC_UI_ASSUME_BUILT: 1
-            PKG_CONFIG_ALLOW_CROSS: 1
-            PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
-            TARGET_PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
           run: |
             . "$HOME/.cargo/env"
-            pkg-config --modversion alsa
             rustup target add ${{ matrix.target }}
             cargo build --target ${{ matrix.target }}
