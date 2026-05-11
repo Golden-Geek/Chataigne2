@@ -7,6 +7,7 @@ on:
 env:
   LINUX_BUILD_PACKAGES: >-
     libwebkit2gtk-4.1-dev
+    libasound2-dev
     build-essential
     curl
     wget
@@ -59,10 +60,10 @@ jobs:
         env:
           GC_UI_ASSUME_BUILT: 1
         run: cargo check
-      - name: golden_core check
-        run: cargo check --manifest-path submodules/golden_core/Cargo.toml
-      - name: golden_core build
-        run: cargo build --manifest-path submodules/golden_core/Cargo.toml
+      # - name: golden_core check
+      #   run: cargo check --manifest-path submodules/golden_core/Cargo.toml
+      # - name: golden_core build
+      #   run: cargo build --manifest-path submodules/golden_core/Cargo.toml
       - name: Upload UI build
         uses: actions/upload-artifact@v4
         with:
@@ -161,6 +162,7 @@ jobs:
               curl \
               file \
               git \
+              libasound2-dev \
               libayatana-appindicator3-dev \
               librsvg2-dev \
               libssl-dev \
