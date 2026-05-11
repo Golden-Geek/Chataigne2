@@ -21,7 +21,6 @@ env:
 jobs:
   validate:
     name: Validate
-    if: false # skip for now since it takes a long time and is currently blocking other work
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -73,7 +72,7 @@ jobs:
 
   build:
     name: Build (${{ matrix.label }})
-    # needs: validate
+    needs: validate
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
