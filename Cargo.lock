@@ -13,6 +13,7 @@ dependencies = [
  "golden_codegen_support",
  "golden_core",
  "if-addrs",
+ "joycon-rs",
  "midir",
  "midly",
  "open_dmx",
@@ -2176,6 +2177,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hidapi"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "798154e4b6570af74899d71155fb0072d5b17e6aa12f39c8ef22c60fb8ec99e7"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "winapi",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2615,6 +2628,17 @@ checksum = "9afb3de4395d6b3e67a780b6de64b51c978ecf11cb9a462c66be7d4ca9039d33"
 dependencies = [
  "getrandom 0.3.4",
  "libc",
+]
+
+[[package]]
+name = "joycon-rs"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a909e093eeb8158f53bb7f34c8d1ccd17af33fe79ddfd6d24c88b166b8ef3221"
+dependencies = [
+ "crossbeam-channel",
+ "hidapi",
+ "lazy_static",
 ]
 
 [[package]]
