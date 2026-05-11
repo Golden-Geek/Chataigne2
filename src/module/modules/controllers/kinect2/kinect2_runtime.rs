@@ -220,7 +220,7 @@ struct PlatformKinect2Runtime;
 #[cfg(not(windows))]
 impl PlatformKinect2Runtime {
     fn create() -> Result<Self, String> {
-        Err("Kinect 2 input is only supported on Windows.".to_string())
+        Err("Kinect not supported on this OS.".to_string())
     }
 
     fn poll(&mut self) -> Result<KinectRuntimePoll, String> {

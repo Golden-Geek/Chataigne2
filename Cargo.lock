@@ -15,7 +15,8 @@ dependencies = [
  "golden_core",
  "if-addrs",
  "joycon-rs",
- "leaprs",
+ "leap-sys",
+ "libloading 0.8.9",
  "midir",
  "midly",
  "open_dmx",
@@ -1216,17 +1217,6 @@ checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
 dependencies = [
  "derive_builder_core",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "derive_deref"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcdbcee2d9941369faba772587a565f4f534e42cb8d17e5295871de730163b2b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -2891,19 +2881,6 @@ name = "leap-sys"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23603c7542c3b4b3b6fd83c7fe267a744f33573ec242ef150f4388e12ae52562"
-
-[[package]]
-name = "leaprs"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85b87d360e54f7b2692e728fcd8ec9788589bbbc178193fd05011b4f6b8c99ec"
-dependencies = [
- "bitflags 2.11.0",
- "derive_deref",
- "leap-sys",
- "num_enum",
- "thiserror 1.0.69",
-]
 
 [[package]]
 name = "leb128fmt"

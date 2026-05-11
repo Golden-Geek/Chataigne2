@@ -82,25 +82,18 @@ fn prepare_native_sidecars(paths: &BuildPaths) -> std::io::Result<()> {
 }
 
 fn configure_ultraleap_sdk(paths: &BuildPaths) -> std::io::Result<()> {
-    println!("cargo:rustc-link-lib=dylib=LeapC");
-
     let Some(link_dir) = find_ultraleap_link_dir() else {
         println!(
-            "cargo:warning=LeapC SDK library directory was not found; Ultraleap support will compile only on machines with a configured {LEAPSDK_LIB_PATH} or a standard Ultraleap SDK install."
+            "cargo:warning=LeapC runtime library directory was not found; Ultraleap support still compiles, but running the module will require the Ultraleap Tracking Software installed or {LEAPSDK_LIB_PATH} set."
         );
         return Ok(());
     };
-
-    println!("cargo:rustc-link-search=native={}", link_dir.display());
-
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", link_dir.display());
 
     #[cfg(windows)]
     sidecar_ultraleap_runtime(paths, &link_dir)?;
 
     #[cfg(not(windows))]
-    let _ = paths;
+    let _ = (paths, link_dir);
 
     Ok(())
 }
