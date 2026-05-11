@@ -1,9 +1,14 @@
 use std::time::Duration;
 
-use golden_core::node::{Folder, Node, NodeId};
-use golden_core::parameter::ParamValue;
+use golden_core::{
+    node::{Folder, Node, NodeId},
+    parameter::ParamValue,
+    script::ScriptSource,
+};
+use joycon_rs::joycon::Buttons;
 
 use crate::app::AppNode;
+use crate::app::module::common::joycon::JoyConMotionDataMode;
 
 use golden_core::node::DeclaredUserItemNode;
 
@@ -114,6 +119,37 @@ fn joycon_module_command_tester_creates_joycon_commands() {
 }
 
 #[test]
+fn joycon_module_script_descriptor_advertises_control_methods() {
+    let descriptor = JoyConModule::create().engine_script_descriptor();
+
+    for method in ["vibrate", "setPlayerLights"] {
+        assert!(
+            descriptor.methods.iter().any(|candidate| candidate == method),
+            "joycon script descriptor should advertise '{method}'"
+        );
+    }
+}
+
+#[test]
+fn joycon_module_script_template_scaffolds_joycon_functions_and_callbacks() {
+    let config = crate::app::module::script_api::module_script_config(JoyConModule::NODE_TYPE);
+    let ScriptSource::Inline(source) = config.source else {
+        panic!("joycon module script template should resolve to inline source");
+    };
+
+    assert!(source.contains("local.vibrate(frequencyHz = 300, amplitude = 0.9, durationMs = 60, target = \"both\")"));
+    assert!(
+        source.contains(
+            "local.setPlayerLights(led1 = \"off\", led2 = \"off\", led3 = \"off\", led4 = \"off\", target = \"both\")"
+        )
+    );
+    assert!(source.contains("function joyConButtonPressed"));
+    assert!(source.contains("function joyConStickChanged"));
+    assert!(source.contains("function joyConMotionChanged"));
+    assert!(!source.contains("function noteOnReceived"));
+}
+
+#[test]
 fn joycon_processing_interval_clamps_to_module_update_rate() {
     assert_eq!(
         super::processing_interval_from_fps_cap(999),
@@ -152,6 +188,92 @@ fn joycon_stick_dead_zone_scales_remaining_range() {
     assert_eq!(super::process_stick_axis_value(-0.05, 0.1), 0.0);
     assert!((super::process_stick_axis_value(0.55, 0.1) - 0.5).abs() < f64::EPSILON);
     assert!((super::process_stick_axis_value(-0.55, 0.1) + 0.5).abs() < f64::EPSILON);
+}
+
+#[test]
+fn joycon_visible_input_activity_ignores_connection_only_changes() {
+    let previous = super::runtime::JoyConRuntimeState::disconnected();
+    let mut next = super::runtime::JoyConRuntimeState::disconnected();
+    next.left.connected = true;
+
+    assert!(!super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::None,
+    ));
+}
+
+#[test]
+fn joycon_visible_input_activity_ignores_stick_changes_inside_dead_zone() {
+    let previous = connected_left_state();
+    let mut next = previous.clone();
+    next.left.stick_x = 0.05;
+
+    assert!(!super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::None,
+    ));
+
+    next.left.stick_x = 0.55;
+
+    assert!(super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::None,
+    ));
+}
+
+#[test]
+fn joycon_visible_input_activity_detects_button_changes() {
+    let previous = connected_left_state();
+    let mut next = previous.clone();
+    next.left.left_buttons.push(Buttons::Down);
+
+    assert!(super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::None,
+    ));
+}
+
+#[test]
+fn joycon_visible_input_activity_ignores_hidden_motion_but_tracks_enabled_motion() {
+    let previous = connected_left_state();
+    let mut next = previous.clone();
+    next.left.orientation_pitch = 12.0;
+    next.left.orientation_roll = -5.0;
+    next.left.accelerometer = (1.0, 2.0, 3.0);
+    next.left.gyroscope = (4.0, 5.0, 6.0);
+
+    assert!(!super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::None,
+    ));
+    assert!(super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::Orientation,
+    ));
+    assert!(super::runtime_state_has_visible_input_change(
+        &previous,
+        &next,
+        0.1,
+        JoyConMotionDataMode::All,
+    ));
+}
+
+fn connected_left_state() -> super::runtime::JoyConRuntimeState {
+    let mut state = super::runtime::JoyConRuntimeState::disconnected();
+    state.left.connected = true;
+    state
 }
 
 fn create_joycon_module() -> (crate::app::AppEngine, NodeId) {

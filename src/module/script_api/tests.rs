@@ -35,6 +35,20 @@ const GAMEPAD_CALLBACK_DOCS: &[&str] = &[
     "gamepadButtonPressed(button, value, gamepad)",
 ];
 
+const JOYCON_FUNCTION_DOCS: &[&str] = &[
+    "Joy-Con module functions",
+    "local.vibrate(frequencyHz = 300, amplitude = 0.9, durationMs = 60, target = \"both\")",
+    "local.setPlayerLights(led1 = \"off\", led2 = \"off\", led3 = \"off\", led4 = \"off\", target = \"both\")",
+];
+
+const JOYCON_CALLBACK_DOCS: &[&str] = &[
+    "Joy-Con module callbacks",
+    "joyConConnected(side, joyCon)",
+    "joyConButtonPressed(side, button, joyCon)",
+    "joyConStickChanged(side, stick, joyCon)",
+    "joyConMotionChanged(side, motion, joyCon)",
+];
+
 const BUTTPLUG_FUNCTION_DOCS: &[&str] = &[
     "Buttplug module functions",
     "local.vibrate(value, device = \"selected\")",
@@ -77,6 +91,11 @@ fn module_script_templates_document_available_functions_for_each_module() {
             BUTTPLUG_CALLBACK_DOCS,
         ),
         (crate::app::GamepadModule::NODE_TYPE, GAMEPAD_CALLBACK_DOCS, &[]),
+        (
+            crate::app::JoyConModule::NODE_TYPE,
+            JOYCON_FUNCTION_DOCS,
+            JOYCON_CALLBACK_DOCS,
+        ),
         (
             crate::app::MouseModule::NODE_TYPE,
             MOUSE_FUNCTION_DOCS,

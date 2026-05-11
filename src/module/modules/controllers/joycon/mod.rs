@@ -17,8 +17,10 @@ use self::runtime::{
     JoyConRuntimeHandle, JoyConRuntimeState, JoyConSide, JoyConWorkerCommand, JoyConWorkerEvent,
 };
 use crate::app::module::common::joycon::{
-    joycon_motion_data_enum_options, JoyConMotionDataMode, JoyConSetLedRequest, JoyConVibrateRequest,
-    JOYCON_MOTION_DATA_NONE, JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_VIBRATE_COMMAND_NODE_TYPE,
+    joycon_motion_data_enum_options, JoyConControllerTarget, JoyConMotionDataMode, JoyConSetLedRequest,
+    JoyConVibrateRequest, JOYCON_LED_STATE_FLASH, JOYCON_LED_STATE_OFF, JOYCON_LED_STATE_ON,
+    JOYCON_MOTION_DATA_ALL, JOYCON_MOTION_DATA_NONE, JOYCON_MOTION_DATA_ORIENTATION,
+    JOYCON_SET_LED_COMMAND_NODE_TYPE, JOYCON_TARGET_BOTH, JOYCON_VIBRATE_COMMAND_NODE_TYPE,
 };
 
 const JOYCON_MODULE_UPDATE_RATE_HZ: u32 = 120;
@@ -29,7 +31,15 @@ const JOYCON_ACTIVITY_HOLD_DURATION: Duration = Duration::from_millis(150);
 const JOYCON_INCOMING_LOG_INTERVAL: Duration = Duration::from_millis(250);
 const JOYCON_RUNTIME_STALL_TIMEOUT: Duration = Duration::from_secs(2);
 
-const JOYCON_SCRIPT_METHODS: &[&str] = &[];
+const JOYCON_CONNECTED_CALLBACK: &str = "joyConConnected";
+const JOYCON_DISCONNECTED_CALLBACK: &str = "joyConDisconnected";
+const JOYCON_BUTTON_PRESSED_CALLBACK: &str = "joyConButtonPressed";
+const JOYCON_BUTTON_RELEASED_CALLBACK: &str = "joyConButtonReleased";
+const JOYCON_BUTTON_CHANGED_CALLBACK: &str = "joyConButtonChanged";
+const JOYCON_STICK_CHANGED_CALLBACK: &str = "joyConStickChanged";
+const JOYCON_MOTION_CHANGED_CALLBACK: &str = "joyConMotionChanged";
+
+const JOYCON_SCRIPT_METHODS: &[&str] = &["vibrate", "setPlayerLights"];
 const JOYCON_MODULE_COMMAND_TYPES: &[&str] = &[JOYCON_VIBRATE_COMMAND_NODE_TYPE, JOYCON_SET_LED_COMMAND_NODE_TYPE];
 
 #[node("joycon_module", label = "Joy-Con")]
@@ -313,25 +323,37 @@ impl JoyConModule {
         }
 
         self.pending_state = None;
-        self.note_incoming_state(ctx, &state);
+        let previous_state = self.last_state.clone();
+        let motion_mode = self.motion_data_mode();
+        self.note_incoming_state(ctx, &previous_state, &state, motion_mode);
         self.apply_runtime_state(ctx, state);
+        self.emit_runtime_callbacks(ctx, &previous_state, motion_mode);
     }
 
-    fn note_incoming_state(&mut self, ctx: &mut ProcessCtx, state: &JoyConRuntimeState) {
-        self.base.emit_incoming_traffic(ctx);
-        self.activity_elapsed = Duration::ZERO;
-        self.set_bool_handle(ctx, JoyConBoolParam::Activity, true);
+    fn note_incoming_state(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        previous_state: &JoyConRuntimeState,
+        state: &JoyConRuntimeState,
+        motion_mode: JoyConMotionDataMode,
+    ) {
+        if runtime_state_has_visible_input_change(previous_state, state, self.stick_dead_zone.get(), motion_mode) {
+            self.base.emit_incoming_traffic(ctx);
+            self.activity_elapsed = Duration::ZERO;
+            self.set_bool_handle(ctx, JoyConBoolParam::Activity, true);
+
+            if self.base.log_incoming_enabled() && self.incoming_log_elapsed >= JOYCON_INCOMING_LOG_INTERVAL {
+                self.incoming_log_elapsed = Duration::ZERO;
+                golden_core::log!(
+                    origin = self.id();
+                    summarize_runtime_state_for_log(state, self.stick_dead_zone.get(), motion_mode)
+                );
+            }
+        }
 
         if connection_state_changed(&self.last_state, state) {
             self.log_connection_transition(ctx, state);
         }
-
-        if !self.base.log_incoming_enabled() || self.incoming_log_elapsed < JOYCON_INCOMING_LOG_INTERVAL {
-            return;
-        }
-
-        self.incoming_log_elapsed = Duration::ZERO;
-        golden_core::log!(origin = self.id(); summarize_runtime_state_for_log(state));
     }
 
     fn log_connection_transition(&mut self, ctx: &mut ProcessCtx, state: &JoyConRuntimeState) {
@@ -520,11 +542,23 @@ impl JoyConModule {
     }
 
     fn process_stick_values(&self, x: f64, y: f64) -> (f64, f64) {
-        let dead_zone = self.stick_dead_zone.get();
-        (
-            process_stick_axis_value(x, dead_zone),
-            process_stick_axis_value(y, dead_zone),
-        )
+        processed_stick_values(x, y, self.stick_dead_zone.get())
+    }
+
+    fn execute_vibrate_request(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        request: JoyConVibrateRequest,
+    ) -> Result<(), String> {
+        self.enqueue_command(ctx, JoyConWorkerCommand::Vibrate(request), "vibrate")
+    }
+
+    fn execute_set_player_lights_request(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        request: JoyConSetLedRequest,
+    ) -> Result<(), String> {
+        self.enqueue_command(ctx, JoyConWorkerCommand::SetPlayerLights(request), "set player lights")
     }
 
     fn enqueue_command(&mut self, ctx: &mut ProcessCtx, command: JoyConWorkerCommand, description: &str) -> Result<(), String> {
@@ -542,6 +576,152 @@ impl JoyConModule {
         Ok(())
     }
 
+    fn emit_joycon_callback(
+        &self,
+        ctx: &mut ProcessCtx,
+        callback: &str,
+        args: Vec<serde_json::Value>,
+    ) {
+        crate::app::module::script_api::emit_script_callback(ctx, self.id(), callback, args);
+    }
+
+    fn emit_runtime_callbacks(
+        &self,
+        ctx: &mut ProcessCtx,
+        previous_state: &JoyConRuntimeState,
+        motion_mode: JoyConMotionDataMode,
+    ) {
+        for side in JoyConSide::ALL {
+            let previous = previous_state.side(side);
+            let next = self.last_state.side(side);
+
+            if previous.connected != next.connected {
+                self.emit_joycon_callback(
+                    ctx,
+                    if next.connected {
+                        JOYCON_CONNECTED_CALLBACK
+                    } else {
+                        JOYCON_DISCONNECTED_CALLBACK
+                    },
+                    vec![
+                        serde_json::json!(joycon_side_id(side)),
+                        self.controller_state_arg(side, next, motion_mode),
+                    ],
+                );
+            }
+
+            if !next.connected {
+                continue;
+            }
+
+            self.emit_button_callbacks_for_side(ctx, side, previous, next, motion_mode);
+
+            let (previous_x, previous_y) = processed_stick_values(previous.stick_x, previous.stick_y, self.stick_dead_zone.get());
+            let (next_x, next_y) = processed_stick_values(next.stick_x, next.stick_y, self.stick_dead_zone.get());
+            if float_changed(previous_x, next_x) || float_changed(previous_y, next_y) {
+                self.emit_joycon_callback(
+                    ctx,
+                    JOYCON_STICK_CHANGED_CALLBACK,
+                    vec![
+                        serde_json::json!(joycon_side_id(side)),
+                        serde_json::json!({ "x": next_x, "y": next_y }),
+                        self.controller_state_arg(side, next, motion_mode),
+                    ],
+                );
+            }
+
+            if controller_motion_changed(previous, next, motion_mode) {
+                self.emit_joycon_callback(
+                    ctx,
+                    JOYCON_MOTION_CHANGED_CALLBACK,
+                    vec![
+                        serde_json::json!(joycon_side_id(side)),
+                        controller_motion_arg(next, motion_mode),
+                        self.controller_state_arg(side, next, motion_mode),
+                    ],
+                );
+            }
+        }
+    }
+
+    fn emit_button_callbacks_for_side(
+        &self,
+        ctx: &mut ProcessCtx,
+        side: JoyConSide,
+        previous: &runtime::JoyConControllerStateSnapshot,
+        next: &runtime::JoyConControllerStateSnapshot,
+        motion_mode: JoyConMotionDataMode,
+    ) {
+        for button in joycon_side_button_params(side) {
+            let was_pressed = joycon_button_state(previous, *button);
+            let is_pressed = joycon_button_state(next, *button);
+            if was_pressed == is_pressed {
+                continue;
+            }
+
+            self.emit_joycon_callback(
+                ctx,
+                JOYCON_BUTTON_CHANGED_CALLBACK,
+                vec![
+                    serde_json::json!(joycon_side_id(side)),
+                    serde_json::json!(joycon_button_id(*button)),
+                    serde_json::json!(is_pressed),
+                    self.controller_state_arg(side, next, motion_mode),
+                ],
+            );
+            self.emit_joycon_callback(
+                ctx,
+                if is_pressed {
+                    JOYCON_BUTTON_PRESSED_CALLBACK
+                } else {
+                    JOYCON_BUTTON_RELEASED_CALLBACK
+                },
+                vec![
+                    serde_json::json!(joycon_side_id(side)),
+                    serde_json::json!(joycon_button_id(*button)),
+                    self.controller_state_arg(side, next, motion_mode),
+                ],
+            );
+        }
+    }
+
+    fn controller_state_arg(
+        &self,
+        side: JoyConSide,
+        state: &runtime::JoyConControllerStateSnapshot,
+        motion_mode: JoyConMotionDataMode,
+    ) -> serde_json::Value {
+        let (stick_x, stick_y) = self.process_stick_values(state.stick_x, state.stick_y);
+
+        serde_json::json!({
+            "side": joycon_side_id(side),
+            "connected": state.connected,
+            "stick": {
+                "x": stick_x,
+                "y": stick_y,
+            },
+            "buttons": joycon_buttons_arg(side, state),
+            "motion": controller_motion_arg(state, motion_mode),
+        })
+    }
+
+    fn handle_script_method(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        method: &str,
+        args: &[ParamValue],
+    ) -> Option<Result<(), String>> {
+        let result = match method {
+            "vibrate" => script_vibrate_request(args)?
+                .and_then(|request| self.execute_vibrate_request(ctx, request)),
+            "setPlayerLights" => script_set_player_lights_request(args)?
+                .and_then(|request| self.execute_set_player_lights_request(ctx, request)),
+            _ => return None,
+        };
+
+        Some(result)
+    }
+
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
         let Some(request) = crate::app::module_command::decode_module_command_request(&event) else {
             return;
@@ -553,10 +733,10 @@ impl JoyConModule {
         let result = match request.command_type.as_str() {
             JOYCON_VIBRATE_COMMAND_NODE_TYPE => serde_json::from_value::<JoyConVibrateRequest>(request.payload)
                 .map_err(|error| format!("invalid Joy-Con vibrate command payload: {error}"))
-                .and_then(|payload| self.enqueue_command(ctx, JoyConWorkerCommand::Vibrate(payload), "vibrate")),
+                .and_then(|payload| self.execute_vibrate_request(ctx, payload)),
             JOYCON_SET_LED_COMMAND_NODE_TYPE => serde_json::from_value::<JoyConSetLedRequest>(request.payload)
                 .map_err(|error| format!("invalid Joy-Con set-led command payload: {error}"))
-                .and_then(|payload| self.enqueue_command(ctx, JoyConWorkerCommand::SetPlayerLights(payload), "set leds")),
+                .and_then(|payload| self.execute_set_player_lights_request(ctx, payload)),
             _ => Ok(()),
         };
 
@@ -822,6 +1002,11 @@ impl Node for JoyConModule {
         method: &str,
         args: &[ParamValue],
     ) -> Result<bool, String> {
+        if let Some(result) = self.handle_script_method(ctx, method, args) {
+            result?;
+            return Ok(true);
+        }
+
         self.base.engine_call_script_method(ctx, method, args)
     }
 
@@ -923,8 +1108,160 @@ enum JoyConMotionParam {
     RightGyroscope,
 }
 
+const JOYCON_LEFT_BUTTON_PARAMS: &[JoyConButtonParam] = &[
+    JoyConButtonParam::LeftDown,
+    JoyConButtonParam::LeftUp,
+    JoyConButtonParam::LeftRight,
+    JoyConButtonParam::LeftLeft,
+    JoyConButtonParam::LeftSL,
+    JoyConButtonParam::LeftSR,
+    JoyConButtonParam::LeftL,
+    JoyConButtonParam::LeftZL,
+    JoyConButtonParam::LeftMinus,
+    JoyConButtonParam::LeftStickButton,
+    JoyConButtonParam::LeftCapture,
+];
+
+const JOYCON_RIGHT_BUTTON_PARAMS: &[JoyConButtonParam] = &[
+    JoyConButtonParam::RightY,
+    JoyConButtonParam::RightX,
+    JoyConButtonParam::RightB,
+    JoyConButtonParam::RightA,
+    JoyConButtonParam::RightSR,
+    JoyConButtonParam::RightSL,
+    JoyConButtonParam::RightR,
+    JoyConButtonParam::RightZR,
+    JoyConButtonParam::RightPlus,
+    JoyConButtonParam::RightStickButton,
+    JoyConButtonParam::RightHome,
+];
+
 fn float_changed(current: f64, next: f64) -> bool {
     (current - next).abs() > f64::EPSILON
+}
+
+fn joycon_side_id(side: JoyConSide) -> &'static str {
+    match side {
+        JoyConSide::Left => "left",
+        JoyConSide::Right => "right",
+    }
+}
+
+fn joycon_side_button_params(side: JoyConSide) -> &'static [JoyConButtonParam] {
+    match side {
+        JoyConSide::Left => JOYCON_LEFT_BUTTON_PARAMS,
+        JoyConSide::Right => JOYCON_RIGHT_BUTTON_PARAMS,
+    }
+}
+
+fn joycon_button_id(button: JoyConButtonParam) -> &'static str {
+    match button {
+        JoyConButtonParam::LeftDown => "down",
+        JoyConButtonParam::LeftUp => "up",
+        JoyConButtonParam::LeftRight => "right",
+        JoyConButtonParam::LeftLeft => "left",
+        JoyConButtonParam::LeftSL => "sl",
+        JoyConButtonParam::LeftSR => "sr",
+        JoyConButtonParam::LeftL => "l",
+        JoyConButtonParam::LeftZL => "zl",
+        JoyConButtonParam::LeftMinus => "minus",
+        JoyConButtonParam::LeftStickButton => "stick",
+        JoyConButtonParam::LeftCapture => "capture",
+        JoyConButtonParam::RightY => "y",
+        JoyConButtonParam::RightX => "x",
+        JoyConButtonParam::RightB => "b",
+        JoyConButtonParam::RightA => "a",
+        JoyConButtonParam::RightSR => "sr",
+        JoyConButtonParam::RightSL => "sl",
+        JoyConButtonParam::RightR => "r",
+        JoyConButtonParam::RightZR => "zr",
+        JoyConButtonParam::RightPlus => "plus",
+        JoyConButtonParam::RightStickButton => "stick",
+        JoyConButtonParam::RightHome => "home",
+    }
+}
+
+fn joycon_button_state(
+    state: &runtime::JoyConControllerStateSnapshot,
+    button: JoyConButtonParam,
+) -> bool {
+    match button {
+        JoyConButtonParam::LeftDown => state.left_buttons.contains(&Buttons::Down),
+        JoyConButtonParam::LeftUp => state.left_buttons.contains(&Buttons::Up),
+        JoyConButtonParam::LeftRight => state.left_buttons.contains(&Buttons::Right),
+        JoyConButtonParam::LeftLeft => state.left_buttons.contains(&Buttons::Left),
+        JoyConButtonParam::LeftSL => state.left_buttons.contains(&Buttons::SL),
+        JoyConButtonParam::LeftSR => state.left_buttons.contains(&Buttons::SR),
+        JoyConButtonParam::LeftL => state.left_buttons.contains(&Buttons::L),
+        JoyConButtonParam::LeftZL => state.left_buttons.contains(&Buttons::ZL),
+        JoyConButtonParam::LeftMinus => state.shared_buttons.contains(&Buttons::Minus),
+        JoyConButtonParam::LeftStickButton => state.shared_buttons.contains(&Buttons::LStick),
+        JoyConButtonParam::LeftCapture => state.shared_buttons.contains(&Buttons::Capture),
+        JoyConButtonParam::RightY => state.right_buttons.contains(&Buttons::Y),
+        JoyConButtonParam::RightX => state.right_buttons.contains(&Buttons::X),
+        JoyConButtonParam::RightB => state.right_buttons.contains(&Buttons::B),
+        JoyConButtonParam::RightA => state.right_buttons.contains(&Buttons::A),
+        JoyConButtonParam::RightSR => state.right_buttons.contains(&Buttons::SR),
+        JoyConButtonParam::RightSL => state.right_buttons.contains(&Buttons::SL),
+        JoyConButtonParam::RightR => state.right_buttons.contains(&Buttons::R),
+        JoyConButtonParam::RightZR => state.right_buttons.contains(&Buttons::ZR),
+        JoyConButtonParam::RightPlus => state.shared_buttons.contains(&Buttons::Plus),
+        JoyConButtonParam::RightStickButton => state.shared_buttons.contains(&Buttons::RStick),
+        JoyConButtonParam::RightHome => state.shared_buttons.contains(&Buttons::Home),
+    }
+}
+
+fn joycon_buttons_arg(side: JoyConSide, state: &runtime::JoyConControllerStateSnapshot) -> serde_json::Value {
+    let mut buttons = serde_json::Map::new();
+    for button in joycon_side_button_params(side) {
+        buttons.insert(
+            joycon_button_id(*button).to_string(),
+            serde_json::Value::Bool(joycon_button_state(state, *button)),
+        );
+    }
+    serde_json::Value::Object(buttons)
+}
+
+fn controller_motion_arg(
+    state: &runtime::JoyConControllerStateSnapshot,
+    motion_mode: JoyConMotionDataMode,
+) -> serde_json::Value {
+    let mode = match motion_mode {
+        JoyConMotionDataMode::None => JOYCON_MOTION_DATA_NONE,
+        JoyConMotionDataMode::Orientation => JOYCON_MOTION_DATA_ORIENTATION,
+        JoyConMotionDataMode::All => JOYCON_MOTION_DATA_ALL,
+    };
+
+    let orientation = match motion_mode {
+        JoyConMotionDataMode::None => serde_json::Value::Null,
+        JoyConMotionDataMode::Orientation | JoyConMotionDataMode::All => serde_json::json!({
+            "pitch": state.orientation_pitch,
+            "roll": state.orientation_roll,
+        }),
+    };
+    let accelerometer = match motion_mode {
+        JoyConMotionDataMode::All => serde_json::json!({
+            "x": state.accelerometer.0,
+            "y": state.accelerometer.1,
+            "z": state.accelerometer.2,
+        }),
+        JoyConMotionDataMode::None | JoyConMotionDataMode::Orientation => serde_json::Value::Null,
+    };
+    let gyroscope = match motion_mode {
+        JoyConMotionDataMode::All => serde_json::json!({
+            "x": state.gyroscope.0,
+            "y": state.gyroscope.1,
+            "z": state.gyroscope.2,
+        }),
+        JoyConMotionDataMode::None | JoyConMotionDataMode::Orientation => serde_json::Value::Null,
+    };
+
+    serde_json::json!({
+        "mode": mode,
+        "orientation": orientation,
+        "accelerometer": accelerometer,
+        "gyroscope": gyroscope,
+    })
 }
 
 fn process_stick_axis_value(raw_value: f64, dead_zone: f64) -> f64 {
@@ -936,6 +1273,81 @@ fn process_stick_axis_value(raw_value: f64, dead_zone: f64) -> f64 {
 
     let scaled = (value.abs() - dead_zone) / (1.0 - dead_zone);
     scaled.copysign(value).clamp(-1.0, 1.0)
+}
+
+fn processed_stick_values(x: f64, y: f64, dead_zone: f64) -> (f64, f64) {
+    (
+        process_stick_axis_value(x, dead_zone),
+        process_stick_axis_value(y, dead_zone),
+    )
+}
+
+fn runtime_state_has_visible_input_change(
+    previous: &JoyConRuntimeState,
+    next: &JoyConRuntimeState,
+    dead_zone: f64,
+    motion_mode: JoyConMotionDataMode,
+) -> bool {
+    controller_has_visible_input_change(&previous.left, &next.left, dead_zone, motion_mode)
+        || controller_has_visible_input_change(&previous.right, &next.right, dead_zone, motion_mode)
+}
+
+fn controller_has_visible_input_change(
+    previous: &runtime::JoyConControllerStateSnapshot,
+    next: &runtime::JoyConControllerStateSnapshot,
+    dead_zone: f64,
+    motion_mode: JoyConMotionDataMode,
+) -> bool {
+    controller_buttons_changed(previous, next)
+        || controller_stick_changed(previous, next, dead_zone)
+        || controller_motion_changed(previous, next, motion_mode)
+}
+
+fn controller_buttons_changed(
+    previous: &runtime::JoyConControllerStateSnapshot,
+    next: &runtime::JoyConControllerStateSnapshot,
+) -> bool {
+    button_list_changed(&previous.left_buttons, &next.left_buttons)
+        || button_list_changed(&previous.right_buttons, &next.right_buttons)
+        || button_list_changed(&previous.shared_buttons, &next.shared_buttons)
+}
+
+fn button_list_changed(previous: &[Buttons], next: &[Buttons]) -> bool {
+    previous.len() != next.len() || previous.iter().any(|button| !next.contains(button))
+}
+
+fn controller_stick_changed(
+    previous: &runtime::JoyConControllerStateSnapshot,
+    next: &runtime::JoyConControllerStateSnapshot,
+    dead_zone: f64,
+) -> bool {
+    let (previous_x, previous_y) = processed_stick_values(previous.stick_x, previous.stick_y, dead_zone);
+    let (next_x, next_y) = processed_stick_values(next.stick_x, next.stick_y, dead_zone);
+    float_changed(previous_x, next_x) || float_changed(previous_y, next_y)
+}
+
+fn controller_motion_changed(
+    previous: &runtime::JoyConControllerStateSnapshot,
+    next: &runtime::JoyConControllerStateSnapshot,
+    motion_mode: JoyConMotionDataMode,
+) -> bool {
+    match motion_mode {
+        JoyConMotionDataMode::None => false,
+        JoyConMotionDataMode::Orientation => {
+            float_changed(previous.orientation_pitch, next.orientation_pitch)
+                || float_changed(previous.orientation_roll, next.orientation_roll)
+        }
+        JoyConMotionDataMode::All => {
+            float_changed(previous.orientation_pitch, next.orientation_pitch)
+                || float_changed(previous.orientation_roll, next.orientation_roll)
+                || float_changed(previous.accelerometer.0, next.accelerometer.0)
+                || float_changed(previous.accelerometer.1, next.accelerometer.1)
+                || float_changed(previous.accelerometer.2, next.accelerometer.2)
+                || float_changed(previous.gyroscope.0, next.gyroscope.0)
+                || float_changed(previous.gyroscope.1, next.gyroscope.1)
+                || float_changed(previous.gyroscope.2, next.gyroscope.2)
+        }
+    }
 }
 
 fn processing_interval_from_fps_cap(fps_cap: i32) -> Duration {
@@ -951,22 +1363,46 @@ fn runtime_expected_to_be_live(pending_state: Option<&JoyConRuntimeState>, last_
     pending_state.is_some_and(JoyConRuntimeState::any_connected) || last_state.any_connected()
 }
 
-fn summarize_runtime_state_for_log(state: &JoyConRuntimeState) -> String {
+fn summarize_runtime_state_for_log(
+    state: &JoyConRuntimeState,
+    dead_zone: f64,
+    motion_mode: JoyConMotionDataMode,
+) -> String {
     let mut parts = Vec::new();
     if state.left.connected {
+        let (stick_x, stick_y) = processed_stick_values(state.left.stick_x, state.left.stick_y, dead_zone);
+        let motion_suffix = if motion_mode == JoyConMotionDataMode::None {
+            String::new()
+        } else {
+            " motion=on".to_string()
+        };
         parts.push(format!(
-            "L stick=({}, {}) buttons={}",
-            format_axis_value(state.left.stick_x),
-            format_axis_value(state.left.stick_y),
-            state.left.left_buttons.len() + state.left.shared_buttons.len()
+            "L stick=({}, {}) buttons={}{}",
+            format_axis_value(stick_x),
+            format_axis_value(stick_y),
+            joycon_side_button_params(JoyConSide::Left)
+                .iter()
+                .filter(|button| joycon_button_state(&state.left, **button))
+                .count(),
+            motion_suffix,
         ));
     }
     if state.right.connected {
+        let (stick_x, stick_y) = processed_stick_values(state.right.stick_x, state.right.stick_y, dead_zone);
+        let motion_suffix = if motion_mode == JoyConMotionDataMode::None {
+            String::new()
+        } else {
+            " motion=on".to_string()
+        };
         parts.push(format!(
-            "R stick=({}, {}) buttons={}",
-            format_axis_value(state.right.stick_x),
-            format_axis_value(state.right.stick_y),
-            state.right.right_buttons.len() + state.right.shared_buttons.len()
+            "R stick=({}, {}) buttons={}{}",
+            format_axis_value(stick_x),
+            format_axis_value(stick_y),
+            joycon_side_button_params(JoyConSide::Right)
+                .iter()
+                .filter(|button| joycon_button_state(&state.right, **button))
+                .count(),
+            motion_suffix,
         ));
     }
 
@@ -979,6 +1415,147 @@ fn summarize_runtime_state_for_log(state: &JoyConRuntimeState) -> String {
 
 fn format_axis_value(value: f64) -> String {
     format!("{value:.3}")
+}
+
+fn script_vibrate_request(args: &[ParamValue]) -> Option<Result<JoyConVibrateRequest, String>> {
+    let frequency_hz = match args.first() {
+        Some(value) => match param_value_as_f32(value) {
+            Some(value) => value,
+            None => return Some(Err("method 'vibrate' expects a numeric frequencyHz argument".to_string())),
+        },
+        None => 300.0,
+    };
+    if !frequency_hz.is_finite() || !(0.0..=1252.0).contains(&frequency_hz) {
+        return Some(Err(
+            "method 'vibrate' expects frequencyHz between 0.0 and 1252.0".to_string(),
+        ));
+    }
+
+    let amplitude = match args.get(1) {
+        Some(value) => match param_value_as_f32(value) {
+            Some(value) => value,
+            None => return Some(Err("method 'vibrate' expects a numeric amplitude argument".to_string())),
+        },
+        None => 0.9,
+    };
+    if !amplitude.is_finite() || !(0.0..=1.799).contains(&amplitude) {
+        return Some(Err(
+            "method 'vibrate' expects amplitude between 0.0 and 1.799".to_string(),
+        ));
+    }
+
+    let duration_ms = match args.get(2) {
+        Some(value) => match param_value_as_u32(value) {
+            Some(value) if value > 0 => value,
+            Some(_) => return Some(Err("method 'vibrate' expects durationMs greater than 0".to_string())),
+            None => return Some(Err("method 'vibrate' expects a numeric durationMs argument".to_string())),
+        },
+        None => 60,
+    };
+
+    let target = match args.get(3) {
+        Some(value) => match value.as_str() {
+            Some(value) => match parse_joycon_target(&value) {
+                Ok(value) => value.to_string(),
+                Err(error) => return Some(Err(format!("method 'vibrate' {error}"))),
+            },
+            None => return Some(Err("method 'vibrate' expects a string target argument".to_string())),
+        },
+        None => JOYCON_TARGET_BOTH.to_string(),
+    };
+
+    Some(Ok(JoyConVibrateRequest {
+        target,
+        frequency_hz,
+        amplitude,
+        duration_ms,
+        description: "vibrate".to_string(),
+    }))
+}
+
+fn script_set_player_lights_request(args: &[ParamValue]) -> Option<Result<JoyConSetLedRequest, String>> {
+    let led_1 = match script_led_state_arg("setPlayerLights", args, 0) {
+        Ok(value) => value,
+        Err(error) => return Some(Err(error)),
+    };
+    let led_2 = match script_led_state_arg("setPlayerLights", args, 1) {
+        Ok(value) => value,
+        Err(error) => return Some(Err(error)),
+    };
+    let led_3 = match script_led_state_arg("setPlayerLights", args, 2) {
+        Ok(value) => value,
+        Err(error) => return Some(Err(error)),
+    };
+    let led_4 = match script_led_state_arg("setPlayerLights", args, 3) {
+        Ok(value) => value,
+        Err(error) => return Some(Err(error)),
+    };
+    let target = match args.get(4) {
+        Some(value) => match value.as_str() {
+            Some(value) => match parse_joycon_target(&value) {
+                Ok(value) => value.to_string(),
+                Err(error) => return Some(Err(format!("method 'setPlayerLights' {error}"))),
+            },
+            None => return Some(Err("method 'setPlayerLights' expects a string target argument".to_string())),
+        },
+        None => JOYCON_TARGET_BOTH.to_string(),
+    };
+
+    Some(Ok(JoyConSetLedRequest {
+        target,
+        led_1,
+        led_2,
+        led_3,
+        led_4,
+        description: "set player lights".to_string(),
+    }))
+}
+
+fn script_led_state_arg(method: &str, args: &[ParamValue], index: usize) -> Result<String, String> {
+    let Some(value) = args.get(index) else {
+        return Ok(JOYCON_LED_STATE_OFF.to_string());
+    };
+    let Some(value) = value.as_str() else {
+        return Err(format!("method '{method}' expects LED arguments to be strings"));
+    };
+
+    parse_joycon_led_state(&value)
+        .map(str::to_string)
+        .map_err(|error| format!("method '{method}' {error}"))
+}
+
+fn parse_joycon_target(value: &str) -> Result<&str, String> {
+    JoyConControllerTarget::from_variant_id(value)
+        .map(JoyConControllerTarget::variant_id)
+        .ok_or_else(|| format!("expects target to be 'left', 'right', or 'both', got '{value}'"))
+}
+
+fn parse_joycon_led_state(value: &str) -> Result<&str, String> {
+    match value.trim() {
+        JOYCON_LED_STATE_OFF => Ok(JOYCON_LED_STATE_OFF),
+        JOYCON_LED_STATE_ON => Ok(JOYCON_LED_STATE_ON),
+        JOYCON_LED_STATE_FLASH => Ok(JOYCON_LED_STATE_FLASH),
+        _ => Err(format!("expects LED states 'off', 'on', or 'flash', got '{value}'")),
+    }
+}
+
+fn param_value_as_number(value: &ParamValue) -> Option<f64> {
+    value.as_float().or_else(|| value.as_int().map(f64::from))
+}
+
+fn param_value_as_f32(value: &ParamValue) -> Option<f32> {
+    let number = param_value_as_number(value)?;
+    number.is_finite().then_some(number as f32)
+}
+
+fn param_value_as_u32(value: &ParamValue) -> Option<u32> {
+    let number = param_value_as_number(value)?;
+    if !number.is_finite() {
+        return None;
+    }
+
+    let rounded = number.round();
+    (rounded >= 0.0 && rounded <= f64::from(u32::MAX)).then_some(rounded as u32)
 }
 
 #[cfg(test)]
