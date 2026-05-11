@@ -137,8 +137,7 @@ fn copy_sidecar_if_needed(source: &Path, destination: &Path) -> std::io::Result<
     let should_copy = match fs::metadata(destination) {
         Ok(existing) => {
             let source_meta = fs::metadata(source)?;
-            existing.len() != source_meta.len()
-                || existing.modified().ok() != source_meta.modified().ok()
+            existing.len() != source_meta.len() || existing.modified().ok() != source_meta.modified().ok()
         }
         Err(_) => true,
     };
