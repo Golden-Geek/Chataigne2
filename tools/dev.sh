@@ -87,6 +87,7 @@ ensure_linux_system_deps() {
   if command -v apt-get >/dev/null 2>&1; then
     local packages=(
       libwebkit2gtk-4.1-dev
+      libasound2-dev
       build-essential
       curl
       wget
@@ -114,6 +115,7 @@ ensure_linux_system_deps() {
   elif command -v dnf >/dev/null 2>&1; then
     local packages=(
       webkit2gtk4.1-devel
+      alsa-lib-devel
       openssl-devel
       systemd-devel
       pkgconf-pkg-config
@@ -142,6 +144,7 @@ ensure_linux_system_deps() {
   elif command -v pacman >/dev/null 2>&1; then
     run_sudo pacman -Syu --needed \
       webkit2gtk-4.1 \
+      alsa-lib \
       base-devel \
       curl \
       wget \
@@ -156,6 +159,7 @@ ensure_linux_system_deps() {
   elif command -v zypper >/dev/null 2>&1; then
     local packages=(
       webkit2gtk3-devel
+      alsa-devel
       libopenssl-devel
       libudev-devel
       pkg-config
@@ -185,6 +189,7 @@ ensure_linux_system_deps() {
     run_sudo apk add \
       build-base \
       webkit2gtk-4.1-dev \
+      alsa-lib-dev \
       curl \
       wget \
       file \
