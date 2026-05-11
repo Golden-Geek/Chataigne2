@@ -42,9 +42,23 @@ const BUTTPLUG_FUNCTION_DOCS: &[&str] = &[
     "local.positionWithDuration(value, durationMs = 1000, device = \"selected\")",
 ];
 
+const MOUSE_FUNCTION_DOCS: &[&str] = &[
+    "Mouse module functions",
+    "local.moveMouse(x, y, coordinate = \"absolute\", units = \"pixels\")",
+    "local.click(button = \"left\")",
+    "local.scroll(vertical, horizontal = 0)",
+];
+
 const BUTTPLUG_CALLBACK_DOCS: &[&str] = &[
     "buttplugDeviceAdded(device)",
     "buttplugScanningFinished()",
+];
+
+const MOUSE_CALLBACK_DOCS: &[&str] = &[
+    "Mouse module callbacks",
+    "mouseMoved(position, delta, mouse)",
+    "mouseButtonPressed(button, mouse)",
+    "mouseButtonReleased(button, mouse)",
 ];
 
 const SERVER_STREAM_FUNCTION_DOCS: &[&str] = &[
@@ -63,6 +77,11 @@ fn module_script_templates_document_available_functions_for_each_module() {
             BUTTPLUG_CALLBACK_DOCS,
         ),
         (crate::app::GamepadModule::NODE_TYPE, GAMEPAD_CALLBACK_DOCS, &[]),
+        (
+            crate::app::MouseModule::NODE_TYPE,
+            MOUSE_FUNCTION_DOCS,
+            MOUSE_CALLBACK_DOCS,
+        ),
         (crate::app::MidiModule::NODE_TYPE, MIDI_FUNCTION_DOCS, &[]),
         (osc_module_type, OSC_FUNCTION_DOCS, &[]),
         (crate::app::SerialModule::NODE_TYPE, STREAM_FUNCTION_DOCS, &[]),

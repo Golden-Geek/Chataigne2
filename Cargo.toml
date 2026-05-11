@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 artnet_protocol = "0.4.4"
 buttplug = "10.0.2"
+device_query = "4.0.1"
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
 gilrs = "0.11.1"
@@ -25,6 +26,16 @@ tauri = "2"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 tokio-tungstenite = "0.29"
 rust_dmx = "0.7.0"
+rdev = "0.5.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+	"Win32_Foundation",
+	"Win32_System_LibraryLoader",
+	"Win32_System_Threading",
+	"Win32_UI_Input_KeyboardAndMouse",
+	"Win32_UI_WindowsAndMessaging",
+] }
 
 [build-dependencies]
 golden_codegen_support = { path = "submodules/golden_core/crates/codegen_support" }
