@@ -30,9 +30,13 @@ bash ./tools/dev.sh
 ```
 
 These commands initialize submodules, install or verify Rust, Node.js/npm, platform desktop build
-dependencies, `src-ui` dependencies, and then run the app. On Windows, the bootstrap selects
-`stable-msvc` because the desktop host requires the MSVC Rust toolchain. Once the machine is prepared,
-`cargo run` is expected to build the bundled Svelte UI automatically.
+dependencies, `src-ui` dependencies, configure the repo-managed Git hooks, and then run the app. On
+Windows, the bootstrap selects `stable-msvc` because the desktop host requires the MSVC Rust toolchain.
+Once the machine is prepared, `cargo run` is expected to build the bundled Svelte UI automatically.
+
+The bootstrap sets `core.hooksPath` to `.githooks`, which installs the versioned pre-commit hook that
+runs `cargo fmt --all` before Rust commits. If you skip bootstrap, run `git config --local core.hooksPath .githooks`
+once from the repo root. On macOS/Linux also run `chmod +x .githooks/pre-commit`.
 
 ## Formatting
 

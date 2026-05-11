@@ -81,6 +81,29 @@ ensure_git_submodules() {
   git submodule update --init --recursive
 }
 
+ensure_git_hooks() {
+  step "Git hooks"
+
+  local current_hooks_path
+  current_hooks_path="$(git config --local --get core.hooksPath 2>/dev/null || true)"
+
+  if [[ -f .githooks/pre-commit ]]; then
+    chmod +x .githooks/pre-commit
+  fi
+
+  if [[ "${current_hooks_path}" == ".githooks" ]]; then
+    echo "core.hooksPath is already set to .githooks."
+    return
+  fi
+
+  if [[ -n "${current_hooks_path}" ]]; then
+    echo "Updating core.hooksPath from ${current_hooks_path} to .githooks."
+  fi
+
+  git config --local core.hooksPath .githooks
+  echo "Configured core.hooksPath -> .githooks"
+}
+
 ensure_linux_system_deps() {
   step "Linux desktop build dependencies"
 
@@ -362,6 +385,7 @@ run_app() {
 }
 
 ensure_git_submodules
+ensure_git_hooks
 ensure_system_deps
 ensure_rust
 ensure_node

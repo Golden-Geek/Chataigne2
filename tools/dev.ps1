@@ -96,6 +96,27 @@ function Ensure-GitSubmodules {
     Invoke-External "git" @("submodule", "update", "--init", "--recursive")
 }
 
+function Ensure-GitHooks {
+    Write-Step "Git hooks"
+
+    $hooksPath = git config --local --get core.hooksPath 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        $hooksPath = $null
+    }
+
+    if ($hooksPath -eq ".githooks") {
+        Write-Host "core.hooksPath is already set to .githooks."
+        return
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($hooksPath)) {
+        Write-Host "Updating core.hooksPath from '$hooksPath' to .githooks."
+    }
+
+    Invoke-External "git" @("config", "--local", "core.hooksPath", ".githooks")
+    Write-Host "Configured core.hooksPath -> .githooks"
+}
+
 function Ensure-Rust {
     Write-Step "Rust toolchain"
     Refresh-Path
@@ -256,6 +277,7 @@ function Run-App {
 }
 
 Ensure-GitSubmodules
+Ensure-GitHooks
 Ensure-Rust
 Ensure-WindowsBuildTools
 Ensure-Node

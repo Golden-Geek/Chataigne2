@@ -29,7 +29,7 @@ bash ./tools/dev.sh
 
 The bootstrap command initializes Git submodules, installs or verifies Rust through `rustup`, installs
 or verifies Node.js/npm for the Svelte frontend, installs supported desktop build prerequisites, runs
-`npm ci` in `src-ui` when needed, then runs `cargo run`.
+`npm ci` in `src-ui` when needed, configures the repo-managed Git hooks, then runs `cargo run`.
 
 On Windows it also selects the `stable-msvc` Rust toolchain, which Tauri needs for desktop builds.
 
@@ -44,6 +44,10 @@ cargo run -- --dev
 
 Use `.\tools\dev.ps1 -SetupOnly` or `bash ./tools/dev.sh --setup-only` when you only want to prepare
 the machine without launching the app.
+
+The bootstrap sets `core.hooksPath` to `.githooks`, so the versioned pre-commit hook runs
+`cargo fmt --all` before Rust commits. If you skip the bootstrap, run `git config --local core.hooksPath .githooks`
+once from the repo root. On macOS/Linux also run `chmod +x .githooks/pre-commit`.
 
 ## Repository Map
 
