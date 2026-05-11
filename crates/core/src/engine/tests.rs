@@ -9330,6 +9330,7 @@ fn undo_redo_replace_restores_original_node_id() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
     engine.add_node(Folder::new("original".to_string()), None);
     engine.apply_edits().expect("initial add should succeed");
+    engine.clear_ui_event_log();
 
     let original_id = engine
         .nodes
@@ -9355,6 +9356,26 @@ fn undo_redo_replace_restores_original_node_id() {
             .meta
             .label,
         "replacement"
+    );
+
+    let replace_transaction_ops = engine
+        .ui_event_log()
+        .iter()
+        .find_map(|event| match &event.kind {
+            EventKind::GraphTransaction { transaction } => Some(transaction.ops.as_slice()),
+            _ => None,
+        })
+        .expect("replace should publish a graph transaction for live UI consumers");
+    assert!(
+        replace_transaction_ops.iter().any(|op| matches!(
+            op,
+            UiGraphOp::NodeCreated {
+                snapshot,
+                parent: Some(parent),
+                ..
+            } if snapshot.node_id == replacement_id && *parent == engine.root && snapshot.meta.label == "replacement"
+        )),
+        "replace should publish an incremental node snapshot for the replaced node"
     );
 
     assert!(engine.undo().expect("undo should succeed"));

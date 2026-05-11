@@ -1212,6 +1212,15 @@ impl<T: Node> Engine<T> {
             decl_id: old_data.meta.decl_id.clone(),
         });
 
+        if let Some(snapshot) = self.ui_node_dto_for_event(node) {
+            let index = self.ui_child_index(parent, node);
+            self.push_ui_graph_transaction(vec![UiGraphOp::NodeCreated {
+                snapshot,
+                parent: Some(parent),
+                index,
+            }]);
+        }
+
         Ok(ReplaceNodeEffect {
             parent,
             old_id: node,
