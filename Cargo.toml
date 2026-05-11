@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+artnet_protocol = "0.4.4"
 buttplug = "10.0.2"
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
@@ -11,16 +12,19 @@ gilrs = "0.11.1"
 if-addrs = "0.15.0"
 midir = "0.11.0"
 midly = "0.5.3"
+open_dmx = "1.1.1"
 rand = "0.10.0"
 reqwest = { version = "0.13", features = ["blocking", "form", "json", "multipart"] }
 rosc = "0.11.4"
 rumqttc = { version = "0.25.1", default-features = false }
+sacn = "0.11.1"
 serialport = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = "2"
 tokio = { version = "1", features = ["net", "rt", "time"] }
 tokio-tungstenite = "0.29"
+rust_dmx = "0.7.0"
 
 [build-dependencies]
 golden_codegen_support = { path = "submodules/golden_core/crates/codegen_support" }

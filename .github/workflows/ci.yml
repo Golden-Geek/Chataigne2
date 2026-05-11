@@ -12,6 +12,11 @@ jobs:
         with:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
       - name: Root fmt
         run: cargo fmt --all --check
       - name: golden_core fmt
@@ -20,6 +25,8 @@ jobs:
         run: cargo check
       - name: golden_core check
         run: cargo check --manifest-path submodules/golden_core/Cargo.toml
+      - name: golden_core build
+        run: cargo build --manifest-path submodules/golden_core/Cargo.toml
 
   ui:
     runs-on: windows-latest
@@ -33,12 +40,24 @@ jobs:
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
       - name: Install UI deps
         working-directory: src-ui
         run: npm ci
-      - name: UI format
+      - name: UI lint
         working-directory: src-ui
         run: npm run lint
       - name: UI check
         working-directory: src-ui
         run: npm run check
+      - name: UI build
+        working-directory: src-ui
+        run: npm run build
+      - name: App build
+        env:
+          GC_UI_ASSUME_BUILT: 1
+        run: cargo build
