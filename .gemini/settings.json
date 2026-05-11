@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "$CONTEXT7_API_KEY"
+      }
+    },
+    "jcodemunch": {
+      "command": ".\\.venv\\Scripts\\jcodemunch-mcp.exe",
+      "args": [
+        "serve"
+      ],
+      "cwd": ".",
+      "timeout": 120000
+    }
+  }
+}

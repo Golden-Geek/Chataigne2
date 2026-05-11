@@ -4,5 +4,9 @@
       "Bash(cargo build *)",
       "Bash(npx tsc *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "jcodemunch"
+  ]
 }

@@ -1,0 +1,22 @@
+{
+  "servers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "CONTEXT7_API_KEY": "${env:CONTEXT7_API_KEY}"
+      }
+    },
+    "jcodemunch": {
+      "type": "stdio",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\jcodemunch-mcp.exe",
+      "args": [
+        "serve"
+      ]
+    }
+  }
+}
