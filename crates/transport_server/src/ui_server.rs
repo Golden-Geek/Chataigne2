@@ -478,11 +478,7 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
                 if let Err(err) = guard.run_tick(elapsed) {
                     report_runtime_tick_failure(&err);
                 } else {
-                    read_model.publish_engine_events_since(
-                        &*guard,
-                        before_event_time,
-                        T::project_file_spec(),
-                    );
+                    read_model.publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
                 }
             }
 

@@ -47,7 +47,11 @@ fn publish_engine_events_since_survives_event_log_compaction() {
         apply_param_change(&mut engine, value);
     }
 
-    assert_eq!(engine.ui_event_log().len(), 4, "retained ui log should compact to capacity");
+    assert_eq!(
+        engine.ui_event_log().len(),
+        4,
+        "retained ui log should compact to capacity"
+    );
 
     let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time, project_file);
     assert_eq!(batch_param_values(&compacted_batch), vec![4, 5, 6, 7]);
