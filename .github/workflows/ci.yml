@@ -33,14 +33,14 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
-      # - uses: dtolnay/rust-toolchain@stable
-      #   with:
-      #     components: rustfmt
-      # - uses: Swatinem/rust-cache@v2
-      #   with:
-      #     workspaces: |
-      #       . -> target
-      #       submodules/golden_core -> submodules/golden_core/target
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            submodules/golden_core -> submodules/golden_core/target
       - name: Install UI deps
         working-directory: src-ui
         run: npm ci
