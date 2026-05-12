@@ -1,10 +1,13 @@
 #![allow(dead_code)]
 
+use std::collections::HashSet;
+use std::path::Path;
+
 use golden_core::{
     events::{Event, EventKind},
     node,
     node::{Node, NodeId},
-    parameter::{Enum, ParamValue},
+    parameter::{Enum, ParamValue, Parameter, ParameterEnumOption},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -26,6 +29,8 @@ pub(crate) const APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE: &str =
     "app_control_kill_process_command";
 pub(crate) const APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE: &str =
     "app_control_window_control_command";
+const WATCHED_APP_DEFAULT_LABEL: &str = "Watched App";
+const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 pub(crate) const APP_CONTROL_MODULE_COMMAND_TYPES: &[&str] = &[
     APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
@@ -140,6 +145,20 @@ impl Node for AppControlLaunchProcessCommand {
         (node_type == APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE).then(Self::create)
     }
 
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.base.init(ctx);
+
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        sync_watched_app_options_from_enclosing_module(
+            ctx,
+            snapshot_arc.as_ref(),
+            self.node_data().parent,
+            self.watched_app.is_bound().then_some(self.watched_app.id()),
+        );
+    }
+
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. } => u32::MAX,
@@ -230,6 +249,20 @@ impl AppControlKillProcessCommand {
 impl Node for AppControlKillProcessCommand {
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE).then(Self::create)
+    }
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.base.init(ctx);
+
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        sync_watched_app_options_from_enclosing_module(
+            ctx,
+            snapshot_arc.as_ref(),
+            self.node_data().parent,
+            self.watched_app.is_bound().then_some(self.watched_app.id()),
+        );
     }
 
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
@@ -362,6 +395,20 @@ impl Node for AppControlWindowControlCommand {
         (node_type == APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE).then(Self::create)
     }
 
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.base.init(ctx);
+
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        sync_watched_app_options_from_enclosing_module(
+            ctx,
+            snapshot_arc.as_ref(),
+            self.node_data().parent,
+            self.watched_app.is_bound().then_some(self.watched_app.id()),
+        );
+    }
+
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. } => u32::MAX,
@@ -422,4 +469,189 @@ fn command_int_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &
                 .and_then(ParamValue::as_int)
         },
     )
+}
+
+fn sync_watched_app_options_from_enclosing_module(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    command_parent: Option<NodeId>,
+    watched_app_param_id: Option<NodeId>,
+) {
+    let (Some(parent_id), Some(param_id)) = (command_parent, watched_app_param_id) else {
+        return;
+    };
+    let Some(module_id) = crate::app::module::resolve_enclosing_module_root(snapshot, parent_id) else {
+        return;
+    };
+
+    sync_watched_app_enum_options(
+        ctx,
+        snapshot,
+        param_id,
+        watched_app_enum_options_for_module(snapshot, module_id),
+    );
+}
+
+fn watched_app_enum_options_for_module(
+    snapshot: &ProcessTreeSnapshot,
+    module_id: NodeId,
+) -> Vec<ParameterEnumOption> {
+    let Some(parameters_id) = snapshot.find_child_by_decl_id(module_id, "parameters") else {
+        return Vec::new();
+    };
+    let Some(watched_apps_root_id) = snapshot.find_child_by_decl_id(parameters_id, "watched_apps_targets") else {
+        return Vec::new();
+    };
+
+    let mut seen = HashSet::new();
+    let mut options = Vec::new();
+    for item_id in snapshot.child_ids(watched_apps_root_id) {
+        let Some(item) = snapshot.node(item_id) else {
+            continue;
+        };
+        if !matches!(item.param_value.as_ref(), Some(ParamValue::File(_))) {
+            continue;
+        }
+
+        let target_path = item
+            .param_value
+            .as_ref()
+            .and_then(ParamValue::as_str)
+            .unwrap_or_default();
+        if target_path.trim().is_empty() {
+            continue;
+        }
+        let Some(label) = watched_app_option_label(item.label.as_str(), target_path.as_str()) else {
+            continue;
+        };
+        if !seen.insert(label.clone()) {
+            continue;
+        }
+
+        options.push(ParameterEnumOption {
+            variant_id: label.clone(),
+            value: ParamValue::Enum(label.clone()),
+            label,
+            tags: Vec::new(),
+            ordering: None,
+        });
+    }
+
+    options
+}
+
+fn sync_watched_app_enum_options(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    param_id: NodeId,
+    options: Vec<ParameterEnumOption>,
+) {
+    let Some(command_id) = snapshot.node(param_id).and_then(|node| node.parent) else {
+        return;
+    };
+    let current_variant = snapshot
+        .node(param_id)
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_str)
+        .unwrap_or_default();
+    let (next_options, next_variant, missing_value) =
+        enum_options_with_missing_current(current_variant.as_str(), options.as_slice());
+
+    if let Some(missing_value) = missing_value.as_deref() {
+        ctx.set_node_warning_with(
+            command_id,
+            Some(MISSING_WATCHED_APP_WARNING_ID),
+            format!("Missing app: {missing_value}"),
+            None,
+        );
+    } else {
+        ctx.clear_node_warning(command_id, Some(MISSING_WATCHED_APP_WARNING_ID));
+    }
+
+    ctx.call_node_mutation(param_id, move |node, inner_ctx| {
+        let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
+            return Err("watched app target is not a parameter".to_string());
+        };
+
+        let next_value = ParamValue::Enum(next_variant.clone());
+
+        if parameter.constraints.enum_options == next_options && parameter.value == next_value {
+            return Ok(());
+        }
+
+        let label = parameter.node_data().meta.label.clone();
+        let change_check = parameter.change_check.clone();
+        let mut replacement = Parameter::new(label.as_str(), next_value, change_check);
+        *replacement.node_data_mut() = parameter.node_data().clone();
+        replacement.default_value = parameter.default_value.clone();
+        replacement.event_behaviour = parameter.event_behaviour;
+        replacement.read_only = parameter.read_only;
+        replacement.constraints = parameter.constraints.clone();
+        replacement.constraints.enum_options = next_options.clone();
+        replacement.ui_hints = parameter.ui_hints.clone();
+        replacement.control = parameter.control.clone();
+        replacement.control_modes_enabled = parameter.control_modes_enabled;
+
+        inner_ctx.replace_node(param_id, replacement);
+        Ok(())
+    });
+}
+
+fn enum_options_with_missing_current(
+    current_value: &str,
+    options: &[ParameterEnumOption],
+) -> (Vec<ParameterEnumOption>, String, Option<String>) {
+    let trimmed_value = current_value.trim();
+    let mut next_options = options.to_vec();
+
+    if trimmed_value.is_empty() {
+        let desired_value = next_options
+            .first()
+            .map(|option| option.variant_id.clone())
+            .unwrap_or_default();
+        return (next_options, desired_value, None);
+    }
+
+    if next_options
+        .iter()
+        .any(|option| option.variant_id == trimmed_value)
+    {
+        return (next_options, trimmed_value.to_string(), None);
+    }
+
+    next_options.insert(
+        0,
+        ParameterEnumOption {
+            variant_id: trimmed_value.to_string(),
+            value: ParamValue::Enum(trimmed_value.to_string()),
+            label: trimmed_value.to_string(),
+            tags: Vec::new(),
+            ordering: None,
+        },
+    );
+
+    (
+        next_options,
+        trimmed_value.to_string(),
+        Some(trimmed_value.to_string()),
+    )
+}
+
+fn watched_app_option_label(current_label: &str, target_path: &str) -> Option<String> {
+    let trimmed_label = current_label.trim();
+    if !trimmed_label.is_empty() && !trimmed_label.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL)
+    {
+        return Some(trimmed_label.to_string());
+    }
+
+    let trimmed_target = target_path.trim();
+    if trimmed_target.is_empty() {
+        return None;
+    }
+
+    Path::new(trimmed_target)
+        .file_stem()
+        .or_else(|| Path::new(trimmed_target).file_name())
+        .map(|value| value.to_string_lossy().trim().to_string())
+        .filter(|value| !value.is_empty())
 }

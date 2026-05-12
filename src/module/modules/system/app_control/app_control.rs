@@ -53,6 +53,7 @@ const WATCHED_APP_DEFAULT_LABEL: &str = "Watched App";
 const WATCHED_FOLDER_ITEM_KIND: &str = "app_control_watched_folder";
 const DUPLICATE_LABEL_WARNING_ID: &str = "app_control_duplicate_label";
 const INVALID_TARGET_WARNING_ID: &str = "app_control_invalid_target";
+pub(crate) const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct WatchedAppEntry {
@@ -1612,9 +1613,10 @@ fn create_running_control_param() -> Parameter {
         ParamValue::Bool(false),
         ParameterChangeCheck::ValueChange,
     );
+    parameter.read_only = true;
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter.node_data_mut().meta.description = Some(
-        "Toggle to launch the watched application or request a normal close by terminating its running process."
+        "Indicates if the watched application is currently running."
             .to_string(),
     );
     let meta = &mut parameter.node_data_mut().meta;

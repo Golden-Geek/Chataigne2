@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use golden_core::{
     node::{Folder, Node, NodeId},
-    parameter::{ParamValue, Parameter, ParameterChangeCheck},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
     script::ScriptSource,
+    ui_sync::UiEditIntent,
 };
 
 use crate::app::module::common::app_control::ProcessMatchMode;
@@ -324,8 +325,6 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
         .apply_edits()
         .expect("watched app file parameter should accept a target path");
 
-    run_app_control_ticks(&mut engine, 1);
-
     let command_tester_id =
         find_path(&engine, module_id, "command_tester").expect("command tester should exist");
     engine.edits.push(golden_core::edit::Edit::AddUserItem {
@@ -340,12 +339,6 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
     engine
         .apply_edits()
         .expect("launch command should attach under the command tester");
-    engine
-        .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
-        .expect("command add should dispatch App Control inbox callbacks");
-    engine
-        .apply_edits()
-        .expect("runtime enum sync edits should flush after inbox dispatch");
 
     let command_id = engine
         .nodes
@@ -362,6 +355,287 @@ fn command_added_after_watched_app_populates_enum_without_waiting_for_tick() {
         .collect::<Vec<_>>();
     assert_eq!(variants, vec!["Chataigne".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
+}
+
+#[test]
+fn watched_app_added_after_command_populates_enum_via_ui_edit_flow() {
+    let (mut engine, module_id) = create_module();
+    let command_tester_id =
+        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: command_tester_id,
+        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(command_ack.success, "launch command should be creatable through the UI edit flow");
+
+    let command_id = engine
+        .nodes
+        .get(command_tester_id)
+        .and_then(|tester| tester.node_data().first_child)
+        .expect("command tester should contain the new launch command");
+    let initial_watched_app_snapshot = param_snapshot(&engine, command_id, "watched_app")
+        .expect("launch command should expose a watched-app selector");
+    assert!(initial_watched_app_snapshot.constraints.enum_options.is_empty());
+
+    let watched_apps_id =
+        find_path(&engine, module_id, "parameters/watched_apps_targets").expect("watched apps root should exist");
+    let watched_app_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: watched_apps_id,
+        node_type: "file".to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(watched_app_ack.success, "watched app should be creatable through the UI edit flow");
+
+    let watched_app_id = engine
+        .nodes
+        .get(watched_apps_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("watched app parameter should be present");
+    let watched_app_target_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: watched_app_id,
+        value: ParamValue::File("C:/Program Files/Chataigne/Chataigne.exe".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        watched_app_target_ack.success,
+        "watched app target should be writable through the UI edit flow"
+    );
+
+    let watched_app_snapshot = param_snapshot(&engine, command_id, "watched_app")
+        .expect("launch command should expose a watched-app selector after watched app creation");
+    let variants = watched_app_snapshot
+        .constraints
+        .enum_options
+        .into_iter()
+        .map(|option| option.variant_id)
+        .collect::<Vec<_>>();
+    assert_eq!(variants, vec!["Chataigne".to_string()]);
+    assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
+}
+
+#[test]
+fn watched_app_target_change_preserves_missing_command_selection_with_warning() {
+    let (mut engine, module_id) = create_module();
+    let watched_apps_id =
+        find_path(&engine, module_id, "parameters/watched_apps_targets").expect("watched apps root should exist");
+    let create_watched_app_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: watched_apps_id,
+        node_type: "file".to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(create_watched_app_ack.success);
+
+    let watched_app_id = engine
+        .nodes
+        .get(watched_apps_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("watched app parameter should be present");
+    let initial_target_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: watched_app_id,
+        value: ParamValue::File("C:/Program Files/Chataigne/Chataigne.exe".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(initial_target_ack.success);
+
+    let command_tester_id =
+        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: command_tester_id,
+        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(create_command_ack.success);
+
+    let command_id = engine
+        .nodes
+        .get(command_tester_id)
+        .and_then(|tester| tester.node_data().first_child)
+        .expect("command tester should contain the new launch command");
+
+    let retarget_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: watched_app_id,
+        value: ParamValue::File("C:/Program Files/SuperApp/SuperApp.exe".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(retarget_ack.success);
+
+    let watched_app_snapshot = param_snapshot(&engine, command_id, "watched_app")
+        .expect("launch command should expose a watched-app selector after retargeting");
+    let variants = watched_app_snapshot
+        .constraints
+        .enum_options
+        .into_iter()
+        .map(|option| option.variant_id)
+        .collect::<Vec<_>>();
+    assert_eq!(variants, vec!["Chataigne".to_string(), "SuperApp".to_string()]);
+    assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
+    assert_eq!(
+        warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID),
+        Some("Missing app: Chataigne".to_string())
+    );
+}
+
+#[test]
+fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
+    let (mut engine, module_id) = create_module();
+    let watched_apps_id =
+        find_path(&engine, module_id, "parameters/watched_apps_targets").expect("watched apps root should exist");
+    let create_watched_app_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: watched_apps_id,
+        node_type: "file".to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(create_watched_app_ack.success);
+
+    let watched_app_id = engine
+        .nodes
+        .get(watched_apps_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("watched app parameter should be present");
+    let initial_target_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: watched_app_id,
+        value: ParamValue::File("C:/Program Files/Chataigne/Chataigne.exe".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(initial_target_ack.success);
+
+    let command_tester_id =
+        find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let create_command_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: command_tester_id,
+        node_type: super::commands::APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE.to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(create_command_ack.success);
+
+    let command_id = engine
+        .nodes
+        .get(command_tester_id)
+        .and_then(|tester| tester.node_data().first_child)
+        .expect("command tester should contain the new launch command");
+
+    let remove_ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: watched_app_id });
+    assert!(remove_ack.success);
+
+    let missing_snapshot = param_snapshot(&engine, command_id, "watched_app")
+        .expect("launch command should expose a watched-app selector after removal");
+    let missing_variants = missing_snapshot
+        .constraints
+        .enum_options
+        .into_iter()
+        .map(|option| option.variant_id)
+        .collect::<Vec<_>>();
+    assert_eq!(missing_variants, vec!["Chataigne".to_string()]);
+    assert_eq!(missing_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
+    assert_eq!(
+        warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID),
+        Some("Missing app: Chataigne".to_string())
+    );
+
+    let recreate_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: watched_apps_id,
+        node_type: "file".to_string(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(recreate_ack.success);
+
+    let recreated_watched_app_id = engine
+        .nodes
+        .get(watched_apps_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("recreated watched app parameter should be present");
+    let restore_target_ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: recreated_watched_app_id,
+        value: ParamValue::File("C:/Program Files/Chataigne/Chataigne.exe".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(restore_target_ack.success);
+
+    let restored_snapshot = param_snapshot(&engine, command_id, "watched_app")
+        .expect("launch command should expose a watched-app selector after recovery");
+    let restored_variants = restored_snapshot
+        .constraints
+        .enum_options
+        .into_iter()
+        .map(|option| option.variant_id)
+        .collect::<Vec<_>>();
+    assert_eq!(restored_variants, vec!["Chataigne".to_string()]);
+    assert_eq!(restored_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
+    assert_eq!(warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID), None);
+}
+
+#[test]
+fn stale_running_value_only_reflects_actual_state_during_periodic_updates() {
+    golden_core::logger::clear();
+
+    let (mut engine, module_id) = create_module();
+    let watched_apps_id =
+        find_path(&engine, module_id, "parameters/watched_apps_targets").expect("watched apps root should exist");
+
+    engine.add_user_item(create_test_watched_app().into(), Some(watched_apps_id));
+    engine
+        .apply_edits()
+        .expect("watched app parameter should attach under the watched apps root");
+
+    let watched_app_id = engine
+        .nodes
+        .get(watched_apps_id)
+        .and_then(|root| root.node_data().first_child)
+        .expect("watched app parameter should be present");
+    set_param(
+        &mut engine,
+        watched_app_id,
+        ParamValue::File("C:/Definitely/Missing/NeverLaunch.exe".to_string()),
+    );
+    engine
+        .apply_edits()
+        .expect("watched app file parameter should accept a target path");
+    engine
+        .apply_edits()
+        .expect("watched app auto-rename edits should apply");
+    engine
+        .resolve()
+        .expect("App Control schedule should resolve after watched app rename");
+
+    run_app_control_ticks(&mut engine, 1);
+
+    let values_folder_id = find_path(&engine, module_id, "values/watched_apps_values/NeverLaunch")
+        .expect("watched app values should exist");
+    let running_id = find_path(&engine, values_folder_id, "running")
+        .expect("watched app values should expose a running parameter");
+
+    golden_core::logger::clear();
+    set_param(&mut engine, running_id, ParamValue::Bool(true));
+    engine
+        .apply_edits()
+        .expect("stale running value should apply without dispatching callbacks");
+
+    engine
+        .run_tick(Duration::from_millis(600))
+        .expect("App Control runtime tick should succeed without dispatching the stale running change");
+    engine
+        .apply_edits()
+        .expect("periodic App Control edits should apply");
+    engine
+        .resolve()
+        .expect("App Control schedule should resolve after the periodic update");
+
+    assert_eq!(
+        param_snapshot(&engine, values_folder_id, "running").map(|snapshot| snapshot.value),
+        Some(ParamValue::Bool(false))
+    );
+    assert!(
+        golden_core::logger::records().is_empty(),
+        "periodic running reconciliation should not emit launch/kill errors without a user toggle callback"
+    );
 }
 
 #[test]
@@ -587,6 +861,21 @@ fn string_param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str)
         ParamValue::Str(value) => Some(value),
         _ => None,
     }
+}
+
+fn warning_message(engine: &crate::app::AppEngine, node: NodeId, warning_id: &str) -> Option<String> {
+    engine
+        .nodes
+        .get(node)
+        .and_then(|node| {
+            node.node_data()
+                .meta
+                .presentation
+                .warnings
+                .iter()
+                .find(|warning| warning.id == warning_id)
+        })
+        .map(|warning| warning.message.clone())
 }
 
 fn module_needs_update(engine: &crate::app::AppEngine, module_id: NodeId) -> bool {
