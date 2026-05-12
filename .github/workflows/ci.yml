@@ -160,10 +160,12 @@ jobs:
             apt-get update -q -y
             apt-get install -q -y \
               build-essential \
+              clang \
               curl \
               file \
               git \
               libasound2-dev \
+              libclang-dev \
               libusb-1.0-0-dev \
               libayatana-appindicator3-dev \
               librsvg2-dev \
@@ -171,6 +173,7 @@ jobs:
               libudev-dev \
               libwebkit2gtk-4.1-dev \
               libxdo-dev \
+              llvm-dev \
               pkg-config \
               wget
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
@@ -179,4 +182,5 @@ jobs:
           run: |
             . "$HOME/.cargo/env"
             rustup target add ${{ matrix.target }}
+            export LIBCLANG_PATH="$(llvm-config --libdir)"
             cargo build --target ${{ matrix.target }}
