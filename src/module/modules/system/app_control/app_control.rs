@@ -3,7 +3,10 @@ mod commands;
 #[cfg(test)]
 mod app_control_tests;
 
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use golden_core::{
     edit::NodeTree,
@@ -92,11 +95,13 @@ struct WatchedFolderEntry {
 pub struct AppControlModule {
     base: crate::app::ModuleBase,
     runtime: AppControlRuntime,
-    watched_app_value_labels: Vec<String>,
-    watched_folder_value_labels: Vec<String>,
+    watched_app_value_folders: HashMap<NodeId, NodeId>,
+    watched_folder_value_folders: HashMap<NodeId, NodeId>,
     watched_app_auto_labels: HashMap<NodeId, String>,
     ignored_running_value_updates: HashMap<NodeId, bool>,
     pending_running_requests: HashMap<NodeId, bool>,
+    has_active_watch_targets: bool,
+    watch_config_dirty: bool,
 }
 
 impl AppControlModule {
@@ -104,33 +109,101 @@ impl AppControlModule {
         Self::new(
             crate::app::ModuleBase::new(),
             AppControlRuntime::create(),
-            Vec::new(),
-            Vec::new(),
             HashMap::new(),
             HashMap::new(),
             HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            false,
+            false,
         )
+    }
+
+    fn sync_watch_state(
+        &mut self,
+        watched_apps: &[WatchedAppEntry],
+        watched_folders: &[WatchedFolderEntry],
+    ) {
+        self.has_active_watch_targets = Self::has_active_watched_apps(watched_apps)
+            || Self::has_active_watched_folders(watched_folders);
+        self.watch_config_dirty = false;
+    }
+
+    fn has_active_watched_apps(watched_apps: &[WatchedAppEntry]) -> bool {
+        watched_apps
+            .iter()
+            .any(|entry| !entry.target_path.trim().is_empty())
+    }
+
+    fn has_active_watched_folders(watched_folders: &[WatchedFolderEntry]) -> bool {
+        watched_folders
+            .iter()
+            .any(|entry| !entry.target_path.trim().is_empty())
+    }
+
+    fn is_watch_configuration_param(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+        param: NodeId,
+    ) -> bool {
+        let Some(parameters_id) = self.base.parameters_id() else {
+            return false;
+        };
+        let Some(node) = snapshot.node(param) else {
+            return false;
+        };
+        let Some(parent_id) = node.parent else {
+            return false;
+        };
+
+        if snapshot.find_child_by_decl_id(parameters_id, "watched_apps_targets") == Some(parent_id)
+        {
+            return true;
+        }
+
+        let Some(watched_folders_root_id) = snapshot.find_child_by_decl_id(
+            parameters_id,
+            "watched_folders_targets",
+        ) else {
+            return false;
+        };
+        if snapshot.node(parent_id).and_then(|parent| parent.parent) != Some(watched_folders_root_id) {
+            return false;
+        }
+
+        node.decl_id.rsplit('/').next() == Some("target") || node.short_name == "target"
+    }
+
+    fn is_watch_item_root(&self, snapshot: &ProcessTreeSnapshot, parent: NodeId) -> bool {
+        let Some(parameters_id) = self.base.parameters_id() else {
+            return false;
+        };
+
+        snapshot.find_child_by_decl_id(parameters_id, "watched_apps_targets") == Some(parent)
+            || snapshot.find_child_by_decl_id(parameters_id, "watched_folders_targets") == Some(parent)
     }
 
     fn sync_runtime_state(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         let watched_apps = self.auto_rename_watched_apps(ctx, self.collect_watched_apps(snapshot));
         let watched_folders = self.collect_watched_folders(snapshot);
+        let has_active_watched_apps = Self::has_active_watched_apps(&watched_apps);
+        let has_active_watched_folders = Self::has_active_watched_folders(&watched_folders);
+
+        self.sync_watch_state(&watched_apps, &watched_folders);
 
         self.apply_duplicate_label_warnings(ctx, &watched_apps, &watched_folders);
         self.apply_target_warnings(ctx, &watched_apps, &watched_folders);
         self.sync_command_target_options(ctx, snapshot, &watched_apps);
         self.runtime
             .sync_folder_keys(watched_folders.iter().map(|entry| entry.label.as_str()));
+        self.runtime
+            .sync_watched_app_targets(watched_apps.iter().map(|entry| entry.target_path.as_str()));
 
-        if self.sync_value_structure(ctx, snapshot, &watched_apps, &watched_folders) {
-            return;
-        }
-
-        self.runtime.refresh_processes();
+        self.sync_value_structure(ctx, snapshot, &watched_apps, &watched_folders);
         self.update_watched_app_values(ctx, snapshot, &watched_apps);
         self.update_watched_folder_values(ctx, snapshot, &watched_folders);
 
-        if !watched_apps.is_empty() || !watched_folders.is_empty() {
+        if has_active_watched_apps || has_active_watched_folders {
             self.base.emit_incoming_traffic(ctx);
         }
     }
@@ -284,16 +357,8 @@ impl AppControlModule {
         snapshot: &ProcessTreeSnapshot,
         watched_apps: &[WatchedAppEntry],
     ) {
-        let Some(command_tester_id) = self
-            .base
-            .command_tester_id()
-            .or_else(|| snapshot.find_child_by_decl_id(self.id(), "command_tester"))
-        else {
-            return;
-        };
-
         let watched_app_options = watched_app_command_enum_options(watched_apps);
-        for command_id in snapshot.child_ids(command_tester_id) {
+        for command_id in descendant_ids_matching_command_types(snapshot, self.id()) {
             let Some(command) = snapshot.node(command_id) else {
                 continue;
             };
@@ -313,6 +378,57 @@ impl AppControlModule {
                 _ => {}
             }
         }
+    }
+
+    fn sync_command_target_options_for_watched_app_param_change(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        param: NodeId,
+    ) {
+        let Some(parameters_id) = self.base.parameters_id() else {
+            return;
+        };
+        let Some(watched_apps_root_id) = snapshot.find_child_by_decl_id(parameters_id, "watched_apps_targets")
+        else {
+            return;
+        };
+        if snapshot.node(param).and_then(|node| node.parent) != Some(watched_apps_root_id) {
+            return;
+        }
+
+        let Some(new_target_path) = ctx.events.iter().rev().find_map(|event| match &event.kind {
+            EventKind::ParamChanged {
+                param: changed_param,
+                new_value,
+                ..
+            } if *changed_param == param => new_value.as_str(),
+            _ => None,
+        }) else {
+            return;
+        };
+
+        let previous_auto_label = self
+            .watched_app_auto_labels
+            .get(&param)
+            .cloned()
+            .unwrap_or_else(|| WATCHED_APP_DEFAULT_LABEL.to_string());
+        let mut watched_apps = self.collect_watched_apps(snapshot);
+        let next_auto_label = watched_app_label_from_target_path(new_target_path.as_str());
+
+        for entry in &mut watched_apps {
+            if entry.item_id != param {
+                continue;
+            }
+
+            entry.target_path = new_target_path.to_string();
+            if should_auto_rename_watched_app(entry.label.as_str(), previous_auto_label.as_str()) {
+                entry.label = next_auto_label.clone();
+            }
+            break;
+        }
+
+        self.sync_command_target_options(ctx, snapshot, &watched_apps);
     }
 
     fn auto_rename_watched_apps(
@@ -366,51 +482,41 @@ impl AppControlModule {
         snapshot: &ProcessTreeSnapshot,
         watched_apps: &[WatchedAppEntry],
         watched_folders: &[WatchedFolderEntry],
-    ) -> bool {
-        let next_app_labels = unique_labels_in_order(watched_apps.iter().map(|entry| entry.label.as_str()));
-        let next_folder_labels =
-            unique_labels_in_order(watched_folders.iter().map(|entry| entry.label.as_str()));
-
-        if self.watched_app_value_labels == next_app_labels
-            && self.watched_folder_value_labels == next_folder_labels
-        {
-            return false;
-        }
-
+    ) {
         let Some(values_id) = self.base.values_id() else {
-            return false;
+            return;
         };
         let Some(app_values_id) = snapshot.find_child_by_decl_id(values_id, "watched_apps_values") else {
-            return false;
+            return;
         };
         let Some(folder_values_id) = snapshot.find_child_by_decl_id(values_id, "watched_folders_values") else {
-            return false;
+            return;
         };
 
-        rebuild_values_root(
+        let app_sync = sync_values_root(
             ctx,
             snapshot,
             app_values_id,
-            next_app_labels
+            watched_apps
                 .iter()
-                .map(|label| watched_app_values_tree(label.as_str()))
-                .collect(),
+                .map(|entry| (entry.item_id, entry.label.as_str())),
+            &mut self.watched_app_value_folders,
+            watched_app_values_tree,
         );
-        rebuild_values_root(
+        for removed_folder_id in app_sync.removed_folder_ids {
+            self.clear_watched_app_value_state(snapshot, removed_folder_id);
+        }
+
+        let _folder_sync = sync_values_root(
             ctx,
             snapshot,
             folder_values_id,
-            next_folder_labels
+            watched_folders
                 .iter()
-                .map(|label| watched_folder_values_tree(label.as_str()))
-                .collect(),
+                .map(|entry| (entry.item_id, entry.label.as_str())),
+            &mut self.watched_folder_value_folders,
+            watched_folder_values_tree,
         );
-
-        self.watched_app_value_labels = next_app_labels;
-        self.watched_folder_value_labels = next_folder_labels;
-        self.pending_running_requests.clear();
-        self.ignored_running_value_updates.clear();
-        true
     }
 
     fn update_watched_app_values(
@@ -419,18 +525,13 @@ impl AppControlModule {
         snapshot: &ProcessTreeSnapshot,
         watched_apps: &[WatchedAppEntry],
     ) {
-        let Some(values_id) = self.base.values_id() else {
-            return;
-        };
-        let Some(root_id) = snapshot.find_child_by_decl_id(values_id, "watched_apps_values") else {
-            return;
-        };
-        let value_folders = child_ids_by_label(snapshot, root_id);
-
         for entry in watched_apps {
-            let Some(folder_id) = value_folders.get(entry.label.as_str()).copied() else {
+            let Some(folder_id) = self.watched_app_value_folders.get(&entry.item_id).copied() else {
                 continue;
             };
+            if snapshot.node(folder_id).is_none() {
+                continue;
+            }
 
             let metrics = self.runtime.watched_app_metrics(entry.target_path.as_str());
             self.sync_watched_app_value_constraints(ctx, snapshot, folder_id, &metrics);
@@ -582,6 +683,19 @@ impl AppControlModule {
         );
     }
 
+    fn clear_watched_app_value_state(
+        &mut self,
+        snapshot: &ProcessTreeSnapshot,
+        value_folder_id: NodeId,
+    ) {
+        let Some(running_id) = find_child_by_key(snapshot, value_folder_id, "running") else {
+            return;
+        };
+
+        self.pending_running_requests.remove(&running_id);
+        self.ignored_running_value_updates.remove(&running_id);
+    }
+
     fn handle_running_control(
         &mut self,
         ctx: &mut ProcessCtx,
@@ -667,18 +781,13 @@ impl AppControlModule {
         snapshot: &ProcessTreeSnapshot,
         watched_folders: &[WatchedFolderEntry],
     ) {
-        let Some(values_id) = self.base.values_id() else {
-            return;
-        };
-        let Some(root_id) = snapshot.find_child_by_decl_id(values_id, "watched_folders_values") else {
-            return;
-        };
-        let value_folders = child_ids_by_label(snapshot, root_id);
-
         for entry in watched_folders {
-            let Some(folder_id) = value_folders.get(entry.label.as_str()).copied() else {
+            let Some(folder_id) = self.watched_folder_value_folders.get(&entry.item_id).copied() else {
                 continue;
             };
+            if snapshot.node(folder_id).is_none() {
+                continue;
+            }
 
             let update = self
                 .runtime
@@ -1068,6 +1177,7 @@ impl Node for AppControlModule {
     fn child_event_interest_depth(&self, event: &Event) -> u32 {
         match event.kind {
             EventKind::ParamChanged { .. } => u32::MAX,
+            EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => u32::MAX,
             _ => 1,
         }
     }
@@ -1095,6 +1205,10 @@ impl Node for AppControlModule {
             return;
         };
         self.sync_runtime_state(ctx, snapshot_arc.as_ref());
+    }
+
+    fn needs_update(&self) -> bool {
+        self.watch_config_dirty || self.has_active_watch_targets
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -1133,9 +1247,61 @@ impl Node for AppControlModule {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, old_value: ParamValue) {
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            let snapshot = snapshot_arc.as_ref();
+            let watch_configuration_changed = self.is_watch_configuration_param(snapshot, param);
+            self.sync_command_target_options_for_watched_app_param_change(
+                ctx,
+                snapshot,
+                param,
+            );
+            if watch_configuration_changed {
+                self.watch_config_dirty = true;
+            }
             self.base
-                .emit_script_param_callback(ctx, snapshot_arc.as_ref(), param, &old_value);
+                .emit_script_param_callback(ctx, snapshot, param, &old_value);
         }
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+
+        if self.is_watch_item_root(snapshot, parent) {
+            self.watch_config_dirty = true;
+            return;
+        }
+
+        let Some(command_tester_id) = self
+            .base
+            .command_tester_id()
+            .or_else(|| snapshot.find_child_by_decl_id(self.id(), "command_tester"))
+        else {
+            return;
+        };
+        if !node_is_within_subtree(snapshot, child, command_tester_id) {
+            return;
+        }
+        if !snapshot.node(child).is_some_and(|node| is_app_control_command_type(node.node_type.as_str())) {
+            return;
+        }
+
+        let watched_apps = self.collect_watched_apps(snapshot);
+        self.sync_command_target_options(ctx, snapshot, &watched_apps);
+    }
+
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, _child: NodeId) {
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
+
+        if !self.is_watch_item_root(snapshot, parent) {
+            return;
+        }
+
+        self.watch_config_dirty = true;
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -1144,9 +1310,13 @@ impl Node for AppControlModule {
 
     fn on_effective_enabled_changed(&mut self, _ctx: &mut ProcessCtx, _enabled: bool) {
         self.runtime.reset();
+        self.watched_app_value_folders.clear();
+        self.watched_folder_value_folders.clear();
         self.watched_app_auto_labels.clear();
         self.ignored_running_value_updates.clear();
         self.pending_running_requests.clear();
+        self.has_active_watch_targets = false;
+        self.watch_config_dirty = false;
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -1297,18 +1467,8 @@ where
     seen
 }
 
-fn rebuild_values_root(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    root_id: NodeId,
-    children: Vec<NodeTree>,
-) {
-    for child_id in snapshot.child_ids(root_id) {
-        NodeHandle::new(child_id).remove(ctx);
-    }
-    for tree in children {
-        ctx.add_child_tree(root_id, tree, None);
-    }
+struct ValueRootSyncResult {
+    removed_folder_ids: Vec<NodeId>,
 }
 
 fn watched_app_values_tree(label: &str) -> NodeTree {
@@ -1511,6 +1671,111 @@ fn child_ids_by_label(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> HashMap
         by_label.entry(child.label.clone()).or_insert(child_id);
     }
     by_label
+}
+
+fn sync_values_root<'a, I>(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    root_id: NodeId,
+    items: I,
+    value_folders_by_item: &mut HashMap<NodeId, NodeId>,
+    build_tree: fn(&str) -> NodeTree,
+) -> ValueRootSyncResult
+where
+    I: IntoIterator<Item = (NodeId, &'a str)>,
+{
+    let existing_by_label = child_ids_by_label(snapshot, root_id);
+    let mut used_folder_ids = HashSet::new();
+    let mut next_value_folders_by_item = HashMap::new();
+
+    for (item_id, label) in items {
+        let existing_folder_id = value_folders_by_item
+            .get(&item_id)
+            .copied()
+            .filter(|folder_id| snapshot.node(*folder_id).is_some())
+            .or_else(|| {
+                existing_by_label
+                    .get(label)
+                    .copied()
+                    .filter(|folder_id| !used_folder_ids.contains(folder_id))
+            });
+
+        match existing_folder_id {
+            Some(folder_id) => {
+                used_folder_ids.insert(folder_id);
+                next_value_folders_by_item.insert(item_id, folder_id);
+
+                if snapshot.node(folder_id).is_some_and(|node| node.label != label) {
+                    ctx.patch_node_meta(
+                        folder_id,
+                        NodeMetaPatch {
+                            label: Some(label.to_string()),
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
+            None => {
+                ctx.add_child_tree(root_id, build_tree(label), None);
+            }
+        }
+    }
+
+    let mut removed_folder_ids = Vec::new();
+    for child_id in snapshot.child_ids(root_id) {
+        if used_folder_ids.contains(&child_id) {
+            continue;
+        }
+
+        removed_folder_ids.push(child_id);
+        NodeHandle::new(child_id).remove(ctx);
+    }
+
+    *value_folders_by_item = next_value_folders_by_item;
+
+    ValueRootSyncResult {
+        removed_folder_ids,
+    }
+}
+
+fn descendant_ids_matching_command_types(snapshot: &ProcessTreeSnapshot, root_id: NodeId) -> Vec<NodeId> {
+    let mut pending = snapshot.child_ids(root_id);
+    let mut matching = Vec::new();
+
+    while let Some(node_id) = pending.pop() {
+        let Some(node) = snapshot.node(node_id) else {
+            continue;
+        };
+
+        if is_app_control_command_type(node.node_type.as_str()) {
+            matching.push(node_id);
+        }
+
+        pending.extend(snapshot.child_ids(node_id));
+    }
+
+    matching
+}
+
+fn node_is_within_subtree(snapshot: &ProcessTreeSnapshot, node_id: NodeId, root_id: NodeId) -> bool {
+    let mut current = Some(node_id);
+    while let Some(id) = current {
+        if id == root_id {
+            return true;
+        }
+        current = snapshot.node(id).and_then(|node| node.parent);
+    }
+
+    false
+}
+
+fn is_app_control_command_type(node_type: &str) -> bool {
+    matches!(
+        node_type,
+        APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE
+            | APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE
+            | APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE
+    )
 }
 
 fn set_value_param(

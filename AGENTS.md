@@ -138,6 +138,7 @@ When a task spans multiple architectural areas, prefer this order:
 - Start by identifying the layer that should own the change.
 - Prefer moving responsibility to the right layer over adding glue.
 - Move parsing, timestamping, and transport-side preprocessing out of the engine loop whenever an IO/runtime boundary can do that work first; keep the engine loop focused on applying state and graph mutations.
+- Treat recurring millisecond-range compute or polling on the main thread as a hard no for node implementations. App Control idle polling already pushed `scheduled_ms` above 15ms, and the OS adds its own recurring ~20ms tick, so node work at that cadence must move to an IO/runtime boundary, a background worker, or a coarser event-driven path.
 - For large or data-driven structure creation, design the edit shape before coding: batch detached subtrees, avoid repeated full-tree snapshot rebuilds, and add timing or tests when the expected graph size can grow significantly.
 - Do not preserve broken boundaries for convenience.
 - Do not introduce compatibility shims unless the task explicitly requires them.

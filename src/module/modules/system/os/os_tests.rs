@@ -43,6 +43,13 @@ fn os_module_initializes_host_values() {
 }
 
 #[test]
+fn os_module_updates_without_tree_snapshot() {
+    let (engine, module_id) = create_os_module();
+
+    assert!(!module_update_requires_tree_snapshot(&engine, module_id));
+}
+
+#[test]
 fn os_script_template_scaffolds_functions_and_callbacks() {
     let config = crate::app::module::script_api::module_script_config(OsModule::NODE_TYPE);
     let ScriptSource::Inline(source) = config.source else {
@@ -167,4 +174,12 @@ fn param_snapshot(
 ) -> Option<golden_core::parameter::ParameterSnapshot> {
     let param_id = find_path(engine, start, path)?;
     engine.nodes.get(param_id)?.engine_param_snapshot()
+}
+
+fn module_update_requires_tree_snapshot(engine: &crate::app::AppEngine, module_id: NodeId) -> bool {
+    engine
+        .nodes
+        .get(module_id)
+        .expect("OS module should be present")
+        .update_requires_tree_snapshot()
 }

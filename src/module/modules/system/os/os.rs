@@ -3,12 +3,13 @@ mod os_runtime;
 mod os_tests;
 
 use golden_core::{
+    edit::Edit,
     engine::NodeExecutionRule,
     events::CustomEvent,
     logerror, node,
     node::{Node, NodeId, NodeScriptDescriptor},
     parameter::ParamValue,
-    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+    process_ctx::ProcessCtx,
 };
 
 use crate::app::module::common::os::{
@@ -166,10 +167,8 @@ impl OsModule {
     }
 
     fn refresh_metrics(&mut self, ctx: &mut ProcessCtx) {
-        let snapshot = self.runtime.refresh();
-        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
-            self.sync_metric_constraints(ctx, snapshot_arc.as_ref(), &snapshot);
-        }
+        let snapshot = self.runtime.snapshot();
+        self.sync_metric_constraints(ctx, &snapshot);
         self.apply_metrics_snapshot(ctx, &snapshot);
         self.base.emit_incoming_traffic(ctx);
 
@@ -209,55 +208,81 @@ impl OsModule {
     fn sync_metric_constraints(
         &self,
         ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
         metrics: &OsMetricsSnapshot,
     ) {
-        let Some(values_id) = self.base.values_id() else {
-            return;
-        };
-
-        sync_value_constraint(snapshot, ctx, values_id, "cpu/global_ratio", Some(0.0), Some(1.0));
-        sync_value_constraint(snapshot, ctx, values_id, "cpu/app_ratio", Some(0.0), Some(1.0));
         sync_value_constraint(
-            snapshot,
             ctx,
-            values_id,
-            "memory/system_used_mb",
+            self.global_ratio.is_bound().then_some(self.global_ratio.id()),
+            Some(0.0),
+            Some(1.0),
+        );
+        sync_value_constraint(
+            ctx,
+            self.app_ratio.is_bound().then_some(self.app_ratio.id()),
+            Some(0.0),
+            Some(1.0),
+        );
+        sync_value_constraint(
+            ctx,
+            self.system_used_mb
+                .is_bound()
+                .then_some(self.system_used_mb.id()),
             Some(0.0),
             Some(metrics.system_total_mb.max(metrics.system_used_mb)),
         );
         sync_value_constraint(
-            snapshot,
             ctx,
-            values_id,
-            "memory/system_total_mb",
+            self.system_total_mb
+                .is_bound()
+                .then_some(self.system_total_mb.id()),
             Some(0.0),
             Some(metrics.system_total_mb.max(metrics.system_used_mb).max(metrics.app_used_mb)),
         );
         sync_value_constraint(
-            snapshot,
             ctx,
-            values_id,
-            "memory/app_used_mb",
+            self.app_used_mb
+                .is_bound()
+                .then_some(self.app_used_mb.id()),
             Some(0.0),
             Some(metrics.system_total_mb.max(metrics.app_used_mb)),
         );
-        sync_value_constraint(snapshot, ctx, values_id, "memory/app_virtual_mb", Some(0.0), None);
-        sync_value_constraint(snapshot, ctx, values_id, "network/received_mb_per_sec", Some(0.0), None);
         sync_value_constraint(
-            snapshot,
             ctx,
-            values_id,
-            "network/transmitted_mb_per_sec",
+            self.app_virtual_mb
+                .is_bound()
+                .then_some(self.app_virtual_mb.id()),
             Some(0.0),
             None,
         );
-        sync_value_constraint(snapshot, ctx, values_id, "network/total_received_mb", Some(0.0), None);
         sync_value_constraint(
-            snapshot,
             ctx,
-            values_id,
-            "network/total_transmitted_mb",
+            self.received_mb_per_sec
+                .is_bound()
+                .then_some(self.received_mb_per_sec.id()),
+            Some(0.0),
+            None,
+        );
+        sync_value_constraint(
+            ctx,
+            self.transmitted_mb_per_sec
+                .is_bound()
+                .then_some(self.transmitted_mb_per_sec.id()),
+            Some(0.0),
+            None,
+        );
+        sync_value_constraint(
+            ctx,
+            self.total_received_mb
+                .is_bound()
+                .then_some(self.total_received_mb.id()),
+            Some(0.0),
+            None,
+        );
+        sync_value_constraint(
+            ctx,
+            self.total_transmitted_mb
+                .is_bound()
+                .then_some(self.total_transmitted_mb.id()),
             Some(0.0),
             None,
         );
@@ -456,8 +481,12 @@ impl Node for OsModule {
         self.refresh_metrics(ctx);
     }
 
+    fn destroy(&mut self, _ctx: &mut ProcessCtx) {
+        self.runtime.stop();
+    }
+
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        false
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -494,6 +523,7 @@ impl Node for OsModule {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
+        self.runtime.set_polling_enabled(enabled);
         self.base.set_connected(ctx, enabled);
         if enabled {
             self.refresh_static_values(ctx);
@@ -571,15 +601,17 @@ fn metrics_json(snapshot: &OsMetricsSnapshot) -> serde_json::Value {
 }
 
 fn sync_value_constraint(
-    snapshot: &ProcessTreeSnapshot,
     ctx: &mut ProcessCtx,
-    values_id: NodeId,
-    path: &str,
+    node_id: Option<NodeId>,
     min: Option<f64>,
     max: Option<f64>,
 ) {
-    let Some(node_id) = snapshot.resolve_path_from(values_id, path) else {
+    let Some(node_id) = node_id else {
         return;
     };
-    system_metrics::sync_float_constraints(ctx, snapshot, node_id, min, max);
+
+    ctx.edits.push(Edit::SetParamConstraints {
+        node: node_id,
+        constraints: system_metrics::float_constraints(min, max),
+    });
 }

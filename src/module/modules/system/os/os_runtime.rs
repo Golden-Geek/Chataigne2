@@ -1,9 +1,20 @@
-use std::{net::UdpSocket, process::{Command, Stdio}};
+use std::{
+    net::UdpSocket,
+    process::{Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
+    thread::{self, JoinHandle},
+    time::Duration,
+};
 
 use sysinfo::{get_current_pid, Networks, Pid, ProcessesToUpdate, System};
 
 use crate::app::module::common::os::WakeOnLanRequest;
 use crate::app::module::common::system_metrics;
+
+const OS_METRICS_WORKER_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HostControlAction {
@@ -43,64 +54,182 @@ pub(crate) struct OsMetricsSnapshot {
     pub(crate) app_uptime_seconds: f64,
 }
 
+impl OsMetricsSnapshot {
+    fn idle() -> Self {
+        Self {
+            os_version: current_os_version(),
+            global_cpu_ratio: 0.0,
+            app_cpu_ratio: 0.0,
+            system_used_mb: 0.0,
+            system_total_mb: 0.0,
+            app_used_mb: 0.0,
+            app_virtual_mb: 0.0,
+            received_mb_per_sec: 0.0,
+            transmitted_mb_per_sec: 0.0,
+            total_received_mb: 0.0,
+            total_transmitted_mb: 0.0,
+            system_uptime_seconds: 0.0,
+            app_uptime_seconds: 0.0,
+        }
+    }
+}
+
+struct OsMetricsWorkerState {
+    latest_snapshot: Mutex<OsMetricsSnapshot>,
+    polling_enabled: AtomicBool,
+    reset_requested: AtomicBool,
+    stop_requested: AtomicBool,
+}
+
+struct OsMetricsWorker {
+    state: Arc<OsMetricsWorkerState>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl OsMetricsWorker {
+    fn create(process_id: Pid) -> Self {
+        let state = Arc::new(OsMetricsWorkerState {
+            latest_snapshot: Mutex::new(OsMetricsSnapshot::idle()),
+            polling_enabled: AtomicBool::new(true),
+            reset_requested: AtomicBool::new(true),
+            stop_requested: AtomicBool::new(false),
+        });
+        let worker_state = Arc::clone(&state);
+        let worker = thread::spawn(move || os_metrics_worker_loop(worker_state, process_id));
+
+        let worker_handle = Self {
+            state,
+            worker: Some(worker),
+        };
+        worker_handle.request_refresh();
+        worker_handle
+    }
+
+    fn snapshot(&self) -> OsMetricsSnapshot {
+        lock_unpoisoned(&self.state.latest_snapshot).clone()
+    }
+
+    fn set_polling_enabled(&self, enabled: bool) {
+        let was_enabled = self.state.polling_enabled.swap(enabled, Ordering::Relaxed);
+        if enabled && !was_enabled {
+            self.state.reset_requested.store(true, Ordering::Relaxed);
+            self.request_refresh();
+        }
+    }
+
+    fn request_refresh(&self) {
+        if let Some(worker) = &self.worker {
+            worker.thread().unpark();
+        }
+    }
+
+    fn stop(&mut self) {
+        self.state.stop_requested.store(true, Ordering::Relaxed);
+        self.request_refresh();
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+impl Drop for OsMetricsWorker {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
 pub(crate) struct OsRuntime {
-    system: System,
-    networks: Networks,
-    process_id: Pid,
+    metrics_worker: OsMetricsWorker,
 }
 
 impl OsRuntime {
     pub(crate) fn create() -> Self {
         let process_id = resolve_current_pid();
-        let mut system = System::new_all();
-        system.refresh_cpu_usage();
-        system.refresh_memory();
-        system.refresh_processes(ProcessesToUpdate::Some(&[process_id]), true);
 
         Self {
-            system,
-            networks: Networks::new_with_refreshed_list(),
-            process_id,
+            metrics_worker: OsMetricsWorker::create(process_id),
         }
     }
 
-    pub(crate) fn refresh(&mut self) -> OsMetricsSnapshot {
-        self.system.refresh_memory();
-        self.system.refresh_cpu_usage();
-        self.system
-            .refresh_processes(ProcessesToUpdate::Some(&[self.process_id]), true);
-        self.networks.refresh(true);
+    pub(crate) fn snapshot(&self) -> OsMetricsSnapshot {
+        self.metrics_worker.snapshot()
+    }
 
-        let process = self.system.process(self.process_id);
-        let cpu_count = self.system.cpus().len();
-        let (received_bytes_per_sec, transmitted_bytes_per_sec, total_received_bytes, total_transmitted_bytes) =
-            network_counters(&self.networks);
+    pub(crate) fn set_polling_enabled(&self, enabled: bool) {
+        self.metrics_worker.set_polling_enabled(enabled);
+    }
 
-        OsMetricsSnapshot {
-            os_version: current_os_version(),
-            global_cpu_ratio: system_metrics::percent_to_ratio(self.system.global_cpu_usage() as f64),
-            app_cpu_ratio: process
-                .map(|process| {
-                    system_metrics::process_cpu_percent_to_ratio(process.cpu_usage() as f64, cpu_count)
-                })
-                .unwrap_or(0.0),
-            system_used_mb: system_metrics::bytes_to_mb(self.system.used_memory()),
-            system_total_mb: system_metrics::bytes_to_mb(self.system.total_memory()),
-            app_used_mb: process
-                .map(|process| system_metrics::bytes_to_mb(process.memory()))
-                .unwrap_or(0.0),
-            app_virtual_mb: process
-                .map(|process| system_metrics::bytes_to_mb(process.virtual_memory()))
-                .unwrap_or(0.0),
-            received_mb_per_sec: system_metrics::bytes_f64_to_mb(received_bytes_per_sec),
-            transmitted_mb_per_sec: system_metrics::bytes_f64_to_mb(transmitted_bytes_per_sec),
-            total_received_mb: system_metrics::bytes_f64_to_mb(total_received_bytes),
-            total_transmitted_mb: system_metrics::bytes_f64_to_mb(total_transmitted_bytes),
-            system_uptime_seconds: System::uptime() as f64,
-            app_uptime_seconds: process
-                .map(|process| system_metrics::uptime_seconds_from_unix_start(process.start_time()))
-                .unwrap_or(0.0),
+    pub(crate) fn stop(&mut self) {
+        self.metrics_worker.stop();
+    }
+}
+
+fn os_metrics_worker_loop(state: Arc<OsMetricsWorkerState>, process_id: Pid) {
+    let mut system = System::new_all();
+    let mut networks = Networks::new_with_refreshed_list();
+
+    loop {
+        if state.stop_requested.load(Ordering::Relaxed) {
+            break;
         }
+
+        if state.reset_requested.swap(false, Ordering::Relaxed) {
+            system = System::new_all();
+            networks = Networks::new_with_refreshed_list();
+        }
+
+        if state.polling_enabled.load(Ordering::Relaxed) {
+            let snapshot = collect_metrics_snapshot(&mut system, &mut networks, process_id);
+            *lock_unpoisoned(&state.latest_snapshot) = snapshot;
+        }
+
+        if state.stop_requested.load(Ordering::Relaxed) {
+            break;
+        }
+
+        thread::park_timeout(OS_METRICS_WORKER_INTERVAL);
+    }
+}
+
+fn collect_metrics_snapshot(
+    system: &mut System,
+    networks: &mut Networks,
+    process_id: Pid,
+) -> OsMetricsSnapshot {
+    system.refresh_memory();
+    system.refresh_cpu_usage();
+    system.refresh_processes(ProcessesToUpdate::Some(&[process_id]), true);
+    networks.refresh(true);
+
+    let process = system.process(process_id);
+    let cpu_count = system.cpus().len();
+    let (received_bytes_per_sec, transmitted_bytes_per_sec, total_received_bytes, total_transmitted_bytes) =
+        network_counters(networks);
+
+    OsMetricsSnapshot {
+        os_version: current_os_version(),
+        global_cpu_ratio: system_metrics::percent_to_ratio(system.global_cpu_usage() as f64),
+        app_cpu_ratio: process
+            .map(|process| {
+                system_metrics::process_cpu_percent_to_ratio(process.cpu_usage() as f64, cpu_count)
+            })
+            .unwrap_or(0.0),
+        system_used_mb: system_metrics::bytes_to_mb(system.used_memory()),
+        system_total_mb: system_metrics::bytes_to_mb(system.total_memory()),
+        app_used_mb: process
+            .map(|process| system_metrics::bytes_to_mb(process.memory()))
+            .unwrap_or(0.0),
+        app_virtual_mb: process
+            .map(|process| system_metrics::bytes_to_mb(process.virtual_memory()))
+            .unwrap_or(0.0),
+        received_mb_per_sec: system_metrics::bytes_f64_to_mb(received_bytes_per_sec),
+        transmitted_mb_per_sec: system_metrics::bytes_f64_to_mb(transmitted_bytes_per_sec),
+        total_received_mb: system_metrics::bytes_f64_to_mb(total_received_bytes),
+        total_transmitted_mb: system_metrics::bytes_f64_to_mb(total_transmitted_bytes),
+        system_uptime_seconds: System::uptime() as f64,
+        app_uptime_seconds: process
+            .map(|process| system_metrics::uptime_seconds_from_unix_start(process.start_time()))
+            .unwrap_or(0.0),
     }
 }
 
@@ -248,6 +377,13 @@ fn network_counters(networks: &Networks) -> (f64, f64, f64, f64) {
         total_received_bytes,
         total_transmitted_bytes,
     )
+}
+
+fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
 }
 
 
