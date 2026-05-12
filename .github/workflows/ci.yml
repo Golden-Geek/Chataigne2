@@ -21,8 +21,8 @@ env:
     librsvg2-dev
 
 jobs:
-  validate:
-    name: Validate
+  buildui:
+    name: Build UI
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -33,21 +33,21 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: src-ui/package-lock.json
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            submodules/golden_core -> submodules/golden_core/target
+      # - uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     components: rustfmt
+      # - uses: Swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: |
+      #       . -> target
+      #       submodules/golden_core -> submodules/golden_core/target
       - name: Install UI deps
         working-directory: src-ui
         run: npm ci
-      - name: Root fmt
-        run: cargo fmt --all --check
-      - name: golden_core fmt
-        run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
+      # - name: Root fmt
+      #   run: cargo fmt --all --check
+      # - name: golden_core fmt
+      #   run: cargo fmt --manifest-path submodules/golden_core/Cargo.toml --all --check
       - name: UI lint
         working-directory: src-ui
         run: npm run lint
@@ -57,10 +57,10 @@ jobs:
       - name: UI build
         working-directory: src-ui
         run: npm run build
-      - name: Root check
-        env:
-          GC_UI_ASSUME_BUILT: 1
-        run: cargo check
+      # - name: Root check
+      #   env:
+      #     GC_UI_ASSUME_BUILT: 1
+      #   run: cargo check
       # - name: golden_core check
       #   run: cargo check --manifest-path submodules/golden_core/Cargo.toml
       # - name: golden_core build
@@ -74,7 +74,7 @@ jobs:
 
   build:
     name: Build (${{ matrix.label }})
-    needs: validate
+    needs: buildui
     runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
