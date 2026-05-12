@@ -31,8 +31,9 @@ use crate::app::module::common::app_control::{
 };
 use crate::app::module::common::system_metrics;
 use self::commands::{
-    APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE, APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
-    APP_CONTROL_MODULE_COMMAND_TYPES, APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
+    sync_command_watched_app_options, APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE,
+    APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE, APP_CONTROL_MODULE_COMMAND_TYPES,
+    APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
 };
 
 const APP_CONTROL_MODULE_UPDATE_RATE_HZ: u32 = 2;
@@ -368,11 +369,10 @@ impl AppControlModule {
                 APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE
                 | APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE
                 | APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE => {
-                    sync_command_enum_param_options(
+                    sync_command_watched_app_options(
                         ctx,
                         snapshot,
                         command_id,
-                        "watched_app",
                         watched_app_options.as_slice(),
                     );
                 }
@@ -1271,6 +1271,8 @@ impl Node for AppControlModule {
 
         if self.is_watch_item_root(snapshot, parent) {
             self.watch_config_dirty = true;
+            let watched_apps = self.collect_watched_apps(snapshot);
+            self.sync_command_target_options(ctx, snapshot, &watched_apps);
             return;
         }
 
@@ -1303,6 +1305,8 @@ impl Node for AppControlModule {
         }
 
         self.watch_config_dirty = true;
+        let watched_apps = self.collect_watched_apps(snapshot);
+        self.sync_command_target_options(ctx, snapshot, &watched_apps);
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -1855,7 +1859,12 @@ fn should_auto_rename_watched_app(current_label: &str, previous_auto_label: &str
 fn watched_app_command_enum_options(
     watched_apps: &[WatchedAppEntry],
 ) -> Vec<ParameterEnumOption> {
-    unique_labels_in_order(watched_apps.iter().map(|entry| entry.label.as_str()))
+    unique_labels_in_order(
+        watched_apps
+            .iter()
+            .filter(|entry| !entry.target_path.trim().is_empty())
+            .map(|entry| entry.label.as_str()),
+    )
         .into_iter()
         .filter(|label| !label.trim().is_empty())
         .map(|label| ParameterEnumOption {
@@ -1867,61 +1876,6 @@ fn watched_app_command_enum_options(
         })
         .collect()
 }
-
-fn sync_command_enum_param_options(
-    ctx: &mut ProcessCtx,
-    snapshot: &ProcessTreeSnapshot,
-    command_id: NodeId,
-    path: &str,
-    options: &[ParameterEnumOption],
-) {
-    let Some(param_id) = crate::app::module_command::resolve_module_command_child(snapshot, command_id, path)
-    else {
-        return;
-    };
-    let Some(node) = snapshot.node(param_id) else {
-        return;
-    };
-
-    let mut constraints = node.param_constraints.clone().unwrap_or_default();
-    let current_value = node
-        .param_value
-        .as_ref()
-        .and_then(ParamValue::as_str)
-        .unwrap_or_default();
-    let desired_value = desired_enum_value(current_value.as_str(), options);
-    let current_is_enum = node
-        .param_value
-        .as_ref()
-        .is_some_and(|value| matches!(value, ParamValue::Enum(_)));
-
-    if constraints.enum_options == options
-        && current_is_enum
-        && current_value == desired_value
-    {
-        return;
-    }
-
-    constraints.enum_options = options.to_vec();
-    ctx.call_node_mutation(param_id, move |node, _| {
-        node.engine_restore_param_state(ParamValue::Enum(desired_value), constraints)
-    });
-}
-
-fn desired_enum_value(current_value: &str, options: &[ParameterEnumOption]) -> String {
-    if options
-        .iter()
-        .any(|option| option.variant_id == current_value)
-    {
-        return current_value.to_string();
-    }
-
-    options
-        .first()
-        .map(|option| option.variant_id.clone())
-        .unwrap_or_default()
-}
-
 
 fn script_launch_watched_app_request(args: &[ParamValue]) -> Result<LaunchProcessRequest, String> {
     Ok(LaunchProcessRequest {

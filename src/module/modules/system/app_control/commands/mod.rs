@@ -540,7 +540,19 @@ fn watched_app_enum_options_for_module(
     options
 }
 
-fn sync_watched_app_enum_options(
+pub(crate) fn sync_command_watched_app_options(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    options: &[ParameterEnumOption],
+) {
+    let Some(param_id) = crate::app::module_command::resolve_module_command_child(snapshot, command_id, "watched_app") else {
+        return;
+    };
+    sync_watched_app_enum_options(ctx, snapshot, param_id, options.to_vec());
+}
+
+pub(crate) fn sync_watched_app_enum_options(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     param_id: NodeId,
