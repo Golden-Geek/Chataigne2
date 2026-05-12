@@ -66,7 +66,7 @@ jobs:
       # - name: golden_core build
       #   run: cargo build --manifest-path submodules/golden_core/Cargo.toml
       - name: Upload UI build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-build
           path: src-ui/build
@@ -123,7 +123,7 @@ jobs:
             Remove-Item 'src-ui/build' -Recurse -Force
           }
       - name: Download UI build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ui-build
           path: src-ui/build
