@@ -1,3 +1,4 @@
+pub(crate) mod app_control;
 pub(crate) mod buttplug;
 pub(crate) mod http;
 pub(crate) mod keyboard;
@@ -9,4 +10,5 @@ pub(crate) mod mqtt;
 pub(crate) mod pending_channel;
 pub(crate) mod received_values;
 pub(crate) mod serial;
+pub(crate) mod system_metrics;
 pub(crate) mod streaming;

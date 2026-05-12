@@ -94,6 +94,22 @@ Streaming modules expose:
 - `sendHex(hex)`
 - `sendHexString(hex)`
 
+App Control modules expose:
+
+- `launchWatchedApp(target, arguments, workingDirectory)`
+- `launchApp(executablePath, arguments, workingDirectory)`
+- `launchCommandLine(commandLine, workingDirectory)`
+- `killProcess(target, matchMode, hardKill, watched)`
+- `controlWindow(target, action, matchMode, watched, x, y, width, height, alwaysOnTop)`
+
+App Control modules emit:
+
+- `watchFolderChanged(folder, change)`
+- `appControlCommandRequested(command, details)`
+- `appControlCommandFailed(command, error)`
+
+`change` includes the watched folder path plus created, modified, and removed entry lists.
+
 Concrete modules should add script methods and callback constants at their own boundary and delegate
 shared parsing or payload construction to app-owned family helpers. Do not add Chataigne2-specific
 module scripting callbacks to `golden_core` templates or engine modules.

@@ -8,7 +8,7 @@ use golden_core::{
     logerror, node,
     node::{Node, NodeId, NodeScriptDescriptor},
     parameter::ParamValue,
-    process_ctx::ProcessCtx,
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 use crate::app::module::common::os::{
@@ -16,6 +16,7 @@ use crate::app::module::common::os::{
     OS_MODULE_COMMAND_TYPES, OS_REBOOT_COMMAND_NODE_TYPE, OS_SHUTDOWN_COMMAND_NODE_TYPE,
     OS_WAKE_ON_LAN_COMMAND_NODE_TYPE,
 };
+use crate::app::module::common::system_metrics;
 
 use self::os_runtime::{HostControlAction, OsMetricsSnapshot, OsRuntime};
 
@@ -52,68 +53,80 @@ const SYSTEM_COMMAND_FAILED_CALLBACK: &str = "systemCommandFailed";
             );
         }
         folder(cpu, label = "CPU") {
-            global_percent: f64 = 0.0 (
+            global_ratio: f64 = 0.0 (
                 label = "Global Usage",
-                description = "Global CPU usage percent across the host.",
+                description = "Global CPU usage ratio across the host, normalized to 0.0-1.0.",
                 read_only = true,
+                min = 0.0,
+                max = 1.0,
                 widget = "text"
             );
-            app_percent: f64 = 0.0 (
+            app_ratio: f64 = 0.0 (
                 label = "App Usage",
-                description = "CPU usage percent attributed to this app process.",
+                description = "CPU usage ratio attributed to this app process, normalized to 0.0-1.0 of total host capacity.",
                 read_only = true,
+                min = 0.0,
+                max = 1.0,
                 widget = "text"
             );
         }
         folder(memory, label = "Memory") {
-            system_used_bytes: f64 = 0.0 (
-                label = "System Used Bytes",
-                description = "System memory currently in use.",
+            system_used_mb: f64 = 0.0 (
+                label = "System Used MB",
+                description = "System memory currently in use, expressed in megabytes.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            system_total_bytes: f64 = 0.0 (
-                label = "System Total Bytes",
-                description = "Total system memory available on the host.",
+            system_total_mb: f64 = 0.0 (
+                label = "System Total MB",
+                description = "Total system memory available on the host, expressed in megabytes.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            app_used_bytes: f64 = 0.0 (
-                label = "App Used Bytes",
-                description = "Resident memory used by this app process.",
+            app_used_mb: f64 = 0.0 (
+                label = "App Used MB",
+                description = "Resident memory used by this app process, expressed in megabytes.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            app_virtual_bytes: f64 = 0.0 (
-                label = "App Virtual Bytes",
-                description = "Virtual memory used by this app process.",
+            app_virtual_mb: f64 = 0.0 (
+                label = "App Virtual MB",
+                description = "Virtual memory used by this app process, expressed in megabytes.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
         }
         folder(network, label = "Network") {
-            received_bytes_per_sec: f64 = 0.0 (
-                label = "Received Bytes Per Sec",
-                description = "Bytes received across host network interfaces since the last refresh.",
+            received_mb_per_sec: f64 = 0.0 (
+                label = "Received MB Per Sec",
+                description = "Megabytes received across host network interfaces since the last refresh.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            transmitted_bytes_per_sec: f64 = 0.0 (
-                label = "Transmitted Bytes Per Sec",
-                description = "Bytes transmitted across host network interfaces since the last refresh.",
+            transmitted_mb_per_sec: f64 = 0.0 (
+                label = "Transmitted MB Per Sec",
+                description = "Megabytes transmitted across host network interfaces since the last refresh.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            total_received_bytes: f64 = 0.0 (
-                label = "Total Received Bytes",
-                description = "Total bytes received across host network interfaces since boot.",
+            total_received_mb: f64 = 0.0 (
+                label = "Total Received MB",
+                description = "Total megabytes received across host network interfaces since boot.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
-            total_transmitted_bytes: f64 = 0.0 (
-                label = "Total Transmitted Bytes",
-                description = "Total bytes transmitted across host network interfaces since boot.",
+            total_transmitted_mb: f64 = 0.0 (
+                label = "Total Transmitted MB",
+                description = "Total megabytes transmitted across host network interfaces since boot.",
                 read_only = true,
+                min = 0.0,
                 widget = "text"
             );
         }
@@ -122,13 +135,15 @@ const SYSTEM_COMMAND_FAILED_CALLBACK: &str = "systemCommandFailed";
                 label = "System Uptime",
                 description = "Time since the host booted.",
                 read_only = true,
-                widget = "text"
+                min = 0.0,
+                widget = "time"
             );
             app_seconds: f64 = 0.0 (
                 label = "App Uptime",
                 description = "Time since this app process started.",
                 read_only = true,
-                widget = "text"
+                min = 0.0,
+                widget = "time"
             );
         }
         [base_children];
@@ -152,18 +167,21 @@ impl OsModule {
 
     fn refresh_metrics(&mut self, ctx: &mut ProcessCtx) {
         let snapshot = self.runtime.refresh();
+        if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
+            self.sync_metric_constraints(ctx, snapshot_arc.as_ref(), &snapshot);
+        }
         self.apply_metrics_snapshot(ctx, &snapshot);
         self.base.emit_incoming_traffic(ctx);
 
         if self.base.log_incoming_enabled() {
             golden_core::log!(origin = self.id(); format!(
-                "System stats refreshed: cpu {:.1}% (app {:.1}%), memory {:.0}/{:.0} bytes, network down {:.0} B/s up {:.0} B/s.",
-                snapshot.global_cpu_percent,
-                snapshot.app_cpu_percent,
-                snapshot.system_used_bytes,
-                snapshot.system_total_bytes,
-                snapshot.received_bytes_per_sec,
-                snapshot.transmitted_bytes_per_sec,
+                "System stats refreshed: cpu {:.3} (app {:.3}), memory {:.1}/{:.1} MB, network down {:.3} MB/s up {:.3} MB/s.",
+                snapshot.global_cpu_ratio,
+                snapshot.app_cpu_ratio,
+                snapshot.system_used_mb,
+                snapshot.system_total_mb,
+                snapshot.received_mb_per_sec,
+                snapshot.transmitted_mb_per_sec,
             ));
         }
 
@@ -172,21 +190,77 @@ impl OsModule {
 
     fn apply_metrics_snapshot(&mut self, ctx: &mut ProcessCtx, snapshot: &OsMetricsSnapshot) {
         self.os_version.set(ctx, snapshot.os_version.clone());
-        self.global_percent.set(ctx, snapshot.global_cpu_percent);
-        self.app_percent.set(ctx, snapshot.app_cpu_percent);
-        self.system_used_bytes.set(ctx, snapshot.system_used_bytes);
-        self.system_total_bytes.set(ctx, snapshot.system_total_bytes);
-        self.app_used_bytes.set(ctx, snapshot.app_used_bytes);
-        self.app_virtual_bytes.set(ctx, snapshot.app_virtual_bytes);
-        self.received_bytes_per_sec
-            .set(ctx, snapshot.received_bytes_per_sec);
-        self.transmitted_bytes_per_sec
-            .set(ctx, snapshot.transmitted_bytes_per_sec);
-        self.total_received_bytes.set(ctx, snapshot.total_received_bytes);
-        self.total_transmitted_bytes
-            .set(ctx, snapshot.total_transmitted_bytes);
+        self.global_ratio.set(ctx, snapshot.global_cpu_ratio);
+        self.app_ratio.set(ctx, snapshot.app_cpu_ratio);
+        self.system_used_mb.set(ctx, snapshot.system_used_mb);
+        self.system_total_mb.set(ctx, snapshot.system_total_mb);
+        self.app_used_mb.set(ctx, snapshot.app_used_mb);
+        self.app_virtual_mb.set(ctx, snapshot.app_virtual_mb);
+        self.received_mb_per_sec.set(ctx, snapshot.received_mb_per_sec);
+        self.transmitted_mb_per_sec
+            .set(ctx, snapshot.transmitted_mb_per_sec);
+        self.total_received_mb.set(ctx, snapshot.total_received_mb);
+        self.total_transmitted_mb
+            .set(ctx, snapshot.total_transmitted_mb);
         self.system_seconds.set(ctx, snapshot.system_uptime_seconds);
         self.app_seconds.set(ctx, snapshot.app_uptime_seconds);
+    }
+
+    fn sync_metric_constraints(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        metrics: &OsMetricsSnapshot,
+    ) {
+        let Some(values_id) = self.base.values_id() else {
+            return;
+        };
+
+        sync_value_constraint(snapshot, ctx, values_id, "cpu/global_ratio", Some(0.0), Some(1.0));
+        sync_value_constraint(snapshot, ctx, values_id, "cpu/app_ratio", Some(0.0), Some(1.0));
+        sync_value_constraint(
+            snapshot,
+            ctx,
+            values_id,
+            "memory/system_used_mb",
+            Some(0.0),
+            Some(metrics.system_total_mb.max(metrics.system_used_mb)),
+        );
+        sync_value_constraint(
+            snapshot,
+            ctx,
+            values_id,
+            "memory/system_total_mb",
+            Some(0.0),
+            Some(metrics.system_total_mb.max(metrics.system_used_mb).max(metrics.app_used_mb)),
+        );
+        sync_value_constraint(
+            snapshot,
+            ctx,
+            values_id,
+            "memory/app_used_mb",
+            Some(0.0),
+            Some(metrics.system_total_mb.max(metrics.app_used_mb)),
+        );
+        sync_value_constraint(snapshot, ctx, values_id, "memory/app_virtual_mb", Some(0.0), None);
+        sync_value_constraint(snapshot, ctx, values_id, "network/received_mb_per_sec", Some(0.0), None);
+        sync_value_constraint(
+            snapshot,
+            ctx,
+            values_id,
+            "network/transmitted_mb_per_sec",
+            Some(0.0),
+            None,
+        );
+        sync_value_constraint(snapshot, ctx, values_id, "network/total_received_mb", Some(0.0), None);
+        sync_value_constraint(
+            snapshot,
+            ctx,
+            values_id,
+            "network/total_transmitted_mb",
+            Some(0.0),
+            None,
+        );
     }
 
     fn on_custom_event_inner(&mut self, ctx: &mut ProcessCtx, event: CustomEvent) {
@@ -383,7 +457,7 @@ impl Node for OsModule {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        false
+        true
     }
 
     fn execution_rule(&self) -> NodeExecutionRule {
@@ -474,24 +548,38 @@ fn metrics_json(snapshot: &OsMetricsSnapshot) -> serde_json::Value {
             "osVersion": snapshot.os_version,
         },
         "cpu": {
-            "globalPercent": snapshot.global_cpu_percent,
-            "appPercent": snapshot.app_cpu_percent,
+            "globalRatio": snapshot.global_cpu_ratio,
+            "appRatio": snapshot.app_cpu_ratio,
         },
         "memory": {
-            "systemUsedBytes": snapshot.system_used_bytes,
-            "systemTotalBytes": snapshot.system_total_bytes,
-            "appUsedBytes": snapshot.app_used_bytes,
-            "appVirtualBytes": snapshot.app_virtual_bytes,
+            "systemUsedMb": snapshot.system_used_mb,
+            "systemTotalMb": snapshot.system_total_mb,
+            "appUsedMb": snapshot.app_used_mb,
+            "appVirtualMb": snapshot.app_virtual_mb,
         },
         "network": {
-            "receivedBytesPerSec": snapshot.received_bytes_per_sec,
-            "transmittedBytesPerSec": snapshot.transmitted_bytes_per_sec,
-            "totalReceivedBytes": snapshot.total_received_bytes,
-            "totalTransmittedBytes": snapshot.total_transmitted_bytes,
+            "receivedMbPerSec": snapshot.received_mb_per_sec,
+            "transmittedMbPerSec": snapshot.transmitted_mb_per_sec,
+            "totalReceivedMb": snapshot.total_received_mb,
+            "totalTransmittedMb": snapshot.total_transmitted_mb,
         },
         "uptime": {
             "systemSeconds": snapshot.system_uptime_seconds,
             "appSeconds": snapshot.app_uptime_seconds,
         },
     })
+}
+
+fn sync_value_constraint(
+    snapshot: &ProcessTreeSnapshot,
+    ctx: &mut ProcessCtx,
+    values_id: NodeId,
+    path: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+) {
+    let Some(node_id) = snapshot.resolve_path_from(values_id, path) else {
+        return;
+    };
+    system_metrics::sync_float_constraints(ctx, snapshot, node_id, min, max);
 }

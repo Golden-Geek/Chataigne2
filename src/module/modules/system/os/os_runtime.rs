@@ -1,12 +1,9 @@
-use std::{
-    net::UdpSocket,
-    process::{Command, Stdio},
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{net::UdpSocket, process::{Command, Stdio}};
 
 use sysinfo::{get_current_pid, Networks, Pid, ProcessesToUpdate, System};
 
 use crate::app::module::common::os::WakeOnLanRequest;
+use crate::app::module::common::system_metrics;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HostControlAction {
@@ -32,16 +29,16 @@ impl HostControlAction {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct OsMetricsSnapshot {
     pub(crate) os_version: String,
-    pub(crate) global_cpu_percent: f64,
-    pub(crate) app_cpu_percent: f64,
-    pub(crate) system_used_bytes: f64,
-    pub(crate) system_total_bytes: f64,
-    pub(crate) app_used_bytes: f64,
-    pub(crate) app_virtual_bytes: f64,
-    pub(crate) received_bytes_per_sec: f64,
-    pub(crate) transmitted_bytes_per_sec: f64,
-    pub(crate) total_received_bytes: f64,
-    pub(crate) total_transmitted_bytes: f64,
+    pub(crate) global_cpu_ratio: f64,
+    pub(crate) app_cpu_ratio: f64,
+    pub(crate) system_used_mb: f64,
+    pub(crate) system_total_mb: f64,
+    pub(crate) app_used_mb: f64,
+    pub(crate) app_virtual_mb: f64,
+    pub(crate) received_mb_per_sec: f64,
+    pub(crate) transmitted_mb_per_sec: f64,
+    pub(crate) total_received_mb: f64,
+    pub(crate) total_transmitted_mb: f64,
     pub(crate) system_uptime_seconds: f64,
     pub(crate) app_uptime_seconds: f64,
 }
@@ -75,26 +72,33 @@ impl OsRuntime {
         self.networks.refresh(true);
 
         let process = self.system.process(self.process_id);
+        let cpu_count = self.system.cpus().len();
         let (received_bytes_per_sec, transmitted_bytes_per_sec, total_received_bytes, total_transmitted_bytes) =
             network_counters(&self.networks);
 
         OsMetricsSnapshot {
             os_version: current_os_version(),
-            global_cpu_percent: self.system.global_cpu_usage() as f64,
-            app_cpu_percent: process.map(|process| process.cpu_usage() as f64).unwrap_or(0.0),
-            system_used_bytes: self.system.used_memory() as f64,
-            system_total_bytes: self.system.total_memory() as f64,
-            app_used_bytes: process.map(|process| process.memory() as f64).unwrap_or(0.0),
-            app_virtual_bytes: process
-                .map(|process| process.virtual_memory() as f64)
+            global_cpu_ratio: system_metrics::percent_to_ratio(self.system.global_cpu_usage() as f64),
+            app_cpu_ratio: process
+                .map(|process| {
+                    system_metrics::process_cpu_percent_to_ratio(process.cpu_usage() as f64, cpu_count)
+                })
                 .unwrap_or(0.0),
-            received_bytes_per_sec,
-            transmitted_bytes_per_sec,
-            total_received_bytes,
-            total_transmitted_bytes,
+            system_used_mb: system_metrics::bytes_to_mb(self.system.used_memory()),
+            system_total_mb: system_metrics::bytes_to_mb(self.system.total_memory()),
+            app_used_mb: process
+                .map(|process| system_metrics::bytes_to_mb(process.memory()))
+                .unwrap_or(0.0),
+            app_virtual_mb: process
+                .map(|process| system_metrics::bytes_to_mb(process.virtual_memory()))
+                .unwrap_or(0.0),
+            received_mb_per_sec: system_metrics::bytes_f64_to_mb(received_bytes_per_sec),
+            transmitted_mb_per_sec: system_metrics::bytes_f64_to_mb(transmitted_bytes_per_sec),
+            total_received_mb: system_metrics::bytes_f64_to_mb(total_received_bytes),
+            total_transmitted_mb: system_metrics::bytes_f64_to_mb(total_transmitted_bytes),
             system_uptime_seconds: System::uptime() as f64,
             app_uptime_seconds: process
-                .map(|process| app_uptime_seconds(process.start_time()))
+                .map(|process| system_metrics::uptime_seconds_from_unix_start(process.start_time()))
                 .unwrap_or(0.0),
         }
     }
@@ -246,13 +250,6 @@ fn network_counters(networks: &Networks) -> (f64, f64, f64, f64) {
     )
 }
 
-fn app_uptime_seconds(process_start_time_secs: u64) -> f64 {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    now.saturating_sub(process_start_time_secs) as f64
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct HostCommandCandidate {

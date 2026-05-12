@@ -23,8 +23,22 @@ fn os_module_initializes_host_values() {
             .is_some_and(|value| value >= 0.0)
     );
     assert!(
-        float_param_value(&engine, module_id, "values/cpu/global_percent")
+        float_param_value(&engine, module_id, "values/cpu/global_ratio")
+            .is_some_and(|value| (0.0..=1.0).contains(&value))
+    );
+    assert!(
+        float_param_value(&engine, module_id, "values/memory/system_total_mb")
             .is_some_and(|value| value >= 0.0)
+    );
+    assert_eq!(
+        param_snapshot(&engine, module_id, "values/uptime/system_seconds")
+            .and_then(|snapshot| snapshot.ui_hints.widget),
+        Some("time".to_string())
+    );
+    assert_eq!(
+        param_snapshot(&engine, module_id, "values/uptime/app_seconds")
+            .and_then(|snapshot| snapshot.ui_hints.widget),
+        Some("time".to_string())
     );
 }
 
@@ -144,4 +158,13 @@ fn string_param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str)
         ParamValue::Str(value) => Some(value),
         _ => None,
     }
+}
+
+fn param_snapshot(
+    engine: &crate::app::AppEngine,
+    start: NodeId,
+    path: &str,
+) -> Option<golden_core::parameter::ParameterSnapshot> {
+    let param_id = find_path(engine, start, path)?;
+    engine.nodes.get(param_id)?.engine_param_snapshot()
 }
