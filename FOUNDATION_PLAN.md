@@ -258,7 +258,7 @@ Now-mechanical, but worth doing once the behavior is stable.
 
 ### Phase 8 — Topological sort cleanup (week 5, ~1 day)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `BTreeSet<u64>` ready-queue replaced with `Vec<NodeId>` stack in `topological_sort`. Initial ready set is sorted descending by node id so `pop()` yields ascending order, preserving the same deterministic tiebreaker. Newly-ready mid-traversal nodes are pushed to the back (LIFO). `BTreeSet` import removed from `runtime/mod.rs`. 2 new tests added (dependency-chain ordering and cycle detection). All 282 tests pass.
 
 A smaller load-time win, but worth doing while you're in this code.
 
@@ -276,7 +276,7 @@ A smaller load-time win, but worth doing while you're in this code.
 
 ### Phase 9 — Fixed-step accumulator for sequence timing (week 5, ~2 days)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `FixedStepConfig { step, max_catchup }` added to `runtime/limits.rs`. `RuntimeLimits.fixed_step: Option<FixedStepConfig>` (default `None`, no behavior change for existing code). `Engine` gains `late_ticks: u64` (pub) and `tick_accumulator: Duration` (private, exposed via `tick_accumulator()`). `run_for`/`run_loop` use `drain_fixed_step_accumulator` when `fixed_step` is `Some`: wall-clock time is clamped by `max_catchup` (incrementing `late_ticks` on overrun) then drained in exact `step`-sized `run_tick` calls. `FixedStepConfig` re-exported from `engine/mod.rs`. 2 new tests: uniform delta_times across 1000 ticks, accumulator tick-count and late_ticks accounting. 284 tests pass (single-threaded; pre-existing flaky logger test fails in parallel runs).
 
 This is the change that actually addresses your "sequences need precision" requirement. Wall-clock-driven ticks are not enough.
 
