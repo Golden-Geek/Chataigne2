@@ -687,6 +687,20 @@ pub enum UiGraphOp {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         index: Option<usize>,
     },
+    /// Inserts a complete subtree that did not exist in the client's graph.
+    ///
+    /// Used for bulk insertions (N > 8 nodes) to avoid an O(N²) `ui_child_index` scan
+    /// and to reduce the op list to a single entry.
+    SubtreeInserted {
+        /// Root of the inserted subtree.
+        root: NodeId,
+        /// Parent node where `root` was attached.
+        parent: NodeId,
+        /// Full snapshots for all inserted nodes (root and descendants, depth-first).
+        nodes: Vec<UiNodeDto>,
+        /// Final direct child order for `parent` after insertion.
+        parent_children_after: Vec<NodeId>,
+    },
     /// Removes a subtree from the client's graph.
     SubtreeRemoved {
         /// Root of the removed subtree.

@@ -4454,6 +4454,58 @@ fn move_node_does_not_require_whole_graph_resync() {
     );
 }
 
+// --- Phase 6: compact subtree event tests ---
+
+#[test]
+fn phase6_add_node_tree_small_emits_node_created_ops() {
+    // N ≤ 8 nodes: must use individual NodeCreated ops (backward-compatible path).
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let tree = crate::edit::NodeTree::new(Folder::new("a".to_string()))
+        .with_child(crate::edit::NodeTree::new(Folder::new("b".to_string())))
+        .with_child(crate::edit::NodeTree::new(Folder::new("c".to_string())));
+    engine.edits.push(Edit::AddNodeTree { tree, parent: engine.root, prev_sibling: None });
+    engine.apply_edits().expect("add_node_tree should succeed");
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
+
+    assert!(
+        ops.iter().any(|op| matches!(op, UiGraphOp::NodeCreated { .. })),
+        "small tree (≤8 nodes) must use NodeCreated ops"
+    );
+    assert!(
+        !ops.iter().any(|op| matches!(op, UiGraphOp::SubtreeInserted { .. })),
+        "small tree (≤8 nodes) must NOT emit SubtreeInserted"
+    );
+}
+
+#[test]
+fn phase6_add_node_tree_large_emits_subtree_inserted_op() {
+    // N > 8 nodes: must emit a single SubtreeInserted op instead of N NodeCreated ops.
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let mut tree = crate::edit::NodeTree::new(Folder::new("subtree_root".to_string()));
+    for i in 0..10 {
+        tree = tree.with_child(crate::edit::NodeTree::new(Folder::new(format!("child_{i}"))));
+    }
+    engine.edits.push(Edit::AddNodeTree { tree, parent: engine.root, prev_sibling: None });
+    engine.apply_edits().expect("add_node_tree should succeed");
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    let ops = first_graph_transaction_ops(&batch);
+
+    assert_eq!(ops.len(), 1, "large tree (>8 nodes) must emit exactly one SubtreeInserted op");
+    assert!(
+        matches!(ops[0], UiGraphOp::SubtreeInserted { .. }),
+        "the single op must be SubtreeInserted"
+    );
+
+    if let UiGraphOp::SubtreeInserted { nodes, parent, parent_children_after, .. } = &ops[0] {
+        assert_eq!(nodes.len(), 11, "SubtreeInserted must carry all 11 node snapshots (root + 10 children)");
+        assert_eq!(*parent, engine.root, "insertion parent must be engine root");
+        assert_eq!(parent_children_after.len(), 1, "root gains one direct child after insertion");
+    }
+}
+
 #[test]
 fn reorder_children_does_not_require_whole_graph_resync() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
@@ -10351,6 +10403,87 @@ fn run_tick_respects_update_rate_buckets() {
         ],
         "runner should receive real elapsed deltas between update callbacks",
     );
+}
+
+// --- Phase 5: scheduler bucket collection tests ---
+
+#[test]
+fn phase5_no_due_buckets_zero_per_node_work() {
+    // When no bucket accumulator has fired, collect_due_nodes_into must return immediately
+    // with an empty output — no per-node iteration occurs.
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::periodic(2)), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::periodic(10)), None);
+    engine.apply_edits().expect("setup should succeed");
+    engine.resolve().expect("resolve should succeed");
+
+    // 1 ms is far below the 100 ms (10 Hz) and 500 ms (2 Hz) thresholds.
+    let mut out = Vec::new();
+    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(1), 4);
+    assert!(out.is_empty(), "no buckets due — output must be empty with zero per-node work");
+}
+
+#[test]
+fn phase5_single_due_bucket_emits_nodes_in_topo_order() {
+    // Single due bucket: nodes must come out in their pre-sorted (dependency) topo order.
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("c", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("setup should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
+    let c = engine.nodes.get(b).and_then(|n| n.node_data().next_sibling).unwrap();
+
+    engine.nodes.get_mut(a).unwrap().rule = NodeExecutionRule::periodic(10);
+    engine.nodes.get_mut(b).unwrap().rule = NodeExecutionRule::periodic(10).with_dependencies([a]);
+    engine.nodes.get_mut(c).unwrap().rule = NodeExecutionRule::periodic(10).with_dependencies([b]);
+    engine.resolve().expect("resolve should succeed");
+
+    let mut out = Vec::new();
+    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(100), 4);
+    assert_eq!(out, vec![a, b, c], "single-bucket nodes must be emitted in topo (dependency) order");
+}
+
+#[test]
+fn phase5_multiple_due_buckets_k_way_merge_preserves_topo_order() {
+    // Dependency chain: a(100Hz) → b(200Hz) → c(100Hz) → d(200Hz)
+    // 100Hz bucket contains [a, c]; 200Hz bucket contains [b, d].
+    // With a 10ms tick: 100Hz fires once, 200Hz fires twice (max_due=2).
+    //   round 0: k-way merge of both buckets must be [a,b,c,d] (global topo), not [a,c,b,d]
+    //   round 1: only 200Hz fires → [b,d]
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("c", NodeExecutionRule::passive()), None);
+    engine.add_node(RuntimeNode::new("d", NodeExecutionRule::passive()), None);
+    engine.apply_edits().expect("setup should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
+    let c = engine.nodes.get(b).and_then(|n| n.node_data().next_sibling).unwrap();
+    let d = engine.nodes.get(c).and_then(|n| n.node_data().next_sibling).unwrap();
+
+    engine.nodes.get_mut(a).unwrap().rule = NodeExecutionRule::periodic(100);
+    engine.nodes.get_mut(b).unwrap().rule = NodeExecutionRule::periodic(200).with_dependencies([a]);
+    engine.nodes.get_mut(c).unwrap().rule = NodeExecutionRule::periodic(100).with_dependencies([b]);
+    engine.nodes.get_mut(d).unwrap().rule = NodeExecutionRule::periodic(200).with_dependencies([c]);
+    engine.resolve().expect("resolve should succeed");
+
+    // 10ms: 100Hz (interval=10ms) fires 1x, 200Hz (interval=5ms) fires 2x.
+    let mut out = Vec::new();
+    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(10), 4);
+    assert_eq!(out.len(), 6, "expect 4 nodes in round 0 and 2 in round 1");
+    assert_eq!(
+        &out[0..4],
+        &[a, b, c, d],
+        "round 0 must be global topo order (k-way merge), not bucket-by-bucket order [a,c,b,d]"
+    );
+    assert_eq!(&out[4..], &[b, d], "round 1 must contain only the 200Hz nodes in topo order");
 }
 
 #[test]

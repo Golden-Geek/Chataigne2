@@ -184,6 +184,12 @@ pub(crate) struct ScheduleMgr {
     topo_order: Vec<NodeId>,
     buckets: Vec<ScheduleBucket>,
     bucket_by_node: HashMap<NodeId, usize>,
+    /// Maps each scheduled NodeId → its position in the global topo_order.
+    /// Used for k-way merge order comparison in collect_due_nodes_into.
+    /// INVALIDATED BY: rebuild()
+    topo_index_by_node: HashMap<NodeId, usize>,
+    /// Scratch: due bucket indices collected each tick. Cleared on each call.
+    due_bucket_scratch: Vec<usize>,
 }
 
 struct ScheduleBucket {
@@ -244,7 +250,15 @@ impl ScheduleMgr {
             self.buckets.push(ScheduleBucket::new(rate_hz, nodes));
         }
 
-        // Keep only scheduled nodes so collect_due_nodes is O(N_scheduled) not O(N_total).
+        // Build topo_index_by_node for k-way merge order comparison in collect_due_nodes_into.
+        self.topo_index_by_node.clear();
+        for (idx, node_id) in topo_order.iter().enumerate() {
+            if self.bucket_by_node.contains_key(node_id) {
+                self.topo_index_by_node.insert(*node_id, idx);
+            }
+        }
+
+        // Keep only scheduled nodes for the schedule_topology() public API.
         self.topo_order = topo_order
             .into_iter()
             .filter(|node_id| self.bucket_by_node.contains_key(node_id))
@@ -253,7 +267,7 @@ impl ScheduleMgr {
         Ok(())
     }
 
-    fn collect_due_nodes_into(&mut self, out: &mut Vec<NodeId>, elapsed: Duration, max_bucket_catch_up: u32) {
+    pub(super) fn collect_due_nodes_into(&mut self, out: &mut Vec<NodeId>, elapsed: Duration, max_bucket_catch_up: u32) {
         out.clear();
 
         if self.buckets.is_empty() {
@@ -261,31 +275,70 @@ impl ScheduleMgr {
         }
 
         let catch_up_limit = max_bucket_catch_up.max(1);
-        let mut max_due = 0u32;
 
-        for bucket in &mut self.buckets {
+        // Advance accumulators; record which bucket indices fired this tick.
+        self.due_bucket_scratch.clear();
+        let mut max_due = 0u32;
+        for (idx, bucket) in self.buckets.iter_mut().enumerate() {
             bucket.accumulator = bucket.accumulator.saturating_add(elapsed);
             bucket.due_count = 0;
-
             while bucket.due_count < catch_up_limit && bucket.accumulator >= bucket.interval {
                 bucket.accumulator = bucket.accumulator.saturating_sub(bucket.interval);
                 bucket.due_count += 1;
             }
-
-            max_due = max_due.max(bucket.due_count);
+            if bucket.due_count > 0 {
+                self.due_bucket_scratch.push(idx);
+                max_due = max_due.max(bucket.due_count);
+            }
         }
 
-        if max_due == 0 {
+        // No per-node work when nothing is due.
+        if self.due_bucket_scratch.is_empty() {
             return;
         }
 
         for round in 0..max_due {
-            for node_id in &self.topo_order {
-                let Some(bucket_index) = self.bucket_by_node.get(node_id).copied() else {
-                    continue;
-                };
-                if self.buckets[bucket_index].due_count > round {
-                    out.push(*node_id);
+            if self.due_bucket_scratch.len() == 1 {
+                // Single due bucket — nodes are already in topo order; copy directly.
+                let bi = self.due_bucket_scratch[0];
+                if self.buckets[bi].due_count > round {
+                    out.extend_from_slice(&self.buckets[bi].nodes);
+                }
+            } else {
+                // Multiple due buckets — k-way merge by topo index to preserve global order.
+                // Each bucket's nodes vec is pre-sorted by topo index (built from topo_order in rebuild).
+                let mut cursors: Vec<(usize, usize)> = self
+                    .due_bucket_scratch
+                    .iter()
+                    .filter(|&&bi| self.buckets[bi].due_count > round)
+                    .map(|&bi| (bi, 0usize))
+                    .collect();
+
+                while !cursors.is_empty() {
+                    let min_pos = {
+                        let buckets = &self.buckets;
+                        let topo_index_by_node = &self.topo_index_by_node;
+                        let mut best_pos = 0;
+                        let mut best_topo = usize::MAX;
+                        for (pos, (bi, ci)) in cursors.iter().enumerate() {
+                            let topo = topo_index_by_node
+                                .get(&buckets[*bi].nodes[*ci])
+                                .copied()
+                                .unwrap_or(usize::MAX);
+                            if topo < best_topo {
+                                best_topo = topo;
+                                best_pos = pos;
+                            }
+                        }
+                        best_pos
+                    };
+                    let (bi, ci) = cursors[min_pos];
+                    out.push(self.buckets[bi].nodes[ci]);
+                    if ci + 1 < self.buckets[bi].nodes.len() {
+                        cursors[min_pos].1 += 1;
+                    } else {
+                        cursors.swap_remove(min_pos);
+                    }
                 }
             }
         }

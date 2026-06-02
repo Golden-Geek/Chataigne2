@@ -393,6 +393,14 @@ fn apply_graph_op(store: &mut HashMap<NodeId, UiNodeDto>, op: &UiGraphOp) {
         UiGraphOp::NodeCreated { snapshot, .. } => {
             store.insert(snapshot.node_id, snapshot.clone());
         }
+        UiGraphOp::SubtreeInserted { nodes, parent, parent_children_after, .. } => {
+            for node in nodes {
+                store.insert(node.node_id, node.clone());
+            }
+            if let Some(parent_dto) = store.get_mut(parent) {
+                parent_dto.children.clone_from(parent_children_after);
+            }
+        }
         UiGraphOp::SubtreeRemoved {
             removed_ids,
             parent_after,

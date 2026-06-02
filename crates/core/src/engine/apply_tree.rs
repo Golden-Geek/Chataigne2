@@ -1451,29 +1451,43 @@ impl<T: Node> Engine<T> {
     /// any declared children added during init are also included in the transaction.
     fn push_added_subtree_ui_events(&mut self, root: NodeId, root_parent: NodeId) {
         let node_ids = self.collect_subtree_node_ids(root);
+        let parent_children_after = self.ui_direct_children(root_parent).unwrap_or_default();
 
-        let mut ops = Vec::with_capacity(node_ids.len() + 1);
-        for node_id in &node_ids {
-            let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
-            let Some(snapshot) = self.ui_node_dto_for_event(*node_id) else {
-                continue;
-            };
-            let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
-            ops.push(UiGraphOp::NodeCreated {
-                snapshot,
-                parent,
-                index,
-            });
-        }
+        // Above this threshold, a single SubtreeInserted op replaces N NodeCreated + ChildrenReordered.
+        // This avoids the O(N²) ui_child_index scan that the NodeCreated path needs for `index`.
+        const SUBTREE_COMPACT_THRESHOLD: usize = 8;
 
-        // Append the final child order for the insertion parent so the UI knows where `root` sits.
-        if let Some(children) = self.ui_direct_children(root_parent) {
-            ops.push(UiGraphOp::ChildrenReordered {
+        if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
+            let mut nodes = Vec::with_capacity(node_ids.len());
+            for node_id in &node_ids {
+                if let Some(snapshot) = self.ui_node_dto_for_event(*node_id) {
+                    nodes.push(snapshot);
+                }
+            }
+            self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeInserted {
+                root,
                 parent: root_parent,
-                children,
-            });
+                nodes,
+                parent_children_after,
+            }]);
+        } else {
+            // Small subtree: keep individual NodeCreated ops so the UI can resolve parent/index.
+            let mut ops = Vec::with_capacity(node_ids.len() + 1);
+            for node_id in &node_ids {
+                let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
+                let Some(snapshot) = self.ui_node_dto_for_event(*node_id) else {
+                    continue;
+                };
+                let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
+                ops.push(UiGraphOp::NodeCreated { snapshot, parent, index });
+            }
+            if !parent_children_after.is_empty() {
+                ops.push(UiGraphOp::ChildrenReordered {
+                    parent: root_parent,
+                    children: parent_children_after,
+                });
+            }
+            self.push_ui_graph_transaction(ops);
         }
-
-        self.push_ui_graph_transaction(ops);
     }
 }
