@@ -228,7 +228,7 @@ Stops UI-event floods on bulk operations.
 
 ### Phase 7 — File splits (week 4, ~1 day)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `runtime.rs` (1163 lines) split into `engine/runtime/` with 8 files: `mod.rs` (accessors + re-exports), `errors.rs`, `limits.rs`, `scheduler.rs`, `tick.rs`, `scheduled_updates.rs`, `stabilization.rs`, `trace.rs`. `apply_tree.rs` (1493 lines) split into `engine/apply_tree/` with 8 files: `mod.rs` (shared types + re-exports), `structure.rs`, `validation.rs`, `insert.rs`, `lifecycle.rs`, `replace.rs`, `remove.rs`, `move.rs`. No file exceeds 400 lines. Public API of `golden_engine` crate unchanged. All 280 tests pass.
 
 Now-mechanical, but worth doing once the behavior is stable.
 
