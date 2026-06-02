@@ -1,4 +1,4 @@
-pub(super) use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+pub(super) use std::collections::{BTreeMap, HashMap, HashSet};
 pub(super) use std::error::Error;
 pub(super) use std::fmt;
 pub(super) use std::sync::Arc;
@@ -33,7 +33,7 @@ mod tick;
 mod trace;
 
 pub use errors::EngineRuntimeError;
-pub use limits::{NodeExecutionRule, NodeUpdateRate, RuntimeLimits};
+pub use limits::{FixedStepConfig, NodeExecutionRule, NodeUpdateRate, RuntimeLimits};
 pub(crate) use scheduler::ScheduleMgr;
 
 impl<T: Node> Engine<T> {
@@ -105,5 +105,12 @@ impl<T: Node> Engine<T> {
     /// Returns the node bucket for a given update rate when present.
     pub fn schedule_bucket_nodes(&self, rate_hz: NodeUpdateRate) -> Option<&[NodeId]> {
         self.runtime_schedule.bucket_nodes(rate_hz)
+    }
+
+    /// Returns the current fixed-step accumulator value.
+    ///
+    /// Only meaningful when `runtime_limits.fixed_step` is `Some`.
+    pub fn tick_accumulator(&self) -> Duration {
+        self.tick_accumulator
     }
 }

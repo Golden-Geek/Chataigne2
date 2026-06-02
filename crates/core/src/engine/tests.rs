@@ -10766,3 +10766,126 @@ fn param_cache_is_updated_incrementally_by_set_param_and_structural_changes() {
         "root cache entry should survive unrelated RemoveNode"
     );
 }
+
+// ── Phase 8: topological sort Vec stack ─────────────────────────────────────
+
+#[test]
+fn phase8_topo_sort_respects_declared_dependencies() {
+    // Chain C ← B ← A: sorted order must be C, B, A.
+    // Nodes inserted in reverse-dependency order so node IDs would be out of dependency order
+    // if the sort were purely by insertion ID rather than by declared dependency.
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    // Add three nodes; we'll wire dependencies after getting their IDs.
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::periodic(60)), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::periodic(60)), None);
+    engine.add_node(RuntimeNode::new("c", NodeExecutionRule::periodic(60)), None);
+    engine.apply_edits().expect("setup should succeed");
+
+    let first = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let second = engine.nodes.get(first).and_then(|n| n.node_data().next_sibling).unwrap();
+    let third = engine.nodes.get(second).and_then(|n| n.node_data().next_sibling).unwrap();
+
+    // Wire: third ← second ← first (first depends on second, second depends on third).
+    engine.nodes.get_mut(first).unwrap().rule =
+        NodeExecutionRule::periodic(60).with_dependencies([second]);
+    engine.nodes.get_mut(second).unwrap().rule =
+        NodeExecutionRule::periodic(60).with_dependencies([third]);
+    engine.resolve().expect("resolve should succeed");
+
+    let order = engine.schedule_topology().to_vec();
+    let pos_first = order.iter().position(|&id| id == first).expect("first in order");
+    let pos_second = order.iter().position(|&id| id == second).expect("second in order");
+    let pos_third = order.iter().position(|&id| id == third).expect("third in order");
+
+    assert!(pos_third < pos_second, "third must precede second (second depends on third)");
+    assert!(pos_second < pos_first, "second must precede first (first depends on second)");
+}
+
+#[test]
+fn phase8_topo_sort_detects_dependency_cycle() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::periodic(60)), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::periodic(60)), None);
+    engine.apply_edits().expect("setup should succeed");
+
+    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
+
+    // Form a cycle: a depends on b, b depends on a.
+    engine.nodes.get_mut(a).unwrap().rule =
+        NodeExecutionRule::periodic(60).with_dependencies([b]);
+    engine.nodes.get_mut(b).unwrap().rule =
+        NodeExecutionRule::periodic(60).with_dependencies([a]);
+
+    let err = engine.resolve().expect_err("cycle should fail");
+    assert!(
+        matches!(err, EngineRuntimeError::DependencyCycle { .. }),
+        "expected DependencyCycle, got {err:?}"
+    );
+}
+
+// ── Phase 9: fixed-step accumulator ─────────────────────────────────────────
+
+#[test]
+fn phase9_fixed_step_accumulator_delivers_uniform_delta_times() {
+    // 1000 ticks at 5ms each through a 200Hz node must all arrive as exactly 5ms delta_time.
+    let step = Duration::from_micros(5_000);
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("counter", NodeExecutionRule::periodic(200)), None);
+    engine.apply_edits().expect("setup ok");
+    engine.resolve().expect("resolve ok");
+
+    for _ in 0..1_000 {
+        engine.run_tick(step).expect("tick ok");
+    }
+
+    let counter_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|r| r.node_data().first_child)
+        .expect("counter node should exist");
+    let counter = engine.nodes.get(counter_id).unwrap();
+
+    assert_eq!(counter.updates, 1_000, "node must receive exactly 1000 update callbacks");
+    assert!(
+        counter.delta_times.iter().all(|&dt| dt == step),
+        "every delta_time must be exactly 5ms — found non-uniform: {:?}",
+        counter.delta_times.iter().filter(|&&dt| dt != step).take(5).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn phase9_accumulator_fires_correct_tick_count_and_tracks_late_ticks() {
+    let step = Duration::from_micros(5_000);
+    let max_catchup = Duration::from_millis(10);
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.set_runtime_limits(RuntimeLimits {
+        fixed_step: Some(FixedStepConfig { step, max_catchup }),
+        ..RuntimeLimits::default()
+    });
+    engine.resolve().expect("resolve ok");
+
+    // 3ms < 5ms step → 0 ticks, accumulator = 3ms
+    engine.drain_fixed_step_accumulator(Duration::from_millis(3)).expect("ok");
+    assert_eq!(engine.time.tick, 0, "3ms < step → no tick yet");
+    assert_eq!(engine.tick_accumulator(), Duration::from_millis(3));
+    assert_eq!(engine.late_ticks, 0);
+
+    // +3ms → total 6ms ≥ 5ms → 1 tick fires, accumulator = 1ms
+    engine.drain_fixed_step_accumulator(Duration::from_millis(3)).expect("ok");
+    assert_eq!(engine.time.tick, 1, "6ms ≥ step → 1 tick");
+    assert_eq!(engine.tick_accumulator(), Duration::from_millis(1));
+    assert_eq!(engine.late_ticks, 0);
+
+    // +20ms (clamped to 10ms max_catchup) → 1ms + 10ms = 11ms → 2 ticks, accumulator = 1ms
+    engine.drain_fixed_step_accumulator(Duration::from_millis(20)).expect("ok");
+    assert_eq!(engine.time.tick, 3, "clamped 20ms→10ms: 1+10=11ms → 2 more ticks");
+    assert_eq!(engine.tick_accumulator(), Duration::from_millis(1));
+    assert_eq!(engine.late_ticks, 1, "20ms exceeded max_catchup=10ms → 1 late tick");
+}

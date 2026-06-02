@@ -72,6 +72,8 @@ pub use runtime::EngineRuntimeError;
 pub use runtime::NodeExecutionRule;
 /// Per-node update frequency in hertz.
 pub use runtime::NodeUpdateRate;
+/// Fixed-step accumulator configuration for `run_for` / `run_loop`.
+pub use runtime::FixedStepConfig;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
 
@@ -195,6 +197,16 @@ pub struct Engine<T: Node> {
     ///
     /// INVALIDATED BY: cleared at the start of each phase that uses it; never persisted.
     pub(crate) tick_scratch: tick_scratch::TickScratch,
+    /// Leftover wall-clock time not yet consumed by a full logical step.
+    ///
+    /// Only meaningful when `runtime_limits.fixed_step` is `Some`.
+    /// Carries over between `run_for` calls to preserve sub-step precision.
+    tick_accumulator: Duration,
+    /// Number of frames where wall-clock elapsed exceeded `FixedStepConfig::max_catchup`.
+    ///
+    /// Each such frame is clamped, losing time to prevent the spiral-of-death.
+    /// Only incremented when `runtime_limits.fixed_step` is `Some`.
+    pub late_ticks: u64,
 }
 
 impl<T: Node> Engine<T> {
@@ -249,6 +261,8 @@ impl<T: Node> Engine<T> {
             tick_tree_snapshot: None,
             parameter_values_cache: HashMap::new(),
             tick_scratch: tick_scratch::TickScratch::default(),
+            tick_accumulator: Duration::ZERO,
+            late_ticks: 0,
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();

@@ -125,6 +125,10 @@ impl<T: Node> Engine<T> {
     }
 
     /// Runs the runtime loop for `duration`, capped at 1000hz.
+    ///
+    /// When `runtime_limits.fixed_step` is `Some`, uses the fixed-step accumulator:
+    /// wall-clock time is absorbed in exact `step`-sized logical ticks so nodes always
+    /// receive uniform `delta_time` regardless of frame-rate jitter.
     pub fn run_for(&mut self, duration: Duration) -> Result<(), EngineRuntimeError> {
         let start = Instant::now();
         let mut previous_tick_start = start;
@@ -134,7 +138,11 @@ impl<T: Node> Engine<T> {
             let elapsed = tick_start.saturating_duration_since(previous_tick_start);
             previous_tick_start = tick_start;
 
-            self.run_tick(elapsed)?;
+            if self.runtime_limits.fixed_step.is_some() {
+                self.drain_fixed_step_accumulator(elapsed)?;
+            } else {
+                self.run_tick(elapsed)?;
+            }
 
             let tick_elapsed = tick_start.elapsed();
             if tick_elapsed < RUNTIME_LOOP_CAP_INTERVAL {
@@ -150,6 +158,8 @@ impl<T: Node> Engine<T> {
     }
 
     /// Runs the runtime loop indefinitely, capped at 1000hz.
+    ///
+    /// When `runtime_limits.fixed_step` is `Some`, uses the fixed-step accumulator.
     pub fn run_loop(&mut self) -> Result<(), EngineRuntimeError> {
         let mut previous_tick_start = Instant::now();
 
@@ -158,13 +168,41 @@ impl<T: Node> Engine<T> {
             let elapsed = tick_start.saturating_duration_since(previous_tick_start);
             previous_tick_start = tick_start;
 
-            self.run_tick(elapsed)?;
+            if self.runtime_limits.fixed_step.is_some() {
+                self.drain_fixed_step_accumulator(elapsed)?;
+            } else {
+                self.run_tick(elapsed)?;
+            }
 
             let tick_elapsed = tick_start.elapsed();
             if tick_elapsed < RUNTIME_LOOP_CAP_INTERVAL {
                 thread::sleep(RUNTIME_LOOP_CAP_INTERVAL - tick_elapsed);
             }
         }
+    }
+
+    /// Absorbs `wall_elapsed` into the fixed-step accumulator and fires `run_tick(step)`
+    /// for each complete step. Increments `late_ticks` when `wall_elapsed` exceeds
+    /// `max_catchup` and clamping discards time to prevent the spiral-of-death.
+    ///
+    /// No-op when `runtime_limits.fixed_step` is `None`.
+    pub(in crate::engine) fn drain_fixed_step_accumulator(
+        &mut self,
+        wall_elapsed: Duration,
+    ) -> Result<(), EngineRuntimeError> {
+        let Some(cfg) = self.runtime_limits.fixed_step else {
+            return Ok(());
+        };
+        let clamped = wall_elapsed.min(cfg.max_catchup);
+        if clamped < wall_elapsed {
+            self.late_ticks = self.late_ticks.saturating_add(1);
+        }
+        self.tick_accumulator = self.tick_accumulator.saturating_add(clamped);
+        while self.tick_accumulator >= cfg.step {
+            self.run_tick(cfg.step)?;
+            self.tick_accumulator = self.tick_accumulator.saturating_sub(cfg.step);
+        }
+        Ok(())
     }
 
     pub(super) fn collect_execution_rules(&self) -> HashMap<NodeId, NodeExecutionRule> {
@@ -205,16 +243,18 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        let mut ready: BTreeSet<u64> = indegree
+        // Vec stack: initial ready set sorted descending so pop() yields ascending node-id order,
+        // preserving the same deterministic tiebreaker as the old BTreeSet approach.
+        // Nodes that become ready mid-traversal are pushed to the back and popped next (LIFO).
+        let mut ready: Vec<NodeId> = indegree
             .iter()
-            .filter_map(|(node_id, indegree)| (*indegree == 0).then_some(node_id.0))
+            .filter_map(|(node_id, &deg)| (deg == 0).then_some(*node_id))
             .collect();
+        ready.sort_unstable_by(|a, b| b.0.cmp(&a.0));
 
         let mut sorted = Vec::with_capacity(indegree.len());
 
-        while let Some(next) = ready.iter().next().copied() {
-            ready.remove(&next);
-            let node_id = NodeId(next);
+        while let Some(node_id) = ready.pop() {
             sorted.push(node_id);
 
             if let Some(dependents) = outgoing.get(&node_id) {
@@ -222,7 +262,7 @@ impl<T: Node> Engine<T> {
                     if let Some(indegree_value) = indegree.get_mut(dependent) {
                         *indegree_value -= 1;
                         if *indegree_value == 0 {
-                            ready.insert(dependent.0);
+                            ready.push(*dependent);
                         }
                     }
                 }
