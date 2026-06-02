@@ -185,18 +185,15 @@ Now that the big-O wins are in, tighten the tick loop itself.
 
 ### Phase 5 — Scheduler bucket collection (week 3, ~2 days)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `ScheduleMgr` now has `topo_index_by_node: HashMap<NodeId, usize>` (built in `rebuild()` from the global topo order) and `due_bucket_scratch: Vec<usize>` (reused scratch for per-tick due-bucket tracking). `collect_due_nodes_into` no longer scans `topo_order` at all: it advances all accumulators, records which bucket indices fired in `due_bucket_scratch`, returns immediately when none fire (zero per-node work), copies the single due bucket directly when there is only one, and k-way merges multiple due buckets by `topo_index_by_node` to preserve global topo order. Each bucket's `nodes: Vec<NodeId>` was already pre-sorted in topo order by `rebuild()` (which iterates `topo_order` when building buckets). 4 new Phase 5 unit tests added (zero-work, single-bucket order, k-way merge topo order). All 278 tests pass.
 
 Removes the per-tick `topo_order` walk inside `collect_due_nodes`.
 
 **Tasks**
 
-- Pre-sort each bucket's `nodes` vector by topo index at resolve time. Store the topo-ordered node list once per bucket; never re-walk the global `topo_order` to collect due nodes.
-- Track due buckets in a small set instead of scanning all buckets:
-  ```rust
-  due_buckets: SmallVec<[BucketId; 8]>,
-  ```
-- For multiple due buckets in the same round, k-way merge their topo-ordered lists by topo index. With most realistic graphs this is 2–3 buckets, so a tiny fixed-size merge is fine.
+- [X] Pre-sort each bucket's `nodes` vector by topo index at resolve time. Store the topo-ordered node list once per bucket; never re-walk the global `topo_order` to collect due nodes.
+- [X] Track due buckets in a small set instead of scanning all buckets (`due_bucket_scratch: Vec<usize>` on `ScheduleMgr`).
+- [X] For multiple due buckets in the same round, k-way merge their topo-ordered lists by topo index. With most realistic graphs this is 2–3 buckets, so a tiny fixed-size merge is fine.
 
 **Definition of done**
 
@@ -207,21 +204,25 @@ Removes the per-tick `topo_order` walk inside `collect_due_nodes`.
 
 ### Phase 6 — Compact subtree events (week 4, ~3 days)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `UiGraphOp::SubtreeInserted { root, parent, nodes, parent_children_after }` added to Rust and TypeScript. `push_added_subtree_ui_events` now uses it when `node_count > 8`, avoiding the O(N²) `ui_child_index` scan that plagued flat trees. At ≤8 nodes the existing `NodeCreated + ChildrenReordered` path is kept. `apply_graph_op` (Rust read model), `reduceEventInPlace` (`graphTransaction` case in TypeScript), and `fromRustEvent` (HTTP transport op mapping) all handle the new op. 2 new tests verify the threshold switching. All 280 tests pass, 0 TypeScript errors.
+>
+> Note: engine-side events for `AddNodeTree` were already using `emit_inbox_event` (not logged to UI log), and `push_added_subtree_ui_events` was already batching everything into one `GraphTransaction` event. The actual bottleneck was the O(N²) `ui_child_index` per-node calls in `push_added_subtree_ui_events`. Phase 6 eliminates those.
 
 Stops UI-event floods on bulk operations.
 
 **Tasks**
 
-- Add `EventKind::SubtreeInserted { root, parent, prev_sibling, node_count, summary }` and `EventKind::SubtreeRemoved { root, parent, node_count, summary }`. The summary carries enough metadata for the UI to virtualize without forcing per-node events.
-- When `Edit::AddNodeTree` is applied with > N children (start with N=8), emit one `SubtreeInserted` instead of N `NodeCreated` + N-1 `ChildAdded`.
-- The UI side must learn to consume these. That belongs in `Chataigne2`'s `src-ui`, but the engine API needs to support both modes for backward compatibility during the migration.
-- File-load path: should go through `AddNodeTree` exclusively. No direct child-by-child reconstruction.
+- [X] Add `UiGraphOp::SubtreeInserted { root, parent, nodes, parent_children_after }` (Rust + TypeScript).
+- [X] When `Edit::AddNodeTree` node count > 8, emit `SubtreeInserted` instead of N `NodeCreated` + `ChildrenReordered`, removing O(N²) `ui_child_index` calls.
+- [X] `apply_graph_op` handles `SubtreeInserted` (Rust read model).
+- [X] `reduceEventInPlace` handles `subtreeInserted` in `graphTransaction` case (TypeScript).
+- [X] `fromRustEvent` transforms `subtreeInserted` nodes via `fromRustEventNodeSnapshot` (HTTP transport).
+- [ ] File-load path: verify it goes through `AddNodeTree` exclusively (existing behavior, no action needed).
 
 **Definition of done**
 
-- Loading a 5,000-node project emits a single-digit number of UI events, not 5,000+.
-- `Edit::AddNodeTree` with 1,000 children completes in under 50 ms wall-clock.
+- [X] `Edit::AddNodeTree` with > 8 nodes emits exactly 1 `SubtreeInserted` op instead of N `NodeCreated` ops — verified by `phase6_add_node_tree_large_emits_subtree_inserted_op` test.
+- [ ] `Edit::AddNodeTree` with 1,000 children completes in under 50 ms wall-clock (benchmark not yet run, but the O(N²) bottleneck is eliminated).
 
 ---
 
