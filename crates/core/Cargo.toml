@@ -15,5 +15,16 @@ golden_core_macros = { path = "../core_macros" }
 rquickjs = { version = "0.11", features = ["parallel"] }
 ts-rs.workspace = true
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "tick"
+harness = false
+
+[[bench]]
+name = "dispatch"
+harness = false
+
 [target.'cfg(all(target_os = "linux", target_arch = "arm"))'.dependencies]
 rquickjs = { version = "0.11", features = ["parallel", "bindgen"] }

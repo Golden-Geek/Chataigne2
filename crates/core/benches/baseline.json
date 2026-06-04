@@ -1,0 +1,29 @@
+{
+  "note": "Tick benchmarks not yet recorded (background process still running). Run `cargo bench -p golden_engine -- --warm-up-time 2 --measurement-time 5` and update this file.",
+  "recorded_at": "2026-06-04",
+  "host": "Windows 11 x86_64",
+  "scenarios": {
+    "tick_20k_passive": {
+      "description": "20k passive nodes, no due buckets — measures tick-loop overhead floor",
+      "p50_ns": null,
+      "p95_ns": null,
+      "p99_ns": null,
+      "max_ns": null,
+      "note": "TODO: populate after running cargo bench --bench tick"
+    },
+    "tick_20k_sparse_active/200": {
+      "description": "20k nodes, 200 active at 200 Hz — sparse 1% active rate",
+      "p50_ns": null,
+      "p95_ns": null,
+      "p99_ns": null,
+      "max_ns": null,
+      "note": "TODO: populate after running cargo bench --bench tick"
+    },
+    "dispatch_10k_with_1k_listeners": {
+      "description": "10k nodes, 1k listeners, 100 events/tick — listener index efficiency",
+      "p50_ms": 200.94,
+      "p95_ms": 208.84,
+      "note": "100 custom events × 1k listeners = 100k on_custom_event dispatches per iteration"
+    }
+  }
+}

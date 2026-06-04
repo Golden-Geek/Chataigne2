@@ -9,6 +9,7 @@ impl<T: Node> Engine<T> {
             elapsed,
             self.runtime_limits.max_bucket_catch_up_per_tick,
         );
+        self.tick_scratch.stats.nodes_due = due_nodes.len();
 
         if due_nodes.is_empty() {
             self.tick_scratch.due_nodes = due_nodes;
@@ -102,6 +103,7 @@ impl<T: Node> Engine<T> {
                 });
                 did_update = true;
                 callback_count += 1;
+                self.tick_scratch.stats.callbacks_fired += 1;
                 if callback_count > self.runtime_limits.max_update_callbacks_per_tick {
                     return Err(EngineRuntimeError::UpdateBudgetExceeded {
                         tick: self.time.tick,

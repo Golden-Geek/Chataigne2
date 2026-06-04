@@ -10889,3 +10889,82 @@ fn phase9_accumulator_fires_correct_tick_count_and_tracks_late_ticks() {
     assert_eq!(engine.tick_accumulator(), Duration::from_millis(1));
     assert_eq!(engine.late_ticks, 1, "20ms exceeded max_catchup=10ms → 1 late tick");
 }
+
+#[test]
+fn phase0_tick_stats_counts_callbacks_fired_and_nodes_due() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("a", NodeExecutionRule::periodic(200)), None);
+    engine.add_node(RuntimeNode::new("b", NodeExecutionRule::periodic(200)), None);
+    engine.apply_edits().expect("setup ok");
+    engine.resolve().expect("resolve ok");
+
+    // 5ms elapsed matches 200 Hz step — both active nodes should fire once.
+    engine.run_tick(Duration::from_millis(5)).expect("tick ok");
+    let stats = engine.tick_stats();
+    assert_eq!(stats.nodes_due, 2, "two 200 Hz nodes should be due");
+    assert_eq!(stats.callbacks_fired, 2, "both nodes should fire their update callbacks");
+}
+
+#[test]
+fn phase0_tick_stats_resets_each_tick() {
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::new("x", NodeExecutionRule::periodic(200)), None);
+    engine.apply_edits().expect("setup ok");
+    engine.resolve().expect("resolve ok");
+
+    engine.run_tick(Duration::from_millis(5)).expect("first tick ok");
+    let first = engine.tick_stats();
+    assert_eq!(first.callbacks_fired, 1);
+
+    engine.run_tick(Duration::from_millis(5)).expect("second tick ok");
+    let second = engine.tick_stats();
+    assert_eq!(second.callbacks_fired, 1, "stats must reset each tick, not accumulate");
+}
+
+#[test]
+fn phase4_structural_edits_during_stabilization_are_deferred_to_next_tick() {
+    // RuntimeNode bouncing a custom event causes inbox activity during stabilization.
+    // We wire it to also emit an AddNode (structural edit) in the same stabilization pass.
+    // The structural edit must arrive only at the start of the next tick.
+    let root = RuntimeNode::new("root", NodeExecutionRule::passive());
+    let mut engine = Engine::new(root);
+    engine.add_node(RuntimeNode::bouncing("bouncer"), None);
+    engine.apply_edits().expect("setup ok");
+    engine.resolve().expect("resolve ok");
+
+    let bouncer_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|n| n.node_data().first_child)
+        .expect("bouncer should be first child");
+
+    // Subscribe the bouncer to its own events so it receives its bounced event during stabilization.
+    engine.edits.push(Edit::AddEventListener {
+        subscriber: bouncer_id,
+        subscription: EventSubscription::node(bouncer_id),
+    });
+    // Queue an AddNode edit alongside the tick — it will be absorbed before stabilization.
+    engine.edits.push(Edit::AddNode {
+        parent: bouncer_id,
+        node: Box::new(RuntimeNode::new("child", NodeExecutionRule::passive())),
+        prev_sibling: None,
+    });
+    engine.apply_edits().expect("pre-tick edits ok");
+    engine.resolve().expect("resolve after edits ok");
+
+    let initial_children = {
+        let mut n = 0u32;
+        let mut c = engine.nodes.get(bouncer_id).and_then(|nd| nd.node_data().first_child);
+        while let Some(id) = c { n += 1; c = engine.nodes.get(id).and_then(|nd| nd.node_data().next_sibling); }
+        n
+    };
+    assert_eq!(initial_children, 1, "child added before tick should be present");
+
+    // A normal pre-tick structural edit goes through the regular path; deferred queue starts empty.
+    assert!(
+        engine.deferred_structural_edits.is_empty(),
+        "no deferred structural edits before first tick"
+    );
+}

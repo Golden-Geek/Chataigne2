@@ -29,6 +29,7 @@ impl<T: Node> Engine<T> {
     /// Runtime-driven edit flushes use this so periodic/internal graph activity
     /// does not pollute user-facing undo history.
     pub(crate) fn apply_edits_without_history(&mut self) -> Result<(), EngineEditError> {
+        self.tick_scratch.stats.edits_applied += self.edits.pending.len();
         self.apply_edits_internal(false, Some(NodeCreationContext::Fresh))
     }
 
@@ -345,6 +346,7 @@ impl<T: Node> Engine<T> {
         let event = Event { time, kind };
         self.push_ui_event_log(event.clone());
         self.inbox.push(event);
+        self.tick_scratch.stats.events_emitted += 1;
         self.time.seq = self.time.seq.saturating_add(1);
     }
 
@@ -353,6 +355,7 @@ impl<T: Node> Engine<T> {
         self.apply_event_side_effects(&kind);
         let time = self.time;
         self.inbox.push(Event { time, kind });
+        self.tick_scratch.stats.events_emitted += 1;
         self.time.seq = self.time.seq.saturating_add(1);
     }
 }

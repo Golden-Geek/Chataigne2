@@ -76,6 +76,8 @@ pub use runtime::NodeUpdateRate;
 pub use runtime::FixedStepConfig;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
+/// Per-tick performance counters returned by `Engine::tick_stats`.
+pub use tick_scratch::TickStats;
 
 /// Logical time tracked by the engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
@@ -207,6 +209,14 @@ pub struct Engine<T: Node> {
     /// Each such frame is clamped, losing time to prevent the spiral-of-death.
     /// Only incremented when `runtime_limits.fixed_step` is `Some`.
     pub late_ticks: u64,
+    /// Structural edits (AddNode, RemoveNode, MoveNode, etc.) queued during stabilization rounds.
+    ///
+    /// Stabilization must not apply structural edits — they change graph topology, which would
+    /// reset the schedule and extend stabilization unpredictably. Structural edits that originate
+    /// inside stabilization are stashed here and applied at the start of the next `run_tick`.
+    ///
+    /// INVALIDATED BY: drained into `edits.pending` at the start of each `run_tick`.
+    pub(crate) deferred_structural_edits: Vec<crate::edit::Edit>,
 }
 
 impl<T: Node> Engine<T> {
@@ -263,6 +273,7 @@ impl<T: Node> Engine<T> {
             tick_scratch: tick_scratch::TickScratch::default(),
             tick_accumulator: Duration::ZERO,
             late_ticks: 0,
+            deferred_structural_edits: Vec::new(),
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
@@ -607,12 +618,20 @@ impl<T: Node> Engine<T> {
         Ok(coerced)
     }
 
+    /// Returns per-tick counters accumulated during the most recent `run_tick`.
+    ///
+    /// Counters are reset at the start of each `run_tick` and updated by engine internals.
+    pub fn tick_stats(&self) -> tick_scratch::TickStats {
+        self.tick_scratch.stats
+    }
+
     /// Returns a cached snapshot for the current tick, building it on first call.
     /// Used by `apply_call_node_mutation` so N mutations share one build per tick.
     pub(crate) fn get_or_build_tick_snapshot(&mut self) -> Arc<ProcessTreeSnapshot> {
         if let Some(snapshot) = &self.tick_tree_snapshot {
             return Arc::clone(snapshot);
         }
+        self.tick_scratch.stats.snapshot_rebuilds += 1;
         let snapshot = self.build_process_tree_snapshot();
         self.tick_tree_snapshot = Some(Arc::clone(&snapshot));
         snapshot

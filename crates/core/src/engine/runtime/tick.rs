@@ -46,8 +46,16 @@ impl<T: Node> Engine<T> {
     /// | 9. logger sync | logger state | ui_event_log | no | no |
     pub fn run_tick(&mut self, elapsed: Duration) -> Result<(), EngineRuntimeError> {
         let tick_started = Instant::now();
+        self.tick_scratch.clear_stats();
         self.tick_tree_snapshot = None;
         self.tick_scratch.clear_scheduled();
+
+        // Apply structural edits deferred from the previous tick's stabilization rounds.
+        // Structural edits cannot run inside stabilization because they reset the schedule
+        // and would extend the loop unpredictably.
+        for edit in self.deferred_structural_edits.drain(..) {
+            self.edits.push(edit);
+        }
 
         let resolve1_started = Instant::now();
         self.resolve_if_needed()?;
@@ -220,7 +228,7 @@ impl<T: Node> Engine<T> {
         rules: &HashMap<NodeId, NodeExecutionRule>,
     ) -> Result<Vec<NodeId>, EngineRuntimeError> {
         let mut indegree: HashMap<NodeId, usize> =
-            self.nodes.keys().map(|node_id| (node_id, 0usize)).collect();
+            self.nodes.keys().map(|node_id| (node_id, 0usize)).collect(); // PERF-EXCEPTION: resolve only, gated by runtime_resolve_pending; never called in steady-state ticks.
         let mut outgoing: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
 
         for (node_id, rule) in rules {

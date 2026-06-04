@@ -1,0 +1,78 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: R1 — no full-graph iteration in tick-path files
+        run: bash tools/check_tick_path.sh
+      - name: Run tests (single-threaded to avoid flaky logger test)
+        run: cargo test -p golden_engine -- --test-threads=1
+
+  bench:
+    name: Benchmark regression check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history to diff baseline against main
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Run benchmarks and capture output in bencher format.
+      # Short measurement time keeps CI fast; numbers are still regression-detectable.
+      - name: Run tick benchmarks
+        run: |
+          cargo bench --bench tick -p golden_engine \
+            -- --output-format bencher --warm-up-time 2 --measurement-time 5 \
+            2>/dev/null | tee /tmp/bench_tick.txt
+
+      - name: Run dispatch benchmarks
+        run: |
+          cargo bench --bench dispatch -p golden_engine \
+            -- --output-format bencher --warm-up-time 2 --measurement-time 5 \
+            2>/dev/null | tee /tmp/bench_dispatch.txt
+
+      # Combine results into one file.
+      - name: Combine results
+        run: cat /tmp/bench_tick.txt /tmp/bench_dispatch.txt > /tmp/bench_results.txt
+
+      # Compare against baseline stored in crates/core/benches/baseline.json.
+      # Fails the job when any scenario regresses beyond its threshold.
+      - name: Check regressions
+        run: |
+          python3 tools/bench_compare.py \
+            --results /tmp/bench_results.txt \
+            --baseline crates/core/benches/baseline.json \
+            --output /tmp/bench_summary.md
+
+      # Post the summary as a PR comment (on PRs only).
+      - name: Post benchmark summary
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: bench-results
+          path: /tmp/bench_summary.md
+
+      # On main, store fresh results as an artifact for manual baseline update.
+      - name: Upload benchmark results (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.sha }}
+          path: /tmp/bench_results.txt
+          retention-days: 90

@@ -1737,9 +1737,14 @@ fn dashboard_node_widget_initial_target_reference_without_cached_id_stabilizes()
     });
     engine.apply_edits().expect("target binding should apply");
     engine.resolve().expect("resolve should succeed");
+    // First tick: stabilization defers structural edits (widget option child nodes).
+    // Second tick: deferred structural edits are applied, widgets converge.
     engine
         .run_tick(Duration::from_millis(1))
-        .expect("runtime tick should stabilize");
+        .expect("first runtime tick should succeed");
+    engine
+        .run_tick(Duration::from_millis(1))
+        .expect("second runtime tick should stabilize");
 
     let widget_type =
         find_descendant_by_decl(&engine, widget, "widget_type").expect("widget type parameter should exist");
