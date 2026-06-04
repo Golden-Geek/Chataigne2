@@ -15,16 +15,28 @@ struct PassiveNode {
 
 impl PassiveNode {
     fn new(label: &str) -> Self {
-        Self { data: NodeData::new(label.to_string()) }
+        Self {
+            data: NodeData::new(label.to_string()),
+        }
     }
 }
 
 impl Node for PassiveNode {
-    fn node_data(&self) -> &NodeData { &self.data }
-    fn node_data_mut(&mut self) -> &mut NodeData { &mut self.data }
-    fn get_type(&self) -> &str { "bench_passive" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    fn node_data(&self) -> &NodeData {
+        &self.data
+    }
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+    fn get_type(&self) -> &str {
+        "bench_passive"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Active node running at 200 Hz — represents a sparse set of updating nodes.
@@ -35,18 +47,35 @@ struct ActiveNode {
 
 impl ActiveNode {
     fn new(label: &str) -> Self {
-        Self { data: NodeData::new(label.to_string()), counter: 0 }
+        Self {
+            data: NodeData::new(label.to_string()),
+            counter: 0,
+        }
     }
 }
 
 impl Node for ActiveNode {
-    fn node_data(&self) -> &NodeData { &self.data }
-    fn node_data_mut(&mut self) -> &mut NodeData { &mut self.data }
-    fn get_type(&self) -> &str { "bench_active" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
-    fn execution_rule(&self) -> NodeExecutionRule { NodeExecutionRule::periodic(200) }
-    fn needs_update(&self) -> bool { true }
+    fn node_data(&self) -> &NodeData {
+        &self.data
+    }
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+    fn get_type(&self) -> &str {
+        "bench_active"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::periodic(200)
+    }
+    fn needs_update(&self) -> bool {
+        true
+    }
     fn update(&mut self, _ctx: &mut ProcessCtx) {
         self.counter = black_box(self.counter.wrapping_add(1));
     }
@@ -109,11 +138,9 @@ fn bench_tick_20k_sparse_active(c: &mut Criterion) {
         let mut engine = build_sparse_active_engine(20_000, active_count);
         let elapsed = Duration::from_millis(5); // 200 Hz step
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(active_count),
-            &active_count,
-            |b, _| b.iter(|| engine.run_tick(black_box(elapsed)).unwrap()),
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(active_count), &active_count, |b, _| {
+            b.iter(|| engine.run_tick(black_box(elapsed)).unwrap())
+        });
     }
     group.finish();
 }

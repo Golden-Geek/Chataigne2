@@ -7,7 +7,7 @@ use crate::node::{
     PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
     PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
-    parameter_child_exists,
+    curve_from_snapshot, parameter_child_exists,
 };
 use crate::parameter::{
     AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
@@ -52,6 +52,13 @@ fn make_animation_waveform_parameter() -> Parameter {
             label: "Square".to_string(),
             tags: Vec::new(),
             ordering: Some(3),
+        },
+        ParameterEnumOption {
+            variant_id: "curve".to_string(),
+            value: ParamValue::Enum("curve".to_string()),
+            label: "Curve".to_string(),
+            tags: Vec::new(),
+            ordering: Some(4),
         },
     ];
     waveform
@@ -120,6 +127,7 @@ fn parse_waveform(value: &ParamValue) -> AnimationWaveform {
         "triangle" => AnimationWaveform::Triangle,
         "saw" => AnimationWaveform::Saw,
         "square" => AnimationWaveform::Square,
+        "curve" => AnimationWaveform::Curve,
         _ => AnimationWaveform::Sine,
     }
 }
@@ -270,9 +278,58 @@ impl ParameterAnimationControlNode {
                     1.0
                 }
             }
+            AnimationWaveform::Curve => return None,
         };
 
         Some(self.offset + self.amplitude * waveform)
+    }
+
+    fn curve_value(&self, ctx: &ProcessCtx) -> Option<f64> {
+        if self.frequency_hz.is_sign_negative() {
+            return None;
+        }
+        let curve_node_id = self.curve_node?;
+        let snapshot = ctx.tree_snapshot()?;
+        let phase = self.phase + self.elapsed_seconds * self.frequency_hz;
+        let normalized = phase - phase.floor();
+        curve_from_snapshot(snapshot, curve_node_id).and_then(|curve| curve.sample(normalized))
+    }
+
+    fn sync_waveform_dependent_nodes(&mut self, ctx: &mut ProcessCtx) {
+        let is_curve = self.waveform == AnimationWaveform::Curve;
+
+        let (curve_child, amplitude_child, offset_child) = ctx
+            .tree_snapshot()
+            .map(|snapshot| {
+                (
+                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID),
+                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_AMPLITUDE_DECL_ID),
+                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_OFFSET_DECL_ID),
+                )
+            })
+            .unwrap_or((None, None, None));
+
+        if is_curve {
+            if curve_child.is_none() {
+                ctx.add_child_boxed(self.id(), Box::new(CurveNode::new()), None);
+            }
+            if let Some(amp_id) = amplitude_child {
+                self.remove_child(ctx, amp_id);
+            }
+            if let Some(off_id) = offset_child {
+                self.remove_child(ctx, off_id);
+            }
+        } else {
+            if let Some(curve_id) = curve_child {
+                self.remove_child(ctx, curve_id);
+            }
+            if amplitude_child.is_none() {
+                ctx.add_child_boxed(self.id(), Box::new(make_animation_amplitude_parameter()), None);
+            }
+            if offset_child.is_none() {
+                ctx.add_child_boxed(self.id(), Box::new(make_animation_offset_parameter()), None);
+            }
+        }
     }
 }
 
@@ -310,9 +367,6 @@ impl Node for ParameterAnimationControlNode {
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID) {
-            ctx.add_child_boxed(self.id(), Box::new(CurveNode::new()), None);
-        }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_waveform_parameter()), None);
         }
@@ -331,6 +385,27 @@ impl Node for ParameterAnimationControlNode {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_update_rate_parameter()), None);
         }
+        // Waveform-dependent node presence (CurveNode, amplitude, offset) is reconciled
+        // in init() rather than here. Removing nodes during engine_on_attached would
+        // place those NodeIds in loaded_node_ids before reconcile_loaded_declared_children
+        // runs, causing a MissingNode error when the reconcile traverses them.
+    }
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        // Read the persisted waveform value directly from the snapshot so that loaded
+        // projects immediately reflect the correct waveform-dependent node presence.
+        // self.waveform is still the default (Sine) at this point.
+        let effective_waveform = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| {
+                snapshot
+                    .find_child(self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID)
+                    .and_then(|id| snapshot.node(id))
+                    .and_then(|n| n.param_value.as_ref().map(parse_waveform))
+            })
+            .unwrap_or(self.waveform);
+        self.waveform = effective_waveform;
+        self.sync_waveform_dependent_nodes(ctx);
     }
 
     fn engine_sync_param_handle_cache(&mut self, param: NodeId, new_value: &ParamValue) {
@@ -348,13 +423,18 @@ impl Node for ParameterAnimationControlNode {
 
     fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
         let mut reevaluate_graph = false;
+        let mut waveform_changed = false;
         for event in &ctx.events {
             match &event.kind {
                 EventKind::ParamChanged { param, new_value, .. } => {
                     let old_rate = self.update_rate_hz;
+                    let old_waveform = self.waveform;
                     self.sync_child_value(*param, new_value);
                     if self.update_rate_param == Some(*param) && self.update_rate_hz != old_rate {
                         reevaluate_graph = true;
+                    }
+                    if self.waveform_param == Some(*param) && self.waveform != old_waveform {
+                        waveform_changed = true;
                     }
                 }
                 EventKind::ChildAdded { parent, child, decl_id } if *parent == self.id() => {
@@ -378,6 +458,13 @@ impl Node for ParameterAnimationControlNode {
         if reevaluate_graph {
             ctx.reevaluate_graph();
         }
+        if waveform_changed {
+            self.sync_waveform_dependent_nodes(ctx);
+        }
+    }
+
+    fn update_requires_tree_snapshot(&self) -> bool {
+        self.waveform == AnimationWaveform::Curve
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -385,7 +472,12 @@ impl Node for ParameterAnimationControlNode {
         let Some(parent_param) = self.node_data.parent else {
             return;
         };
-        let Some(value) = self.current_value() else {
+        let value = if self.waveform == AnimationWaveform::Curve {
+            self.curve_value(ctx)
+        } else {
+            self.current_value()
+        };
+        let Some(value) = value else {
             return;
         };
 

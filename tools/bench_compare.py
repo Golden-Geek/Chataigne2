@@ -48,20 +48,22 @@ def parse_bencher_output(text: str) -> dict[str, float]:
     return results
 
 
-def load_baseline(path: Path) -> dict[str, float]:
-    """Load baseline ns values from baseline.json.
+def load_baseline(path: Path) -> tuple[dict[str, float], dict[str, float]]:
+    """Load baseline ns values and per-scenario thresholds from baseline.json.
 
-    Returns {scenario_name: p50_ns} for scenarios that have real numbers.
+    Returns ({name: p50_ns}, {name: regression_fraction}).
     """
     data = json.loads(path.read_text())
     baseline: dict[str, float] = {}
+    thresholds: dict[str, float] = {}
     for name, entry in data.get("scenarios", {}).items():
-        # bencher output uses the bench function name exactly
-        # baseline.json keys may include variant suffixes like "/200"
         p50 = entry.get("p50_ns")
         if p50 is not None:
             baseline[name] = float(p50)
-    return baseline
+        t = entry.get("thresholds", {}).get("regression_pct")
+        if t is not None:
+            thresholds[name] = float(t) / 100.0
+    return baseline, thresholds
 
 
 def threshold_for(name: str) -> float:
@@ -79,7 +81,7 @@ def main() -> int:
     args = parser.parse_args()
 
     results = parse_bencher_output(Path(args.results).read_text())
-    baseline = load_baseline(Path(args.baseline))
+    baseline, file_thresholds = load_baseline(Path(args.baseline))
 
     lines: list[str] = ["## Benchmark results\n"]
     lines.append("| Scenario | Baseline (ns) | Current (ns) | Delta | Status |")
@@ -93,7 +95,7 @@ def main() -> int:
             base_ns = baseline[name]
             delta_frac = (current_ns - base_ns) / base_ns
             delta_str = f"{delta_frac:+.1%}"
-            threshold = threshold_for(name)
+            threshold = file_thresholds.get(name) or threshold_for(name)
             if delta_frac > threshold:
                 status = f"🔴 REGRESSION (>{threshold:.0%} threshold)"
                 regressions.append(f"  - `{name}`: {delta_frac:+.1%} (threshold {threshold:.0%})")

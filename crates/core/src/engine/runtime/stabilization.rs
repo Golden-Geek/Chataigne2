@@ -31,8 +31,7 @@ impl<T: Node> Engine<T> {
             self.absorb_external_edits()?;
             let control_started = Instant::now();
             self.run_control_pass()?;
-            control_ms_total =
-                control_ms_total.saturating_add(control_started.elapsed().as_millis());
+            control_ms_total = control_ms_total.saturating_add(control_started.elapsed().as_millis());
 
             if self.inbox.events.is_empty() && self.edits.pending.is_empty() {
                 break;
@@ -63,8 +62,7 @@ impl<T: Node> Engine<T> {
             if !self.inbox.events.is_empty() {
                 let dispatch_started = Instant::now();
                 self.dispatch_inbox(ExecutionPhase::EndOfTickStabilization)?;
-                dispatch_ms_total =
-                    dispatch_ms_total.saturating_add(dispatch_started.elapsed().as_millis());
+                dispatch_ms_total = dispatch_ms_total.saturating_add(dispatch_started.elapsed().as_millis());
             }
 
             if !self.edits.pending.is_empty() {
@@ -87,8 +85,7 @@ impl<T: Node> Engine<T> {
                     let apply_started = Instant::now();
                     self.apply_edits_without_history()?;
                     self.resolve_if_needed()?;
-                    apply_edits_ms_total =
-                        apply_edits_ms_total.saturating_add(apply_started.elapsed().as_millis());
+                    apply_edits_ms_total = apply_edits_ms_total.saturating_add(apply_started.elapsed().as_millis());
                 }
             }
 

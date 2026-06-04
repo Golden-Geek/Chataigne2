@@ -318,7 +318,11 @@ impl<T: Node> Engine<T> {
                     continue;
                 };
                 let index = parent.and_then(|p| self.ui_child_index(p, *node_id));
-                ops.push(UiGraphOp::NodeCreated { snapshot, parent, index });
+                ops.push(UiGraphOp::NodeCreated {
+                    snapshot,
+                    parent,
+                    index,
+                });
             }
             if !parent_children_after.is_empty() {
                 ops.push(UiGraphOp::ChildrenReordered {

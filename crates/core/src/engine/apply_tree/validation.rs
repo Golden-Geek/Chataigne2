@@ -81,14 +81,8 @@ impl<T: Node> Engine<T> {
         permissions
     }
 
-    pub(super) fn prepare_node_for_insert(
-        &self,
-        node: &mut T,
-        parent: NodeId,
-        user_role: UserNodeRole,
-    ) {
-        let inferred_permissions =
-            self.default_user_permissions_for_new_node(node, parent, user_role);
+    pub(super) fn prepare_node_for_insert(&self, node: &mut T, parent: NodeId, user_role: UserNodeRole) {
+        let inferred_permissions = self.default_user_permissions_for_new_node(node, parent, user_role);
         let node_data = node.node_data_mut();
         node_data.parent = None;
         node_data.first_child = None;

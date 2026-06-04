@@ -1,32 +1,43 @@
 use super::*;
 
 #[derive(Debug)]
+/// Errors that can occur during engine runtime execution.
 pub enum EngineRuntimeError {
     /// Wrapper for edit-application failures.
     Edit(EngineEditError),
     /// A node declared a dependency on a missing node id.
     MissingDependency {
+        /// The node that declared the dependency.
         node: NodeId,
+        /// The missing dependency node id.
         dependency: NodeId,
     },
     /// Dependency graph contains at least one cycle.
     DependencyCycle {
+        /// The nodes involved in the dependency cycle.
         nodes: Vec<NodeId>,
     },
     /// Node requested an invalid zero-hertz update rate.
     InvalidUpdateRate {
+        /// The node that requested the invalid rate.
         node: NodeId,
+        /// The invalid update rate.
         rate_hz: NodeUpdateRate,
     },
     /// Runtime exceeded stabilization pass limit and likely entered an event/edit loop.
     InfiniteEventEditCycle {
+        /// The tick number where the cycle was detected.
         tick: u64,
+        /// The number of stabilization passes executed.
         passes: usize,
     },
     /// Runtime exceeded update callback budget for a single tick.
     UpdateBudgetExceeded {
+        /// The tick number where the budget was exceeded.
         tick: u64,
+        /// The number of update callbacks executed.
         callbacks: usize,
+        /// The maximum number of update callbacks allowed.
         limit: usize,
     },
 }

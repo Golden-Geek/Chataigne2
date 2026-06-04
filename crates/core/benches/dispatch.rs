@@ -16,16 +16,28 @@ struct PassiveNode {
 
 impl PassiveNode {
     fn new(label: &str) -> Self {
-        Self { data: NodeData::new(label.to_string()) }
+        Self {
+            data: NodeData::new(label.to_string()),
+        }
     }
 }
 
 impl Node for PassiveNode {
-    fn node_data(&self) -> &NodeData { &self.data }
-    fn node_data_mut(&mut self) -> &mut NodeData { &mut self.data }
-    fn get_type(&self) -> &str { "bench_passive" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    fn node_data(&self) -> &NodeData {
+        &self.data
+    }
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+    fn get_type(&self) -> &str {
+        "bench_passive"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 struct ListenerNode {
@@ -35,16 +47,29 @@ struct ListenerNode {
 
 impl ListenerNode {
     fn new(label: &str) -> Self {
-        Self { data: NodeData::new(label.to_string()), receive_count: 0 }
+        Self {
+            data: NodeData::new(label.to_string()),
+            receive_count: 0,
+        }
     }
 }
 
 impl Node for ListenerNode {
-    fn node_data(&self) -> &NodeData { &self.data }
-    fn node_data_mut(&mut self) -> &mut NodeData { &mut self.data }
-    fn get_type(&self) -> &str { "bench_listener" }
-    fn as_any(&self) -> &dyn std::any::Any { self }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    fn node_data(&self) -> &NodeData {
+        &self.data
+    }
+    fn node_data_mut(&mut self) -> &mut NodeData {
+        &mut self.data
+    }
+    fn get_type(&self) -> &str {
+        "bench_listener"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
     fn on_custom_event(&mut self, _ctx: &mut ProcessCtx, _event: CustomEvent) {
         self.receive_count = black_box(self.receive_count.wrapping_add(1));
     }
@@ -103,11 +128,7 @@ fn bench_dispatch_10k_1k_listeners(c: &mut Criterion) {
         b.iter(|| {
             for _ in 0..100 {
                 engine.edits.push(Edit::EmitCustomEvent {
-                    event: CustomEvent::new(
-                        "ping",
-                        Some(root_id),
-                        serde_json::Value::Null,
-                    ),
+                    event: CustomEvent::new("ping", Some(root_id), serde_json::Value::Null),
                 });
             }
             engine.run_tick(black_box(elapsed)).unwrap();

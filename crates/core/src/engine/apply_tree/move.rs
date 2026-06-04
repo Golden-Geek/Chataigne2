@@ -57,8 +57,7 @@ impl<T: Node> Engine<T> {
 
         self.validate_item_roots_for_move(edit_index, OP, node, new_parent)?;
 
-        let (old_parent, old_prev_sibling, old_next_sibling) =
-            self.node_position(edit_index, OP, node)?;
+        let (old_parent, old_prev_sibling, old_next_sibling) = self.node_position(edit_index, OP, node)?;
 
         let detached_parent = self.detach_node(edit_index, OP, node)?;
         if let Some(new_prev_sibling) = new_prev_sibling {

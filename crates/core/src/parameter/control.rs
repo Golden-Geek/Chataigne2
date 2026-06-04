@@ -93,6 +93,8 @@ pub enum AnimationWaveform {
     Saw,
     /// Square wave in range `[-1, 1]`.
     Square,
+    /// Custom curve shape defined by user-placed keyframes, sampled in `[0, 1]`.
+    Curve,
 }
 
 /// Animation driver configuration for `ParameterControlMode::Animation`.

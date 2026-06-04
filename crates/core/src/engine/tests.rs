@@ -1284,6 +1284,22 @@ fn find_child_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: 
     None
 }
 
+fn switch_animation_to_curve_waveform<T: Node>(engine: &mut Engine<T>, animation_node: NodeId) -> NodeId {
+    let waveform_param = find_child_by_decl_any(engine, animation_node, PARAMETER_ANIMATION_WAVEFORM_DECL_ID)
+        .expect("waveform parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: waveform_param,
+        value: ParamValue::Enum("curve".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("waveform switch to curve should apply");
+    engine
+        .run_tick(Duration::from_millis(1))
+        .expect("tick should process waveform change");
+    find_child_by_decl_any(engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
+        .expect("curve node should exist after switching to Curve waveform")
+}
+
 fn count_children_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str) -> usize {
     let mut count = 0usize;
     let Some(parent_node) = engine.nodes.get(parent) else {
@@ -4463,7 +4479,11 @@ fn phase6_add_node_tree_small_emits_node_created_ops() {
     let tree = crate::edit::NodeTree::new(Folder::new("a".to_string()))
         .with_child(crate::edit::NodeTree::new(Folder::new("b".to_string())))
         .with_child(crate::edit::NodeTree::new(Folder::new("c".to_string())));
-    engine.edits.push(Edit::AddNodeTree { tree, parent: engine.root, prev_sibling: None });
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
     engine.apply_edits().expect("add_node_tree should succeed");
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
@@ -4487,22 +4507,44 @@ fn phase6_add_node_tree_large_emits_subtree_inserted_op() {
     for i in 0..10 {
         tree = tree.with_child(crate::edit::NodeTree::new(Folder::new(format!("child_{i}"))));
     }
-    engine.edits.push(Edit::AddNodeTree { tree, parent: engine.root, prev_sibling: None });
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
     engine.apply_edits().expect("add_node_tree should succeed");
 
     let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
     let ops = first_graph_transaction_ops(&batch);
 
-    assert_eq!(ops.len(), 1, "large tree (>8 nodes) must emit exactly one SubtreeInserted op");
+    assert_eq!(
+        ops.len(),
+        1,
+        "large tree (>8 nodes) must emit exactly one SubtreeInserted op"
+    );
     assert!(
         matches!(ops[0], UiGraphOp::SubtreeInserted { .. }),
         "the single op must be SubtreeInserted"
     );
 
-    if let UiGraphOp::SubtreeInserted { nodes, parent, parent_children_after, .. } = &ops[0] {
-        assert_eq!(nodes.len(), 11, "SubtreeInserted must carry all 11 node snapshots (root + 10 children)");
+    if let UiGraphOp::SubtreeInserted {
+        nodes,
+        parent,
+        parent_children_after,
+        ..
+    } = &ops[0]
+    {
+        assert_eq!(
+            nodes.len(),
+            11,
+            "SubtreeInserted must carry all 11 node snapshots (root + 10 children)"
+        );
         assert_eq!(*parent, engine.root, "insertion parent must be engine root");
-        assert_eq!(parent_children_after.len(), 1, "root gains one direct child after insertion");
+        assert_eq!(
+            parent_children_after.len(),
+            1,
+            "root gains one direct child after insertion"
+        );
     }
 }
 
@@ -7856,8 +7898,22 @@ fn animation_control_materializes_curve_key_and_easing_nodes() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
+
+    // Curve node only materializes when waveform is set to "curve".
+    let waveform_param = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_WAVEFORM_DECL_ID)
+        .expect("waveform parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: waveform_param,
+        value: ParamValue::Enum("curve".to_string()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("waveform update should apply");
+    engine
+        .run_tick(Duration::from_millis(1))
+        .expect("tick should process waveform change");
+
     let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+        .expect("curve node should exist after switching to Curve waveform");
     assert_eq!(
         engine
             .nodes
@@ -7900,6 +7956,70 @@ fn animation_control_materializes_curve_key_and_easing_nodes() {
 }
 
 #[test]
+fn animation_curve_waveform_survives_save_load_round_trip() {
+    let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .set_param_control_state(
+            engine.root,
+            ParameterControlState::new(ParameterControlMode::Animation, ParameterControlSpec::Animation),
+        )
+        .expect("animation state should be accepted");
+
+    let animation_node = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("animation control node should exist");
+
+    let curve_node_before = switch_animation_to_curve_waveform(&mut engine, animation_node);
+    assert!(
+        engine.nodes.contains(curve_node_before),
+        "curve node should exist before save"
+    );
+    assert!(
+        find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).is_none(),
+        "amplitude should not exist in curve mode before save"
+    );
+    assert!(
+        find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_OFFSET_DECL_ID).is_none(),
+        "offset should not exist in curve mode before save"
+    );
+
+    let json = engine
+        .to_project_json_with(|node| node.project_encode_data())
+        .expect("project serialization should succeed");
+
+    use crate::app::ProjectNode as _;
+    let loaded = Engine::<MacroTestNode>::from_project_json_with(&json, MacroTestNode::project_decode_node)
+        .expect("project load should succeed — curve waveform save/load must not produce MissingNode errors");
+
+    let loaded_animation_node = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("animation control node should exist after load");
+
+    let curve_node_after =
+        find_child_by_decl_any(&loaded, loaded_animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
+            .expect("curve node should exist after load");
+    assert_eq!(
+        loaded.nodes.get(curve_node_after).map(|n| n.get_type()),
+        Some(PARAMETER_ANIMATION_CURVE_NODE_TYPE),
+        "loaded curve node should have the correct type"
+    );
+    assert!(
+        find_child_by_decl_any(&loaded, loaded_animation_node, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID).is_none(),
+        "amplitude should not exist in curve mode after load"
+    );
+    assert!(
+        find_child_by_decl_any(&loaded, loaded_animation_node, PARAMETER_ANIMATION_OFFSET_DECL_ID).is_none(),
+        "offset should not exist in curve mode after load"
+    );
+}
+
+#[test]
 fn animation_curve_easing_keeps_single_kind_parameter_while_switching_kind() {
     let root: MacroTestNode = Parameter::new("osc", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange).into();
     let mut engine = Engine::new(root);
@@ -7916,8 +8036,7 @@ fn animation_curve_easing_keeps_single_kind_parameter_while_switching_kind() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
     let first_key = engine
         .build_process_tree_snapshot()
         .child_ids(curve_node)
@@ -7990,8 +8109,7 @@ fn ui_set_param_stabilizes_animation_curve_easing_dependencies() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
     let first_key = engine
         .build_process_tree_snapshot()
         .child_ids(curve_node)
@@ -8131,8 +8249,7 @@ fn animation_curve_accepts_user_created_key_items() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     let before = engine
         .build_process_tree_snapshot()
@@ -8181,8 +8298,7 @@ fn animation_curve_user_created_key_defaults_to_bezier_easing() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     let before_keys = engine
         .build_process_tree_snapshot()
@@ -8247,8 +8363,7 @@ fn animation_curve_insert_keys_with_easing_uses_requested_kind() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     engine.edits.push(Edit::CallNodeMutation {
         node: curve_node,
@@ -8322,8 +8437,7 @@ fn animation_curve_materializes_user_editable_range_node() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
     let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID)
         .expect("range node should exist");
 
@@ -8361,8 +8475,7 @@ fn animation_curve_enabled_range_clamps_key_position_and_value() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
     let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID)
         .expect("range node should exist");
     let x_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_X_DECL_ID)
@@ -8456,8 +8569,7 @@ fn animation_curve_disabled_range_allows_values_outside_previous_bounds() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
     let range_node = find_child_by_decl_any(&engine, curve_node, PARAMETER_ANIMATION_RANGE_DECL_ID)
         .expect("range node should exist");
     let y_param = find_child_by_decl_any(&engine, range_node, PARAMETER_ANIMATION_RANGE_Y_DECL_ID)
@@ -8623,8 +8735,7 @@ fn ui_intent_fit_animation_curve_path_replaces_range_with_fitted_bezier_keys() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     let ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
@@ -8674,8 +8785,7 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     let snapshot_before = engine.build_process_tree_snapshot();
     let curve_before =
@@ -8683,6 +8793,7 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
     let key_count_before = curve_before.key_count();
     let sample_before = curve_before.sample(0.5).expect("baseline sample should exist");
 
+    let undo_len_before_session = engine.undo_len();
     let begin_ack = engine.apply_ui_intent(UiEditIntent::BeginEdit {
         client_edit_id: "curve-draw-1".to_string(),
         label: Some("Draw Curve".to_string()),
@@ -8709,7 +8820,7 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
     );
     assert_eq!(
         engine.undo_len(),
-        0,
+        undo_len_before_session,
         "open draw session should not commit undo history yet"
     );
 
@@ -8717,7 +8828,11 @@ fn ui_fit_animation_curve_path_edit_session_groups_one_undoable_draw_action() {
         client_edit_id: "curve-draw-1".to_string(),
     });
     assert!(end_ack.success, "end edit should succeed");
-    assert_eq!(engine.undo_len(), 1, "draw fit should commit as one undo step");
+    assert_eq!(
+        engine.undo_len(),
+        undo_len_before_session + 1,
+        "draw fit should commit as one undo step"
+    );
 
     let snapshot_fitted = engine.build_process_tree_snapshot();
     let curve_fitted =
@@ -8769,8 +8884,7 @@ fn ui_fit_animation_curve_path_after_undo_clears_redo_without_panicking() {
         .get(engine.root)
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist");
-    let curve_node = find_child_by_decl_any(&engine, animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-        .expect("curve node should exist");
+    let curve_node = switch_animation_to_curve_waveform(&mut engine, animation_node);
 
     let first_ack = engine.apply_ui_intent(UiEditIntent::FitAnimationCurvePath {
         curve: curve_node,
@@ -10420,8 +10534,13 @@ fn phase5_no_due_buckets_zero_per_node_work() {
 
     // 1 ms is far below the 100 ms (10 Hz) and 500 ms (2 Hz) thresholds.
     let mut out = Vec::new();
-    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(1), 4);
-    assert!(out.is_empty(), "no buckets due — output must be empty with zero per-node work");
+    engine
+        .runtime_schedule
+        .collect_due_nodes_into(&mut out, Duration::from_millis(1), 4);
+    assert!(
+        out.is_empty(),
+        "no buckets due — output must be empty with zero per-node work"
+    );
 }
 
 #[test]
@@ -10434,7 +10553,11 @@ fn phase5_single_due_bucket_emits_nodes_in_topo_order() {
     engine.add_node(RuntimeNode::new("c", NodeExecutionRule::passive()), None);
     engine.apply_edits().expect("setup should succeed");
 
-    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|r| r.node_data().first_child)
+        .unwrap();
     let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
     let c = engine.nodes.get(b).and_then(|n| n.node_data().next_sibling).unwrap();
 
@@ -10444,8 +10567,14 @@ fn phase5_single_due_bucket_emits_nodes_in_topo_order() {
     engine.resolve().expect("resolve should succeed");
 
     let mut out = Vec::new();
-    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(100), 4);
-    assert_eq!(out, vec![a, b, c], "single-bucket nodes must be emitted in topo (dependency) order");
+    engine
+        .runtime_schedule
+        .collect_due_nodes_into(&mut out, Duration::from_millis(100), 4);
+    assert_eq!(
+        out,
+        vec![a, b, c],
+        "single-bucket nodes must be emitted in topo (dependency) order"
+    );
 }
 
 #[test]
@@ -10463,7 +10592,11 @@ fn phase5_multiple_due_buckets_k_way_merge_preserves_topo_order() {
     engine.add_node(RuntimeNode::new("d", NodeExecutionRule::passive()), None);
     engine.apply_edits().expect("setup should succeed");
 
-    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|r| r.node_data().first_child)
+        .unwrap();
     let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
     let c = engine.nodes.get(b).and_then(|n| n.node_data().next_sibling).unwrap();
     let d = engine.nodes.get(c).and_then(|n| n.node_data().next_sibling).unwrap();
@@ -10476,14 +10609,20 @@ fn phase5_multiple_due_buckets_k_way_merge_preserves_topo_order() {
 
     // 10ms: 100Hz (interval=10ms) fires 1x, 200Hz (interval=5ms) fires 2x.
     let mut out = Vec::new();
-    engine.runtime_schedule.collect_due_nodes_into(&mut out, Duration::from_millis(10), 4);
+    engine
+        .runtime_schedule
+        .collect_due_nodes_into(&mut out, Duration::from_millis(10), 4);
     assert_eq!(out.len(), 6, "expect 4 nodes in round 0 and 2 in round 1");
     assert_eq!(
         &out[0..4],
         &[a, b, c, d],
         "round 0 must be global topo order (k-way merge), not bucket-by-bucket order [a,c,b,d]"
     );
-    assert_eq!(&out[4..], &[b, d], "round 1 must contain only the 200Hz nodes in topo order");
+    assert_eq!(
+        &out[4..],
+        &[b, d],
+        "round 1 must contain only the 200Hz nodes in topo order"
+    );
 }
 
 #[test]
@@ -10783,15 +10922,25 @@ fn phase8_topo_sort_respects_declared_dependencies() {
     engine.add_node(RuntimeNode::new("c", NodeExecutionRule::periodic(60)), None);
     engine.apply_edits().expect("setup should succeed");
 
-    let first = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
-    let second = engine.nodes.get(first).and_then(|n| n.node_data().next_sibling).unwrap();
-    let third = engine.nodes.get(second).and_then(|n| n.node_data().next_sibling).unwrap();
+    let first = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|r| r.node_data().first_child)
+        .unwrap();
+    let second = engine
+        .nodes
+        .get(first)
+        .and_then(|n| n.node_data().next_sibling)
+        .unwrap();
+    let third = engine
+        .nodes
+        .get(second)
+        .and_then(|n| n.node_data().next_sibling)
+        .unwrap();
 
     // Wire: third ← second ← first (first depends on second, second depends on third).
-    engine.nodes.get_mut(first).unwrap().rule =
-        NodeExecutionRule::periodic(60).with_dependencies([second]);
-    engine.nodes.get_mut(second).unwrap().rule =
-        NodeExecutionRule::periodic(60).with_dependencies([third]);
+    engine.nodes.get_mut(first).unwrap().rule = NodeExecutionRule::periodic(60).with_dependencies([second]);
+    engine.nodes.get_mut(second).unwrap().rule = NodeExecutionRule::periodic(60).with_dependencies([third]);
     engine.resolve().expect("resolve should succeed");
 
     let order = engine.schedule_topology().to_vec();
@@ -10799,8 +10948,14 @@ fn phase8_topo_sort_respects_declared_dependencies() {
     let pos_second = order.iter().position(|&id| id == second).expect("second in order");
     let pos_third = order.iter().position(|&id| id == third).expect("third in order");
 
-    assert!(pos_third < pos_second, "third must precede second (second depends on third)");
-    assert!(pos_second < pos_first, "second must precede first (first depends on second)");
+    assert!(
+        pos_third < pos_second,
+        "third must precede second (second depends on third)"
+    );
+    assert!(
+        pos_second < pos_first,
+        "second must precede first (first depends on second)"
+    );
 }
 
 #[test]
@@ -10812,14 +10967,16 @@ fn phase8_topo_sort_detects_dependency_cycle() {
     engine.add_node(RuntimeNode::new("b", NodeExecutionRule::periodic(60)), None);
     engine.apply_edits().expect("setup should succeed");
 
-    let a = engine.nodes.get(engine.root).and_then(|r| r.node_data().first_child).unwrap();
+    let a = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|r| r.node_data().first_child)
+        .unwrap();
     let b = engine.nodes.get(a).and_then(|n| n.node_data().next_sibling).unwrap();
 
     // Form a cycle: a depends on b, b depends on a.
-    engine.nodes.get_mut(a).unwrap().rule =
-        NodeExecutionRule::periodic(60).with_dependencies([b]);
-    engine.nodes.get_mut(b).unwrap().rule =
-        NodeExecutionRule::periodic(60).with_dependencies([a]);
+    engine.nodes.get_mut(a).unwrap().rule = NodeExecutionRule::periodic(60).with_dependencies([b]);
+    engine.nodes.get_mut(b).unwrap().rule = NodeExecutionRule::periodic(60).with_dependencies([a]);
 
     let err = engine.resolve().expect_err("cycle should fail");
     assert!(
@@ -10851,11 +11008,19 @@ fn phase9_fixed_step_accumulator_delivers_uniform_delta_times() {
         .expect("counter node should exist");
     let counter = engine.nodes.get(counter_id).unwrap();
 
-    assert_eq!(counter.updates, 1_000, "node must receive exactly 1000 update callbacks");
+    assert_eq!(
+        counter.updates, 1_000,
+        "node must receive exactly 1000 update callbacks"
+    );
     assert!(
         counter.delta_times.iter().all(|&dt| dt == step),
         "every delta_time must be exactly 5ms — found non-uniform: {:?}",
-        counter.delta_times.iter().filter(|&&dt| dt != step).take(5).collect::<Vec<_>>()
+        counter
+            .delta_times
+            .iter()
+            .filter(|&&dt| dt != step)
+            .take(5)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -10872,19 +11037,25 @@ fn phase9_accumulator_fires_correct_tick_count_and_tracks_late_ticks() {
     engine.resolve().expect("resolve ok");
 
     // 3ms < 5ms step → 0 ticks, accumulator = 3ms
-    engine.drain_fixed_step_accumulator(Duration::from_millis(3)).expect("ok");
+    engine
+        .drain_fixed_step_accumulator(Duration::from_millis(3))
+        .expect("ok");
     assert_eq!(engine.time.tick, 0, "3ms < step → no tick yet");
     assert_eq!(engine.tick_accumulator(), Duration::from_millis(3));
     assert_eq!(engine.late_ticks, 0);
 
     // +3ms → total 6ms ≥ 5ms → 1 tick fires, accumulator = 1ms
-    engine.drain_fixed_step_accumulator(Duration::from_millis(3)).expect("ok");
+    engine
+        .drain_fixed_step_accumulator(Duration::from_millis(3))
+        .expect("ok");
     assert_eq!(engine.time.tick, 1, "6ms ≥ step → 1 tick");
     assert_eq!(engine.tick_accumulator(), Duration::from_millis(1));
     assert_eq!(engine.late_ticks, 0);
 
     // +20ms (clamped to 10ms max_catchup) → 1ms + 10ms = 11ms → 2 ticks, accumulator = 1ms
-    engine.drain_fixed_step_accumulator(Duration::from_millis(20)).expect("ok");
+    engine
+        .drain_fixed_step_accumulator(Duration::from_millis(20))
+        .expect("ok");
     assert_eq!(engine.time.tick, 3, "clamped 20ms→10ms: 1+10=11ms → 2 more ticks");
     assert_eq!(engine.tick_accumulator(), Duration::from_millis(1));
     assert_eq!(engine.late_ticks, 1, "20ms exceeded max_catchup=10ms → 1 late tick");
@@ -10903,7 +11074,10 @@ fn phase0_tick_stats_counts_callbacks_fired_and_nodes_due() {
     engine.run_tick(Duration::from_millis(5)).expect("tick ok");
     let stats = engine.tick_stats();
     assert_eq!(stats.nodes_due, 2, "two 200 Hz nodes should be due");
-    assert_eq!(stats.callbacks_fired, 2, "both nodes should fire their update callbacks");
+    assert_eq!(
+        stats.callbacks_fired, 2,
+        "both nodes should fire their update callbacks"
+    );
 }
 
 #[test]
@@ -10957,7 +11131,10 @@ fn phase4_structural_edits_during_stabilization_are_deferred_to_next_tick() {
     let initial_children = {
         let mut n = 0u32;
         let mut c = engine.nodes.get(bouncer_id).and_then(|nd| nd.node_data().first_child);
-        while let Some(id) = c { n += 1; c = engine.nodes.get(id).and_then(|nd| nd.node_data().next_sibling); }
+        while let Some(id) = c {
+            n += 1;
+            c = engine.nodes.get(id).and_then(|nd| nd.node_data().next_sibling);
+        }
         n
     };
     assert_eq!(initial_children, 1, "child added before tick should be present");

@@ -227,8 +227,7 @@ impl<T: Node> Engine<T> {
         &self,
         rules: &HashMap<NodeId, NodeExecutionRule>,
     ) -> Result<Vec<NodeId>, EngineRuntimeError> {
-        let mut indegree: HashMap<NodeId, usize> =
-            self.nodes.keys().map(|node_id| (node_id, 0usize)).collect(); // PERF-EXCEPTION: resolve only, gated by runtime_resolve_pending; never called in steady-state ticks.
+        let mut indegree: HashMap<NodeId, usize> = self.nodes.keys().map(|node_id| (node_id, 0usize)).collect(); // PERF-EXCEPTION: resolve only, gated by runtime_resolve_pending; never called in steady-state ticks.
         let mut outgoing: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
 
         for (node_id, rule) in rules {

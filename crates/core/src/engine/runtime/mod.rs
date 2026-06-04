@@ -26,8 +26,8 @@ pub(super) const DEBUG_VERBOSE_STABILIZATION_SAMPLE_LIMIT: usize = 8;
 
 mod errors;
 mod limits;
-mod scheduler;
 mod scheduled_updates;
+mod scheduler;
 mod stabilization;
 mod tick;
 mod trace;

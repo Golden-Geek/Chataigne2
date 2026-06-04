@@ -227,8 +227,7 @@ impl<T: Node> Engine<T> {
             }
 
             if current_context.is_some_and(|context| context != creation_context) {
-                let context =
-                    current_context.expect("current_context should exist for a non-empty batch");
+                let context = current_context.expect("current_context should exist for a non-empty batch");
                 self.run_node_ready_for_batch(ready_ids.as_slice(), context)?;
                 ready_ids.clear();
             }

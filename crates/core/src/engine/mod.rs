@@ -68,12 +68,12 @@ pub use persistence::ProjectNodeRecord;
 pub use persistence::ProjectPersistenceError;
 /// Runtime error type returned by resolve/scheduling and tick execution.
 pub use runtime::EngineRuntimeError;
+/// Fixed-step accumulator configuration for `run_for` / `run_loop`.
+pub use runtime::FixedStepConfig;
 /// Per-node execution rule returned to the runtime scheduler.
 pub use runtime::NodeExecutionRule;
 /// Per-node update frequency in hertz.
 pub use runtime::NodeUpdateRate;
-/// Fixed-step accumulator configuration for `run_for` / `run_loop`.
-pub use runtime::FixedStepConfig;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
 /// Per-tick performance counters returned by `Engine::tick_stats`.
