@@ -21,6 +21,20 @@ env:
     librsvg2-dev
 
 jobs:
+  golden_engine_tests:
+    name: golden_engine tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: submodules/golden_core -> submodules/golden_core/target
+      - name: Run tests (single-threaded to avoid flaky logger test)
+        run: cargo test -p golden_engine --manifest-path submodules/golden_core/Cargo.toml -- --test-threads=1
+
   buildui:
     name: Build UI
     runs-on: windows-latest

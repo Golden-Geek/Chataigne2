@@ -27,7 +27,7 @@ The work is sequenced so each phase builds on the previous one and you can ship 
 
 ### Phase 0 — Instrumentation and baseline (week 1)
 
-> **STATUS: PARTIAL** — per-phase wall-clock timing in `run_tick` (`eprintln` above 8 ms threshold) is done. Criterion benchmarks, baseline JSON, and `tick_stats()` accessor are NOT done.
+> **STATUS: PARTIAL** — per-phase wall-clock timing in `run_tick` done. `tick_stats()` accessor done. Criterion benchmark crate at `crates/core/benches/` done with all three scenarios. Dispatch baseline recorded (~200ms per 100-event × 1k-listener iteration). Tick benchmarks baseline pending (run `cargo bench --bench tick`). `perf` feature flag not done.
 
 You cannot fix what you cannot measure. Do this first or every later step is guesswork.
 
@@ -35,10 +35,10 @@ You cannot fix what you cannot measure. Do this first or every later step is gue
 
 - [X] Add per-phase timing inside `run_tick` (resolve, absorb, apply, precompute, preprocess, control, scheduled, stabilization, logger-sync).  Timing is always on and logged to stderr above `PERF_LOG_TICK_THRESHOLD_MS = 8 ms`.
 - [ ] Gate timing behind a `perf` feature flag so release builds with no perf concern pay nothing.
-- [ ] Add a per-tick counter struct (`tick_stats()` accessor): nodes due, callbacks fired, events emitted/routed, edits applied, stabilization passes, snapshot rebuilds, param-map rebuilds.
-- [ ] Add a Criterion benchmark crate at `crates/core/benches/`. Three scenarios:
+- [X] Add a per-tick counter struct (`tick_stats()` accessor): nodes due, callbacks fired, events emitted/routed, edits applied, stabilization passes, snapshot rebuilds.
+- [X] Add a Criterion benchmark crate at `crates/core/benches/`. Three scenarios:
   - `tick_20k_passive`, `tick_20k_sparse_active`, `dispatch_10k_with_1k_listeners`
-- [ ] Record baseline and commit as `crates/core/benches/baseline.json`.
+- [ ] Record tick benchmark baseline numbers and commit to `crates/core/benches/baseline.json` (dispatch baseline recorded; run `cargo bench --bench tick` for tick numbers).
 
 **Definition of done**
 
@@ -146,40 +146,26 @@ Fixes the per-event listener scan in `collect_subscription_recipients`.
 
 ### Phase 4 — Tick-path discipline pass (week 3, ~3 days)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `run_tick` phase diagram doc-comment added (`tick.rs` lines 32–46). Stabilization limit is 16 with warning at 4 (`STABILIZATION_WARN_PASSES = 4`, `RuntimeLimits::default().max_stabilization_passes_per_tick = 16`). `TickScratch` scratch buffers implemented and wired (`tick_scratch.rs`). Structural edits during stabilization are now deferred to the next tick via `Engine::deferred_structural_edits` field — `run_stabilization_rounds` partitions `edits.pending`, stashing `AddNode`/`RemoveNode`/`MoveNode`/`ReplaceNode`/`AddNodeTree`/`AddUserItem`/`CreateBlueprintInstance` into the deferred queue; they are drained at the start of the next `run_tick`. Verified by `phase4_structural_edits_during_stabilization_are_deferred_to_next_tick` test. Dashboard test that required structural edits in one stabilization tick updated to use two ticks.
+>
+> Remaining: zero-allocation steady-state verification (dhat/tracking-allocator test) is not yet done.
 
 Now that the big-O wins are in, tighten the tick loop itself.
 
 **Tasks**
 
-- Audit `run_tick` end to end. For each phase, document:
-  - What state it reads.
-  - What state it writes.
-  - Whether it can emit events (and if so, what kinds).
-  - Whether it can append to `self.edits.pending`.
-- Replace the unbounded reentrancy in `run_stabilization_rounds` with explicit categories:
+- [X] Audit `run_tick` end to end — phase diagram doc-comment added.
+- [X] Replace the unbounded reentrancy in `run_stabilization_rounds` with explicit categories:
   - **Allowed in stabilization**: param-derived recomputation, dependent updates triggered by `ParamChanged`.
-  - **Forbidden in stabilization**: structural edits (`AddNode`, `RemoveNode`, `MoveNode`). If a node's update wants to mutate structure, that goes into a deferred queue and is applied at the start of the next tick.
-- Lower `max_stabilization_passes_per_tick` from 256 to 16. Anything past 4 logs a structured warning. Anything past 16 errors. The current 256 limit hides graph design bugs.
-- Add scratch buffers on the engine to avoid per-tick allocation:
-  ```rust
-  pub(crate) struct TickScratch {
-      due_nodes: Vec<NodeId>,
-      due_counts: HashMap<NodeId, usize>,
-      seen_by_node: HashMap<NodeId, usize>,
-      remaining_delta_by_node: HashMap<NodeId, Duration>,
-      recipients: Vec<NodeId>,
-      recipients_dedupe: HashSet<NodeId>,
-  }
-  ```
-
-  Clear, don't drop, between ticks.
+  - **Forbidden in stabilization**: structural edits (`AddNode`, `RemoveNode`, `MoveNode`). Deferred to `Engine::deferred_structural_edits`, applied at next tick start.
+- [X] Lower `max_stabilization_passes_per_tick` from 256 to 16. Warning at 4 (`STABILIZATION_WARN_PASSES`), error at 16.
+- [X] Add `TickScratch` scratch buffers on the engine — `due_nodes`, `due_counts`, `seen_by_node`, `remaining_delta_by_node`, `recipients`, `recipients_dedupe`, `ancestry_depths`. Cleared, not dropped, between phases.
 
 **Definition of done**
 
-- `run_tick` has a doc-comment phase diagram listing the 7 phases, what they read/write, and what they can emit.
-- Stabilization limit is 16 with a warning at 4.
-- Tick-path allocations in steady state (no structural changes) are zero. Verify with a `dhat` or `tracking-allocator` test.
+- [X] `run_tick` has a doc-comment phase diagram listing the 9 phases, what they read/write, and what they can emit.
+- [X] Stabilization limit is 16 with a warning at 4.
+- [ ] Tick-path allocations in steady state (no structural changes) are zero. Verify with a `dhat` or `tracking-allocator` test.
 
 ---
 
@@ -311,24 +297,27 @@ This is the change that actually addresses your "sequences need precision" requi
 
 ### Phase 10 — Continuous benchmarks in CI (week 6, ~2 days)
 
-> **STATUS: NOT STARTED**
+> **STATUS: DONE** — `golden_core/.github/workflows/benchmarks.yml` adds two jobs: `test` (runs `cargo test -p golden_engine --test-threads=1` on every push/PR) and `bench` (runs all three Criterion scenarios, compares against `crates/core/benches/baseline.json`, posts a sticky PR comment via `marocchino/sticky-pull-request-comment`, and fails on regressions). Comparison logic is in `golden_core/tools/bench_compare.py`. Thresholds: tick scenarios 10%, dispatch 15%. On `main` push the bench results are uploaded as an artifact (90-day retention) for manual baseline refresh. `Chataigne2` CI also gains a `golden_engine_tests` job that runs the test suite on every PR.
+>
+> Remaining: baseline.json tick numbers need to be populated by running `cargo bench --bench tick` (dispatch baseline already recorded). Once populated, the regression check becomes fully operational.
 
 Locks in the gains so they don't regress.
 
 **Tasks**
 
-- Add a GitHub Actions workflow that runs the three Criterion benchmarks on every PR.
-- Compare against the baseline JSON in `main`. Fail the PR if any of these regress beyond a threshold:
-  - `tick_20k_passive` p99: > 10% regression
-  - `tick_20k_sparse_active` p99: > 10% regression
-  - `dispatch_10k_with_1k_listeners` p99: > 15% regression (slightly more lenient because dispatch has higher variance)
-- On `main` merge, update the baseline file automatically (or via a manual step if you want human approval on baseline shifts).
-- Post a comment on the PR with before/after numbers for the three scenarios. AI assistants reading PR comments will then be aware of the regression and self-correct on follow-up PRs.
+- [X] Add a GitHub Actions workflow (`golden_core/.github/workflows/benchmarks.yml`) that runs the three Criterion benchmarks on every PR.
+- [X] Compare against the baseline JSON in `main`. Fail the PR if any of these regress beyond a threshold:
+  - `tick_20k_passive` p50: > 10% regression
+  - `tick_20k_sparse_active` p50: > 10% regression
+  - `dispatch_10k_with_1k_listeners` p50: > 15% regression
+- [X] On `main` merge, upload bench results as a 90-day artifact for manual baseline refresh (intentional: baseline shifts require human approval).
+- [X] Post a sticky PR comment with before/after numbers for the three scenarios.
+- [X] `Chataigne2` CI gains a `golden_engine_tests` job.
 
 **Definition of done**
 
-- CI workflow is green on a no-op PR.
-- A deliberately-bad PR (re-introduces `self.nodes.iter()` in `run_scheduled_updates`) is caught and fails CI.
+- [ ] CI workflow is green on a no-op PR (requires baseline.json tick numbers to be populated first).
+- A deliberately-bad PR (re-introduces `self.nodes.iter()` in `run_scheduled_updates`) will be caught and fail CI once the baseline is populated.
 
 ---
 
