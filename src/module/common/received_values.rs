@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use golden_core::{
     edit::{Edit, NodeTree},
@@ -6,6 +6,7 @@ use golden_core::{
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use smallvec::SmallVec;
 
 const VALUE_LABEL_PREFIX: &str = "value ";
 
@@ -52,14 +53,9 @@ pub(crate) fn apply_received_value_payload(
         };
 
     match payload {
-        ReceivedValuePayload::Single(value) => apply_single_value_message(
-            ctx,
-            snapshot,
-            parent_id,
-            leaf_name,
-            value.clone(),
-            options,
-        ),
+        ReceivedValuePayload::Single(value) => {
+            apply_single_value_message(ctx, snapshot, parent_id, leaf_name, value, options)
+        }
         ReceivedValuePayload::Multi(values) => {
             apply_multi_value_message(ctx, snapshot, parent_id, leaf_name, values, options)
         }
@@ -130,23 +126,25 @@ struct ReceivedValueBatchPlanner<'a, 'ctx> {
     ctx: &'ctx mut ProcessCtx,
     snapshot: &'a ProcessTreeSnapshot,
     options: ReceivedValueBatchOptions,
-    planned_children_by_existing_parent: HashMap<NodeId, Vec<PlannedReceivedNode>>,
+    planned_children_by_existing_parent: HashMap<NodeId, PlannedReceivedChildren<'a>>,
     result: ReceivedValueBatchResult,
 }
 
-enum PlannedReceivedNode {
-    Folder(PlannedReceivedFolder),
-    Parameter(PlannedReceivedParameter),
+type PlannedReceivedChildren<'a> = SmallVec<[PlannedReceivedNode<'a>; 8]>;
+
+enum PlannedReceivedNode<'a> {
+    Folder(Box<PlannedReceivedFolder<'a>>),
+    Parameter(PlannedReceivedParameter<'a>),
 }
 
-struct PlannedReceivedFolder {
-    label: String,
+struct PlannedReceivedFolder<'a> {
+    label: Cow<'a, str>,
     existing_id: Option<NodeId>,
-    children: Vec<PlannedReceivedNode>,
+    children: PlannedReceivedChildren<'a>,
 }
 
-struct PlannedReceivedParameter {
-    label: String,
+struct PlannedReceivedParameter<'a> {
+    label: Cow<'a, str>,
     existing_id: Option<NodeId>,
     value: ParamValue,
     description: Option<String>,
@@ -170,7 +168,7 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     fn plan_existing_parent(
         &mut self,
         parent_id: NodeId,
-        path_segments: &[String],
+        path_segments: &'a [String],
         payload: &ReceivedValuePayload,
         source_description: &str,
         describe_created_leaf: bool,
@@ -223,11 +221,11 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                         .planned_children_by_existing_parent
                         .entry(parent_id)
                         .or_default();
-                    children.push(PlannedReceivedNode::Folder(PlannedReceivedFolder {
-                        label: head.clone(),
+                    children.push(PlannedReceivedNode::Folder(Box::new(PlannedReceivedFolder {
+                        label: Cow::Borrowed(head.as_str()),
                         existing_id: Some(child_id),
-                        children: Vec::new(),
-                    }));
+                        children: SmallVec::new(),
+                    })));
                     self.result.structure_changed = true;
                     let index = children.len() - 1;
                     Self::plan_existing_planned_child(
@@ -252,11 +250,11 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                     .planned_children_by_existing_parent
                     .entry(parent_id)
                     .or_default();
-                children.push(PlannedReceivedNode::Folder(PlannedReceivedFolder {
-                    label: head.clone(),
+                children.push(PlannedReceivedNode::Folder(Box::new(PlannedReceivedFolder {
+                    label: Cow::Borrowed(head.as_str()),
                     existing_id: None,
-                    children: Vec::new(),
-                }));
+                    children: SmallVec::new(),
+                })));
                 self.result.structure_changed = true;
                 let index = children.len() - 1;
                 Self::plan_existing_planned_child(
@@ -273,9 +271,9 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 
     fn plan_existing_planned_child(
-        siblings: &mut Vec<PlannedReceivedNode>,
+        siblings: &mut PlannedReceivedChildren<'a>,
         index: usize,
-        path_segments: &[String],
+        path_segments: &'a [String],
         payload: &ReceivedValuePayload,
         source_description: &str,
         describe_created_leaf: bool,
@@ -295,11 +293,11 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             PlannedReceivedNode::Parameter(_) if auto_add => {
                 let label = siblings[index].label().to_string();
                 let existing_id = siblings[index].existing_id();
-                siblings[index] = PlannedReceivedNode::Folder(PlannedReceivedFolder {
-                    label,
+                siblings[index] = PlannedReceivedNode::Folder(Box::new(PlannedReceivedFolder {
+                    label: Cow::Owned(label),
                     existing_id,
-                    children: Vec::new(),
-                });
+                    children: SmallVec::new(),
+                }));
                 let PlannedReceivedNode::Folder(folder) = &mut siblings[index] else {
                     unreachable!("planned child was just converted to a folder");
                 };
@@ -317,8 +315,8 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 
     fn plan_planned_parent(
-        folder: &mut PlannedReceivedFolder,
-        path_segments: &[String],
+        folder: &mut PlannedReceivedFolder<'a>,
+        path_segments: &'a [String],
         payload: &ReceivedValuePayload,
         source_description: &str,
         describe_created_leaf: bool,
@@ -357,11 +355,11 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
 
         folder
             .children
-            .push(PlannedReceivedNode::Folder(PlannedReceivedFolder {
-                label: head.clone(),
+            .push(PlannedReceivedNode::Folder(Box::new(PlannedReceivedFolder {
+                label: Cow::Borrowed(head.as_str()),
                 existing_id: None,
-                children: Vec::new(),
-            }));
+                children: SmallVec::new(),
+            })));
         let index = folder.children.len() - 1;
         Self::plan_existing_planned_child(
             &mut folder.children,
@@ -377,21 +375,19 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     fn plan_leaf_under_existing(
         &mut self,
         parent_id: NodeId,
-        leaf_name: &str,
+        leaf_name: &'a str,
         payload: &ReceivedValuePayload,
         source_description: &str,
         describe_created_leaf: bool,
     ) -> bool {
         match payload {
-            ReceivedValuePayload::Single(value) => {
-                self.plan_single_leaf_under_existing(
-                    parent_id,
-                    leaf_name,
-                    value.clone(),
-                    source_description,
-                    describe_created_leaf,
-                )
-            }
+            ReceivedValuePayload::Single(value) => self.plan_single_leaf_under_existing(
+                parent_id,
+                Cow::Borrowed(leaf_name),
+                value,
+                source_description,
+                describe_created_leaf,
+            ),
             ReceivedValuePayload::Multi(values) => self.plan_multi_leaf_under_existing(
                 parent_id,
                 leaf_name,
@@ -402,8 +398,8 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 
     fn plan_leaf_under_planned(
-        folder: &mut PlannedReceivedFolder,
-        leaf_name: &str,
+        folder: &mut PlannedReceivedFolder<'a>,
+        leaf_name: &'a str,
         payload: &ReceivedValuePayload,
         source_description: &str,
         describe_created_leaf: bool,
@@ -412,8 +408,8 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
         match payload {
             ReceivedValuePayload::Single(value) => Self::plan_single_leaf_under_planned(
                 folder,
-                leaf_name,
-                value.clone(),
+                Cow::Borrowed(leaf_name),
+                value,
                 source_description,
                 describe_created_leaf,
                 auto_add,
@@ -427,12 +423,12 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     fn plan_single_leaf_under_existing(
         &mut self,
         parent_id: NodeId,
-        leaf_name: &str,
-        value: ParamValue,
+        leaf_name: Cow<'a, str>,
+        value: &ParamValue,
         source_description: &str,
         describe_created_leaf: bool,
     ) -> bool {
-        if let Some(index) = self.planned_child_index_under_existing(parent_id, leaf_name) {
+        if let Some(index) = self.planned_child_index_under_existing(parent_id, leaf_name.as_ref()) {
             let children = self
                 .planned_children_by_existing_parent
                 .get_mut(&parent_id)
@@ -440,25 +436,30 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             Self::set_planned_parameter(
                 children,
                 index,
-                leaf_name,
+                leaf_name.clone(),
                 None,
-                value,
+                value.clone(),
                 planned_description(source_description, describe_created_leaf),
                 self.options.auto_add,
             );
             return true;
         }
 
-        match self.snapshot.find_child(parent_id, leaf_name) {
+        match self.snapshot.find_child(parent_id, leaf_name.as_ref()) {
             Some(existing_id) => {
                 let Some(existing_snapshot) = self.snapshot.node(existing_id) else {
                     return false;
                 };
 
                 if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
-                    if param_types_match(existing_value, &value) {
-                        self.ctx
-                            .set_param_with_behaviour(existing_id, value, self.options.event_behaviour);
+                    if param_types_match(existing_value, value) {
+                        if param_update_needed(existing_value, value) {
+                            self.ctx.set_param_with_behaviour(
+                                existing_id,
+                                value.clone(),
+                                self.options.event_behaviour,
+                            );
+                        }
                         return true;
                     }
                 }
@@ -468,9 +469,9 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                         .entry(parent_id)
                         .or_default()
                         .push(PlannedReceivedNode::Parameter(PlannedReceivedParameter {
-                            label: leaf_name.to_string(),
+                            label: leaf_name,
                             existing_id: Some(existing_id),
-                            value,
+                            value: value.clone(),
                             description: planned_description(source_description, describe_created_leaf),
                         }));
                     self.result.structure_changed = true;
@@ -486,9 +487,9 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                     .entry(parent_id)
                     .or_default()
                     .push(PlannedReceivedNode::Parameter(PlannedReceivedParameter {
-                        label: leaf_name.to_string(),
+                        label: leaf_name,
                         existing_id: None,
-                        value,
+                        value: value.clone(),
                         description: planned_description(source_description, describe_created_leaf),
                     }));
                 self.result.structure_changed = true;
@@ -498,20 +499,20 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 
     fn plan_single_leaf_under_planned(
-        folder: &mut PlannedReceivedFolder,
-        leaf_name: &str,
-        value: ParamValue,
+        folder: &mut PlannedReceivedFolder<'a>,
+        leaf_name: Cow<'a, str>,
+        value: &ParamValue,
         source_description: &str,
         describe_created_leaf: bool,
         auto_add: bool,
     ) -> bool {
-        if let Some(index) = planned_child_index(folder.children.as_slice(), leaf_name) {
+        if let Some(index) = planned_child_index(folder.children.as_slice(), leaf_name.as_ref()) {
             Self::set_planned_parameter(
                 &mut folder.children,
                 index,
-                leaf_name,
+                leaf_name.clone(),
                 None,
-                value,
+                value.clone(),
                 planned_description(source_description, describe_created_leaf),
                 auto_add,
             );
@@ -525,18 +526,18 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
         folder
             .children
             .push(PlannedReceivedNode::Parameter(PlannedReceivedParameter {
-                label: leaf_name.to_string(),
+                label: leaf_name,
                 existing_id: None,
-                value,
+                value: value.clone(),
                 description: planned_description(source_description, describe_created_leaf),
             }));
         true
     }
 
     fn set_planned_parameter(
-        siblings: &mut [PlannedReceivedNode],
+        siblings: &mut [PlannedReceivedNode<'a>],
         index: usize,
-        label: &str,
+        label: Cow<'a, str>,
         existing_id: Option<NodeId>,
         value: ParamValue,
         description: Option<String>,
@@ -549,7 +550,7 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             }
             PlannedReceivedNode::Folder(_) if auto_add => {
                 siblings[index] = PlannedReceivedNode::Parameter(PlannedReceivedParameter {
-                    label: label.to_string(),
+                    label,
                     existing_id,
                     value,
                     description,
@@ -562,7 +563,7 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     fn plan_multi_leaf_under_existing(
         &mut self,
         parent_id: NodeId,
-        leaf_name: &str,
+        leaf_name: &'a str,
         values: &[ParamValue],
         source_description: &str,
     ) -> bool {
@@ -596,15 +597,15 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                 }
 
                 let mut folder = PlannedReceivedFolder {
-                    label: leaf_name.to_string(),
+                    label: Cow::Borrowed(leaf_name),
                     existing_id: Some(existing_id),
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 };
                 Self::fill_planned_multi_folder(&mut folder, values);
                 self.planned_children_by_existing_parent
                     .entry(parent_id)
                     .or_default()
-                    .push(PlannedReceivedNode::Folder(folder));
+                    .push(PlannedReceivedNode::Folder(Box::new(folder)));
                 self.result.structure_changed = true;
                 true
             }
@@ -614,15 +615,15 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                 }
 
                 let mut folder = PlannedReceivedFolder {
-                    label: leaf_name.to_string(),
+                    label: Cow::Borrowed(leaf_name),
                     existing_id: None,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 };
                 Self::fill_planned_multi_folder(&mut folder, values);
                 self.planned_children_by_existing_parent
                     .entry(parent_id)
                     .or_default()
-                    .push(PlannedReceivedNode::Folder(folder));
+                    .push(PlannedReceivedNode::Folder(Box::new(folder)));
                 self.result.structure_changed = true;
                 true
             }
@@ -630,8 +631,8 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 
     fn plan_multi_leaf_under_planned(
-        folder: &mut PlannedReceivedFolder,
-        leaf_name: &str,
+        folder: &mut PlannedReceivedFolder<'a>,
+        leaf_name: &'a str,
         values: &[ParamValue],
         auto_add: bool,
     ) -> bool {
@@ -644,21 +645,21 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
         }
 
         let mut child_folder = PlannedReceivedFolder {
-            label: leaf_name.to_string(),
+            label: Cow::Borrowed(leaf_name),
             existing_id: None,
-            children: Vec::new(),
+            children: SmallVec::new(),
         };
         Self::fill_planned_multi_folder(&mut child_folder, values);
         folder
             .children
-            .push(PlannedReceivedNode::Folder(child_folder));
+            .push(PlannedReceivedNode::Folder(Box::new(child_folder)));
         true
     }
 
     fn set_planned_multi_folder(
-        siblings: &mut [PlannedReceivedNode],
+        siblings: &mut [PlannedReceivedNode<'a>],
         index: usize,
-        label: &str,
+        label: &'a str,
         existing_id: Option<NodeId>,
         values: &[ParamValue],
         auto_add: bool,
@@ -671,24 +672,24 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             }
             PlannedReceivedNode::Parameter(_) if auto_add => {
                 let mut folder = PlannedReceivedFolder {
-                    label: label.to_string(),
+                    label: Cow::Borrowed(label),
                     existing_id,
-                    children: Vec::new(),
+                    children: SmallVec::new(),
                 };
                 Self::fill_planned_multi_folder(&mut folder, values);
-                siblings[index] = PlannedReceivedNode::Folder(folder);
+                siblings[index] = PlannedReceivedNode::Folder(Box::new(folder));
                 true
             }
             PlannedReceivedNode::Parameter(_) => false,
         }
     }
 
-    fn fill_planned_multi_folder(folder: &mut PlannedReceivedFolder, values: &[ParamValue]) {
+    fn fill_planned_multi_folder(folder: &mut PlannedReceivedFolder<'a>, values: &[ParamValue]) {
         for (index, value) in values.iter().enumerate() {
             folder
                 .children
                 .push(PlannedReceivedNode::Parameter(PlannedReceivedParameter {
-                    label: indexed_value_label(index),
+                    label: Cow::Owned(indexed_value_label(index)),
                     existing_id: None,
                     value: value.clone(),
                     description: None,
@@ -706,8 +707,8 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
             let label = indexed_value_label(index);
             self.plan_single_leaf_under_existing(
                 folder_id,
-                label.as_str(),
-                value.clone(),
+                Cow::Owned(label),
+                value,
                 source_description,
                 false,
             );
@@ -744,11 +745,11 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
     }
 }
 
-impl PlannedReceivedNode {
+impl PlannedReceivedNode<'_> {
     fn label(&self) -> &str {
         match self {
-            Self::Folder(folder) => folder.label.as_str(),
-            Self::Parameter(parameter) => parameter.label.as_str(),
+            Self::Folder(folder) => folder.label.as_ref(),
+            Self::Parameter(parameter) => parameter.label.as_ref(),
         }
     }
 
@@ -760,7 +761,7 @@ impl PlannedReceivedNode {
     }
 }
 
-fn planned_child_index(children: &[PlannedReceivedNode], key: &str) -> Option<usize> {
+fn planned_child_index(children: &[PlannedReceivedNode<'_>], key: &str) -> Option<usize> {
     children.iter().position(|child| child.label() == key)
 }
 
@@ -769,11 +770,12 @@ fn planned_description(_source_description: &str, _include: bool) -> Option<Stri
     // include.then(|| format!("Auto-created from {source_description}"))
 }
 
-fn queue_planned_node(ctx: &mut ProcessCtx, parent: NodeId, node: PlannedReceivedNode) {
+fn queue_planned_node(ctx: &mut ProcessCtx, parent: NodeId, node: PlannedReceivedNode<'_>) {
     match node {
         PlannedReceivedNode::Folder(folder) => {
+            let folder = *folder;
             if let Some(existing_id) = folder.existing_id {
-                ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(folder.label.as_str())));
+                ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(folder.label.as_ref())));
                 for child in folder.children {
                     queue_planned_node(ctx, existing_id, child);
                 }
@@ -783,7 +785,7 @@ fn queue_planned_node(ctx: &mut ProcessCtx, parent: NodeId, node: PlannedReceive
         }
         PlannedReceivedNode::Parameter(parameter) => {
             let node = Box::new(create_parameter_node(
-                parameter.label.as_str(),
+                parameter.label.as_ref(),
                 parameter.value,
                 parameter.description,
             ));
@@ -796,38 +798,38 @@ fn queue_planned_node(ctx: &mut ProcessCtx, parent: NodeId, node: PlannedReceive
     }
 }
 
-fn planned_folder_to_tree(folder: PlannedReceivedFolder) -> NodeTree {
-    let mut tree = NodeTree::new(create_auto_values_folder(folder.label.as_str()));
+fn planned_folder_to_tree(folder: PlannedReceivedFolder<'_>) -> NodeTree {
+    let mut tree = NodeTree::new(create_auto_values_folder(folder.label.as_ref()));
     for child in folder.children {
         tree.push_child(planned_node_to_tree(child));
     }
     tree
 }
 
-fn planned_node_to_tree(node: PlannedReceivedNode) -> NodeTree {
+fn planned_node_to_tree(node: PlannedReceivedNode<'_>) -> NodeTree {
     match node {
-        PlannedReceivedNode::Folder(folder) => planned_folder_to_tree(folder),
+        PlannedReceivedNode::Folder(folder) => planned_folder_to_tree(*folder),
         PlannedReceivedNode::Parameter(parameter) => NodeTree::new(create_parameter_node(
-            parameter.label.as_str(),
+            parameter.label.as_ref(),
             parameter.value,
             parameter.description,
         )),
     }
 }
 
-enum ParentResolution {
-    Ready { parent_id: NodeId, leaf_name: String },
+enum ParentResolution<'a> {
+    Ready { parent_id: NodeId, leaf_name: &'a str },
     Retry,
     Ignored,
 }
 
-fn resolve_or_create_parent(
+fn resolve_or_create_parent<'a>(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     values_id: NodeId,
-    segments: &[String],
+    segments: &'a [String],
     auto_add: bool,
-) -> ParentResolution {
+) -> ParentResolution<'a> {
     let mut current = values_id;
     let Some((leaf_name, parents)) = segments.split_last() else {
         return ParentResolution::Ignored;
@@ -863,7 +865,7 @@ fn resolve_or_create_parent(
 
     ParentResolution::Ready {
         parent_id: current,
-        leaf_name: leaf_name.clone(),
+        leaf_name: leaf_name.as_str(),
     }
 }
 
@@ -871,27 +873,29 @@ fn apply_single_value_message(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     parent_id: NodeId,
-    leaf_name: String,
-    value: ParamValue,
+    leaf_name: &str,
+    value: &ParamValue,
     options: ReceivedValueApplyOptions,
-) -> ReceivedValueApplyResult { 
-    match snapshot.find_child(parent_id, leaf_name.as_str()) {
+) -> ReceivedValueApplyResult {
+    match snapshot.find_child(parent_id, leaf_name) {
         Some(existing_id) => {
             let Some(existing_snapshot) = snapshot.node(existing_id) else {
                 return ReceivedValueApplyResult::Ignored;
             };
 
             if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
-                if param_types_match(existing_value, &value) {
-                    ctx.set_param_with_behaviour(existing_id, value, options.event_behaviour);
+                if param_types_match(existing_value, value) {
+                    if param_update_needed(existing_value, value) {
+                        ctx.set_param_with_behaviour(existing_id, value.clone(), options.event_behaviour);
+                    }
                     return ReceivedValueApplyResult::applied(false);
                 } else if options.auto_add {
                     ctx.replace_node_boxed(
                         existing_id,
                         Box::new(create_parameter_node(
-                            leaf_name.as_str(),
-                            value,
-                            None//(format!("Auto-created from {}", options.source_description)),
+                            leaf_name,
+                            value.clone(),
+                            None, //(format!("Auto-created from {}", options.source_description)),
                         )),
                     );
                     return ReceivedValueApplyResult::applied(true);
@@ -900,9 +904,9 @@ fn apply_single_value_message(
                 ctx.replace_node_boxed(
                     existing_id,
                     Box::new(create_parameter_node(
-                        leaf_name.as_str(),
-                        value,
-                        None//(format!("Auto-created from {}", options.source_description)),
+                        leaf_name,
+                        value.clone(),
+                        None, //(format!("Auto-created from {}", options.source_description)),
                     )),
                 );
                 return ReceivedValueApplyResult::applied(true);
@@ -918,9 +922,9 @@ fn apply_single_value_message(
             ctx.add_child_boxed(
                 parent_id,
                 Box::new(create_parameter_node(
-                    leaf_name.as_str(),
-                    value,
-                    None//(format!("Auto-created from {}", options.source_description)),
+                    leaf_name,
+                    value.clone(),
+                    None, //(format!("Auto-created from {}", options.source_description)),
                 )),
                 None,
             );
@@ -933,11 +937,11 @@ fn apply_multi_value_message(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     parent_id: NodeId,
-    leaf_name: String,
+    leaf_name: &str,
     values: &[ParamValue],
     options: ReceivedValueApplyOptions,
 ) -> ReceivedValueApplyResult {
-    let folder_id = match snapshot.find_child(parent_id, leaf_name.as_str()) {
+    let folder_id = match snapshot.find_child(parent_id, leaf_name) {
         Some(existing_id) => {
             let Some(existing_snapshot) = snapshot.node(existing_id) else {
                 return ReceivedValueApplyResult::Ignored;
@@ -949,7 +953,7 @@ fn apply_multi_value_message(
                     return ReceivedValueApplyResult::Ignored;
                 }
 
-                ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(leaf_name.as_str())));
+                ctx.replace_node_boxed(existing_id, Box::new(create_auto_values_folder(leaf_name)));
                 return ReceivedValueApplyResult::Retry;
             }
         }
@@ -958,7 +962,7 @@ fn apply_multi_value_message(
                 return ReceivedValueApplyResult::Ignored;
             }
 
-            ctx.add_child_tree(parent_id, multi_value_folder_tree(leaf_name.as_str(), values), None);
+            ctx.add_child_tree(parent_id, multi_value_folder_tree(leaf_name, values), None);
             return ReceivedValueApplyResult::applied(true);
         }
     };
@@ -985,7 +989,9 @@ fn sync_multi_value_folder(
 
                 if let Some(existing_value) = existing_snapshot.param_value.as_ref() {
                     if param_types_match(existing_value, value) {
-                        ctx.set_param_with_behaviour(existing_id, value.clone(), options.event_behaviour);
+                        if param_update_needed(existing_value, value) {
+                            ctx.set_param_with_behaviour(existing_id, value.clone(), options.event_behaviour);
+                        }
                     } else if options.auto_add {
                         ctx.replace_node_boxed(
                             existing_id,
@@ -1075,4 +1081,8 @@ fn indexed_value_label_index(label: &str) -> Option<usize> {
 
 fn param_types_match(lhs: &ParamValue, rhs: &ParamValue) -> bool {
     std::mem::discriminant(lhs) == std::mem::discriminant(rhs)
+}
+
+fn param_update_needed(current: &ParamValue, next: &ParamValue) -> bool {
+    matches!(next, ParamValue::Trigger()) || current != next
 }

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 mod osc_message;
 mod osc_runtime;
@@ -12,7 +12,9 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use self::osc_runtime::{OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscWorkerEvent};
+use self::osc_runtime::{
+    resolve_socket_addr, OscOutboundMessage, OscTransportConfig, OscTransportHandle, OscWorkerEvent,
+};
 use crate::app::module::ModuleDataCapabilities;
 
 pub(crate) use self::osc_message::{OscDecodedMessage, OscValuePayload};
@@ -507,15 +509,22 @@ impl OscModuleBase {
                 message: format!("cannot encode OSC message '{}': {error}", address.trim()),
             })?;
 
+        let shared_address: Arc<str> = Arc::from(address);
         let mut queued = 0usize;
         let mut errors = Vec::new();
 
         for output in outputs {
+            let remote_address = match resolve_socket_addr(output.remote_host.as_str(), output.remote_port) {
+                Ok(address) => address,
+                Err(error) => {
+                    errors.push(format!("{}:{} - {}", output.remote_host, output.remote_port, error));
+                    continue;
+                }
+            };
             let message = OscOutboundMessage {
-                address: address.to_string(),
+                address: Arc::clone(&shared_address),
                 payload: payload.clone(),
-                remote_host: output.remote_host.clone(),
-                remote_port: output.remote_port,
+                remote_address,
             };
 
             match transport.send(message) {

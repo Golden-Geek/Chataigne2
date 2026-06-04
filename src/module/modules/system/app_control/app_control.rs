@@ -54,7 +54,6 @@ const WATCHED_APP_DEFAULT_LABEL: &str = "Watched App";
 const WATCHED_FOLDER_ITEM_KIND: &str = "app_control_watched_folder";
 const DUPLICATE_LABEL_WARNING_ID: &str = "app_control_duplicate_label";
 const INVALID_TARGET_WARNING_ID: &str = "app_control_invalid_target";
-pub(crate) const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct WatchedAppEntry {

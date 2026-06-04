@@ -16,6 +16,7 @@ leap-sys = "0.2.0"
 libloading = "0.8"
 midir = "0.11.0"
 midly = "0.5.3"
+mio = { version = "1.2", features = ["net", "os-poll"] }
 open_dmx = "1.1.1"
 rand = "0.10.0"
 reqwest = { version = "0.13", features = ["blocking", "form", "json", "multipart"] }
@@ -25,6 +26,7 @@ sacn = "0.11.1"
 serialport = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+smallvec = "1"
 sysinfo = "0.39.1"
 tauri = "2"
 tokio = { version = "1", features = ["net", "rt", "time"] }

@@ -27,7 +27,7 @@ The work is sequenced so each phase builds on the previous one and you can ship 
 
 ### Phase 0 — Instrumentation and baseline (week 1)
 
-> **STATUS: PARTIAL** — per-phase wall-clock timing in `run_tick` done. `tick_stats()` accessor done. Criterion benchmark crate at `crates/core/benches/` done with all three scenarios. Dispatch baseline recorded (~200ms per 100-event × 1k-listener iteration). Tick benchmarks baseline pending (run `cargo bench --bench tick`). `perf` feature flag not done.
+> **STATUS: PARTIAL** — per-phase wall-clock timing in `run_tick` done. `tick_stats()` accessor done. Criterion benchmark crate at `crates/core/benches/` done with all three scenarios. All three baselines recorded in `baseline.json`: `tick_20k_passive` p50 = 542 ns, `tick_20k_sparse_active/200` p50 = 23.9 µs, `dispatch_10k_with_1k_listeners` p50 = 201 ms. `perf` feature flag not done.
 
 You cannot fix what you cannot measure. Do this first or every later step is guesswork.
 
@@ -38,7 +38,7 @@ You cannot fix what you cannot measure. Do this first or every later step is gue
 - [X] Add a per-tick counter struct (`tick_stats()` accessor): nodes due, callbacks fired, events emitted/routed, edits applied, stabilization passes, snapshot rebuilds.
 - [X] Add a Criterion benchmark crate at `crates/core/benches/`. Three scenarios:
   - `tick_20k_passive`, `tick_20k_sparse_active`, `dispatch_10k_with_1k_listeners`
-- [ ] Record tick benchmark baseline numbers and commit to `crates/core/benches/baseline.json` (dispatch baseline recorded; run `cargo bench --bench tick` for tick numbers).
+- [X] Record baseline and commit as `crates/core/benches/baseline.json` — all three scenarios recorded.
 
 **Definition of done**
 
@@ -297,9 +297,7 @@ This is the change that actually addresses your "sequences need precision" requi
 
 ### Phase 10 — Continuous benchmarks in CI (week 6, ~2 days)
 
-> **STATUS: DONE** — `golden_core/.github/workflows/benchmarks.yml` adds two jobs: `test` (runs `cargo test -p golden_engine --test-threads=1` on every push/PR) and `bench` (runs all three Criterion scenarios, compares against `crates/core/benches/baseline.json`, posts a sticky PR comment via `marocchino/sticky-pull-request-comment`, and fails on regressions). Comparison logic is in `golden_core/tools/bench_compare.py`. Thresholds: tick scenarios 10%, dispatch 15%. On `main` push the bench results are uploaded as an artifact (90-day retention) for manual baseline refresh. `Chataigne2` CI also gains a `golden_engine_tests` job that runs the test suite on every PR.
->
-> Remaining: baseline.json tick numbers need to be populated by running `cargo bench --bench tick` (dispatch baseline already recorded). Once populated, the regression check becomes fully operational.
+> **STATUS: DONE** — `golden_core/.github/workflows/benchmarks.yml` adds two jobs: `test` (R1 tick-path check + `cargo test -p golden_engine --test-threads=1`) and `bench` (all three Criterion scenarios, comparison against `baseline.json`, sticky PR comment, fails on regression). `tools/bench_compare.py` handles comparison; `tools/check_tick_path.sh` enforces R1. Thresholds stored in `baseline.json` per scenario (10%/15%). Baselines: `tick_20k_passive` p50 = 542 ns, `tick_20k_sparse_active/200` p50 = 23.9 µs, `dispatch_10k_with_1k_listeners` p50 = 201 ms. `Chataigne2` CI gains a `golden_engine_tests` job.
 
 Locks in the gains so they don't regress.
 
@@ -316,7 +314,7 @@ Locks in the gains so they don't regress.
 
 **Definition of done**
 
-- [ ] CI workflow is green on a no-op PR (requires baseline.json tick numbers to be populated first).
+- [ ] CI workflow is green on a no-op PR (requires a GitHub push to golden_core to trigger the workflow for the first time).
 - A deliberately-bad PR (re-introduces `self.nodes.iter()` in `run_scheduled_updates`) will be caught and fail CI once the baseline is populated.
 
 ---

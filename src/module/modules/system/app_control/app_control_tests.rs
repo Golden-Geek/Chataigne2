@@ -475,7 +475,7 @@ fn watched_app_target_change_preserves_missing_command_selection_with_warning() 
     assert_eq!(variants, vec!["Chataigne".to_string(), "SuperApp".to_string()]);
     assert_eq!(watched_app_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
     assert_eq!(
-        warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID),
+        warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID),
         Some("Missing app: Chataigne".to_string())
     );
 }
@@ -535,7 +535,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
     assert_eq!(missing_variants, vec!["Chataigne".to_string()]);
     assert_eq!(missing_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
     assert_eq!(
-        warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID),
+        warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID),
         Some("Missing app: Chataigne".to_string())
     );
 
@@ -569,7 +569,7 @@ fn removing_watched_app_preserves_missing_command_selection_until_it_returns() {
         .collect::<Vec<_>>();
     assert_eq!(restored_variants, vec!["Chataigne".to_string()]);
     assert_eq!(restored_snapshot.value, ParamValue::Enum("Chataigne".to_string()));
-    assert_eq!(warning_message(&engine, command_id, super::MISSING_WATCHED_APP_WARNING_ID), None);
+    assert_eq!(warning_message(&engine, command_id, super::commands::MISSING_WATCHED_APP_WARNING_ID), None);
 }
 
 #[test]

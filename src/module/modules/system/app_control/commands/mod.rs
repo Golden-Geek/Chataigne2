@@ -30,13 +30,14 @@ pub(crate) const APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE: &str =
 pub(crate) const APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE: &str =
     "app_control_window_control_command";
 const WATCHED_APP_DEFAULT_LABEL: &str = "Watched App";
-const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 pub(crate) const APP_CONTROL_MODULE_COMMAND_TYPES: &[&str] = &[
     APP_CONTROL_LAUNCH_PROCESS_COMMAND_NODE_TYPE,
     APP_CONTROL_KILL_PROCESS_COMMAND_NODE_TYPE,
     APP_CONTROL_WINDOW_CONTROL_COMMAND_NODE_TYPE,
 ];
+
+pub(crate) const MISSING_WATCHED_APP_WARNING_ID: &str = "app_control_missing_watched_app";
 
 fn handle_command_param_change<TCommand, TPayload, F>(
     command: &TCommand,

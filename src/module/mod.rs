@@ -27,8 +27,6 @@ const SCRIPT_NODE_TYPE: &str = "script";
 const SCRIPT_DEFAULT_LABEL: &str = "Script";
 pub(crate) const MODULE_INCOMING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.incoming";
 pub(crate) const MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC: &str = "chataigne.module.traffic.outgoing";
-pub(crate) const MODULE_TRAFFIC_INCOMING_DIRECTION: &str = "incoming";
-pub(crate) const MODULE_TRAFFIC_OUTGOING_DIRECTION: &str = "outgoing";
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ModuleDataCapabilities {
@@ -172,27 +170,15 @@ impl ModuleBase {
     }
 
     pub fn emit_incoming_traffic(&self, ctx: &mut ProcessCtx) {
-        self.emit_traffic(
-            ctx,
-            MODULE_INCOMING_TRAFFIC_EVENT_TOPIC,
-            MODULE_TRAFFIC_INCOMING_DIRECTION,
-        );
+        self.emit_traffic(ctx, MODULE_INCOMING_TRAFFIC_EVENT_TOPIC);
     }
 
     pub fn emit_outgoing_traffic(&self, ctx: &mut ProcessCtx) {
-        self.emit_traffic(
-            ctx,
-            MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC,
-            MODULE_TRAFFIC_OUTGOING_DIRECTION,
-        );
+        self.emit_traffic(ctx, MODULE_OUTGOING_TRAFFIC_EVENT_TOPIC);
     }
 
-    fn emit_traffic(&self, ctx: &mut ProcessCtx, topic: &str, direction: &str) {
-        ctx.emit_custom_event(CustomEvent::new(
-            topic,
-            Some(self.id()),
-            serde_json::json!({ "direction": direction }),
-        ));
+    fn emit_traffic(&self, ctx: &mut ProcessCtx, topic: &str) {
+        ctx.emit_custom_event(CustomEvent::new(topic, Some(self.id()), serde_json::Value::Null));
     }
 }
 
