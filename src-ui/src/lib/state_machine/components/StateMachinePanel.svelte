@@ -41,11 +41,15 @@
 		if (!session) {
 			return null;
 		}
+		const graph = session.graph.state;
+		const root = graph.rootId === null ? null : graph.nodesById.get(graph.rootId);
+		if (!root) {
+			return null;
+		}
 		return (
-			[...session.graph.state.nodesById.values()].find(
-				(node) =>
-					node.node_type === MANAGER_NODE_TYPE && !session.graph.state.parentById.has(node.node_id)
-			) ?? null
+			root.children
+				.map((nodeId) => graph.nodesById.get(nodeId))
+				.find((node) => node?.node_type === MANAGER_NODE_TYPE) ?? null
 		);
 	});
 
