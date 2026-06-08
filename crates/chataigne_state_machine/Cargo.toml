@@ -1,0 +1,10 @@
+[package]
+name = "chataigne_state_machine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chataigne_alchemist.workspace = true
+golden_alchemist.workspace = true
+golden_statechart.workspace = true

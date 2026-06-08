@@ -1,0 +1,16 @@
+[package]
+name = "golden_alchemist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+rhai = []
+protocol = []
+debug_trace = []
+golden_core_integration = []
+
+[dependencies]
+serde = { workspace = true, optional = true }

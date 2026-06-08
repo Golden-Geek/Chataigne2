@@ -1,0 +1,8 @@
+[package]
+name = "chataigne_alchemist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+golden_alchemist.workspace = true

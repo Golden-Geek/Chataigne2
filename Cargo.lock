@@ -781,6 +781,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "chataigne_alchemist"
+version = "0.1.0"
+dependencies = [
+ "golden_alchemist",
+]
+
+[[package]]
+name = "chataigne_state_machine"
+version = "0.1.0"
+dependencies = [
+ "chataigne_alchemist",
+ "golden_alchemist",
+ "golden_statechart",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2103,6 +2119,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "golden_alchemist"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "golden_codegen_support"
 version = "0.1.0"
 dependencies = [
@@ -2175,6 +2198,13 @@ name = "golden_script"
 version = "0.1.0"
 dependencies = [
  "golden_engine",
+]
+
+[[package]]
+name = "golden_statechart"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
