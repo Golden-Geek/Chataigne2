@@ -4,9 +4,12 @@ pub mod diagnostics;
 pub mod expose;
 pub mod graph;
 pub mod ids;
+pub mod library;
+pub mod node;
 pub mod registry;
 #[cfg(feature = "serde")]
 pub mod serialize;
+pub mod typing;
 pub mod value;
 
 pub use diagnostics::{Diagnostic, DiagnosticOrigin, DiagnosticSeverity};
@@ -19,10 +22,13 @@ pub use graph::{
     GraphLayout, GraphMetadata, InputSocketRef, OutputSocketRef,
 };
 pub use ids::{ANodeId, ANodeTypeId, AlchemistGraphId, ExecNodeId, ExposedDeclId, FacetId, SocketId, ValueTypeId};
+pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
+pub use node::{ANodeDeclaration, ANodeSignature, ExecutionKind, InputSocketDecl, OutputSocketDecl, SignatureCtx};
 pub use registry::{
-    ANodeDeclaration, ANodeRegistry, ConversionKind, ConversionRule, FacetDescriptor, FacetRegistry, RegistryError,
-    ValueTypeDescriptor, ValueTypeRegistry, ValueTypeUiDescriptor,
+    ANodeRegistry, ConversionKind, ConversionRule, FacetDescriptor, FacetRegistry, RegistryError, ValueTypeDescriptor,
+    ValueTypeRegistry, ValueTypeUiDescriptor,
 };
+pub use typing::{TypeBinding, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar};
 pub use value::{ColorValue, ExtensionValue, RuntimeValue, StableRef, TriggerValue, ValueStorageKind};
 
 /// Current authored graph schema version.
@@ -30,6 +36,8 @@ pub const ALCHEMIST_SCHEMA_VERSION: u32 = 1;
 
 #[cfg(test)]
 mod graph_tests;
+#[cfg(test)]
+mod library_tests;
 #[cfg(test)]
 mod serialize_tests;
 #[cfg(test)]

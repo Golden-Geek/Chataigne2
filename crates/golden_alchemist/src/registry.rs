@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 
-use crate::{ANodeTypeId, FacetId, RuntimeValue, TriggerValue, ValueStorageKind, ValueTypeId, value::ColorValue};
+use crate::{
+    ANodeDeclaration, ANodeTypeId, FacetId, RuntimeValue, TriggerValue, ValueStorageKind, ValueTypeId,
+    value::ColorValue,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -164,12 +167,6 @@ impl FacetRegistry {
     pub fn get(&self, id: &FacetId) -> Option<&FacetDescriptor> {
         self.descriptors.get(id)
     }
-}
-
-pub trait ANodeDeclaration: Send + Sync {
-    fn type_id(&self) -> ANodeTypeId;
-    fn label(&self) -> &'static str;
-    fn category(&self) -> &'static str;
 }
 
 #[derive(Default)]

@@ -3,7 +3,7 @@ use smol_str::SmolStr;
 
 use crate::{
     ALCHEMIST_SCHEMA_VERSION, ANodeId, ANodeTypeId, AlchemistGraphId, ExposedSurface, RuntimeValue, SocketId,
-    ValueTypeId,
+    TypeBindings,
 };
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -48,8 +48,8 @@ pub struct ANodeInstance {
     pub type_id: ANodeTypeId,
     pub label: String,
     pub config: ANodeConfig,
-    pub type_bindings: IndexMap<SmolStr, ValueTypeId>,
-    pub forced_type_bindings: IndexMap<SmolStr, ValueTypeId>,
+    pub type_bindings: TypeBindings,
+    pub forced_type_bindings: TypeBindings,
     pub ui: ANodeUiState,
 }
 
@@ -61,8 +61,8 @@ impl ANodeInstance {
             type_id,
             label: label.into(),
             config: ANodeConfig::default(),
-            type_bindings: IndexMap::new(),
-            forced_type_bindings: IndexMap::new(),
+            type_bindings: TypeBindings::default(),
+            forced_type_bindings: TypeBindings::default(),
             ui: ANodeUiState::default(),
         }
     }
