@@ -6,7 +6,8 @@
 		type GraphEdge,
 		type GraphNode,
 		type GraphNodeMove,
-		type GraphNodePosition
+		type GraphNodePosition,
+		type GraphNodeResize
 	} from 'golden_alchemist_ui';
 	import {
 		ContextMenu,
@@ -32,9 +33,13 @@
 	const STATE_NODE_TYPE = 'state';
 	const POSITION_X_DECL_ID = 'x';
 	const POSITION_Y_DECL_ID = 'y';
+	const WIDTH_DECL_ID = 'width';
+	const HEIGHT_DECL_ID = 'height';
 	const DEFAULT_COLUMNS = 4;
 	const DEFAULT_X_GAP_REM = 16;
 	const DEFAULT_Y_GAP_REM = 7;
+	const DEFAULT_STATE_WIDTH_REM = 13;
+	const DEFAULT_STATE_HEIGHT_REM = 8;
 	const CAMERA_PERSIST_DELAY_MS = 150;
 	const graphEdges: GraphEdge[] = [];
 
@@ -90,7 +95,7 @@
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
-	let positionPersistenceTail = Promise.resolve();
+	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -156,12 +161,20 @@
 		return { x, y };
 	};
 
+	const graphDimension = (node: UiNodeDto, declId: string, fallback: number): number => {
+		const value = floatParameterValue(node, declId);
+		return value !== null && value > 0 ? value : fallback;
+	};
+
 	let graphNodes = $derived.by((): GraphNode[] =>
 		stateNodes.map((node, index) => ({
 			id: String(node.node_id),
 			label: node.meta.label,
 			subtitle: 'State',
 			...graphPosition(node, index),
+			width: graphDimension(node, WIDTH_DECL_ID, DEFAULT_STATE_WIDTH_REM),
+			height: graphDimension(node, HEIGHT_DECL_ID, DEFAULT_STATE_HEIGHT_REM),
+			resizable: true,
 			inputs: [],
 			outputs: []
 		}))
@@ -309,10 +322,62 @@
 	};
 
 	const persistNodePositions = (moves: GraphNodeMove[]): Promise<void> => {
-		const operation = positionPersistenceTail
+		const operation = geometryPersistenceTail
 			.catch(() => undefined)
 			.then(() => persistNodePositionsNow(moves));
-		positionPersistenceTail = operation.catch(() => undefined);
+		geometryPersistenceTail = operation.catch(() => undefined);
+		return operation;
+	};
+
+	const persistNodeResizeNow = async (resize: GraphNodeResize): Promise<void> => {
+		if (!session) {
+			return;
+		}
+		const stateNode = session.graph.state.nodesById.get(Number(resize.nodeId));
+		if (!stateNode || stateNode.node_type !== STATE_NODE_TYPE) {
+			throw new Error('resized node is not a State');
+		}
+		const widthParameter = parameterChild(stateNode, WIDTH_DECL_ID);
+		const heightParameter = parameterChild(stateNode, HEIGHT_DECL_ID);
+		if (
+			widthParameter?.data.kind !== 'parameter' ||
+			heightParameter?.data.kind !== 'parameter' ||
+			widthParameter.data.param.read_only ||
+			heightParameter.data.param.read_only
+		) {
+			throw new Error('State cannot persist canvas dimensions');
+		}
+
+		const editSession = createUiEditSession(`Resize ${stateNode.meta.label}`, 'state-size');
+		await editSession.begin();
+		if (!editSession.active) {
+			throw new Error('another edit session is already active');
+		}
+		try {
+			await Promise.all([
+				session.sendIntent({
+					kind: 'setParam',
+					node: widthParameter.node_id,
+					value: { kind: 'float', value: resize.size.width },
+					behaviour: widthParameter.data.param.event_behaviour
+				}),
+				session.sendIntent({
+					kind: 'setParam',
+					node: heightParameter.node_id,
+					value: { kind: 'float', value: resize.size.height },
+					behaviour: heightParameter.data.param.event_behaviour
+				})
+			]);
+		} finally {
+			await editSession.end();
+		}
+	};
+
+	const persistNodeResize = (resize: GraphNodeResize): Promise<void> => {
+		const operation = geometryPersistenceTail
+			.catch(() => undefined)
+			.then(() => persistNodeResizeNow(resize));
+		geometryPersistenceTail = operation.catch(() => undefined);
 		return operation;
 	};
 
@@ -385,6 +450,7 @@
 		{selectedNodeIds}
 		onSelectionChange={selectNodes}
 		onNodesMove={persistNodePositions}
+		onNodeResize={persistNodeResize}
 		{initialCamera}
 		onCameraChange={persistCamera}
 		{emptyLabel} />
