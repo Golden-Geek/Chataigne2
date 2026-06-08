@@ -10,12 +10,15 @@ It does not contain Chataigne value types or product policy.
 history, deterministic transition selection, and enter/exit lifecycle events.
 It does not know about Processors.
 
-`chataigne_alchemist` registers Chataigne stable-reference value types, facets,
-module inputs, and intent-emitting ANodes.
+The app-owned `src/state_machine` package registers Chataigne stable-reference
+value types, facets, module inputs, and intent-emitting ANodes. It also owns
+Processors, state attachments, guard graphs, the active execution matrix,
+command arbitration, built-in Processor models, and protocol DTO generation.
 
-`chataigne_state_machine` owns Processors, state attachments, guard graphs,
-the active execution matrix, command arbitration, built-in Processor models,
-and protocol DTO generation.
+The reusable Rust crates live in the `golden_alchemist_core` submodule. Keeping
+the Chataigne package under `src` makes its product ownership match
+`src/module`; being a Rust package is an implementation detail, not a reusable
+package claim.
 
 ## Runtime Boundary
 
@@ -44,10 +47,12 @@ The state-machine tick order is:
 ## UI And Protocol
 
 Rust DTOs in
-`crates/chataigne_state_machine/src/protocol.rs` are the protocol source of
+`src/state_machine/src/protocol.rs` are the protocol source of
 truth. Run `npm run codegen:state-machine-protocol` from `src-ui` to regenerate
 TypeScript under `src-ui/src/lib/state_machine/generated`.
 
-App-owned Svelte 5 rune stores and components live beside that generated
-output. `golden_ui` remains app-agnostic and is not modified for
-Chataigne-specific state-machine behavior.
+`golden_alchemist_ui` owns reusable Svelte 5 canvas mechanics: infinite
+pan/zoom, animated framing, node dragging, slots, connection previews, and
+wires. App-owned stores, protocol adapters, and the dockable `State Machine`
+panel live beside the generated output. `golden_ui` provides only the generic
+workbench hook that restores app-declared required panels into saved layouts.

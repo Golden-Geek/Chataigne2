@@ -12,6 +12,13 @@ the contributor-facing companion for day-to-day placement decisions.
   support.
 - `golden_ui` owns reusable Svelte components, stores, transport clients, host bridges, and
   generated Rust protocol bindings.
+- `golden_alchemist_core` owns app-agnostic typed graph compilation/runtime and hierarchical
+  statechart mechanics.
+- `golden_alchemist_ui` owns the reusable infinite node canvas, slots, wires, selection, and
+  viewport interaction.
+- `src/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
+  and built-in Processor models.
+- `src-ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
 
 ## Boundaries
 

@@ -49,8 +49,12 @@ the machine without launching the app.
 
 - `src/`: app-shell bootstrap plus the app-owned node tree.
 - `src/module/`: real Chataigne module foundation, including shared module roots/managers plus concrete module families under `src/module/modules/`.
-- `src-ui/`: Svelte 5 app UI shell and `golden_ui` package consumption.
+- `src/state_machine/`: Chataigne-owned state-machine policy, Processor models, Alchemist node registrations, and protocol generation.
+- `src-ui/`: Svelte 5 app UI shell plus app-owned State Machine panel composition.
 - `submodules/golden_core/`: shared engine, macros, and deeper design docs.
+- `submodules/golden_alchemist_core/`: reusable typed graph compiler/runtime and hierarchical statechart crates.
+- `src-ui/src/lib/golden_ui/`: reusable application workbench and dock UI package.
+- `src-ui/src/lib/golden_alchemist_ui/`: reusable infinite node-graph canvas package.
 - `build.rs`: app node registry generation through a public codegen support crate.
 
 ## Start Here

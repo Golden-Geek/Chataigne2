@@ -12,13 +12,24 @@ This repository is converging on a layered workspace with a thin shell, shared e
 
 `golden_core` is the shared runtime workspace. It now exposes explicit crates for the engine, protocol, persistence, transport server, desktop host, scripting, macros, and build-time support. Pure engine consumers should be able to depend on the engine-facing crates without pulling in desktop host concerns, while app shells still launch through the default reusable host/runtime path by default.
 
+### Alchemist And Statecharts
+
+`submodules/golden_alchemist_core` owns reusable typed graph compilation/runtime and hierarchical
+statechart mechanics. Chataigne value types, Processor policy, command arbitration, built-in
+Processor models, and protocol DTOs live in the app-owned `src/state_machine` package beside other
+product behavior.
+
 ### Protocol Boundary
 
 UI request, response, event, snapshot, and version types must have one source of truth. Rust and TypeScript should not manually mirror each other. Build and generation flows should produce the raw transport bindings from the canonical Rust protocol definition, with any UI-local normalization kept as an explicit adapter layer.
 
 ### UI Client And Stores
 
-`src-ui` contains the app UI shell and consumes `golden_ui` as the reusable UI package boundary. Session state should be composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces, not leak directly into state orchestration.
+`src-ui` contains the app UI shell and consumes `golden_ui` as the reusable workbench boundary.
+`golden_alchemist_ui` supplies app-agnostic infinite-canvas node rendering and interaction. The
+Chataigne State Machine panel, DTO adapters, and stores remain app-owned. Session state should be
+composed from focused stores behind a thin facade. Transport concerns should sit behind interfaces,
+not leak directly into state orchestration.
 
 ### Host Layers
 
