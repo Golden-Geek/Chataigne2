@@ -806,6 +806,8 @@ dependencies = [
  "chataigne_alchemist",
  "golden_alchemist",
  "golden_statechart",
+ "serde",
+ "uuid",
 ]
 
 [[package]]
