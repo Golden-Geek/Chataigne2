@@ -2219,7 +2219,10 @@ dependencies = [
 name = "golden_statechart"
 version = "0.1.0"
 dependencies = [
+ "indexmap 2.13.0",
  "serde",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
