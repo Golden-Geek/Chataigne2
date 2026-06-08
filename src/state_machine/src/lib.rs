@@ -1,5 +1,6 @@
 //! Chataigne state-machine behavior built on reusable Golden engines.
 
+pub mod alchemist;
 mod arbitration;
 mod models;
 mod processor;
@@ -10,7 +11,6 @@ pub use arbitration::{
     ArbitrationDecision, ArbitrationResult, BlendPolicy, CommandDispatcher, CommandIntent, CommandIntentArbiter,
     CommandPolicy, IntentOrigin,
 };
-pub use chataigne_alchemist as alchemist;
 pub use golden_statechart as statechart;
 pub use models::{
     ProcessorCategory, ProcessorModel, ProcessorModelId, ProcessorModelInstance, builtin_processor_models,

@@ -1,10 +1,18 @@
 [package]
-name = "chataigne_alchemist"
+name = "chataigne_state_machine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = ["serde"]
+serde = []
+
 [dependencies]
 golden_alchemist.workspace = true
+golden_statechart.workspace = true
+indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+ts-rs.workspace = true
+uuid.workspace = true

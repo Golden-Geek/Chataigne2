@@ -4,3 +4,9 @@
 [submodule "src-ui/src/lib/golden_ui"]
 	path = src-ui/src/lib/golden_ui
 	url = https://github.com/Golden-Geek/golden_ui
+[submodule "submodules/golden_alchemist_core"]
+	path = submodules/golden_alchemist_core
+	url = https://github.com/Golden-Geek/golden_alchemist_core.git
+[submodule "src-ui/src/lib/golden_alchemist_ui"]
+	path = src-ui/src/lib/golden_alchemist_ui
+	url = https://github.com/Golden-Geek/golden_alchemist_ui.git

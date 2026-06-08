@@ -1,13 +1,15 @@
 use std::time::Duration;
 
-use chataigne_alchemist::{register_nodes, register_value_types};
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, EvaluationCtx, InputSocketRef, OutputSocketRef,
     RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
-use crate::{ChataigneStateMachine, ChataigneStateMachineRuntime, ProcessorNode};
+use crate::{
+    ChataigneStateMachine, ChataigneStateMachineRuntime, ProcessorNode,
+    alchemist::{register_nodes, register_value_types},
+};
 
 fn constant_processor(label: &str) -> ProcessorNode {
     let mut graph = AlchemistGraph::new();

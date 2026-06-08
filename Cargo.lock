@@ -791,23 +791,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "chataigne_alchemist"
-version = "0.1.0"
-dependencies = [
- "golden_alchemist",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "chataigne_state_machine"
 version = "0.1.0"
 dependencies = [
- "chataigne_alchemist",
  "golden_alchemist",
  "golden_statechart",
  "indexmap 2.13.0",
  "serde",
+ "serde_json",
  "ts-rs",
  "uuid",
 ]

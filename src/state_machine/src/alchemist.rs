@@ -344,4 +344,5 @@ impl CompiledNodeEvaluator for StateActive {
 }
 
 #[cfg(test)]
+#[path = "alchemist_tests.rs"]
 mod tests;

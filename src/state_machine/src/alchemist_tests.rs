@@ -6,7 +6,7 @@ use golden_alchemist::{
     compile_graph, primitive_node_registry,
 };
 
-use crate::{MODULE_ENDPOINT_TYPE, STATE_TYPE, register_nodes, register_value_types};
+use crate::alchemist::{MODULE_ENDPOINT_TYPE, MODULE_TYPE, STATE_TYPE, register_nodes, register_value_types};
 
 fn node(id: &str) -> ANodeInstance {
     ANodeInstance::new(ANodeTypeId::new(id), id)
@@ -81,7 +81,7 @@ fn chataigne_values_are_registered_through_facets() {
     register_value_types(&mut registry).unwrap();
 
     assert!(registry.supports_facet(
-        &ValueTypeId::new(crate::MODULE_TYPE),
+        &ValueTypeId::new(MODULE_TYPE),
         &golden_alchemist::FacetId::new("command_target")
     ));
 }

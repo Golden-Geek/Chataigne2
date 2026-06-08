@@ -4,13 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [
-	"crates/chataigne_alchemist",
-	"crates/chataigne_state_machine",
-	"crates/golden_alchemist",
-	"crates/golden_statechart",
-]
-exclude = ["submodules/golden_core"]
+members = ["src/state_machine"]
+exclude = ["submodules/golden_alchemist_core", "submodules/golden_core"]
 resolver = "2"
 
 [workspace.package]
@@ -21,9 +16,8 @@ license = "MIT"
 repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
-chataigne_alchemist = { path = "crates/chataigne_alchemist" }
-golden_alchemist = { path = "crates/golden_alchemist" }
-golden_statechart = { path = "crates/golden_statechart" }
+golden_alchemist = { path = "submodules/golden_alchemist_core/crates/golden_alchemist" }
+golden_statechart = { path = "submodules/golden_alchemist_core/crates/golden_statechart" }
 indexmap = { version = "2", features = ["serde"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
