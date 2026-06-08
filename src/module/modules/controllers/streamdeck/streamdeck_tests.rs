@@ -8,162 +8,184 @@ use golden_core::{
 };
 
 use super::streamdeck_runtime::SimulatedStreamDeck;
-use super::{StreamDeckModule, STREAMDECK_KEY_COUNT};
+use super::StreamDeckModule;
 
-const SIM_KEYS: usize = STREAMDECK_KEY_COUNT;
+/// "mini" model => 6 keys.
+const MODEL_KEYS: usize = 6;
 
 #[test]
-fn streamdeck_materializes_pageable_key_layout() {
+fn generates_one_based_control_and_flat_inputs() {
     let (engine, module_id) = create_streamdeck_module();
 
-    assert!(
-        find_path(&engine, module_id, "values/keys").is_some(),
-        "pageable keys folder should exist"
-    );
-    for index in 0..SIM_KEYS {
-        let key_path = format!("values/keys/key_{index}");
-        assert!(
-            find_path(&engine, module_id, &key_path).is_some(),
-            "declared key folder {key_path} should exist"
-        );
-        for field in ["Color", "Text", "Image", "Pressed"] {
+    for number in 1..=MODEL_KEYS {
+        for field in ["Color", "Text", "Image", "Unpaged"] {
             assert!(
-                find_path(&engine, module_id, &format!("{key_path}/{field}")).is_some(),
-                "key {index} should declare the {field} primitive"
+                find_path(&engine, module_id, &format!("parameters/keys/Key {number}/{field}")).is_some(),
+                "control key {number} should expose {field}"
             );
         }
-    }
-}
-
-#[test]
-fn keys_folder_is_tagged_pageable() {
-    let (engine, module_id) = create_streamdeck_module();
-    let keys = find_path(&engine, module_id, "values/keys").expect("keys folder");
-    let tags = &engine.nodes.get(keys).expect("keys node").node_data().meta.tags;
-    assert!(
-        tags.iter().any(|tag| tag == "pageable"),
-        "the declared keys folder should carry the reserved `pageable` tag, got {tags:?}"
-    );
-}
-
-#[test]
-fn paging_injects_active_page_selector_defaulting_to_default() {
-    let (mut engine, module_id) = create_streamdeck_module();
-    install_simulated_device(&mut engine, module_id);
-    run_tick(&mut engine);
-
-    let active_page = param_value(&engine, module_id, "parameters/active_page");
-    assert_eq!(
-        active_page,
-        Some(ParamValue::Enum("default".to_string())),
-        "an active_page selector should be injected, defaulting to the fixed `default` page"
-    );
-}
-
-#[test]
-fn deriving_a_page_clones_the_declared_layout() {
-    let (mut engine, module_id) = create_streamdeck_module();
-    install_simulated_device(&mut engine, module_id);
-    run_tick(&mut engine);
-
-    create_page(&mut engine, module_id, "Lighting");
-
-    // The derived page mirrors the declared template structure under pages.
-    assert!(
-        find_path(&engine, module_id, "values/keys/pages/lighting").is_some(),
-        "a derived `lighting` page should be created under pages"
-    );
-    for index in 0..SIM_KEYS {
-        let cloned_key = format!("values/keys/pages/lighting/Key {index}/Pressed");
-        assert!(
-            find_path(&engine, module_id, &cloned_key).is_some(),
-            "derived page should clone the {cloned_key} primitive"
+        assert_eq!(
+            bool_param(&engine, module_id, &format!("values/keys/Key {number}")),
+            Some(false),
+            "values/keys/Key {number} should be a flat input boolean"
         );
     }
-
-    // The selector now offers both pages.
-    let active = active_page_param(&engine, module_id);
-    let options = enum_option_ids(&engine, active);
     assert!(
-        options.contains(&"default".to_string()) && options.contains(&"lighting".to_string()),
-        "active_page options should list every page, got {options:?}"
+        find_path(&engine, module_id, "parameters/keys/Key 0").is_none(),
+        "keys must be 1-based"
     );
 }
 
 #[test]
-fn viewport_routes_input_to_the_active_page_only() {
+fn changing_model_resizes_every_key_collection() {
     let (mut engine, module_id) = create_streamdeck_module();
-    install_simulated_device(&mut engine, module_id);
-    run_tick(&mut engine);
+    set_model(&mut engine, module_id, "pedal"); // 3 keys
+
+    assert!(find_path(&engine, module_id, "parameters/keys/Key 3").is_some());
+    assert!(
+        find_path(&engine, module_id, "parameters/keys/Key 4").is_none(),
+        "shrinking the model should remove surplus control keys"
+    );
+    assert!(find_path(&engine, module_id, "values/keys/Key 4").is_none());
+}
+
+#[test]
+fn paging_injects_active_page_selector() {
+    let (engine, module_id) = create_streamdeck_module();
+    assert_eq!(
+        param_value(&engine, module_id, "parameters/active_page"),
+        Some(ParamValue::Enum("default".to_string())),
+        "an active_page selector should default to the fixed page"
+    );
+}
+
+#[test]
+fn deriving_a_page_creates_control_page_and_values_mirror() {
+    let (mut engine, module_id) = create_streamdeck_module();
     create_page(&mut engine, module_id, "Lighting");
 
-    // Switch the surface to the derived page, then press physical key 2.
+    // Control page (beside `keys`, not inside it) cloned from the default layout.
+    assert!(
+        find_path(&engine, module_id, "parameters/keys/pages").is_none(),
+        "pages must live beside keys, not inside them"
+    );
+    for number in 1..=MODEL_KEYS {
+        assert!(
+            find_path(&engine, module_id, &format!("parameters/pages/lighting/Key {number}/Color")).is_some(),
+            "control page should clone key {number}"
+        );
+        // Values mirror: a flat boolean per key, named after the page.
+        assert_eq!(
+            bool_param(&engine, module_id, &format!("values/pages/lighting/Key {number}")),
+            Some(false),
+            "values mirror should expose key {number}"
+        );
+    }
+    let options = enum_option_ids(&engine, active_page_param(&engine, module_id));
+    assert!(options.contains(&"default".to_string()) && options.contains(&"lighting".to_string()));
+}
+
+#[test]
+fn input_routes_to_the_active_pages_values() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    create_page(&mut engine, module_id, "Lighting");
     let active = active_page_param(&engine, module_id);
     set_param(&mut engine, active, ParamValue::Enum("lighting".to_string()));
     run_tick(&mut engine);
 
-    press_key(&mut engine, module_id, 2);
+    press_key(&mut engine, module_id, 2); // physical slot 2 => 1-based "Key 3"
     run_tick(&mut engine);
 
     assert_eq!(
-        bool_param(&engine, module_id, "values/keys/pages/lighting/Key 2/Pressed"),
+        bool_param(&engine, module_id, "values/pages/lighting/Key 3"),
         Some(true),
-        "input should be routed to the active (lighting) page key"
+        "input should land on the active page's values mirror"
     );
     assert_eq!(
-        bool_param(&engine, module_id, "values/keys/Key 2/Pressed"),
+        bool_param(&engine, module_id, "values/keys/Key 3"),
         Some(false),
-        "the fixed default page must NOT receive input while another page is active"
+        "the default page inputs should be untouched while another page is active"
     );
 }
 
 #[test]
-fn feedback_pushes_active_page_key_color_to_device() {
+fn feedback_pushes_active_page_color_to_device() {
     let (mut engine, module_id) = create_streamdeck_module();
-    install_simulated_device(&mut engine, module_id);
+    let color = find_path(&engine, module_id, "parameters/keys/Key 1/Color").expect("key 1 color");
+    set_param(&mut engine, color, ParamValue::Color(1.0, 0.0, 0.0, 1.0));
     run_tick(&mut engine);
+    with_module(&engine, module_id, |module| {
+        assert_eq!(module.simulated().rendered(0).expect("slot 0 visual").color, (1.0, 0.0, 0.0, 1.0));
+    });
+}
 
-    let color_param = find_path(&engine, module_id, "values/keys/Key 1/Color").expect("key 1 color");
-    set_param(&mut engine, color_param, ParamValue::Color(1.0, 0.0, 0.0, 1.0));
+#[test]
+fn unpaged_key_always_shows_the_default_page_appearance() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    create_page(&mut engine, module_id, "Lighting");
+
+    let default_color = find_path(&engine, module_id, "parameters/keys/Key 1/Color").expect("default color");
+    set_param(&mut engine, default_color, ParamValue::Color(1.0, 0.0, 0.0, 1.0));
+    let page_color = find_path(&engine, module_id, "parameters/pages/lighting/Key 1/Color").expect("page color");
+    set_param(&mut engine, page_color, ParamValue::Color(0.0, 0.0, 1.0, 1.0));
+    let page_unpaged = find_path(&engine, module_id, "parameters/pages/lighting/Key 1/Unpaged").expect("unpaged");
+    set_param(&mut engine, page_unpaged, ParamValue::Bool(true));
+    let active = active_page_param(&engine, module_id);
+    set_param(&mut engine, active, ParamValue::Enum("lighting".to_string()));
     run_tick(&mut engine);
 
     with_module(&engine, module_id, |module| {
-        let rendered = module.simulated().rendered(1).expect("key 1 visual");
         assert_eq!(
-            rendered.color,
+            module.simulated().rendered(0).expect("slot 0 visual").color,
             (1.0, 0.0, 0.0, 1.0),
-            "feedback color should be pushed to the device for the active page"
+            "an un-paged key keeps the default-page appearance"
         );
     });
 }
 
 #[test]
-fn release_clears_pressed_and_brightness_reaches_device() {
+fn changing_model_adapts_pages_instead_of_resetting_them() {
     let (mut engine, module_id) = create_streamdeck_module();
-    install_simulated_device(&mut engine, module_id);
-    run_tick(&mut engine);
+    create_page(&mut engine, module_id, "Lighting");
+    set_model(&mut engine, module_id, "pedal"); // 3 keys
 
-    press_key(&mut engine, module_id, 0);
-    run_tick(&mut engine);
-    assert_eq!(
-        bool_param(&engine, module_id, "values/keys/Key 0/Pressed"),
-        Some(true),
-        "press should set the key activity primitive"
+    assert!(
+        find_path(&engine, module_id, "parameters/pages/lighting/Key 3").is_some(),
+        "the page should survive a model change"
     );
-
-    release_key(&mut engine, module_id, 0);
-    run_tick(&mut engine);
-    assert_eq!(
-        bool_param(&engine, module_id, "values/keys/Key 0/Pressed"),
-        Some(false),
-        "release should clear the key activity primitive"
+    assert!(
+        find_path(&engine, module_id, "parameters/pages/lighting/Key 4").is_none(),
+        "the page should shrink with the model"
     );
+    assert!(find_path(&engine, module_id, "values/pages/lighting/Key 3").is_some());
+}
 
-    let brightness = find_path(&engine, module_id, "parameters/brightness").expect("brightness parameter");
+#[test]
+fn values_pages_mirror_is_removed_when_the_last_page_is_deleted() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    create_page(&mut engine, module_id, "Lighting");
+    assert!(find_path(&engine, module_id, "values/pages").is_some());
+
+    let page = find_path(&engine, module_id, "parameters/pages/lighting").expect("control page");
+    engine.edits.push(Edit::RemoveNode { node: page });
+    engine.apply_edits().expect("remove page");
+    run_tick(&mut engine);
+    run_tick(&mut engine);
+
+    assert!(
+        find_path(&engine, module_id, "values/pages").is_none(),
+        "the values mirror should disappear when no page remains"
+    );
+}
+
+#[test]
+fn brightness_reaches_device() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    let brightness = find_path(&engine, module_id, "parameters/brightness").expect("brightness");
     set_param(&mut engine, brightness, ParamValue::Int(42));
     run_tick(&mut engine);
     with_module(&engine, module_id, |module| {
-        assert_eq!(module.simulated().brightness(), 42, "brightness should propagate to the device");
+        assert_eq!(module.simulated().brightness(), 42);
     });
 }
 
@@ -172,60 +194,64 @@ fn release_clears_pressed_and_brightness_reaches_device() {
 fn create_streamdeck_module() -> (crate::app::AppEngine, NodeId) {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
-    let module = StreamDeckModule::create();
-    engine.add_node(module.into(), None);
+    engine.add_node(StreamDeckModule::create().into(), None);
     engine.apply_edits().expect("Stream Deck module should attach");
     for _ in 0..6 {
-        engine.apply_edits().expect("Stream Deck defaults should materialize");
+        engine.apply_edits().expect("defaults should materialize");
     }
-    engine.resolve().expect("Stream Deck schedule should resolve");
+    engine.resolve().expect("schedule should resolve");
 
     let module_id = engine
         .nodes
         .get(engine.root)
         .and_then(|root| root.node_data().first_child)
-        .expect("Stream Deck module should be attached under root");
+        .expect("module should be attached");
 
+    module_mut(&mut engine, module_id).install_simulated_device(SimulatedStreamDeck::new("sim-1", MODEL_KEYS));
+    set_model(&mut engine, module_id, "mini");
     (engine, module_id)
 }
 
-fn install_simulated_device(engine: &mut crate::app::AppEngine, module_id: NodeId) {
-    module_mut(engine, module_id).install_simulated_device(SimulatedStreamDeck::new("sim-1", SIM_KEYS));
+fn set_model(engine: &mut crate::app::AppEngine, module_id: NodeId, model: &str) {
+    let model_param = find_path(engine, module_id, "parameters/model").expect("model parameter");
+    set_param(engine, model_param, ParamValue::Enum(model.to_string()));
+    for _ in 0..3 {
+        run_tick(engine);
+    }
 }
 
 fn press_key(engine: &mut crate::app::AppEngine, module_id: NodeId, index: usize) {
     module_mut(engine, module_id).simulated_mut().press(index);
 }
 
-fn release_key(engine: &mut crate::app::AppEngine, module_id: NodeId, index: usize) {
-    module_mut(engine, module_id).simulated_mut().release(index);
-}
-
 fn create_page(engine: &mut crate::app::AppEngine, module_id: NodeId, name: &str) {
-    let new_page = find_path(engine, module_id, "parameters/new_page").expect("new_page parameter");
-    set_param(engine, new_page, ParamValue::Str(name.to_string()));
-    run_tick(engine);
-    run_tick(engine);
+    run_tick(engine); // ensure the PageHost exists
+    let container = find_path(engine, module_id, "parameters/pages").expect("pages container");
+    engine
+        .queue_catalog_create(container, "folder", Some(name.to_string()), None)
+        .expect("create page");
+    engine.apply_edits().expect("apply page create");
+    for _ in 0..3 {
+        run_tick(engine);
+    }
 }
 
-fn module_mut<'a>(engine: &'a mut crate::app::AppEngine, module_id: NodeId) -> &'a mut StreamDeckModule {
-    match engine.nodes.get_mut(module_id).expect("Stream Deck module should exist") {
+fn module_mut(engine: &mut crate::app::AppEngine, module_id: NodeId) -> &mut StreamDeckModule {
+    match engine.nodes.get_mut(module_id).expect("module should exist") {
         crate::app::AppNode::StreamDeckModule(module) => module,
         _ => panic!("expected StreamDeckModule node"),
     }
 }
 
 fn with_module<R>(engine: &crate::app::AppEngine, module_id: NodeId, f: impl FnOnce(&StreamDeckModule) -> R) -> R {
-    match engine.nodes.get(module_id).expect("Stream Deck module should exist") {
+    match engine.nodes.get(module_id).expect("module should exist") {
         crate::app::AppNode::StreamDeckModule(module) => f(module),
         _ => panic!("expected StreamDeckModule node"),
     }
 }
 
 fn run_tick(engine: &mut crate::app::AppEngine) {
-    engine
-        .dispatch_inbox(ExecutionPhase::EngineTick)
-        .expect("inbox should dispatch");
+    engine.dispatch_inbox(ExecutionPhase::EngineTick).expect("inbox should dispatch");
     engine.run_tick(Duration::from_millis(20)).expect("tick should run");
     engine.apply_edits().expect("tick edits should apply");
 }
@@ -239,14 +265,7 @@ fn enum_option_ids(engine: &crate::app::AppEngine, param_id: NodeId) -> Vec<Stri
         .nodes
         .get(param_id)
         .and_then(|node| node.engine_param_snapshot())
-        .map(|snapshot| {
-            snapshot
-                .constraints
-                .enum_options
-                .iter()
-                .map(|option| option.variant_id.clone())
-                .collect()
-        })
+        .map(|snapshot| snapshot.constraints.enum_options.iter().map(|option| option.variant_id.clone()).collect())
         .unwrap_or_default()
 }
 
@@ -291,11 +310,7 @@ fn node_key_matches(node: &golden_core::node::NodeData, key: &str) -> bool {
 
 fn param_value(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<ParamValue> {
     let param_id = find_path(engine, start, path)?;
-    engine
-        .nodes
-        .get(param_id)?
-        .engine_param_snapshot()
-        .map(|snapshot| snapshot.value)
+    engine.nodes.get(param_id)?.engine_param_snapshot().map(|snapshot| snapshot.value)
 }
 
 fn bool_param(engine: &crate::app::AppEngine, start: NodeId, path: &str) -> Option<bool> {

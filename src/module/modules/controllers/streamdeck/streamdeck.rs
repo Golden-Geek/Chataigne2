@@ -1,26 +1,27 @@
 //! Elgato Stream Deck module — the reference consumer of the [paging] framework.
 //!
-//! The control surface (a grid of keys) is declared **once** with the normal
-//! `#[children(...)]` DSL. The `keys` folder is tagged `pageable`, which the runtime
-//! treats as the fixed `default` page; the user can derive additional pages (clones of
-//! that declared layout) and flip between them through the injected `active_page`
-//! selector — locally, or project-wide via the Preset/State system.
+//! ## Structure (input vs control, paged on both sides)
 //!
-//! Each key is a *control shape* with explicit feedback primitives (`color`, `text`,
-//! pushed to the device) and an activity primitive (`pressed`, written from the device).
-//! This example models a 6-key surface; the count is model-specific and the viewport
-//! maps `min(device_keys, template_keys)`.
+//! * **`values/keys`** — flat `pressed` booleans for the *default* page; `values/pages/<id>`
+//!   mirrors the inputs for each derived page. Inputs route to the active page.
+//! * **`parameters/keys`** — per-key control (`color`, `text`, `image`, `unpaged`) for the
+//!   default page; `parameters/pages/<id>` holds the derived control pages (managed by the
+//!   [`PageHost`](paging)). `keys` and `pages` are siblings.
+//!
+//! The `model` parameter (Mini / Standard / XL / Plus / Pedal) drives the key count and
+//! resizes every page (default + derived) on both sides. Keys are 1-based.
 //!
 //! [paging]: crate::app::module::common::paging
 
 mod streamdeck_runtime;
 
 use golden_core::{
+    edit::{Edit, NodeTree},
     engine::NodeExecutionRule,
     events::Event,
     node,
-    node::{Node, NodeCreationContext, NodeId, NodeScriptDescriptor},
-    parameter::{Enum, ParamValue, Parameter, ParameterEnumOption, ParameterEventBehaviour},
+    node::{Folder, Node, NodeCreationContext, NodeId, NodeScriptDescriptor},
+    parameter::{Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -32,11 +33,11 @@ use self::streamdeck_runtime::{
 
 const STREAMDECK_UPDATE_RATE_HZ: u32 = 60;
 const STREAMDECK_DISCOVER_INTERVAL_SECS: f64 = 2.0;
-const STREAMDECK_KEY_COUNT: usize = 6;
-const STREAMDECK_TEMPLATE_FOLDER: &str = "keys";
+const KEYS_FOLDER: &str = "keys";
 
 const NO_DEVICE_VARIANT: &str = "none";
 const AUTO_DEVICE_VARIANT: &str = "auto";
+const DEFAULT_MODEL_VARIANT: &str = "standard";
 
 const KEY_PRESSED_CALLBACK: &str = "streamDeckKeyPressed";
 const KEY_RELEASED_CALLBACK: &str = "streamDeckKeyReleased";
@@ -45,12 +46,49 @@ const PAGE_CHANGED_CALLBACK: &str = "streamDeckPageChanged";
 const STREAMDECK_SCRIPT_METHODS: &[&str] = &["addPage", "removePage"];
 const STREAMDECK_COMMAND_TYPES: &[&str] = &[];
 
-// Position of each feedback/activity primitive within a declared key folder
-// (must match the declaration order in the `#[children]` block below).
-const KEY_FIELD_COLOR: usize = 0;
-const KEY_FIELD_TEXT: usize = 1;
-const KEY_FIELD_IMAGE: usize = 2;
-const KEY_FIELD_PRESSED: usize = 3;
+// Declaration order of a control-key folder's primitives (resolved positionally).
+const FIELD_COLOR: usize = 0;
+const FIELD_TEXT: usize = 1;
+const FIELD_IMAGE: usize = 2;
+const FIELD_UNPAGED: usize = 3;
+
+/// Supported Stream Deck families and their physical key counts.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StreamDeckModel {
+    Mini,
+    Standard,
+    Xl,
+    Plus,
+    Pedal,
+}
+
+impl StreamDeckModel {
+    const ALL: [Self; 5] = [Self::Mini, Self::Standard, Self::Xl, Self::Plus, Self::Pedal];
+
+    fn id(self) -> &'static str {
+        match self {
+            Self::Mini => "mini",
+            Self::Standard => "standard",
+            Self::Xl => "xl",
+            Self::Plus => "plus",
+            Self::Pedal => "pedal",
+        }
+    }
+
+    fn key_count(self) -> usize {
+        match self {
+            Self::Mini => 6,
+            Self::Standard => 15,
+            Self::Xl => 32,
+            Self::Plus => 8,
+            Self::Pedal => 3,
+        }
+    }
+
+    fn from_id(id: &str) -> Self {
+        Self::ALL.into_iter().find(|model| model.id() == id).unwrap_or(Self::Standard)
+    }
+}
 
 #[node("streamdeck_module", label = "Stream Deck")]
 #[children(
@@ -58,60 +96,27 @@ const KEY_FIELD_PRESSED: usize = 3;
         device: Enum = AUTO_DEVICE_VARIANT (
             label = "Device",
             description = "Stream Deck to drive. Auto uses the first connected device.",
-            enum_options = ["auto (Auto)", "none (No Device)"]
+            enum_options = ["auto", "none"]
         );
         [base_children];
     }
     folder(parameters) {
+        model: Enum = DEFAULT_MODEL_VARIANT (
+            label = "Model",
+            description = "Stream Deck family. Sets the number of keys and rebuilds the layout.",
+            enum_options = ["mini", "standard", "xl", "plus", "pedal"]
+        );
         brightness: i32 = 80 [0..100] (
             label = "Brightness",
             description = "Global key backlight brightness percentage."
         );
-        new_page: String = String::new() (
-            label = "New Page",
-            description = "Type a name and confirm to derive a new page from the default layout."
-        );
+        // Default-page control surface (appearance). `pages/` is created beside this at runtime.
+        folder(keys, label = "Keys", tags = vec![paging::PAGEABLE_TAG.to_string()]) {}
         [base_children];
     }
     folder(values) {
-        folder(keys, label = "Keys", tags = vec![paging::PAGEABLE_TAG.to_string()]) {
-            folder(key_0, label = "Key 0") {
-                key_0_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_0_text: String = String::new() (label = "Text");
-                key_0_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_0_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-            folder(key_1, label = "Key 1") {
-                key_1_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_1_text: String = String::new() (label = "Text");
-                key_1_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_1_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-            folder(key_2, label = "Key 2") {
-                key_2_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_2_text: String = String::new() (label = "Text");
-                key_2_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_2_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-            folder(key_3, label = "Key 3") {
-                key_3_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_3_text: String = String::new() (label = "Text");
-                key_3_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_3_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-            folder(key_4, label = "Key 4") {
-                key_4_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_4_text: String = String::new() (label = "Text");
-                key_4_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_4_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-            folder(key_5, label = "Key 5") {
-                key_5_color: ParamValue = ParamValue::Color(0.05, 0.05, 0.05, 1.0) (label = "Color");
-                key_5_text: String = String::new() (label = "Text");
-                key_5_image: ParamValue = ParamValue::File(String::new()) (label = "Image");
-                key_5_pressed: bool = false (label = "Pressed", read_only = true);
-            }
-        }
+        // Default-page inputs (flat booleans). `pages/` mirror is created beside this on demand.
+        folder(keys, label = "Keys") {}
         [base_children];
     }
 )]
@@ -122,6 +127,8 @@ pub struct StreamDeckModule {
     discover_elapsed: f64,
     known_devices: Vec<DiscoveredStreamDeck>,
     devices_dirty: bool,
+    structure_dirty: bool,
+    pages_dirty: bool,
     last_active_page: String,
     last_visuals: Vec<KeyVisual>,
     button_down: Vec<bool>,
@@ -137,9 +144,11 @@ impl StreamDeckModule {
             STREAMDECK_DISCOVER_INTERVAL_SECS,
             Vec::new(),
             true,
+            true,
+            true,
             String::new(),
-            vec![KeyVisual::default(); STREAMDECK_KEY_COUNT],
-            vec![false; STREAMDECK_KEY_COUNT],
+            Vec::new(),
+            Vec::new(),
             false,
         )
     }
@@ -171,26 +180,65 @@ impl StreamDeckModule {
 
     // ---- structural lookups ------------------------------------------------
 
-    fn parameters_id(&self) -> Option<NodeId> {
-        self.base.parameters_id()
+    fn model(&self) -> StreamDeckModel {
+        StreamDeckModel::from_id(self.model.get_ref().as_str())
     }
 
-    fn template_folder_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+    fn control_keys_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+        snapshot.find_child(self.base.parameters_id()?, KEYS_FOLDER)
+    }
+
+    fn value_keys_id(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+        snapshot.find_child(self.base.values_id()?, KEYS_FOLDER)
+    }
+
+    // ---- model-driven structure generation ---------------------------------
+
+    fn sync_structure(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+        let target = self.model().key_count();
+
+        // Control side: default page + every derived control page.
+        if let Some(control_keys) = self.control_keys_id(snapshot) {
+            resize(ctx, control_keys, &key_folders(snapshot, control_keys), target, build_control_key);
+        }
+        if let Some(params_id) = self.base.parameters_id() {
+            if let Some(container) = paging::container_id(snapshot, params_id) {
+                for page in snapshot.child_ids(container) {
+                    resize(ctx, page, &key_folders(snapshot, page), target, build_control_key);
+                }
+            }
+        }
+
+        // Input side: default page + every derived input page.
+        if let Some(value_keys) = self.value_keys_id(snapshot) {
+            resize(ctx, value_keys, &snapshot.child_ids(value_keys), target, build_value_key);
+        }
+        if let Some(values_id) = self.base.values_id() {
+            if let Some(container) = paging::container_id(snapshot, values_id) {
+                for page in snapshot.child_ids(container) {
+                    resize(ctx, page, &snapshot.child_ids(page), target, build_value_key);
+                }
+            }
+        }
+
+        self.button_down = vec![false; target];
+        if self.last_visuals.len() < target {
+            self.last_visuals.resize(target, KeyVisual::default());
+        }
+    }
+
+    /// Resolves the flat input folder for the active page (`values/keys` or `values/pages/<id>`).
+    fn active_value_keys(&self, snapshot: &ProcessTreeSnapshot, active: &str) -> Option<NodeId> {
+        if active.is_empty() || active == paging::DEFAULT_PAGE_ID {
+            return self.value_keys_id(snapshot);
+        }
         let values_id = self.base.values_id()?;
-        snapshot.find_child(values_id, STREAMDECK_TEMPLATE_FOLDER)
-    }
-
-    /// Resolves the ordered key folders for the active page (default or a derived clone).
-    fn active_key_folders(&self, snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
-        let Some(params_id) = self.parameters_id() else {
-            return Vec::new();
-        };
-        let Some(template_folder) = self.template_folder_id(snapshot) else {
-            return Vec::new();
-        };
-        let active = paging::active_page_value(snapshot, params_id);
-        let page_root = paging::active_page_root(snapshot, template_folder, &active);
-        key_folders(snapshot, page_root)
+        let container = paging::container_id(snapshot, values_id)?;
+        snapshot
+            .child_ids(container)
+            .into_iter()
+            .find(|id| snapshot.node(*id).is_some_and(|node| paging::page_id_of(node) == active))
+            .or_else(|| self.value_keys_id(snapshot))
     }
 
     // ---- device lifecycle --------------------------------------------------
@@ -206,7 +254,6 @@ impl StreamDeckModule {
             return;
         }
         if let Some(hardware) = self.hardware.as_ref() {
-            // Reconnect if a specific device was chosen that differs from the live one.
             if selection != AUTO_DEVICE_VARIANT && selection != hardware.serial() {
                 self.disconnect_hardware();
             } else {
@@ -219,9 +266,10 @@ impl StreamDeckModule {
         self.hardware_dirty = false;
         self.discover_elapsed = 0.0;
 
-        let target_serial = match selection.as_str() {
-            AUTO_DEVICE_VARIANT => self.known_devices.first().map(|device| device.serial.clone()),
-            other => Some(other.to_string()),
+        let target_serial = if selection == AUTO_DEVICE_VARIANT {
+            self.known_devices.first().map(|device| device.serial.clone())
+        } else {
+            Some(selection.clone())
         };
         let Some(serial) = target_serial else {
             return;
@@ -232,7 +280,7 @@ impl StreamDeckModule {
                 self.button_down = vec![false; device.key_count()];
                 self.last_visuals = vec![KeyVisual::default(); device.key_count()];
                 self.hardware = Some(device);
-                self.apply_brightness(ctx);
+                self.apply_brightness();
             }
             Err(error) => {
                 self.device.set_warning_with(ctx, Some("streamdeck_connect"), error.as_str(), None);
@@ -247,7 +295,7 @@ impl StreamDeckModule {
         self.button_down.iter_mut().for_each(|state| *state = false);
     }
 
-    fn apply_brightness(&mut self, _ctx: &mut ProcessCtx) {
+    fn apply_brightness(&mut self) {
         if let Some(hardware) = self.hardware.as_mut() {
             let percent = self.brightness.get().clamp(0, 100) as u8;
             let _ = hardware.set_brightness(percent);
@@ -279,48 +327,74 @@ impl StreamDeckModule {
                 .enumerate()
                 .map(|(index, device)| enum_option(&device.serial, &device.product, 10 + index as i32)),
         );
-        sync_enum_options(ctx, self.device.id(), options);
+        sync_enum_options(ctx, self.device.id(), options, AUTO_DEVICE_VARIANT);
+    }
+
+    fn sync_model_options(&self, ctx: &mut ProcessCtx) {
+        if !self.model.is_bound() {
+            return;
+        }
+        let options = vec![
+            enum_option("mini", "Mini (6 keys)", 0),
+            enum_option("standard", "Standard / MK.2 (15 keys)", 1),
+            enum_option("xl", "XL (32 keys)", 2),
+            enum_option("plus", "Plus (8 keys)", 3),
+            enum_option("pedal", "Pedal (3 keys)", 4),
+        ];
+        sync_enum_options(ctx, self.model.id(), options, DEFAULT_MODEL_VARIANT);
     }
 
     // ---- per-tick synchronization -----------------------------------------
 
     fn sync_pages(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let (Some(params_id), Some(template_folder)) =
-            (self.parameters_id(), self.template_folder_id(snapshot))
-        else {
+        let (Some(params_id), Some(control_keys)) = (self.base.parameters_id(), self.control_keys_id(snapshot)) else {
             return;
         };
-        paging::sync_selector(ctx, snapshot, params_id, template_folder);
+        paging::ensure_container(ctx, snapshot, params_id);
+        paging::complete_pages(ctx, snapshot, params_id, control_keys);
+        if let Some(values_id) = self.base.values_id() {
+            let count = self.model().key_count();
+            paging::mirror_pages(ctx, snapshot, params_id, values_id, || (0..count).map(build_value_key).collect());
+        }
+        paging::sync_selector(ctx, snapshot, params_id, params_id);
 
         let active = paging::active_page_value(snapshot, params_id);
         if active != self.last_active_page {
             self.last_active_page = active.clone();
-            // Force a full re-render on page flip so the surface reflects the new layer.
             self.last_visuals.iter_mut().for_each(|visual| *visual = KeyVisual::default());
             self.emit_callback(ctx, PAGE_CHANGED_CALLBACK, vec![serde_json::json!(active)]);
             self.base.emit_incoming_traffic(ctx);
         }
+        self.pages_dirty = false;
     }
 
     fn push_feedback(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
         if self.hardware.is_none() {
             return;
         }
-        let key_folders = self.active_key_folders(snapshot);
-        let key_count = self.hardware.as_ref().map(|h| h.key_count()).unwrap_or(0);
-        for slot in 0..key_count {
-            let visual = key_folders
-                .get(slot)
-                .map(|folder| read_key_visual(snapshot, *folder))
-                .unwrap_or_default();
+        let (Some(params_id), Some(control_keys)) = (self.base.parameters_id(), self.control_keys_id(snapshot)) else {
+            return;
+        };
+        let device_keys = self.hardware.as_ref().map(|h| h.key_count()).unwrap_or(0);
+        let count = device_keys.min(self.model().key_count());
+
+        let active = paging::active_page_value(snapshot, params_id);
+        let active_root = paging::active_page_root(snapshot, control_keys, params_id, &active);
+        let active_keys = key_folders(snapshot, active_root);
+        let default_keys = key_folders(snapshot, control_keys);
+
+        for slot in 0..count {
+            let active_key = active_keys.get(slot).copied();
+            let unpaged = active_key.is_some_and(|key| read_bool_field(snapshot, key, FIELD_UNPAGED));
+            let source = if unpaged { default_keys.get(slot).copied() } else { active_key };
+            let visual = source.map(|key| read_key_visual(snapshot, key)).unwrap_or_default();
+
             if self.last_visuals.get(slot) == Some(&visual) {
                 continue;
             }
             if let Some(hardware) = self.hardware.as_mut() {
-                if hardware.render_key(slot, &visual).is_ok() {
-                    if slot < self.last_visuals.len() {
-                        self.last_visuals[slot] = visual;
-                    }
+                if hardware.render_key(slot, &visual).is_ok() && slot < self.last_visuals.len() {
+                    self.last_visuals[slot] = visual;
                 }
             }
         }
@@ -335,7 +409,8 @@ impl StreamDeckModule {
         if events.is_empty() {
             return;
         }
-        let key_folders = self.active_key_folders(snapshot);
+        let active = paging::active_page_value(snapshot, self.base.parameters_id().unwrap_or(snapshot.root()));
+        let value_keys = self.active_value_keys(snapshot, &active);
         for event in events {
             let (index, pressed) = match event {
                 StreamDeckInputEvent::ButtonDown(index) => (index, true),
@@ -344,34 +419,18 @@ impl StreamDeckModule {
             if index < self.button_down.len() {
                 self.button_down[index] = pressed;
             }
-            if let Some(folder) = key_folders.get(index) {
-                if let Some(pressed_param) = child_param_at(snapshot, *folder, KEY_FIELD_PRESSED) {
-                    ctx.set_param(pressed_param, ParamValue::Bool(pressed));
+            if let Some(value_keys) = value_keys {
+                if let Some(param) = snapshot.child_ids(value_keys).get(index).copied() {
+                    ctx.set_param(param, ParamValue::Bool(pressed));
                 }
             }
             self.base.emit_incoming_traffic(ctx);
             let callback = if pressed { KEY_PRESSED_CALLBACK } else { KEY_RELEASED_CALLBACK };
-            self.emit_callback(ctx, callback, vec![serde_json::json!(index)]);
+            self.emit_callback(ctx, callback, vec![serde_json::json!(index), serde_json::json!(active)]);
             if self.base.log_incoming_enabled() {
                 golden_core::log!(origin = self.id(); format!("Stream Deck key {index} {}", if pressed { "pressed" } else { "released" }));
             }
         }
-    }
-
-    // ---- page management ---------------------------------------------------
-
-    fn handle_new_page_request(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let name = self.new_page.get_ref().trim().to_string();
-        if name.is_empty() {
-            return;
-        }
-        if let Some(template_folder) = self.template_folder_id(snapshot) {
-            if let Some(page_id) = paging::add_page(ctx, snapshot, template_folder, &name) {
-                golden_core::log!(origin = self.id(); format!("Created Stream Deck page '{page_id}'"));
-            }
-        }
-        // Clear the request field so the same name can be reused later.
-        self.new_page.set(ctx, String::new());
     }
 
     fn refresh_data_capabilities(&mut self, ctx: &mut ProcessCtx) {
@@ -402,6 +461,8 @@ impl Node for StreamDeckModule {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        self.structure_dirty = true;
+        self.sync_model_options(ctx);
         self.refresh_devices(ctx);
     }
 
@@ -418,6 +479,10 @@ impl Node for StreamDeckModule {
 
         self.refresh_devices(ctx);
         self.ensure_hardware(ctx);
+        if self.structure_dirty {
+            self.sync_structure(ctx, snapshot.as_ref());
+            self.structure_dirty = false;
+        }
         self.sync_pages(ctx, snapshot.as_ref());
         self.process_input(ctx, snapshot.as_ref());
         self.push_feedback(ctx, snapshot.as_ref());
@@ -428,7 +493,11 @@ impl Node for StreamDeckModule {
     }
 
     fn needs_update(&self) -> bool {
-        self.hardware.is_some() || self.hardware_dirty || self.devices_dirty
+        self.hardware.is_some()
+            || self.hardware_dirty
+            || self.devices_dirty
+            || self.structure_dirty
+            || self.pages_dirty
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -441,6 +510,10 @@ impl Node for StreamDeckModule {
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
         u32::MAX
+    }
+
+    fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {
+        self.pages_dirty = true;
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
@@ -457,8 +530,8 @@ impl Node for StreamDeckModule {
             "addPage" => {
                 let name = args.first().and_then(ParamValue::as_str).unwrap_or_default();
                 if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                    if let Some(template_folder) = self.template_folder_id(snapshot.as_ref()) {
-                        paging::add_page(ctx, snapshot.as_ref(), template_folder, &name);
+                    if let Some(params_id) = self.base.parameters_id() {
+                        paging::add_page(ctx, snapshot.as_ref(), params_id, &name);
                     }
                 }
                 Ok(true)
@@ -466,8 +539,8 @@ impl Node for StreamDeckModule {
             "removePage" => {
                 let page_id = args.first().and_then(ParamValue::as_str).unwrap_or_default();
                 if let Some(snapshot) = ctx.tree_snapshot_arc() {
-                    if let Some(template_folder) = self.template_folder_id(snapshot.as_ref()) {
-                        paging::remove_page(ctx, snapshot.as_ref(), template_folder, &page_id);
+                    if let Some(params_id) = self.base.parameters_id() {
+                        paging::remove_page(ctx, snapshot.as_ref(), params_id, &page_id);
                     }
                 }
                 Ok(true)
@@ -483,10 +556,10 @@ impl Node for StreamDeckModule {
             if self.device.is_bound() && self.device.id() == param {
                 self.hardware_dirty = true;
                 self.refresh_data_capabilities(ctx);
+            } else if self.model.is_bound() && self.model.id() == param {
+                self.structure_dirty = true;
             } else if self.brightness.is_bound() && self.brightness.id() == param {
-                self.apply_brightness(ctx);
-            } else if self.new_page.is_bound() && self.new_page.id() == param {
-                self.handle_new_page_request(ctx, snapshot_arc.as_ref());
+                self.apply_brightness();
             }
         }
     }
@@ -495,6 +568,7 @@ impl Node for StreamDeckModule {
         if enabled {
             self.hardware_dirty = true;
             self.devices_dirty = true;
+            self.structure_dirty = true;
             self.discover_elapsed = STREAMDECK_DISCOVER_INTERVAL_SECS;
         } else {
             self.disconnect_hardware();
@@ -508,22 +582,77 @@ impl Node for StreamDeckModule {
 
 // ---- free helpers ----------------------------------------------------------
 
-/// Returns the ordered key-shape folders under a page root, excluding the reserved
-/// `pages` derived-pages container.
+/// Returns the ordered key folders under a page root (folder children only).
 fn key_folders(snapshot: &ProcessTreeSnapshot, page_root: NodeId) -> Vec<NodeId> {
     snapshot
         .child_ids(page_root)
         .into_iter()
         .filter(|child| {
-            snapshot.node(*child).is_some_and(|node| {
-                node.param_value.is_none() && node.label != paging::PAGES_CONTAINER
-            })
+            snapshot
+                .node(*child)
+                .is_some_and(|node| node.param_value.is_none() && node.node_type != paging::PAGE_HOST_TYPE)
         })
         .collect()
 }
 
-/// Returns the parameter node at `field_index` within a key folder (declaration order:
-/// color, text, pressed).
+/// Adds/removes trailing children of `parent` so it holds exactly `target` of them.
+fn resize(ctx: &mut ProcessCtx, parent: NodeId, existing: &[NodeId], target: usize, build: impl Fn(usize) -> NodeTree) {
+    if existing.len() < target {
+        for index in existing.len()..target {
+            ctx.add_child_tree(parent, build(index), None);
+        }
+    } else {
+        for &extra in &existing[target..] {
+            ctx.edits.push(Edit::RemoveNode { node: extra });
+        }
+    }
+}
+
+fn build_control_key(slot: usize) -> NodeTree {
+    let number = slot + 1; // keys are 1-based
+    let mut tree = NodeTree::new(authored_named_folder(&format!("Key {number}"), &format!("key_{number}")));
+    tree.push_child(NodeTree::new(authored_param("Color", ParamValue::Color(0.05, 0.05, 0.05, 1.0), false)));
+    tree.push_child(NodeTree::new(authored_param("Text", ParamValue::Str(String::new()), false)));
+    tree.push_child(NodeTree::new(authored_param("Image", ParamValue::File(String::new()), false)));
+    tree.push_child(NodeTree::new(authored_param("Unpaged", ParamValue::Bool(false), false)));
+    tree
+}
+
+fn build_value_key(slot: usize) -> NodeTree {
+    let number = slot + 1;
+    let mut param = authored_param(&format!("Key {number}"), ParamValue::Bool(false), true);
+    param.node_data_mut().meta.decl_id = golden_core::node::DeclId(format!("key_{number}"));
+    NodeTree::new(param)
+}
+
+fn authored_named_folder(label: &str, id: &str) -> Folder {
+    let mut folder = authored_folder(label);
+    folder.node_data_mut().meta.short_name = id.to_string();
+    folder.node_data_mut().meta.decl_id = golden_core::node::DeclId(id.to_string());
+    folder
+}
+
+fn authored_folder(label: &str) -> Folder {
+    let mut folder = Folder::new(label);
+    crate::app::module::enable_module_authoring(folder.node_data_mut());
+    folder
+}
+
+fn authored_param(label: &str, value: ParamValue, read_only: bool) -> Parameter {
+    let mut param = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
+    param.read_only = read_only;
+    crate::app::module::enable_module_authoring(param.node_data_mut());
+    param
+}
+
+fn read_bool_field(snapshot: &ProcessTreeSnapshot, key_folder: NodeId, field_index: usize) -> bool {
+    child_param_at(snapshot, key_folder, field_index)
+        .and_then(|id| snapshot.node(id))
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_bool)
+        .unwrap_or(false)
+}
+
 fn child_param_at(snapshot: &ProcessTreeSnapshot, key_folder: NodeId, field_index: usize) -> Option<NodeId> {
     snapshot
         .child_ids(key_folder)
@@ -532,19 +661,18 @@ fn child_param_at(snapshot: &ProcessTreeSnapshot, key_folder: NodeId, field_inde
         .nth(field_index)
 }
 
-/// Reads the resolved feedback primitives (color + text) for one key folder.
 fn read_key_visual(snapshot: &ProcessTreeSnapshot, key_folder: NodeId) -> KeyVisual {
-    let color = child_param_at(snapshot, key_folder, KEY_FIELD_COLOR)
+    let color = child_param_at(snapshot, key_folder, FIELD_COLOR)
         .and_then(|id| snapshot.node(id))
         .and_then(|node| node.param_value.as_ref())
         .and_then(ParamValue::as_color)
         .unwrap_or((0.0, 0.0, 0.0, 1.0));
-    let text = child_param_at(snapshot, key_folder, KEY_FIELD_TEXT)
+    let text = child_param_at(snapshot, key_folder, FIELD_TEXT)
         .and_then(|id| snapshot.node(id))
         .and_then(|node| node.param_value.as_ref())
         .and_then(ParamValue::as_str)
         .unwrap_or_default();
-    let image = child_param_at(snapshot, key_folder, KEY_FIELD_IMAGE)
+    let image = child_param_at(snapshot, key_folder, FIELD_IMAGE)
         .and_then(|id| snapshot.node(id))
         .and_then(|node| node.param_value.as_ref())
         .and_then(ParamValue::as_str)
@@ -563,20 +691,21 @@ fn enum_option(variant_id: &str, label: &str, ordering: i32) -> ParameterEnumOpt
 }
 
 /// Swaps fresh enum options into a live selector parameter (mirrors the gamepad pattern).
-fn sync_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>) {
+fn sync_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, options: Vec<ParameterEnumOption>, fallback: &str) {
+    let fallback = fallback.to_string();
     ctx.call_node_mutation(param_id, move |node, inner_ctx| {
         let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() else {
-            return Err("Stream Deck device target is not a parameter".to_string());
+            return Err("Stream Deck enum target is not a parameter".to_string());
         };
         let current = parameter
             .value
             .as_enum()
             .filter(|variant| !variant.trim().is_empty())
-            .unwrap_or_else(|| AUTO_DEVICE_VARIANT.to_string());
+            .unwrap_or_else(|| fallback.clone());
         let next_value = if options.iter().any(|option| option.variant_id == current) {
             ParamValue::Enum(current)
         } else {
-            ParamValue::Enum(AUTO_DEVICE_VARIANT.to_string())
+            ParamValue::Enum(fallback.clone())
         };
         if parameter.constraints.enum_options == options && parameter.value == next_value {
             return Ok(());

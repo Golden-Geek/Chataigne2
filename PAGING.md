@@ -1,245 +1,114 @@
-# Paging System Architecture
+# Paging System Architecture (as built)
 
-This document defines the unified, project-wide paging architecture for Chataigne 2. It establishes how physical or virtual interface surfaces interact with the app-wide hierarchical state tree while maintaining strict structural modularity.
+This document describes the paging architecture implemented in Chataigne 2: how
+controller surfaces expose inputs and control, how pages work, and where the code lives.
+It supersedes the original speculative spec; the **Design notes** at the end record why
+the implementation diverges from it.
 
-## 1. Core Principles
+## 1. Core principles
 
-1. **Modular Structural Ownership:** Modules completely own their local node sub-tree layout. A module defines the exact properties, structure, and shapes of its local interactive nodes.
-2. **Predictable Address Space:** Pages are explicit structural folders within the module tree (`.../pages/page_<name>/`). Addresses never mutate dynamically or swap pointers at runtime. This guarantees that links, expressions, dashboard elements, and scripts have stable, immutable targets.
-3. **Module-Local Structure, Global Orchestration:** Pages live strictly inside the module that handles their physical realization. Project-wide synchronous paging is achieved purely by driving a module’s standardized `active_page` primitive parameter via the app-wide Preset/State system.
-4. **Selective Interface Capabilities:** Not all modules are relevant to paging. Paging infrastructure is opted into by implementing a dedicated capability interface, marking a module explicitly as a **Pageable Module**.
+1. **Input vs control split.** Controller surfaces put *inputs* (read-only physical state)
+   under `values/` as a **flat list** (e.g. one `bool` per key for `pressed`), and *device
+   control / appearance* (color, text, image, …) under `parameters/`. **Only the control
+   side is paged.** Inputs are raw physical state and never page.
+2. **Model-driven structure.** A `model` parameter selects the device family and
+   regenerates both sides at runtime (key count differs per model). No fixed declaration.
+3. **Stable addresses.** The declared/generated control layout is the always-present
+   `default` page; its child addresses never move. Derived pages are structural clones with
+   **stable ids** — renaming a page changes only its display label, never its addresses.
+4. **Opt-in, module-local.** Paging is a per-module capability. Project-wide synchronous
+   paging is achieved by driving each module's `active_page` parameter from the global
+   Preset/State system.
 
----
+## 2. Tree shape
 
-## 2. Architectural Components
+`keys` (the default layout) and `pages` (derived pages) are **siblings** on each side. A page
+exists under `pages/<id>/` in both `parameters/` (control) and `values/` (inputs), keyed by a
+stable id. Keys are **1-based**.
 
-```
-[ Modules / StreamDeck (A Pageable Module) ]
-    ├── parameters/
-    │     └── active_page: String = "lighting"  <-- Orchestrated by Global Presets
-    │
-    ├── permanent/
-    │     └── keys/
-    │           └── key_0 (e.g., Master Stop)  <-- Fixed address link
-    │
-    └── pages/
-          ├── page_audio/
-          │     └── keys/
-          │           ├── key_0 (Vol Up)        <-- Address: .../pages/page_audio/keys/key_0
-          │           └── key_1 (Vol Down)      <-- Address: .../pages/page_audio/keys/key_1
-          │
-          └── page_lighting/
-                └── keys/
-                      ├── key_0 (Strobe Cue)    <-- Address: .../pages/page_lighting/keys/key_0
-                      └── key_1 (Wash Color)    <-- Address: .../pages/page_lighting/keys/key_1
-
-```
-
-### 2.1 Interactivity Elements (The Control Shapes)
-
-Instead of forcing modules to use arbitrary, hardcoded control definitions (such as standard buttons or faders), each module defines its own native **Control Shapes**. These shapes are structured nodes containing two explicit streams of data primitives:
-
-* **Feedback Primitives (Outbound/Write):** Properties updating the physical/visual hardware state (e.g., `text`, `background_color`, `image_path`, `led_ring_mode`).
-* **Activity Primitives (Inbound/Read-Only):** Properties capturing active user manipulation (e.g., `is_pressed`, `delta`, `absolute_position`).
-
-Modules can choose to implement unique custom shapes, or reuse common templates shared across the ecosystem when hardware capabilities overlap (e.g., an infinite encoder with an LED ring).
-
-### 2.2 The Viewport Router (Hardware Mapping)
-
-The physical hardware loop acts as a sliding **Viewport Window**. It maintains a static configuration map matching its physical layout indices (e.g., Grid Key 0 to 15).
-
-Each physical key or input index contains a local user property:
-
-* `is_paged`: Boolean.
-* `permanent_target_name`: String (Used only if `is_paged == false`).
-
-At runtime, the driver calculates its execution path purely by text concatenation based on the value of the local `active_page` parameter:
-
-* If `is_paged` is **false**: Viewport binds directly to `.../permanent/<permanent_target_name>`.
-* If `is_paged` is **true**: Viewport binds to `.../pages/page_<active_page>/<control_shape_folder>/<index>`.
-
----
-
-## 3. Engineering Implementation Spec (`golden_core`)
-
-### 3.1 Defining Control Element Declarations
-
-To allow modules to define arbitrary hardware shapes cleanly, `golden_core` provides the foundational primitive layout definition structs:
-
-```rust
-pub enum InterfacePrimitiveKind {
-    Bool,
-    Float,
-    String,
-    Color,
-    FilePath,
-}
-
-pub struct ElementFieldDecl {
-    pub name: String,
-    pub primitive_kind: InterfacePrimitiveKind,
-    pub read_only: bool,
-}
-
-pub struct CustomShapeDefinition {
-    pub shape_id: String,
-    pub friendly_label: String,
-    pub feedback_fields: Vec<ElementFieldDecl>,
-    pub activity_fields: Vec<ElementFieldDecl>,
-}
-
+```text
+parameters/
+  model: Enum                 <- mini / standard / xl / plus / pedal (drives structure)
+  brightness: Int
+  active_page: Enum = "default"  <- injected selector (Preset-orchestrated)
+  keys/                       <- default page control (tag = "pageable")
+    key_1/ { color, text, image, unpaged }   <- stable addresses
+  pages/                      <- PageHost: "+ New Page" in the UI, standard delete
+    lighting/ key_1/ { ... }  <- clone of the default layout, stable id "lighting"
+values/
+  keys/                       <- default page inputs: key_1: bool, ... (flat)
+  pages/                      <- mirror (plain folder; created on demand, removed when empty)
+    lighting/ key_1: bool, ...
 ```
 
-### 3.2 The Pageable Module Interface
+- **`model`** drives the key count and resizes *every* page (default + derived) on both
+  sides. Changing the model **adapts** pages (adds/removes keys); it does not reset them.
+- **`unpaged`** (per control key): when true, the key always shows the `default` page's
+  appearance, so it stays constant across page flips (the "permanent key" concept).
+- **Routing**: feedback for slot `i` resolves against the active page's control (or the
+  default page if that key is `unpaged`); inbound device events write the active page's input
+  (`values/keys/key_i` or `values/pages/<active>/key_i`).
 
-Modules opt into the paging framework by exposing their structural layout template through a dedicated trait contract. If a module does not implement this trait, it is ignored by the paging generation sub-systems.
+## 3. The generic runtime (`src/module/common/paging.rs`)
 
-```rust
-pub struct LayoutTemplateItem {
-    pub shape_id: String,
-    pub structural_folder: String,
-    pub element_name: String,
-    pub hardware_slot_index: usize,
-}
+Device-agnostic. It manages the **control** collection; a module mirrors the pages onto its
+`values/` side. The container (`pages`) is a sibling of the default folder (`keys`), so calls
+take a `pages_parent` (e.g. `parameters/`) plus the default/template folder separately:
 
-pub trait PageableModuleCapability {
-    /// Declares the custom shapes this module introduces
-    fn declared_shapes(&self) -> Vec<CustomShapeDefinition>;
-    
-    /// Dictates the structure automatically spawned inside every new page folder
-    fn page_layout_template(&self) -> Vec<LayoutTemplateItem>;
-    
-    /// Dictates permanent nodes that sit outside the paging sub-tree
-    fn permanent_layout_template(&self) -> Vec<LayoutTemplateItem>;
-}
+- `ensure_container(ctx, snapshot, pages_parent)` — creates the `PageHost` container.
+- `complete_pages(ctx, snapshot, pages_parent, template_folder)` — for any freshly created
+  (empty) page, assigns a unique stable id (`short_name`) and clones `template_folder` into it.
+- `sync_selector(ctx, snapshot, parameters_folder, pages_parent)` — injects/refreshes the
+  `active_page` enum so its options match the existing pages; snaps a dangling selection
+  (deleted page) back to `default`.
+- `page_descriptors` / `derived_descriptors` — the page list `(id, label)`.
+- `mirror_pages(ctx, snapshot, source_pages_parent, mirror_pages_parent, build_keys)` — the
+  standard counterpart for controllers that carry both control and inputs: mirrors the derived
+  pages onto `values/pages/<id>`, syncing names and removing orphans. Mirror folders are
+  **locked** (`NodeUserPermissions::none()`) — their name/existence track the control page and
+  are not user-editable.
+- `active_page_value` / `active_page_root(default_folder, pages_parent, id)` — read the
+  selector and resolve the active page's root node.
+- `add_page` / `remove_page` — programmatic page CRUD (also exposed as script methods).
 
-```
+Page creation in the UI goes through `PageHost` (`src/module/common/page_host.rs`), a
+user-container that offers a **"+ New Page"** item and accepts folders; deletion is ordinary
+node removal. `page_host.rs` is **codegen-only** (not declared in `common/mod.rs`) so it is a
+single registered `AppNode` type — see the Design notes.
 
----
+## 4. Reference module — Stream Deck (`src/module/modules/controllers/streamdeck/`)
 
-## 4. Runtime & Lifecycle Mechanics (`Chataigne2`)
+- `model` parameter: Mini (6) / Standard·MK.2 (15) / XL (32) / Plus (8) / Pedal (3). Changing
+  it resizes every key collection (default + derived, on both sides) to match — pages adapt,
+  they are not cleared.
+- Control shape per key: `color` (Color), `text` (String), `image` (File), `unpaged` (Bool),
+  under `parameters/keys` and `parameters/pages/<id>`. Input per key: a single `bool` under
+  `values/keys` and `values/pages/<id>`. The `values/pages` mirror is created when the first
+  page is added and removed when the last page is deleted; page names/ids stay in sync.
+- Feedback is change-driven (only diffs are pushed to the device). Images composite over the
+  key color; transparent image pixels show the color through.
+- **Device I/O** goes through the `StreamDeckDevice` trait:
+  - `SimulatedStreamDeck` — always compiled; powers the test suite headlessly.
+  - Real Elgato hardware via `elgato-streamdeck` behind the `streamdeck-hid` cargo feature
+    (off by default to keep engine-only builds free of native `hidapi`/`image`). Requires
+    `joycon-rs` on `hidapi 2.x` so only one crate links the native library.
 
-### 4.1 Automated Page Node Generation
+## 5. Design notes (deviations from the original spec)
 
-When a module implementing `PageableModuleCapability` is added to the project, the core framework automatically hooks into its creation lifecycle:
-
-1. It inserts the standard structural parameter `/parameters/active_page` (String).
-2. It generates the `/permanent/` root container and seeds it using the module's `permanent_layout_template`.
-3. It seeds an initial `/pages/page_default/` directory using the module's `page_layout_template`.
-
-When a user triggers a `CreatePage(name)` request via the UI or a script, the engine instantiates the exact folder nodes required by the template:
-
-```rust
-pub fn generate_page_nodes(
-    ctx: &mut ProcessCtx,
-    module_id: NodeId,
-    capability: &impl PageableModuleCapability,
-    page_name: &str,
-) {
-    let sanitized_page_name = format!("page_{}", page_name.to_lowercase().replace(' ', "_"));
-    
-    // Allocate parent path: modules/<module_name>/pages/<sanitized_page_name>/
-    for item in capability.page_layout_template() {
-        // Instantiate the component primitives under the target path:
-        // modules/<module_name>/pages/<sanitized_page_name>/<structural_folder>/<element_name>
-    }
-}
-
-```
-
-### 4.2 Hardware Synchronization Loop
-
-The module’s processing loop remains completely decoupled from paging logic. It behaves as a stateless viewport looking at the computed path strings:
-
-```rust
-pub fn update_hardware_view(&mut self, ctx: &mut ProcessCtx) {
-    let current_page = self.active_page_param.get().to_lowercase();
-
-    for physical_input in &self.hardware_inputs {
-        let absolute_target_path = if !physical_input.is_paged {
-            format!("{}/permanent/{}", self.module_base_path, physical_input.name)
-        } else {
-            format!("{}/pages/page_{}/{}", self.module_base_path, current_page, physical_input.name)
-        };
-
-        // 1. Resolve absolute parameters via tree address paths
-        // 2. Read Outbound Feedback primitives (text, colors) -> Push to Device
-    }
-}
-
-pub fn handle_incoming_hardware_event(&mut self, ctx: &mut ProcessCtx, hardware_index: usize, value: f32) {
-    let current_page = self.active_page_param.get().to_lowercase();
-    let physical_input = &self.hardware_inputs[hardware_index];
-
-    let absolute_activity_path = if !physical_input.is_paged {
-        format!("{}/permanent/{}/value", self.module_base_path, physical_input.name)
-    } else {
-        format!("{}/pages/page_{}/{}/value", self.module_base_path, current_page, physical_input.name)
-    };
-
-    // Safely pipe the raw value primitive straight into the resolved target address
-    ctx.update_parameter_by_address(&absolute_activity_path, ParamValue::Float(value));
-}
-
-```
-
----
-
-## 5. UI Architecture Implementation (`src-ui`)
-
-Using Svelte 5's reactive runes (`$state`, `$derived`), the frontend inspector renders the hardware layout dynamically by observing the active structural layer.
-
-### 5.1 Inspector Layout Resolution
-
-The inspector checks for paging capability metadata flags generated at the protocol boundary. If the module is a **Pageable Module**, it embeds the universal page management header bar:
-
-```html
-<script lang="ts">
-    import { getContext } from 'svelte';
-    let { moduleNode } = $props(); // Exposed via the standard module container
-    
-    // Live derived reflections targeting the explicit active page tree partition
-    let activePage = $derived(moduleNode.parameters.active_page);
-    let activePageFolder = $derived(moduleNode.children.pages[`page_${activePage.toLowerCase()}`]);
-</script>
-
-<div class="pageable-module-container">
-    <header class="page-orchestration-bar">
-        <label>Active Local Viewport:</label>
-        <select bind:value={moduleNode.parameters.active_page}>
-            {#each Object.keys(moduleNode.children.pages) as pageKey}
-                <option value={pageKey.replace('page_', '')}>{pageKey}</option>
-            {/each}
-        </select>
-        <button onclick={() => executeAddPageCommand(moduleNode.id)}>+ New Page</button>
-    </header>
-
-    <main class="viewport-grid">
-        <ControlSection folder={moduleNode.children.permanent} label="Permanent Layout" />
-        
-        {#if activePageFolder}
-            <ControlSection folder={activePageFolder} label="Page: {activePage}" />
-        {:else}
-            <div class="fallback-warning">Page "{activePage}" is not structurally initialized.</div>
-        {/if}
-    </main>
-</div>
-
-```
-
----
-
-## 6. Project-Wide Integration & Workflows
-
-### 6.1 Seamless Presets Integration
-
-Because pages are native paths containing standard primitive parameters, Chataigne 2's app-wide **Preset System** coordinates project-wide page switches effortlessly with zero custom scripts or workflow silos:
-
-* **Synchronous Page Flips:** A global preset named `State_Performance_Start` can include the following parameter maps:
-* `/modules/streamdeck/parameters/active_page` = `"main_mix"`
-* `/modules/loupedeck/parameters/active_page` = `"eq_focus"`
-* `/modules/midifighter/parameters/active_page` = `"track_triggers"`
-
-
-* **Asymmetric Layering:** Because each module operates its own local parameter state machine, an operator can fire a cue that switches the Stream Deck pages while leaving the MIDI fader wings locked to their active audio mix context.
-* **Partial Overrides:** A momentary state preset can instantly overwrite a module's `active_page` parameter value, snapping physical viewports to an emergency or shift layout layer, and immediately return to the previous configuration when released.
+- **Per-frame string-address resolution → cached node ids + change-driven feedback.** The
+  spec rebuilt `format!(".../pages/page_{}/...")` and re-resolved every key every tick. The
+  engine is perf-tuned (`needs_update`, `update_requires_tree_snapshot`, `effective_enabled`,
+  listener subtrees); resolution is positional/cached and feedback only pushes diffs.
+- **`active_page: String` → constrained `Enum`.** A free string let you select a
+  non-existent page; the selector is an enum constrained to existing page ids.
+- **One declaration, pages derived.** The spec had separate `page_layout_template()` and
+  `permanent_layout_template()`. There is a single layout: the `default` page; derived pages
+  are clones, and "permanent" is the per-key `unpaged` flag.
+- **Typed inbound values.** Inbound activity carries a typed `ParamValue`, not a bare `f32`.
+- **Stable page ids.** Pages carry an immutable `short_name` id separate from the editable
+  label, so renames never move addresses.
+- **Layer placement.** The framework lives in the app (`src/module/common/`), not
+  `golden_core`, which stays domain-agnostic.
+- **Input/control split (added per review).** Inputs live flat in `values/`; control/appearance
+  lives in `parameters/` and is the paged side. This convention is documented for future
+  controller modules in `docs/adding-a-node.md`.

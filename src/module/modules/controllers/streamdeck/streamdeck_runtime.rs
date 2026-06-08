@@ -199,7 +199,8 @@ impl StreamDeckDevice for SimulatedStreamDeck {
 #[cfg(feature = "streamdeck-hid")]
 mod hid {
     use super::{DiscoveredStreamDeck, KeyVisual, StreamDeckDevice, StreamDeckInputEvent};
-    use elgato_streamdeck::{list_devices, new_hidapi, Kind, StreamDeck, StreamDeckInput};
+    use elgato_streamdeck::info::Kind;
+    use elgato_streamdeck::{list_devices, new_hidapi, StreamDeck, StreamDeckInput};
     use std::time::Duration;
 
     pub(super) fn discover() -> Vec<DiscoveredStreamDeck> {

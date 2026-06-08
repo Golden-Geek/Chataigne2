@@ -27,23 +27,25 @@ ts-rs = "12"
 uuid = { version = "1", features = ["serde", "v4"] }
 
 [features]
-# Real Elgato Stream Deck hardware support.
-#
-# NOTE: currently a placeholder. `elgato-streamdeck` requires `hidapi 2.x`, which
-# conflicts with the `hidapi 1.x` pulled in by `joycon-rs` (both declare
-# `links = "hidapi"`, which Cargo forbids). Wire a concrete HID backend to this
-# feature once the dependency conflict is resolved (see streamdeck_runtime.rs).
-streamdeck-hid = []
+# Real Elgato Stream Deck hardware support (native hidapi 2.x + image).
+# Off by default so engine-only builds/CI stay free of native deps.
+# Requires joycon-rs on hidapi 2.x (see the git pin below) so only one crate
+# links the native `hidapi` library.
+streamdeck-hid = ["dep:elgato-streamdeck", "dep:image"]
 
 [dependencies]
 artnet_protocol = "0.4.4"
 buttplug = "10.0.2"
 device_query = "4.0.1"
+elgato-streamdeck = { version = "0.13", optional = true }
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
 gilrs = "0.11.1"
 if-addrs = "0.15.0"
-joycon-rs = "0.6.3"
+image = { version = "0.25", optional = true }
+# Pinned to the hidapi 2.x branch so the native `hidapi` link is shared with
+# elgato-streamdeck (Cargo allows only one crate to link `hidapi`).
+joycon-rs = { git = "https://github.com/KaiseiYokoyama/joycon-rs", branch = "dependabot/cargo/hidapi-2.2" }
 leap-sys = "0.2.0"
 libloading = "0.8"
 midir = "0.11.0"

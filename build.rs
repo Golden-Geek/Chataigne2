@@ -304,7 +304,7 @@ fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
             println!("cargo:warning=src-ui/package-lock.json changed; running npm ci");
         }
 
-        run_npm_command(&paths.ui_root, &["ci"], &[])?;
+        run_npm_command(&paths.ui_root, &["ci", "--ignore-scripts"], &[])?;
         fs::write(&paths.npm_ci_stamp, current_hash)?;
     }
 
