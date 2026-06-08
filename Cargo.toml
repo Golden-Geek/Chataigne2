@@ -24,7 +24,11 @@ repository = "https://github.com/Golden-Geek/Chataigne2"
 chataigne_alchemist = { path = "crates/chataigne_alchemist" }
 golden_alchemist = { path = "crates/golden_alchemist" }
 golden_statechart = { path = "crates/golden_statechart" }
-serde = { version = "1", features = ["derive"] }
+indexmap = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive", "rc"] }
+smol_str = { version = "0.3", features = ["serde"] }
+thiserror = "2"
+uuid = { version = "1", features = ["serde", "v4"] }
 
 [features]
 # Real Elgato Stream Deck hardware support.

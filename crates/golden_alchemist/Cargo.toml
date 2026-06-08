@@ -13,4 +13,8 @@ debug_trace = []
 golden_core_integration = []
 
 [dependencies]
+indexmap.workspace = true
 serde = { workspace = true, optional = true }
+smol_str.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
