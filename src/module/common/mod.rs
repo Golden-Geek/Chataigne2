@@ -7,6 +7,7 @@ pub(crate) mod os;
 pub(crate) mod joycon;
 pub(crate) mod network_interfaces;
 pub(crate) mod mqtt;
+pub(crate) mod paging;
 pub(crate) mod pending_channel;
 pub(crate) mod received_values;
 pub(crate) mod serial;

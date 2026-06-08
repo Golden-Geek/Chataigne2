@@ -3,6 +3,15 @@ name = "Chataigne2"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Real Elgato Stream Deck hardware support.
+#
+# NOTE: currently a placeholder. `elgato-streamdeck` requires `hidapi 2.x`, which
+# conflicts with the `hidapi 1.x` pulled in by `joycon-rs` (both declare
+# `links = "hidapi"`, which Cargo forbids). Wire a concrete HID backend to this
+# feature once the dependency conflict is resolved (see streamdeck_runtime.rs).
+streamdeck-hid = []
+
 [dependencies]
 artnet_protocol = "0.4.4"
 buttplug = "10.0.2"
