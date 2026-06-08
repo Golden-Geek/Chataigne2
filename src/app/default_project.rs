@@ -5,3 +5,6 @@ pub(crate) fn initialize_default_project(engine: &mut AppEngine) {
     engine.add_node(ModuleManager::new().into(), None);
     engine.add_node(StateMachineManager::new().into(), None);
 }
+
+#[cfg(test)]
+mod default_project_tests;

@@ -53,6 +53,16 @@ TypeScript under `src-ui/src/lib/state_machine/generated`.
 
 `golden_alchemist_ui` owns reusable Svelte 5 canvas mechanics: infinite
 pan/zoom, animated framing, node dragging, slots, connection previews, and
-wires. App-owned stores, protocol adapters, and the dockable `State Machine`
-panel live beside the generated output. `golden_ui` provides only the generic
-workbench hook that restores app-declared required panels into saved layouts.
+wires.
+
+Every new Chataigne project contains one fixed top-level `State Machine`
+manager. States are ordinary app-owned hierarchy items created through the
+manager catalog, and their canvas positions are persisted as node parameters.
+The dockable `State Machine` panel projects those canonical hierarchy nodes
+onto the reusable canvas; it does not own a parallel state list. Canvas
+selection uses the shared workbench selection so the standard Inspector edits
+the selected state.
+
+App-owned protocol adapters and deeper Alchemist runtime stores live beside the
+generated output. `golden_ui` provides only the generic workbench and required
+panel hooks.
