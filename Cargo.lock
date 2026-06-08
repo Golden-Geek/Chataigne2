@@ -806,6 +806,7 @@ dependencies = [
  "chataigne_alchemist",
  "golden_alchemist",
  "golden_statechart",
+ "indexmap 2.13.0",
  "serde",
  "uuid",
 ]

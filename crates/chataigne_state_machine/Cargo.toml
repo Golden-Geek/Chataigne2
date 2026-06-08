@@ -12,5 +12,6 @@ serde = []
 chataigne_alchemist.workspace = true
 golden_alchemist.workspace = true
 golden_statechart.workspace = true
+indexmap.workspace = true
 serde.workspace = true
 uuid.workspace = true
