@@ -57,6 +57,8 @@ the machine without launching the app.
 
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) for the top-level layer map.
 - Read [docs/architecture.md](docs/architecture.md) for the contributor-facing boundary summary.
+- Read [docs/STATE_MACHINE_ARCHITECTURE.md](docs/STATE_MACHINE_ARCHITECTURE.md) for Alchemist,
+  statechart, Processor, intent, and UI ownership.
 - Read [docs/contributor-map.md](docs/contributor-map.md) for practical ownership rules, generated
   files, and the intentional `noisette` project-file naming.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) for formatting, boundary, and codegen rules.
