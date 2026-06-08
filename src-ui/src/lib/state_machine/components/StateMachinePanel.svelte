@@ -19,7 +19,7 @@
 		type UiNodeDto
 	} from 'golden_ui';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
-	import { sendCreateUserItemIntent } from 'golden_ui/store/ui-intents';
+	import { createUiEditSession, sendCreateUserItemIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 
@@ -52,6 +52,7 @@
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
+	let positionPersistenceTail = Promise.resolve();
 
 	let manager = $derived.by(() => {
 		if (!session) {
@@ -196,7 +197,7 @@
 		graphCanvas?.focus();
 	};
 
-	const persistNodePositions = async (moves: GraphNodeMove[]): Promise<void> => {
+	const persistNodePositionsNow = async (moves: GraphNodeMove[]): Promise<void> => {
 		if (!session || moves.length === 0) {
 			return;
 		}
@@ -231,15 +232,16 @@
 			throw new Error('one or more selected states cannot persist canvas positions');
 		}
 
-		const clientEditId = `state-position-${Date.now()}`;
-		await session.sendIntent({
-			kind: 'beginEdit',
-			client_edit_id: clientEditId,
-			label:
-				writableMoves.length === 1
-					? `Move ${writableMoves[0].stateNode.meta.label}`
-					: `Move ${writableMoves.length} states`
-		});
+		const editSession = createUiEditSession(
+			writableMoves.length === 1
+				? `Move ${writableMoves[0].stateNode.meta.label}`
+				: `Move ${writableMoves.length} states`,
+			'state-position'
+		);
+		await editSession.begin();
+		if (!editSession.active) {
+			throw new Error('another edit session is already active');
+		}
 		try {
 			await Promise.all(
 				writableMoves.flatMap(({ move, xParameterId, xBehaviour, yParameterId, yBehaviour }) => [
@@ -258,8 +260,16 @@
 				])
 			);
 		} finally {
-			await session.sendIntent({ kind: 'endEdit', client_edit_id: clientEditId });
+			await editSession.end();
 		}
+	};
+
+	const persistNodePositions = (moves: GraphNodeMove[]): Promise<void> => {
+		const operation = positionPersistenceTail
+			.catch(() => undefined)
+			.then(() => persistNodePositionsNow(moves));
+		positionPersistenceTail = operation.catch(() => undefined);
+		return operation;
 	};
 
 	export const setPanelState = (next: PanelState): void => {
