@@ -12,6 +12,16 @@ use golden_core::{item, node, node::Node, process_ctx::ProcessCtx};
         description = "Vertical position in the State Machine canvas.",
         show_in_inspector_content = false
     );
+    width: f64 = 13.0 (
+        label = "Canvas Width",
+        description = "Width in the State Machine canvas.",
+        show_in_inspector_content = false
+    );
+    height: f64 = 8.0 (
+        label = "Canvas Height",
+        description = "Height in the State Machine canvas.",
+        show_in_inspector_content = false
+    );
 )]
 pub struct StateMachineState {}
 
