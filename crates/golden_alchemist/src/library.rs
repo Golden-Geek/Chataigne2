@@ -1,7 +1,7 @@
 use crate::{
-    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId, ExecutionKind, InputSocketDecl,
-    OutputSocketDecl, RegistryError, RuntimeValue, SignatureCtx, TypeBindingSource, TypeBindings, TypeConstraint,
-    TypeVar, ValueTypeId,
+    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId, CompiledNodeOperation, Diagnostic,
+    ExecutionKind, InputSocketDecl, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeValue,
+    SignatureCtx, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueTypeId,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -155,6 +155,33 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 ..ANodeSignature::default()
             },
         }
+    }
+
+    fn compile_operation(
+        &self,
+        instance: &ANodeInstance,
+        _resolved: &ResolvedANodeSignature,
+    ) -> Result<CompiledNodeOperation, Diagnostic> {
+        Ok(match self.kind {
+            PrimitiveNodeKind::Constant => CompiledNodeOperation::Constant(
+                instance
+                    .config
+                    .get("value")
+                    .cloned()
+                    .unwrap_or(RuntimeValue::Float(0.0)),
+            ),
+            PrimitiveNodeKind::Add => CompiledNodeOperation::Add,
+            PrimitiveNodeKind::Compare => CompiledNodeOperation::Compare,
+            PrimitiveNodeKind::BoolAnd => CompiledNodeOperation::BoolAnd,
+            PrimitiveNodeKind::BoolOr => CompiledNodeOperation::BoolOr,
+            PrimitiveNodeKind::BoolNot => CompiledNodeOperation::BoolNot,
+            PrimitiveNodeKind::Edge => CompiledNodeOperation::Edge,
+            PrimitiveNodeKind::Gate => CompiledNodeOperation::Gate,
+            PrimitiveNodeKind::MapRange => CompiledNodeOperation::MapRange,
+            PrimitiveNodeKind::Clamp => CompiledNodeOperation::Clamp,
+            PrimitiveNodeKind::DelayOneTick => CompiledNodeOperation::DelayOneTick,
+            PrimitiveNodeKind::DebugLog => CompiledNodeOperation::DebugLog,
+        })
     }
 }
 

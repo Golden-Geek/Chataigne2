@@ -8,6 +8,7 @@ pub mod ids;
 pub mod library;
 pub mod node;
 pub mod registry;
+pub mod runtime;
 #[cfg(feature = "serde")]
 pub mod serialize;
 pub mod typing;
@@ -31,6 +32,10 @@ pub use registry::{
     ANodeRegistry, ConversionKind, ConversionRule, FacetDescriptor, FacetRegistry, RegistryError, ValueTypeDescriptor,
     ValueTypeRegistry, ValueTypeUiDescriptor,
 };
+pub use runtime::{
+    AlchemistMemory, AlchemistRuntime, CompiledNodeEvaluator, DebugValueSample, EvaluationCtx, NodeEvaluation,
+    RuntimeDiagnostic, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput, RuntimeRegistries,
+};
 pub use typing::{
     ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,
     TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, TypeSolveResult, TypeVar, solve_types,
@@ -47,12 +52,14 @@ mod graph_tests;
 #[cfg(test)]
 mod library_tests;
 #[cfg(test)]
+mod runtime_tests;
+#[cfg(test)]
 mod serialize_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod typing_tests;
 pub use compile::{
-    CompileCtx, CompileResult, CompiledAlchemistGraph, CompiledExecNode, DebugSourceMap, InputValueSource, OutputRoute,
-    RuntimeStateLayout, RuntimeSubscription, compile_graph,
+    CompileCtx, CompileResult, CompiledAlchemistGraph, CompiledExecNode, CompiledNodeOperation, DebugSourceMap,
+    InputValueSource, OutputRoute, RuntimeStateLayout, RuntimeSubscription, compile_graph,
 };

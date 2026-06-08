@@ -1,7 +1,8 @@
 use indexmap::IndexMap;
 
 use crate::{
-    ANodeInstance, ANodeTypeId, RuntimeValue, SocketId, TypeBindings, TypeConstraint, TypeVar, ValueTypeRegistry,
+    ANodeInstance, ANodeTypeId, CompiledNodeOperation, Diagnostic, DiagnosticOrigin, ResolvedANodeSignature,
+    RuntimeValue, SocketId, TypeBindings, TypeConstraint, TypeVar, ValueTypeRegistry,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,4 +83,15 @@ pub trait ANodeDeclaration: Send + Sync {
         false
     }
     fn signature(&self, ctx: &SignatureCtx<'_>, instance: &ANodeInstance, bindings: &TypeBindings) -> ANodeSignature;
+    fn compile_operation(
+        &self,
+        instance: &ANodeInstance,
+        _resolved: &ResolvedANodeSignature,
+    ) -> Result<CompiledNodeOperation, Diagnostic> {
+        Err(Diagnostic::error(
+            "node_compile_not_implemented",
+            format!("ANode `{}` does not provide a compiled operation", self.type_id()),
+            DiagnosticOrigin::Node(instance.id),
+        ))
+    }
 }

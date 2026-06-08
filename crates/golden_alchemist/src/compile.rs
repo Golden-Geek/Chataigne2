@@ -3,8 +3,9 @@ use std::{collections::VecDeque, ops::Range, sync::Arc};
 use indexmap::IndexMap;
 
 use crate::{
-    ANodeId, ANodeRegistry, AlchemistGraph, Diagnostic, DiagnosticOrigin, DiagnosticSeverity, ExecNodeId,
-    ExecutionKind, ExposedSurface, RuntimeValue, SocketId, TypeSolveCtx, ValueSlotId, ValueTypeRegistry, solve_types,
+    ANodeId, ANodeRegistry, AlchemistGraph, CompiledNodeEvaluator, Diagnostic, DiagnosticOrigin, DiagnosticSeverity,
+    ExecNodeId, ExecutionKind, ExposedSurface, RuntimeValue, SocketId, TypeSolveCtx, ValueSlotId, ValueTypeRegistry,
+    solve_types,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -15,10 +16,28 @@ pub enum InputValueSource {
 }
 
 #[derive(Clone, Debug)]
+pub enum CompiledNodeOperation {
+    Constant(RuntimeValue),
+    Add,
+    Compare,
+    BoolAnd,
+    BoolOr,
+    BoolNot,
+    Edge,
+    Gate,
+    MapRange,
+    Clamp,
+    DelayOneTick,
+    DebugLog,
+    Custom(Arc<dyn CompiledNodeEvaluator>),
+}
+
+#[derive(Clone, Debug)]
 pub struct CompiledExecNode {
     pub exec_id: ExecNodeId,
     pub authored_id: ANodeId,
     pub execution_kind: ExecutionKind,
+    pub operation: CompiledNodeOperation,
     pub inputs: Vec<InputValueSource>,
     pub outputs: Vec<ValueSlotId>,
     pub state_range: Range<usize>,
@@ -158,14 +177,33 @@ pub fn compile_graph(graph: &AlchemistGraph, ctx: &CompileCtx<'_>) -> CompileRes
             .keys()
             .map(|socket| value_slots[&(*node_id, socket.clone())])
             .collect();
+        let operation = match ctx
+            .nodes
+            .get(&instance.type_id)
+            .expect("type solving guarantees a registered declaration")
+            .compile_operation(instance, &resolved.signature)
+        {
+            Ok(operation) => operation,
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                continue;
+            }
+        };
         exec_nodes.push(CompiledExecNode {
             exec_id,
             authored_id: *node_id,
             execution_kind: resolved.execution_kind,
+            operation,
             inputs,
             outputs,
             state_range,
         });
+    }
+    if has_errors(&diagnostics) {
+        return CompileResult {
+            compiled: None,
+            diagnostics,
+        };
     }
 
     let debug_map = DebugSourceMap {
