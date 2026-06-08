@@ -6,7 +6,7 @@ license.workspace = true
 
 [features]
 default = ["serde"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "dep:serde_json"]
 rhai = []
 protocol = []
 debug_trace = []
@@ -15,6 +15,7 @@ golden_core_integration = []
 [dependencies]
 indexmap.workspace = true
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 smol_str.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
