@@ -8001,9 +8001,8 @@ fn animation_curve_waveform_survives_save_load_round_trip() {
         .and_then(|node| node.node_data().first_child)
         .expect("animation control node should exist after load");
 
-    let curve_node_after =
-        find_child_by_decl_any(&loaded, loaded_animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
-            .expect("curve node should exist after load");
+    let curve_node_after = find_child_by_decl_any(&loaded, loaded_animation_node, PARAMETER_ANIMATION_CURVE_DECL_ID)
+        .expect("curve node should exist after load");
     assert_eq!(
         loaded.nodes.get(curve_node_after).map(|n| n.get_type()),
         Some(PARAMETER_ANIMATION_CURVE_NODE_TYPE),
