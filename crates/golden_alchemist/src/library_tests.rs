@@ -30,6 +30,7 @@ fn primitive_catalog_contains_every_declaration() {
         "gate",
         "map_range",
         "clamp",
+        "delay_one_tick",
         "debug_log",
     ] {
         assert!(registry.get(&ANodeTypeId::new(id)).is_some(), "{id}");
@@ -93,6 +94,7 @@ signature_test!(edge_signature_is_declared, Edge, 1, 1);
 signature_test!(gate_signature_is_declared, Gate, 2, 1);
 signature_test!(map_range_signature_is_declared, MapRange, 5, 1);
 signature_test!(clamp_signature_is_declared, Clamp, 3, 1);
+signature_test!(delay_signature_is_declared, DelayOneTick, 1, 1);
 signature_test!(debug_log_signature_is_declared, DebugLog, 1, 0);
 
 #[test]
@@ -105,4 +107,5 @@ fn stateful_and_effect_nodes_are_explicit() {
         PrimitiveNodeDeclaration::new(PrimitiveNodeKind::DebugLog).execution_kind(),
         ExecutionKind::EffectEmitter
     );
+    assert!(PrimitiveNodeDeclaration::new(PrimitiveNodeKind::DelayOneTick).breaks_dependency_cycle());
 }

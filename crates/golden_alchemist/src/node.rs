@@ -78,5 +78,8 @@ pub trait ANodeDeclaration: Send + Sync {
     fn label(&self) -> &'static str;
     fn category(&self) -> &'static str;
     fn execution_kind(&self) -> ExecutionKind;
+    fn breaks_dependency_cycle(&self) -> bool {
+        false
+    }
     fn signature(&self, ctx: &SignatureCtx<'_>, instance: &ANodeInstance, bindings: &TypeBindings) -> ANodeSignature;
 }

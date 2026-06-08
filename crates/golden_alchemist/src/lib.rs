@@ -1,5 +1,6 @@
 //! Reusable typed graph compilation and runtime primitives for Golden applications.
 
+pub mod compile;
 pub mod diagnostics;
 pub mod expose;
 pub mod graph;
@@ -21,7 +22,9 @@ pub use graph::{
     AEdge, ANodeConfig, ANodeInstance, ANodeUiState, AlchemistGraph, GraphComment, GraphEditError, GraphGroup,
     GraphLayout, GraphMetadata, InputSocketRef, OutputSocketRef,
 };
-pub use ids::{ANodeId, ANodeTypeId, AlchemistGraphId, ExecNodeId, ExposedDeclId, FacetId, SocketId, ValueTypeId};
+pub use ids::{
+    ANodeId, ANodeTypeId, AlchemistGraphId, ExecNodeId, ExposedDeclId, FacetId, SocketId, ValueSlotId, ValueTypeId,
+};
 pub use library::{PrimitiveNodeDeclaration, PrimitiveNodeKind, primitive_node_registry, register_primitive_nodes};
 pub use node::{ANodeDeclaration, ANodeSignature, ExecutionKind, InputSocketDecl, OutputSocketDecl, SignatureCtx};
 pub use registry::{
@@ -38,6 +41,8 @@ pub use value::{ColorValue, ExtensionValue, RuntimeValue, StableRef, TriggerValu
 pub const ALCHEMIST_SCHEMA_VERSION: u32 = 1;
 
 #[cfg(test)]
+mod compile_tests;
+#[cfg(test)]
 mod graph_tests;
 #[cfg(test)]
 mod library_tests;
@@ -47,3 +52,7 @@ mod serialize_tests;
 mod tests;
 #[cfg(test)]
 mod typing_tests;
+pub use compile::{
+    CompileCtx, CompileResult, CompiledAlchemistGraph, CompiledExecNode, DebugSourceMap, InputValueSource, OutputRoute,
+    RuntimeStateLayout, RuntimeSubscription, compile_graph,
+};

@@ -16,11 +16,12 @@ pub enum PrimitiveNodeKind {
     Gate,
     MapRange,
     Clamp,
+    DelayOneTick,
     DebugLog,
 }
 
 impl PrimitiveNodeKind {
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 12] = [
         Self::Constant,
         Self::Add,
         Self::Compare,
@@ -31,6 +32,7 @@ impl PrimitiveNodeKind {
         Self::Gate,
         Self::MapRange,
         Self::Clamp,
+        Self::DelayOneTick,
         Self::DebugLog,
     ];
 
@@ -47,6 +49,7 @@ impl PrimitiveNodeKind {
             Self::Gate => "gate",
             Self::MapRange => "map_range",
             Self::Clamp => "clamp",
+            Self::DelayOneTick => "delay_one_tick",
             Self::DebugLog => "debug_log",
         }
     }
@@ -85,6 +88,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             PrimitiveNodeKind::Gate => "Gate",
             PrimitiveNodeKind::MapRange => "Map Range",
             PrimitiveNodeKind::Clamp => "Clamp",
+            PrimitiveNodeKind::DelayOneTick => "Delay One Tick",
             PrimitiveNodeKind::DebugLog => "Debug Log",
         }
     }
@@ -98,17 +102,22 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
             | PrimitiveNodeKind::BoolOr
             | PrimitiveNodeKind::BoolNot
             | PrimitiveNodeKind::Edge
-            | PrimitiveNodeKind::Gate => "Flow",
+            | PrimitiveNodeKind::Gate
+            | PrimitiveNodeKind::DelayOneTick => "Flow",
             PrimitiveNodeKind::DebugLog => "Debug",
         }
     }
 
     fn execution_kind(&self) -> ExecutionKind {
         match self.kind {
-            PrimitiveNodeKind::Edge => ExecutionKind::Stateful,
+            PrimitiveNodeKind::Edge | PrimitiveNodeKind::DelayOneTick => ExecutionKind::Stateful,
             PrimitiveNodeKind::DebugLog => ExecutionKind::EffectEmitter,
             _ => ExecutionKind::Pure,
         }
+    }
+
+    fn breaks_dependency_cycle(&self) -> bool {
+        self.kind == PrimitiveNodeKind::DelayOneTick
     }
 
     fn signature(&self, _ctx: &SignatureCtx<'_>, instance: &ANodeInstance, _bindings: &TypeBindings) -> ANodeSignature {
@@ -139,6 +148,7 @@ impl ANodeDeclaration for PrimitiveNodeDeclaration {
                 float_signature(&["value", "in_min", "in_max", "out_min", "out_max"], "result")
             }
             PrimitiveNodeKind::Clamp => float_signature(&["value", "minimum", "maximum"], "result"),
+            PrimitiveNodeKind::DelayOneTick => passthrough_signature(),
             PrimitiveNodeKind::DebugLog => ANodeSignature {
                 inputs: vec![InputSocketDecl::new("value", "Value", TypeConstraint::Any)],
                 outputs: Vec::new(),
@@ -233,6 +243,26 @@ fn float_signature(inputs: &[&str], output: &str) -> ANodeSignature {
             .map(|id| InputSocketDecl::new(*id, title(id), exact("float")))
             .collect(),
         outputs: vec![OutputSocketDecl::new(output, title(output), exact("float"))],
+        ..ANodeSignature::default()
+    }
+}
+
+fn passthrough_signature() -> ANodeSignature {
+    let variable = TypeVar::new("TValue");
+    let mut default_bindings = TypeBindings::default();
+    default_bindings.insert(variable.clone(), ValueTypeId::new("float"), TypeBindingSource::Default);
+    ANodeSignature {
+        inputs: vec![InputSocketDecl::new(
+            "value",
+            "Value",
+            TypeConstraint::Generic(variable.clone()),
+        )],
+        outputs: vec![OutputSocketDecl::new(
+            "value",
+            "Value",
+            TypeConstraint::Generic(variable),
+        )],
+        default_bindings,
         ..ANodeSignature::default()
     }
 }

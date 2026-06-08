@@ -109,3 +109,18 @@ impl fmt::Display for ExecNodeId {
         self.0.fmt(formatter)
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ValueSlotId(u32);
+
+impl ValueSlotId {
+    #[must_use]
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+
+    #[must_use]
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
