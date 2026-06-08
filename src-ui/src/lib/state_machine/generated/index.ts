@@ -1,5 +1,6 @@
 export type { AlchemistEdgeDto } from './AlchemistEdgeDto';
 export type { AlchemistNodeDto } from './AlchemistNodeDto';
+export type { AlchemistSocketDto } from './AlchemistSocketDto';
 export type { DiagnosticDto } from './DiagnosticDto';
 export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';
 export type { ExposedDeclDto } from './ExposedDeclDto';

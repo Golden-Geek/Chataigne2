@@ -3,11 +3,12 @@ export { default as AlchemistGraphEditor } from './components/AlchemistGraphEdit
 export { default as DiagnosticsPanel } from './components/DiagnosticsPanel.svelte';
 export { default as ProcessorInspector } from './components/ProcessorInspector.svelte';
 export { default as RuntimeDebugOverlay } from './components/RuntimeDebugOverlay.svelte';
+export { default as StateMachinePanel } from './components/StateMachinePanel.svelte';
 export { default as StatechartCanvas } from './components/StatechartCanvas.svelte';
 export { AlchemistGraphStore } from './stores/alchemistGraphStore.svelte';
 export { AlchemistLibraryStore } from './stores/alchemistLibraryStore.svelte';
 export { AlchemistTypeStore } from './stores/alchemistTypeStore.svelte';
 export { ProcessorStore } from './stores/processorStore.svelte';
 export { RuntimeDebugStore } from './stores/runtimeDebugStore.svelte';
-export { StateMachineStores } from './stores/stateMachineStores.svelte';
+export { StateMachineStores, stateMachineStores } from './stores/stateMachineStores.svelte';
 export { StatechartStore } from './stores/statechartStore.svelte';

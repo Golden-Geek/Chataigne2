@@ -4,6 +4,7 @@
 		registerNodeContextMenuContributor,
 		registerNodeInspector,
 		registerOutlinerRowSupplement,
+		type PanelSpawnRequest,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { appIcons } from '$lib/assets/icons/node-icons.svelte';
@@ -12,6 +13,7 @@
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
 	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
+	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 
 	registerNodeInspector('module_command', {
 		component: ModuleCommandInspector
@@ -33,8 +35,54 @@
 			title: 'Modules',
 			component: ModulePanel,
 			description: 'Filtered outliner view for modules'
+		},
+		stateMachine: {
+			title: 'State Machine',
+			component: StateMachinePanel,
+			description: 'Statechart and processor node graphs'
 		}
 	};
+
+	const initialPanels: PanelSpawnRequest[] = [
+		{
+			panelId: 'outliner',
+			panelType: 'outliner'
+		},
+		{
+			panelId: 'state-machine',
+			panelType: 'stateMachine',
+			required: true,
+			position: {
+				referencePanelId: 'outliner',
+				direction: 'right'
+			}
+		},
+		{
+			panelId: 'dashboard',
+			panelType: 'dashboard',
+			inactive: true,
+			position: {
+				referencePanelId: 'state-machine',
+				direction: 'within'
+			}
+		},
+		{
+			panelId: 'logger',
+			panelType: 'logger',
+			position: {
+				referencePanelId: 'state-machine',
+				direction: 'below'
+			}
+		},
+		{
+			panelId: 'inspector',
+			panelType: 'inspector',
+			position: {
+				referencePanelId: 'state-machine',
+				direction: 'right'
+			}
+		}
+	];
 </script>
 
-<MainWindow {userPanels} nodeIcons={appIcons} />
+<MainWindow {userPanels} {initialPanels} nodeIcons={appIcons} />

@@ -55,12 +55,21 @@ pub struct ProcessorUiDto {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct AlchemistSocketDto {
+    pub id: String,
+    pub label: String,
+    pub value_type: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct AlchemistNodeDto {
     pub id: String,
     pub type_id: String,
     pub label: String,
     pub x: f64,
     pub y: f64,
+    pub inputs: Vec<AlchemistSocketDto>,
+    pub outputs: Vec<AlchemistSocketDto>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -116,7 +125,25 @@ pub struct StateMachineProtocolBundle {
     pub runtime_debug: Vec<RuntimeDebugDeltaDto>,
 }
 
-pub fn export_typescript(output_dir: impl AsRef<Path>) -> Result<(), ts_rs::ExportError> {
-    let config = Config::new().with_out_dir(output_dir.as_ref().to_path_buf());
-    StateMachineProtocolBundle::export_all(&config)
+pub fn export_typescript(output_dir: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+    const INDEX: &str = "\
+export type { AlchemistEdgeDto } from './AlchemistEdgeDto';\n\
+export type { AlchemistNodeDto } from './AlchemistNodeDto';\n\
+export type { AlchemistSocketDto } from './AlchemistSocketDto';\n\
+export type { DiagnosticDto } from './DiagnosticDto';\n\
+export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';\n\
+export type { ExposedDeclDto } from './ExposedDeclDto';\n\
+export type { ProcessorUiDto } from './ProcessorUiDto';\n\
+export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
+export type { SocketCompatibilityDto } from './SocketCompatibilityDto';\n\
+export type { StatechartDeltaDto } from './StatechartDeltaDto';\n\
+export type { StateMachineProtocolBundle } from './StateMachineProtocolBundle';\n\
+export type { StateUiKind } from './StateUiKind';\n\
+export type { StateUiLayoutDto } from './StateUiLayoutDto';\n\
+export type { StateUiNodeDto } from './StateUiNodeDto';\n";
+    let output_dir = output_dir.as_ref();
+    let config = Config::new().with_out_dir(output_dir.to_path_buf());
+    StateMachineProtocolBundle::export_all(&config)?;
+    std::fs::write(output_dir.join("index.ts"), INDEX)?;
+    Ok(())
 }

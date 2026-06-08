@@ -1,3 +1,4 @@
+import type { GraphConnectionRequest, GraphNodePosition } from 'golden_alchemist_ui';
 import type { AlchemistEdgeDto, AlchemistNodeDto } from '../generated';
 
 export interface GraphViewport {
@@ -18,6 +19,10 @@ export class AlchemistGraphStore {
 		this.edges = edges;
 	}
 
+	select(nodeIds: string[]): void {
+		this.selectedNodeIds = new Set(nodeIds);
+	}
+
 	setDrag(nodeId: string, x: number, y: number): void {
 		this.dragOffsets.set(nodeId, { x, y });
 	}
@@ -30,6 +35,25 @@ export class AlchemistGraphStore {
 		node.y = drag.y;
 		this.dragOffsets.delete(nodeId);
 		return node;
+	}
+
+	moveNode(nodeId: string, position: GraphNodePosition): AlchemistNodeDto | null {
+		const node = this.nodesById.get(nodeId);
+		if (!node) return null;
+		node.x = position.x;
+		node.y = position.y;
+		return node;
+	}
+
+	connect(connection: GraphConnectionRequest): AlchemistEdgeDto {
+		const edge: AlchemistEdgeDto = {
+			from_node: connection.from.nodeId,
+			from_socket: connection.from.socketId,
+			to_node: connection.to.nodeId,
+			to_socket: connection.to.socketId
+		};
+		this.edges = [...this.edges, edge];
+		return edge;
 	}
 
 	visibleNodes(viewport: GraphViewport, margin = 8): AlchemistNodeDto[] {
