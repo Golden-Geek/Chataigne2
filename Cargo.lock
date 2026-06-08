@@ -795,6 +795,8 @@ name = "chataigne_alchemist"
 version = "0.1.0"
 dependencies = [
  "golden_alchemist",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

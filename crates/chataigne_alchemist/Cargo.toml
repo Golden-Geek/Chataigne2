@@ -6,3 +6,5 @@ license.workspace = true
 
 [dependencies]
 golden_alchemist.workspace = true
+serde.workspace = true
+serde_json.workspace = true
