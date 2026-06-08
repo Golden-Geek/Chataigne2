@@ -808,6 +808,7 @@ dependencies = [
  "golden_statechart",
  "indexmap 2.13.0",
  "serde",
+ "ts-rs",
  "uuid",
 ]
 

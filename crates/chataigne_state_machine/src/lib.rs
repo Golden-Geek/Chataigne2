@@ -3,6 +3,7 @@
 mod arbitration;
 mod models;
 mod processor;
+pub mod protocol;
 mod state_machine;
 
 pub use arbitration::{
@@ -18,6 +19,7 @@ pub use processor::{
     ProcessorCommandPolicy, ProcessorDirtyFlags, ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorMemoryPolicy, ProcessorNode, ProcessorRuntime, ProcessorUiModel,
 };
+pub use protocol::export_typescript;
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, RuntimeExecutionMatrix,
     StateMachineTickOutput,

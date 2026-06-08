@@ -8,3 +8,4 @@ bun.lockb
 # Miscellaneous
 /static/
 /src/lib/golden_ui/generated/
+/src/lib/state_machine/generated/
