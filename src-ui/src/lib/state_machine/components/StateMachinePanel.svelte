@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import {
 		GraphCanvas,
+		type GraphCamera,
 		type GraphEdge,
 		type GraphNode,
 		type GraphNodeMove,
@@ -18,6 +19,10 @@
 		type UiCreatableUserItem,
 		type UiNodeDto
 	} from 'golden_ui';
+	import {
+		readPanelPersistedState,
+		writePanelPersistedState
+	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
 	import { createUiEditSession, sendCreateUserItemIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
@@ -30,7 +35,40 @@
 	const DEFAULT_COLUMNS = 4;
 	const DEFAULT_X_GAP_REM = 16;
 	const DEFAULT_Y_GAP_REM = 7;
+	const CAMERA_PERSIST_DELAY_MS = 150;
 	const graphEdges: GraphEdge[] = [];
+
+	interface StateMachinePanelPersistedState {
+		camera?: GraphCamera;
+	}
+
+	const graphCamera = (value: unknown): GraphCamera | undefined => {
+		if (typeof value !== 'object' || value === null) {
+			return undefined;
+		}
+		const candidate = value as Record<string, unknown>;
+		if (
+			typeof candidate.x !== 'number' ||
+			!Number.isFinite(candidate.x) ||
+			typeof candidate.y !== 'number' ||
+			!Number.isFinite(candidate.y) ||
+			typeof candidate.zoom !== 'number' ||
+			!Number.isFinite(candidate.zoom)
+		) {
+			return undefined;
+		}
+		return {
+			x: candidate.x,
+			y: candidate.y,
+			zoom: candidate.zoom
+		};
+	};
+
+	const camerasMatch = (left: GraphCamera | undefined, right: GraphCamera): boolean =>
+		left !== undefined &&
+		Math.abs(left.x - right.x) < 0.0001 &&
+		Math.abs(left.y - right.y) < 0.0001 &&
+		Math.abs(left.zoom - right.zoom) < 0.0001;
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -53,6 +91,12 @@
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
 	let positionPersistenceTail = Promise.resolve();
+	let pendingCamera: GraphCamera | null = null;
+	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	let initialCamera = $derived.by(() =>
+		graphCamera(readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params).camera)
+	);
 
 	let manager = $derived.by(() => {
 		if (!session) {
@@ -272,6 +316,33 @@
 		return operation;
 	};
 
+	const flushCameraPersistence = (): void => {
+		if (cameraPersistenceTimer !== null) {
+			clearTimeout(cameraPersistenceTimer);
+			cameraPersistenceTimer = null;
+		}
+		const nextCamera = pendingCamera;
+		pendingCamera = null;
+		if (!nextCamera) {
+			return;
+		}
+		const currentCamera = graphCamera(
+			readPanelPersistedState<StateMachinePanelPersistedState>(props.panelApi.getParams()).camera
+		);
+		if (camerasMatch(currentCamera, nextCamera)) {
+			return;
+		}
+		writePanelPersistedState(props.panelApi, { camera: nextCamera });
+	};
+
+	const persistCamera = (camera: GraphCamera): void => {
+		pendingCamera = { ...camera };
+		if (cameraPersistenceTimer !== null) {
+			clearTimeout(cameraPersistenceTimer);
+		}
+		cameraPersistenceTimer = setTimeout(flushCameraPersistence, CAMERA_PERSIST_DELAY_MS);
+	};
+
 	export const setPanelState = (next: PanelState): void => {
 		updatedPanelState = next;
 	};
@@ -290,6 +361,7 @@
 		return () => {
 			unregisterFrame();
 			unregisterHome();
+			flushCameraPersistence();
 		};
 	});
 </script>
@@ -313,6 +385,8 @@
 		{selectedNodeIds}
 		onSelectionChange={selectNodes}
 		onNodesMove={persistNodePositions}
+		{initialCamera}
+		onCameraChange={persistCamera}
 		{emptyLabel} />
 
 	<ContextMenu
