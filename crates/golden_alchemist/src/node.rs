@@ -1,4 +1,8 @@
-use crate::{ANodeInstance, ANodeTypeId, RuntimeValue, SocketId, TypeBindings, TypeConstraint, ValueTypeRegistry};
+use indexmap::IndexMap;
+
+use crate::{
+    ANodeInstance, ANodeTypeId, RuntimeValue, SocketId, TypeBindings, TypeConstraint, TypeVar, ValueTypeRegistry,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -62,6 +66,7 @@ pub struct ANodeSignature {
     pub inputs: Vec<InputSocketDecl>,
     pub outputs: Vec<OutputSocketDecl>,
     pub default_bindings: TypeBindings,
+    pub generic_constraints: IndexMap<TypeVar, TypeConstraint>,
 }
 
 pub struct SignatureCtx<'a> {

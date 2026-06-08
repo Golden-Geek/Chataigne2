@@ -28,7 +28,10 @@ pub use registry::{
     ANodeRegistry, ConversionKind, ConversionRule, FacetDescriptor, FacetRegistry, RegistryError, ValueTypeDescriptor,
     ValueTypeRegistry, ValueTypeUiDescriptor,
 };
-pub use typing::{TypeBinding, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar};
+pub use typing::{
+    ResolvedANode, ResolvedANodeSignature, ResolvedGraph, ResolvedSocket, TypeBinding, TypeBindingConflict,
+    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx, TypeSolveResult, TypeVar, solve_types,
+};
 pub use value::{ColorValue, ExtensionValue, RuntimeValue, StableRef, TriggerValue, ValueStorageKind};
 
 /// Current authored graph schema version.
@@ -42,3 +45,5 @@ mod library_tests;
 mod serialize_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod typing_tests;

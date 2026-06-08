@@ -185,7 +185,9 @@ fn constant_signature(instance: &ANodeInstance) -> ANodeSignature {
 fn generic_binary_signature(first: &str, second: &str, output: &str) -> ANodeSignature {
     let variable = TypeVar::new("TNumeric");
     let mut default_bindings = TypeBindings::default();
+    let mut generic_constraints = indexmap::IndexMap::new();
     default_bindings.insert(variable.clone(), ValueTypeId::new("float"), TypeBindingSource::Default);
+    generic_constraints.insert(variable.clone(), TypeConstraint::NumericLike);
     ANodeSignature {
         inputs: vec![
             InputSocketDecl::new(first, title(first), TypeConstraint::Generic(variable.clone())),
@@ -197,6 +199,7 @@ fn generic_binary_signature(first: &str, second: &str, output: &str) -> ANodeSig
             TypeConstraint::Generic(variable),
         )],
         default_bindings,
+        generic_constraints,
     }
 }
 
