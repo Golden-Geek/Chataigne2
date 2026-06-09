@@ -56,6 +56,7 @@
 
 	interface StateMachinePanelPersistedState {
 		camera?: GraphCamera;
+		avoidStateObstacles?: boolean;
 	}
 
 	const graphCamera = (value: unknown): GraphCamera | undefined => {
@@ -111,6 +112,18 @@
 	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
+	let avoidStateObstacles = $state(false);
+	let initializedRoutingPanelId: string | null = null;
+
+	$effect(() => {
+		if (initializedRoutingPanelId === panelState.panelId) {
+			return;
+		}
+		avoidStateObstacles =
+			readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params)
+				.avoidStateObstacles === true;
+		initializedRoutingPanelId = panelState.panelId;
+	});
 
 	let initialCamera = $derived.by(() =>
 		graphCamera(readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params).camera)
@@ -208,6 +221,7 @@
 			width: graphDimension(node, WIDTH_DECL_ID, DEFAULT_STATE_WIDTH_REM),
 			height: graphDimension(node, HEIGHT_DECL_ID, DEFAULT_STATE_HEIGHT_REM),
 			resizable: true,
+			socketPlacement: 'header',
 			active: boolParameterValue(node, ACTIVE_DECL_ID) ?? false,
 			inputs: [
 				{
@@ -224,6 +238,10 @@
 				}
 			]
 		}))
+	);
+	let stateNodeIds = $derived(new Set(stateNodes.map((node) => node.node_id)));
+	let selectedStateNodeIds = $derived(
+		new Set((session?.selectedNodesIds ?? []).filter((nodeId) => stateNodeIds.has(nodeId)))
 	);
 	let statesByUuid = $derived(new Map(stateNodes.map((node) => [node.uuid, node])));
 	let graphEdges = $derived.by((): GraphEdge[] => {
@@ -255,6 +273,8 @@
 				if (!targetState || targetState.node_type !== STATE_NODE_TYPE) {
 					return [];
 				}
+				const sourceSelected = selectedStateNodeIds.has(sourceState.node_id);
+				const targetSelected = selectedStateNodeIds.has(targetState.node_id);
 				return [
 					{
 						id: String(transition.node_id),
@@ -266,16 +286,33 @@
 							nodeId: String(targetState.node_id),
 							socketId: TRANSITION_INPUT_SOCKET_ID
 						},
+						color: sourceSelected
+							? 'var(--gc-color-selection, #ff5ba7)'
+							: targetSelected
+								? '#58a6ff'
+								: undefined,
 						active: boolParameterValue(sourceState, ACTIVE_DECL_ID) ?? false
 					}
 				];
 			});
 		});
 	});
-	let stateNodeIds = $derived(new Set(stateNodes.map((node) => node.node_id)));
+	let transitionNodeIds = $derived(
+		new Set(
+			graphEdges.flatMap((edge) => {
+				const nodeId = Number(edge.id);
+				return Number.isSafeInteger(nodeId) ? [nodeId] : [];
+			})
+		)
+	);
 	let selectedNodeIds = $derived(
 		(session?.selectedNodesIds ?? [])
 			.filter((nodeId) => stateNodeIds.has(nodeId))
+			.map((nodeId) => String(nodeId))
+	);
+	let selectedEdgeIds = $derived(
+		(session?.selectedNodesIds ?? [])
+			.filter((nodeId) => transitionNodeIds.has(nodeId))
 			.map((nodeId) => String(nodeId))
 	);
 	let emptyLabel = $derived(
@@ -308,6 +345,25 @@
 			return;
 		}
 		session.selectNodes(hierarchyNodeIds, 'REPLACE');
+	};
+
+	const selectEdges = (edgeIds: string[]): void => {
+		if (!session) {
+			return;
+		}
+		const hierarchyNodeIds = edgeIds
+			.map((edgeId) => Number(edgeId))
+			.filter((nodeId) => Number.isSafeInteger(nodeId) && transitionNodeIds.has(nodeId));
+		if (hierarchyNodeIds.length === 0) {
+			session.clearSelection();
+			return;
+		}
+		session.selectNodes(hierarchyNodeIds, 'REPLACE');
+	};
+
+	const setAvoidStateObstacles = (event: Event): void => {
+		avoidStateObstacles = (event.currentTarget as HTMLInputElement).checked;
+		writePanelPersistedState(props.panelApi, { avoidStateObstacles });
 	};
 
 	const rectanglesOverlap = (
@@ -733,6 +789,10 @@
 			<NodeAddButton
 				node={manager}
 				onCreateItem={(item) => createState(item, graphCanvas?.viewportCenter())} />
+			<label class="wire-routing-toggle" title="Automatically route transition wires around States">
+				<input type="checkbox" checked={avoidStateObstacles} onchange={setAvoidStateObstacles} />
+				<span>Avoid states</span>
+			</label>
 		</div>
 	{/if}
 
@@ -741,12 +801,15 @@
 		nodes={graphNodes}
 		edges={graphEdges}
 		{selectedNodeIds}
+		{selectedEdgeIds}
 		onSelectionChange={selectNodes}
+		onEdgeSelectionChange={selectEdges}
 		onNodesMove={persistNodePositions}
 		onNodeResize={persistNodeResize}
 		onConnect={connectStates}
 		nodeContent={stateNodeContent}
 		onBackgroundContextMenu={openContextMenu}
+		routeEdgesAroundNodes={avoidStateObstacles}
 		{initialCamera}
 		onCameraChange={persistCamera}
 		{emptyLabel} />
@@ -778,6 +841,28 @@
 		inset-inline-start: 0.7rem;
 		z-index: 20;
 		display: flex;
+		align-items: center;
+		gap: 0.3rem;
 		padding: 0.15rem;
+	}
+
+	.wire-routing-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.28rem;
+		min-block-size: 1.45rem;
+		padding-inline: 0.4rem;
+		border-radius: 0.35rem;
+		background: color-mix(in srgb, var(--gc-color-background) 84%, transparent);
+		color: color-mix(in srgb, var(--gc-color-text) 78%, transparent);
+		font-size: 0.66rem;
+		cursor: pointer;
+		backdrop-filter: blur(0.5rem);
+	}
+
+	.wire-routing-toggle input {
+		inline-size: 0.8rem;
+		block-size: 0.8rem;
+		margin: 0;
 	}
 </style>
