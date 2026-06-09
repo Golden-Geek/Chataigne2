@@ -106,9 +106,9 @@ impl StreamDeckModel {
             description = "Stream Deck family. Sets the number of keys and rebuilds the layout.",
             enum_options = ["mini", "standard", "xl", "plus", "pedal"]
         );
-        brightness: i32 = 80 [0..100] (
+        brightness: f64 = 0.8 [0..1] (
             label = "Brightness",
-            description = "Global key backlight brightness percentage."
+            description = "Global key backlight brightness.",
         );
         // Default-page control surface (appearance). `pages/` is created beside this at runtime.
         folder(keys, label = "Keys", tags = vec![paging::PAGEABLE_TAG.to_string()]) {}
@@ -300,7 +300,7 @@ impl StreamDeckModule {
 
     fn apply_brightness(&mut self) {
         if let Some(hardware) = self.hardware.as_mut() {
-            let percent = self.brightness.get().clamp(0, 100) as u8;
+            let percent = (self.brightness.get() * 100.0).clamp(0.0, 100.0) as u8;
             let _ = hardware.set_brightness(percent);
         }
     }
