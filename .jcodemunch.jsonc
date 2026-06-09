@@ -1,4 +1,13 @@
 {
+  // All MCP clients share ~/.code-index. VS Code owns the watcher lifecycle.
+  "extra_extensions": {
+    ".svelte": "typescript"
+  },
+
+  "watch": false,
+  "watch_debounce_ms": 1000,
+  "freshness_mode": "strict",
+
   "extra_ignore_patterns": [
     "/target/",
     "**/target/",
@@ -6,6 +15,12 @@
     "**/*.rs.bk",
     "**/*.pdb",
     "**/mutants.out*/",
+    ".kilo/",
+    ".venv/",
+    "src-ui/src/lib/golden_alchemist_ui/",
+    "src-ui/src/lib/golden_ui/",
+    "submodules/golden_alchemist_core/",
+    "submodules/golden_core/",
 
     "src-ui/node_modules/",
     "src-ui/.svelte-kit/",
@@ -54,6 +69,12 @@
     "**/*.rs.bk",
     "**/*.pdb",
     "**/mutants.out*/",
+    ".kilo/",
+    ".venv/",
+    "src-ui/src/lib/golden_alchemist_ui/",
+    "src-ui/src/lib/golden_ui/",
+    "submodules/golden_alchemist_core/",
+    "submodules/golden_core/",
     "src-ui/node_modules/",
     "src-ui/.svelte-kit/",
     "src-ui/build/",

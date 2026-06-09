@@ -1,3 +1,4 @@
 {
-    "editor.wordWrapColumn": 150
+    "editor.wordWrapColumn": 150,
+    "task.allowAutomaticTasks": "on"
 }
