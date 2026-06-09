@@ -3,6 +3,7 @@ from __future__ import annotations
 import atexit
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -17,6 +18,7 @@ WORKSPACE = Path(__file__).resolve().parent.parent
 INDEX_ROOT = Path(os.environ.get("CODE_INDEX_PATH", Path.home() / ".code-index")).resolve()
 LOCK_PATH = INDEX_ROOT / "chataigne2-workspace-watch.lock"
 POLL_SECONDS = 1.0
+GIT_POLL_SECONDS = 5.0
 
 EXPECTED_SOURCE_ROOTS = (
     WORKSPACE,
@@ -232,6 +234,42 @@ def refresh_file(path: Path) -> None:
     print(f"jCodeMunch updated {result.get('repo')}:{result.get('file')}", flush=True)
 
 
+def current_git_head(source_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=source_root,
+        capture_output=True,
+        text=True,
+        timeout=2,
+        check=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def synchronize_git_heads(
+    store: IndexStore,
+    repositories: dict[str, Path],
+) -> None:
+    for repo, source_root in repositories.items():
+        owner, name = repo.split("/", 1)
+        index = store.load_index(owner, name)
+        git_head = current_git_head(source_root)
+        if index is None or not git_head or index.git_head == git_head:
+            continue
+        store.incremental_save(
+            owner=owner,
+            name=name,
+            changed_files=[],
+            new_files=[],
+            deleted_files=[],
+            new_symbols=[],
+            raw_files={},
+            git_head=git_head,
+        )
+        print(f"jCodeMunch updated {repo} Git HEAD to {git_head[:12]}", flush=True)
+
+
 def synchronize_startup(
     store: IndexStore,
     repositories: dict[str, Path],
@@ -275,8 +313,10 @@ def main() -> int:
     repositories = canonical_repositories(store)
     current = scan_files()
     synchronize_startup(store, repositories, current)
+    synchronize_git_heads(store, repositories)
     print("jCodeMunch watcher ready", flush=True)
 
+    next_git_poll = time.monotonic() + GIT_POLL_SECONDS
     while True:
         time.sleep(POLL_SECONDS)
         next_files = scan_files()
@@ -286,6 +326,9 @@ def main() -> int:
             if current.get(path) != next_files[path]:
                 refresh_file(path)
         current = next_files
+        if time.monotonic() >= next_git_poll:
+            synchronize_git_heads(store, repositories)
+            next_git_poll = time.monotonic() + GIT_POLL_SECONDS
 
 
 if __name__ == "__main__":
