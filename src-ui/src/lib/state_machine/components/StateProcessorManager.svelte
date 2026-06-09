@@ -203,7 +203,7 @@
 		min-block-size: 0;
 		block-size: 100%;
 		/* border: solid 0.06rem color-mix(in srgb, var(--gc-color-panel-outline) 38%, transparent); */
-		/* border-radius: 0.38rem; */
+		border-radius: 0.5rem;
 		background: color-mix(in srgb, var(--gc-color-background) 58%, transparent);
 		overflow: hidden;
 	}
