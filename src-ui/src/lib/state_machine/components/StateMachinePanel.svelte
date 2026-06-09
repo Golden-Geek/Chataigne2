@@ -266,10 +266,14 @@
 					return [];
 				}
 				const reference = targetParam.data.param.value;
+				const cachedTarget =
+					reference.cached_id === undefined
+						? undefined
+						: session.graph.state.nodesById.get(reference.cached_id);
 				const targetState =
-					(reference.cached_id === undefined
-						? statesByUuid.get(reference.uuid)
-						: session?.graph.state.nodesById.get(reference.cached_id)) ?? null;
+					(cachedTarget?.uuid === reference.uuid
+						? cachedTarget
+						: statesByUuid.get(reference.uuid)) ?? null;
 				if (!targetState || targetState.node_type !== STATE_NODE_TYPE) {
 					return [];
 				}
