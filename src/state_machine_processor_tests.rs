@@ -6,20 +6,25 @@ use super::{
 };
 
 #[test]
-fn processor_manager_exposes_runtime_models_custom_processors_and_folders() {
+fn processor_manager_exposes_actions_mappings_custom_processors_and_folders() {
     let manager = StateProcessorManager::new();
     let items = manager.user_creatable_items();
-    let builtin_labels: Vec<_> = chataigne_state_machine::builtin_processor_models()
-        .into_iter()
-        .map(|model| model.label)
-        .collect();
 
-    for label in builtin_labels {
+    for label in ["Action", "Mapping"] {
         let item = items
             .iter()
             .find(|item| item.label == label)
             .unwrap_or_else(|| panic!("missing built-in processor item {label}"));
         assert_eq!(item.item_kind, PROCESSOR_ITEM_KIND);
+    }
+    for unavailable_label in [
+        "Input Condition",
+        "Multiplex",
+        "Sequence Launcher",
+        "State Controller",
+        "Conductor",
+    ] {
+        assert!(!items.iter().any(|item| item.label == unavailable_label));
     }
     assert!(items.iter().any(|item| {
         item.node_type == "state_processor_custom" && item.item_kind == PROCESSOR_ITEM_KIND

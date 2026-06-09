@@ -36,7 +36,6 @@ streamdeck-hid = ["dep:elgato-streamdeck", "dep:image"]
 [dependencies]
 artnet_protocol = "0.4.4"
 buttplug = "10.0.2"
-chataigne_state_machine = { path = "src/state_machine" }
 device_query = "4.0.1"
 elgato-streamdeck = { version = "0.13", optional = true }
 futures-util = "0.3"

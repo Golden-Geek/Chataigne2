@@ -108,25 +108,6 @@ impl Node for StateProcessorFolder {
     }
 }
 
-#[node("state_processor_input_condition", label = "Input Condition")]
-pub struct InputConditionStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_input_condition",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for InputConditionStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
 #[node("state_processor_action", label = "Action")]
 pub struct ActionStateProcessor {}
 
@@ -156,82 +137,6 @@ pub struct MappingStateProcessor {}
     menu_path = ["Built-in"]
 )]
 impl Node for MappingStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_multiplex", label = "Multiplex")]
-pub struct MultiplexStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_multiplex",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for MultiplexStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_sequence_launcher", label = "Sequence Launcher")]
-pub struct SequenceLauncherStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_sequence_launcher",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for SequenceLauncherStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_state_controller", label = "State Controller")]
-pub struct StateControllerStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_state_controller",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for StateControllerStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_conductor", label = "Conductor")]
-pub struct ConductorStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_conductor",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for ConductorStateProcessor {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
     }
