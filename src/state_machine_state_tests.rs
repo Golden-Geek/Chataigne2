@@ -1,10 +1,14 @@
 use golden_core::{
+    app::ProjectFileSpec,
     edit::Edit,
-    node::{Folder, Node, NodeId},
+    node::{DeclId, Folder, Node, NodeId, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
+    ui_read_model::UiReadModel,
+    ui_sync::{UiCreateUserItemInitialParam, UiEditIntent, UiSubscriptionScope},
 };
 
 use super::StateMachineState;
+use crate::app::StateMachineManager;
 
 #[test]
 fn state_defaults_are_ready_for_canvas_authoring() {
@@ -22,8 +26,17 @@ fn state_defaults_are_ready_for_canvas_authoring() {
 fn state_canvas_geometry_survives_project_reload() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
-    engine.add_node(StateMachineState::new().into(), None);
-    engine.add_node(StateMachineState::new().into(), None);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("state machine manager should attach");
+    let manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("state machine manager should be attached under root");
+    engine.add_user_item(StateMachineState::new().into(), Some(manager_id));
+    engine.add_user_item(StateMachineState::new().into(), Some(manager_id));
     for _ in 0..3 {
         engine
             .apply_edits()
@@ -32,16 +45,16 @@ fn state_canvas_geometry_survives_project_reload() {
 
     let state_id = engine
         .nodes
-        .get(engine.root)
-        .and_then(|root| root.node_data().first_child)
-        .expect("state should be attached under root");
+        .get(manager_id)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("state should be attached under state machine manager");
     let target_state_id = engine
         .nodes
         .get(state_id)
         .and_then(|state| state.node_data().next_sibling)
         .expect("target state should be attached under root");
     let transition_manager_id = child_by_decl(&engine, state_id, "transitions");
-    engine.add_node(
+    engine.add_user_item(
         crate::app::StateTransition::new().into(),
         Some(transition_manager_id),
     );
@@ -88,7 +101,9 @@ fn state_canvas_geometry_survives_project_reload() {
         .nodes
         .get(loaded.root)
         .and_then(|root| root.node_data().first_child)
-        .expect("state should reload under root");
+        .and_then(|manager_id| loaded.nodes.get(manager_id))
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("state should reload under state machine manager");
 
     for (decl_id, expected) in [("x", 21.5), ("y", -7.25), ("width", 18.75), ("height", 11.5)] {
         let param_id = child_by_decl(&loaded, loaded_state_id, decl_id);
@@ -99,6 +114,200 @@ fn state_canvas_geometry_survives_project_reload() {
             .map(|snapshot| snapshot.value);
         assert_eq!(actual, Some(ParamValue::Float(expected)));
     }
+
+    let snapshot = loaded.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    let snapshot_state = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == loaded_state_id)
+        .expect("reloaded state should be included in UI snapshot");
+    for (decl_id, expected) in [("x", 21.5), ("y", -7.25), ("width", 18.75), ("height", 11.5)] {
+        let param_id = snapshot_state
+            .children
+            .iter()
+            .find_map(|child_id| {
+                snapshot
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id == *child_id && node.decl_id.0 == decl_id)
+            })
+            .unwrap_or_else(|| panic!("snapshot parameter '{decl_id}' should exist"));
+        let golden_core::ui_sync::UiNodeDataDto::Parameter { param } = &param_id.data else {
+            panic!("snapshot child '{decl_id}' should be a parameter");
+        };
+        assert_eq!(param.value, ParamValue::Float(expected));
+    }
+
+    let transition_manager_id = snapshot_state
+        .children
+        .iter()
+        .find_map(|child_id| {
+            snapshot
+                .nodes
+                .iter()
+                .find(|node| node.node_id == *child_id && node.decl_id.0 == "transitions")
+        })
+        .expect("snapshot transition manager should exist");
+    assert_eq!(
+        transition_manager_id.children.len(),
+        1,
+        "reloaded transition should be included in UI snapshot"
+    );
+}
+
+#[test]
+fn transition_creation_keeps_reload_snapshot_complete() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("state machine manager should attach");
+    let manager_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("state machine manager should be attached under root");
+
+    for label in ["Reload A", "Reload B"] {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: manager_id,
+            node_type: StateMachineState::NODE_TYPE.to_string(),
+            label: Some(label.to_string()),
+            initial_params: Vec::new(),
+        });
+        assert!(ack.success, "state creation should succeed: {ack:?}");
+    }
+
+    let source_state = engine
+        .nodes
+        .get(manager_id)
+        .and_then(|manager| manager.node_data().first_child)
+        .expect("source state should exist");
+    let target_state = engine
+        .nodes
+        .get(source_state)
+        .and_then(|state| state.node_data().next_sibling)
+        .expect("target state should exist");
+    let target_uuid = engine
+        .nodes
+        .get(target_state)
+        .expect("target state should exist")
+        .node_data()
+        .meta
+        .uuid;
+    let transition_manager = child_by_decl(&engine, source_state, "transitions");
+
+    let project_file = ProjectFileSpec::new("Noisette", "noisette");
+    let read_model = UiReadModel::from_engine(&engine, project_file.clone());
+    let previous_event_time = read_model.current_event_time();
+    for (state_id, values) in [
+        (source_state, [12.5, 7.25, 19.0, 10.0]),
+        (target_state, [42.0, 15.0, 16.0, 9.0]),
+    ] {
+        for initial_param in geometry_initial_params(values) {
+            let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+                node: child_by_decl(&engine, state_id, &initial_param.decl_id.0),
+                value: initial_param.value,
+                behaviour: ParameterEventBehaviour::Coalesce,
+            });
+            assert!(ack.success, "state geometry edit should succeed: {ack:?}");
+        }
+    }
+    let capture = read_model.collect_event_batch(&engine, previous_event_time);
+    read_model.apply_event_capture(capture, project_file.clone());
+
+    let previous_event_time = read_model.current_event_time();
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: transition_manager,
+        node_type: crate::app::StateTransition::NODE_TYPE.to_string(),
+        label: Some("Transition".to_string()),
+        initial_params: vec![UiCreateUserItemInitialParam {
+            decl_id: DeclId("target".to_string()),
+            value: ParamValue::Reference(NodeReference::new(target_uuid)),
+        }],
+    });
+    assert!(ack.success, "transition creation should succeed: {ack:?}");
+
+    let capture = read_model.collect_event_batch(&engine, previous_event_time);
+    read_model.apply_event_capture(capture, project_file);
+
+    let engine_snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
+    let reload_snapshot = read_model.current_snapshot();
+    for state_id in [source_state, target_state] {
+        assert_state_geometry_matches(&engine_snapshot, &reload_snapshot, state_id);
+    }
+
+    let engine_transition_manager = snapshot_node(&engine_snapshot, transition_manager);
+    let reload_transition_manager = snapshot_node(&reload_snapshot, transition_manager);
+    assert_eq!(
+        reload_transition_manager.children,
+        engine_transition_manager.children,
+        "reload snapshot should retain transition children"
+    );
+    for transition_id in &engine_transition_manager.children {
+        assert_eq!(
+            snapshot_node(&reload_snapshot, *transition_id),
+            snapshot_node(&engine_snapshot, *transition_id),
+            "reload snapshot should retain the full transition subtree"
+        );
+    }
+}
+
+fn geometry_initial_params(values: [f64; 4]) -> Vec<UiCreateUserItemInitialParam> {
+    ["x", "y", "width", "height"]
+        .into_iter()
+        .zip(values)
+        .map(|(decl_id, value)| UiCreateUserItemInitialParam {
+            decl_id: DeclId(decl_id.to_string()),
+            value: ParamValue::Float(value),
+        })
+        .collect()
+}
+
+fn assert_state_geometry_matches(
+    engine_snapshot: &golden_core::ui_sync::UiSnapshot,
+    reload_snapshot: &golden_core::ui_sync::UiSnapshot,
+    state_id: NodeId,
+) {
+    let engine_state = snapshot_node(engine_snapshot, state_id);
+    let reload_state = snapshot_node(reload_snapshot, state_id);
+    for decl_id in ["x", "y", "width", "height"] {
+        let engine_param = snapshot_child_by_decl(engine_snapshot, engine_state, decl_id);
+        let reload_param = snapshot_child_by_decl(reload_snapshot, reload_state, decl_id);
+        assert_eq!(
+            reload_param.data, engine_param.data,
+            "reload snapshot should retain State '{decl_id}'"
+        );
+    }
+}
+
+fn snapshot_node(
+    snapshot: &golden_core::ui_sync::UiSnapshot,
+    node_id: NodeId,
+) -> &golden_core::ui_sync::UiNodeDto {
+    snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == node_id)
+        .unwrap_or_else(|| panic!("snapshot node {node_id:?} should exist"))
+}
+
+fn snapshot_child_by_decl<'a>(
+    snapshot: &'a golden_core::ui_sync::UiSnapshot,
+    parent: &golden_core::ui_sync::UiNodeDto,
+    decl_id: &str,
+) -> &'a golden_core::ui_sync::UiNodeDto {
+    parent
+        .children
+        .iter()
+        .find_map(|child_id| {
+            snapshot
+                .nodes
+                .iter()
+                .find(|node| node.node_id == *child_id && node.decl_id.0 == decl_id)
+        })
+        .unwrap_or_else(|| panic!("snapshot parameter '{decl_id}' should exist"))
 }
 
 fn child_by_decl(
