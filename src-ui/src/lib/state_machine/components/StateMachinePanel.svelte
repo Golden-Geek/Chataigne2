@@ -3,6 +3,7 @@
 	import {
 		GraphCanvas,
 		type GraphCamera,
+		type GraphConnectionRequest,
 		type GraphEdge,
 		type GraphNode,
 		type GraphNodeMove,
@@ -17,7 +18,9 @@
 		type ContextMenuItem,
 		type PanelProps,
 		type PanelState,
+		type ParamValue,
 		type UiCreatableUserItem,
+		type UiCreateUserItemInitialParam,
 		type UiNodeDto
 	} from 'golden_ui';
 	import {
@@ -25,9 +28,10 @@
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
-	import { createUiEditSession, sendCreateUserItemIntent } from 'golden_ui/store/ui-intents';
+	import { createUiEditSession, sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
+	import StateProcessorManager from './StateProcessorManager.svelte';
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
 	const STATE_NODE_TYPE = 'state';
@@ -35,13 +39,20 @@
 	const POSITION_Y_DECL_ID = 'y';
 	const WIDTH_DECL_ID = 'width';
 	const HEIGHT_DECL_ID = 'height';
-	const DEFAULT_COLUMNS = 4;
-	const DEFAULT_X_GAP_REM = 16;
-	const DEFAULT_Y_GAP_REM = 7;
+	const ACTIVE_DECL_ID = 'active';
+	const PROCESSORS_DECL_ID = 'processors';
+	const TRANSITIONS_DECL_ID = 'transitions';
+	const TRANSITION_TARGET_DECL_ID = 'target';
+	const TRANSITION_NODE_TYPE = 'state_transition';
+	const TRANSITION_INPUT_SOCKET_ID = 'transition-input';
+	const TRANSITION_OUTPUT_SOCKET_ID = 'transition-output';
 	const DEFAULT_STATE_WIDTH_REM = 13;
 	const DEFAULT_STATE_HEIGHT_REM = 8;
+	const STATE_PLACEMENT_CLEARANCE_REM = 1;
+	const STATE_PLACEMENT_STEP_REM = 2;
+	const STATE_PLACEMENT_INDEX_CELL_REM = 8;
+	const STATE_PLACEMENT_MAX_RING = 128;
 	const CAMERA_PERSIST_DELAY_MS = 150;
-	const graphEdges: GraphEdge[] = [];
 
 	interface StateMachinePanelPersistedState {
 		camera?: GraphCamera;
@@ -90,11 +101,13 @@
 		frameSelection: () => boolean;
 		home: () => boolean;
 		focus: () => void;
+		viewportCenter: () => GraphNodePosition;
 	} | null = $state(null);
 	let session = $derived(appState.session);
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
+	let contextMenuWorldPosition: GraphNodePosition | null = null;
 	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -141,6 +154,19 @@
 		return null;
 	};
 
+	const declaredChild = (node: UiNodeDto, declId: string): UiNodeDto | null => {
+		if (!session) {
+			return null;
+		}
+		for (const childId of node.children) {
+			const child = session.graph.state.nodesById.get(childId);
+			if (child?.decl_id === declId) {
+				return child;
+			}
+		}
+		return null;
+	};
+
 	const floatParameterValue = (node: UiNodeDto, declId: string): number | null => {
 		const parameter = parameterChild(node, declId);
 		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'float') {
@@ -149,13 +175,21 @@
 		return parameter.data.param.value.value;
 	};
 
+	const boolParameterValue = (node: UiNodeDto, declId: string): boolean | null => {
+		const parameter = parameterChild(node, declId);
+		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'bool') {
+			return null;
+		}
+		return parameter.data.param.value.value;
+	};
+
 	const graphPosition = (node: UiNodeDto, index: number): GraphNodePosition => {
 		const x = floatParameterValue(node, POSITION_X_DECL_ID);
 		const y = floatParameterValue(node, POSITION_Y_DECL_ID);
-		if (x === null || y === null || (x === 0 && y === 0)) {
+		if (x === null || y === null) {
 			return {
-				x: 2 + (index % DEFAULT_COLUMNS) * DEFAULT_X_GAP_REM,
-				y: 2 + Math.floor(index / DEFAULT_COLUMNS) * DEFAULT_Y_GAP_REM
+				x: 2 + (index % 4) * 16,
+				y: 2 + Math.floor(index / 4) * 7
 			};
 		}
 		return { x, y };
@@ -170,15 +204,74 @@
 		stateNodes.map((node, index) => ({
 			id: String(node.node_id),
 			label: node.meta.label,
-			subtitle: 'State',
 			...graphPosition(node, index),
 			width: graphDimension(node, WIDTH_DECL_ID, DEFAULT_STATE_WIDTH_REM),
 			height: graphDimension(node, HEIGHT_DECL_ID, DEFAULT_STATE_HEIGHT_REM),
 			resizable: true,
-			inputs: [],
-			outputs: []
+			active: boolParameterValue(node, ACTIVE_DECL_ID) ?? false,
+			inputs: [
+				{
+					id: TRANSITION_INPUT_SOCKET_ID,
+					label: 'In',
+					valueType: 'State transition'
+				}
+			],
+			outputs: [
+				{
+					id: TRANSITION_OUTPUT_SOCKET_ID,
+					label: 'Out',
+					valueType: 'State transition'
+				}
+			]
 		}))
 	);
+	let statesByUuid = $derived(new Map(stateNodes.map((node) => [node.uuid, node])));
+	let graphEdges = $derived.by((): GraphEdge[] => {
+		if (!session) {
+			return [];
+		}
+		return stateNodes.flatMap((sourceState) => {
+			const transitionManager = declaredChild(sourceState, TRANSITIONS_DECL_ID);
+			if (!transitionManager) {
+				return [];
+			}
+			return transitionManager.children.flatMap((transitionId) => {
+				const transition = session?.graph.state.nodesById.get(transitionId);
+				if (!transition || transition.node_type !== TRANSITION_NODE_TYPE) {
+					return [];
+				}
+				const targetParam = parameterChild(transition, TRANSITION_TARGET_DECL_ID);
+				if (
+					targetParam?.data.kind !== 'parameter' ||
+					targetParam.data.param.value.kind !== 'reference'
+				) {
+					return [];
+				}
+				const reference = targetParam.data.param.value;
+				const targetState =
+					(reference.cached_id === undefined
+						? statesByUuid.get(reference.uuid)
+						: session?.graph.state.nodesById.get(reference.cached_id)) ?? null;
+				if (!targetState || targetState.node_type !== STATE_NODE_TYPE) {
+					return [];
+				}
+				return [
+					{
+						id: String(transition.node_id),
+						from: {
+							nodeId: String(sourceState.node_id),
+							socketId: TRANSITION_OUTPUT_SOCKET_ID
+						},
+						to: {
+							nodeId: String(targetState.node_id),
+							socketId: TRANSITION_INPUT_SOCKET_ID
+						},
+						active: boolParameterValue(sourceState, ACTIVE_DECL_ID) ?? false
+					}
+				];
+			});
+		});
+	});
 	let stateNodeIds = $derived(new Set(stateNodes.map((node) => node.node_id)));
 	let selectedNodeIds = $derived(
 		(session?.selectedNodesIds ?? [])
@@ -217,12 +310,152 @@
 		session.selectNodes(hierarchyNodeIds, 'REPLACE');
 	};
 
-	const createState = async (item: UiCreatableUserItem): Promise<void> => {
+	const rectanglesOverlap = (
+		left: GraphNodePosition,
+		right: GraphNodePosition,
+		rightWidth: number,
+		rightHeight: number
+	): boolean =>
+		left.x < right.x + rightWidth + STATE_PLACEMENT_CLEARANCE_REM &&
+		left.x + DEFAULT_STATE_WIDTH_REM + STATE_PLACEMENT_CLEARANCE_REM > right.x &&
+		left.y < right.y + rightHeight + STATE_PLACEMENT_CLEARANCE_REM &&
+		left.y + DEFAULT_STATE_HEIGHT_REM + STATE_PLACEMENT_CLEARANCE_REM > right.y;
+
+	const placementCellKey = (x: number, y: number): string => `${x}:${y}`;
+
+	const statePlacementIndex = (): Map<string, GraphNode[]> => {
+		const index = new Map<string, GraphNode[]>();
+		for (const node of graphNodes) {
+			const width = node.width ?? DEFAULT_STATE_WIDTH_REM;
+			const height = node.height ?? DEFAULT_STATE_HEIGHT_REM;
+			const firstX = Math.floor(
+				(node.x - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+			);
+			const lastX = Math.floor(
+				(node.x + width + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+			);
+			const firstY = Math.floor(
+				(node.y - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+			);
+			const lastY = Math.floor(
+				(node.y + height + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+			);
+			for (let cellX = firstX; cellX <= lastX; cellX += 1) {
+				for (let cellY = firstY; cellY <= lastY; cellY += 1) {
+					const key = placementCellKey(cellX, cellY);
+					const occupants = index.get(key);
+					if (occupants) {
+						occupants.push(node);
+					} else {
+						index.set(key, [node]);
+					}
+				}
+			}
+		}
+		return index;
+	};
+
+	const placementIsFree = (
+		candidate: GraphNodePosition,
+		index: Map<string, GraphNode[]>
+	): boolean => {
+		const firstX = Math.floor(
+			(candidate.x - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+		);
+		const lastX = Math.floor(
+			(candidate.x + DEFAULT_STATE_WIDTH_REM + STATE_PLACEMENT_CLEARANCE_REM) /
+				STATE_PLACEMENT_INDEX_CELL_REM
+		);
+		const firstY = Math.floor(
+			(candidate.y - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+		);
+		const lastY = Math.floor(
+			(candidate.y + DEFAULT_STATE_HEIGHT_REM + STATE_PLACEMENT_CLEARANCE_REM) /
+				STATE_PLACEMENT_INDEX_CELL_REM
+		);
+		const nearbyNodes = new Set<GraphNode>();
+		for (let cellX = firstX; cellX <= lastX; cellX += 1) {
+			for (let cellY = firstY; cellY <= lastY; cellY += 1) {
+				for (const node of index.get(placementCellKey(cellX, cellY)) ?? []) {
+					nearbyNodes.add(node);
+				}
+			}
+		}
+		for (const node of nearbyNodes) {
+			if (
+				rectanglesOverlap(
+					candidate,
+					node,
+					node.width ?? DEFAULT_STATE_WIDTH_REM,
+					node.height ?? DEFAULT_STATE_HEIGHT_REM
+				)
+			) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	const nearestFreeStatePosition = (center: GraphNodePosition): GraphNodePosition => {
+		const index = statePlacementIndex();
+		const origin = {
+			x: Math.round((center.x - DEFAULT_STATE_WIDTH_REM * 0.5) * 2) / 2,
+			y: Math.round((center.y - DEFAULT_STATE_HEIGHT_REM * 0.5) * 2) / 2
+		};
+		if (placementIsFree(origin, index)) {
+			return origin;
+		}
+		for (let ring = 1; ring <= STATE_PLACEMENT_MAX_RING; ring += 1) {
+			const offsets: GraphNodePosition[] = [];
+			for (let axis = -ring; axis <= ring; axis += 1) {
+				offsets.push(
+					{ x: axis, y: -ring },
+					{ x: axis, y: ring },
+					{ x: -ring, y: axis },
+					{ x: ring, y: axis }
+				);
+			}
+			offsets.sort((left, right) => left.x ** 2 + left.y ** 2 - (right.x ** 2 + right.y ** 2));
+			for (const offset of offsets) {
+				const candidate = {
+					x: origin.x + offset.x * STATE_PLACEMENT_STEP_REM,
+					y: origin.y + offset.y * STATE_PLACEMENT_STEP_REM
+				};
+				if (placementIsFree(candidate, index)) {
+					return candidate;
+				}
+			}
+		}
+		return origin;
+	};
+
+	const initialParam = (decl_id: string, value: ParamValue): UiCreateUserItemInitialParam => ({
+		decl_id,
+		value
+	});
+
+	const createState = async (
+		item: UiCreatableUserItem,
+		preferredCenter?: GraphNodePosition | null
+	): Promise<void> => {
 		if (!manager) {
 			return;
 		}
 		contextMenuOpen = false;
-		const result = await sendCreateUserItemIntent(manager.node_id, item);
+		const center = preferredCenter ?? graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
+		const position = nearestFreeStatePosition(center);
+		const result = await sendCreateUserItemByTypeIntent(
+			manager.node_id,
+			item.node_type,
+			item.label,
+			{
+				select_when_created: item.select_when_created,
+				initial_params: [
+					initialParam(POSITION_X_DECL_ID, { kind: 'float', value: position.x }),
+					initialParam(POSITION_Y_DECL_ID, { kind: 'float', value: position.y })
+				]
+			}
+		);
 		if (result.selectWhenCreated && result.createdNodeId !== null) {
 			session?.selectNode(result.createdNodeId, 'REPLACE');
 		}
@@ -237,12 +470,14 @@
 				id: 'add-state-machine-item',
 				label: 'Add...',
 				icon: addIcon,
-				submenu: buildCreatableItemMenu(manager.creatable_user_items, createState)
+				submenu: buildCreatableItemMenu(manager.creatable_user_items, (item) =>
+					createState(item, contextMenuWorldPosition)
+				)
 			}
 		];
 	});
 
-	const openContextMenu = (event: MouseEvent): void => {
+	const openContextMenu = (event: MouseEvent, position: GraphNodePosition): void => {
 		if (contextMenuItems.length === 0) {
 			return;
 		}
@@ -250,8 +485,58 @@
 		event.stopPropagation();
 		contextMenuX = event.clientX;
 		contextMenuY = event.clientY;
+		contextMenuWorldPosition = position;
 		contextMenuOpen = true;
 		graphCanvas?.focus();
+	};
+
+	const connectStates = async (connection: GraphConnectionRequest): Promise<void> => {
+		if (
+			connection.from.socketId !== TRANSITION_OUTPUT_SOCKET_ID ||
+			connection.to.socketId !== TRANSITION_INPUT_SOCKET_ID ||
+			!session
+		) {
+			return;
+		}
+		const sourceState = session.graph.state.nodesById.get(Number(connection.from.nodeId));
+		const targetState = session.graph.state.nodesById.get(Number(connection.to.nodeId));
+		if (
+			!sourceState ||
+			sourceState.node_type !== STATE_NODE_TYPE ||
+			!targetState ||
+			targetState.node_type !== STATE_NODE_TYPE
+		) {
+			return;
+		}
+		const transitionManager = declaredChild(sourceState, TRANSITIONS_DECL_ID);
+		const transitionItem = transitionManager?.creatable_user_items.find(
+			(item) => item.node_type === TRANSITION_NODE_TYPE
+		);
+		if (!transitionManager || !transitionItem) {
+			return;
+		}
+		await sendCreateUserItemByTypeIntent(
+			transitionManager.node_id,
+			transitionItem.node_type,
+			transitionItem.label,
+			{
+				select_when_created: false,
+				initial_params: [
+					initialParam(TRANSITION_TARGET_DECL_ID, {
+						kind: 'reference',
+						uuid: targetState.uuid,
+						cached_id: targetState.node_id,
+						cached_name: targetState.meta.label,
+						relative_path_from_root: []
+					})
+				]
+			}
+		);
+	};
+
+	const processorManagerForGraphNode = (graphNode: GraphNode): UiNodeDto | null => {
+		const stateNode = session?.graph.state.nodesById.get(Number(graphNode.id));
+		return stateNode ? declaredChild(stateNode, PROCESSORS_DECL_ID) : null;
 	};
 
 	const persistNodePositionsNow = async (moves: GraphNodeMove[]): Promise<void> => {
@@ -431,15 +716,23 @@
 	});
 </script>
 
+{#snippet stateNodeContent(graphNode: GraphNode)}
+	{@const processorManager = processorManagerForGraphNode(graphNode)}
+	{#if processorManager}
+		<StateProcessorManager manager={processorManager} />
+	{/if}
+{/snippet}
+
 <section
 	bind:this={panelRoot}
 	class="state-machine-panel"
 	aria-label={panelState.title}
-	onpointerdown={() => graphCanvas?.focus()}
-	oncontextmenu={openContextMenu}>
+	onpointerdown={() => graphCanvas?.focus()}>
 	{#if manager}
 		<div class="state-machine-actions">
-			<NodeAddButton node={manager} />
+			<NodeAddButton
+				node={manager}
+				onCreateItem={(item) => createState(item, graphCanvas?.viewportCenter())} />
 		</div>
 	{/if}
 
@@ -451,6 +744,9 @@
 		onSelectionChange={selectNodes}
 		onNodesMove={persistNodePositions}
 		onNodeResize={persistNodeResize}
+		onConnect={connectStates}
+		nodeContent={stateNodeContent}
+		onBackgroundContextMenu={openContextMenu}
 		{initialCamera}
 		onCameraChange={persistCamera}
 		{emptyLabel} />
@@ -473,6 +769,7 @@
 		overflow: hidden;
 		color: var(--gc-color-text);
 		background: var(--gc-color-background);
+		border-radius: 0.5rem;
 	}
 
 	.state-machine-actions {
@@ -481,10 +778,6 @@
 		inset-inline-start: 0.7rem;
 		z-index: 20;
 		display: flex;
-		padding: 0.28rem;
-		border: solid 0.06rem rgb(from var(--gc-color-panel-outline) r g b / 0.55);
-		border-radius: 0.5rem;
-		background: rgb(from var(--gc-color-background) r g b / 0.84);
-		backdrop-filter: blur(0.5rem);
+		padding: 0.15rem;
 	}
 </style>
