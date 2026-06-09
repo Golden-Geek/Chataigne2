@@ -1,51 +1,52 @@
 <script lang="ts">
-	import type { AlchemistGraphStore } from '../stores/alchemistGraphStore.svelte';
+	import {
+		GraphCanvas,
+		type GraphConnectionRequest,
+		type GraphNodeMove,
+		type GraphNodeResize
+	} from 'golden_alchemist_ui';
+	import { toGraphEdges, toGraphNodes, type AuthoredGraphDocument } from '../alchemistGraph';
 
-	let { store }: { store: AlchemistGraphStore } = $props();
-	let viewport = $state({ x: 0, y: 0, width: 80, height: 45 });
-	let nodes = $derived(store.visibleNodes(viewport));
+	let {
+		document,
+		selectedNodeIds = [],
+		onSelectionChange,
+		onNodesMove,
+		onNodeResize,
+		onConnect
+	}: {
+		document: AuthoredGraphDocument;
+		selectedNodeIds?: string[];
+		onSelectionChange?: (nodeIds: string[]) => void;
+		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
+		onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
+		onConnect?: (connection: GraphConnectionRequest) => void;
+	} = $props();
+
+	let nodes = $derived(toGraphNodes(document));
+	let edges = $derived(toGraphEdges(document));
 </script>
 
-<div class="graph">
-	{#each nodes as node (node.id)}
-		<button
-			class:selected={store.selectedNodeIds.has(node.id)}
-			style:left={`${node.x}rem`}
-			style:top={`${node.y}rem`}
-			onclick={() => {
-				store.selectedNodeIds.clear();
-				store.selectedNodeIds.add(node.id);
-			}}>
-			<strong>{node.label}</strong>
-			<small>{node.type_id}</small>
-		</button>
-	{/each}
+<div class="alchemist-graph-editor">
+	<GraphCanvas
+		{nodes}
+		{edges}
+		{selectedNodeIds}
+		{onSelectionChange}
+		{onNodesMove}
+		{onNodeResize}
+		{onConnect}
+		routeEdgesAroundNodes={true}
+		socketLabels="always"
+		emptyLabel="This formula has no authored nodes." />
 </div>
 
 <style>
-	.graph {
-		position: relative;
-		min-height: 32rem;
+	.alchemist-graph-editor {
+		inline-size: 100%;
+		block-size: 100%;
+		min-inline-size: 0;
+		min-block-size: 0;
 		overflow: hidden;
-		background-size: 1rem 1rem;
-		background-image: radial-gradient(#444 0.06rem, transparent 0.06rem);
-	}
-	button {
-		position: absolute;
-		display: grid;
-		min-width: 9rem;
-		gap: 0.35rem;
-		padding: 0.65rem;
-		border: 0.08rem solid #555;
-		border-radius: 0.4rem;
-		background: #202020;
-		color: inherit;
-		text-align: left;
-	}
-	button.selected {
-		border-color: #7aa7ff;
-	}
-	small {
-		opacity: 0.6;
 	}
 </style>

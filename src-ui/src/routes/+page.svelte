@@ -13,6 +13,8 @@
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
 	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
+	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
+	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 
 	registerNodeInspector('module_command', {
@@ -22,6 +24,14 @@
 	registerNodeInspector('module', {
 		component: ModuleNodeInspector,
 		panelHeaderComponent: ModuleInspectorPanelHeader
+	});
+
+	registerNodeInspector('state_processor_action', {
+		component: ProcessorFormulaInspector
+	});
+
+	registerNodeInspector('state_processor_mapping', {
+		component: ProcessorFormulaInspector
 	});
 
 	registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
@@ -40,6 +50,11 @@
 			title: 'State Machine',
 			component: StateMachinePanel,
 			description: 'Statechart and processor node graphs'
+		},
+		alchemistEditor: {
+			title: 'Alchemist Editor',
+			component: AlchemistEditorPanel,
+			description: 'Visual formula graph editor for Action and Mapping processors'
 		}
 	};
 
