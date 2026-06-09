@@ -31,7 +31,10 @@
 	let selectedNodeIds = $state<string[]>([]);
 	let persistenceTail = Promise.resolve();
 
-	let processorNodeId = $derived.by(() => {
+	const isFormulaProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
+		node?.node_type === ACTION_NODE_TYPE || node?.node_type === MAPPING_NODE_TYPE;
+
+	let requestedProcessorNodeId = $derived.by(() => {
 		const value = panelState.params.processorNodeId;
 		if (typeof value === 'number' && Number.isInteger(value)) {
 			return value;
@@ -43,14 +46,43 @@
 		return null;
 	});
 
-	let processor = $derived.by((): UiNodeDto | null => {
-		if (!session || processorNodeId === null) {
+	let processorNodes = $derived.by((): UiNodeDto[] => {
+		if (!session) {
+			return [];
+		}
+		return [...session.graph.state.nodesById.values()]
+			.filter(isFormulaProcessor)
+			.sort((left, right) => left.node_id - right.node_id);
+	});
+
+	let selectedProcessor = $derived.by((): UiNodeDto | null => {
+		if (!session) {
 			return null;
 		}
-		const node = session.graph.state.nodesById.get(processorNodeId) ?? null;
-		return node?.node_type === ACTION_NODE_TYPE || node?.node_type === MAPPING_NODE_TYPE
-			? node
-			: null;
+		for (const selectedNodeId of session.selectedNodesIds) {
+			let currentNodeId: number | undefined = selectedNodeId;
+			while (currentNodeId !== undefined) {
+				const current = session.graph.state.nodesById.get(currentNodeId);
+				if (isFormulaProcessor(current)) {
+					return current;
+				}
+				currentNodeId = session.graph.state.parentById.get(currentNodeId);
+			}
+		}
+		return null;
+	});
+
+	let processor = $derived.by((): UiNodeDto | null => {
+		if (!session) {
+			return null;
+		}
+		const requested =
+			requestedProcessorNodeId === null
+				? null
+				: session.graph.state.nodesById.get(requestedProcessorNodeId);
+		return isFormulaProcessor(requested)
+			? requested
+			: (selectedProcessor ?? processorNodes[0] ?? null);
 	});
 
 	let graphParameter = $derived.by((): UiNodeDto | null => {
@@ -78,9 +110,18 @@
 
 	$effect(() => {
 		const source = remoteGraphSource;
+		if (!processor) {
+			document = null;
+			graphError =
+				processorNodes.length === 0
+					? 'Create an Action or Mapping processor to author an Alchemist graph.'
+					: 'Select an Action or Mapping processor.';
+			return;
+		}
 		if (source === null) {
 			document = null;
-			graphError = 'This processor does not expose an authored Alchemist graph.';
+			graphError =
+				'The selected processor has no authored graph parameter. Restart the current runtime after rebuilding the application.';
 			return;
 		}
 		const parsed = parseAuthoredGraph(source);
@@ -92,6 +133,25 @@
 		const title = processor ? `Alchemist: ${processor.meta.label}` : 'Alchemist Editor';
 		props.panelApi.setTitle(title);
 	});
+
+	const selectProcessor = (event: Event): void => {
+		const select = event.currentTarget as HTMLSelectElement;
+		const processorNodeId = Number(select.value);
+		if (!Number.isInteger(processorNodeId)) {
+			return;
+		}
+		const params = {
+			...panelState.params,
+			processorNodeId
+		};
+		updatedPanelState = {
+			...panelState,
+			params
+		};
+		props.panelApi.updateParams(params);
+		selectedNodeIds = [];
+		saveStatus = 'idle';
+	};
 
 	const persistDocumentNow = async (
 		nextDocument: AuthoredGraphDocument,
@@ -221,6 +281,18 @@
 						: 'Select an Action or Mapping processor'}
 			</span>
 		</div>
+		{#if processorNodes.length > 0}
+			<label class="processor-picker">
+				<span>Processor</span>
+				<select value={processor?.node_id ?? ''} onchange={selectProcessor}>
+					{#each processorNodes as option (option.node_id)}
+						<option value={option.node_id}>
+							{option.meta.label} ({option.node_type === ACTION_NODE_TYPE ? 'Action' : 'Mapping'})
+						</option>
+					{/each}
+				</select>
+			</label>
+		{/if}
 		<span class:error={saveStatus === 'error'} class="save-status">
 			{saveStatus === 'saving'
 				? 'Saving...'
@@ -288,6 +360,26 @@
 	header span {
 		color: color-mix(in srgb, var(--gc-color-text) 62%, transparent);
 		font-size: 0.64rem;
+	}
+
+	.processor-picker {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin-inline-start: auto;
+	}
+
+	.processor-picker select {
+		min-inline-size: 10rem;
+		max-inline-size: 20rem;
+		min-block-size: 1.65rem;
+		padding: 0.2rem 1.6rem 0.2rem 0.45rem;
+		border: 0.06rem solid var(--gc-color-border);
+		border-radius: 0.35rem;
+		background: var(--gc-color-background);
+		color: var(--gc-color-text);
+		font: inherit;
+		font-size: 0.68rem;
 	}
 
 	.save-status {
