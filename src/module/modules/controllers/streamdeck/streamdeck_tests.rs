@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use golden_core::{
     edit::Edit,
-    node::{Folder, Node, NodeId},
+    node::{Folder, Node, NodeId, NodeMetaPatch},
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
 };
@@ -179,6 +179,24 @@ fn values_pages_mirror_is_removed_when_the_last_page_is_deleted() {
 }
 
 #[test]
+fn renaming_a_control_page_syncs_the_values_mirror() {
+    let (mut engine, module_id) = create_streamdeck_module();
+    create_page(&mut engine, module_id, "Lighting");
+
+    let page = find_path(&engine, module_id, "parameters/pages/lighting").expect("control page");
+    rename_node(&mut engine, page, "FX");
+    run_tick(&mut engine);
+    run_tick(&mut engine);
+
+    let mirror = find_path(&engine, module_id, "values/pages/lighting").expect("values mirror page");
+    assert_eq!(
+        engine.nodes.get(mirror).unwrap().node_data().meta.label,
+        "FX",
+        "the values mirror label should follow the control page rename (id stays stable)"
+    );
+}
+
+#[test]
 fn brightness_reaches_device() {
     let (mut engine, module_id) = create_streamdeck_module();
     let brightness = find_path(&engine, module_id, "parameters/brightness").expect("brightness");
@@ -222,6 +240,17 @@ fn set_model(engine: &mut crate::app::AppEngine, module_id: NodeId, model: &str)
 
 fn press_key(engine: &mut crate::app::AppEngine, module_id: NodeId, index: usize) {
     module_mut(engine, module_id).simulated_mut().press(index);
+}
+
+fn rename_node(engine: &mut crate::app::AppEngine, node: NodeId, label: &str) {
+    engine.edits.push(Edit::PatchMeta {
+        node,
+        patch: NodeMetaPatch {
+            label: Some(label.to_string()),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().expect("rename should apply");
 }
 
 fn create_page(engine: &mut crate::app::AppEngine, module_id: NodeId, name: &str) {

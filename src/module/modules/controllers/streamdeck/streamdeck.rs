@@ -20,7 +20,7 @@ use golden_core::{
     engine::NodeExecutionRule,
     events::Event,
     node,
-    node::{Folder, Node, NodeCreationContext, NodeId, NodeScriptDescriptor},
+    node::{Folder, Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeScriptDescriptor},
     parameter::{Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, ParameterEventBehaviour},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -514,6 +514,14 @@ impl Node for StreamDeckModule {
 
     fn on_structure_changed(&mut self, _ctx: &mut ProcessCtx) {
         self.pages_dirty = true;
+    }
+
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, patch: NodeMetaPatch) {
+        // A page rename (label change) must re-sync the values mirror's labels, even when no
+        // device is connected (otherwise `update` would not run).
+        if patch.label.is_some() {
+            self.pages_dirty = true;
+        }
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
