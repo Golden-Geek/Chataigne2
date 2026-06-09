@@ -4,8 +4,8 @@ args = ["-y", "@upstash/context7-mcp"]
 env_vars = ["CONTEXT7_API_KEY"]
 
 [mcp_servers.jcodemunch]
-command = ".\\.venv\\Scripts\\jcodemunch-mcp.exe"
-args = ["serve"]
+command = "powershell"
+args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\tools\\jcodemunch.ps1", "serve"]
 cwd = "."
 startup_timeout_sec = 30
 tool_timeout_sec = 120

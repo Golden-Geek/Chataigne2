@@ -13,8 +13,13 @@
     },
     "jcodemunch": {
       "type": "stdio",
-      "command": ".\\.venv\\Scripts\\jcodemunch-mcp.exe",
+      "command": "powershell",
       "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".\\tools\\jcodemunch.ps1",
         "serve"
       ]
     }
