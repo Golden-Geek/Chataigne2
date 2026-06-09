@@ -32,6 +32,19 @@ impl Node for StateMachineManager {
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
     }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: golden_core::node::NodeId, _child: golden_core::node::NodeId) {
+        crate::app::state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+    }
+
+    fn on_child_removed(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: golden_core::node::NodeId,
+        _child: golden_core::node::NodeId,
+    ) {
+        crate::app::state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+    }
 }
 
 #[cfg(test)]
