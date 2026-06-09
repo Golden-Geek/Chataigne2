@@ -63,8 +63,10 @@ pub(crate) trait StreamDeckDevice: Send {
     /// Clears all keys to black.
     fn clear(&mut self) -> Result<(), String>;
     /// Downcast hook (used by tests to reach the simulated device behind the trait object).
+    #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any;
     /// Mutable downcast hook (used by tests to inject button presses).
+    #[cfg(test)]
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
@@ -94,10 +96,12 @@ pub(crate) fn connect(serial: &str) -> Result<Box<dyn StreamDeckDevice>, String>
 }
 
 // ---------------------------------------------------------------------------
-// Simulated device (always available — powers the test suite and headless use).
+// Simulated device (test-only — powers the headless test suite). Editor-driven
+// "simulate press" goes through the module's pending-input queue instead.
 // ---------------------------------------------------------------------------
 
 /// In-memory device that records what was rendered and replays injected presses.
+#[cfg(test)]
 pub(crate) struct SimulatedStreamDeck {
     serial: String,
     product: String,
@@ -107,6 +111,8 @@ pub(crate) struct SimulatedStreamDeck {
     brightness: u8,
 }
 
+#[cfg(test)]
+#[allow(dead_code)] // some introspection helpers are only used by a subset of tests
 impl SimulatedStreamDeck {
     pub(crate) fn new(serial: impl Into<String>, key_count: usize) -> Self {
         Self {
@@ -146,6 +152,7 @@ impl SimulatedStreamDeck {
     }
 }
 
+#[cfg(test)]
 impl StreamDeckDevice for SimulatedStreamDeck {
     fn key_count(&self) -> usize {
         self.pressed.len()
@@ -317,10 +324,12 @@ mod hid {
                 .map_err(|err| format!("failed to clear Stream Deck: {err}"))
         }
 
+        #[cfg(test)]
         fn as_any(&self) -> &dyn std::any::Any {
             self
         }
 
+        #[cfg(test)]
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
             self
         }

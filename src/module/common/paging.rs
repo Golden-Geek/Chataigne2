@@ -220,11 +220,14 @@ pub(crate) fn sync_selector(
 
 /// Completes any freshly-created (empty) control pages: assigns a unique stable id and clones
 /// `template_folder` (the default `keys` layout) into them. Idempotent.
+/// `skip` lists control labels/decl-ids that are *default-only* and must not be cloned into
+/// derived pages (e.g. a per-key `Unpaged` flag that only has meaning on the default layout).
 pub(crate) fn complete_pages(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
     pages_parent: NodeId,
     template_folder: NodeId,
+    skip: &[&str],
 ) {
     let Some(container) = container_id(snapshot, pages_parent) else {
         return;
@@ -259,7 +262,7 @@ pub(crate) fn complete_pages(
             );
         }
         for template_child in &template_children {
-            if let Some(tree) = clone_subtree(snapshot, *template_child) {
+            if let Some(tree) = clone_subtree(snapshot, *template_child, skip) {
                 ctx.add_child_tree(child, tree, None);
             }
         }
@@ -317,7 +320,7 @@ fn unique_id(base: &str, claimed: &[String]) -> String {
 
 /// Deep-clones a control subtree (folders + parameters only) from the snapshot into a
 /// detached [`NodeTree`], preserving values and constraints.
-fn clone_subtree(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<NodeTree> {
+fn clone_subtree(snapshot: &ProcessTreeSnapshot, node_id: NodeId, skip: &[&str]) -> Option<NodeTree> {
     let node = snapshot.node(node_id)?;
     if let Some(value) = node.param_value.as_ref() {
         let mut param = Parameter::new(&node.label, value.clone(), ParameterChangeCheck::ValueChange);
@@ -329,7 +332,13 @@ fn clone_subtree(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<Node
     } else {
         let mut tree = NodeTree::new(authored_folder(&node.label));
         for child in snapshot.child_ids(node_id) {
-            if let Some(child_tree) = clone_subtree(snapshot, child) {
+            if snapshot
+                .node(child)
+                .is_some_and(|c| skip.iter().any(|s| c.label == *s || c.decl_id == *s))
+            {
+                continue; // default-only field: not cloned into derived pages
+            }
+            if let Some(child_tree) = clone_subtree(snapshot, child, skip) {
                 tree.push_child(child_tree);
             }
         }

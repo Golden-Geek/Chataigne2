@@ -43,7 +43,7 @@ const KEY_PRESSED_CALLBACK: &str = "streamDeckKeyPressed";
 const KEY_RELEASED_CALLBACK: &str = "streamDeckKeyReleased";
 const PAGE_CHANGED_CALLBACK: &str = "streamDeckPageChanged";
 
-const STREAMDECK_SCRIPT_METHODS: &[&str] = &["addPage", "removePage"];
+const STREAMDECK_SCRIPT_METHODS: &[&str] = &["addPage", "removePage", "pressKey", "releaseKey"];
 const STREAMDECK_COMMAND_TYPES: &[&str] = &[];
 
 // Declaration order of a control-key folder's primitives (resolved positionally).
@@ -132,6 +132,8 @@ pub struct StreamDeckModule {
     last_active_page: String,
     last_visuals: Vec<KeyVisual>,
     button_down: Vec<bool>,
+    /// Editor/script-injected "simulate press" events, drained alongside real device input.
+    pending_input: Vec<StreamDeckInputEvent>,
     suppress_hardware: bool,
 }
 
@@ -147,6 +149,7 @@ impl StreamDeckModule {
             true,
             true,
             String::new(),
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             false,
@@ -351,7 +354,8 @@ impl StreamDeckModule {
             return;
         };
         paging::ensure_container(ctx, snapshot, params_id);
-        paging::complete_pages(ctx, snapshot, params_id, control_keys);
+        // `Unpaged` is a default-only flag; it is never cloned into derived pages.
+        paging::complete_pages(ctx, snapshot, params_id, control_keys, &["Unpaged"]);
         if let Some(values_id) = self.base.values_id() {
             let count = self.model().key_count();
             paging::mirror_pages(ctx, snapshot, params_id, values_id, || (0..count).map(build_value_key).collect());
@@ -385,8 +389,11 @@ impl StreamDeckModule {
 
         for slot in 0..count {
             let active_key = active_keys.get(slot).copied();
-            let unpaged = active_key.is_some_and(|key| read_bool_field(snapshot, key, FIELD_UNPAGED));
-            let source = if unpaged { default_keys.get(slot).copied() } else { active_key };
+            let default_key = default_keys.get(slot).copied();
+            // `Unpaged` lives on the default key only; a default-unpaged slot always shows the
+            // default appearance, on every page.
+            let unpaged = default_key.is_some_and(|key| read_bool_field(snapshot, key, FIELD_UNPAGED));
+            let source = if unpaged { default_key } else { active_key };
             let visual = source.map(|key| read_key_visual(snapshot, key)).unwrap_or_default();
 
             if self.last_visuals.get(slot) == Some(&visual) {
@@ -402,10 +409,11 @@ impl StreamDeckModule {
     }
 
     fn process_input(&mut self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
-        let events = match self.hardware.as_mut() {
-            Some(hardware) => hardware.poll_input(),
-            None => return,
-        };
+        // Editor-injected presses (no device required) are merged with real device input.
+        let mut events = std::mem::take(&mut self.pending_input);
+        if let Some(hardware) = self.hardware.as_mut() {
+            events.extend(hardware.poll_input());
+        }
         if events.is_empty() {
             return;
         }
@@ -498,6 +506,7 @@ impl Node for StreamDeckModule {
             || self.devices_dirty
             || self.structure_dirty
             || self.pages_dirty
+            || !self.pending_input.is_empty()
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
@@ -550,6 +559,19 @@ impl Node for StreamDeckModule {
                     if let Some(params_id) = self.base.parameters_id() {
                         paging::remove_page(ctx, snapshot.as_ref(), params_id, &page_id);
                     }
+                }
+                Ok(true)
+            }
+            // Editor "simulate hardware press": injected through the same path as real input.
+            "pressKey" => {
+                if let Some(index) = args.first().and_then(ParamValue::as_int) {
+                    self.pending_input.push(StreamDeckInputEvent::ButtonDown(index.max(0) as usize));
+                }
+                Ok(true)
+            }
+            "releaseKey" => {
+                if let Some(index) = args.first().and_then(ParamValue::as_int) {
+                    self.pending_input.push(StreamDeckInputEvent::ButtonUp(index.max(0) as usize));
                 }
                 Ok(true)
             }
@@ -628,7 +650,8 @@ fn build_control_key(slot: usize) -> NodeTree {
 
 fn build_value_key(slot: usize) -> NodeTree {
     let number = slot + 1;
-    let mut param = authored_param(&format!("Key {number}"), ParamValue::Bool(false), true);
+    // Inputs are writable so the editor can "simulate press" by setting the value directly.
+    let mut param = authored_param(&format!("Key {number}"), ParamValue::Bool(false), false);
     param.node_data_mut().meta.decl_id = golden_core::node::DeclId(format!("key_{number}"));
     NodeTree::new(param)
 }

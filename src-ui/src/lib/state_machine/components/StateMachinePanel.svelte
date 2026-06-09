@@ -291,7 +291,7 @@
 							socketId: TRANSITION_INPUT_SOCKET_ID
 						},
 						color: sourceSelected
-							? 'var(--gc-color-selection, #ff5ba7)'
+							? '#66cc00'
 							: targetSelected
 								? '#58a6ff'
 								: undefined,
@@ -345,7 +345,11 @@
 			.map((nodeId) => Number(nodeId))
 			.filter((nodeId) => Number.isSafeInteger(nodeId) && stateNodeIds.has(nodeId));
 		if (hierarchyNodeIds.length === 0) {
-			session.clearSelection();
+			if (manager) {
+				session.selectNodes([manager.node_id], 'REPLACE');
+			} else {
+				session.clearSelection();
+			}
 			return;
 		}
 		session.selectNodes(hierarchyNodeIds, 'REPLACE');
@@ -525,16 +529,9 @@
 		if (!manager || manager.creatable_user_items.length === 0) {
 			return [];
 		}
-		return [
-			{
-				id: 'add-state-machine-item',
-				label: 'Add...',
-				icon: addIcon,
-				submenu: buildCreatableItemMenu(manager.creatable_user_items, (item) =>
-					createState(item, contextMenuWorldPosition)
-				)
-			}
-		];
+		return buildCreatableItemMenu(manager.creatable_user_items, (item) =>
+			createState(item, contextMenuWorldPosition)
+		);
 	});
 
 	const openContextMenu = (event: MouseEvent, position: GraphNodePosition): void => {
