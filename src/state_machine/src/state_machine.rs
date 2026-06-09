@@ -5,7 +5,10 @@ use golden_alchemist::{
 };
 use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, TransitionOutcome};
 
-use crate::{ProcessorId, ProcessorLifecycleEvent, ProcessorNode, ProcessorRuntime};
+use crate::{
+    Processor, ProcessorGroup, ProcessorGroupId, ProcessorId, ProcessorLifecycleEvent, ProcessorManager,
+    ProcessorManagerError, ProcessorManagerId, ProcessorRuntime,
+};
 
 #[derive(Clone, Debug)]
 pub struct ChataigneTransition {
@@ -17,8 +20,7 @@ pub struct ChataigneTransition {
 #[derive(Clone, Debug)]
 pub struct ChataigneStateMachine {
     pub chart: Statechart,
-    pub processors: IndexMap<ProcessorId, ProcessorNode>,
-    pub processors_by_state: IndexMap<StateId, Vec<ProcessorId>>,
+    pub processor_managers: IndexMap<StateId, ProcessorManager>,
     pub transitions: IndexMap<TransitionId, ChataigneTransition>,
 }
 
@@ -27,16 +29,40 @@ impl ChataigneStateMachine {
     pub fn new(chart: Statechart) -> Self {
         Self {
             chart,
-            processors: IndexMap::new(),
-            processors_by_state: IndexMap::new(),
+            processor_managers: IndexMap::new(),
             transitions: IndexMap::new(),
         }
     }
 
-    pub fn attach_processor(&mut self, state: StateId, processor: ProcessorNode) {
-        let id = processor.id;
-        self.processors.insert(id, processor);
-        self.processors_by_state.entry(state).or_default().push(id);
+    pub fn processor_manager_mut(&mut self, state: StateId) -> &mut ProcessorManager {
+        self.processor_managers.entry(state).or_default()
+    }
+
+    pub fn add_processor(
+        &mut self,
+        state: StateId,
+        processor: Processor,
+    ) -> Result<ProcessorId, ProcessorManagerError> {
+        self.processor_manager_mut(state).add_processor(processor)
+    }
+
+    pub fn add_processor_group(
+        &mut self,
+        state: StateId,
+        group: ProcessorGroup,
+    ) -> Result<ProcessorGroupId, ProcessorManagerError> {
+        self.processor_manager_mut(state).add_group(group)
+    }
+
+    #[must_use]
+    pub fn processor(&self, id: ProcessorId) -> Option<&Processor> {
+        self.processor_managers
+            .values()
+            .find_map(|manager| manager.processor(id))
+    }
+
+    pub fn processors(&self) -> impl Iterator<Item = &Processor> {
+        self.processor_managers.values().flat_map(ProcessorManager::processors)
     }
 
     pub fn set_transition_graphs(
@@ -59,8 +85,9 @@ impl ChataigneStateMachine {
 #[derive(Clone, Debug, Default)]
 pub struct RuntimeExecutionMatrix {
     pub active_scopes: IndexSet<StateId>,
+    pub active_managers: Vec<ProcessorManagerId>,
     pub active_processors: Vec<ProcessorId>,
-    pub processors_by_state: IndexMap<StateId, Vec<ProcessorId>>,
+    pub processors_by_manager: IndexMap<ProcessorManagerId, Vec<ProcessorId>>,
     pub dirty_processors: IndexSet<ProcessorId>,
 }
 
@@ -81,7 +108,7 @@ impl ChataigneStateMachineRuntime {
     pub fn compile(machine: &ChataigneStateMachine, ctx: &CompileCtx<'_>) -> Result<Self, Vec<String>> {
         let mut errors = Vec::new();
         let mut processor_runtimes = IndexMap::new();
-        for processor in machine.processors.values() {
+        for processor in machine.processors() {
             let mut runtime = ProcessorRuntime::new(processor.id);
             if !runtime.compile(processor, ctx) {
                 errors.extend(runtime.diagnostics.iter().map(|diagnostic| diagnostic.message.clone()));
@@ -105,10 +132,7 @@ impl ChataigneStateMachineRuntime {
         Ok(Self {
             processor_runtimes,
             guard_runtimes,
-            execution: RuntimeExecutionMatrix {
-                processors_by_state: machine.processors_by_state.clone(),
-                ..RuntimeExecutionMatrix::default()
-            },
+            execution: RuntimeExecutionMatrix::default(),
         })
     }
 
@@ -171,11 +195,11 @@ impl ChataigneStateMachineRuntime {
                 LifecycleEvent::Enter(state) => (*state, ProcessorLifecycleEvent::StateEnter(*state)),
                 LifecycleEvent::Exit(state) => (*state, ProcessorLifecycleEvent::StateExit(*state)),
             };
-            for processor_id in machine.processors_by_state.get(&state).into_iter().flatten() {
-                if let (Some(processor), Some(runtime)) = (
-                    machine.processors.get(processor_id),
-                    self.processor_runtimes.get_mut(processor_id),
-                ) {
+            if let Some(manager) = machine.processor_managers.get(&state) {
+                for processor in manager.processors() {
+                    let Some(runtime) = self.processor_runtimes.get_mut(&processor.id) else {
+                        continue;
+                    };
                     runtime.apply_lifecycle(processor, lifecycle);
                 }
             }
@@ -184,10 +208,17 @@ impl ChataigneStateMachineRuntime {
 
     fn rebuild_execution_matrix(&mut self, machine: &ChataigneStateMachine) {
         self.execution.active_scopes = machine.chart.active.active_scopes.clone();
+        self.execution.active_managers.clear();
         self.execution.active_processors.clear();
+        self.execution.processors_by_manager.clear();
         for state in &self.execution.active_scopes {
-            if let Some(processors) = self.execution.processors_by_state.get(state) {
-                self.execution.active_processors.extend(processors.iter().copied());
+            if let Some(manager) = machine.processor_managers.get(state) {
+                let processors = manager.active_processor_ids();
+                self.execution.active_managers.push(manager.id);
+                self.execution
+                    .processors_by_manager
+                    .insert(manager.id, processors.clone());
+                self.execution.active_processors.extend(processors);
             }
         }
     }

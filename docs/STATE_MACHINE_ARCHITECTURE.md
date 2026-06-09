@@ -2,8 +2,9 @@
 
 ## Ownership
 
-`golden_alchemist` owns the app-agnostic authored graph, type solver, compiler,
-dense execution schedule, runtime memory, diagnostics, and primitive ANodes.
+`golden_alchemist` owns the app-agnostic Formula model, authored graph, type
+solver, compiler, dense execution schedule, runtime memory, diagnostics, and
+primitive ANodes. Formula families are `Action`, `Mapping`, and `CustomUser`.
 It does not contain Chataigne value types or product policy.
 
 `golden_statechart` owns normalized hierarchical states, regions, active paths,
@@ -12,8 +13,23 @@ It does not know about Processors.
 
 The app-owned `src/state_machine` package registers Chataigne stable-reference
 value types, facets, module inputs, and intent-emitting ANodes. It also owns
-Processors, state attachments, guard graphs, the active execution matrix,
-command arbitration, built-in Processor models, and protocol DTO generation.
+Processors, state-owned Processor Managers, Processor Groups, guard graphs, the
+active execution matrix, command arbitration, built-in Action and Mapping
+Formulas, and protocol DTO generation.
+
+The authored ownership chain is:
+
+```text
+State
+  -> ProcessorManager
+      -> direct Processors
+      -> ProcessorGroups
+          -> Processors
+```
+
+A Processor owns one `AlchemistFormulaInstance`. The Processor inspector reads
+the instance's sectioned Formula Surface; graph exposure remains a lower-level
+graph interface and is not the inspector contract.
 
 The reusable Rust crates live in the `golden_alchemist_core` submodule. Keeping
 the Chataigne package under `src` makes its product ownership match
@@ -66,3 +82,13 @@ the selected state.
 App-owned protocol adapters and deeper Alchemist runtime stores live beside the
 generated output. `golden_ui` provides only the generic workbench and required
 panel hooks.
+
+## Implementation Status
+
+The Formula, Formula Instance, Formula Surface, Processor Manager, and Processor
+Group ownership boundaries are implemented.
+
+Accumulating context, same-dimension refinement, multiplexed runtime lanes,
+Managed ANode lowering, contextual intents, and contextual transitions are not
+implemented yet. They must extend these boundaries rather than restoring flat
+state processor attachments or introducing a Multiplex Formula.

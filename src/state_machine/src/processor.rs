@@ -1,8 +1,8 @@
 use uuid::Uuid;
 
 use golden_alchemist::{
-    AlchemistGraph, AlchemistRuntime, CompileCtx, Diagnostic, EvaluationCtx, ExposedSurface, RuntimeOutput,
-    RuntimeSubscription, compile_graph,
+    AlchemistFormula, AlchemistFormulaInstance, AlchemistRuntime, CompileCtx, Diagnostic, EvaluationCtx, FormulaFamily,
+    FormulaSurface, RuntimeOutput, RuntimeSubscription, compile_graph,
 };
 use golden_statechart::StateId;
 
@@ -62,27 +62,24 @@ pub enum ProcessorLifecycleEvent {
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ProcessorNode {
+pub struct Processor {
     pub id: ProcessorId,
     pub label: String,
-    pub model_ref: Option<String>,
-    pub graph: AlchemistGraph,
-    pub exposed: ExposedSurface,
+    pub formula_instance: AlchemistFormulaInstance,
+    pub enabled: bool,
     pub lifecycle: ProcessorLifecyclePolicy,
     pub memory_policy: ProcessorMemoryPolicy,
     pub command_policy: ProcessorCommandPolicy,
 }
 
-impl ProcessorNode {
+impl Processor {
     #[must_use]
-    pub fn new(label: impl Into<String>, graph: AlchemistGraph) -> Self {
-        let exposed = graph.exposed.clone();
+    pub fn new(label: impl Into<String>, formula_instance: AlchemistFormulaInstance) -> Self {
         Self {
             id: ProcessorId::new(),
             label: label.into(),
-            model_ref: None,
-            graph,
-            exposed,
+            formula_instance,
+            enabled: true,
             lifecycle: ProcessorLifecyclePolicy::default(),
             memory_policy: ProcessorMemoryPolicy::default(),
             command_policy: ProcessorCommandPolicy::default(),
@@ -90,11 +87,17 @@ impl ProcessorNode {
     }
 
     #[must_use]
+    pub fn from_formula(label: impl Into<String>, formula: &AlchemistFormula) -> Self {
+        Self::new(label, formula.instantiate())
+    }
+
+    #[must_use]
     pub fn ui_model(&self, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
         ProcessorUiModel {
             id: self.id,
             label: self.label.clone(),
-            exposed: self.exposed.clone(),
+            family: self.formula_instance.family,
+            surface: self.formula_instance.surface.clone(),
             diagnostics,
         }
     }
@@ -139,8 +142,8 @@ impl ProcessorRuntime {
         }
     }
 
-    pub fn compile(&mut self, processor: &ProcessorNode, ctx: &CompileCtx<'_>) -> bool {
-        let result = compile_graph(&processor.graph, ctx);
+    pub fn compile(&mut self, processor: &Processor, ctx: &CompileCtx<'_>) -> bool {
+        let result = compile_graph(&processor.formula_instance.graph_instance, ctx);
         self.diagnostics = result.diagnostics;
         let Some(compiled) = result.compiled else {
             self.runtime = None;
@@ -152,7 +155,11 @@ impl ProcessorRuntime {
         true
     }
 
-    pub fn apply_lifecycle(&mut self, processor: &ProcessorNode, event: ProcessorLifecycleEvent) {
+    pub fn apply_lifecycle(&mut self, processor: &Processor, event: ProcessorLifecycleEvent) {
+        if !processor.enabled {
+            self.active = false;
+            return;
+        }
         self.active = match (processor.lifecycle, event) {
             (ProcessorLifecyclePolicy::AlwaysActive, ProcessorLifecycleEvent::ProjectStart) => true,
             (ProcessorLifecyclePolicy::AlwaysActive, ProcessorLifecycleEvent::ProjectStop) => false,
@@ -191,6 +198,7 @@ impl ProcessorRuntime {
 pub struct ProcessorUiModel {
     pub id: ProcessorId,
     pub label: String,
-    pub exposed: ExposedSurface,
+    pub family: FormulaFamily,
+    pub surface: FormulaSurface,
     pub diagnostics: Vec<Diagnostic>,
 }

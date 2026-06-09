@@ -3,6 +3,8 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
+use golden_alchemist::{FormulaFamily, SurfaceItemKind};
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
     pub x: f64,
@@ -38,11 +40,59 @@ pub enum StatechartDeltaDto {
     ActiveChanged { state_id: String, active: bool },
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum FormulaFamilyDto {
+    Action,
+    Mapping,
+    CustomUser,
+}
+
+impl From<FormulaFamily> for FormulaFamilyDto {
+    fn from(value: FormulaFamily) -> Self {
+        match value {
+            FormulaFamily::Action => Self::Action,
+            FormulaFamily::Mapping => Self::Mapping,
+            FormulaFamily::CustomUser => Self::CustomUser,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum FormulaSurfaceItemKindDto {
+    Parameter,
+    Input,
+    Output,
+    Action,
+}
+
+impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
+    fn from(value: SurfaceItemKind) -> Self {
+        match value {
+            SurfaceItemKind::Parameter => Self::Parameter,
+            SurfaceItemKind::Input => Self::Input,
+            SurfaceItemKind::Output => Self::Output,
+            SurfaceItemKind::Action => Self::Action,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ExposedDeclDto {
+pub struct FormulaSurfaceItemDto {
     pub id: String,
     pub label: String,
-    pub value_type: String,
+    pub kind: FormulaSurfaceItemKindDto,
+    pub value_type: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct FormulaSurfaceSectionDto {
+    pub id: String,
+    pub label: String,
+    pub items: Vec<FormulaSurfaceItemDto>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -50,7 +100,8 @@ pub struct ProcessorUiDto {
     pub id: String,
     pub label: String,
     pub active: bool,
-    pub exposed: Vec<ExposedDeclDto>,
+    pub formula_family: FormulaFamilyDto,
+    pub surface: Vec<FormulaSurfaceSectionDto>,
     pub diagnostic_ids: Vec<String>,
 }
 
@@ -132,7 +183,10 @@ export type { AlchemistNodeDto } from './AlchemistNodeDto';\n\
 export type { AlchemistSocketDto } from './AlchemistSocketDto';\n\
 export type { DiagnosticDto } from './DiagnosticDto';\n\
 export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';\n\
-export type { ExposedDeclDto } from './ExposedDeclDto';\n\
+export type { FormulaFamilyDto } from './FormulaFamilyDto';\n\
+export type { FormulaSurfaceItemDto } from './FormulaSurfaceItemDto';\n\
+export type { FormulaSurfaceItemKindDto } from './FormulaSurfaceItemKindDto';\n\
+export type { FormulaSurfaceSectionDto } from './FormulaSurfaceSectionDto';\n\
 export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
 export type { SocketCompatibilityDto } from './SocketCompatibilityDto';\n\

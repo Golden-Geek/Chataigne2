@@ -1,20 +1,32 @@
 use std::collections::HashSet;
 
-use crate::builtin_processor_models;
+use golden_alchemist::{FormulaFamily, SurfaceItemId};
+
+use crate::builtin_formulas;
 
 #[test]
-fn builtin_models_are_versioned_graph_templates_with_exposed_surfaces() {
-    let models = builtin_processor_models();
-    let ids: HashSet<_> = models.iter().map(|model| model.id.clone()).collect();
+fn builtins_are_only_action_and_mapping_formulas() {
+    let formulas = builtin_formulas();
+    let ids: HashSet<_> = formulas.iter().map(|formula| formula.id.clone()).collect();
+    let families: HashSet<_> = formulas.iter().map(|formula| formula.family).collect();
 
-    assert_eq!(models.len(), 7);
-    assert_eq!(ids.len(), 7);
-    for model in models {
-        assert_eq!(model.version, 1);
-        assert!(!model.graph_template.nodes.is_empty());
-        assert!(!model.exposed_surface.params.is_empty());
-        let instance = model.instantiate();
-        assert_eq!(instance.model_id, model.id);
-        assert!(instance.overrides.is_empty());
+    assert_eq!(formulas.len(), 2);
+    assert_eq!(ids.len(), 2);
+    assert_eq!(families, HashSet::from([FormulaFamily::Action, FormulaFamily::Mapping]));
+    for formula in formulas {
+        assert_eq!(formula.version, 1);
+        assert!(!formula.graph.nodes.is_empty());
+        assert!(!formula.surface.sections.is_empty());
+        let instance = formula.instantiate();
+        assert_eq!(instance.formula_ref.id, formula.id);
+        assert_eq!(instance.formula_ref.version, formula.version);
+        assert!(instance.overrides.values.is_empty());
+        assert!(
+            instance
+                .surface_bindings
+                .bindings
+                .contains_key(&SurfaceItemId::new("target"))
+                || formula.family == FormulaFamily::CustomUser
+        );
     }
 }

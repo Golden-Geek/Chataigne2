@@ -1,22 +1,35 @@
 use std::time::Duration;
 
 use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, EvaluationCtx, InputSocketRef, OutputSocketRef,
-    RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, ValueTypeRegistry, primitive_node_registry,
+    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
+    FormulaFamily, FormulaId, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries,
+    RuntimeValue, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
 use crate::{
-    ChataigneStateMachine, ChataigneStateMachineRuntime, ProcessorNode,
+    ChataigneStateMachine, ChataigneStateMachineRuntime, Processor,
     alchemist::{register_nodes, register_value_types},
 };
 
-fn constant_processor(label: &str) -> ProcessorNode {
+fn constant_processor(label: &str) -> Processor {
     let mut graph = AlchemistGraph::new();
     let mut node = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     node.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(node).unwrap();
-    ProcessorNode::new(label, graph)
+    Processor::from_formula(
+        label,
+        &AlchemistFormula {
+            id: FormulaId::new("constant"),
+            version: 1,
+            label: "Constant".into(),
+            family: FormulaFamily::CustomUser,
+            graph,
+            surface: FormulaSurface::default(),
+            context_contract: FormulaContextContract::default(),
+            migrations: Vec::new(),
+        },
+    )
 }
 
 #[test]
@@ -31,8 +44,8 @@ fn state_transition_updates_active_processor_matrix() {
     let first_id = first_processor.id;
     let second_processor = constant_processor("Second Processor");
     let second_id = second_processor.id;
-    machine.attach_processor(first, first_processor);
-    machine.attach_processor(second, second_processor);
+    machine.add_processor(first, first_processor).unwrap();
+    machine.add_processor(second, second_processor).unwrap();
 
     let mut guard = AlchemistGraph::new();
     let mut source = ANodeInstance::new(ANodeTypeId::new("constant"), "True");

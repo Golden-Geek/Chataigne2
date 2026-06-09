@@ -2,6 +2,7 @@
 
 pub mod alchemist;
 mod arbitration;
+mod manager;
 mod models;
 mod processor;
 pub mod protocol;
@@ -12,12 +13,14 @@ pub use arbitration::{
     CommandPolicy, IntentOrigin,
 };
 pub use golden_statechart as statechart;
-pub use models::{
-    ProcessorCategory, ProcessorModel, ProcessorModelId, ProcessorModelInstance, builtin_processor_models,
+pub use manager::{
+    ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
+    ProcessorManagerId,
 };
+pub use models::builtin_formulas;
 pub use processor::{
-    ProcessorCommandPolicy, ProcessorDirtyFlags, ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
-    ProcessorMemoryPolicy, ProcessorNode, ProcessorRuntime, ProcessorUiModel,
+    Processor, ProcessorCommandPolicy, ProcessorDirtyFlags, ProcessorId, ProcessorLifecycleEvent,
+    ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel,
 };
 pub use protocol::export_typescript;
 pub use state_machine::{
@@ -27,6 +30,8 @@ pub use state_machine::{
 
 #[cfg(test)]
 mod arbitration_tests;
+#[cfg(test)]
+mod manager_tests;
 #[cfg(test)]
 mod models_tests;
 #[cfg(test)]
