@@ -108,7 +108,167 @@ impl Node for StateProcessorFolder {
     }
 }
 
+const ACTION_GRAPH_TEMPLATE: &str = r#"{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "condition",
+      "typeId": "condition",
+      "label": "Condition",
+      "x": 2.0,
+      "y": 4.0,
+      "inputs": [],
+      "outputs": [{ "id": "result", "label": "Result", "valueType": "bool" }]
+    },
+    {
+      "id": "edge",
+      "typeId": "edge_detector",
+      "label": "Edge",
+      "x": 18.0,
+      "y": 4.0,
+      "inputs": [{ "id": "value", "label": "Value", "valueType": "bool" }],
+      "outputs": [
+        { "id": "true", "label": "True", "valueType": "trigger" },
+        { "id": "false", "label": "False", "valueType": "trigger" }
+      ]
+    },
+    {
+      "id": "true_consequence",
+      "typeId": "consequence",
+      "label": "True Consequence",
+      "x": 35.0,
+      "y": 0.0,
+      "inputs": [{ "id": "trigger", "label": "Trigger", "valueType": "trigger" }],
+      "outputs": []
+    },
+    {
+      "id": "false_consequence",
+      "typeId": "consequence",
+      "label": "False Consequence",
+      "x": 35.0,
+      "y": 10.0,
+      "inputs": [{ "id": "trigger", "label": "Trigger", "valueType": "trigger" }],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "condition-to-edge",
+      "from": { "nodeId": "condition", "socketId": "result" },
+      "to": { "nodeId": "edge", "socketId": "value" }
+    },
+    {
+      "id": "edge-to-true",
+      "from": { "nodeId": "edge", "socketId": "true" },
+      "to": { "nodeId": "true_consequence", "socketId": "trigger" }
+    },
+    {
+      "id": "edge-to-false",
+      "from": { "nodeId": "edge", "socketId": "false" },
+      "to": { "nodeId": "false_consequence", "socketId": "trigger" }
+    }
+  ]
+}"#;
+
+const MAPPING_GRAPH_TEMPLATE: &str = r#"{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "input",
+      "typeId": "input",
+      "label": "Input",
+      "x": 2.0,
+      "y": 4.0,
+      "inputs": [],
+      "outputs": [{ "id": "value", "label": "Value", "valueType": "number" }]
+    },
+    {
+      "id": "range",
+      "typeId": "map_range",
+      "label": "Map Range",
+      "x": 18.0,
+      "y": 4.0,
+      "inputs": [{ "id": "value", "label": "Value", "valueType": "number" }],
+      "outputs": [{ "id": "value", "label": "Value", "valueType": "number" }]
+    },
+    {
+      "id": "smoothing",
+      "typeId": "smoothing",
+      "label": "Smoothing",
+      "x": 34.0,
+      "y": 4.0,
+      "inputs": [{ "id": "value", "label": "Value", "valueType": "number" }],
+      "outputs": [{ "id": "value", "label": "Value", "valueType": "number" }]
+    },
+    {
+      "id": "output",
+      "typeId": "output",
+      "label": "Output",
+      "x": 50.0,
+      "y": 4.0,
+      "inputs": [{ "id": "value", "label": "Value", "valueType": "number" }],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "input-to-range",
+      "from": { "nodeId": "input", "socketId": "value" },
+      "to": { "nodeId": "range", "socketId": "value" }
+    },
+    {
+      "id": "range-to-smoothing",
+      "from": { "nodeId": "range", "socketId": "value" },
+      "to": { "nodeId": "smoothing", "socketId": "value" }
+    },
+    {
+      "id": "smoothing-to-output",
+      "from": { "nodeId": "smoothing", "socketId": "value" },
+      "to": { "nodeId": "output", "socketId": "value" }
+    }
+  ]
+}"#;
+
+fn action_graph_json() -> String {
+    ACTION_GRAPH_TEMPLATE.to_owned()
+}
+
+fn mapping_graph_json() -> String {
+    MAPPING_GRAPH_TEMPLATE.to_owned()
+}
+
 #[node("state_processor_action", label = "Action")]
+#[children(
+    enabled: bool = true (
+        label = "Enabled",
+        description = "Whether this action formula is evaluated."
+    );
+    condition: bool = false (
+        label = "Condition",
+        description = "The condition value consumed by the action formula."
+    );
+    true_command: String = String::new() (
+        label = "True Command",
+        description = "Command invoked when the condition enters the configured true edge."
+    );
+    false_command: String = String::new() (
+        label = "False Command",
+        description = "Command invoked when the condition enters the configured false edge."
+    );
+    edge_mode: String = "Both".to_owned() (
+        label = "Edge Mode",
+        description = "Selects which condition edges may invoke consequences."
+    );
+    cooldown_ms: f64 = 0.0 (
+        label = "Cooldown (ms)",
+        description = "Minimum interval between consequence invocations."
+    );
+    authored_graph: String = action_graph_json() (
+        label = "Authored Graph",
+        description = "Versioned Alchemist graph document for this action.",
+        show_in_inspector_content = false
+    );
+)]
 pub struct ActionStateProcessor {}
 
 #[item(
@@ -128,6 +288,45 @@ impl Node for ActionStateProcessor {
 }
 
 #[node("state_processor_mapping", label = "Mapping")]
+#[children(
+    enabled: bool = true (
+        label = "Enabled",
+        description = "Whether this mapping formula is evaluated."
+    );
+    input_value: f64 = 0.0 (
+        label = "Input Value",
+        description = "The value consumed by the mapping formula."
+    );
+    input_min: f64 = 0.0 (
+        label = "Input Minimum",
+        description = "Lower bound of the input range."
+    );
+    input_max: f64 = 127.0 (
+        label = "Input Maximum",
+        description = "Upper bound of the input range."
+    );
+    output_min: f64 = 0.0 (
+        label = "Output Minimum",
+        description = "Lower bound of the output range."
+    );
+    output_max: f64 = 1.0 (
+        label = "Output Maximum",
+        description = "Upper bound of the output range."
+    );
+    smoothing_ms: f64 = 100.0 (
+        label = "Smoothing (ms)",
+        description = "Smoothing duration applied to the mapped output."
+    );
+    output_target: String = String::new() (
+        label = "Output Target",
+        description = "Parameter or command target receiving the mapped value."
+    );
+    authored_graph: String = mapping_graph_json() (
+        label = "Authored Graph",
+        description = "Versioned Alchemist graph document for this mapping.",
+        show_in_inspector_content = false
+    );
+)]
 pub struct MappingStateProcessor {}
 
 #[item(
