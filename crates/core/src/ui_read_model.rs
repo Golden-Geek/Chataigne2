@@ -88,6 +88,7 @@ impl UiReadModel {
     pub fn from_engine<T: Node>(engine: &Engine<T>, project_file: ProjectFileSpec) -> Self {
         let snapshot = snapshot_from_engine(engine, project_file.clone());
         let at = snapshot.at;
+        let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
         let node_store = nodes_to_store(&snapshot.nodes);
         let schema = snapshot.schema.clone();
         let header = SnapshotHeader {
@@ -100,7 +101,7 @@ impl UiReadModel {
             current: RwLock::new(Arc::new(snapshot)),
             events: Mutex::new(VecDeque::new()),
             event_capacity: DEFAULT_UI_READ_MODEL_EVENT_CAPACITY,
-            latest_event_time: Mutex::new(Some(at)),
+            latest_event_time: Mutex::new(latest_event_time),
             node_store: RwLock::new(node_store),
             snapshot_header: Mutex::new(header),
             snapshot_schema: Mutex::new(schema),
@@ -126,6 +127,7 @@ impl UiReadModel {
     ) {
         let snapshot = Arc::new(snapshot_from_engine(engine, project_file));
         let at = snapshot.at;
+        let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
 
         // Update all layers atomically-ish (each lock briefly held).
         {
@@ -146,7 +148,7 @@ impl UiReadModel {
             *self.current.write().expect("ui read model poisoned") = snapshot;
         }
         {
-            *self.latest_event_time.lock().expect("ui read model poisoned") = Some(at);
+            *self.latest_event_time.lock().expect("ui read model poisoned") = latest_event_time;
         }
 
         if matches!(
@@ -182,9 +184,9 @@ impl UiReadModel {
 
     /// Applies a previously collected capture **outside the engine lock**.
     ///
-    /// Structural events (graph transactions, node/child changes, meta) update the `node_store`
-    /// and rebuild `current` from pre-built DTOs — no engine traversal needed.
-    /// Pure value-change events (params, custom) only advance `latest_event_time`.
+    /// All graph and parameter events update the `node_store`. Structural events also rebuild
+    /// `current` from pre-built DTOs without traversing the engine. Pure parameter changes defer
+    /// that O(N) rebuild until the next structural batch.
     pub fn apply_event_capture(&self, capture: UiEventCapture, project_file: ProjectFileSpec) -> UiEventBatch {
         let UiEventCapture {
             batch,
@@ -199,12 +201,12 @@ impl UiReadModel {
 
         let has_structural = batch.events.iter().any(event_requires_snapshot_rebuild);
 
-        if has_structural {
-            apply_ops_from_events(
-                &mut self.node_store.write().expect("ui read model poisoned"),
-                &batch.events,
-            );
+        apply_events_to_store(
+            &mut self.node_store.write().expect("ui read model poisoned"),
+            &batch.events,
+        );
 
+        if has_structural {
             let at = batch.events.iter().map(|e| e.time).max().unwrap_or_else(|| {
                 self.latest_event_time
                     .lock()
@@ -377,13 +379,55 @@ fn nodes_to_store(nodes: &[UiNodeDto]) -> HashMap<NodeId, UiNodeDto> {
 // Incremental node-store mutation
 // ---------------------------------------------------------------------------
 
-/// Applies `GraphTransaction` ops from the event batch to the node store.
-fn apply_ops_from_events(store: &mut HashMap<NodeId, UiNodeDto>, events: &[UiEventDto]) {
+/// Applies graph transactions and standalone parameter changes to the node store.
+fn apply_events_to_store(store: &mut HashMap<NodeId, UiNodeDto>, events: &[UiEventDto]) {
     for event in events {
-        if let UiEventKind::GraphTransaction { transaction } = &event.kind {
-            for op in transaction.ops.iter() {
-                apply_graph_op(store, op);
+        match &event.kind {
+            UiEventKind::GraphTransaction { transaction } => {
+                for op in transaction.ops.iter() {
+                    apply_graph_op(store, op);
+                }
             }
+            UiEventKind::ParamChanged {
+                param,
+                old_value,
+                new_value,
+            } => {
+                if let Some(UiNodeDto {
+                    data: UiNodeDataDto::Parameter { param: param_dto },
+                    ..
+                }) = store.get_mut(param)
+                {
+                    if param_dto.default_value.is_none() && old_value != new_value {
+                        param_dto.default_value = Some(old_value.clone());
+                    }
+                    param_dto.value.clone_from(new_value);
+                    if param_dto.default_value.as_ref() == Some(new_value) {
+                        param_dto.default_value = None;
+                    }
+                }
+            }
+            UiEventKind::ParamControlChanged { param, new_state, .. } => {
+                if let Some(UiNodeDto {
+                    data: UiNodeDataDto::Parameter { param: param_dto },
+                    ..
+                }) = store.get_mut(param)
+                {
+                    param_dto.control.clone_from(new_state);
+                }
+            }
+            UiEventKind::ParamConstraintsChanged {
+                param, new_constraints, ..
+            } => {
+                if let Some(UiNodeDto {
+                    data: UiNodeDataDto::Parameter { param: param_dto },
+                    ..
+                }) = store.get_mut(param)
+                {
+                    param_dto.constraints.clone_from(new_constraints);
+                }
+            }
+            _ => {}
         }
     }
 }

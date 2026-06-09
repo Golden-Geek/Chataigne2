@@ -88,6 +88,11 @@ pub mod ui_sync {
     pub use golden_protocol::*;
 }
 
+/// Incremental immutable projection used by UI transports and reloads.
+pub mod ui_read_model {
+    pub use golden_engine::ui_read_model::*;
+}
+
 /// Script authoring and runtime integrations.
 pub mod script {
     pub use golden_script::*;
