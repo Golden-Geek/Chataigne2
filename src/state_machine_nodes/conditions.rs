@@ -22,6 +22,20 @@ use golden_core::{
     invalidation_delay_ms: f64 = 0.0 (
         label = "Invalidation Delay (ms)"
     );
+    output_mode: golden_core::parameter::Enum = "normal" (
+        label = "Output Mode",
+        enum_options = [
+            "normal",
+            "toggle_on_valid",
+            "toggle_on_invalid",
+            "pulse_on_valid",
+            "pulse_on_invalid"
+        ]
+    );
+    pulse_duration_ms: f64 = 200.0 (
+        label = "Pulse Duration (ms)",
+        show_in_inspector_content = false
+    );
     source: NodeReference (
         label = "Source",
         reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
@@ -111,6 +125,20 @@ impl Node for InputValueCondition {
     invalidation_delay_ms: f64 = 0.0 (
         label = "Invalidation Delay (ms)"
     );
+    output_mode: golden_core::parameter::Enum = "normal" (
+        label = "Output Mode",
+        enum_options = [
+            "normal",
+            "toggle_on_valid",
+            "toggle_on_invalid",
+            "pulse_on_valid",
+            "pulse_on_invalid"
+        ]
+    );
+    pulse_duration_ms: f64 = 200.0 (
+        label = "Pulse Duration (ms)",
+        show_in_inspector_content = false
+    );
     provider_node: NodeReference (
         label = "Node"
     );
@@ -177,6 +205,20 @@ impl Node for InputNodeCondition {
     invalidation_delay_ms: f64 = 0.0 (
         label = "Invalidation Delay (ms)"
     );
+    output_mode: golden_core::parameter::Enum = "normal" (
+        label = "Output Mode",
+        enum_options = [
+            "normal",
+            "toggle_on_valid",
+            "toggle_on_invalid",
+            "pulse_on_valid",
+            "pulse_on_invalid"
+        ]
+    );
+    pulse_duration_ms: f64 = 200.0 (
+        label = "Pulse Duration (ms)",
+        show_in_inspector_content = false
+    );
     script: String = String::new() (
         label = "Script",
         show_in_inspector_content = false
@@ -217,6 +259,20 @@ impl Node for ScriptCondition {
     );
     invalidation_delay_ms: f64 = 0.0 (
         label = "Invalidation Delay (ms)"
+    );
+    output_mode: golden_core::parameter::Enum = "normal" (
+        label = "Output Mode",
+        enum_options = [
+            "normal",
+            "toggle_on_valid",
+            "toggle_on_invalid",
+            "pulse_on_valid",
+            "pulse_on_invalid"
+        ]
+    );
+    pulse_duration_ms: f64 = 200.0 (
+        label = "Pulse Duration (ms)",
+        show_in_inspector_content = false
     );
 )]
 pub struct ConditionGroup {}

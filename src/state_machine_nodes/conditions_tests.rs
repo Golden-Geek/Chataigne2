@@ -87,6 +87,26 @@ fn script_condition_is_sm_condition_item() {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 6: output_mode and pulse_duration_ms
+// ---------------------------------------------------------------------------
+
+#[test]
+fn all_condition_types_default_to_normal_output_mode() {
+    assert_eq!(InputValueCondition::new().output_mode.get_ref().as_str(), "normal");
+    assert_eq!(InputNodeCondition::new().output_mode.get_ref().as_str(), "normal");
+    assert_eq!(ScriptCondition::new().output_mode.get_ref().as_str(), "normal");
+    assert_eq!(ConditionGroup::new().output_mode.get_ref().as_str(), "normal");
+}
+
+#[test]
+fn all_condition_types_default_pulse_duration_to_200ms() {
+    assert_eq!(*InputValueCondition::new().pulse_duration_ms.get_ref(), 200.0);
+    assert_eq!(*InputNodeCondition::new().pulse_duration_ms.get_ref(), 200.0);
+    assert_eq!(*ScriptCondition::new().pulse_duration_ms.get_ref(), 200.0);
+    assert_eq!(*ConditionGroup::new().pulse_duration_ms.get_ref(), 200.0);
+}
+
+// ---------------------------------------------------------------------------
 // ConditionGroup
 // ---------------------------------------------------------------------------
 
