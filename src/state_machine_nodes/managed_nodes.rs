@@ -153,4 +153,4 @@ impl Node for OutputsManager {
 }
 
 #[cfg(test)]
-mod state_machine_managed_nodes_tests;
+mod managed_nodes_tests;

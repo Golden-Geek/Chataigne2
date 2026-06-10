@@ -287,7 +287,7 @@ impl Node for StateProcessor {
 
         let processor_id = self.id();
         for (anode_type, anode_label, anode_decl_id) in anode_data {
-            crate::app::state_machine_formula::instantiate_anode_for_processor(
+            crate::app::state_machine_nodes_formula::instantiate_anode_for_processor(
                 &anode_type,
                 &anode_label,
                 &anode_decl_id,
@@ -303,4 +303,4 @@ impl Node for StateProcessor {
 }
 
 #[cfg(test)]
-mod state_machine_processor_tests;
+mod processor_tests;

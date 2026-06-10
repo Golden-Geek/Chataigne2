@@ -229,4 +229,4 @@ impl Node for CustomAlchemistFormula {
 }
 
 #[cfg(test)]
-mod state_machine_formula_tests;
+mod formula_tests;

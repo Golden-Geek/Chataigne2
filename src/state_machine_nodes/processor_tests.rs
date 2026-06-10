@@ -101,7 +101,7 @@ fn action_processor_instantiates_condition_and_consequences_managers_from_formul
     let action_formula_uuid = engine
         .nodes
         .iter()
-        .find(|(_, n)| n.get_type() == crate::app::state_machine_formula::ActionBuiltinFormula::NODE_TYPE)
+        .find(|(_, n)| n.get_type() == crate::app::ActionBuiltinFormula::NODE_TYPE)
         .map(|(_, n)| n.node_data().meta.uuid)
         .expect("ActionBuiltinFormula not found");
 
@@ -159,7 +159,7 @@ fn mapping_processor_instantiates_inputs_filter_chain_and_outputs_from_formula()
     let mapping_formula_uuid = engine
         .nodes
         .iter()
-        .find(|(_, n)| n.get_type() == crate::app::state_machine_formula::MappingBuiltinFormula::NODE_TYPE)
+        .find(|(_, n)| n.get_type() == crate::app::MappingBuiltinFormula::NODE_TYPE)
         .map(|(_, n)| n.node_data().meta.uuid)
         .expect("MappingBuiltinFormula not found");
 

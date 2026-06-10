@@ -54,7 +54,7 @@ impl StateMachineState {
     fn active_changed(&mut self, ctx: &mut ProcessCtx, _old_value: ParamValue) {
         let preferred_active = self.active.get().then_some(self.id());
         let forced_inactive = (!self.active.get()).then_some(self.id());
-        crate::app::state_machine_transition::reconcile_state_networks(
+        crate::app::state_machine_nodes_transition::reconcile_state_networks(
             ctx,
             preferred_active,
             forced_inactive,
@@ -75,4 +75,4 @@ impl Node for StateMachineState {
 }
 
 #[cfg(test)]
-mod state_machine_state_tests;
+mod state_tests;

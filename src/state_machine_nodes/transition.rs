@@ -303,4 +303,4 @@ impl DisjointSet {
 }
 
 #[cfg(test)]
-mod state_machine_transition_tests;
+mod transition_tests;

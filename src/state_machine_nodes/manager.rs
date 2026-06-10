@@ -34,7 +34,7 @@ impl Node for StateMachineManager {
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: golden_core::node::NodeId, _child: golden_core::node::NodeId) {
-        crate::app::state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
     }
 
     fn on_child_removed(
@@ -43,9 +43,9 @@ impl Node for StateMachineManager {
         _parent: golden_core::node::NodeId,
         _child: golden_core::node::NodeId,
     ) {
-        crate::app::state_machine_transition::reconcile_state_networks(ctx, None, None, None);
+        crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
     }
 }
 
 #[cfg(test)]
-mod state_machine_manager_tests;
+mod manager_tests;
