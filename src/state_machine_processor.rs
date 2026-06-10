@@ -1,48 +1,68 @@
 use golden_core::{
-    item, node,
-    node::{DeclId, Node, NodeCreationContext, NodeUserPermissions, UserContainerRules, UserCreatableItem},
-    process_ctx::ProcessCtx,
+    node,
+    node::{
+        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUuid, NodeUserPermissions,
+        UserContainerRules, UserCreatableItem,
+    },
+    parameter::ParamValue,
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
 
-fn processor_items() -> Vec<UserCreatableItem> {
-    crate::app::declared_user_creatable_items(PROCESSOR_ITEM_KIND)
-}
+const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 
 fn processor_container_rules() -> UserContainerRules {
     UserContainerRules::new(&[PROCESSOR_ITEM_KIND, PROCESSOR_FOLDER_ITEM_KIND])
 }
 
 fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
-    (item_kind == PROCESSOR_ITEM_KIND
-        && crate::app::declared_user_item_type_matches(item_type, PROCESSOR_ITEM_KIND))
-        || (item_type == PROCESSOR_FOLDER_NODE_TYPE && item_kind == PROCESSOR_FOLDER_ITEM_KIND)
-}
-
-fn processor_creatable_items() -> Vec<UserCreatableItem> {
-    let mut items = processor_items();
-    items.push(UserCreatableItem::new(
-        PROCESSOR_FOLDER_NODE_TYPE,
-        PROCESSOR_FOLDER_ITEM_KIND,
-        "Folder",
-    ));
-    items
-}
-
-fn create_processor_item(node_type: &str) -> Option<Box<dyn Node>> {
-    crate::app::create_declared_user_item(node_type, PROCESSOR_ITEM_KIND).or_else(|| {
-        (node_type == PROCESSOR_FOLDER_NODE_TYPE)
-            .then(|| Box::new(StateProcessorFolder::new()) as Box<dyn Node>)
-    })
+    if item_kind == PROCESSOR_ITEM_KIND {
+        // Accept both the raw node type and the "state_processor:{UUID}" encoding
+        // used by UserCreatableItem to carry the formula reference.
+        item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:")
+    } else {
+        item_type == PROCESSOR_FOLDER_NODE_TYPE && item_kind == PROCESSOR_FOLDER_ITEM_KIND
+    }
 }
 
 fn initialize_processor_item(node: &mut dyn Node) {
     node.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
 }
 
+/// Builds the formula item list from the snapshot rooted at `lib_id`.
+/// Each formula node becomes a `UserCreatableItem` whose `node_type` encodes the
+/// formula UUID as `"state_processor:{uuid}"`, carrying the UUID through to
+/// `create_user_item` without requiring extra state.
+fn build_formula_items(snapshot: &ProcessTreeSnapshot, lib_id: NodeId) -> Vec<UserCreatableItem> {
+    snapshot
+        .child_ids(lib_id)
+        .into_iter()
+        .filter_map(|formula_id| {
+            let n = snapshot.node(formula_id)?;
+            let node_type = format!("state_processor:{}", n.uuid.0);
+            Some(UserCreatableItem::new(node_type, PROCESSOR_ITEM_KIND, &n.label))
+        })
+        .collect()
+}
+
+/// Finds the FormulaLibrary node id in the snapshot, if present.
+fn find_formula_library(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+    snapshot
+        .child_ids(snapshot.root())
+        .into_iter()
+        .find(|&id| {
+            snapshot
+                .node(id)
+                .map_or(false, |n| n.node_type == FORMULA_LIBRARY_NODE_TYPE)
+        })
+}
+
+/// Processor manager. Maintains a reactive cache of formula items sourced from the
+/// FormulaLibrary node. Rebuilds the cache whenever FormulaLibrary or its children
+/// change, using event subscriptions to FormulaLibrary's subtree.
 #[node(
     "state_processor_manager",
     label = "Processors",
@@ -51,7 +71,10 @@ fn initialize_processor_item(node: &mut dyn Node) {
         ..Default::default()
     }
 )]
-pub struct StateProcessorManager {}
+pub struct StateProcessorManager {
+    #[state(default = Vec::new())]
+    formula_items: Vec<UserCreatableItem>,
+}
 
 #[node("state_processor_manager", from_struct)]
 impl Node for StateProcessorManager {
@@ -64,11 +87,20 @@ impl Node for StateProcessorManager {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        processor_creatable_items()
+        let mut items = self.formula_items.clone();
+        items.push(UserCreatableItem::new(
+            PROCESSOR_FOLDER_NODE_TYPE,
+            PROCESSOR_FOLDER_ITEM_KIND,
+            "Folder",
+        ));
+        items
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        create_processor_item(node_type)
+        if node_type == PROCESSOR_FOLDER_NODE_TYPE {
+            return Some(Box::new(StateProcessorFolder::new()));
+        }
+        create_processor_for_formula_type(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -76,8 +108,93 @@ impl Node for StateProcessorManager {
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
     }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let self_id = self.id();
+
+        // Find FormulaLibrary and build initial cache; also grab root for subscription.
+        let (root_id, formula_lib_id) = {
+            let Some(snapshot) = ctx.tree_snapshot() else {
+                return;
+            };
+            let root_id = snapshot.root();
+            let lib_id = find_formula_library(snapshot);
+            (root_id, lib_id)
+        };
+
+        // Subscribe to root at depth=1 so on_node_created fires when FormulaLibrary
+        // is added later (e.g. when StateMachineManager initialises before it).
+        ctx.add_event_listener_subtree(self_id, root_id, 1);
+
+        if let Some(lib_id) = formula_lib_id {
+            ctx.add_event_listener_subtree(self_id, lib_id, 2);
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                self.formula_items = build_formula_items(snapshot, lib_id);
+            }
+        }
+    }
+
+    fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        let is_formula_library = {
+            let Some(snapshot) = ctx.tree_snapshot() else {
+                return;
+            };
+            snapshot
+                .node(node)
+                .map_or(false, |n| n.node_type == FORMULA_LIBRARY_NODE_TYPE)
+        };
+
+        if is_formula_library {
+            let self_id = self.id();
+            ctx.add_event_listener_subtree(self_id, node, 2);
+        }
+
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
 }
 
+impl StateProcessorManager {
+    fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
+        let items = {
+            let Some(snapshot) = ctx.tree_snapshot() else {
+                return;
+            };
+            find_formula_library(snapshot)
+                .map(|lib_id| build_formula_items(snapshot, lib_id))
+                .unwrap_or_default()
+        };
+        self.formula_items = items;
+    }
+}
+
+/// Parses `"state_processor:{UUID}"` and returns a pre-configured `StateProcessor`.
+fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
+    let uuid_str = node_type.strip_prefix("state_processor:")?;
+    let uuid = uuid_str.parse::<uuid::Uuid>().ok().map(NodeUuid)?;
+    let mut processor = StateProcessor::new();
+    processor
+        .formula_uuid
+        .apply_runtime_value(&ParamValue::Str(uuid.0.to_string()));
+    Some(Box::new(processor))
+}
+
+/// Folder node for grouping processors. Accepts any `state_processor` item.
 #[node("state_processor_folder", label = "Folder")]
 pub struct StateProcessorFolder {}
 
@@ -92,11 +209,20 @@ impl Node for StateProcessorFolder {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        processor_creatable_items()
+        // Folders can't provide the reactive formula list on their own, so they
+        // defer to a Folder item only (processors are added via the parent manager).
+        vec![UserCreatableItem::new(
+            PROCESSOR_FOLDER_NODE_TYPE,
+            PROCESSOR_FOLDER_ITEM_KIND,
+            "Folder",
+        )]
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        create_processor_item(node_type)
+        if node_type == PROCESSOR_FOLDER_NODE_TYPE {
+            return Some(Box::new(StateProcessorFolder::new()));
+        }
+        create_processor_for_formula_type(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
@@ -108,16 +234,20 @@ impl Node for StateProcessorFolder {
     }
 }
 
-#[node("state_processor_action", label = "Action")]
-pub struct ActionStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_action",
-    from_struct,
-    menu_path = ["Built-in"]
+/// A single processor node. `formula_uuid` identifies which formula this
+/// processor instantiates. On fresh creation, the formula's ANode children
+/// are iterated and each one is responsible for creating its manager child.
+#[node("state_processor", label = "Processor")]
+#[children(
+    formula_uuid: String = String::new() (
+        label = "Formula UUID",
+        show_in_inspector_content = false
+    );
 )]
-impl Node for ActionStateProcessor {
+pub struct StateProcessor {}
+
+#[node("state_processor", from_struct)]
+impl Node for StateProcessor {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
     }
@@ -126,65 +256,45 @@ impl Node for ActionStateProcessor {
         if context != NodeCreationContext::Fresh {
             return;
         }
-        let mut conditions = crate::app::ConditionManager::new();
-        conditions.node_data_mut().meta.decl_id = DeclId("conditions".to_string());
-        ctx.add_child(self.id(), conditions, None);
 
-        let mut true_csq = crate::app::ConsequencesManager::new();
-        true_csq.node_data_mut().meta.label = "True Consequences".to_string();
-        true_csq.node_data_mut().meta.decl_id = DeclId("true_consequences".to_string());
-        ctx.add_child(self.id(), true_csq, None);
-
-        let mut false_csq = crate::app::ConsequencesManager::new();
-        false_csq.node_data_mut().meta.label = "False Consequences".to_string();
-        false_csq.node_data_mut().meta.decl_id = DeclId("false_consequences".to_string());
-        ctx.add_child(self.id(), false_csq, None);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_mapping", label = "Mapping")]
-pub struct MappingStateProcessor {}
-
-#[item(
-    "state_processor",
-    node = "state_processor_mapping",
-    from_struct,
-    menu_path = ["Built-in"]
-)]
-impl Node for MappingStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
-    }
-
-    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
-        if context != NodeCreationContext::Fresh {
+        let uuid_str = self.formula_uuid.get_ref().clone();
+        let Some(uuid) = uuid_str
+            .parse::<uuid::Uuid>()
+            .ok()
+            .map(NodeUuid)
+            .filter(|u| !u.is_nil())
+        else {
             return;
+        };
+
+        // Collect ANode metadata before borrowing ctx mutably.
+        let anode_data: Vec<(String, String, String)> = {
+            let Some(snapshot) = ctx.tree_snapshot() else {
+                return;
+            };
+            let Some(formula_id) = snapshot.node_id_by_uuid(uuid) else {
+                return;
+            };
+            snapshot
+                .child_ids(formula_id)
+                .into_iter()
+                .filter_map(|id| {
+                    let n = snapshot.node(id)?;
+                    Some((n.node_type.clone(), n.label.clone(), n.decl_id.clone()))
+                })
+                .collect()
+        };
+
+        let processor_id = self.id();
+        for (anode_type, anode_label, anode_decl_id) in anode_data {
+            crate::app::state_machine_formula::instantiate_anode_for_processor(
+                &anode_type,
+                &anode_label,
+                &anode_decl_id,
+                processor_id,
+                ctx,
+            );
         }
-        let mut filter_chain = crate::app::FilterChainManager::new();
-        filter_chain.node_data_mut().meta.decl_id = DeclId("filter_chain".to_string());
-        ctx.add_child(self.id(), filter_chain, None);
-
-        let mut outputs = crate::app::OutputsManager::new();
-        outputs.node_data_mut().meta.decl_id = DeclId("outputs".to_string());
-        ctx.add_child(self.id(), outputs, None);
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_custom", label = "Custom Processor")]
-pub struct CustomStateProcessor {}
-
-#[item("state_processor", node = "state_processor_custom", from_struct)]
-impl Node for CustomStateProcessor {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        initialize_processor_item(self);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
