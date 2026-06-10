@@ -4,9 +4,13 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-/// Reads any parameter source, projects the value if needed, and compares it against
-/// a reference. Comparator options and the reference widget adapt to the projected
-/// value type at the UI layer; the authored data model stores the full field set.
+// ---------------------------------------------------------------------------
+// InputValueCondition
+// ---------------------------------------------------------------------------
+
+/// Reads any parameter source, projects the value if needed, and compares it
+/// against a reference. Projection and comparator options adapt at the UI layer
+/// based on the selected source's value type.
 #[node("sm_input_value_condition", label = "Input Value")]
 #[children(
     invert: bool = false (
@@ -86,10 +90,119 @@ impl Node for InputValueCondition {
     }
 }
 
-/// Condition group: combines child conditions with a reduce operator (all/any/none).
+// ---------------------------------------------------------------------------
+// InputNodeCondition
+// ---------------------------------------------------------------------------
+
+/// Asks a target node whether a named condition endpoint holds.
+///
+/// Bool endpoints evaluate directly. Value endpoints pipe their output through
+/// the same comparator/reference mechanism as InputValueCondition.
+/// Available endpoints are discovered from the target node's condition provider
+/// registry at runtime; `endpoint_id` stores the selected endpoint key.
+#[node("sm_input_node_condition", label = "Input Node")]
+#[children(
+    invert: bool = false (
+        label = "Invert"
+    );
+    validation_delay_ms: f64 = 0.0 (
+        label = "Validation Delay (ms)"
+    );
+    invalidation_delay_ms: f64 = 0.0 (
+        label = "Invalidation Delay (ms)"
+    );
+    provider_node: NodeReference (
+        label = "Node"
+    );
+    endpoint_id: String = String::new() (
+        label = "Endpoint"
+    );
+    comparator: golden_core::parameter::Enum = "equal" (
+        label = "Comparator",
+        enum_options = [
+            "equal",
+            "not_equal",
+            "greater_than",
+            "greater_than_or_equal",
+            "less_than",
+            "less_than_or_equal",
+            "between",
+            "outside",
+            "is_true",
+            "is_false",
+            "contains",
+            "starts_with",
+            "ends_with"
+        ]
+    );
+    reference: f64 = 0.0 (
+        label = "Reference"
+    );
+    reference_max: f64 = 1.0 (
+        label = "Reference Max"
+    );
+    reference_string: String = String::new() (
+        label = "Reference (String)",
+        show_in_inspector_content = false
+    );
+)]
+pub struct InputNodeCondition {}
+
+#[item("sm_condition", node = "sm_input_node_condition", from_struct)]
+impl Node for InputNodeCondition {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ScriptCondition
+// ---------------------------------------------------------------------------
+
+/// Condition evaluated by a user-authored script. The script reads context and
+/// parameter values and sets the condition valid or invalid. No direct side
+/// effects are allowed from within a script condition.
+#[node("sm_script_condition", label = "Script")]
+#[children(
+    invert: bool = false (
+        label = "Invert"
+    );
+    validation_delay_ms: f64 = 0.0 (
+        label = "Validation Delay (ms)"
+    );
+    invalidation_delay_ms: f64 = 0.0 (
+        label = "Invalidation Delay (ms)"
+    );
+    script: String = String::new() (
+        label = "Script",
+        show_in_inspector_content = false
+    );
+)]
+pub struct ScriptCondition {}
+
+#[item("sm_condition", node = "sm_script_condition", from_struct)]
+impl Node for ScriptCondition {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ConditionGroup
+// ---------------------------------------------------------------------------
+
+/// Combines child conditions with a reduce operator (all/any/none).
 /// Acts as a single condition to its parent container while itself accepting
-/// nested `sm_condition` items — including other groups — making the condition
-/// tree fully recursive.
+/// nested `sm_condition` items — including other groups — making the tree
+/// fully recursive.
 #[node("sm_condition_group", label = "Condition Group")]
 #[children(
     invert: bool = false (
