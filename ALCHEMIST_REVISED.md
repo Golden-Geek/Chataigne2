@@ -1414,278 +1414,315 @@ Formula runtime should use resolved, compiled types.
 
 # 17. Implementation roadmap
 
-## Phase 1 — Crate boundaries
+## Invariant: Everything Is a Node
 
-Create or prepare:
+In Chataigne2, if something appears in the outliner or inspector, it is a `golden_core::Node`.
 
 ```text
-golden_alchemist
-golden_statechart
-chataigne_alchemist
-chataigne_state_machine
+Formulas are nodes.
+Processors are nodes.
+ConditionManagers are nodes.
+ConsequencesManagers are nodes.
+Conditions are nodes.
+Commands are nodes.
+```
+
+There is NO parallel FormulaSurface DTO inspector system.
+The golden_core outliner and inspector are the authoritative UI.
+The Alchemist runtime reads from node tree state, not from separate data structures.
+
+## Current State Assessment (as of this revision)
+
+```text
+What exists:
+
+FormulaLibrary         — does NOT exist. No formulas appear in the outliner.
+
+ActionStateProcessor   — exists as a golden_core node BUT stores the alchemist
+MappingStateProcessor    graph as an authored_graph: String parameter.
+                         This is the wrong approach. The formula graph must
+                         live on the Formula node, not the Processor node.
+
+CustomStateProcessor   — exists as a golden_core node with no formula backing,
+                         no managed sub-nodes, and no substance.
+
+src/state_machine/     — contains correct types (AlchemistFormula,
+  crate                  AlchemistFormulaInstance, FormulaSurface, etc.)
+                         but is DISCONNECTED from the golden_core node tree.
+                         These types are used by the runtime and tests but not
+                         by the inspector or outliner.
+
+ProcessorInspector     — renders FormulaSurface DTOs via a separate protocol.
+  .svelte                This is a parallel system that bypasses the standard
+                         golden_core inspector. It will be removed.
+```
+
+## Phase 1 — Formula Library Node
+
+Create `src/state_machine_formula.rs`:
+
+```text
+FormulaLibrary node (project-level)
+  — Fixed children: ActionBuiltinFormula, MappingBuiltinFormula
+  — User can add CustomAlchemistFormula children
+
+ActionBuiltinFormula node
+  — Non-deletable, non-user-editable
+  — Family: Action
+
+MappingBuiltinFormula node
+  — Non-deletable, non-user-editable
+  — Family: Mapping
+
+CustomAlchemistFormula node
+  — User-created, editable
+  — authored_graph: String (edited in Alchemist graph editor)
+  — Family: CustomUser
+```
+
+Add `FormulaLibrary::new()` to `default_project.rs`.
+
+Definition of done:
+
+```text
+FormulaLibrary appears in the outliner.
+Action and Mapping built-in formulas are children.
+Custom formulas can be created via the + menu.
+Built-in formulas cannot be deleted or moved.
+```
+
+---
+
+## Phase 2 — Processor Becomes a Formula Reference
+
+Rewrite `src/state_machine_processor.rs`:
+
+```text
+Remove from ActionStateProcessor:
+  condition: bool
+  true_command: String
+  false_command: String
+  edge_mode: String
+  cooldown_ms: f64
+  authored_graph: String
+
+Remove from MappingStateProcessor:
+  input_value: f64
+  input_min: f64
+  input_max: f64
+  output_min: f64
+  output_max: f64
+  smoothing_ms: f64
+  output_target: String
+  authored_graph: String
+```
+
+Processor node types (Action/Mapping/Custom) keep their distinct type IDs for menu clarity.
+The processor's formula family is implicit from its node type.
+The processor no longer stores graph data — the FormulaLibrary is the source of truth.
+
+Definition of done:
+
+```text
+Processor nodes have no flat formula parameters.
+The authored_graph: String parameter is gone from all processors.
+Creating an Action processor does not require or store a formula graph.
+```
+
+---
+
+## Phase 3 — Managed ANode Child Node Generation
+
+Create `src/state_machine_managed_nodes.rs`:
+
+```text
+ConditionManager node
+  — mode: "all" | "any" | "custom"
+  — User container: accepts Condition item kind
+
+ConsequencesManager node
+  — User container: accepts Consequence item kind
+  — label distinguishes "when true" vs "when false"
+```
+
+Connect to `ActionStateProcessor::init`:
+
+```text
+ActionStateProcessor generates on init:
+  ConditionManager child ("Conditions")
+  ConsequencesManager child ("Consequences when true")
+  ConsequencesManager child ("Consequences when false")
+```
+
+Connect to `MappingStateProcessor::init`:
+
+```text
+MappingStateProcessor generates on init:
+  FilterChainManager child ("Filters")
+  OutputsManager child ("Outputs")
+```
+
+These are created as fixed sub-nodes, not user-creatable from the processor level.
+
+Definition of done:
+
+```text
+Action processor has ConditionManager and two ConsequencesManager children visible in the outliner.
+Mapping processor has FilterChainManager and OutputsManager children.
+These children are non-removable from the processor.
+```
+
+---
+
+## Phase 4 — Condition System
+
+Create `src/state_machine_conditions.rs`:
+
+```text
+Condition item kind
+
+Condition types:
+  CompareCondition
+    — input source reference
+    — comparison operator (>, <, ==, !=, etc.)
+    — threshold value
+
+  ExpressionCondition
+    — freeform boolean expression (later)
+```
+
+`ConditionManager` user_container_rules accepts Condition items.
+
+Definition of done:
+
+```text
+ConditionManager can have conditions added via the + button.
+Conditions appear in the outliner with their parameters.
+ConditionManager mode (all/any) is editable.
+```
+
+---
+
+## Phase 5 — Consequences / Commands System
+
+Create `src/state_machine_consequences.rs`:
+
+```text
+Consequence item kind
+
+Consequence types:
+  CommandConsequence
+    — target: command target reference
+    — payload: parameter value
+
+  SequenceConsequence
+    — target: sequence reference
+    — action: launch / stop / pause
+
+  StateConsequence
+    — target: state reference
+    — action: activate / deactivate
+```
+
+`ConsequencesManager` user_container_rules accepts Consequence items.
+
+Definition of done:
+
+```text
+ConsequencesManager can have consequences added.
+Consequences appear in the outliner with target parameters.
+```
+
+---
+
+## Phase 6 — Runtime Connection (Action)
+
+Connect golden_core node tree to the Alchemist runtime for Action:
+
+```text
+When a state becomes active:
+  Walk processor manager tree.
+  For each ActionStateProcessor:
+    Collect condition states from ConditionManager children.
+    Map to ConditionsManagerANode inputs in the compiled graph.
+    Evaluate the formula graph.
+    Collect emitted intents from ConsequencesANode outputs.
+    Dispatch commands.
+```
+
+Remove the old flat-parameter-based runtime path (`authored_graph` JSON → compile_graph).
+
+Definition of done:
+
+```text
+Runtime reads conditions from ConditionManager nodes.
+Runtime dispatches commands from ConsequencesManager nodes.
+No authored_graph JSON compile path remains.
+```
+
+---
+
+## Phase 7 — Runtime Connection (Mapping)
+
+Connect Mapping formula runtime:
+
+```text
+FilterChainManager children → FilterChainANode configuration
+OutputsManager children → OutputMappingANode targets
+ModuleValueInputANode ← module data from node reference
 ```
 
 Definition of done:
 
 ```text
-golden_alchemist builds without Chataigne.
-golden_statechart builds without Chataigne.
-Chataigne-specific types are registered from Chataigne crates.
+Mapping processor evaluates: module input → filter chain → outputs.
+FilterChain and Output configuration comes from golden_core node tree.
 ```
 
 ---
 
-## Phase 2 — State owns ProcessorManager
-
-Refactor State ownership:
+## Phase 8 — UI Cleanup
 
 ```text
-State
-  -> ProcessorManager
-      -> Processor[]
-      -> ProcessorGroup[]
-```
-
-Implement:
-
-```text
-ProcessorManager
-ProcessorGroup
-execution ordering
-enabled flags
-basic lifecycle propagation
+Remove ProcessorInspector.svelte FormulaSurface DTO rendering.
+Remove processorStore.svelte.ts (if only used by old inspector).
+Remove ProcessorUiDto from generated protocol types.
+Remove FormulaSurfaceSectionDto, FormulaSurfaceItemDto from protocol.
+Standard golden_core inspector handles processor inspection.
 ```
 
 Definition of done:
 
 ```text
-State no longer owns processors directly.
-ProcessorManager runs direct processors and grouped processors.
-ProcessorGroup acts as execution scope.
+No parallel formula DTO inspector system.
+Standard golden_core outliner/inspector shows all formula content.
 ```
 
 ---
 
-## Phase 3 — Formula abstraction
-
-Implement:
+## Phase 9 — Custom Formula Graph Editor
 
 ```text
-AlchemistFormula
-AlchemistFormulaInstance
-FormulaFamily
-FormulaSurface
-FormulaContextContract
-FormulaRef
-FormulaVersion
+CustomAlchemistFormula selected → Alchemist graph editor opens.
+User can add/connect ANodes: ConditionsManagerANode, ConsequencesANode, etc.
+Saving updates authored_graph on the formula node.
+Processors referencing this formula regenerate child nodes from new surface.
+Built-in formula graphs are read-only in the graph editor.
 ```
 
 Definition of done:
 
 ```text
-Processor owns FormulaInstance.
-FormulaInstance owns graph instance.
-Formula families are Action, Mapping, CustomUser.
+Custom formula graph is editable.
+Built-in formula graphs are view-only.
+Processor child nodes update when formula graph changes.
 ```
 
 ---
 
-## Phase 4 — ANode registry and graph model
+## Phase 10 — Context System
 
-Implement:
-
-```text
-ANodeDeclaration
-ANodeRegistry
-AlchemistGraph
-ANodeInstance
-AEdge
-ANodeSignature
-socket descriptors
-graph serialization
-```
-
-Definition of done:
-
-```text
-Graph can add/remove/connect ANodes.
-ANode catalog can be queried.
-Graph can be serialized and deserialized.
-```
-
----
-
-## Phase 5 — ANode surface contributions
-
-Implement:
-
-```text
-SurfaceContribution
-SurfaceSection
-SurfaceItem
-SurfaceEdit
-SurfaceSource
-ANodeDeclaration::surface()
-ANodeDeclaration::apply_surface_edit()
-```
-
-Definition of done:
-
-```text
-ANodes can expose inspector-facing controls.
-Formula assembles surface contributions.
-Processor inspector can edit ANode-backed surface items.
-Surface edits go through normal edit pipeline.
-```
-
----
-
-## Phase 6 — Managed ANodes
-
-Implement first Managed ANodes:
-
-```text
-ConditionsManagerANode
-FilterChainANode
-ConsequencesANode
-OutputMappingANode
-```
-
-Definition of done:
-
-```text
-Action can expose conditions and consequences.
-Mapping can expose input, filters, and outputs.
-User can configure Action/Mapping without opening graph editor.
-```
-
----
-
-## Phase 7 — Lowering pipeline
-
-Implement:
-
-```text
-Managed ANode lowering
-Composite ANode lowering
-LoweredGraph
-DebugSourceMap
-```
-
-Definition of done:
-
-```text
-Managed ANodes compile into executable graph fragments.
-Runtime diagnostics map back to managed items.
-```
-
----
-
-## Phase 8 — Type solving and compilation
-
-Implement:
-
-```text
-ValueTypeRegistry
-FacetRegistry
-TypeConstraint
-TypeVar
-TypeBindings
-forced bindings
-inferred bindings
-VFX-style reshaping
-CompiledAlchemistGraph
-dense ExecNodeId schedule
-runtime memory layout
-```
-
-Definition of done:
-
-```text
-No type solving in runtime tick.
-Dynamic reshaping works at edit/compile time.
-Compiled graph uses dense runtime IDs.
-```
-
----
-
-## Phase 9 — Runtime evaluator
-
-Implement:
-
-```text
-AlchemistRuntime
-EvaluationCtx
-AlchemistMemory
-RuntimeIntent
-RuntimeDiagnostic
-DebugValueSample
-```
-
-Definition of done:
-
-```text
-Compiled graph evaluates.
-Stateful nodes have memory.
-Trigger is distinct from Bool.
-Runtime emits intents, not side effects.
-```
-
----
-
-## Phase 10 — Action Formula
-
-Implement built-in Action Formula.
-
-Internal graph:
-
-```text
-ConditionsManagerANode
-  -> TriggerModeANode
-  -> CooldownANode
-  -> BranchANode
-      true  -> ConsequencesANode
-      false -> ConsequencesANode
-```
-
-Definition of done:
-
-```text
-Ready-to-use Action Processor exists.
-Inspector exposes conditions and consequences.
-Advanced graph editor can open the Formula graph.
-Commands emit intents.
-```
-
----
-
-## Phase 11 — Mapping Formula
-
-Implement built-in Mapping Formula.
-
-Internal graph:
-
-```text
-InputSourceANode
-  -> FilterChainANode
-  -> OutputMappingANode
-  -> ConsequencesANode
-```
-
-Definition of done:
-
-```text
-Ready-to-use Mapping Processor exists.
-Inspector exposes input, filters, outputs, and options.
-Advanced graph editor can open the Formula graph.
-Mapping works with or without context.
-```
-
----
-
-## Phase 12 — Accumulating context engine
-
-Implement:
+Implement the accumulating context engine described in §9:
 
 ```text
 ContextStack
@@ -1698,27 +1735,22 @@ ContextSet
 ContextResolver
 same-dimension refinement
 explicit override
-combine policies
 ```
 
 Definition of done:
 
 ```text
-State context accumulates with ProcessorManager context.
-ProcessorManager context accumulates with ProcessorGroup context.
-ProcessorGroup context accumulates with Processor context.
+State context accumulates through ProcessorManager → ProcessorGroup → Processor.
 Same-dimension context refines by default.
-Explicit override is required for replacement.
+Explicit override required for replacement.
 ```
 
 ---
 
-## Phase 13 — Multiplexed runtime lanes
-
-Implement:
+## Phase 11 — Multiplexed Runtime Lanes
 
 ```text
-ContextSet -> ProcessorLaneRuntime[]
+ContextSet → ProcessorLaneRuntime[]
 per-lane memory
 per-lane context
 contextual intents
@@ -1731,14 +1763,11 @@ Definition of done:
 Processor can run one Formula across many context lanes.
 Each lane has separate memory.
 Each intent carries full accumulated context.
-Processor inspector shows lane count.
 ```
 
 ---
 
-## Phase 14 — Context-aware ANodes
-
-Implement:
+## Phase 12 — Context-Aware ANodes
 
 ```text
 CurrentContextANode
@@ -1748,102 +1777,65 @@ ContextualCommandTargetANode
 ContextReducerANode
 ```
 
-Definition of done:
+---
+
+## Phase 13 — Statechart and Contextual Transitions
 
 ```text
-Formula can read accumulated context.
-Mapping can resolve contextual targets.
-Action can emit contextual consequences.
+TransitionContextMode: Global, PerContext, AnyContext, AllContexts
 ```
 
 ---
 
-## Phase 15 — Statechart and contextual transitions
-
-Implement or integrate:
-
-```text
-Statechart
-MetaState
-Transition
-TransitionContextMode
-Global
-PerContext
-AnyContext
-AllContexts
-```
-
-Definition of done:
-
-```text
-Transitions work globally and per context.
-Any/all context aggregation works.
-Debug trace explains transition selection.
-```
-
----
-
-## Phase 16 — Intent arbitration and dispatch
-
-Implement:
+## Phase 14 — Intent Arbitration and Dispatch
 
 ```text
 RuntimeIntent collection
-CommandIntent
-StateIntent
-SequenceIntent
-DashboardIntent
 priority policy
 conflict policy
 deterministic arbitration
 dispatch phase
 ```
 
-Definition of done:
+---
+
+## Phase 15 — Type Solving and Compilation
 
 ```text
-No side effect happens during graph evaluation.
-Conflicting commands resolve deterministically.
-Debug trace explains winner/loser.
+VFX-style dynamic reshaping at edit/compile time
+CompiledAlchemistGraph
+dense ExecNodeId schedule
+runtime memory layout
+No type solving during runtime tick
 ```
 
 ---
 
-## Phase 17 — Svelte 5 UI
-
-Implement UI surfaces:
+## Phase 16 — Full Alchemist Graph Editor UI
 
 ```text
-State Machine editor
-ProcessorManager inspector
-ProcessorGroup inspector
-Processor inspector
-Alchemist graph editor
-Formula Surface renderer
-Context preview
-Runtime lane preview
-Diagnostics
-Debug traces
+Authored View
+Lowered View
+Runtime View with live values and diagnostics
 ```
 
-Processor inspector must show:
+---
+
+# 17.5 Crate boundaries (background, done)
 
 ```text
-Formula family
-Formula surface
-context stack
-multiplexed execution status
-lane count
-diagnostics
-Open Alchemist Graph
+golden_alchemist   — reusable Alchemist graph engine, app-agnostic
+golden_statechart  — reusable hierarchical statechart engine
+chataigne_alchemist
+chataigne_state_machine
 ```
 
 Definition of done:
 
 ```text
-Action and Mapping are usable without opening graph editor.
-Advanced graph editor remains available.
-Context and lanes are visible and debuggable.
+golden_alchemist builds without Chataigne.
+golden_statechart builds without Chataigne.
+Chataigne-specific types are registered from Chataigne crates.
 ```
 
 ---
@@ -1915,6 +1907,19 @@ Multiplexed execution exists without a Multiplex Formula.
 These are the non-negotiable architecture rules:
 
 ```text
+Everything that appears in the outliner or inspector is a golden_core::Node.
+
+Formulas are nodes. Processors are nodes. ConditionManagers are nodes.
+ConsequencesManagers are nodes. Conditions are nodes. Commands are nodes.
+
+There is no parallel FormulaSurface DTO inspector system.
+The golden_core outliner and inspector are the authoritative UI.
+
+Processor nodes do not store formula graphs.
+Formula graphs live on Formula nodes in the Formula Library.
+
+Managed ANodes generate golden_core child nodes on the Processor, not inspector DTOs.
+
 State contains ProcessorManager.
 
 ProcessorManager contains Processors and ProcessorGroups.
