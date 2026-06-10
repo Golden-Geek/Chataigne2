@@ -1,3 +1,25 @@
+## Implementation Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Condition core model (common fields, temporal policy, reduce operator) | **Done** |
+| 2 | ConditionManager / ConditionGroup unification | **Done** |
+| 3–5 | InputValueCondition, InputNodeCondition, ScriptCondition | Pending |
+| 6–7 | Temporal behavior, reducers, group diagnostics | Pending |
+| 8–9 | Alchemist lowering, Action runtime integration | Pending |
+| 10 | Tests | Ongoing |
+
+### Architecture mapping (golden_core)
+
+The design below describes `ConditionCommon` and `ConditionContainer` as Rust structs.
+In this codebase they are expressed via the `#[children(...)]` node macro instead:
+
+- **`ConditionCommon`** → shared `invert`, `validation_delay_ms`, `invalidation_delay_ms` children on each condition node type. The `enabled` toggle is the node's native enable/disable mechanism (`can_be_disabled`).
+- **`ConditionContainer`** → `UserContainerRules` (item containment) + an `operator` enum child on `ConditionManager` and `ConditionGroup`.
+- **`InputValueCondition`** → current `NumberCompareCondition` and `BoolCondition` are Phase-3 starting points with the same source-reference / comparator / reference pattern.
+
+---
+
 ## Assessment
 
 Your model is directionally correct. I would keep the four user-facing condition families:

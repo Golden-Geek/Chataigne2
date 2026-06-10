@@ -12,6 +12,12 @@ fn locked_manager_permissions() -> NodeUserPermissions {
 }
 
 #[node("sm_condition_manager", label = "Conditions")]
+#[children(
+    operator: golden_core::parameter::Enum = "all" (
+        label = "Operator",
+        enum_options = ["all", "any", "none"]
+    );
+)]
 pub struct ConditionManager {}
 
 #[node("sm_condition_manager", from_struct)]

@@ -1,4 +1,5 @@
 use golden_core::node::Node;
+use golden_core::parameter::ParamValue;
 
 use super::{ConditionManager, ConsequencesManager, FilterChainManager, InputsManager, OutputsManager};
 
@@ -28,5 +29,20 @@ fn managed_nodes_are_non_removable_by_default() {
     ] {
         assert!(!perm.can_remove_and_duplicate, "{label} should not be removable");
         assert!(!perm.can_edit_name, "{label} should not have editable name");
+    }
+}
+
+#[test]
+fn condition_manager_operator_defaults_to_all() {
+    let cm = ConditionManager::new();
+    assert_eq!(cm.operator.get_ref().as_str(), "all");
+}
+
+#[test]
+fn condition_manager_accepts_all_any_none_operators() {
+    let mut cm = ConditionManager::new();
+    for op in ["all", "any", "none"] {
+        cm.operator.apply_runtime_value(&ParamValue::Str(op.to_string()));
+        assert_eq!(cm.operator.get_ref().as_str(), op);
     }
 }
