@@ -15,7 +15,23 @@ fn locked_manager_permissions() -> NodeUserPermissions {
 #[children(
     operator: golden_core::parameter::Enum = "all" (
         label = "Operator",
-        enum_options = ["all", "any", "none"]
+        enum_options = ["all", "any", "none", "at_least", "exactly"]
+    );
+    operator_count: f64 = 1.0 (
+        label = "Count",
+        show_in_inspector_content = false
+    );
+    empty_policy: golden_core::parameter::Enum = "invalid" (
+        label = "Empty Policy",
+        enum_options = ["invalid", "valid"]
+    );
+    disabled_policy: golden_core::parameter::Enum = "ignore" (
+        label = "Disabled Child Policy",
+        enum_options = ["ignore", "treat_as_invalid", "treat_as_valid"]
+    );
+    error_policy: golden_core::parameter::Enum = "treat_as_invalid" (
+        label = "Error Policy",
+        enum_options = ["treat_as_invalid", "block_and_report"]
     );
 )]
 pub struct ConditionManager {}

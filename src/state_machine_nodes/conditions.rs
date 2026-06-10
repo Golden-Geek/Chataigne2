@@ -16,11 +16,11 @@ use golden_core::{
     invert: bool = false (
         label = "Invert"
     );
-    validation_delay_ms: f64 = 0.0 (
-        label = "Validation Delay (ms)"
+    validation_delay_s: f64 = 0.0 (
+        label = "Validation Delay (s)"
     );
-    invalidation_delay_ms: f64 = 0.0 (
-        label = "Invalidation Delay (ms)"
+    invalidation_delay_s: f64 = 0.0 (
+        label = "Invalidation Delay (s)"
     );
     output_mode: golden_core::parameter::Enum = "normal" (
         label = "Output Mode",
@@ -32,8 +32,8 @@ use golden_core::{
             "pulse_on_invalid"
         ]
     );
-    pulse_duration_ms: f64 = 200.0 (
-        label = "Pulse Duration (ms)",
+    pulse_duration_s: f64 = 0.2 (
+        label = "Pulse Duration (s)",
         show_in_inspector_content = false
     );
     source: NodeReference (
@@ -119,11 +119,11 @@ impl Node for InputValueCondition {
     invert: bool = false (
         label = "Invert"
     );
-    validation_delay_ms: f64 = 0.0 (
-        label = "Validation Delay (ms)"
+    validation_delay_s: f64 = 0.0 (
+        label = "Validation Delay (s)"
     );
-    invalidation_delay_ms: f64 = 0.0 (
-        label = "Invalidation Delay (ms)"
+    invalidation_delay_s: f64 = 0.0 (
+        label = "Invalidation Delay (s)"
     );
     output_mode: golden_core::parameter::Enum = "normal" (
         label = "Output Mode",
@@ -135,8 +135,8 @@ impl Node for InputValueCondition {
             "pulse_on_invalid"
         ]
     );
-    pulse_duration_ms: f64 = 200.0 (
-        label = "Pulse Duration (ms)",
+    pulse_duration_s: f64 = 0.2 (
+        label = "Pulse Duration (s)",
         show_in_inspector_content = false
     );
     provider_node: NodeReference (
@@ -199,11 +199,11 @@ impl Node for InputNodeCondition {
     invert: bool = false (
         label = "Invert"
     );
-    validation_delay_ms: f64 = 0.0 (
-        label = "Validation Delay (ms)"
+    validation_delay_s: f64 = 0.0 (
+        label = "Validation Delay (s)"
     );
-    invalidation_delay_ms: f64 = 0.0 (
-        label = "Invalidation Delay (ms)"
+    invalidation_delay_s: f64 = 0.0 (
+        label = "Invalidation Delay (s)"
     );
     output_mode: golden_core::parameter::Enum = "normal" (
         label = "Output Mode",
@@ -215,8 +215,8 @@ impl Node for InputNodeCondition {
             "pulse_on_invalid"
         ]
     );
-    pulse_duration_ms: f64 = 200.0 (
-        label = "Pulse Duration (ms)",
+    pulse_duration_s: f64 = 0.2 (
+        label = "Pulse Duration (s)",
         show_in_inspector_content = false
     );
     script: String = String::new() (
@@ -252,13 +252,29 @@ impl Node for ScriptCondition {
     );
     operator: golden_core::parameter::Enum = "all" (
         label = "Operator",
-        enum_options = ["all", "any", "none"]
+        enum_options = ["all", "any", "none", "at_least", "exactly"]
     );
-    validation_delay_ms: f64 = 0.0 (
-        label = "Validation Delay (ms)"
+    operator_count: f64 = 1.0 (
+        label = "Count",
+        show_in_inspector_content = false
     );
-    invalidation_delay_ms: f64 = 0.0 (
-        label = "Invalidation Delay (ms)"
+    empty_policy: golden_core::parameter::Enum = "invalid" (
+        label = "Empty Policy",
+        enum_options = ["invalid", "valid"]
+    );
+    disabled_policy: golden_core::parameter::Enum = "ignore" (
+        label = "Disabled Child Policy",
+        enum_options = ["ignore", "treat_as_invalid", "treat_as_valid"]
+    );
+    error_policy: golden_core::parameter::Enum = "treat_as_invalid" (
+        label = "Error Policy",
+        enum_options = ["treat_as_invalid", "block_and_report"]
+    );
+    validation_delay_s: f64 = 0.0 (
+        label = "Validation Delay (s)"
+    );
+    invalidation_delay_s: f64 = 0.0 (
+        label = "Invalidation Delay (s)"
     );
     output_mode: golden_core::parameter::Enum = "normal" (
         label = "Output Mode",
@@ -270,8 +286,8 @@ impl Node for ScriptCondition {
             "pulse_on_invalid"
         ]
     );
-    pulse_duration_ms: f64 = 200.0 (
-        label = "Pulse Duration (ms)",
+    pulse_duration_s: f64 = 0.2 (
+        label = "Pulse Duration (s)",
         show_in_inspector_content = false
     );
 )]

@@ -16,8 +16,8 @@ fn input_value_condition_defaults() {
     let c = InputValueCondition::new();
     assert_eq!(c.node_data().meta.label, "Input Value");
     assert!(!*c.invert.get_ref());
-    assert_eq!(*c.validation_delay_ms.get_ref(), 0.0);
-    assert_eq!(*c.invalidation_delay_ms.get_ref(), 0.0);
+    assert_eq!(*c.validation_delay_s.get_ref(), 0.0);
+    assert_eq!(*c.invalidation_delay_s.get_ref(), 0.0);
     assert_eq!(c.projection.get_ref().as_str(), "auto");
     assert_eq!(c.comparator.get_ref().as_str(), "equal");
     assert_eq!(*c.reference.get_ref(), 0.0);
@@ -46,8 +46,8 @@ fn input_node_condition_defaults() {
     let c = InputNodeCondition::new();
     assert_eq!(c.node_data().meta.label, "Input Node");
     assert!(!*c.invert.get_ref());
-    assert_eq!(*c.validation_delay_ms.get_ref(), 0.0);
-    assert_eq!(*c.invalidation_delay_ms.get_ref(), 0.0);
+    assert_eq!(*c.validation_delay_s.get_ref(), 0.0);
+    assert_eq!(*c.invalidation_delay_s.get_ref(), 0.0);
     assert!(c.endpoint_id.get_ref().is_empty());
     assert_eq!(c.comparator.get_ref().as_str(), "equal");
     assert_eq!(*c.reference.get_ref(), 0.0);
@@ -75,8 +75,8 @@ fn script_condition_defaults() {
     let c = ScriptCondition::new();
     assert_eq!(c.node_data().meta.label, "Script");
     assert!(!*c.invert.get_ref());
-    assert_eq!(*c.validation_delay_ms.get_ref(), 0.0);
-    assert_eq!(*c.invalidation_delay_ms.get_ref(), 0.0);
+    assert_eq!(*c.validation_delay_s.get_ref(), 0.0);
+    assert_eq!(*c.invalidation_delay_s.get_ref(), 0.0);
     assert!(c.script.get_ref().is_empty());
 }
 
@@ -87,7 +87,7 @@ fn script_condition_is_sm_condition_item() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 6: output_mode and pulse_duration_ms
+// Phase 6: output_mode and pulse_duration_s
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -99,11 +99,11 @@ fn all_condition_types_default_to_normal_output_mode() {
 }
 
 #[test]
-fn all_condition_types_default_pulse_duration_to_200ms() {
-    assert_eq!(*InputValueCondition::new().pulse_duration_ms.get_ref(), 200.0);
-    assert_eq!(*InputNodeCondition::new().pulse_duration_ms.get_ref(), 200.0);
-    assert_eq!(*ScriptCondition::new().pulse_duration_ms.get_ref(), 200.0);
-    assert_eq!(*ConditionGroup::new().pulse_duration_ms.get_ref(), 200.0);
+fn all_condition_types_default_pulse_duration_to_0_2s() {
+    assert_eq!(*InputValueCondition::new().pulse_duration_s.get_ref(), 0.2);
+    assert_eq!(*InputNodeCondition::new().pulse_duration_s.get_ref(), 0.2);
+    assert_eq!(*ScriptCondition::new().pulse_duration_s.get_ref(), 0.2);
+    assert_eq!(*ConditionGroup::new().pulse_duration_s.get_ref(), 0.2);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,8 +120,8 @@ fn condition_group_defaults() {
     let g = ConditionGroup::new();
     assert!(!*g.invert.get_ref());
     assert_eq!(g.operator.get_ref().as_str(), "all");
-    assert_eq!(*g.validation_delay_ms.get_ref(), 0.0);
-    assert_eq!(*g.invalidation_delay_ms.get_ref(), 0.0);
+    assert_eq!(*g.validation_delay_s.get_ref(), 0.0);
+    assert_eq!(*g.invalidation_delay_s.get_ref(), 0.0);
 }
 
 #[test]
@@ -167,4 +167,27 @@ fn condition_manager_accepts_all_condition_types() {
     assert!(cm.user_container_accepts_item("sm_input_node_condition", "sm_condition"));
     assert!(cm.user_container_accepts_item("sm_script_condition", "sm_condition"));
     assert!(cm.user_container_accepts_item("sm_condition_group", "sm_condition"));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7: policy fields on ConditionGroup
+// ---------------------------------------------------------------------------
+
+#[test]
+fn condition_group_policy_defaults() {
+    let g = ConditionGroup::new();
+    assert_eq!(g.empty_policy.get_ref().as_str(), "invalid");
+    assert_eq!(g.disabled_policy.get_ref().as_str(), "ignore");
+    assert_eq!(g.error_policy.get_ref().as_str(), "treat_as_invalid");
+    assert_eq!(*g.operator_count.get_ref(), 1.0);
+}
+
+#[test]
+fn condition_group_accepts_extended_operators() {
+    use golden_core::parameter::ParamValue;
+    let mut g = ConditionGroup::new();
+    for op in ["all", "any", "none", "at_least", "exactly"] {
+        g.operator.apply_runtime_value(&ParamValue::Str(op.to_string()));
+        assert_eq!(g.operator.get_ref().as_str(), op);
+    }
 }

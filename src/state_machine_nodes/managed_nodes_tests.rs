@@ -39,10 +39,19 @@ fn condition_manager_operator_defaults_to_all() {
 }
 
 #[test]
-fn condition_manager_accepts_all_any_none_operators() {
+fn condition_manager_accepts_all_operators() {
     let mut cm = ConditionManager::new();
-    for op in ["all", "any", "none"] {
+    for op in ["all", "any", "none", "at_least", "exactly"] {
         cm.operator.apply_runtime_value(&ParamValue::Str(op.to_string()));
         assert_eq!(cm.operator.get_ref().as_str(), op);
     }
+}
+
+#[test]
+fn condition_manager_policy_defaults() {
+    let cm = ConditionManager::new();
+    assert_eq!(cm.empty_policy.get_ref().as_str(), "invalid");
+    assert_eq!(cm.disabled_policy.get_ref().as_str(), "ignore");
+    assert_eq!(cm.error_policy.get_ref().as_str(), "treat_as_invalid");
+    assert_eq!(*cm.operator_count.get_ref(), 1.0);
 }
