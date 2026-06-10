@@ -336,7 +336,38 @@ fn evaluate_condition_manager(snapshot: &ProcessTreeSnapshot, manager_id: NodeId
     )
 }
 
-// ─── End of condition evaluation helpers ───────────────────────────────────
+// ─── Consequence execution ─────────────────────────────────────────────────
+
+/// Collects the `(target_id, value)` pairs for all enabled consequences in `manager_id`.
+/// Ownership is fully extracted so the caller can drop the snapshot before calling ctx.
+fn collect_consequence_actions(
+    snapshot: &ProcessTreeSnapshot,
+    manager_id: NodeId,
+) -> Vec<(NodeId, ParamValue)> {
+    snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .filter(|&id| snapshot.node(id).map_or(false, |n| !n.is_parameter() && n.enabled))
+        .filter_map(|child_id| {
+            let node_type = snapshot.node(child_id)?.node_type.clone();
+            match node_type.as_str() {
+                "sm_set_value_consequence" => {
+                    let target = resolve_reference_child(snapshot, child_id, "target")?;
+                    let value = read_float_child(snapshot, child_id, "value").unwrap_or(0.0);
+                    Some(vec![(target, ParamValue::Float(value))])
+                }
+                "sm_send_command_consequence" => {
+                    let target = resolve_reference_child(snapshot, child_id, "target")?;
+                    Some(vec![(target, ParamValue::Trigger())])
+                }
+                _ => None,
+            }
+        })
+        .flatten()
+        .collect()
+}
+
+// ─── End of consequence execution ──────────────────────────────────────────
 
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
@@ -587,13 +618,34 @@ impl Node for StateProcessor {
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
         let self_id = self.id();
-        let new_valid = {
+        let prev_valid = self.condition_valid;
+
+        let (new_valid, actions) = {
             let Some(snapshot) = ctx.tree_snapshot() else { return; };
-            snapshot
+
+            let new_valid = snapshot
                 .find_child_by_decl_id(self_id, "conditions")
-                .map_or(false, |mgr_id| evaluate_condition_manager(snapshot, mgr_id))
+                .map_or(false, |mgr_id| evaluate_condition_manager(snapshot, mgr_id));
+
+            // Fire consequences only on edges (false→true or true→false).
+            let fire_decl_id = match (prev_valid, new_valid) {
+                (false, true) => Some("true_consequences"),
+                (true, false) => Some("false_consequences"),
+                _ => None,
+            };
+
+            let actions = fire_decl_id
+                .and_then(|decl| snapshot.find_child_by_decl_id(self_id, decl))
+                .map(|mgr_id| collect_consequence_actions(snapshot, mgr_id))
+                .unwrap_or_default();
+
+            (new_valid, actions)
         };
+
         self.condition_valid = new_valid;
+        for (target, value) in actions {
+            ctx.set_param(target, value);
+        }
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
