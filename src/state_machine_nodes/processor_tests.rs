@@ -1,4 +1,5 @@
 use golden_core::node::{Folder, Node};
+use golden_core::parameter::ParamValue;
 
 use crate::app::{
     AppEngine, AppNode, ConditionManager, ConsequencesManager, FilterChainManager, FormulaLibrary,
@@ -6,9 +7,223 @@ use crate::app::{
 };
 
 use super::{
-    StateProcessor, StateProcessorFolder, StateProcessorManager, PROCESSOR_FOLDER_ITEM_KIND,
+    apply_comparator, project_to_scalar, reduce_results, CondEval, StateProcessor,
+    StateProcessorFolder, StateProcessorManager, PROCESSOR_FOLDER_ITEM_KIND,
     PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND,
 };
+
+// ─── Unit tests: project_to_scalar ─────────────────────────────────────────
+
+#[test]
+fn project_float_auto() {
+    assert_eq!(project_to_scalar(&ParamValue::Float(3.5), "auto"), Some(3.5));
+}
+
+#[test]
+fn project_int_number() {
+    assert_eq!(project_to_scalar(&ParamValue::Int(7), "number"), Some(7.0));
+}
+
+#[test]
+fn project_bool_true_as_number() {
+    assert_eq!(project_to_scalar(&ParamValue::Bool(true), "auto"), Some(1.0));
+    assert_eq!(project_to_scalar(&ParamValue::Bool(false), "auto"), Some(0.0));
+}
+
+#[test]
+fn project_bool_projection() {
+    assert_eq!(project_to_scalar(&ParamValue::Float(5.0), "bool"), Some(1.0));
+    assert_eq!(project_to_scalar(&ParamValue::Float(0.0), "bool"), Some(0.0));
+}
+
+#[test]
+fn project_vec2_components_and_magnitude() {
+    let v = ParamValue::Vec2(3.0, 4.0);
+    assert_eq!(project_to_scalar(&v, "vec2_x"), Some(3.0));
+    assert_eq!(project_to_scalar(&v, "vec2_y"), Some(4.0));
+    assert_eq!(project_to_scalar(&v, "vec2_magnitude"), Some(5.0));
+}
+
+#[test]
+fn project_vec3_components_and_magnitude() {
+    let v = ParamValue::Vec3(1.0, 0.0, 0.0);
+    assert_eq!(project_to_scalar(&v, "vec3_x"), Some(1.0));
+    assert_eq!(project_to_scalar(&v, "vec3_magnitude"), Some(1.0));
+}
+
+#[test]
+fn project_color_channels() {
+    let c = ParamValue::Color(0.2, 0.5, 0.8, 1.0);
+    assert_eq!(project_to_scalar(&c, "color_red"), Some(0.2));
+    assert_eq!(project_to_scalar(&c, "color_alpha"), Some(1.0));
+    // luminance = 0.2126*0.2 + 0.7152*0.5 + 0.0722*0.8
+    let expected = 0.2126 * 0.2 + 0.7152 * 0.5 + 0.0722 * 0.8;
+    let actual = project_to_scalar(&c, "color_luminance").unwrap();
+    assert!((actual - expected).abs() < 1e-9);
+}
+
+// ─── Unit tests: apply_comparator ──────────────────────────────────────────
+
+fn cmp(val: f64, op: &str, reference: f64) -> bool {
+    apply_comparator(&ParamValue::Float(val), "auto", op, reference, reference + 1.0, "")
+}
+
+#[test]
+fn comparator_equal() {
+    assert!(cmp(5.0, "equal", 5.0));
+    assert!(!cmp(5.0, "equal", 6.0));
+}
+
+#[test]
+fn comparator_not_equal() {
+    assert!(!cmp(5.0, "not_equal", 5.0));
+    assert!(cmp(5.0, "not_equal", 6.0));
+}
+
+#[test]
+fn comparator_greater_less() {
+    assert!(cmp(6.0, "greater_than", 5.0));
+    assert!(!cmp(5.0, "greater_than", 5.0));
+    assert!(cmp(4.0, "less_than", 5.0));
+    assert!(cmp(5.0, "less_than_or_equal", 5.0));
+    assert!(cmp(5.0, "greater_than_or_equal", 5.0));
+}
+
+#[test]
+fn comparator_between_outside() {
+    assert!(apply_comparator(
+        &ParamValue::Float(3.0), "auto", "between", 2.0, 4.0, ""
+    ));
+    assert!(!apply_comparator(
+        &ParamValue::Float(5.0), "auto", "between", 2.0, 4.0, ""
+    ));
+    assert!(apply_comparator(
+        &ParamValue::Float(5.0), "auto", "outside", 2.0, 4.0, ""
+    ));
+}
+
+#[test]
+fn comparator_is_true_is_false() {
+    assert!(cmp(1.0, "is_true", 0.0));
+    assert!(!cmp(0.0, "is_true", 0.0));
+    assert!(cmp(0.0, "is_false", 0.0));
+    assert!(!cmp(1.0, "is_false", 0.0));
+}
+
+#[test]
+fn comparator_bool_is_true_direct() {
+    assert!(apply_comparator(
+        &ParamValue::Bool(true), "auto", "is_true", 0.0, 1.0, ""
+    ));
+    assert!(!apply_comparator(
+        &ParamValue::Bool(false), "auto", "is_true", 0.0, 1.0, ""
+    ));
+}
+
+#[test]
+fn comparator_string_ops() {
+    let v = ParamValue::Str("hello world".into());
+    assert!(apply_comparator(&v, "auto", "contains", 0.0, 1.0, "world"));
+    assert!(apply_comparator(&v, "auto", "starts_with", 0.0, 1.0, "hello"));
+    assert!(apply_comparator(&v, "auto", "ends_with", 0.0, 1.0, "world"));
+    assert!(!apply_comparator(&v, "auto", "contains", 0.0, 1.0, "xyz"));
+}
+
+#[test]
+fn comparator_string_projection_equal() {
+    let v = ParamValue::Enum("active".into());
+    assert!(apply_comparator(&v, "enum_value", "equal", 0.0, 1.0, "active"));
+    assert!(!apply_comparator(&v, "enum_value", "equal", 0.0, 1.0, "idle"));
+}
+
+// ─── Unit tests: reduce_results ────────────────────────────────────────────
+
+fn reduce(results: &[CondEval], op: &str) -> bool {
+    reduce_results(results, op, 1.0, "invalid", "ignore", "treat_as_invalid")
+}
+
+#[test]
+fn reduce_all_valid() {
+    assert!(reduce(&[CondEval::Known(true), CondEval::Known(true)], "all"));
+    assert!(!reduce(&[CondEval::Known(true), CondEval::Known(false)], "all"));
+}
+
+#[test]
+fn reduce_any() {
+    assert!(reduce(&[CondEval::Known(false), CondEval::Known(true)], "any"));
+    assert!(!reduce(&[CondEval::Known(false), CondEval::Known(false)], "any"));
+}
+
+#[test]
+fn reduce_none() {
+    assert!(reduce(&[CondEval::Known(false), CondEval::Known(false)], "none"));
+    assert!(!reduce(&[CondEval::Known(true), CondEval::Known(false)], "none"));
+}
+
+#[test]
+fn reduce_at_least() {
+    let r = [CondEval::Known(true), CondEval::Known(true), CondEval::Known(false)];
+    assert!(reduce_results(&r, "at_least", 2.0, "invalid", "ignore", "treat_as_invalid"));
+    assert!(!reduce_results(&r, "at_least", 3.0, "invalid", "ignore", "treat_as_invalid"));
+}
+
+#[test]
+fn reduce_exactly() {
+    let r = [CondEval::Known(true), CondEval::Known(true), CondEval::Known(false)];
+    assert!(reduce_results(&r, "exactly", 2.0, "invalid", "ignore", "treat_as_invalid"));
+    assert!(!reduce_results(&r, "exactly", 1.0, "invalid", "ignore", "treat_as_invalid"));
+}
+
+#[test]
+fn reduce_empty_invalid_policy() {
+    let result = reduce_results(&[], "all", 1.0, "invalid", "ignore", "treat_as_invalid");
+    assert!(!result);
+}
+
+#[test]
+fn reduce_empty_valid_policy() {
+    let result = reduce_results(&[], "all", 1.0, "valid", "ignore", "treat_as_invalid");
+    assert!(result);
+}
+
+#[test]
+fn reduce_disabled_ignore_with_one_valid() {
+    // Disabled item ignored; one Known(true) still satisfies "any"
+    let r = [CondEval::Known(true), CondEval::Disabled];
+    assert!(reduce_results(&r, "any", 1.0, "invalid", "ignore", "treat_as_invalid"));
+}
+
+#[test]
+fn reduce_disabled_treat_as_invalid_breaks_all() {
+    let r = [CondEval::Known(true), CondEval::Disabled];
+    assert!(!reduce_results(
+        &r, "all", 1.0, "invalid", "treat_as_invalid", "treat_as_invalid"
+    ));
+}
+
+#[test]
+fn reduce_disabled_treat_as_valid_satisfies_all() {
+    let r = [CondEval::Known(true), CondEval::Disabled];
+    assert!(reduce_results(
+        &r, "all", 1.0, "invalid", "treat_as_valid", "treat_as_invalid"
+    ));
+}
+
+#[test]
+fn reduce_error_treat_as_invalid_breaks_all() {
+    let r = [CondEval::Known(true), CondEval::Error];
+    assert!(!reduce_results(
+        &r, "all", 1.0, "invalid", "ignore", "treat_as_invalid"
+    ));
+}
+
+#[test]
+fn reduce_all_disabled_ignored_falls_to_empty_policy() {
+    // All items are disabled and ignored → effective set is empty → use empty_policy
+    let r = [CondEval::Disabled, CondEval::Disabled];
+    assert!(!reduce_results(&r, "all", 1.0, "invalid", "ignore", "treat_as_invalid"));
+    assert!(reduce_results(&r, "all", 1.0, "valid", "ignore", "treat_as_invalid"));
+}
 
 fn build_engine_with_formula_library() -> (AppEngine, golden_core::node::NodeId) {
     let root: AppNode = Folder::new("root").into();
