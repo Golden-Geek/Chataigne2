@@ -5,10 +5,11 @@
 | 1 | Condition core model (common fields, temporal policy, reduce operator) | **Done** |
 | 2 | ConditionManager / ConditionGroup unification | **Done** |
 | 3 | InputValueCondition (single adaptive node with projection + comparator) | **Done** |
-| 4–5 | InputNodeCondition, ScriptCondition | Pending |
-| 6–7 | Temporal behavior, reducers, group diagnostics | Pending |
-| 8–9 | Alchemist lowering, Action runtime integration | Pending |
-| 10 | Tests | Ongoing |
+| 4–5 | InputNodeCondition, ScriptCondition | **Done** |
+| 6 | Temporal output mode (output_mode, pulse_duration_s, seconds timing) | **Done** |
+| 7 | Reducers (at_least/exactly), policy fields (empty/disabled/error) | **Done** |
+| 8–9 | Alchemist lowering, Action runtime integration | Pending (requires execution pipeline) |
+| 10 | Tests | **Ongoing — 45 state machine tests pass** |
 
 ### Architecture mapping (golden_core)
 
