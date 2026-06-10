@@ -1,6 +1,6 @@
 use golden_core::{
     item, node,
-    node::{Node, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    node::{DeclId, Node, NodeCreationContext, NodeUserPermissions, UserContainerRules, UserCreatableItem},
     process_ctx::ProcessCtx,
 };
 
@@ -108,10 +108,6 @@ impl Node for StateProcessorFolder {
     }
 }
 
-/// Action processor — uses the built-in Action formula.
-///
-/// On init, generates ConditionManager and ConsequencesManager child nodes
-/// from the formula's managed ANodes (see Phase 3).
 #[node("state_processor_action", label = "Action")]
 pub struct ActionStateProcessor {}
 
@@ -126,15 +122,30 @@ impl Node for ActionStateProcessor {
         initialize_processor_item(self);
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
+        if context != NodeCreationContext::Fresh {
+            return;
+        }
+        let mut conditions = crate::app::ConditionManager::new();
+        conditions.node_data_mut().meta.decl_id = DeclId("conditions".to_string());
+        ctx.add_child(self.id(), conditions, None);
+
+        let mut true_csq = crate::app::ConsequencesManager::new();
+        true_csq.node_data_mut().meta.label = "True Consequences".to_string();
+        true_csq.node_data_mut().meta.decl_id = DeclId("true_consequences".to_string());
+        ctx.add_child(self.id(), true_csq, None);
+
+        let mut false_csq = crate::app::ConsequencesManager::new();
+        false_csq.node_data_mut().meta.label = "False Consequences".to_string();
+        false_csq.node_data_mut().meta.decl_id = DeclId("false_consequences".to_string());
+        ctx.add_child(self.id(), false_csq, None);
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
-/// Mapping processor — uses the built-in Mapping formula.
-///
-/// On init, generates FilterChainManager and OutputsManager child nodes
-/// from the formula's managed ANodes (see Phase 3).
 #[node("state_processor_mapping", label = "Mapping")]
 pub struct MappingStateProcessor {}
 
@@ -149,12 +160,24 @@ impl Node for MappingStateProcessor {
         initialize_processor_item(self);
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
+        if context != NodeCreationContext::Fresh {
+            return;
+        }
+        let mut filter_chain = crate::app::FilterChainManager::new();
+        filter_chain.node_data_mut().meta.decl_id = DeclId("filter_chain".to_string());
+        ctx.add_child(self.id(), filter_chain, None);
+
+        let mut outputs = crate::app::OutputsManager::new();
+        outputs.node_data_mut().meta.decl_id = DeclId("outputs".to_string());
+        ctx.add_child(self.id(), outputs, None);
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
-/// Custom processor — references a user-defined custom formula from the Formula Library.
 #[node("state_processor_custom", label = "Custom Processor")]
 pub struct CustomStateProcessor {}
 
