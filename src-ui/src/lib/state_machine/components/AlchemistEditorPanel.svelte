@@ -10,9 +10,9 @@
 	} from '../alchemistGraph';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
 
-	const ACTION_NODE_TYPE = 'state_processor_action';
-	const MAPPING_NODE_TYPE = 'state_processor_mapping';
+	const PROCESSOR_NODE_TYPE = 'state_processor';
 	const AUTHORED_GRAPH_DECL_ID = 'authored_graph';
+	const BUILTIN_FORMULA_TYPES = new Set(['alchemist_formula_action', 'alchemist_formula_mapping']);
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -25,6 +25,7 @@
 		}
 	);
 	let session = $derived(appState.session);
+	let graphState = $derived(session?.graph.state ?? null);
 	let document = $state<AuthoredGraphDocument | null>(null);
 	let graphError = $state<string | null>(null);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -32,7 +33,7 @@
 	let persistenceTail = Promise.resolve();
 
 	const isFormulaProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
-		node?.node_type === ACTION_NODE_TYPE || node?.node_type === MAPPING_NODE_TYPE;
+		node?.node_type === PROCESSOR_NODE_TYPE;
 
 	let requestedProcessorNodeId = $derived.by(() => {
 		const value = panelState.params.processorNodeId;
@@ -85,11 +86,44 @@
 			: (selectedProcessor ?? processorNodes[0] ?? null);
 	});
 
-	let graphParameter = $derived.by((): UiNodeDto | null => {
-		if (!session || !processor) {
-			return null;
+	const findFormulaNode = (processorNode: UiNodeDto): UiNodeDto | null => {
+		if (!graphState) return null;
+		for (const childId of processorNode.children) {
+			const child = graphState.nodesById.get(childId);
+			if (
+				child?.decl_id === 'formula_uuid' &&
+				child.data.kind === 'parameter' &&
+				child.data.param.value.kind === 'str'
+			) {
+				const uuid = child.data.param.value.value;
+				for (const n of graphState.nodesById.values()) {
+					if (n.uuid === uuid) return n;
+				}
+			}
 		}
-		for (const childId of processor.children) {
+		return null;
+	};
+
+	let formulaNode = $derived(processor ? findFormulaNode(processor) : null);
+	let formulaIsBuiltin = $derived(formulaNode ? BUILTIN_FORMULA_TYPES.has(formulaNode.node_type) : false);
+	let formulaKind = $derived(
+		formulaNode
+			? formulaIsBuiltin
+				? 'Built-in'
+				: (formulaNode.meta.label ?? 'Custom')
+			: null
+	);
+
+	let processorSlots = $derived.by((): UiNodeDto[] => {
+		if (!processor || !graphState) return [];
+		return processor.children
+			.map((id) => graphState.nodesById.get(id))
+			.filter((n): n is UiNodeDto => n != null && n.data.kind === 'node');
+	});
+
+	let graphParameter = $derived.by((): UiNodeDto | null => {
+		if (!session || !formulaNode || formulaIsBuiltin) return null;
+		for (const childId of formulaNode.children) {
 			const child = session.graph.state.nodesById.get(childId);
 			if (
 				child?.decl_id === AUTHORED_GRAPH_DECL_ID &&
@@ -114,14 +148,18 @@
 			document = null;
 			graphError =
 				processorNodes.length === 0
-					? 'Create an Action or Mapping processor to author an Alchemist graph.'
-					: 'Select an Action or Mapping processor.';
+					? 'Create a processor to start editing.'
+					: 'Select a processor.';
+			return;
+		}
+		if (formulaIsBuiltin) {
+			document = null;
+			graphError = null;
 			return;
 		}
 		if (source === null) {
 			document = null;
-			graphError =
-				'The selected processor has no authored graph parameter. Restart the current runtime after rebuilding the application.';
+			graphError = 'No authored graph found for this custom formula.';
 			return;
 		}
 		const parsed = parseAuthoredGraph(source);
@@ -274,11 +312,7 @@
 		<div>
 			<strong>{processor?.meta.label ?? 'No processor selected'}</strong>
 			<span>
-				{processor?.node_type === ACTION_NODE_TYPE
-					? 'Action formula'
-					: processor?.node_type === MAPPING_NODE_TYPE
-						? 'Mapping formula'
-						: 'Select an Action or Mapping processor'}
+				{formulaKind ? `${formulaKind} formula` : processor ? 'Unknown formula' : 'Select a processor'}
 			</span>
 		</div>
 		{#if processorNodes.length > 0}
@@ -287,7 +321,7 @@
 				<select value={processor?.node_id ?? ''} onchange={selectProcessor}>
 					{#each processorNodes as option (option.node_id)}
 						<option value={option.node_id}>
-							{option.meta.label} ({option.node_type === ACTION_NODE_TYPE ? 'Action' : 'Mapping'})
+							{option.meta.label} ({(findFormulaNode(option)?.meta.label) ?? '?'})
 						</option>
 					{/each}
 				</select>
@@ -315,10 +349,24 @@
 				onNodesMove={moveNodes}
 				onNodeResize={resizeNode}
 				onConnect={connectNodes} />
+		{:else if processor && formulaIsBuiltin}
+			<div class="builtin-formula-view">
+				<div class="builtin-header">
+					<strong>{formulaNode?.meta.label ?? 'Built-in'} formula</strong>
+					<p>This formula is defined in code and cannot be edited as a graph.</p>
+				</div>
+				{#if processorSlots.length > 0}
+					<div class="slot-grid">
+						{#each processorSlots as slot (slot.node_id)}
+							<div class="slot-block">{slot.meta.label}</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{:else}
 			<div class="empty-state">
 				<strong>Alchemist graph unavailable</strong>
-				<p>{graphError ?? 'Select an Action or Mapping processor from the inspector.'}</p>
+				<p>{graphError ?? 'Select a processor from the inspector.'}</p>
 			</div>
 		{/if}
 	</div>
@@ -409,5 +457,46 @@
 		margin: 0.4rem 0 0;
 		color: color-mix(in srgb, var(--gc-color-text) 64%, transparent);
 		font-size: 0.72rem;
+	}
+
+	.builtin-formula-view {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		block-size: 100%;
+		padding: 2rem;
+		gap: 1.5rem;
+	}
+
+	.builtin-header {
+		text-align: center;
+	}
+
+	.builtin-header strong {
+		font-size: 0.85rem;
+	}
+
+	.builtin-header p {
+		margin: 0.3rem 0 0;
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		font-size: 0.7rem;
+	}
+
+	.slot-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		justify-content: center;
+	}
+
+	.slot-block {
+		min-inline-size: 7rem;
+		padding: 0.75rem 1rem;
+		border: 0.06rem solid var(--gc-color-border);
+		border-radius: 0.45rem;
+		background: var(--gc-color-background-soft);
+		font-size: 0.75rem;
+		font-weight: 500;
+		text-align: center;
 	}
 </style>

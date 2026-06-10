@@ -14,6 +14,7 @@
 	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
+	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
 	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 
@@ -26,11 +27,7 @@
 		panelHeaderComponent: ModuleInspectorPanelHeader
 	});
 
-	registerNodeInspector('state_processor_action', {
-		component: ProcessorFormulaInspector
-	});
-
-	registerNodeInspector('state_processor_mapping', {
+	registerNodeInspector('state_processor', {
 		component: ProcessorFormulaInspector
 	});
 
@@ -55,6 +52,11 @@
 			title: 'Alchemist Editor',
 			component: AlchemistEditorPanel,
 			description: 'Visual formula graph editor for Action and Mapping processors'
+		},
+		formulaLibrary: {
+			title: 'Formula Library',
+			component: FormulaLibraryPanel,
+			description: 'View and manage Alchemist formulas'
 		}
 	};
 
@@ -76,6 +78,14 @@
 			panelId: 'dashboard',
 			panelType: 'dashboard',
 			inactive: true,
+			position: {
+				referencePanelId: 'state-machine',
+				direction: 'within'
+			}
+		},
+		{
+			panelId: 'formula-library',
+			panelType: 'formulaLibrary',
 			position: {
 				referencePanelId: 'state-machine',
 				direction: 'within'

@@ -151,7 +151,7 @@ fn action_processor_instantiates_condition_and_consequences_managers_from_formul
 }
 
 #[test]
-fn mapping_processor_instantiates_filter_chain_and_outputs_from_formula() {
+fn mapping_processor_instantiates_inputs_filter_chain_and_outputs_from_formula() {
     let (mut engine, _lib_id) = build_engine_with_formula_library();
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
@@ -195,6 +195,11 @@ fn mapping_processor_instantiates_filter_chain_and_outputs_from_formula() {
             .count()
     };
 
+    assert_eq!(
+        children_of_type(crate::app::InputsManager::NODE_TYPE),
+        1,
+        "expected one InputsManager child"
+    );
     assert_eq!(
         children_of_type(FilterChainManager::NODE_TYPE),
         1,

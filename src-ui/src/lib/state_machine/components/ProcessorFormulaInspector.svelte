@@ -1,13 +1,37 @@
 <script lang="ts">
-	import { showPanel, type NodeInspectorComponentProps } from 'golden_ui';
+	import { showPanel, type NodeInspectorComponentProps, type UiNodeDto } from 'golden_ui';
+	import { appState } from 'golden_ui/store/workbench.svelte';
 
 	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
 
-	let formulaKind = $derived(node.node_type === 'state_processor_action' ? 'Action' : 'Mapping');
+	let session = $derived(appState.session);
+	let graphState = $derived(session?.graph.state ?? null);
+
+	let formulaNode = $derived.by((): UiNodeDto | null => {
+		if (!graphState) return null;
+		for (const childId of node.children) {
+			const child = graphState.nodesById.get(childId);
+			if (
+				child?.decl_id === 'formula_uuid' &&
+				child.data.kind === 'parameter' &&
+				child.data.param.value.kind === 'str'
+			) {
+				const uuid = child.data.param.value.value;
+				for (const n of graphState.nodesById.values()) {
+					if (n.uuid === uuid) return n;
+				}
+			}
+		}
+		return null;
+	});
+
+	let formulaKind = $derived(formulaNode?.meta.label ?? 'Custom');
 	let formulaDescription = $derived(
-		formulaKind === 'Action'
+		formulaNode?.node_type === 'alchemist_formula_action'
 			? 'Evaluate a condition and invoke edge-specific consequences.'
-			: 'Transform an input range, smooth it, and send it to an output target.'
+			: formulaNode?.node_type === 'alchemist_formula_mapping'
+				? 'Transform an input range, smooth it, and send it to an output target.'
+				: 'Custom formula processor.'
 	);
 
 	const openAlchemistEditor = (): void => {

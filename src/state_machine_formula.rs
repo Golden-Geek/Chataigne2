@@ -30,6 +30,18 @@ impl Node for ConsequencesANode {
     }
 }
 
+/// ANode slot that instantiates an InputsManager under the processor.
+#[node("sm_anode_inputs", label = "Inputs Slot")]
+pub struct InputsANode {}
+
+#[node("sm_anode_inputs", from_struct)]
+impl Node for InputsANode {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+}
+
 /// ANode slot that instantiates a FilterChainManager under the processor.
 #[node("sm_anode_filter_chain", label = "Filter Chain Slot")]
 pub struct FilterChainANode {}
@@ -77,6 +89,11 @@ pub(crate) fn instantiate_anode_for_processor(
         }
         ConsequencesANode::NODE_TYPE => {
             let mut n = crate::app::ConsequencesManager::new();
+            set_meta(&mut n, anode_label, anode_decl_id);
+            Some(Box::new(n))
+        }
+        InputsANode::NODE_TYPE => {
+            let mut n = crate::app::InputsManager::new();
             set_meta(&mut n, anode_label, anode_decl_id);
             Some(Box::new(n))
         }
@@ -164,9 +181,12 @@ impl Node for ActionBuiltinFormula {
     }
 }
 
-/// Built-in Mapping formula. Defines Filter Chain + Outputs slots.
+/// Built-in Mapping formula. Defines Inputs + Filter Chain + Outputs slots.
 #[node("alchemist_formula_mapping", label = "Mapping")]
 #[children(
+    node inputs: InputsANode = InputsANode::new() (
+        label = "Inputs"
+    );
     node filter_chain: FilterChainANode = FilterChainANode::new() (
         label = "Filter Chain"
     );
