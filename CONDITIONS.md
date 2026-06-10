@@ -4,7 +4,8 @@
 |-------|-------------|--------|
 | 1 | Condition core model (common fields, temporal policy, reduce operator) | **Done** |
 | 2 | ConditionManager / ConditionGroup unification | **Done** |
-| 3–5 | InputValueCondition, InputNodeCondition, ScriptCondition | Pending |
+| 3 | InputValueCondition (single adaptive node with projection + comparator) | **Done** |
+| 4–5 | InputNodeCondition, ScriptCondition | Pending |
 | 6–7 | Temporal behavior, reducers, group diagnostics | Pending |
 | 8–9 | Alchemist lowering, Action runtime integration | Pending |
 | 10 | Tests | Ongoing |

@@ -1,30 +1,33 @@
 use golden_core::node::Node;
 
-use super::{BoolCondition, ConditionGroup, NumberCompareCondition};
+use super::{ConditionGroup, InputValueCondition};
 
-// --- NumberCompareCondition ---
+// --- InputValueCondition ---
 
 #[test]
-fn number_compare_condition_defaults() {
-    let c = NumberCompareCondition::new();
-    assert_eq!(c.node_data().meta.label, "Number Compare");
-    assert!(!*c.invert.get_ref());
-    assert_eq!(*c.validation_delay_ms.get_ref(), 0.0);
-    assert_eq!(*c.invalidation_delay_ms.get_ref(), 0.0);
-    assert_eq!(c.comparator.get_ref().as_str(), "greater_than");
-    assert_eq!(*c.threshold.get_ref(), 0.0);
+fn input_value_condition_type_id() {
+    assert_eq!(InputValueCondition::NODE_TYPE, "sm_input_value_condition");
 }
 
-// --- BoolCondition ---
-
 #[test]
-fn bool_condition_defaults() {
-    let c = BoolCondition::new();
-    assert_eq!(c.node_data().meta.label, "Boolean");
+fn input_value_condition_defaults() {
+    let c = InputValueCondition::new();
+    assert_eq!(c.node_data().meta.label, "Input Value");
     assert!(!*c.invert.get_ref());
     assert_eq!(*c.validation_delay_ms.get_ref(), 0.0);
     assert_eq!(*c.invalidation_delay_ms.get_ref(), 0.0);
-    assert!(*c.expected.get_ref());
+    assert_eq!(c.projection.get_ref().as_str(), "auto");
+    assert_eq!(c.comparator.get_ref().as_str(), "equal");
+    assert_eq!(*c.reference.get_ref(), 0.0);
+    assert_eq!(*c.reference_max.get_ref(), 1.0);
+    assert!(c.reference_string.get_ref().is_empty());
+}
+
+#[test]
+fn input_value_condition_is_sm_condition_item() {
+    use crate::app::declared_user_item_type_matches;
+    assert!(declared_user_item_type_matches("sm_input_value_condition", "sm_condition"));
+    assert!(!declared_user_item_type_matches("sm_input_value_condition", "sm_consequence"));
 }
 
 // --- ConditionGroup ---
@@ -44,10 +47,9 @@ fn condition_group_defaults() {
 }
 
 #[test]
-fn condition_group_accepts_leaf_conditions() {
+fn condition_group_accepts_input_value_conditions() {
     let g = ConditionGroup::new();
-    assert!(g.user_container_accepts_item("sm_number_compare_condition", "sm_condition"));
-    assert!(g.user_container_accepts_item("sm_bool_condition", "sm_condition"));
+    assert!(g.user_container_accepts_item("sm_input_value_condition", "sm_condition"));
 }
 
 #[test]
@@ -60,16 +62,20 @@ fn condition_group_accepts_nested_groups() {
 fn condition_group_rejects_wrong_item_kind() {
     let g = ConditionGroup::new();
     assert!(!g.user_container_accepts_item("sm_condition_group", "sm_consequence"));
-    assert!(!g.user_container_accepts_item("sm_number_compare_condition", "sm_consequence"));
+    assert!(!g.user_container_accepts_item("sm_input_value_condition", "sm_consequence"));
 }
 
 #[test]
-fn condition_group_creatable_items_include_itself() {
+fn condition_group_creatable_items_include_itself_and_input_value() {
     let g = ConditionGroup::new();
     let items = g.user_creatable_items();
     assert!(
         items.iter().any(|i| i.node_type == ConditionGroup::NODE_TYPE),
-        "ConditionGroup should appear in its own creatable items for nesting"
+        "ConditionGroup must appear in its own creatable items for nesting"
+    );
+    assert!(
+        items.iter().any(|i| i.node_type == InputValueCondition::NODE_TYPE),
+        "InputValueCondition must appear in ConditionGroup creatable items"
     );
 }
 
@@ -81,8 +87,5 @@ fn condition_group_is_sm_condition_item() {
         cm.user_container_accepts_item("sm_condition_group", "sm_condition"),
         "ConditionManager must accept ConditionGroup as an sm_condition item"
     );
-    assert!(
-        declared_user_item_type_matches("sm_condition_group", "sm_condition"),
-        "declared_user_item_type_matches should recognise sm_condition_group"
-    );
+    assert!(declared_user_item_type_matches("sm_condition_group", "sm_condition"));
 }

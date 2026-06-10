@@ -4,8 +4,10 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-/// Condition that compares a numeric parameter to a threshold.
-#[node("sm_number_compare_condition", label = "Number Compare")]
+/// Reads any parameter source, projects the value if needed, and compares it against
+/// a reference. Comparator options and the reference widget adapt to the projected
+/// value type at the UI layer; the authored data model stores the full field set.
+#[node("sm_input_value_condition", label = "Input Value")]
 #[children(
     invert: bool = false (
         label = "Invert"
@@ -20,58 +22,61 @@ use golden_core::{
         label = "Source",
         reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
     );
-    comparator: golden_core::parameter::Enum = "greater_than" (
-        label = "Comparator",
+    projection: golden_core::parameter::Enum = "auto" (
+        label = "Projection",
         enum_options = [
-            "greater_than",
-            "less_than",
-            "greater_than_or_equal",
-            "less_than_or_equal",
-            "equal",
-            "not_equal"
+            "auto",
+            "number",
+            "bool",
+            "vec2_magnitude",
+            "vec2_x",
+            "vec2_y",
+            "vec3_magnitude",
+            "vec3_x",
+            "vec3_y",
+            "vec3_z",
+            "color_luminance",
+            "color_red",
+            "color_green",
+            "color_blue",
+            "color_alpha",
+            "enum_value",
+            "string_value"
         ]
     );
-    threshold: f64 = 0.0 (
-        label = "Threshold"
+    comparator: golden_core::parameter::Enum = "equal" (
+        label = "Comparator",
+        enum_options = [
+            "equal",
+            "not_equal",
+            "greater_than",
+            "greater_than_or_equal",
+            "less_than",
+            "less_than_or_equal",
+            "between",
+            "outside",
+            "is_true",
+            "is_false",
+            "contains",
+            "starts_with",
+            "ends_with"
+        ]
+    );
+    reference: f64 = 0.0 (
+        label = "Reference"
+    );
+    reference_max: f64 = 1.0 (
+        label = "Reference Max"
+    );
+    reference_string: String = String::new() (
+        label = "Reference (String)",
+        show_in_inspector_content = false
     );
 )]
-pub struct NumberCompareCondition {}
+pub struct InputValueCondition {}
 
-#[item("sm_condition", node = "sm_number_compare_condition", from_struct)]
-impl Node for NumberCompareCondition {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-/// Condition that checks a boolean parameter against an expected value.
-#[node("sm_bool_condition", label = "Boolean")]
-#[children(
-    invert: bool = false (
-        label = "Invert"
-    );
-    validation_delay_ms: f64 = 0.0 (
-        label = "Validation Delay (ms)"
-    );
-    invalidation_delay_ms: f64 = 0.0 (
-        label = "Invalidation Delay (ms)"
-    );
-    source: NodeReference (
-        label = "Source",
-        reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
-    );
-    expected: bool = true (
-        label = "Expected Value"
-    );
-)]
-pub struct BoolCondition {}
-
-#[item("sm_condition", node = "sm_bool_condition", from_struct)]
-impl Node for BoolCondition {
+#[item("sm_condition", node = "sm_input_value_condition", from_struct)]
+impl Node for InputValueCondition {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
     }
