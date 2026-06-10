@@ -8,6 +8,336 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
+// ─── Condition evaluation helpers ──────────────────────────────────────────
+
+#[derive(Clone, Copy)]
+enum CondEval {
+    Known(bool),
+    Disabled,
+    Error,
+}
+
+fn read_enum_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
+    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    match snapshot.node(param_id)?.param_value.as_ref()? {
+        ParamValue::Enum(s) | ParamValue::Str(s) => Some(s.clone()),
+        _ => None,
+    }
+}
+
+fn read_float_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<f64> {
+    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    match snapshot.node(param_id)?.param_value.as_ref()? {
+        ParamValue::Float(f) => Some(*f),
+        ParamValue::Int(i) => Some(*i as f64),
+        _ => None,
+    }
+}
+
+fn read_bool_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<bool> {
+    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    match snapshot.node(param_id)?.param_value.as_ref()? {
+        ParamValue::Bool(b) => Some(*b),
+        _ => None,
+    }
+}
+
+fn read_str_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
+    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    match snapshot.node(param_id)?.param_value.as_ref()? {
+        ParamValue::Str(s) | ParamValue::Enum(s) => Some(s.clone()),
+        _ => None,
+    }
+}
+
+fn resolve_reference_child(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeId> {
+    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    let ParamValue::Reference(reference) = snapshot.node(param_id)?.param_value.as_ref()? else {
+        return None;
+    };
+    reference
+        .cached_id()
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+}
+
+/// Non-parameter direct children of `container` — the user-added condition items.
+fn condition_item_children(snapshot: &ProcessTreeSnapshot, container: NodeId) -> Vec<NodeId> {
+    snapshot
+        .child_ids(container)
+        .into_iter()
+        .filter(|&id| snapshot.node(id).map_or(false, |n| !n.is_parameter()))
+        .collect()
+}
+
+fn project_to_scalar(value: &ParamValue, projection: &str) -> Option<f64> {
+    match projection {
+        "auto" | "number" => match value {
+            ParamValue::Float(f) => Some(*f),
+            ParamValue::Int(i) => Some(*i as f64),
+            ParamValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+            ParamValue::Vec2(x, _) => Some(*x),
+            ParamValue::Vec3(x, _, _) => Some(*x),
+            _ => None,
+        },
+        "bool" => match value {
+            ParamValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+            ParamValue::Float(f) => Some(if *f != 0.0 { 1.0 } else { 0.0 }),
+            ParamValue::Int(i) => Some(if *i != 0 { 1.0 } else { 0.0 }),
+            _ => None,
+        },
+        "vec2_x" => {
+            if let ParamValue::Vec2(x, _) = value { Some(*x) } else { None }
+        }
+        "vec2_y" => {
+            if let ParamValue::Vec2(_, y) = value { Some(*y) } else { None }
+        }
+        "vec2_magnitude" => {
+            if let ParamValue::Vec2(x, y) = value { Some((x * x + y * y).sqrt()) } else { None }
+        }
+        "vec3_x" => {
+            if let ParamValue::Vec3(x, _, _) = value { Some(*x) } else { None }
+        }
+        "vec3_y" => {
+            if let ParamValue::Vec3(_, y, _) = value { Some(*y) } else { None }
+        }
+        "vec3_z" => {
+            if let ParamValue::Vec3(_, _, z) = value { Some(*z) } else { None }
+        }
+        "vec3_magnitude" => {
+            if let ParamValue::Vec3(x, y, z) = value {
+                Some((x * x + y * y + z * z).sqrt())
+            } else {
+                None
+            }
+        }
+        "color_red" => {
+            if let ParamValue::Color(r, _, _, _) = value { Some(*r) } else { None }
+        }
+        "color_green" => {
+            if let ParamValue::Color(_, g, _, _) = value { Some(*g) } else { None }
+        }
+        "color_blue" => {
+            if let ParamValue::Color(_, _, b, _) = value { Some(*b) } else { None }
+        }
+        "color_alpha" => {
+            if let ParamValue::Color(_, _, _, a) = value { Some(*a) } else { None }
+        }
+        "color_luminance" => {
+            if let ParamValue::Color(r, g, b, _) = value {
+                Some(0.2126 * r + 0.7152 * g + 0.0722 * b)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn project_to_string(value: &ParamValue) -> String {
+    match value {
+        ParamValue::Str(s) | ParamValue::Enum(s) => s.clone(),
+        ParamValue::Float(f) => f.to_string(),
+        ParamValue::Int(i) => i.to_string(),
+        ParamValue::Bool(b) => b.to_string(),
+        _ => String::new(),
+    }
+}
+
+fn apply_comparator(
+    source_value: &ParamValue,
+    projection: &str,
+    comparator: &str,
+    reference: f64,
+    reference_max: f64,
+    reference_string: &str,
+) -> bool {
+    // String-mode: explicit string comparators or explicit string projection
+    if matches!(comparator, "contains" | "starts_with" | "ends_with")
+        || matches!(projection, "string_value" | "enum_value")
+    {
+        let s = project_to_string(source_value);
+        return match comparator {
+            "equal" => s == reference_string,
+            "not_equal" => s != reference_string,
+            "contains" => s.contains(reference_string),
+            "starts_with" => s.starts_with(reference_string),
+            "ends_with" => s.ends_with(reference_string),
+            _ => false,
+        };
+    }
+    // Numeric path: project_to_scalar handles bool→float via "auto"
+    let Some(scalar) = project_to_scalar(source_value, projection) else { return false; };
+    match comparator {
+        "equal" => (scalar - reference).abs() < 1e-9,
+        "not_equal" => (scalar - reference).abs() >= 1e-9,
+        "greater_than" => scalar > reference,
+        "greater_than_or_equal" => scalar >= reference,
+        "less_than" => scalar < reference,
+        "less_than_or_equal" => scalar <= reference,
+        "between" => scalar >= reference && scalar <= reference_max,
+        "outside" => scalar < reference || scalar > reference_max,
+        "is_true" => scalar != 0.0,
+        "is_false" => scalar == 0.0,
+        _ => false,
+    }
+}
+
+fn evaluate_input_value_condition(snapshot: &ProcessTreeSnapshot, cond_id: NodeId) -> Option<bool> {
+    let source_id = resolve_reference_child(snapshot, cond_id, "source")?;
+    let source_value = snapshot.node(source_id)?.param_value.as_ref()?.clone();
+
+    let projection = read_enum_child(snapshot, cond_id, "projection")
+        .unwrap_or_else(|| "auto".into());
+    let comparator = read_enum_child(snapshot, cond_id, "comparator")
+        .unwrap_or_else(|| "equal".into());
+    let reference = read_float_child(snapshot, cond_id, "reference").unwrap_or(0.0);
+    let reference_max = read_float_child(snapshot, cond_id, "reference_max").unwrap_or(1.0);
+    let reference_string = read_str_child(snapshot, cond_id, "reference_string")
+        .unwrap_or_default();
+    let invert = read_bool_child(snapshot, cond_id, "invert").unwrap_or(false);
+
+    let result = apply_comparator(
+        &source_value,
+        &projection,
+        &comparator,
+        reference,
+        reference_max,
+        &reference_string,
+    );
+    Some(if invert { !result } else { result })
+}
+
+fn reduce_results(
+    results: &[CondEval],
+    operator: &str,
+    count: f64,
+    empty_policy: &str,
+    disabled_policy: &str,
+    error_policy: &str,
+) -> bool {
+    let known: Vec<bool> = results
+        .iter()
+        .filter_map(|r| match r {
+            CondEval::Known(b) => Some(*b),
+            CondEval::Disabled => match disabled_policy {
+                "treat_as_invalid" => Some(false),
+                "treat_as_valid" => Some(true),
+                _ => None,
+            },
+            CondEval::Error => match error_policy {
+                "treat_as_invalid" => Some(false),
+                _ => None,
+            },
+        })
+        .collect();
+
+    if known.is_empty() {
+        return empty_policy == "valid";
+    }
+
+    let true_count = known.iter().filter(|&&b| b).count();
+    match operator {
+        "all" => true_count == known.len(),
+        "any" => true_count > 0,
+        "none" => true_count == 0,
+        "at_least" => true_count >= count as usize,
+        "exactly" => true_count == count as usize,
+        _ => false,
+    }
+}
+
+fn evaluate_container(
+    snapshot: &ProcessTreeSnapshot,
+    container_id: NodeId,
+    operator: &str,
+    count: f64,
+    empty_policy: &str,
+    disabled_policy: &str,
+    error_policy: &str,
+) -> bool {
+    let children = condition_item_children(snapshot, container_id);
+    if children.is_empty() {
+        return empty_policy == "valid";
+    }
+
+    let results: Vec<CondEval> = children
+        .iter()
+        .map(|&child_id| {
+            let enabled = snapshot.node(child_id).map_or(true, |n| n.enabled);
+            if !enabled {
+                return CondEval::Disabled;
+            }
+            match evaluate_single_condition(snapshot, child_id) {
+                Some(b) => CondEval::Known(b),
+                None => CondEval::Error,
+            }
+        })
+        .collect();
+
+    reduce_results(&results, operator, count, empty_policy, disabled_policy, error_policy)
+}
+
+fn evaluate_condition_group(snapshot: &ProcessTreeSnapshot, group_id: NodeId) -> Option<bool> {
+    let operator = read_enum_child(snapshot, group_id, "operator")
+        .unwrap_or_else(|| "all".into());
+    let count = read_float_child(snapshot, group_id, "operator_count").unwrap_or(1.0);
+    let empty_policy = read_enum_child(snapshot, group_id, "empty_policy")
+        .unwrap_or_else(|| "invalid".into());
+    let disabled_policy = read_enum_child(snapshot, group_id, "disabled_policy")
+        .unwrap_or_else(|| "ignore".into());
+    let error_policy = read_enum_child(snapshot, group_id, "error_policy")
+        .unwrap_or_else(|| "treat_as_invalid".into());
+    let invert = read_bool_child(snapshot, group_id, "invert").unwrap_or(false);
+
+    let result = evaluate_container(
+        snapshot,
+        group_id,
+        &operator,
+        count,
+        &empty_policy,
+        &disabled_policy,
+        &error_policy,
+    );
+    Some(if invert { !result } else { result })
+}
+
+fn evaluate_single_condition(snapshot: &ProcessTreeSnapshot, cond_id: NodeId) -> Option<bool> {
+    let node_type = snapshot.node(cond_id)?.node_type.clone();
+    match node_type.as_str() {
+        "sm_input_value_condition" => evaluate_input_value_condition(snapshot, cond_id),
+        "sm_condition_group" => evaluate_condition_group(snapshot, cond_id),
+        _ => None,
+    }
+}
+
+fn evaluate_condition_manager(snapshot: &ProcessTreeSnapshot, manager_id: NodeId) -> bool {
+    let operator = read_enum_child(snapshot, manager_id, "operator")
+        .unwrap_or_else(|| "all".into());
+    let count = read_float_child(snapshot, manager_id, "operator_count").unwrap_or(1.0);
+    let empty_policy = read_enum_child(snapshot, manager_id, "empty_policy")
+        .unwrap_or_else(|| "invalid".into());
+    let disabled_policy = read_enum_child(snapshot, manager_id, "disabled_policy")
+        .unwrap_or_else(|| "ignore".into());
+    let error_policy = read_enum_child(snapshot, manager_id, "error_policy")
+        .unwrap_or_else(|| "treat_as_invalid".into());
+
+    evaluate_container(
+        snapshot,
+        manager_id,
+        &operator,
+        count,
+        &empty_policy,
+        &disabled_policy,
+        &error_policy,
+    )
+}
+
+// ─── End of condition evaluation helpers ───────────────────────────────────
+
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -244,10 +574,28 @@ impl Node for StateProcessorFolder {
         show_in_inspector_content = false
     );
 )]
-pub struct StateProcessor {}
+pub struct StateProcessor {
+    #[state(default = false)]
+    condition_valid: bool,
+}
 
 #[node("state_processor", from_struct)]
 impl Node for StateProcessor {
+    fn update_requires_tree_snapshot(&self) -> bool {
+        true
+    }
+
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        let self_id = self.id();
+        let new_valid = {
+            let Some(snapshot) = ctx.tree_snapshot() else { return; };
+            snapshot
+                .find_child_by_decl_id(self_id, "conditions")
+                .map_or(false, |mgr_id| evaluate_condition_manager(snapshot, mgr_id))
+        };
+        self.condition_valid = new_valid;
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
     }
