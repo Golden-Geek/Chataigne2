@@ -124,12 +124,19 @@ fn unpaged_key_always_shows_the_default_page_appearance() {
     let (mut engine, module_id) = create_streamdeck_module();
     create_page(&mut engine, module_id, "Lighting");
 
+    // `Unpaged` lives on the default key only and is not cloned into derived pages.
+    assert!(
+        find_path(&engine, module_id, "parameters/pages/lighting/Key 1/Unpaged").is_none(),
+        "derived pages must not carry the default-only Unpaged flag"
+    );
+
     let default_color = find_path(&engine, module_id, "parameters/keys/Key 1/Color").expect("default color");
     set_param(&mut engine, default_color, ParamValue::Color(1.0, 0.0, 0.0, 1.0));
     let page_color = find_path(&engine, module_id, "parameters/pages/lighting/Key 1/Color").expect("page color");
     set_param(&mut engine, page_color, ParamValue::Color(0.0, 0.0, 1.0, 1.0));
-    let page_unpaged = find_path(&engine, module_id, "parameters/pages/lighting/Key 1/Unpaged").expect("unpaged");
-    set_param(&mut engine, page_unpaged, ParamValue::Bool(true));
+    // Mark the DEFAULT key un-paged: the slot should keep the default appearance on every page.
+    let default_unpaged = find_path(&engine, module_id, "parameters/keys/Key 1/Unpaged").expect("default unpaged");
+    set_param(&mut engine, default_unpaged, ParamValue::Bool(true));
     let active = active_page_param(&engine, module_id);
     set_param(&mut engine, active, ParamValue::Enum("lighting".to_string()));
     run_tick(&mut engine);
@@ -199,8 +206,9 @@ fn renaming_a_control_page_syncs_the_values_mirror() {
 #[test]
 fn brightness_reaches_device() {
     let (mut engine, module_id) = create_streamdeck_module();
+    // Brightness is a 0..1 float; the device receives it as a 0..100 percent.
     let brightness = find_path(&engine, module_id, "parameters/brightness").expect("brightness");
-    set_param(&mut engine, brightness, ParamValue::Int(42));
+    set_param(&mut engine, brightness, ParamValue::Float(0.42));
     run_tick(&mut engine);
     with_module(&engine, module_id, |module| {
         assert_eq!(module.simulated().brightness(), 42);

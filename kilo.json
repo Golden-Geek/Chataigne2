@@ -1,6 +1,6 @@
 {
   "$schema": "https://app.kilo.ai/config.json",
-  "model": "lmstudio/qwen3.6-27b",
+  "model": "lmstudio-gemma/google/gemma-4-12b-qat",
   "provider": {
     "lmstudio": {
       "models": {
@@ -16,6 +16,29 @@
           }
         }
       }
+    }
+  },
+  "mcp": {
+    "jcodemunch": {
+      "type": "local",
+      "command": "powershell.exe",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "tools\\jcodemunch.ps1",
+        "serve"
+      ],
+      "enabled": true
+    },
+    "context7": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "enabled": true
     }
   }
 }
