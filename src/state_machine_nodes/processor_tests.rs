@@ -1,5 +1,7 @@
-use golden_core::node::{Folder, Node};
+use golden_core::node::{Folder, Node, NodeId};
 use golden_core::parameter::ParamValue;
+
+use std::collections::HashMap;
 
 use crate::app::{
     AppEngine, AppNode, ConditionManager, ConsequencesManager, FilterChainManager, FormulaLibrary,
@@ -7,133 +9,230 @@ use crate::app::{
 };
 
 use super::{
-    apply_comparator, project_to_scalar, reduce_results, CondEval, StateProcessor,
-    StateProcessorFolder, StateProcessorManager, PROCESSOR_FOLDER_ITEM_KIND,
+    apply_comparator_v2, apply_toggle, reduce_results, valid_comparators_for_value, CondEval,
+    StateProcessor, StateProcessorFolder, StateProcessorManager, PROCESSOR_FOLDER_ITEM_KIND,
     PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND,
 };
 
-// ─── Unit tests: project_to_scalar ─────────────────────────────────────────
+// ─── Unit tests: apply_comparator_v2 ──────────────────────────────────────
 
-#[test]
-fn project_float_auto() {
-    assert_eq!(project_to_scalar(&ParamValue::Float(3.5), "auto"), Some(3.5));
+fn cmpf(val: f64, op: &str, reference: f64) -> bool {
+    apply_comparator_v2(&ParamValue::Float(val), op, reference, reference + 1.0, "")
 }
 
 #[test]
-fn project_int_number() {
-    assert_eq!(project_to_scalar(&ParamValue::Int(7), "number"), Some(7.0));
+fn comparator_v2_equal() {
+    assert!(cmpf(5.0, "equal", 5.0));
+    assert!(!cmpf(5.0, "equal", 6.0));
 }
 
 #[test]
-fn project_bool_true_as_number() {
-    assert_eq!(project_to_scalar(&ParamValue::Bool(true), "auto"), Some(1.0));
-    assert_eq!(project_to_scalar(&ParamValue::Bool(false), "auto"), Some(0.0));
+fn comparator_v2_not_equal() {
+    assert!(!cmpf(5.0, "not_equal", 5.0));
+    assert!(cmpf(5.0, "not_equal", 6.0));
 }
 
 #[test]
-fn project_bool_projection() {
-    assert_eq!(project_to_scalar(&ParamValue::Float(5.0), "bool"), Some(1.0));
-    assert_eq!(project_to_scalar(&ParamValue::Float(0.0), "bool"), Some(0.0));
+fn comparator_v2_greater_less() {
+    assert!(cmpf(6.0, "greater_than", 5.0));
+    assert!(!cmpf(5.0, "greater_than", 5.0));
+    assert!(cmpf(4.0, "less_than", 5.0));
+    assert!(cmpf(5.0, "less_than_or_equal", 5.0));
+    assert!(cmpf(5.0, "greater_than_or_equal", 5.0));
 }
 
 #[test]
-fn project_vec2_components_and_magnitude() {
-    let v = ParamValue::Vec2(3.0, 4.0);
-    assert_eq!(project_to_scalar(&v, "vec2_x"), Some(3.0));
-    assert_eq!(project_to_scalar(&v, "vec2_y"), Some(4.0));
-    assert_eq!(project_to_scalar(&v, "vec2_magnitude"), Some(5.0));
-}
-
-#[test]
-fn project_vec3_components_and_magnitude() {
-    let v = ParamValue::Vec3(1.0, 0.0, 0.0);
-    assert_eq!(project_to_scalar(&v, "vec3_x"), Some(1.0));
-    assert_eq!(project_to_scalar(&v, "vec3_magnitude"), Some(1.0));
-}
-
-#[test]
-fn project_color_channels() {
-    let c = ParamValue::Color(0.2, 0.5, 0.8, 1.0);
-    assert_eq!(project_to_scalar(&c, "color_red"), Some(0.2));
-    assert_eq!(project_to_scalar(&c, "color_alpha"), Some(1.0));
-    // luminance = 0.2126*0.2 + 0.7152*0.5 + 0.0722*0.8
-    let expected = 0.2126 * 0.2 + 0.7152 * 0.5 + 0.0722 * 0.8;
-    let actual = project_to_scalar(&c, "color_luminance").unwrap();
-    assert!((actual - expected).abs() < 1e-9);
-}
-
-// ─── Unit tests: apply_comparator ──────────────────────────────────────────
-
-fn cmp(val: f64, op: &str, reference: f64) -> bool {
-    apply_comparator(&ParamValue::Float(val), "auto", op, reference, reference + 1.0, "")
-}
-
-#[test]
-fn comparator_equal() {
-    assert!(cmp(5.0, "equal", 5.0));
-    assert!(!cmp(5.0, "equal", 6.0));
-}
-
-#[test]
-fn comparator_not_equal() {
-    assert!(!cmp(5.0, "not_equal", 5.0));
-    assert!(cmp(5.0, "not_equal", 6.0));
-}
-
-#[test]
-fn comparator_greater_less() {
-    assert!(cmp(6.0, "greater_than", 5.0));
-    assert!(!cmp(5.0, "greater_than", 5.0));
-    assert!(cmp(4.0, "less_than", 5.0));
-    assert!(cmp(5.0, "less_than_or_equal", 5.0));
-    assert!(cmp(5.0, "greater_than_or_equal", 5.0));
-}
-
-#[test]
-fn comparator_between_outside() {
-    assert!(apply_comparator(
-        &ParamValue::Float(3.0), "auto", "between", 2.0, 4.0, ""
+fn comparator_v2_between_outside() {
+    assert!(apply_comparator_v2(
+        &ParamValue::Float(3.0),
+        "between",
+        2.0,
+        4.0,
+        ""
     ));
-    assert!(!apply_comparator(
-        &ParamValue::Float(5.0), "auto", "between", 2.0, 4.0, ""
+    assert!(!apply_comparator_v2(
+        &ParamValue::Float(5.0),
+        "between",
+        2.0,
+        4.0,
+        ""
     ));
-    assert!(apply_comparator(
-        &ParamValue::Float(5.0), "auto", "outside", 2.0, 4.0, ""
+    assert!(apply_comparator_v2(
+        &ParamValue::Float(5.0),
+        "outside",
+        2.0,
+        4.0,
+        ""
     ));
 }
 
 #[test]
-fn comparator_is_true_is_false() {
-    assert!(cmp(1.0, "is_true", 0.0));
-    assert!(!cmp(0.0, "is_true", 0.0));
-    assert!(cmp(0.0, "is_false", 0.0));
-    assert!(!cmp(1.0, "is_false", 0.0));
+fn comparator_v2_is_true_is_false_float() {
+    assert!(cmpf(1.0, "is_true", 0.0));
+    assert!(!cmpf(0.0, "is_true", 0.0));
+    assert!(cmpf(0.0, "is_false", 0.0));
+    assert!(!cmpf(1.0, "is_false", 0.0));
 }
 
 #[test]
-fn comparator_bool_is_true_direct() {
-    assert!(apply_comparator(
-        &ParamValue::Bool(true), "auto", "is_true", 0.0, 1.0, ""
+fn comparator_v2_bool_is_true_is_false() {
+    assert!(apply_comparator_v2(
+        &ParamValue::Bool(true),
+        "is_true",
+        0.0,
+        1.0,
+        ""
     ));
-    assert!(!apply_comparator(
-        &ParamValue::Bool(false), "auto", "is_true", 0.0, 1.0, ""
+    assert!(!apply_comparator_v2(
+        &ParamValue::Bool(false),
+        "is_true",
+        0.0,
+        1.0,
+        ""
+    ));
+    assert!(apply_comparator_v2(
+        &ParamValue::Bool(false),
+        "is_false",
+        0.0,
+        1.0,
+        ""
     ));
 }
 
 #[test]
-fn comparator_string_ops() {
+fn comparator_v2_bool_equal_not_equal() {
+    assert!(apply_comparator_v2(
+        &ParamValue::Bool(true),
+        "equal",
+        1.0,
+        1.0,
+        ""
+    ));
+    assert!(apply_comparator_v2(
+        &ParamValue::Bool(false),
+        "equal",
+        0.0,
+        1.0,
+        ""
+    ));
+    assert!(apply_comparator_v2(
+        &ParamValue::Bool(true),
+        "not_equal",
+        0.0,
+        1.0,
+        ""
+    ));
+}
+
+#[test]
+fn comparator_v2_string_ops() {
     let v = ParamValue::Str("hello world".into());
-    assert!(apply_comparator(&v, "auto", "contains", 0.0, 1.0, "world"));
-    assert!(apply_comparator(&v, "auto", "starts_with", 0.0, 1.0, "hello"));
-    assert!(apply_comparator(&v, "auto", "ends_with", 0.0, 1.0, "world"));
-    assert!(!apply_comparator(&v, "auto", "contains", 0.0, 1.0, "xyz"));
+    assert!(apply_comparator_v2(&v, "contains", 0.0, 1.0, "world"));
+    assert!(apply_comparator_v2(&v, "starts_with", 0.0, 1.0, "hello"));
+    assert!(apply_comparator_v2(&v, "ends_with", 0.0, 1.0, "world"));
+    assert!(!apply_comparator_v2(&v, "contains", 0.0, 1.0, "xyz"));
 }
 
 #[test]
-fn comparator_string_projection_equal() {
+fn comparator_v2_enum_equal() {
     let v = ParamValue::Enum("active".into());
-    assert!(apply_comparator(&v, "enum_value", "equal", 0.0, 1.0, "active"));
-    assert!(!apply_comparator(&v, "enum_value", "equal", 0.0, 1.0, "idle"));
+    assert!(apply_comparator_v2(&v, "equal", 0.0, 1.0, "active"));
+    assert!(!apply_comparator_v2(&v, "equal", 0.0, 1.0, "idle"));
+}
+
+#[test]
+fn comparator_v2_int_numeric() {
+    assert!(apply_comparator_v2(&ParamValue::Int(5), "equal", 5.0, 6.0, ""));
+    assert!(apply_comparator_v2(&ParamValue::Int(5), "greater_than", 4.0, 5.0, ""));
+}
+
+// ─── Unit tests: valid_comparators_for_value ───────────────────────────────
+
+#[test]
+fn valid_comparators_float_includes_numeric_and_value_changed() {
+    let s = valid_comparators_for_value(&ParamValue::Float(1.0));
+    assert!(s.contains("greater_than"));
+    assert!(s.contains("between"));
+    assert!(s.contains("value_changed"));
+}
+
+#[test]
+fn valid_comparators_bool_includes_is_true_and_value_changed() {
+    let s = valid_comparators_for_value(&ParamValue::Bool(true));
+    assert!(s.contains("is_true"));
+    assert!(s.contains("is_false"));
+    assert!(s.contains("value_changed"));
+    assert!(!s.contains("greater_than"));
+}
+
+#[test]
+fn valid_comparators_string_includes_string_ops() {
+    let s = valid_comparators_for_value(&ParamValue::Str(String::new()));
+    assert!(s.contains("contains"));
+    assert!(s.contains("starts_with"));
+    assert!(s.contains("value_changed"));
+    assert!(!s.contains("greater_than"));
+}
+
+#[test]
+fn valid_comparators_enum_same_as_string() {
+    let str_set = valid_comparators_for_value(&ParamValue::Str(String::new()));
+    let enum_set = valid_comparators_for_value(&ParamValue::Enum(String::new()));
+    assert_eq!(str_set, enum_set);
+}
+
+#[test]
+fn valid_comparators_unknown_type_only_value_changed() {
+    let s = valid_comparators_for_value(&ParamValue::Trigger());
+    assert_eq!(s, "value_changed");
+}
+
+// ─── Unit tests: apply_toggle ──────────────────────────────────────────────
+
+fn make_id(n: u64) -> NodeId {
+    NodeId(n)
+}
+
+#[test]
+fn toggle_off_passes_through() {
+    let id = make_id(1);
+    let mut ts: HashMap<NodeId, bool> = HashMap::new();
+    let mut pr: HashMap<NodeId, bool> = HashMap::new();
+    assert!(apply_toggle(id, true, false, &mut ts, &mut pr));
+    assert!(!apply_toggle(id, false, false, &mut ts, &mut pr));
+}
+
+#[test]
+fn toggle_on_rising_edge_flips_state() {
+    let id = make_id(2);
+    let mut ts: HashMap<NodeId, bool> = HashMap::new();
+    let mut pr: HashMap<NodeId, bool> = HashMap::new();
+
+    // First call: raw=false → prev_raw=false, no edge, toggle stays false
+    assert!(!apply_toggle(id, false, true, &mut ts, &mut pr));
+
+    // Rising edge: raw=true, prev_raw=false → toggle flips to true
+    assert!(apply_toggle(id, true, true, &mut ts, &mut pr));
+
+    // Still true: raw=true, prev_raw=true → no rising edge, toggle stays true
+    assert!(apply_toggle(id, true, true, &mut ts, &mut pr));
+
+    // Falling: raw=false, prev_raw=true → no edge, toggle stays true
+    assert!(apply_toggle(id, false, true, &mut ts, &mut pr));
+
+    // Rising again: raw=true, prev_raw=false → toggle flips back to false
+    assert!(!apply_toggle(id, true, true, &mut ts, &mut pr));
+}
+
+#[test]
+fn toggle_on_with_initial_raw_false_stays_false() {
+    let id = make_id(3);
+    let mut ts: HashMap<NodeId, bool> = HashMap::new();
+    let mut pr: HashMap<NodeId, bool> = HashMap::new();
+    // No rising edge → toggle output is false
+    for _ in 0..5 {
+        assert!(!apply_toggle(id, false, true, &mut ts, &mut pr));
+    }
 }
 
 // ─── Unit tests: reduce_results ────────────────────────────────────────────

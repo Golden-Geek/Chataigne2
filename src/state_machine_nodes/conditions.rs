@@ -4,17 +4,30 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-// ---------------------------------------------------------------------------
-// InputValueCondition
-// ---------------------------------------------------------------------------
+// ─── Shared init for all leaf conditions ─────────────────────────────────────
+//
+// All leaf conditions share the same `init` body. This macro removes that
+// repetition. `project_create`, `project_encode_data`, and other Node
+// boilerplate are provided by the `#[item(..., from_struct)]` proc-macro.
 
-/// Reads any parameter source, projects the value if needed, and compares it
-/// against a reference. Projection and comparator options adapt at the UI layer
-/// based on the selected source's value type.
+macro_rules! leaf_condition_init {
+    () => {
+        fn init(&mut self, _ctx: &mut ProcessCtx) {
+            self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        }
+    };
+}
+
+// ─── InputValueCondition ─────────────────────────────────────────────────────
+
+/// Reads any parameter source and compares its (optionally projected) value
+/// against a reference. Projection is set on the `source` NodeReference;
+/// comparator options adapt to the resolved source type at runtime via the
+/// `valid_comparators` script property emitted by StateProcessor.
 #[node("sm_input_value_condition", label = "Input Value")]
 #[children(
-    invert: bool = false (
-        label = "Invert"
+    toggle_mode: bool = false (
+        label = "Toggle Mode"
     );
     validation_delay_s: f64 = 0.0 (
         label = "Validation Delay (s)"
@@ -22,45 +35,9 @@ use golden_core::{
     invalidation_delay_s: f64 = 0.0 (
         label = "Invalidation Delay (s)"
     );
-    output_mode: golden_core::parameter::Enum = "normal" (
-        label = "Output Mode",
-        enum_options = [
-            "normal",
-            "toggle_on_valid",
-            "toggle_on_invalid",
-            "pulse_on_valid",
-            "pulse_on_invalid"
-        ]
-    );
-    pulse_duration_s: f64 = 0.2 (
-        label = "Pulse Duration (s)",
-        show_in_inspector_content = false
-    );
     source: NodeReference (
         label = "Source",
         reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
-    );
-    projection: golden_core::parameter::Enum = "auto" (
-        label = "Projection",
-        enum_options = [
-            "auto",
-            "number",
-            "bool",
-            "vec2_magnitude",
-            "vec2_x",
-            "vec2_y",
-            "vec3_magnitude",
-            "vec3_x",
-            "vec3_y",
-            "vec3_z",
-            "color_luminance",
-            "color_red",
-            "color_green",
-            "color_blue",
-            "color_alpha",
-            "enum_value",
-            "string_value"
-        ]
     );
     comparator: golden_core::parameter::Enum = "equal" (
         label = "Comparator",
@@ -77,7 +54,8 @@ use golden_core::{
             "is_false",
             "contains",
             "starts_with",
-            "ends_with"
+            "ends_with",
+            "value_changed"
         ]
     );
     reference: f64 = 0.0 (
@@ -95,49 +73,24 @@ pub struct InputValueCondition {}
 
 #[item("sm_condition", node = "sm_input_value_condition", from_struct)]
 impl Node for InputValueCondition {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
+    leaf_condition_init!();
 }
 
-// ---------------------------------------------------------------------------
-// InputNodeCondition
-// ---------------------------------------------------------------------------
+// ─── InputNodeCondition ──────────────────────────────────────────────────────
 
 /// Asks a target node whether a named condition endpoint holds.
-///
-/// Bool endpoints evaluate directly. Value endpoints pipe their output through
-/// the same comparator/reference mechanism as InputValueCondition.
-/// Available endpoints are discovered from the target node's condition provider
-/// registry at runtime; `endpoint_id` stores the selected endpoint key.
+/// Available endpoints are discovered from the target node's condition
+/// provider registry; `endpoint_id` stores the selected key.
 #[node("sm_input_node_condition", label = "Input Node")]
 #[children(
-    invert: bool = false (
-        label = "Invert"
+    toggle_mode: bool = false (
+        label = "Toggle Mode"
     );
     validation_delay_s: f64 = 0.0 (
         label = "Validation Delay (s)"
     );
     invalidation_delay_s: f64 = 0.0 (
         label = "Invalidation Delay (s)"
-    );
-    output_mode: golden_core::parameter::Enum = "normal" (
-        label = "Output Mode",
-        enum_options = [
-            "normal",
-            "toggle_on_valid",
-            "toggle_on_invalid",
-            "pulse_on_valid",
-            "pulse_on_invalid"
-        ]
-    );
-    pulse_duration_s: f64 = 0.2 (
-        label = "Pulse Duration (s)",
-        show_in_inspector_content = false
     );
     provider_node: NodeReference (
         label = "Node"
@@ -160,7 +113,8 @@ impl Node for InputValueCondition {
             "is_false",
             "contains",
             "starts_with",
-            "ends_with"
+            "ends_with",
+            "value_changed"
         ]
     );
     reference: f64 = 0.0 (
@@ -178,46 +132,23 @@ pub struct InputNodeCondition {}
 
 #[item("sm_condition", node = "sm_input_node_condition", from_struct)]
 impl Node for InputNodeCondition {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
+    leaf_condition_init!();
 }
 
-// ---------------------------------------------------------------------------
-// ScriptCondition
-// ---------------------------------------------------------------------------
+// ─── ScriptCondition ─────────────────────────────────────────────────────────
 
-/// Condition evaluated by a user-authored script. The script reads context and
-/// parameter values and sets the condition valid or invalid. No direct side
-/// effects are allowed from within a script condition.
+/// Condition evaluated by a user-authored script. The script reads context
+/// and parameter values and sets the condition valid or invalid.
 #[node("sm_script_condition", label = "Script")]
 #[children(
-    invert: bool = false (
-        label = "Invert"
+    toggle_mode: bool = false (
+        label = "Toggle Mode"
     );
     validation_delay_s: f64 = 0.0 (
         label = "Validation Delay (s)"
     );
     invalidation_delay_s: f64 = 0.0 (
         label = "Invalidation Delay (s)"
-    );
-    output_mode: golden_core::parameter::Enum = "normal" (
-        label = "Output Mode",
-        enum_options = [
-            "normal",
-            "toggle_on_valid",
-            "toggle_on_invalid",
-            "pulse_on_valid",
-            "pulse_on_invalid"
-        ]
-    );
-    pulse_duration_s: f64 = 0.2 (
-        label = "Pulse Duration (s)",
-        show_in_inspector_content = false
     );
     script: String = String::new() (
         label = "Script",
@@ -228,27 +159,18 @@ pub struct ScriptCondition {}
 
 #[item("sm_condition", node = "sm_script_condition", from_struct)]
 impl Node for ScriptCondition {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
+    leaf_condition_init!();
 }
 
-// ---------------------------------------------------------------------------
-// ConditionGroup
-// ---------------------------------------------------------------------------
+// ─── ConditionGroup ──────────────────────────────────────────────────────────
 
-/// Combines child conditions with a reduce operator (all/any/none).
-/// Acts as a single condition to its parent container while itself accepting
-/// nested `sm_condition` items — including other groups — making the tree
-/// fully recursive.
+/// Combines child conditions with a reduce operator. Acts as a single condition
+/// to its parent while itself accepting nested `sm_condition` items —
+/// enabling fully recursive condition trees.
 #[node("sm_condition_group", label = "Condition Group")]
 #[children(
-    invert: bool = false (
-        label = "Invert"
+    toggle_mode: bool = false (
+        label = "Toggle Mode"
     );
     operator: golden_core::parameter::Enum = "all" (
         label = "Operator",
@@ -275,20 +197,6 @@ impl Node for ScriptCondition {
     );
     invalidation_delay_s: f64 = 0.0 (
         label = "Invalidation Delay (s)"
-    );
-    output_mode: golden_core::parameter::Enum = "normal" (
-        label = "Output Mode",
-        enum_options = [
-            "normal",
-            "toggle_on_valid",
-            "toggle_on_invalid",
-            "pulse_on_valid",
-            "pulse_on_invalid"
-        ]
-    );
-    pulse_duration_s: f64 = 0.2 (
-        label = "Pulse Duration (s)",
-        show_in_inspector_content = false
     );
 )]
 pub struct ConditionGroup {}
@@ -317,10 +225,6 @@ impl Node for ConditionGroup {
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
