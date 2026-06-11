@@ -487,13 +487,12 @@ impl<T: Node> Engine<T> {
             &uuid_map,
             &mut decode_node,
         )?;
-        let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
-
         self.replay_loaded_subtree_lifecycle(
             duplicated_root,
             NodeCreationContext::Duplicate,
             LoadedReadyMode::Immediate,
         )?;
+        let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
         self.resolve_reference_caches();
         self.sync_missing_reference_warnings_silent();
         self.rebuild_user_context_registry_from_nodes();
@@ -516,6 +515,65 @@ impl<T: Node> Engine<T> {
         );
 
         Ok(duplicated_root)
+    }
+
+    /// Inserts one persisted node hierarchy beneath an existing parent.
+    ///
+    /// Imported UUIDs are remapped as one unit, so internal references remain
+    /// valid without colliding with nodes already present in the engine.
+    pub fn insert_project_subtree_with<Decode>(
+        &mut self,
+        project: ProjectFile,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        mut decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        if project.version != PROJECT_FILE_VERSION {
+            return Err(ProjectPersistenceError::UnsupportedVersion {
+                found: project.version,
+                expected: PROJECT_FILE_VERSION,
+            });
+        }
+        if !self.nodes.contains(parent) {
+            return Err(ProjectPersistenceError::MissingNode(parent));
+        }
+
+        let mut record = project.root;
+        let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
+        remap_record_uuids(&mut record, &mut uuid_map);
+        let imported_root =
+            self.insert_duplicate_record_subtree_with(parent, prev_sibling, &record, &uuid_map, &mut decode_node)?;
+        self.replay_loaded_subtree_lifecycle(
+            imported_root,
+            NodeCreationContext::Duplicate,
+            LoadedReadyMode::Immediate,
+        )?;
+        let imported_node_ids = self.collect_loaded_subtree_node_ids(imported_root)?;
+        self.resolve_reference_caches();
+        self.sync_missing_reference_warnings_silent();
+        self.rebuild_user_context_registry_from_nodes();
+        self.mark_user_context_graph_changed();
+        self.push_loaded_subtree_ui_events(imported_node_ids.as_slice())?;
+        self.record_single_history_step(
+            AddNodeEffect {
+                node: imported_root,
+                parent,
+                prev_sibling: self
+                    .nodes
+                    .get(imported_root)
+                    .and_then(|node| node.node_data().prev_sibling),
+                next_sibling: self
+                    .nodes
+                    .get(imported_root)
+                    .and_then(|node| node.node_data().next_sibling),
+            }
+            .into(),
+        );
+
+        Ok(imported_root)
     }
 
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
@@ -833,6 +891,7 @@ impl<T: Node> Engine<T> {
             };
             let child_id = self.nodes.insert(child);
             self.attach_node(0, "LoadProject", child_id, parent, prev_sibling)?;
+            self.populate_param_cache_entry(child_id);
             self.load_children_records(child_id, &child_record.children, decode_node)?;
             prev_sibling = Some(child_id);
         }
@@ -862,6 +921,7 @@ impl<T: Node> Engine<T> {
 
         let node_id = self.nodes.insert(node);
         self.attach_node(0, "DuplicateNode", node_id, parent, prev_sibling)?;
+        self.populate_param_cache_entry(node_id);
 
         let mut child_prev_sibling = None;
         for child_record in &record.children {

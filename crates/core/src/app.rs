@@ -195,6 +195,15 @@ where
     Ok(serde_json::to_string_pretty(&project)?)
 }
 
+/// Serializes one node subtree using the same sparse codec as project files.
+pub fn to_sparse_subtree_json_pretty<T>(engine: &Engine<T>, root: NodeId) -> Result<String, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let project = to_sparse_subtree_file(engine, root)?;
+    Ok(serde_json::to_string_pretty(&project)?)
+}
+
 /// Writes one sparse project file that omits default-backed child records.
 pub fn save_sparse_project_file<T, P>(engine: &Engine<T>, path: P) -> Result<(), ProjectPersistenceError>
 where
@@ -234,6 +243,27 @@ where
     from_sparse_project_json(&json)
 }
 
+/// Imports one sparse persisted subtree beneath `parent`.
+pub fn insert_sparse_subtree_json<T>(
+    engine: &mut Engine<T>,
+    parent: NodeId,
+    prev_sibling: Option<NodeId>,
+    json: &str,
+) -> Result<NodeId, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let project: ProjectFile = serde_json::from_str(json)?;
+    if project.version != PROJECT_FILE_VERSION {
+        return Err(ProjectPersistenceError::UnsupportedVersion {
+            found: project.version,
+            expected: PROJECT_FILE_VERSION,
+        });
+    }
+    let expanded = expand_sparse_project_file::<T>(project)?;
+    engine.insert_project_subtree_with(expanded, parent, prev_sibling, T::project_decode_node)
+}
+
 fn to_sparse_project_file<T>(engine: &Engine<T>) -> Result<ProjectFile, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
@@ -249,6 +279,29 @@ where
                 .unwrap_or("unknown")
                 .to_string(),
             message: "root node cannot be omitted from sparse project output".to_string(),
+        })?;
+
+    Ok(ProjectFile {
+        version: PROJECT_FILE_VERSION.to_string(),
+        root,
+    })
+}
+
+fn to_sparse_subtree_file<T>(engine: &Engine<T>, root_id: NodeId) -> Result<ProjectFile, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let referenced_uuids = collect_referenced_uuids(engine);
+    let structural_root = build_structural_baseline_record_for_node(engine, root_id)?;
+    let root = encode_sparse_node_record(engine, root_id, Some(&structural_root), false, &referenced_uuids)?
+        .ok_or_else(|| ProjectPersistenceError::Codec {
+            node_type: engine
+                .nodes
+                .get(root_id)
+                .map(Node::get_type)
+                .unwrap_or("unknown")
+                .to_string(),
+            message: "subtree root cannot be omitted from sparse output".to_string(),
         })?;
 
     Ok(ProjectFile {

@@ -2181,6 +2181,55 @@ fn params_macro_keeps_init_and_child_interest_overrides_available() {
 }
 
 #[test]
+fn project_load_refreshes_declared_param_handles_before_init() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(ParamsWithCustomInitNode::new(0, None, false, None).into(), None);
+    engine.apply_edits().expect("declared node should materialize");
+
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("custom node should be attached under root");
+    let value_param = find_child_by_decl(&engine, owner, "value").expect("value parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: value_param,
+        value: ParamValue::Float(0.8),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("parameter edit should apply");
+
+    let json = engine
+        .to_project_json_with(|node| node.project_encode_data())
+        .expect("project should serialize");
+    let loaded = Engine::<MacroTestNode>::from_project_json_with(&json, |node_type, data, meta| {
+        if node_type == ParamsWithCustomInitNode::NODE_TYPE {
+            let mut node = ParamsWithCustomInitNode::new(0, None, false, None);
+            node.project_decode_data(data)?;
+            return Ok(node.into());
+        }
+        <MacroTestNode as crate::app::ProjectNode>::project_decode_node(node_type, data, meta)
+    })
+    .expect("project should load");
+    let loaded_owner = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("custom node should reload");
+    let MacroTestNode::ParamsWithCustomInitNode(node) =
+        loaded.nodes.get(loaded_owner).expect("custom node should exist")
+    else {
+        panic!("expected ParamsWithCustomInitNode variant");
+    };
+
+    assert!(
+        node.init_observed_value.is_some_and(|value| (value - 0.8).abs() < 1e-9),
+        "project-load init should observe the persisted parameter value"
+    );
+}
+
+#[test]
 fn nested_declared_params_are_bound_during_init() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);

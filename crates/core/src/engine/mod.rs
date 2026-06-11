@@ -224,6 +224,10 @@ impl<T: Node> Engine<T> {
     pub fn new(root: T) -> Self {
         let mut nodes: NodeStore<T> = NodeStore::new();
         let root = nodes.insert(root);
+        let mut parameter_values_cache = HashMap::new();
+        if let Some(snapshot) = nodes.get(root).and_then(Node::engine_param_snapshot) {
+            parameter_values_cache.insert(root, snapshot.value);
+        }
         let mut last_update_elapsed_by_node = HashMap::new();
         last_update_elapsed_by_node.insert(root, Duration::ZERO);
         let (external_edits_tx, external_edits_rx) = mpsc::channel();
@@ -269,7 +273,7 @@ impl<T: Node> Engine<T> {
             stabilization_scope_depth: 0,
             has_active_controls_cache: None,
             tick_tree_snapshot: None,
-            parameter_values_cache: HashMap::new(),
+            parameter_values_cache,
             tick_scratch: tick_scratch::TickScratch::default(),
             tick_accumulator: Duration::ZERO,
             late_ticks: 0,
@@ -698,6 +702,14 @@ impl<T: Node> Engine<T> {
         }
 
         Arc::new(ProcessTreeSnapshot::new(self.root, nodes))
+    }
+
+    /// Builds a read-only snapshot of the current node tree.
+    ///
+    /// This is the supported boundary for compilers and exporters that consume
+    /// canonical Golden Core node subtrees without taking ownership of the engine.
+    pub fn process_tree_snapshot(&self) -> Arc<ProcessTreeSnapshot> {
+        self.build_process_tree_snapshot()
     }
 
     pub(crate) fn is_effectively_enabled(&self, node: NodeId) -> bool {

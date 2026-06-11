@@ -70,9 +70,9 @@ pub mod logger {
 pub mod app {
     pub use golden_engine::app::{
         GoldenApp, ProjectFileSpec, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine,
-        create_engine, create_new_project_engine, from_sparse_project_json, load_sparse_project_file,
-        prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
-        to_sparse_project_json_pretty,
+        create_engine, create_new_project_engine, from_sparse_project_json, insert_sparse_subtree_json,
+        load_sparse_project_file, prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
+        to_sparse_project_json_pretty, to_sparse_subtree_json_pretty,
     };
     pub use golden_host_desktop::{
         FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
