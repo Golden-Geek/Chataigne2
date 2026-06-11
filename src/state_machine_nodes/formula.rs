@@ -1,230 +1,1238 @@
-use golden_core::{
-    item, node,
-    node::{DeclId, Node, NodeId, NodeUserPermissions, UserContainerRules, UserCreatableItem},
-    process_ctx::ProcessCtx,
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
 };
 
-pub(crate) const CUSTOM_FORMULA_ITEM_KIND: &str = "alchemist_formula_custom";
+use golden_alchemist::{
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph,
+    ColorValue, CompileCtx, DiagnosticSeverity, FormulaContextContract, FormulaId,
+    FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeValue, SignatureCtx,
+    StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId,
+    compile_graph,
+};
+use golden_core::{
+    edit::{Edit, NodeTree},
+    events::Event,
+    item, node,
+    node::{
+        DeclId, Node, NodeCreationContext, NodeId, NodeReference,
+        NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
+    },
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck,
+        ParameterConstraintPolicy, ParameterEnumOption, ReferenceTargetKind,
+    },
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
+};
 
-/// ANode slot that instantiates a ConditionManager under the processor.
-#[node("sm_anode_conditions", label = "Conditions Slot")]
-pub struct ConditionsManagerANode {}
+pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
+pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
+pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
+pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
 
-#[node("sm_anode_conditions", from_struct)]
-impl Node for ConditionsManagerANode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
+const ANODE_NODE_TYPE: &str = "alchemist_anode";
+const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
+
+fn registry() -> golden_alchemist::ANodeRegistry {
+    chataigne_state_machine::alchemist::node_registry()
+}
+
+fn value_types() -> golden_alchemist::ValueTypeRegistry {
+    chataigne_state_machine::alchemist::value_type_registry()
+}
+
+fn parameter(
+    label: &str,
+    decl_id: impl Into<String>,
+    value: ParamValue,
+    read_only: bool,
+) -> Parameter {
+    let mut parameter =
+        Parameter::new(label, value, ParameterChangeCheck::ValueChange);
+    parameter.read_only = read_only;
+    parameter.control_modes_enabled = !read_only;
+    parameter.node_data_mut().meta.decl_id = DeclId(decl_id.into());
+    parameter
+}
+
+fn runtime_value_type_id(value: &RuntimeValue) -> String {
+    value.value_type().to_string()
+}
+
+fn parameter_node_type(value: &ParamValue) -> &'static str {
+    match value {
+        ParamValue::Trigger() => "trigger",
+        ParamValue::Int(_) => "int",
+        ParamValue::Float(_) => "float",
+        ParamValue::Str(_) => "str",
+        ParamValue::File(_) => "file",
+        ParamValue::Enum(_) => "enum",
+        ParamValue::Bool(_) => "bool",
+        ParamValue::CssValue(_) => "css_value",
+        ParamValue::Vec2(_, _) => "vec2",
+        ParamValue::Vec3(_, _, _) => "vec3",
+        ParamValue::Color(_, _, _, _) => "color",
+        ParamValue::Reference(_) => "reference",
     }
 }
 
-/// ANode slot that instantiates a ConsequencesManager under the processor.
-#[node("sm_anode_consequences", label = "Consequences Slot")]
-pub struct ConsequencesANode {}
+fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
+    Ok(match value {
+        RuntimeValue::Unit => ParamValue::Str(String::new()),
+        RuntimeValue::Bool(value) => ParamValue::Bool(*value),
+        RuntimeValue::Trigger(_) => ParamValue::Trigger(),
+        RuntimeValue::Int(value) => ParamValue::Int(
+            i32::try_from(*value)
+                .map_err(|_| format!("integer value {value} exceeds Golden Core i32 range"))?,
+        ),
+        RuntimeValue::Float(value) => ParamValue::Float(*value),
+        RuntimeValue::String(value) => ParamValue::Str(value.to_string()),
+        RuntimeValue::Vec2(value) => ParamValue::Vec2(value[0], value[1]),
+        RuntimeValue::Vec3(value) => {
+            ParamValue::Vec3(value[0], value[1], value[2])
+        }
+        RuntimeValue::Color(value) => ParamValue::Color(
+            f64::from(value.red),
+            f64::from(value.green),
+            f64::from(value.blue),
+            f64::from(value.alpha),
+        ),
+        RuntimeValue::Duration(value) => ParamValue::Float(value.as_secs_f64()),
+        RuntimeValue::Ref(value) => {
+            let uuid = value
+                .stable_id
+                .parse::<uuid::Uuid>()
+                .map(NodeUuid)
+                .unwrap_or_else(|_| NodeUuid::nil());
+            ParamValue::Reference(NodeReference::new(uuid))
+        }
+        RuntimeValue::Extension(value) => ParamValue::Str(
+            value
+                .payload
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect(),
+        ),
+    })
+}
 
-#[node("sm_anode_consequences", from_struct)]
-impl Node for ConsequencesANode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
+fn default_runtime_value(
+    value_type: &ValueTypeId,
+) -> Result<RuntimeValue, String> {
+    value_types()
+        .get(value_type)
+        .map(|descriptor| (descriptor.default_value)())
+        .ok_or_else(|| format!("unknown Alchemist value type `{value_type}`"))
+}
+
+fn param_to_runtime_value(
+    value: &ParamValue,
+    value_type: &ValueTypeId,
+) -> Result<RuntimeValue, String> {
+    match value_type.as_str() {
+        "unit" => Ok(RuntimeValue::Unit),
+        "bool" => match value {
+            ParamValue::Bool(value) => Ok(RuntimeValue::Bool(*value)),
+            _ => Err("expected a Boolean parameter".into()),
+        },
+        "trigger" => match value {
+            ParamValue::Trigger() => {
+                Ok(RuntimeValue::Trigger(TriggerValue::default()))
+            }
+            _ => Err("expected a Trigger parameter".into()),
+        },
+        "int" => match value {
+            ParamValue::Int(value) => Ok(RuntimeValue::Int(i64::from(*value))),
+            _ => Err("expected an Integer parameter".into()),
+        },
+        "float" => value
+            .as_float()
+            .map(RuntimeValue::Float)
+            .ok_or_else(|| "expected a Float parameter".into()),
+        "string" => value
+            .as_str()
+            .map(|value| RuntimeValue::String(Arc::from(value.as_str())))
+            .ok_or_else(|| "expected a String parameter".into()),
+        "vec2" => value
+            .as_vec2()
+            .map(|value| RuntimeValue::Vec2([value.0, value.1]))
+            .ok_or_else(|| "expected a Vector 2 parameter".into()),
+        "vec3" => value
+            .as_vec3()
+            .map(|value| RuntimeValue::Vec3([value.0, value.1, value.2]))
+            .ok_or_else(|| "expected a Vector 3 parameter".into()),
+        "color" => value
+            .as_color()
+            .map(|value| {
+                RuntimeValue::Color(ColorValue {
+                    red: value.0 as f32,
+                    green: value.1 as f32,
+                    blue: value.2 as f32,
+                    alpha: value.3 as f32,
+                })
+            })
+            .ok_or_else(|| "expected a Color parameter".into()),
+        "duration" => value
+            .as_float()
+            .map(|seconds| {
+                RuntimeValue::Duration(Duration::from_secs_f64(seconds.max(0.0)))
+            })
+            .ok_or_else(|| "expected a duration in seconds".into()),
+        _ => match value {
+            ParamValue::Reference(reference) => {
+                let stable_id = if reference.is_empty() {
+                    String::new()
+                } else {
+                    reference.uuid().0.to_string()
+                };
+                Ok(RuntimeValue::Ref(StableRef::new(
+                    value_type.clone(),
+                    stable_id,
+                )))
+            }
+            _ => Err(format!(
+                "Alchemist value type `{value_type}` requires a node reference parameter"
+            )),
+        },
     }
 }
 
-/// ANode slot that instantiates an InputsManager under the processor.
-#[node("sm_anode_inputs", label = "Inputs Slot")]
-pub struct InputsANode {}
-
-#[node("sm_anode_inputs", from_struct)]
-impl Node for InputsANode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
-    }
+fn config_decl_id(field: &str) -> String {
+    format!("config/{field}")
 }
 
-/// ANode slot that instantiates a FilterChainManager under the processor.
-#[node("sm_anode_filter_chain", label = "Filter Chain Slot")]
-pub struct FilterChainANode {}
-
-#[node("sm_anode_filter_chain", from_struct)]
-impl Node for FilterChainANode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
-    }
+fn config_type_decl_id(field: &str) -> String {
+    format!("config/{field}__type")
 }
 
-/// ANode slot that instantiates an OutputsManager under the processor.
-#[node("sm_anode_outputs", label = "Outputs Slot")]
-pub struct OutputsANode {}
-
-#[node("sm_anode_outputs", from_struct)]
-impl Node for OutputsANode {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
-    }
+fn socket_decl_id(direction: &str, socket: &str) -> String {
+    format!("{direction}/{socket}")
 }
 
-/// Dispatches ANode instantiation: for each ANode child in a formula, creates the
-/// corresponding manager node under the processor. The processor never names these
-/// types directly — the formula drives what gets created.
-pub(crate) fn instantiate_anode_for_processor(
-    anode_type: &str,
-    anode_label: &str,
-    anode_decl_id: &str,
-    processor_id: NodeId,
-    ctx: &mut ProcessCtx,
-) {
-    fn set_meta(node: &mut dyn Node, label: &str, decl_id: &str) {
-        node.node_data_mut().meta.label = label.to_string();
-        node.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
-    }
+fn socket_value_decl_id(direction: &str, socket: &str) -> String {
+    format!("{direction}/{socket}/value")
+}
 
-    let child: Option<Box<dyn Node>> = match anode_type {
-        ConditionsManagerANode::NODE_TYPE => {
-            let mut n = crate::app::ConditionManager::new();
-            set_meta(&mut n, anode_label, anode_decl_id);
-            Some(Box::new(n))
-        }
-        ConsequencesANode::NODE_TYPE => {
-            let mut n = crate::app::ConsequencesManager::new();
-            set_meta(&mut n, anode_label, anode_decl_id);
-            Some(Box::new(n))
-        }
-        InputsANode::NODE_TYPE => {
-            let mut n = crate::app::InputsManager::new();
-            set_meta(&mut n, anode_label, anode_decl_id);
-            Some(Box::new(n))
-        }
-        FilterChainANode::NODE_TYPE => {
-            let mut n = crate::app::FilterChainManager::new();
-            set_meta(&mut n, anode_label, anode_decl_id);
-            Some(Box::new(n))
-        }
-        OutputsANode::NODE_TYPE => {
-            let mut n = crate::app::OutputsManager::new();
-            set_meta(&mut n, anode_label, anode_decl_id);
-            Some(Box::new(n))
-        }
+fn child_param<'a>(
+    snapshot: &'a ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<&'a ParamValue> {
+    let child = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    snapshot.node(child)?.param_value.as_ref()
+}
+
+fn child_string(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<String> {
+    child_param(snapshot, parent, decl_id)
+        .and_then(ParamValue::as_str)
+        .map(|value| value.to_string())
+}
+
+fn child_vec2(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<[f64; 2]> {
+    child_param(snapshot, parent, decl_id)
+        .and_then(ParamValue::as_vec2)
+        .map(|value| [value.0, value.1])
+}
+
+fn child_float(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<f64> {
+    child_param(snapshot, parent, decl_id).and_then(ParamValue::as_float)
+}
+
+fn child_bool(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<bool> {
+    child_param(snapshot, parent, decl_id).and_then(ParamValue::as_bool)
+}
+
+fn child_reference_uuid(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeUuid> {
+    child_param(snapshot, parent, decl_id).and_then(|value| match value {
+        ParamValue::Reference(reference) => Some(reference.uuid()),
         _ => None,
-    };
+    })
+}
 
-    if let Some(node) = child {
-        ctx.add_child_boxed(processor_id, node, None);
+fn constraint_value_type(
+    constraint: &TypeConstraint,
+    bindings: &TypeBindings,
+) -> ValueTypeId {
+    match constraint {
+        TypeConstraint::Exact(value_type) => value_type.clone(),
+        TypeConstraint::Generic(variable) => bindings
+            .get(variable)
+            .map(|binding| binding.value_type.clone())
+            .unwrap_or_else(|| ValueTypeId::new("float")),
+        TypeConstraint::Facet(_)
+        | TypeConstraint::Any
+        | TypeConstraint::Primitive
+        | TypeConstraint::NumericLike
+        | TypeConstraint::OneOf(_) => ValueTypeId::new("float"),
     }
 }
 
-/// Project-level container for all Alchemist Formulas.
-///
-/// Built-in formulas (Action, Mapping) are fixed non-removable children.
-/// Users can add custom formulas via the + menu.
-#[node("alchemist_formula_library", label = "Formulas")]
-#[children(
-    node action: ActionBuiltinFormula = ActionBuiltinFormula::new() (
-        label = "Action",
-        description = "Built-in Action formula. Non-editable graph."
+fn existing_or_default_config(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> Result<golden_alchemist::ANodeConfig, String> {
+    let config_folder = snapshot
+        .find_child_by_decl_id(anode, "config")
+        .ok_or_else(|| "ANode Config folder is missing".to_string())?;
+    let mut config = golden_alchemist::ANodeConfig::default();
+    for field in declaration.config_fields() {
+        let value_type = if field.editor.as_deref() == Some("runtime_value") {
+            child_string(
+                snapshot,
+                config_folder,
+                &config_type_decl_id(field.id.as_str()),
+            )
+            .map(ValueTypeId::new)
+            .unwrap_or_else(|| field.default_value.value_type())
+        } else {
+            field.default_value.value_type()
+        };
+        let value = child_param(
+            snapshot,
+            config_folder,
+            &config_decl_id(field.id.as_str()),
+        )
+        .and_then(|value| param_to_runtime_value(value, &value_type).ok())
+        .unwrap_or_else(|| {
+            if value_type == field.default_value.value_type() {
+                field.default_value.clone()
+            } else {
+                default_runtime_value(&value_type)
+                    .unwrap_or_else(|_| field.default_value.clone())
+            }
+        });
+        config.set(field.id, value);
+    }
+    Ok(config)
+}
+
+fn anode_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+) -> Result<ANodeInstance, String> {
+    let node = snapshot
+        .node(anode)
+        .ok_or_else(|| format!("ANode {anode:?} is missing"))?;
+    let type_id = child_string(snapshot, anode, "anode_type")
+        .ok_or_else(|| format!("ANode `{}` has no Type parameter", node.label))?;
+    let registry = registry();
+    let declaration = registry
+        .get(&ANodeTypeId::new(type_id.clone()))
+        .ok_or_else(|| format!("ANode type `{type_id}` is not registered"))?;
+    let mut instance =
+        ANodeInstance::new(ANodeTypeId::new(type_id), node.label.clone());
+    instance.id = ANodeId::from_uuid(node.uuid.0);
+    instance.config =
+        existing_or_default_config(snapshot, anode, declaration.as_ref())?;
+    instance.ui.position =
+        child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
+    instance.ui.width =
+        child_float(snapshot, anode, "width").filter(|width| *width > 0.0);
+    instance.ui.collapsed =
+        child_bool(snapshot, anode, "collapsed").unwrap_or(false);
+
+    let signature = declaration.signature(
+        &SignatureCtx {
+            value_types: &value_types(),
+        },
+        &instance,
+        &instance.type_bindings,
     );
-    node mapping: MappingBuiltinFormula = MappingBuiltinFormula::new() (
-        label = "Mapping",
-        description = "Built-in Mapping formula. Non-editable graph."
+    if let Some(inputs_folder) = snapshot.find_child_by_decl_id(anode, "inputs") {
+        for input in signature.inputs {
+            let Some(socket_node) = snapshot.find_child_by_decl_id(
+                inputs_folder,
+                &socket_decl_id("inputs", input.id.as_str()),
+            ) else {
+                continue;
+            };
+            let value_type =
+                constraint_value_type(&input.constraint, &signature.default_bindings);
+            let value = child_param(
+                snapshot,
+                socket_node,
+                &socket_value_decl_id("inputs", input.id.as_str()),
+            )
+            .map(|value| param_to_runtime_value(value, &value_type))
+            .transpose()?
+            .or(input.default_value);
+            if let Some(value) = value {
+                instance.input_defaults.insert(input.id, value);
+            }
+        }
+    }
+    Ok(instance)
+}
+
+pub(crate) fn formula_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> Result<AlchemistFormula, String> {
+    let formula_snapshot = snapshot
+        .node(formula_node)
+        .ok_or_else(|| format!("Formula {formula_node:?} is missing"))?;
+    if formula_snapshot.node_type != AlchemistFormulaDefinition::NODE_TYPE {
+        return Err(format!(
+            "node `{}` is not an Alchemist Formula",
+            formula_snapshot.label
+        ));
+    }
+
+    let mut graph = AlchemistGraph::new();
+    graph.id = golden_alchemist::AlchemistGraphId::from_uuid(
+        formula_snapshot.uuid.0,
+    );
+    graph.metadata.label = formula_snapshot.label.clone();
+    let mut anodes_by_uuid = HashMap::<NodeUuid, ANodeId>::new();
+
+    for child in snapshot.child_ids(formula_node) {
+        let Some(child_snapshot) = snapshot.node(child) else {
+            continue;
+        };
+        if child_snapshot.node_type != ANODE_NODE_TYPE {
+            continue;
+        }
+        let instance = anode_from_snapshot(snapshot, child)?;
+        anodes_by_uuid.insert(child_snapshot.uuid, instance.id);
+        graph
+            .add_node(instance)
+            .map_err(|error| error.to_string())?;
+    }
+
+    for child in snapshot.child_ids(formula_node) {
+        let Some(child_snapshot) = snapshot.node(child) else {
+            continue;
+        };
+        if child_snapshot.node_type != CONNECTION_NODE_TYPE {
+            continue;
+        }
+        let source = child_reference_uuid(snapshot, child, "source_node")
+            .and_then(|uuid| anodes_by_uuid.get(&uuid).copied())
+            .ok_or_else(|| {
+                format!("connection `{}` has no valid source ANode", child_snapshot.label)
+            })?;
+        let target = child_reference_uuid(snapshot, child, "target_node")
+            .and_then(|uuid| anodes_by_uuid.get(&uuid).copied())
+            .ok_or_else(|| {
+                format!("connection `{}` has no valid target ANode", child_snapshot.label)
+            })?;
+        let source_socket = child_string(snapshot, child, "source_socket")
+            .ok_or_else(|| "connection source socket is missing".to_string())?;
+        let target_socket = child_string(snapshot, child, "target_socket")
+            .ok_or_else(|| "connection target socket is missing".to_string())?;
+        graph
+            .connect(
+                OutputSocketRef::new(source, source_socket),
+                InputSocketRef::new(target, target_socket),
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    Ok(AlchemistFormula {
+        id: FormulaId::new(formula_snapshot.uuid.0.to_string()),
+        version: 1,
+        label: formula_snapshot.label.clone(),
+        description: None,
+        tags: formula_snapshot.tags.clone(),
+        graph,
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract {
+            accepts_additional_dimensions: true,
+            ..FormulaContextContract::default()
+        },
+        migrations: Vec::new(),
+    })
+}
+
+#[node("alchemist_input_socket", label = "Input")]
+pub struct AlchemistInputSocket {}
+
+#[node("alchemist_input_socket", from_struct)]
+impl Node for AlchemistInputSocket {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+#[node("alchemist_output_socket", label = "Output")]
+pub struct AlchemistOutputSocket {}
+
+#[node("alchemist_output_socket", from_struct)]
+impl Node for AlchemistOutputSocket {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+#[node("alchemist_anode", label = "ANode")]
+#[children(
+    anode_type: String = String::new() (label = "Type");
+    position: golden_core::parameter::Vec2 = (0.0, 0.0) (label = "Position");
+    width: f64 = 0.0 (label = "Width");
+    collapsed: bool = false (label = "Collapsed");
+    folder(config, label = "Config") {}
+    folder(inputs, label = "Inputs") {}
+    folder(outputs, label = "Outputs") {}
+)]
+pub struct AlchemistANode {}
+
+#[node("alchemist_anode", from_struct)]
+impl Node for AlchemistANode {
+    fn user_item_kind(&self) -> &str {
+        ANODE_ITEM_KIND
+    }
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        self.node_data_mut().meta.can_be_disabled = false;
+        self.reconcile_structure(ctx);
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        context: NodeCreationContext,
+    ) {
+        self.reconcile_structure(ctx);
+        if context == NodeCreationContext::Duplicate {
+            let Some(snapshot) = ctx.tree_snapshot_arc() else {
+                return;
+            };
+            if let Some([x, y]) = child_vec2(&snapshot, self.id(), "position") {
+                ctx.set_param(
+                    self.position.id(),
+                    ParamValue::Vec2(x + 1.5, y + 1.5),
+                );
+            }
+        }
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        self.reconcile_structure(ctx);
+    }
+
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        4
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl AlchemistANode {
+    fn for_type(type_id: &str, label: &str) -> Self {
+        let mut node = Self::new();
+        node.anode_type
+            .apply_runtime_value(&ParamValue::Str(type_id.to_owned()));
+        node.node_data_mut().meta.label = label.to_owned();
+        node
+    }
+
+    fn reconcile_structure(&mut self, ctx: &mut ProcessCtx) {
+        let type_id = self.anode_type.get_ref().trim();
+        if type_id.is_empty() {
+            return;
+        }
+        let registry = registry();
+        let Some(declaration) = registry.get(&ANodeTypeId::new(type_id)) else {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some("alchemist_anode"),
+                "Unknown ANode type",
+                Some(type_id),
+            );
+            return;
+        };
+        ctx.clear_node_warning(self.id(), Some("alchemist_anode"));
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(config_folder) =
+            snapshot.find_child_by_decl_id(self.id(), "config")
+        else {
+            return;
+        };
+        let Some(inputs_folder) =
+            snapshot.find_child_by_decl_id(self.id(), "inputs")
+        else {
+            return;
+        };
+        let Some(outputs_folder) =
+            snapshot.find_child_by_decl_id(self.id(), "outputs")
+        else {
+            return;
+        };
+
+        let mut desired_config = HashSet::new();
+        for field in declaration.config_fields() {
+            let value_decl = config_decl_id(field.id.as_str());
+            desired_config.insert(value_decl.clone());
+            let value_type = if field.editor.as_deref() == Some("runtime_value") {
+                let type_decl = config_type_decl_id(field.id.as_str());
+                desired_config.insert(type_decl.clone());
+                let selected_type = child_string(
+                    &snapshot,
+                    config_folder,
+                    type_decl.as_str(),
+                )
+                .unwrap_or_else(|| runtime_value_type_id(&field.default_value));
+                self.ensure_parameter_node(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    value_type_parameter(
+                        &format!("{} Type", field.label),
+                        &type_decl,
+                        &selected_type,
+                    ),
+                );
+                ValueTypeId::new(selected_type)
+            } else {
+                field.default_value.value_type()
+            };
+            let default = if value_type == field.default_value.value_type() {
+                field.default_value.clone()
+            } else {
+                default_runtime_value(&value_type)
+                    .unwrap_or_else(|_| field.default_value.clone())
+            };
+            if let Ok(value) = runtime_value_to_param(&default) {
+                self.ensure_parameter(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    &value_decl,
+                    &field.label,
+                    value,
+                    false,
+                );
+            }
+        }
+        self.remove_obsolete_children(
+            ctx,
+            &snapshot,
+            config_folder,
+            &desired_config,
+        );
+
+        let mut instance =
+            ANodeInstance::new(declaration.type_id(), declaration.label());
+        instance.config = existing_or_default_config(
+            &snapshot,
+            self.id(),
+            declaration.as_ref(),
+        )
+        .unwrap_or_default();
+        let value_types = value_types();
+        let signature = declaration.signature(
+            &SignatureCtx {
+                value_types: &value_types,
+            },
+            &instance,
+            &instance.type_bindings,
+        );
+
+        let mut desired_inputs = HashSet::new();
+        for input in signature.inputs {
+            let decl_id = socket_decl_id("inputs", input.id.as_str());
+            desired_inputs.insert(decl_id.clone());
+            let value_type =
+                constraint_value_type(&input.constraint, &signature.default_bindings);
+            let default = input
+                .default_value
+                .or_else(|| default_runtime_value(&value_type).ok())
+                .unwrap_or(RuntimeValue::Float(0.0));
+            let existing =
+                snapshot.find_child_by_decl_id(inputs_folder, &decl_id);
+            let needs_rebuild = existing.is_none_or(|socket| {
+                !input_socket_matches(
+                    &snapshot,
+                    socket,
+                    input.id.as_str(),
+                    &value_type,
+                    &default,
+                )
+            });
+            if needs_rebuild {
+                if let Ok(tree) = input_socket_tree(
+                    input.id.as_str(),
+                    &input.label,
+                    &value_type,
+                    &default,
+                ) {
+                    if let Some(existing) = existing {
+                        self.remove_child(ctx, existing);
+                    }
+                    ctx.add_child_tree(inputs_folder, tree, None);
+                }
+            }
+        }
+        self.remove_obsolete_children(
+            ctx,
+            &snapshot,
+            inputs_folder,
+            &desired_inputs,
+        );
+
+        let mut desired_outputs = HashSet::new();
+        for output in signature.outputs {
+            let decl_id = socket_decl_id("outputs", output.id.as_str());
+            desired_outputs.insert(decl_id.clone());
+            let value_type =
+                constraint_value_type(&output.constraint, &signature.default_bindings);
+            let existing =
+                snapshot.find_child_by_decl_id(outputs_folder, &decl_id);
+            if existing.is_none_or(|socket| {
+                !output_socket_matches(
+                    &snapshot,
+                    socket,
+                    output.id.as_str(),
+                    &value_type,
+                )
+            }) {
+                if let Some(existing) = existing {
+                    self.remove_child(ctx, existing);
+                }
+                ctx.add_child_tree(
+                    outputs_folder,
+                    output_socket_tree(
+                        output.id.as_str(),
+                        &output.label,
+                        &value_type,
+                    ),
+                    None,
+                );
+            }
+        }
+        self.remove_obsolete_children(
+            ctx,
+            &snapshot,
+            outputs_folder,
+            &desired_outputs,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ensure_parameter(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        parent: NodeId,
+        decl_id: &str,
+        label: &str,
+        default: ParamValue,
+        read_only: bool,
+    ) {
+        self.ensure_parameter_node(
+            ctx,
+            snapshot,
+            parent,
+            parameter(label, decl_id, default, read_only),
+        );
+    }
+
+    fn ensure_parameter_node(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        parent: NodeId,
+        parameter: Parameter,
+    ) {
+        let decl_id = parameter.node_data().meta.decl_id.clone();
+        if let Some(existing) =
+            snapshot.find_child_by_decl_id(parent, decl_id.0.as_str())
+        {
+            let Some(existing_snapshot) = snapshot.node(existing) else {
+                return;
+            };
+            let expected_type = parameter.get_type();
+            if existing_snapshot.node_type != expected_type {
+                ctx.replace_node(existing, parameter);
+            }
+            return;
+        }
+        ctx.add_child(parent, parameter, None);
+    }
+
+    fn remove_obsolete_children(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        parent: NodeId,
+        desired_decl_ids: &HashSet<String>,
+    ) {
+        for child in snapshot.child_ids(parent) {
+            let Some(child_snapshot) = snapshot.node(child) else {
+                continue;
+            };
+            if !desired_decl_ids.contains(child_snapshot.decl_id.as_str()) {
+                self.remove_child(ctx, child);
+            }
+        }
+    }
+}
+
+fn value_type_parameter(
+    label: &str,
+    decl_id: &str,
+    selected_type: &str,
+) -> Parameter {
+    let registry = value_types();
+    let mut parameter = parameter(
+        label,
+        decl_id,
+        ParamValue::Enum(selected_type.to_owned()),
+        false,
+    );
+    parameter.constraints.enum_options = registry
+        .iter()
+        .filter(|descriptor| {
+            !matches!(
+                descriptor.storage,
+                golden_alchemist::ValueStorageKind::Extension
+            )
+        })
+        .map(|descriptor| ParameterEnumOption {
+            variant_id: descriptor.id.to_string(),
+            value: ParamValue::Enum(descriptor.id.to_string()),
+            label: descriptor.label.clone(),
+            tags: Vec::new(),
+            ordering: None,
+        })
+        .collect();
+    parameter.constraints.policy = ParameterConstraintPolicy::Reject;
+    parameter
+}
+
+fn socket_value_type(
+    snapshot: &ProcessTreeSnapshot,
+    socket: NodeId,
+    direction: &str,
+    socket_id: &str,
+) -> Option<String> {
+    child_string(
+        snapshot,
+        socket,
+        &format!("{direction}/{socket_id}/value_type"),
+    )
+}
+
+fn input_socket_matches(
+    snapshot: &ProcessTreeSnapshot,
+    socket: NodeId,
+    socket_id: &str,
+    value_type: &ValueTypeId,
+    default: &RuntimeValue,
+) -> bool {
+    if socket_value_type(snapshot, socket, "inputs", socket_id).as_deref()
+        != Some(value_type.as_str())
+    {
+        return false;
+    }
+    let Some(value) = snapshot.find_child_by_decl_id(
+        socket,
+        &socket_value_decl_id("inputs", socket_id),
+    ) else {
+        return false;
+    };
+    snapshot.node(value).is_some_and(|node| {
+        runtime_value_to_param(default)
+            .is_ok_and(|default| node.node_type == parameter_node_type(&default))
+    })
+}
+
+fn output_socket_matches(
+    snapshot: &ProcessTreeSnapshot,
+    socket: NodeId,
+    socket_id: &str,
+    value_type: &ValueTypeId,
+) -> bool {
+    socket_value_type(snapshot, socket, "outputs", socket_id).as_deref()
+        == Some(value_type.as_str())
+}
+
+fn input_socket_tree(
+    socket_id: &str,
+    label: &str,
+    value_type: &ValueTypeId,
+    default: &RuntimeValue,
+) -> Result<NodeTree, String> {
+    let decl_id = socket_decl_id("inputs", socket_id);
+    let mut socket = AlchemistInputSocket::new();
+    socket.node_data_mut().meta.label = label.to_owned();
+    socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
+    Ok(NodeTree::new(socket)
+        .with_child(NodeTree::new(parameter(
+            "Socket ID",
+            format!("{decl_id}/socket_id"),
+            ParamValue::Str(socket_id.to_owned()),
+            true,
+        )))
+        .with_child(NodeTree::new(parameter(
+            "Value Type",
+            format!("{decl_id}/value_type"),
+            ParamValue::Str(value_type.to_string()),
+            true,
+        )))
+        .with_child(NodeTree::new(parameter(
+            "Value",
+            socket_value_decl_id("inputs", socket_id),
+            runtime_value_to_param(default)?,
+            false,
+        ))))
+}
+
+fn output_socket_tree(
+    socket_id: &str,
+    label: &str,
+    value_type: &ValueTypeId,
+) -> NodeTree {
+    let decl_id = socket_decl_id("outputs", socket_id);
+    let mut socket = AlchemistOutputSocket::new();
+    socket.node_data_mut().meta.label = label.to_owned();
+    socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
+    NodeTree::new(socket)
+        .with_child(NodeTree::new(parameter(
+            "Socket ID",
+            format!("{decl_id}/socket_id"),
+            ParamValue::Str(socket_id.to_owned()),
+            true,
+        )))
+        .with_child(NodeTree::new(parameter(
+            "Value Type",
+            format!("{decl_id}/value_type"),
+            ParamValue::Str(value_type.to_string()),
+            true,
+        )))
+}
+
+#[node("alchemist_connection", label = "Connection")]
+#[children(
+    source_node: NodeReference (
+        label = "Source",
+        reference_target_kind = ReferenceTargetKind::AnyNode,
+        reference_allowed_node_types = vec![ANODE_NODE_TYPE.to_owned()],
+        reference_allow_projections = false
+    );
+    source_socket: String = String::new() (label = "Source Socket");
+    target_node: NodeReference (
+        label = "Target",
+        reference_target_kind = ReferenceTargetKind::AnyNode,
+        reference_allowed_node_types = vec![ANODE_NODE_TYPE.to_owned()],
+        reference_allow_projections = false
+    );
+    target_socket: String = String::new() (label = "Target Socket");
+)]
+pub struct AlchemistConnection {}
+
+#[node("alchemist_connection", from_struct)]
+impl Node for AlchemistConnection {
+    fn user_item_kind(&self) -> &str {
+        CONNECTION_ITEM_KIND
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+#[node("alchemist_formula", label = "Formula")]
+#[children(
+    is_valid: bool = false (label = "Valid", read_only = true);
+    diagnostics_json: String = String::from("[]") (
+        label = "Diagnostics",
+        read_only = true
     );
 )]
+pub struct AlchemistFormulaDefinition {}
+
+#[item("alchemist_formula", node = "alchemist_formula", from_struct)]
+impl Node for AlchemistFormulaDefinition {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.validate(ctx);
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        if param != self.is_valid.id() && param != self.diagnostics_json.id() {
+            self.validate(ctx);
+        }
+    }
+
+    fn on_child_added(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: NodeId,
+        _child: NodeId,
+    ) {
+        self.validate(ctx);
+    }
+
+    fn on_child_removed(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: NodeId,
+        _child: NodeId,
+    ) {
+        self.remove_dangling_connections(ctx);
+        self.validate(ctx);
+    }
+
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        5
+    }
+
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[
+            ANODE_ITEM_KIND,
+            CONNECTION_ITEM_KIND,
+        ]))
+    }
+
+    fn user_container_accepts_item(
+        &self,
+        item_type: &str,
+        item_kind: &str,
+    ) -> bool {
+        (item_kind == ANODE_ITEM_KIND
+            && (item_type == ANODE_NODE_TYPE
+                || item_type.starts_with(ANODE_CREATE_PREFIX)))
+            || (item_type == CONNECTION_NODE_TYPE
+                && item_kind == CONNECTION_ITEM_KIND)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        let mut items = registry()
+            .iter()
+            .map(|declaration| {
+                UserCreatableItem::new(
+                    format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
+                    ANODE_ITEM_KIND,
+                    declaration.label(),
+                )
+                .with_menu_path([declaration.category()])
+            })
+            .collect::<Vec<_>>();
+        items.push(
+            UserCreatableItem::new(
+                CONNECTION_NODE_TYPE,
+                CONNECTION_ITEM_KIND,
+                "Connection",
+            )
+            .with_menu_path(["Graph"]),
+        );
+        items
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if node_type == CONNECTION_NODE_TYPE {
+            return Some(Box::new(AlchemistConnection::new()));
+        }
+        if node_type == ANODE_NODE_TYPE {
+            return Some(Box::new(AlchemistANode::new()));
+        }
+        let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+        let registry = registry();
+        let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+        Some(Box::new(AlchemistANode::for_type(
+            type_id,
+            declaration.label(),
+        )))
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl AlchemistFormulaDefinition {
+    fn remove_dangling_connections(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let anode_uuids = snapshot
+            .child_ids(self.id())
+            .into_iter()
+            .filter_map(|child| {
+                let node = snapshot.node(child)?;
+                (node.node_type == ANODE_NODE_TYPE).then_some(node.uuid)
+            })
+            .collect::<HashSet<_>>();
+
+        for child in snapshot.child_ids(self.id()) {
+            let Some(node) = snapshot.node(child) else {
+                continue;
+            };
+            if node.node_type != CONNECTION_NODE_TYPE {
+                continue;
+            }
+            let source =
+                child_reference_uuid(&snapshot, child, "source_node");
+            let target =
+                child_reference_uuid(&snapshot, child, "target_node");
+            if source.is_none_or(|uuid| !anode_uuids.contains(&uuid))
+                || target.is_none_or(|uuid| !anode_uuids.contains(&uuid))
+            {
+                ctx.edits.push(Edit::RemoveNode { node: child });
+            }
+        }
+    }
+
+    fn validate(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        let result = formula_from_snapshot(snapshot, self.id()).map(|formula| {
+            let value_types = value_types();
+            let nodes = registry();
+            compile_graph(
+                &formula.graph,
+                &CompileCtx {
+                    value_types: &value_types,
+                    nodes: &nodes,
+                },
+            )
+        });
+        let (valid, diagnostics) = match result {
+            Ok(compilation) => {
+                let diagnostics = compilation
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| {
+                        serde_json::json!({
+                            "code": diagnostic.code,
+                            "message": diagnostic.message,
+                            "severity": match diagnostic.severity {
+                                DiagnosticSeverity::Info => "info",
+                                DiagnosticSeverity::Warning => "warning",
+                                DiagnosticSeverity::Error => "error",
+                            },
+                            "origin": format!("{:?}", diagnostic.origin),
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                (!compilation.has_errors(), diagnostics)
+            }
+            Err(message) => (
+                false,
+                vec![serde_json::json!({
+                    "code": "invalid_formula_tree",
+                    "message": message,
+                    "severity": "error",
+                    "origin": "Formula",
+                })],
+            ),
+        };
+        let diagnostics_json = serde_json::to_string(&diagnostics)
+            .expect("Formula diagnostics must serialize");
+        self.is_valid.set(ctx, valid);
+        self.diagnostics_json.set(ctx, diagnostics_json);
+        if valid {
+            ctx.clear_node_warning(self.id(), Some("alchemist_formula"));
+        } else {
+            let summary = diagnostics
+                .first()
+                .and_then(|diagnostic| diagnostic["message"].as_str())
+                .unwrap_or("Formula compilation failed");
+            ctx.set_node_warning_with(
+                self.id(),
+                Some("alchemist_formula"),
+                "Formula is invalid",
+                Some(summary),
+            );
+        }
+    }
+}
+
+#[node("alchemist_formula_library", label = "Formulas")]
 pub struct FormulaLibrary {}
 
 #[node("alchemist_formula_library", from_struct)]
 impl Node for FormulaLibrary {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[CUSTOM_FORMULA_ITEM_KIND]))
+        Some(UserContainerRules::new(&[FORMULA_ITEM_KIND]))
     }
 
-    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == CUSTOM_FORMULA_ITEM_KIND
-            && crate::app::declared_user_item_type_matches(item_type, CUSTOM_FORMULA_ITEM_KIND)
+    fn user_container_accepts_item(
+        &self,
+        item_type: &str,
+        item_kind: &str,
+    ) -> bool {
+        item_kind == FORMULA_ITEM_KIND
+            && crate::app::declared_user_item_type_matches(
+                item_type,
+                FORMULA_ITEM_KIND,
+            )
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        crate::app::declared_user_creatable_items(CUSTOM_FORMULA_ITEM_KIND)
+        crate::app::declared_user_creatable_items(FORMULA_ITEM_KIND)
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        crate::app::create_declared_user_item(node_type, CUSTOM_FORMULA_ITEM_KIND)
+        crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
-    }
-}
-
-/// Built-in Action formula. Defines Conditions + True/False Consequences slots.
-#[node("alchemist_formula_action", label = "Action")]
-#[children(
-    node conditions: ConditionsManagerANode = ConditionsManagerANode::new() (
-        label = "Conditions"
-    );
-    node true_consequences: ConsequencesANode = ConsequencesANode::new() (
-        label = "True Consequences"
-    );
-    node false_consequences: ConsequencesANode = ConsequencesANode::new() (
-        label = "False Consequences"
-    );
-)]
-pub struct ActionBuiltinFormula {}
-
-#[node("alchemist_formula_action", from_struct)]
-impl Node for ActionBuiltinFormula {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
-    }
-}
-
-/// Built-in Mapping formula. Defines Inputs + Filter Chain + Outputs slots.
-#[node("alchemist_formula_mapping", label = "Mapping")]
-#[children(
-    node inputs: InputsANode = InputsANode::new() (
-        label = "Inputs"
-    );
-    node filter_chain: FilterChainANode = FilterChainANode::new() (
-        label = "Filter Chain"
-    );
-    node outputs: OutputsANode = OutputsANode::new() (
-        label = "Outputs"
-    );
-)]
-pub struct MappingBuiltinFormula {}
-
-#[node("alchemist_formula_mapping", from_struct)]
-impl Node for MappingBuiltinFormula {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
-        self.node_data_mut().meta.can_be_disabled = false;
-    }
-}
-
-/// User-created custom formula.
-///
-/// The authored graph is stored as JSON and opened in the Alchemist graph editor.
-#[node("alchemist_formula_custom", label = "Custom Formula")]
-#[children(
-    authored_graph: String = String::new() (
-        label = "Authored Graph",
-        description = "Serialized Alchemist graph for this custom formula.",
-        show_in_inspector_content = false
-    );
-)]
-pub struct CustomAlchemistFormula {}
-
-#[item("alchemist_formula_custom", node = "alchemist_formula_custom", from_struct)]
-impl Node for CustomAlchemistFormula {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 

@@ -12,26 +12,28 @@
 		for (const childId of node.children) {
 			const child = graphState.nodesById.get(childId);
 			if (
-				child?.decl_id === 'formula_uuid' &&
+				child?.decl_id === 'formula' &&
 				child.data.kind === 'parameter' &&
-				child.data.param.value.kind === 'str'
+				child.data.param.value.kind === 'reference'
 			) {
-				const uuid = child.data.param.value.value;
+				const reference = child.data.param.value;
+				if (reference.cached_id !== undefined) {
+					const cached = graphState.nodesById.get(reference.cached_id);
+					if (cached?.uuid === reference.uuid) return cached;
+				}
 				for (const n of graphState.nodesById.values()) {
-					if (n.uuid === uuid) return n;
+					if (n.uuid === reference.uuid) return n;
 				}
 			}
 		}
 		return null;
 	});
 
-	let formulaKind = $derived(formulaNode?.meta.label ?? 'Custom');
+	let formulaKind = $derived(formulaNode?.meta.label ?? 'No Formula');
 	let formulaDescription = $derived(
-		formulaNode?.node_type === 'alchemist_formula_action'
-			? 'Evaluate a condition and invoke edge-specific consequences.'
-			: formulaNode?.node_type === 'alchemist_formula_mapping'
-				? 'Transform an input range, smooth it, and send it to an output target.'
-				: 'Custom formula processor.'
+		formulaNode
+			? 'This Processor owns configuration and runtime state for this shared Formula.'
+			: 'Select a Formula for this Processor.'
 	);
 
 	const openAlchemistEditor = (): void => {
@@ -39,9 +41,7 @@
 			panelId: 'alchemist-editor',
 			panelType: 'alchemistEditor',
 			title: `Alchemist: ${node.meta.label}`,
-			params: {
-				processorNodeId: node.node_id
-			},
+			params: formulaNode ? { formulaNodeId: formulaNode.node_id } : {},
 			position: {
 				referencePanelId: 'state-machine',
 				direction: 'within'

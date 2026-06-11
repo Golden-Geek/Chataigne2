@@ -2,41 +2,40 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
-    FormulaFamily, FormulaId, FormulaSurface, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SurfaceItem,
-    SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry,
-    primitive_node_registry,
+    FormulaId, FormulaSurface, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId,
+    SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry, primitive_node_registry,
 };
 
 use crate::{Processor, ProcessorLifecycleEvent, ProcessorRuntime};
 
-fn processor() -> Processor {
+fn formula() -> AlchemistFormula {
     let mut graph = AlchemistGraph::new();
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(constant).unwrap();
-    Processor::from_formula(
-        "Processor",
-        &AlchemistFormula {
-            id: FormulaId::new("test"),
-            version: 1,
-            label: "Test".into(),
-            family: FormulaFamily::CustomUser,
-            graph,
-            surface: FormulaSurface::default(),
-            context_contract: FormulaContextContract::default(),
-            migrations: Vec::new(),
-        },
-    )
+    AlchemistFormula {
+        id: FormulaId::new("test"),
+        version: 1,
+        label: "Test".into(),
+        description: None,
+        tags: Vec::new(),
+        graph,
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
 }
 
 #[test]
 fn processor_compiles_and_evaluates_only_while_active() {
-    let processor = processor();
+    let formula = formula();
+    let processor = Processor::from_formula("Processor", &formula);
     let mut runtime = ProcessorRuntime::new(processor.id);
     let value_types = ValueTypeRegistry::with_primitives();
     let nodes = primitive_node_registry();
     assert!(runtime.compile(
         &processor,
+        &formula,
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
@@ -64,8 +63,8 @@ fn processor_compiles_and_evaluates_only_while_active() {
 
 #[test]
 fn formula_surface_is_present_in_ui_model() {
-    let mut processor = processor();
-    processor.formula_instance.surface.sections.push(SurfaceSection {
+    let mut formula = formula();
+    formula.surface.sections.push(SurfaceSection {
         id: SurfaceSectionId::new("actions"),
         label: "Actions".into(),
         items: vec![SurfaceItem {
@@ -80,7 +79,9 @@ fn formula_surface_is_present_in_ui_model() {
         source: SurfaceSource::Formula,
     });
 
-    let ui = processor.ui_model(Vec::new());
-    assert_eq!(ui.family, FormulaFamily::CustomUser);
+    let processor = Processor::from_formula("Processor", &formula);
+    let ui = processor.ui_model(&formula, Vec::new());
+    assert_eq!(ui.formula_id, "test");
+    assert_eq!(ui.formula_label, "Test");
     assert_eq!(ui.surface.sections[0].items.len(), 1);
 }

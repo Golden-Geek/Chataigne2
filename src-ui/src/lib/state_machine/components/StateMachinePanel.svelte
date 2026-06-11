@@ -290,11 +290,7 @@
 							nodeId: String(targetState.node_id),
 							socketId: TRANSITION_INPUT_SOCKET_ID
 						},
-						color: sourceSelected
-							? '#66cc00'
-							: targetSelected
-								? '#58a6ff'
-								: undefined,
+						color: sourceSelected ? '#66cc00' : targetSelected ? '#58a6ff' : undefined,
 						active: boolParameterValue(sourceState, ACTIVE_DECL_ID) ?? false
 					}
 				];
@@ -337,33 +333,23 @@
 		document.activeElement !== null &&
 		panelRoot.contains(document.activeElement);
 
-	const selectNodes = (nodeIds: string[]): void => {
+	const selectGraphItems = (nodeIds: string[], edgeIds: string[]): void => {
 		if (!session) {
 			return;
 		}
-		const hierarchyNodeIds = nodeIds
+		const selectedStates = nodeIds
 			.map((nodeId) => Number(nodeId))
 			.filter((nodeId) => Number.isSafeInteger(nodeId) && stateNodeIds.has(nodeId));
+		const selectedTransitions = edgeIds
+			.map((edgeId) => Number(edgeId))
+			.filter((nodeId) => Number.isSafeInteger(nodeId) && transitionNodeIds.has(nodeId));
+		const hierarchyNodeIds = [...selectedStates, ...selectedTransitions];
 		if (hierarchyNodeIds.length === 0) {
 			if (manager) {
 				session.selectNodes([manager.node_id], 'REPLACE');
 			} else {
 				session.clearSelection();
 			}
-			return;
-		}
-		session.selectNodes(hierarchyNodeIds, 'REPLACE');
-	};
-
-	const selectEdges = (edgeIds: string[]): void => {
-		if (!session) {
-			return;
-		}
-		const hierarchyNodeIds = edgeIds
-			.map((edgeId) => Number(edgeId))
-			.filter((nodeId) => Number.isSafeInteger(nodeId) && transitionNodeIds.has(nodeId));
-		if (hierarchyNodeIds.length === 0) {
-			session.clearSelection();
 			return;
 		}
 		session.selectNodes(hierarchyNodeIds, 'REPLACE');
@@ -803,8 +789,7 @@
 		edges={graphEdges}
 		{selectedNodeIds}
 		{selectedEdgeIds}
-		onSelectionChange={selectNodes}
-		onEdgeSelectionChange={selectEdges}
+		onGraphSelectionChange={selectGraphItems}
 		onNodesMove={persistNodePositions}
 		onNodeResize={persistNodeResize}
 		onConnect={connectStates}

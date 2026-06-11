@@ -3,7 +3,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
-use golden_alchemist::{FormulaFamily, SurfaceItemKind};
+use golden_alchemist::SurfaceItemKind;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
@@ -38,25 +38,6 @@ pub enum StatechartDeltaDto {
     Upsert { state: StateUiNodeDto },
     Remove { state_id: String },
     ActiveChanged { state_id: String, active: bool },
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum FormulaFamilyDto {
-    Action,
-    Mapping,
-    CustomUser,
-}
-
-impl From<FormulaFamily> for FormulaFamilyDto {
-    fn from(value: FormulaFamily) -> Self {
-        match value {
-            FormulaFamily::Action => Self::Action,
-            FormulaFamily::Mapping => Self::Mapping,
-            FormulaFamily::CustomUser => Self::CustomUser,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
@@ -100,43 +81,10 @@ pub struct ProcessorUiDto {
     pub id: String,
     pub label: String,
     pub active: bool,
-    pub formula_family: FormulaFamilyDto,
+    pub formula_id: String,
+    pub formula_label: String,
     pub surface: Vec<FormulaSurfaceSectionDto>,
     pub diagnostic_ids: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct AlchemistSocketDto {
-    pub id: String,
-    pub label: String,
-    pub value_type: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct AlchemistNodeDto {
-    pub id: String,
-    pub type_id: String,
-    pub label: String,
-    pub x: f64,
-    pub y: f64,
-    pub inputs: Vec<AlchemistSocketDto>,
-    pub outputs: Vec<AlchemistSocketDto>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct AlchemistEdgeDto {
-    pub from_node: String,
-    pub from_socket: String,
-    pub to_node: String,
-    pub to_socket: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct SocketCompatibilityDto {
-    pub node_id: String,
-    pub socket_id: String,
-    pub compatible: bool,
-    pub explanation: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -169,27 +117,19 @@ pub struct RuntimeDebugDeltaDto {
 pub struct StateMachineProtocolBundle {
     pub statechart_deltas: Vec<StatechartDeltaDto>,
     pub processors: Vec<ProcessorUiDto>,
-    pub graph_nodes: Vec<AlchemistNodeDto>,
-    pub graph_edges: Vec<AlchemistEdgeDto>,
-    pub socket_compatibility: Vec<SocketCompatibilityDto>,
     pub diagnostics: Vec<DiagnosticDto>,
     pub runtime_debug: Vec<RuntimeDebugDeltaDto>,
 }
 
 pub fn export_typescript(output_dir: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
     const INDEX: &str = "\
-export type { AlchemistEdgeDto } from './AlchemistEdgeDto';\n\
-export type { AlchemistNodeDto } from './AlchemistNodeDto';\n\
-export type { AlchemistSocketDto } from './AlchemistSocketDto';\n\
 export type { DiagnosticDto } from './DiagnosticDto';\n\
 export type { DiagnosticSeverityDto } from './DiagnosticSeverityDto';\n\
-export type { FormulaFamilyDto } from './FormulaFamilyDto';\n\
 export type { FormulaSurfaceItemDto } from './FormulaSurfaceItemDto';\n\
 export type { FormulaSurfaceItemKindDto } from './FormulaSurfaceItemKindDto';\n\
 export type { FormulaSurfaceSectionDto } from './FormulaSurfaceSectionDto';\n\
 export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
-export type { SocketCompatibilityDto } from './SocketCompatibilityDto';\n\
 export type { StatechartDeltaDto } from './StatechartDeltaDto';\n\
 export type { StateMachineProtocolBundle } from './StateMachineProtocolBundle';\n\
 export type { StateUiKind } from './StateUiKind';\n\

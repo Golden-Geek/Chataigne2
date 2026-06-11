@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
-    FormulaFamily, FormulaId, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, ValueTypeRegistry, primitive_node_registry,
+    FormulaId, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue,
+    ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
@@ -12,24 +12,22 @@ use crate::{
     alchemist::{register_nodes, register_value_types},
 };
 
-fn constant_processor(label: &str) -> Processor {
+fn constant_formula() -> AlchemistFormula {
     let mut graph = AlchemistGraph::new();
     let mut node = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     node.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(node).unwrap();
-    Processor::from_formula(
-        label,
-        &AlchemistFormula {
-            id: FormulaId::new("constant"),
-            version: 1,
-            label: "Constant".into(),
-            family: FormulaFamily::CustomUser,
-            graph,
-            surface: FormulaSurface::default(),
-            context_contract: FormulaContextContract::default(),
-            migrations: Vec::new(),
-        },
-    )
+    AlchemistFormula {
+        id: FormulaId::new("constant"),
+        version: 1,
+        label: "Constant".into(),
+        description: None,
+        tags: Vec::new(),
+        graph,
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
 }
 
 #[test]
@@ -40,10 +38,12 @@ fn state_transition_updates_active_processor_matrix() {
     chart.set_initial(chart.root_region, first).unwrap();
     let transition = chart.add_transition(first, second, 0).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
-    let first_processor = constant_processor("First Processor");
+    let formula = constant_formula();
+    let first_processor = Processor::from_formula("First Processor", &formula);
     let first_id = first_processor.id;
-    let second_processor = constant_processor("Second Processor");
+    let second_processor = Processor::from_formula("Second Processor", &formula);
     let second_id = second_processor.id;
+    machine.add_formula(formula);
     machine.add_processor(first, first_processor).unwrap();
     machine.add_processor(second, second_processor).unwrap();
 

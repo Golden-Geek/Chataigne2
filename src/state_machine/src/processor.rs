@@ -1,8 +1,8 @@
 use uuid::Uuid;
 
 use golden_alchemist::{
-    AlchemistFormula, AlchemistFormulaInstance, AlchemistRuntime, CompileCtx, Diagnostic, EvaluationCtx, FormulaFamily,
-    FormulaSurface, RuntimeOutput, RuntimeSubscription, compile_graph,
+    AlchemistFormula, AlchemistFormulaInstance, AlchemistRuntime, CompileCtx, Diagnostic, DiagnosticOrigin,
+    EvaluationCtx, FormulaSurface, RuntimeOutput, RuntimeSubscription, compile_graph,
 };
 use golden_statechart::StateId;
 
@@ -92,12 +92,13 @@ impl Processor {
     }
 
     #[must_use]
-    pub fn ui_model(&self, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
+    pub fn ui_model(&self, formula: &AlchemistFormula, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
         ProcessorUiModel {
             id: self.id,
             label: self.label.clone(),
-            family: self.formula_instance.family,
-            surface: self.formula_instance.surface.clone(),
+            formula_id: formula.id.to_string(),
+            formula_label: formula.label.clone(),
+            surface: formula.surface.clone(),
             diagnostics,
         }
     }
@@ -142,8 +143,20 @@ impl ProcessorRuntime {
         }
     }
 
-    pub fn compile(&mut self, processor: &Processor, ctx: &CompileCtx<'_>) -> bool {
-        let result = compile_graph(&processor.formula_instance.graph_instance, ctx);
+    pub fn compile(&mut self, processor: &Processor, formula: &AlchemistFormula, ctx: &CompileCtx<'_>) -> bool {
+        let graph = match formula.materialize(&processor.formula_instance) {
+            Ok(graph) => graph,
+            Err(error) => {
+                self.runtime = None;
+                self.diagnostics = vec![Diagnostic::error(
+                    "formula_materialization_failed",
+                    error.to_string(),
+                    DiagnosticOrigin::Graph,
+                )];
+                return false;
+            }
+        };
+        let result = compile_graph(&graph, ctx);
         self.diagnostics = result.diagnostics;
         let Some(compiled) = result.compiled else {
             self.runtime = None;
@@ -198,7 +211,8 @@ impl ProcessorRuntime {
 pub struct ProcessorUiModel {
     pub id: ProcessorId,
     pub label: String,
-    pub family: FormulaFamily,
+    pub formula_id: String,
+    pub formula_label: String,
     pub surface: FormulaSurface,
     pub diagnostics: Vec<Diagnostic>,
 }

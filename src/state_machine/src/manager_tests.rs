@@ -1,8 +1,24 @@
-use crate::{Processor, ProcessorExecutionPolicy, ProcessorGroup, ProcessorManager, builtin_formulas};
+use golden_alchemist::{AlchemistFormula, AlchemistGraph, FormulaContextContract, FormulaId, FormulaSurface};
+
+use crate::{Processor, ProcessorExecutionPolicy, ProcessorGroup, ProcessorManager};
+
+fn formula() -> AlchemistFormula {
+    AlchemistFormula {
+        id: FormulaId::new("test"),
+        version: 1,
+        label: "Test".into(),
+        description: None,
+        tags: Vec::new(),
+        graph: AlchemistGraph::new(),
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
+}
 
 #[test]
 fn manager_orders_direct_and_grouped_processors_and_skips_disabled_scopes() {
-    let formula = builtin_formulas().remove(0);
+    let formula = formula();
     let mut manager = ProcessorManager::new();
     let direct = Processor::from_formula("Direct", &formula);
     let direct_id = direct.id;

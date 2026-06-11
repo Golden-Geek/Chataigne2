@@ -1,7 +1,8 @@
 use indexmap::{IndexMap, IndexSet};
 
 use golden_alchemist::{
-    AlchemistGraph, AlchemistRuntime, CompileCtx, EvaluationCtx, RuntimeIntent, RuntimeOutput, compile_graph,
+    AlchemistFormula, AlchemistGraph, AlchemistRuntime, CompileCtx, EvaluationCtx, FormulaId, RuntimeIntent,
+    RuntimeOutput, compile_graph,
 };
 use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, TransitionOutcome};
 
@@ -20,6 +21,7 @@ pub struct ChataigneTransition {
 #[derive(Clone, Debug)]
 pub struct ChataigneStateMachine {
     pub chart: Statechart,
+    pub formulas: IndexMap<FormulaId, AlchemistFormula>,
     pub processor_managers: IndexMap<StateId, ProcessorManager>,
     pub transitions: IndexMap<TransitionId, ChataigneTransition>,
 }
@@ -29,9 +31,14 @@ impl ChataigneStateMachine {
     pub fn new(chart: Statechart) -> Self {
         Self {
             chart,
+            formulas: IndexMap::new(),
             processor_managers: IndexMap::new(),
             transitions: IndexMap::new(),
         }
+    }
+
+    pub fn add_formula(&mut self, formula: AlchemistFormula) -> Option<AlchemistFormula> {
+        self.formulas.insert(formula.id.clone(), formula)
     }
 
     pub fn processor_manager_mut(&mut self, state: StateId) -> &mut ProcessorManager {
@@ -109,8 +116,15 @@ impl ChataigneStateMachineRuntime {
         let mut errors = Vec::new();
         let mut processor_runtimes = IndexMap::new();
         for processor in machine.processors() {
+            let Some(formula) = machine.formulas.get(&processor.formula_instance.formula_ref.id) else {
+                errors.push(format!(
+                    "processor `{}` references missing formula `{}`",
+                    processor.label, processor.formula_instance.formula_ref.id
+                ));
+                continue;
+            };
             let mut runtime = ProcessorRuntime::new(processor.id);
-            if !runtime.compile(processor, ctx) {
+            if !runtime.compile(processor, formula, ctx) {
                 errors.extend(runtime.diagnostics.iter().map(|diagnostic| diagnostic.message.clone()));
             }
             processor_runtimes.insert(processor.id, runtime);

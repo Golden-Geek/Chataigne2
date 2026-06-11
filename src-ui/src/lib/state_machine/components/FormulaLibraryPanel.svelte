@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { NodeAddButton, OutlinerItem, type UiNodeDto } from 'golden_ui';
-	import type { PanelProps } from 'golden_ui';
+	import type { PanelProps, PanelState } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
-	const BUILTIN_FORMULA_TYPES = new Set([
-		'alchemist_formula_action',
-		'alchemist_formula_mapping'
-	]);
 
 	let props: PanelProps = $props();
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
+
+	export const setPanelState = (_next: PanelState): void => {};
 
 	let formulaLibrary = $derived.by((): UiNodeDto | null => {
 		if (!graphState) return null;
@@ -31,8 +29,6 @@
 			.map((id) => graphState.nodesById.get(id))
 			.filter((n): n is UiNodeDto => n != null);
 	});
-
-	const isBuiltin = (node: UiNodeDto): boolean => BUILTIN_FORMULA_TYPES.has(node.node_type);
 </script>
 
 <div class="formula-library-panel">
@@ -54,9 +50,7 @@
 					<div class="formula-item">
 						<OutlinerItem node={formula} initiallyExpandedDepth={0} />
 					</div>
-					<span class="kind-badge" class:builtin={isBuiltin(formula)}>
-						{isBuiltin(formula) ? 'Built-in' : 'Custom'}
-					</span>
+					<span class="kind-badge">Formula</span>
 				</div>
 			{/each}
 		</div>
@@ -116,11 +110,6 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-	}
-
-	.kind-badge.builtin {
-		border-color: color-mix(in srgb, var(--gc-color-accent) 40%, transparent);
-		color: var(--gc-color-accent);
 	}
 
 	.empty {

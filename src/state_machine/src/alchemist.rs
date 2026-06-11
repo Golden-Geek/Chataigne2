@@ -3,10 +3,10 @@
 use std::{fmt::Debug, sync::Arc};
 
 use golden_alchemist::{
-    ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId, CompiledNodeEvaluator,
-    CompiledNodeOperation, Diagnostic, ExecutionKind, ExtensionValue, FacetId, InputSocketDecl, NodeEvaluation,
-    OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent, RuntimeValue, SignatureCtx, StableRef,
-    TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
+    ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId,
+    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, ExecutionKind, ExtensionValue, FacetId, InputSocketDecl,
+    NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent, RuntimeValue, SignatureCtx,
+    StableRef, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 use serde::{Deserialize, Serialize};
 
@@ -58,6 +58,20 @@ pub fn register_nodes(registry: &mut ANodeRegistry) -> Result<(), RegistryError>
         registry.register(ChataigneNodeDeclaration(kind))?;
     }
     Ok(())
+}
+
+#[must_use]
+pub fn value_type_registry() -> ValueTypeRegistry {
+    let mut registry = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut registry).expect("Chataigne value type IDs must be unique");
+    registry
+}
+
+#[must_use]
+pub fn node_registry() -> ANodeRegistry {
+    let mut registry = golden_alchemist::primitive_node_registry();
+    register_nodes(&mut registry).expect("Chataigne ANode IDs must be unique");
+    registry
 }
 
 fn register_ref(
@@ -135,6 +149,24 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             ChataigneNodeKind::CommandIntentOutput
             | ChataigneNodeKind::SequenceIntentOutput
             | ChataigneNodeKind::StateTransitionIntentOutput => ExecutionKind::EffectEmitter,
+        }
+    }
+
+    fn config_fields(&self) -> Vec<ANodeConfigFieldDecl> {
+        match self.0 {
+            ChataigneNodeKind::ModuleValueInput => vec![
+                ANodeConfigFieldDecl::new(
+                    "source",
+                    "Source",
+                    RuntimeValue::Ref(StableRef::new(ValueTypeId::new(MODULE_ENDPOINT_TYPE), "")),
+                )
+                .with_description("Stable reference to the module endpoint to sample.")
+                .with_editor("stable_ref"),
+                ANodeConfigFieldDecl::new("value_type", "Value Type", RuntimeValue::String(Arc::from("bool")))
+                    .with_description("Value type produced by the selected endpoint.")
+                    .with_editor("value_type"),
+            ],
+            _ => Vec::new(),
         }
     }
 

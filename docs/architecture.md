@@ -17,8 +17,19 @@ the contributor-facing companion for day-to-day placement decisions.
 - `golden_alchemist_ui` owns the reusable infinite node canvas, slots, wires, selection, and
   viewport interaction.
 - `src/state_machine` owns Chataigne value types, Processor behavior, arbitration, protocol DTOs,
-  and built-in Processor models.
+  and Processor integration.
 - `src-ui/src/lib/state_machine` owns State Machine panel composition and Chataigne DTO adapters.
+
+Alchemist Formula authoring uses the same boundary as every other node tree.
+Formula, ANode, socket, connection, and configuration parameter nodes are
+canonical Golden Core hierarchy objects. The graph editor only projects those
+nodes and sends standard edit intents. `golden_alchemist_core` receives a
+transient graph for typing, compilation, and execution; it does not define a
+parallel Formula persistence document.
+
+Reusable Formula assets use Golden Core sparse subtree persistence. A
+`.formula` file is a rooted Formula node hierarchy, not an app-specific graph
+schema.
 
 ## Boundaries
 

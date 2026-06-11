@@ -51,7 +51,7 @@
 		alchemistEditor: {
 			title: 'Alchemist Editor',
 			component: AlchemistEditorPanel,
-			description: 'Visual formula graph editor for Action and Mapping processors'
+			description: 'Visual editor for custom Alchemist Formulas'
 		},
 		formulaLibrary: {
 			title: 'Formula Library',
