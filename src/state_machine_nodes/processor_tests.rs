@@ -114,7 +114,13 @@ fn processor_created_from_formula_item_keeps_a_stable_reference() {
 
 #[test]
 fn processor_folder_accepts_processors_and_folders() {
+    let manager = StateProcessorManager::new();
     let folder = StateProcessorFolder::new();
+    assert!(manager.user_container_accepts_item(StateProcessor::NODE_TYPE, PROCESSOR_ITEM_KIND));
+    assert!(manager.user_container_accepts_item(
+        PROCESSOR_FOLDER_NODE_TYPE,
+        PROCESSOR_FOLDER_ITEM_KIND
+    ));
     assert!(folder.user_container_accepts_item(
         PROCESSOR_FOLDER_NODE_TYPE,
         PROCESSOR_FOLDER_ITEM_KIND
@@ -126,6 +132,53 @@ fn processor_folder_accepts_processors_and_folders() {
         &format!("state_processor:{}", uuid::Uuid::nil()),
         PROCESSOR_ITEM_KIND
     ));
+    assert!(!manager.user_container_accepts_item("module", "module"));
+    assert!(!manager.user_container_accepts_item("module_folder", "module_folder"));
+    assert!(!folder.user_container_accepts_item("folder", PROCESSOR_FOLDER_ITEM_KIND));
+    assert!(!folder.user_container_accepts_item("state", "state"));
+}
+
+#[test]
+fn processor_nodes_do_not_accept_nested_processors() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+
+    engine.add_user_item(StateProcessor::new().into(), Some(manager_id));
+    engine.add_user_item(StateProcessor::new().into(), Some(manager_id));
+    engine
+        .apply_edits()
+        .expect("processors should attach to the manager");
+
+    let processors = engine
+        .process_tree_snapshot()
+        .child_ids(manager_id)
+        .into_iter()
+        .filter(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|node| node.get_type() == StateProcessor::NODE_TYPE)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(processors.len(), 2);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: processors[1],
+        new_parent: processors[0],
+        new_prev_sibling: None,
+    });
+    assert!(
+        !ack.success,
+        "processor nodes must not accept nested processor drops"
+    );
 }
 
 #[test]

@@ -4,7 +4,7 @@ use golden_core::{
     process_ctx::{ExecutionPhase, ProcessCtx},
 };
 
-use super::ModuleManager;
+use super::{MODULE_FOLDER_ITEM_KIND, MODULE_FOLDER_NODE_TYPE, ModuleFolder, ModuleManager};
 
 #[test]
 fn module_manager_cannot_be_removed_or_duplicated() {
@@ -87,6 +87,27 @@ fn module_manager_uses_declared_module_item_metadata() {
     let folder = items
         .last()
         .expect("module manager should expose a trailing Folder item");
-    assert_eq!(folder.node_type, golden_core::node::FOLDER_NODE_TYPE);
+    assert_eq!(folder.node_type, MODULE_FOLDER_NODE_TYPE);
+    assert_eq!(folder.item_kind, MODULE_FOLDER_ITEM_KIND);
     assert!(folder.menu_path.is_empty());
+
+    let folder = manager
+        .create_user_item(MODULE_FOLDER_NODE_TYPE)
+        .expect("module manager should create typed module folders");
+    assert_eq!(folder.get_type(), MODULE_FOLDER_NODE_TYPE);
+}
+
+#[test]
+fn module_folder_accepts_only_modules_and_module_folders() {
+    let folder = ModuleFolder::new();
+
+    assert!(folder.user_container_accepts_item(
+        crate::app::GenericOscModule::NODE_TYPE,
+        crate::app::module::MODULE_ITEM_KIND,
+    ));
+    assert!(folder.user_container_accepts_item(MODULE_FOLDER_NODE_TYPE, MODULE_FOLDER_ITEM_KIND));
+    assert!(!folder.user_container_accepts_item(
+        crate::app::StateProcessorFolder::NODE_TYPE,
+        crate::app::state_machine_nodes_processor::PROCESSOR_FOLDER_ITEM_KIND,
+    ));
 }

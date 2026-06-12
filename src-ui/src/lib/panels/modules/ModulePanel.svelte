@@ -27,7 +27,7 @@
 
 	const MODULE_MANAGER_NODE_TYPE = 'module_manager';
 	const MODULE_USER_ITEM_KIND = 'module';
-	const MODULE_FOLDER_NODE_TYPE = 'folder';
+	const MODULE_FOLDER_NODE_TYPE = 'module_folder';
 
 	const isModuleFolderNode = (candidate: UiNodeDto | null): candidate is UiNodeDto =>
 		Boolean(candidate && candidate.node_type === MODULE_FOLDER_NODE_TYPE);

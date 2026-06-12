@@ -5,7 +5,7 @@
 	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
 
 	const MODULE_USER_ITEM_KIND = 'module';
-	const MODULE_FOLDER_NODE_TYPE = 'folder';
+	const MODULE_FOLDER_NODE_TYPE = 'module_folder';
 
 	let showModuleIndicators = $derived(
 		node.user_item_kind === MODULE_USER_ITEM_KIND && node.node_type !== MODULE_FOLDER_NODE_TYPE

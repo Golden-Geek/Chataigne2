@@ -1,7 +1,8 @@
 use golden_core::{
     engine::EngineTime,
-    node::Node,
+    node::{Folder, Node},
     process_ctx::{ExecutionPhase, ProcessCtx},
+    ui_sync::UiEditIntent,
 };
 
 use super::{STATE_ITEM_KIND, StateMachineManager};
@@ -31,4 +32,36 @@ fn state_machine_manager_is_fixed_and_creates_states() {
         .create_user_item(crate::app::StateMachineState::NODE_TYPE)
         .expect("state machine manager should create state items");
     assert_eq!(state.get_type(), crate::app::StateMachineState::NODE_TYPE);
+}
+
+#[test]
+fn states_do_not_accept_user_items() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("state machine manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+
+    engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
+    engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
+    engine
+        .apply_edits()
+        .expect("states should attach to the manager");
+
+    let states = engine.process_tree_snapshot().child_ids(manager_id);
+    assert_eq!(states.len(), 2);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: states[1],
+        new_parent: states[0],
+        new_prev_sibling: None,
+    });
+    assert!(!ack.success, "states must not accept nested user items");
 }
