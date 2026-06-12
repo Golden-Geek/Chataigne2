@@ -1,5 +1,6 @@
 use golden_core::{
     app::ProjectFileSpec,
+    color::Color,
     edit::Edit,
     node::{DeclId, Folder, Node, NodeId, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
@@ -53,6 +54,17 @@ fn state_canvas_geometry_survives_project_reload() {
         .get(state_id)
         .and_then(|state| state.node_data().next_sibling)
         .expect("target state should be attached under root");
+    assert_eq!(
+        engine
+            .nodes
+            .get(state_id)
+            .expect("state should exist")
+            .node_data()
+            .meta
+            .presentation
+            .color,
+        Some(Color::new(0.28, 0.56, 0.92, 1.0))
+    );
     let transition_manager_id = child_by_decl(&engine, state_id, "transitions");
     engine.add_user_item(
         crate::app::StateTransition::new().into(),

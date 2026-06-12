@@ -14,7 +14,7 @@ use golden_core::{
 };
 
 use crate::app::state_machine_nodes_formula::{
-    PROPERTIES_DECL_ID, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
+    PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{
     ConditionManager, ConsequencesManager, FilterChainManager, InputsManager,
@@ -132,16 +132,43 @@ fn processor_property_manager(
     Some(manager)
 }
 
+fn is_property_exposed(snapshot: &ProcessTreeSnapshot, source: NodeId) -> bool {
+    snapshot
+        .find_child_by_decl_id(source, "exposed")
+        .and_then(|n| snapshot.node(n))
+        .and_then(|n| n.param_value.as_ref())
+        .and_then(ParamValue::as_bool)
+        .unwrap_or(true)
+}
+
 fn processor_surface_child_tree(
     snapshot: &ProcessTreeSnapshot,
     source: NodeId,
 ) -> Option<NodeTree> {
     match snapshot.node(source)?.node_type.as_str() {
         PROPERTY_NODE_TYPE => {
+            if !is_property_exposed(snapshot, source) {
+                return None;
+            }
             processor_property_parameter(snapshot, source).map(NodeTree::new)
         }
         PROPERTY_MANAGER_NODE_TYPE => {
             processor_property_manager(snapshot, source).map(NodeTree::boxed)
+        }
+        PROPERTY_FOLDER_NODE_TYPE => {
+            let source_node = snapshot.node(source)?;
+            let mut folder = StateProcessorFolder::new();
+            folder.node_data_mut().meta.label = source_node.label.clone();
+            folder.node_data_mut().meta.decl_id =
+                DeclId(processor_surface_decl_id(source_node.uuid));
+            folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
+            let mut tree = NodeTree::new(folder);
+            for child in snapshot.child_ids(source) {
+                if let Some(child_tree) = processor_surface_child_tree(snapshot, child) {
+                    tree.push_child(child_tree);
+                }
+            }
+            Some(tree)
         }
         _ => None,
     }
@@ -167,6 +194,95 @@ fn processor_properties_tree(
         }
     }
     tree
+}
+
+fn reconcile_properties_level(
+    snapshot: &ProcessTreeSnapshot,
+    source_container: NodeId,
+    dest_container: NodeId,
+    ctx: &mut ProcessCtx,
+) {
+    let mut desired = std::collections::HashSet::new();
+    for source in snapshot.child_ids(source_container) {
+        let Some(source_node) = snapshot.node(source) else {
+            continue;
+        };
+        let decl_id = processor_surface_decl_id(source_node.uuid);
+        let Some(expected_tree) = processor_surface_child_tree(snapshot, source) else {
+            continue;
+        };
+        desired.insert(decl_id.clone());
+        let Some(existing) =
+            snapshot.find_child_by_decl_id(dest_container, &decl_id)
+        else {
+            let already_queued = ctx.edits.pending.iter().any(|req| {
+                if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
+                    *p == dest_container
+                        && tree.node.node_data().meta.decl_id.0 == decl_id
+                } else {
+                    false
+                }
+            });
+            if !already_queued {
+                ctx.add_child_tree(dest_container, expected_tree, None);
+            }
+            continue;
+        };
+        let Some(existing_node) = snapshot.node(existing) else {
+            continue;
+        };
+        if existing_node.node_type != expected_tree.node_type() {
+            ctx.edits.push(Edit::ReplaceNode {
+                node: existing,
+                new_node: expected_tree.node,
+            });
+            continue;
+        }
+        if existing_node.label != source_node.label {
+            ctx.patch_node_meta(
+                existing,
+                NodeMetaPatch {
+                    label: Some(source_node.label.clone()),
+                    ..NodeMetaPatch::default()
+                },
+            );
+        }
+        if source_node.node_type == PROPERTY_NODE_TYPE {
+            let Some(source_value) =
+                snapshot.find_child_by_decl_id(source, "value")
+            else {
+                continue;
+            };
+            if let Some(constraints) = snapshot
+                .node(source_value)
+                .and_then(|node| node.param_constraints.clone())
+                .filter(|constraints| {
+                    snapshot
+                        .node(existing)
+                        .and_then(|node| node.param_constraints.as_ref())
+                        != Some(constraints)
+                })
+            {
+                ctx.edits.push(Edit::SetParamConstraints {
+                    node: existing,
+                    constraints,
+                });
+            }
+        } else if source_node.node_type == PROPERTY_FOLDER_NODE_TYPE {
+            reconcile_properties_level(snapshot, source, existing, ctx);
+        }
+    }
+
+    for child in snapshot.child_ids(dest_container) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
+            && !desired.contains(&node.decl_id)
+        {
+            ctx.edits.push(Edit::RemoveNode { node: child });
+        }
+    }
 }
 
 #[node("state_processor_properties", label = "Properties")]
@@ -273,8 +389,11 @@ impl Node for StateProcessorManager {
     }
 }
 
+const PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC: &str =
+    "state_processor_manager_items_changed";
+
 impl StateProcessorManager {
-    fn refresh_formula_items(&mut self, ctx: &ProcessCtx) {
+    fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
         self.formula_items = ctx
             .tree_snapshot()
             .and_then(|snapshot| {
@@ -282,6 +401,11 @@ impl StateProcessorManager {
                     .map(|library| build_formula_items(snapshot, library))
             })
             .unwrap_or_default();
+        let _ = ctx.emit_custom_payload(
+            PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC,
+            Some(self.id()),
+            &self.formula_items,
+        );
     }
 }
 
@@ -472,11 +596,21 @@ impl StateProcessor {
         };
 
         let Some(properties) = existing_properties else {
-            ctx.add_child_tree(
-                self.id(),
-                processor_properties_tree(&snapshot, formula),
-                None,
-            );
+            let already_queued = ctx.edits.pending.iter().any(|req| {
+                if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
+                    *p == self.id()
+                        && tree.node.node_data().meta.decl_id.0 == PROPERTIES_DECL_ID
+                } else {
+                    false
+                }
+            });
+            if !already_queued {
+                ctx.add_child_tree(
+                    self.id(),
+                    processor_properties_tree(&snapshot, formula),
+                    None,
+                );
+            }
             return;
         };
         let Some(source_properties) =
@@ -488,77 +622,7 @@ impl StateProcessor {
             return;
         };
 
-        let mut desired = std::collections::HashSet::new();
-        for source in snapshot.child_ids(source_properties) {
-            let Some(source_node) = snapshot.node(source) else {
-                continue;
-            };
-            let decl_id = processor_surface_decl_id(source_node.uuid);
-            let Some(expected_tree) =
-                processor_surface_child_tree(&snapshot, source)
-            else {
-                continue;
-            };
-            desired.insert(decl_id.clone());
-            let Some(existing) =
-                snapshot.find_child_by_decl_id(properties, &decl_id)
-            else {
-                ctx.add_child_tree(properties, expected_tree, None);
-                continue;
-            };
-            let Some(existing_node) = snapshot.node(existing) else {
-                continue;
-            };
-            if existing_node.node_type != expected_tree.node_type() {
-                ctx.edits.push(Edit::ReplaceNode {
-                    node: existing,
-                    new_node: expected_tree.node,
-                });
-                continue;
-            }
-            if existing_node.label != source_node.label {
-                ctx.patch_node_meta(
-                    existing,
-                    NodeMetaPatch {
-                        label: Some(source_node.label.clone()),
-                        ..NodeMetaPatch::default()
-                    },
-                );
-            }
-            if source_node.node_type == PROPERTY_NODE_TYPE {
-                let Some(source_value) =
-                    snapshot.find_child_by_decl_id(source, "value")
-                else {
-                    continue;
-                };
-                if let Some(constraints) = snapshot
-                    .node(source_value)
-                    .and_then(|node| node.param_constraints.clone())
-                    .filter(|constraints| {
-                        snapshot
-                            .node(existing)
-                            .and_then(|node| node.param_constraints.as_ref())
-                            != Some(constraints)
-                    })
-                {
-                    ctx.edits.push(Edit::SetParamConstraints {
-                        node: existing,
-                        constraints,
-                    });
-                }
-            }
-        }
-
-        for child in snapshot.child_ids(properties) {
-            let Some(node) = snapshot.node(child) else {
-                continue;
-            };
-            if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
-                && !desired.contains(&node.decl_id)
-            {
-                ctx.edits.push(Edit::RemoveNode { node: child });
-            }
-        }
+        reconcile_properties_level(&snapshot, source_properties, properties, ctx);
     }
 }
 

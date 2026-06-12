@@ -18,7 +18,7 @@ use super::{
 };
 use crate::app::state_machine_nodes_formula::{
     AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
-    PROPERTY_MANAGER_CREATE_PREFIX,
+    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
 };
 
 fn engine_with_formula() -> (
@@ -279,5 +279,147 @@ fn processor_materializes_formula_properties_as_real_children() {
             })
         }),
         "Processor should follow Formula property additions"
+    );
+}
+
+#[test]
+fn processor_mirrors_formula_property_folders_and_nested_properties() {
+    let (mut engine, formula, formula_uuid) = engine_with_formula();
+    let properties = engine
+        .process_tree_snapshot()
+        .find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
+        .expect("Formula Properties should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: PROPERTY_FOLDER_NODE_TYPE.to_owned(),
+        label: Some("Group".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Folder creation should succeed: {ack:?}");
+
+    let formula_folder = engine
+        .process_tree_snapshot()
+        .child_ids(properties)
+        .into_iter()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|n| n.get_type() == PROPERTY_FOLDER_NODE_TYPE)
+        })
+        .expect("Folder should exist in formula properties");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula_folder,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}float"),
+        label: Some("Speed".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Nested property creation should succeed: {ack:?}");
+
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+
+    let mut processor = StateProcessor::new();
+    processor.formula.apply_runtime_value(&ParamValue::Reference(
+        NodeReference::new(formula_uuid),
+    ));
+    engine.add_user_item(processor.into(), Some(manager_id));
+    engine.apply_edits().expect("Processor should attach");
+
+    let processor_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Processor should exist");
+
+    let snapshot = engine.process_tree_snapshot();
+    let instance_properties = snapshot
+        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
+        .expect("Processor should instantiate Formula Properties");
+
+    let instance_folder = snapshot
+        .child_ids(instance_properties)
+        .into_iter()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|n| n.get_type() == StateProcessorFolder::NODE_TYPE)
+        })
+        .expect("Processor should mirror formula folder");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(instance_folder)
+            .map(|n| n.node_data().meta.label.as_str()),
+        Some("Group"),
+        "Mirrored folder should preserve formula folder label"
+    );
+
+    let nested = snapshot
+        .child_ids(instance_folder)
+        .into_iter()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|n| n.engine_param_snapshot().is_some())
+        })
+        .expect("Processor folder should contain the nested property");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(nested)
+            .map(|n| n.node_data().meta.label.as_str()),
+        Some("Speed"),
+        "Nested property should be mirrored inside processor folder"
+    );
+
+    // verify dynamic reconciliation: add a second property to the formula folder
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula_folder,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}bool"),
+        label: Some("Active".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Dynamic nested property addition should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Processor should receive hierarchy event");
+    engine
+        .apply_edits()
+        .expect("Reconciliation should stabilize");
+
+    let snapshot = engine.process_tree_snapshot();
+    let instance_folder = snapshot
+        .child_ids(instance_properties)
+        .into_iter()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|n| n.get_type() == StateProcessorFolder::NODE_TYPE)
+        })
+        .expect("Processor folder should still exist after reconciliation");
+
+    assert!(
+        snapshot.child_ids(instance_folder).into_iter().any(|child| {
+            engine
+                .nodes
+                .get(child)
+                .is_some_and(|n| n.node_data().meta.label == "Active")
+        }),
+        "Dynamically added nested property should appear in processor folder"
     );
 }

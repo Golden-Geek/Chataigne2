@@ -9,7 +9,7 @@
 		type GraphNodeResize
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
-	import { configParameters, parameterValue, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import { anodeType, configParameters, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
 
 	let {
@@ -21,6 +21,8 @@
 		onGraphSelectionChange,
 		onNodesMove,
 		onNodeResize,
+		onNodeRename,
+		onNodeCollapsedChange,
 		onConnect,
 		onBackgroundContextMenu,
 		onCreateRequest
@@ -33,6 +35,8 @@
 		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
 		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
 		onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
+		onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
+		onNodeCollapsedChange?: (nodeId: string, collapsed: boolean) => void | Promise<void>;
 		onConnect?: (connection: GraphConnectionRequest) => void;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
@@ -49,10 +53,7 @@
 	} | null = $state(null);
 
 	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
-	const isPropertyGetter = (node: UiNodeDto): boolean => {
-		const type = parameterValue(node, nodesById, 'anode_type');
-		return type?.kind === 'str' && type.value === 'property';
-	};
+	const isPropertyGetter = (node: UiNodeDto): boolean => anodeType(node) === 'property';
 
 	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
 		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
@@ -80,6 +81,8 @@
 		{onGraphSelectionChange}
 		{onNodesMove}
 		{onNodeResize}
+		{onNodeRename}
+		{onNodeCollapsedChange}
 		{onConnect}
 		{onBackgroundContextMenu}
 		{onCreateRequest}

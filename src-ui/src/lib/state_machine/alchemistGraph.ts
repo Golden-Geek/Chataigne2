@@ -1,5 +1,5 @@
 import type { GraphEdge, GraphNode, GraphSocket } from 'golden_alchemist_ui';
-import type { NodeId, ParamValue, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 
 export const FORMULA_NODE_TYPE = 'alchemist_formula';
 export const ANODE_NODE_TYPE = 'alchemist_anode';
@@ -8,34 +8,60 @@ export const ANODE_CREATE_PREFIX = 'alchemist_anode:';
 export const PROPERTIES_DECL_ID = 'properties';
 export const PROPERTY_NODE_TYPE = 'alchemist_property';
 export const PROPERTY_MANAGER_NODE_TYPE = 'alchemist_property_manager';
+export const PROPERTY_FOLDER_NODE_TYPE = 'alchemist_property_folder';
 
-const FAMILY_HUES: Readonly<Record<string, number>> = {
-	Math: 211,
-	Chataigne: 326,
-	Values: 42,
-	Logic: 268,
-	Flow: 158,
-	Debug: 14
-};
+export const TRIGGER_SOCKET_ID = '__trigger';
+export const ANODE_TYPE_TAG_PREFIX = 'alchemist.anode.type:';
 
-const stableHash = (value: string): number => {
-	let hash = 2166136261;
-	for (let index = 0; index < value.length; index += 1) {
-		hash ^= value.charCodeAt(index);
-		hash = Math.imul(hash, 16777619);
+export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
+export const MANAGER_REF_TYPE_CONSEQUENCES = 'chataigne.consequences_manager';
+export const MANAGER_REF_TYPE_INPUTS = 'chataigne.inputs_manager';
+export const MANAGER_REF_TYPE_OUTPUTS = 'chataigne.outputs_manager';
+export const MANAGER_REF_TYPE_FILTERS = 'chataigne.filters_manager';
+
+const MANAGER_REF_TYPES = new Set([
+	MANAGER_REF_TYPE_CONDITIONS,
+	MANAGER_REF_TYPE_CONSEQUENCES,
+	MANAGER_REF_TYPE_INPUTS,
+	MANAGER_REF_TYPE_OUTPUTS,
+	MANAGER_REF_TYPE_FILTERS
+]);
+
+export const managerAnodeType = (role: string): string => {
+	switch (role) {
+		case 'condition':
+			return MANAGER_REF_TYPE_CONDITIONS;
+		case 'consequence':
+			return MANAGER_REF_TYPE_CONSEQUENCES;
+		case 'input':
+			return MANAGER_REF_TYPE_INPUTS;
+		case 'output':
+			return MANAGER_REF_TYPE_OUTPUTS;
+		case 'filter':
+			return MANAGER_REF_TYPE_FILTERS;
+		default:
+			return '';
 	}
-	return hash >>> 0;
 };
 
-const familyHue = (family: string): number => FAMILY_HUES[family] ?? stableHash(family) % 360;
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
-export const anodeColor = (family: string, typeId: string): string => {
-	const variation = stableHash(typeId);
-	const hue = (familyHue(family) + (variation % 25) - 12 + 360) % 360;
-	const saturation = 62 + ((variation >>> 8) % 16);
-	const lightness = 48 + ((variation >>> 16) % 12);
-	return `hsl(${hue} ${saturation}% ${lightness}%)`;
+const metadataColor = (color: UiColorDto | null | undefined): string | undefined => {
+	if (!color) return undefined;
+	const r = Math.round(clamp01(color.r) * 255);
+	const g = Math.round(clamp01(color.g) * 255);
+	const b = Math.round(clamp01(color.b) * 255);
+	return `rgb(${r} ${g} ${b} / ${clamp01(color.a)})`;
 };
+
+const tagValue = (tags: readonly string[], prefix: string): string | undefined =>
+	tags
+		.find((tag) => tag.startsWith(prefix))
+		?.slice(prefix.length)
+		.trim() || undefined;
+
+export const anodeType = (node: UiNodeDto): string =>
+	tagValue(node.meta.tags, ANODE_TYPE_TAG_PREFIX) ?? '';
 
 export const directChild = (
 	node: UiNodeDto | null | undefined,
@@ -112,7 +138,8 @@ const graphSockets = (
 			{
 				id,
 				label: socket.meta.label,
-				valueType: socketParameter(socket, nodesById, '/value_type') ?? undefined
+				valueType: socketParameter(socket, nodesById, '/value_type') ?? undefined,
+				color: metadataColor(socket.meta.presentation?.color)
 			}
 		];
 	});
@@ -140,37 +167,66 @@ export const formulaConnections = (
 			})
 		: [];
 
+const formulaPropertiesByUuid = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): ReadonlyMap<string, UiNodeDto> => {
+	const propertiesRoot = directChild(formula, nodesById, PROPERTIES_DECL_ID);
+	const byUuid = new Map<string, UiNodeDto>();
+	const pending = propertiesRoot ? [...propertiesRoot.children] : [];
+	while (pending.length > 0) {
+		const node = nodesById.get(pending.pop() as NodeId);
+		if (!node) continue;
+		if (node.node_type === PROPERTY_NODE_TYPE) {
+			byUuid.set(node.uuid, node);
+		}
+		pending.push(...node.children);
+	}
+	return byUuid;
+};
+
 export const toGraphNodes = (
 	formula: UiNodeDto | null | undefined,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
-	catalogItems: readonly UiCreatableUserItem[] = []
+	_catalogItems: readonly UiCreatableUserItem[] = []
 ): GraphNode[] => {
-	const familyByType = new Map(
-		catalogItems.flatMap((item) => {
-			const typeId = item.node_type.startsWith(ANODE_CREATE_PREFIX)
-				? item.node_type.slice(ANODE_CREATE_PREFIX.length)
-				: null;
-			return typeId ? [[typeId, item.menu_path[0] ?? 'General'] as const] : [];
-		})
-	);
+	const propertiesByUuid = formulaPropertiesByUuid(formula, nodesById);
 	return formulaANodes(formula, nodesById).map((anode) => {
 		const position = parameterValue(anode, nodesById, 'position');
 		const width = parameterValue(anode, nodesById, 'width');
-		const typeId = stringParameter(anode, nodesById, 'anode_type') ?? '';
-		const family = familyByType.get(typeId) ?? 'General';
+		const typeId = anodeType(anode);
 		const propertyGetter = typeId === 'property';
+		const managerRef = MANAGER_REF_TYPES.has(typeId);
+		const compactNode = propertyGetter || managerRef;
+		const description = anode.meta.description?.trim();
+		const allInputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
+		const triggerSocket = allInputs.find((s) => s.id === TRIGGER_SOCKET_ID);
+		const bodyInputs = triggerSocket
+			? allInputs.filter((s) => s.id !== TRIGGER_SOCKET_ID)
+			: allInputs;
+		const config = directChild(anode, nodesById, 'config');
+		const propertyId = propertyGetter
+			? stringParameter(config, nodesById, 'config/property_id')
+			: null;
+		const propertyNode = propertyId ? propertiesByUuid.get(propertyId) : undefined;
 		return {
 			id: String(anode.node_id),
 			label: anode.meta.label,
-			subtitle: propertyGetter ? undefined : typeId,
-			color: anodeColor(family, typeId),
+			subtitle: compactNode ? undefined : typeId,
+			description: description ? description : undefined,
+			canRename: anode.meta.user_permissions?.can_edit_name !== false,
+			collapsed: anode.meta.presentation?.collapsed === true,
+			color: metadataColor(
+				propertyNode?.meta.presentation?.color ?? anode.meta.presentation?.color
+			),
 			x: position?.kind === 'vec2' ? position.value[0] : 0,
 			y: position?.kind === 'vec2' ? position.value[1] : 0,
 			width: width?.kind === 'float' && width.value > 0 ? width.value : undefined,
-			resizable: !propertyGetter,
+			resizable: !compactNode,
 			invalid: typeId.length === 0,
-			inputs: graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket'),
-			outputs: graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket')
+			inputs: bodyInputs,
+			outputs: graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket'),
+			headerInputs: triggerSocket ? [triggerSocket] : undefined
 		};
 	});
 };

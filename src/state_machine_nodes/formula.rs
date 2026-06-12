@@ -14,6 +14,7 @@ use golden_alchemist::{
     TypeConstraint, ValueTypeId, ValueTypeSpec, compile_graph,
 };
 use golden_core::{
+    color::Color,
     edit::{Edit, NodeTree},
     events::Event,
     item, node,
@@ -36,6 +37,7 @@ pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
 pub(crate) const PROPERTY_ITEM_KIND: &str = "alchemist_property";
 pub(crate) const PROPERTY_MANAGER_ITEM_KIND: &str =
     "alchemist_property_manager";
+pub(crate) const PROPERTY_FOLDER_ITEM_KIND: &str = "alchemist_property_folder";
 pub(crate) const PROPERTY_CREATE_PREFIX: &str = "alchemist_property:";
 pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str =
     "alchemist_property_manager:";
@@ -44,9 +46,98 @@ const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
 pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str =
     "alchemist_property_manager";
+pub(crate) const PROPERTY_FOLDER_NODE_TYPE: &str =
+    "alchemist_property_folder";
 pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
 const PROPERTY_ANODE_TYPE: &str = "property";
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
+pub(crate) const TRIGGER_INPUT_SOCKET_ID: &str = "__trigger";
+const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
+
+fn tagged_value<'a>(tags: &'a [String], prefix: &str) -> Option<&'a str> {
+    tags.iter().find_map(|tag| tag.strip_prefix(prefix))
+}
+
+fn set_tag(tags: &mut Vec<String>, prefix: &str, value: &str) {
+    tags.retain(|tag| !tag.starts_with(prefix));
+    tags.push(format!("{prefix}{value}"));
+}
+
+fn anode_type_from_tags(tags: &[String]) -> Option<String> {
+    tagged_value(tags, ANODE_TYPE_TAG_PREFIX)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn stable_hash(value: &str) -> u32 {
+    let mut hash = 2_166_136_261_u32;
+    for byte in value.bytes() {
+        hash ^= u32::from(byte);
+        hash = hash.wrapping_mul(16_777_619);
+    }
+    hash
+}
+
+fn family_hue(family: &str) -> u32 {
+    match family {
+        "Math" => 211,
+        "Chataigne" => 326,
+        "Values" => 42,
+        "Logic" => 268,
+        "Flow" => 158,
+        "Debug" => 14,
+        _ => stable_hash(family) % 360,
+    }
+}
+
+fn hsl_color(hue: f64, saturation: f64, lightness: f64) -> Color {
+    let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let hue_prime = hue / 60.0;
+    let x = chroma * (1.0 - (hue_prime.rem_euclid(2.0) - 1.0).abs());
+    let (r1, g1, b1) = match hue_prime as u32 {
+        0 => (chroma, x, 0.0),
+        1 => (x, chroma, 0.0),
+        2 => (0.0, chroma, x),
+        3 => (0.0, x, chroma),
+        4 => (x, 0.0, chroma),
+        _ => (chroma, 0.0, x),
+    };
+    let m = lightness - chroma / 2.0;
+    Color::new(r1 + m, g1 + m, b1 + m, 1.0)
+}
+
+fn anode_default_color(family: &str, type_id: &str) -> Color {
+    let variation = stable_hash(type_id);
+    let hue = (family_hue(family) + (variation % 25) + 348) % 360;
+    let saturation = f64::from(62 + ((variation >> 8) % 16)) / 100.0;
+    let lightness = f64::from(48 + ((variation >> 16) % 12)) / 100.0;
+    hsl_color(f64::from(hue), saturation, lightness)
+}
+
+fn value_type_color(type_id: &str) -> Color {
+    match type_id {
+        "trigger" => Color::new(0.98, 0.42, 0.22, 1.0),
+        "int" => Color::new(0.35, 0.62, 0.95, 1.0),
+        "float" => Color::new(0.28, 0.74, 0.52, 1.0),
+        "bool" => Color::new(0.86, 0.44, 0.78, 1.0),
+        "vec2" => Color::new(0.32, 0.72, 0.92, 1.0),
+        "vec3" => Color::new(0.48, 0.58, 0.94, 1.0),
+        "color" => Color::new(0.98, 0.36, 0.32, 1.0),
+        "reference" | "chataigne.module_endpoint" => {
+            Color::new(0.64, 0.52, 0.92, 1.0)
+        }
+        "css_value" => Color::new(0.62, 0.68, 0.74, 1.0),
+        "str" | "string" | "file" | "enum" => {
+            Color::new(0.92, 0.68, 0.26, 1.0)
+        }
+        _ => Color::new(0.55, 0.62, 0.7, 1.0),
+    }
+}
+
+fn parameter_value_color(value: &ParamValue) -> Color {
+    value_type_color(parameter_node_type(value))
+}
 
 fn registry() -> golden_alchemist::ANodeRegistry {
     chataigne_state_machine::alchemist::node_registry()
@@ -349,8 +440,9 @@ fn anode_from_snapshot(
     let node = snapshot
         .node(anode)
         .ok_or_else(|| format!("ANode {anode:?} is missing"))?;
-    let type_id = child_string(snapshot, anode, "anode_type")
-        .ok_or_else(|| format!("ANode `{}` has no Type parameter", node.label))?;
+    let type_id = anode_type_from_tags(&node.tags)
+        .or_else(|| child_string(snapshot, anode, "anode_type"))
+        .ok_or_else(|| format!("ANode `{}` has no internal type", node.label))?;
     let registry = registry();
     let declaration = registry
         .get(&ANodeTypeId::new(type_id.clone()))
@@ -364,8 +456,7 @@ fn anode_from_snapshot(
         child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
     instance.ui.width =
         child_float(snapshot, anode, "width").filter(|width| *width > 0.0);
-    instance.ui.collapsed =
-        child_bool(snapshot, anode, "collapsed").unwrap_or(false);
+    instance.ui.collapsed = node.presentation.collapsed;
 
     let signature = declaration.signature(
         &SignatureCtx {
@@ -518,10 +609,9 @@ impl Node for AlchemistOutputSocket {
 
 #[node("alchemist_anode", label = "ANode")]
 #[children(
-    anode_type: String = String::new() (label = "Type");
     position: golden_core::parameter::Vec2 = (0.0, 0.0) (label = "Position");
     width: f64 = 0.0 (label = "Width");
-    collapsed: bool = false (label = "Collapsed");
+    trigger_input_enabled: bool = false (label = "Trigger Input");
     folder(config, label = "Config") {}
     folder(inputs, label = "Inputs") {}
     folder(outputs, label = "Outputs") {}
@@ -578,22 +668,48 @@ impl Node for AlchemistANode {
 }
 
 impl AlchemistANode {
-    fn for_type(type_id: &str, label: &str) -> Self {
+    fn for_type(type_id: &str, label: &str, category: &str) -> Self {
         let mut node = Self::new();
-        node.anode_type
-            .apply_runtime_value(&ParamValue::Str(type_id.to_owned()));
-        node.node_data_mut().meta.label = label.to_owned();
+        let meta = &mut node.node_data_mut().meta;
+        set_tag(&mut meta.tags, ANODE_TYPE_TAG_PREFIX, type_id);
+        meta.label = label.to_owned();
+        meta.presentation.color = Some(anode_default_color(category, type_id));
         node
     }
 
     fn reconcile_structure(&mut self, ctx: &mut ProcessCtx) {
-        let type_id = self.anode_type.get_ref().trim().to_owned();
-        if type_id.is_empty() {
+        let tagged_type = anode_type_from_tags(&self.node_data().meta.tags);
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
+        };
+        let legacy_type = child_string(&snapshot, self.id(), "anode_type");
+        let Some(type_id) = tagged_type.or(legacy_type) else {
+            return;
+        };
+        if anode_type_from_tags(&self.node_data().meta.tags).is_none() {
+            set_tag(
+                &mut self.node_data_mut().meta.tags,
+                ANODE_TYPE_TAG_PREFIX,
+                &type_id,
+            );
+        }
+        if let Some(legacy_type_child) =
+            snapshot.find_child_by_decl_id(self.id(), "anode_type")
+        {
+            self.remove_child(ctx, legacy_type_child);
         }
         let property_getter = type_id == PROPERTY_ANODE_TYPE;
+        let manager_ref = matches!(
+            type_id.as_str(),
+            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
+                | chataigne_state_machine::alchemist::CONSEQUENCES_MANAGER_TYPE
+                | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
+                | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
+                | chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE
+        );
         let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = !property_getter;
+        permissions.can_edit_name = !(property_getter || manager_ref);
+        permissions.can_edit_color = !property_getter;
         self.node_data_mut().meta.user_permissions = permissions;
         let registry = registry();
         let Some(declaration) = registry.get(&ANodeTypeId::new(&type_id)) else {
@@ -606,9 +722,11 @@ impl AlchemistANode {
             return;
         };
         ctx.clear_node_warning(self.id(), Some("alchemist_anode"));
-        let Some(snapshot) = ctx.tree_snapshot_arc() else {
-            return;
-        };
+        if self.node_data().meta.presentation.color.is_none() {
+            self.node_data_mut().meta.presentation.color = Some(
+                anode_default_color(declaration.category(), &type_id),
+            );
+        }
         let Some(config_folder) =
             snapshot.find_child_by_decl_id(self.id(), "config")
         else {
@@ -666,6 +784,11 @@ impl AlchemistANode {
                     value,
                     property_getter,
                 );
+                config_parameter
+                    .node_data_mut()
+                    .meta
+                    .presentation
+                    .color = Some(value_type_color(value_type.as_str()));
                 if property_getter {
                     config_parameter
                         .node_data_mut()
@@ -740,6 +863,22 @@ impl AlchemistANode {
                 }
             }
         }
+        let trigger_input = child_bool(&snapshot, self.id(), "trigger_input_enabled").unwrap_or(false);
+        let trigger_decl = socket_decl_id("inputs", TRIGGER_INPUT_SOCKET_ID);
+        if trigger_input {
+            desired_inputs.insert(trigger_decl.clone());
+            if snapshot.find_child_by_decl_id(inputs_folder, &trigger_decl).is_none() {
+                if let Ok(tree) = input_socket_tree(
+                    TRIGGER_INPUT_SOCKET_ID,
+                    "Trigger",
+                    &ValueTypeId::new("trigger"),
+                    &golden_alchemist::RuntimeValue::Trigger(golden_alchemist::TriggerValue::default()),
+                ) {
+                    ctx.add_child_tree(inputs_folder, tree, None);
+                }
+            }
+        }
+
         self.remove_obsolete_children(
             ctx,
             &snapshot,
@@ -939,6 +1078,16 @@ fn input_socket_tree(
     let mut socket = AlchemistInputSocket::new();
     socket.node_data_mut().meta.label = label.to_owned();
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
+    socket.node_data_mut().meta.presentation.color =
+        Some(value_type_color(value_type.as_str()));
+    let mut value = parameter(
+        "Value",
+        socket_value_decl_id("inputs", socket_id),
+        runtime_value_to_param(default)?,
+        false,
+    );
+    value.node_data_mut().meta.presentation.color =
+        Some(value_type_color(value_type.as_str()));
     Ok(NodeTree::new(socket)
         .with_child(NodeTree::new(parameter(
             "Socket ID",
@@ -952,12 +1101,7 @@ fn input_socket_tree(
             ParamValue::Str(value_type.to_string()),
             true,
         )))
-        .with_child(NodeTree::new(parameter(
-            "Value",
-            socket_value_decl_id("inputs", socket_id),
-            runtime_value_to_param(default)?,
-            false,
-        ))))
+        .with_child(NodeTree::new(value)))
 }
 
 fn output_socket_tree(
@@ -969,6 +1113,8 @@ fn output_socket_tree(
     let mut socket = AlchemistOutputSocket::new();
     socket.node_data_mut().meta.label = label.to_owned();
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
+    socket.node_data_mut().meta.presentation.color =
+        Some(value_type_color(value_type.as_str()));
     NodeTree::new(socket)
         .with_child(NodeTree::new(parameter(
             "Socket ID",
@@ -1050,7 +1196,9 @@ fn property_value_type(property_type: &str) -> &'static str {
 
 fn property_parameter(property_type: &str) -> Option<Parameter> {
     let default = property_default(property_type)?;
+    let color = parameter_value_color(&default);
     let mut value = parameter("Value", "value", default, false);
+    value.node_data_mut().meta.presentation.color = Some(color);
     if property_type == "enum" {
         value.constraints.enum_options = vec![ParameterEnumOption {
             variant_id: "option".to_owned(),
@@ -1083,6 +1231,11 @@ fn formula_property_creatable_items() -> Vec<UserCreatableItem> {
         )
         .with_menu_path(["Manager"])
     }));
+    items.push(UserCreatableItem::new(
+        PROPERTY_FOLDER_NODE_TYPE,
+        PROPERTY_FOLDER_ITEM_KIND,
+        "Folder",
+    ));
     items
 }
 
@@ -1090,6 +1243,7 @@ fn formula_properties_container_rules() -> UserContainerRules {
     UserContainerRules::new(&[
         PROPERTY_ITEM_KIND,
         PROPERTY_MANAGER_ITEM_KIND,
+        PROPERTY_FOLDER_ITEM_KIND,
     ])
 }
 
@@ -1106,6 +1260,7 @@ fn formula_properties_accepts(
             item_type == PROPERTY_MANAGER_NODE_TYPE
                 || item_type.starts_with(PROPERTY_MANAGER_CREATE_PREFIX)
         }
+        PROPERTY_FOLDER_ITEM_KIND => item_type == PROPERTY_FOLDER_NODE_TYPE,
         _ => false,
     }
 }
@@ -1113,6 +1268,9 @@ fn formula_properties_accepts(
 fn create_formula_property_item(node_type: &str) -> Option<Box<dyn Node>> {
     if node_type == PROPERTY_NODE_TYPE {
         return Some(Box::new(AlchemistProperty::for_type("float")));
+    }
+    if node_type == PROPERTY_FOLDER_NODE_TYPE {
+        return Some(Box::new(AlchemistPropertyFolder::new()));
     }
     if let Some(property_type) = node_type.strip_prefix(PROPERTY_CREATE_PREFIX) {
         return property_default(property_type)
@@ -1172,6 +1330,32 @@ impl Node for AlchemistPropertiesManager {
     }
 }
 
+#[node("alchemist_property_folder", label = "Folder")]
+pub struct AlchemistPropertyFolder {}
+
+#[node("alchemist_property_folder", from_struct)]
+impl Node for AlchemistPropertyFolder {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(formula_properties_container_rules())
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        formula_properties_accepts(item_type, item_kind)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        formula_property_creatable_items()
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        create_formula_property_item(node_type)
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
 #[node("alchemist_property_manager", label = "Manager")]
 #[children(
     role: golden_core::parameter::Enum = "condition" (
@@ -1224,8 +1408,8 @@ impl AlchemistPropertyManager {
         read_only = true,
         show_in_inspector_content = false
     );
-    value_type: String = String::from("float") (
-        label = "Value Type"
+    exposed: bool = true (
+        label = "Exposed"
     );
 )]
 pub struct AlchemistProperty {}
@@ -1272,25 +1456,39 @@ impl AlchemistProperty {
         property.property_type.apply_runtime_value(&ParamValue::Str(
             property_type.to_owned(),
         ));
-        property.value_type.apply_runtime_value(&ParamValue::Str(
-            property_value_type(property_type).to_owned(),
-        ));
+        property.node_data_mut().meta.presentation.color =
+            Some(value_type_color(property_type));
         property
     }
 
-    fn reconcile_value(&self, ctx: &mut ProcessCtx) {
-        let Some(value) = property_parameter(self.property_type.get_ref()) else {
+    fn reconcile_value(&mut self, ctx: &mut ProcessCtx) {
+        let property_type = self.property_type.get_ref().to_owned();
+        if self.node_data().meta.presentation.color.is_none() {
+            self.node_data_mut().meta.presentation.color =
+                Some(value_type_color(&property_type));
+        }
+        let Some(value) = property_parameter(&property_type) else {
             return;
         };
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        if let Some(value_type) =
+            snapshot.find_child_by_decl_id(self.id(), "value_type")
+        {
+            self.remove_child(ctx, value_type);
+        }
         if let Some(existing) =
             snapshot.find_child_by_decl_id(self.id(), "value")
         {
             if snapshot.node(existing).is_some_and(|node| {
                 node.node_type == value.get_type()
             }) {
+                let color = value.node_data().meta.presentation.color;
+                ctx.call_node_mutation(existing, move |node, _ctx| {
+                    node.node_data_mut().meta.presentation.color = color;
+                    Ok(())
+                });
                 return;
             }
             ctx.replace_node(existing, value);
@@ -1351,16 +1549,11 @@ fn surface_item_from_property(
         .ok_or_else(|| format!("Property {property:?} is missing"))?;
     let value = child_param(snapshot, property, "value")
         .ok_or_else(|| format!("Property `{}` has no value", node.label))?;
-    let value_type = child_string(snapshot, property, "value_type")
-        .unwrap_or_else(|| {
-            property_value_type(
-                child_string(snapshot, property, "property_type")
-                    .as_deref()
-                    .unwrap_or("float"),
-            )
-            .to_owned()
-        });
-    let value_type = ValueTypeId::new(value_type);
+    let value_type = ValueTypeId::new(property_value_type(
+        child_string(snapshot, property, "property_type")
+            .as_deref()
+            .unwrap_or("float"),
+    ));
     let runtime_value = param_to_runtime_value(value, &value_type)?;
     let id = node.uuid.0.to_string();
     Ok(SurfaceItem {
@@ -1565,6 +1758,7 @@ impl Node for AlchemistFormulaDefinition {
         Some(Box::new(AlchemistANode::for_type(
             type_id,
             declaration.label(),
+            declaration.category(),
         )))
     }
 
@@ -1627,13 +1821,17 @@ impl AlchemistFormulaDefinition {
         else {
             return;
         };
-        let labels = snapshot
+        let properties_by_id = snapshot
             .child_ids(properties)
             .into_iter()
             .filter_map(|property| {
                 let node = snapshot.node(property)?;
-                (node.node_type == PROPERTY_NODE_TYPE)
-                    .then(|| (node.uuid.0.to_string(), node.label.clone()))
+                (node.node_type == PROPERTY_NODE_TYPE).then(|| {
+                    (
+                        node.uuid.0.to_string(),
+                        (node.label.clone(), node.presentation.color),
+                    )
+                })
             })
             .collect::<HashMap<_, _>>();
 
@@ -1642,7 +1840,7 @@ impl AlchemistFormulaDefinition {
                 continue;
             };
             if anode.node_type != ANODE_NODE_TYPE
-                || child_string(&snapshot, child, "anode_type").as_deref()
+                || anode_type_from_tags(&anode.tags).as_deref()
                     != Some(PROPERTY_ANODE_TYPE)
             {
                 continue;
@@ -1657,14 +1855,19 @@ impl AlchemistFormulaDefinition {
             else {
                 continue;
             };
-            let Some(label) = labels.get(&property_id) else {
+            let Some((label, color)) = properties_by_id.get(&property_id)
+            else {
                 continue;
             };
-            if &anode.label != label {
+            if &anode.label != label || anode.presentation.color != *color {
+                let mut presentation = anode.presentation.clone();
+                presentation.color = *color;
                 ctx.patch_node_meta(
                     child,
                     NodeMetaPatch {
-                        label: Some(label.clone()),
+                        label: (&anode.label != label).then(|| label.clone()),
+                        presentation: (anode.presentation.color != *color)
+                            .then_some(presentation),
                         ..NodeMetaPatch::default()
                     },
                 );

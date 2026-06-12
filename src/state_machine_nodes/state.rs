@@ -1,4 +1,5 @@
 use golden_core::{
+    color::Color,
     item, node,
     node::{Node, NodeUserPermissions},
     parameter::ParamValue,
@@ -66,7 +67,11 @@ impl StateMachineState {
 #[item("state", node = "state", from_struct)]
 impl Node for StateMachineState {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        let meta = &mut self.node_data_mut().meta;
+        meta.user_permissions = NodeUserPermissions::all();
+        if meta.presentation.color.is_none() {
+            meta.presentation.color = Some(Color::new(0.28, 0.56, 0.92, 1.0));
+        }
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

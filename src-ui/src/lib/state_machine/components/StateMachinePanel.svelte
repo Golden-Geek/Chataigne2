@@ -19,6 +19,7 @@
 		type PanelProps,
 		type PanelState,
 		type ParamValue,
+		type UiColorDto,
 		type UiCreatableUserItem,
 		type UiCreateUserItemInitialParam,
 		type UiNodeDto
@@ -28,7 +29,11 @@
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
-	import { createUiEditSession, sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
+	import {
+		createUiEditSession,
+		sendCreateUserItemByTypeIntent,
+		sendPatchMetaIntent
+	} from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import StateProcessorManager from './StateProcessorManager.svelte';
@@ -196,6 +201,14 @@
 		return parameter.data.param.value.value;
 	};
 
+	const stringParameterValue = (node: UiNodeDto, declId: string): string | null => {
+		const parameter = parameterChild(node, declId);
+		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'str') {
+			return null;
+		}
+		return parameter.data.param.value.value;
+	};
+
 	const graphPosition = (node: UiNodeDto, index: number): GraphNodePosition => {
 		const x = floatParameterValue(node, POSITION_X_DECL_ID);
 		const y = floatParameterValue(node, POSITION_Y_DECL_ID);
@@ -213,10 +226,26 @@
 		return value !== null && value > 0 ? value : fallback;
 	};
 
+	const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+	const metadataColor = (color: UiColorDto | null | undefined): string | undefined => {
+		if (!color) {
+			return undefined;
+		}
+		const red = Math.round(clamp01(color.r) * 255);
+		const green = Math.round(clamp01(color.g) * 255);
+		const blue = Math.round(clamp01(color.b) * 255);
+		return `rgb(${red} ${green} ${blue} / ${clamp01(color.a)})`;
+	};
+
 	let graphNodes = $derived.by((): GraphNode[] =>
 		stateNodes.map((node, index) => ({
 			id: String(node.node_id),
 			label: node.meta.label,
+			description: stringParameterValue(node, 'description')?.trim() || undefined,
+			canRename: node.meta.user_permissions?.can_edit_name !== false,
+			collapsed: node.meta.presentation?.collapsed === true,
+			color: metadataColor(node.meta.presentation?.color),
 			...graphPosition(node, index),
 			width: graphDimension(node, WIDTH_DECL_ID, DEFAULT_STATE_WIDTH_REM),
 			height: graphDimension(node, HEIGHT_DECL_ID, DEFAULT_STATE_HEIGHT_REM),
@@ -511,6 +540,41 @@
 		}
 	};
 
+	const renameState = async (nodeId: string, label: string): Promise<void> => {
+		if (!session) {
+			return;
+		}
+		const stateId = Number(nodeId);
+		const state = session.graph.state.nodesById.get(stateId);
+		if (!Number.isSafeInteger(stateId) || state?.node_type !== STATE_NODE_TYPE) {
+			return;
+		}
+		const success = await sendPatchMetaIntent(stateId, { label });
+		if (!success) {
+			throw new Error(`failed to rename ${state.meta.label}`);
+		}
+	};
+
+	const setStateCollapsed = async (nodeId: string, collapsed: boolean): Promise<void> => {
+		if (!session) {
+			return;
+		}
+		const stateId = Number(nodeId);
+		const state = session.graph.state.nodesById.get(stateId);
+		if (!Number.isSafeInteger(stateId) || state?.node_type !== STATE_NODE_TYPE) {
+			return;
+		}
+		const success = await sendPatchMetaIntent(stateId, {
+			presentation: {
+				...(state.meta.presentation ?? {}),
+				collapsed
+			}
+		});
+		if (!success) {
+			throw new Error(`failed to ${collapsed ? 'collapse' : 'expand'} ${state.meta.label}`);
+		}
+	};
+
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
 		if (!manager || manager.creatable_user_items.length === 0) {
 			return [];
@@ -792,6 +856,8 @@
 		onGraphSelectionChange={selectGraphItems}
 		onNodesMove={persistNodePositions}
 		onNodeResize={persistNodeResize}
+		onNodeRename={renameState}
+		onNodeCollapsedChange={setStateCollapsed}
 		onConnect={connectStates}
 		nodeContent={stateNodeContent}
 		onBackgroundContextMenu={openContextMenu}

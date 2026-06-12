@@ -10,6 +10,9 @@
 	import type {
 		ContextMenuAnchor,
 		ContextMenuItem,
+		NodeId,
+		OutlinerDropTarget,
+		OutlinerDropZone,
 		PanelProps,
 		PanelState,
 		UiCreateUserItemInitialParam,
@@ -17,10 +20,18 @@
 		UiEditIntent,
 		UiNodeDto
 	} from 'golden_ui';
-	import { ContextMenu, NodeAddButton, buildCreatableItemMenu } from 'golden_ui';
+	import {
+		ContextMenu,
+		NodeAddButton,
+		OutlinerItem,
+		buildCreatableItemMenu,
+		canDragOutlinerNode,
+		resolveOutlinerDropTarget
+	} from 'golden_ui';
 	import {
 		createUiEditSession,
 		sendCreateUserItemByTypeIntent,
+		sendMoveNodeIntent,
 		sendUiIntentBatch
 	} from 'golden_ui/store/ui-intents';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
@@ -31,10 +42,12 @@
 		CONNECTION_NODE_TYPE,
 		FORMULA_NODE_TYPE,
 		PROPERTIES_DECL_ID,
+		PROPERTY_FOLDER_NODE_TYPE,
 		PROPERTY_MANAGER_NODE_TYPE,
 		PROPERTY_NODE_TYPE,
 		directChild,
 		formulaANodes,
+		managerAnodeType,
 		parameterChild,
 		toGraphEdges
 	} from '../alchemistGraph';
@@ -50,14 +63,8 @@
 		origin: string;
 	}
 
-	interface PropertyRow {
-		node: UiNodeDto;
-		depth: number;
-		container: boolean;
-		draggable: boolean;
-	}
-
 	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
+	const MANAGER_DRAG_TYPE = 'application/x-chataigne-alchemist-manager';
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -86,6 +93,9 @@
 	let contextMenuY = $state(0);
 	let contextMenuWorldPosition: GraphNodePosition | null = null;
 	let persistenceTail = Promise.resolve();
+	let activePropertyDragNodeId = $state<NodeId | null>(null);
+	let propertyDropTarget = $state<OutlinerDropTarget | null>(null);
+	let propertyMoveInFlight = $state(false);
 
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
@@ -156,20 +166,21 @@
 	let properties = $derived(
 		graphState ? directChild(formula, graphState.nodesById, PROPERTIES_DECL_ID) : null
 	);
-	let propertyRows = $derived.by((): PropertyRow[] => {
-		if (!properties || !graphState) return [];
-		return properties.children.flatMap((childId): PropertyRow[] => {
-			const child = graphState.nodesById.get(childId);
-			if (!child || child.data.kind === 'parameter') return [];
-			return [
-				{
-					node: child,
-					depth: 0,
-					container: child.node_type === PROPERTY_MANAGER_NODE_TYPE,
-					draggable: child.node_type === PROPERTY_NODE_TYPE
-				}
-			];
-		});
+	let isPropertyRootDropActive = $derived(
+		properties !== null && propertyDropTarget?.hoverNodeId === properties.node_id
+	);
+	let activePropertyContainer = $derived.by((): UiNodeDto | null => {
+		if (!graphState || !properties) return properties ?? null;
+		for (const selectedId of session?.selectedNodesIds ?? []) {
+			const selected = graphState.nodesById.get(selectedId);
+			if (!selected || selected.creatable_user_items.length === 0) continue;
+			let currentId: number | undefined = selectedId;
+			while (currentId !== undefined) {
+				if (currentId === properties.node_id) return selected;
+				currentId = graphState.parentById.get(currentId);
+			}
+		}
+		return properties;
 	});
 	let anodeNodeIds = $derived(
 		new Set(
@@ -205,6 +216,161 @@
 	$effect(() => {
 		props.panelApi.setTitle(formula ? `Alchemist: ${formula.meta.label}` : 'Alchemist Editor');
 	});
+
+	const isPropertyTreeNode = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
+		Boolean(
+			node &&
+			(node.node_type === PROPERTY_NODE_TYPE ||
+				node.node_type === PROPERTY_MANAGER_NODE_TYPE ||
+				node.node_type === PROPERTY_FOLDER_NODE_TYPE)
+		);
+
+	const canRenderPropertyChildren = (node: UiNodeDto): boolean =>
+		node.node_type === PROPERTY_MANAGER_NODE_TYPE || node.node_type === PROPERTY_FOLDER_NODE_TYPE;
+
+	const canMovePropertyNode = (node: UiNodeDto): boolean =>
+		isPropertyTreeNode(node) && canDragOutlinerNode(graphState, node);
+
+	const clearPropertyDragState = (): void => {
+		activePropertyDragNodeId = null;
+		propertyDropTarget = null;
+	};
+
+	const isPropertyRowTarget = (target: EventTarget | null): boolean =>
+		target instanceof Element && target.closest('.outliner-item-content') !== null;
+
+	const resolvePropertyDropZone = (event: DragEvent): OutlinerDropZone => {
+		const row = event.currentTarget;
+		if (!(row instanceof HTMLElement)) {
+			return 'inside';
+		}
+		const bounds = row.getBoundingClientRect();
+		const ratio = (event.clientY - bounds.top) / Math.max(bounds.height, 1);
+		return ratio <= 0.3 ? 'before' : ratio >= 0.7 ? 'after' : 'inside';
+	};
+
+	const setPropertyGraphDragData = (node: UiNodeDto, event: DragEvent): void => {
+		if (!event.dataTransfer) return;
+		event.dataTransfer.effectAllowed = 'copyMove';
+		if (node.node_type === PROPERTY_MANAGER_NODE_TYPE) {
+			event.dataTransfer.setData(MANAGER_DRAG_TYPE, String(node.node_id));
+		} else if (node.node_type === PROPERTY_NODE_TYPE) {
+			event.dataTransfer.setData(PROPERTY_DRAG_TYPE, String(node.node_id));
+		}
+	};
+
+	const handlePropertyNodeDragStart = (node: UiNodeDto, event: DragEvent): void => {
+		setPropertyGraphDragData(node, event);
+		if (!canMovePropertyNode(node) || propertyMoveInFlight) {
+			clearPropertyDragState();
+			return;
+		}
+		activePropertyDragNodeId = node.node_id;
+		propertyDropTarget = null;
+	};
+
+	const handlePropertyNodeDragOver = (hoverNode: UiNodeDto, event: DragEvent): void => {
+		if (propertyMoveInFlight || activePropertyDragNodeId === null) {
+			propertyDropTarget = null;
+			return;
+		}
+		const next = resolveOutlinerDropTarget(
+			graphState,
+			activePropertyDragNodeId,
+			hoverNode.node_id,
+			resolvePropertyDropZone(event)
+		);
+		if (!next) {
+			propertyDropTarget = null;
+			return;
+		}
+		event.preventDefault();
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'move';
+		}
+		propertyDropTarget = next;
+	};
+
+	const commitPropertyDrop = async (
+		sourceNodeId: NodeId,
+		next: OutlinerDropTarget | null,
+		event: DragEvent
+	): Promise<void> => {
+		clearPropertyDragState();
+		if (!next) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		propertyMoveInFlight = true;
+		try {
+			await sendMoveNodeIntent(sourceNodeId, next.newParentId, next.newPrevSiblingId ?? undefined);
+		} finally {
+			propertyMoveInFlight = false;
+			clearPropertyDragState();
+		}
+	};
+
+	const handlePropertyNodeDrop = async (hoverNode: UiNodeDto, event: DragEvent): Promise<void> => {
+		const sourceNodeId = activePropertyDragNodeId;
+		if (sourceNodeId === null || propertyMoveInFlight) {
+			clearPropertyDragState();
+			return;
+		}
+		await commitPropertyDrop(
+			sourceNodeId,
+			resolveOutlinerDropTarget(
+				graphState,
+				sourceNodeId,
+				hoverNode.node_id,
+				resolvePropertyDropZone(event)
+			),
+			event
+		);
+	};
+
+	const handlePropertyRootDragOver = (event: DragEvent): void => {
+		if (
+			propertyMoveInFlight ||
+			activePropertyDragNodeId === null ||
+			!properties ||
+			isPropertyRowTarget(event.target)
+		) {
+			return;
+		}
+		const next = resolveOutlinerDropTarget(
+			graphState,
+			activePropertyDragNodeId,
+			properties.node_id,
+			'inside'
+		);
+		if (!next) {
+			propertyDropTarget = null;
+			return;
+		}
+		event.preventDefault();
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'move';
+		}
+		propertyDropTarget = next;
+	};
+
+	const handlePropertyRootDrop = async (event: DragEvent): Promise<void> => {
+		const sourceNodeId = activePropertyDragNodeId;
+		if (
+			sourceNodeId === null ||
+			propertyMoveInFlight ||
+			!properties ||
+			isPropertyRowTarget(event.target)
+		) {
+			return;
+		}
+		await commitPropertyDrop(
+			sourceNodeId,
+			resolveOutlinerDropTarget(graphState, sourceNodeId, properties.node_id, 'inside'),
+			event
+		);
+	};
 
 	const selectFormula = (event: Event): void => {
 		const formulaNodeId = Number((event.currentTarget as HTMLSelectElement).value);
@@ -284,14 +450,6 @@
 
 	const propertyValueType = (property: UiNodeDto): string => {
 		if (!graphState) return 'float';
-		const valueType = parameterChild(property, graphState.nodesById, 'value_type');
-		if (
-			valueType?.data.kind === 'parameter' &&
-			valueType.data.param.value.kind === 'str' &&
-			valueType.data.param.value.value.length > 0
-		) {
-			return valueType.data.param.value.value;
-		}
 		const value = parameterChild(property, graphState.nodesById, 'value');
 		if (value?.data.kind !== 'parameter') return 'float';
 		switch (value.data.param.value.kind) {
@@ -303,15 +461,11 @@
 			case 'vec3':
 			case 'color':
 				return value.data.param.value.kind;
+			case 'reference':
+				return 'chataigne.module_endpoint';
 			default:
 				return 'string';
 		}
-	};
-
-	const propertyParameterType = (property: UiNodeDto): string => {
-		if (!graphState) return '';
-		const value = parameterChild(property, graphState.nodesById, 'value');
-		return value?.data.kind === 'parameter' ? value.data.param.value.kind : '';
 	};
 
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
@@ -356,37 +510,80 @@
 		});
 	};
 
-	const startPropertyDrag = (event: DragEvent, property: UiNodeDto): void => {
-		if (!event.dataTransfer) return;
-		event.dataTransfer.effectAllowed = 'copy';
-		event.dataTransfer.setData(PROPERTY_DRAG_TYPE, String(property.node_id));
+	const getManagerRole = (manager: UiNodeDto): string => {
+		if (!graphState) return '';
+		const roleParam = parameterChild(manager, graphState.nodesById, 'role');
+		if (roleParam?.data.kind === 'parameter' && roleParam.data.param.value.kind === 'enum') {
+			return roleParam.data.param.value.value;
+		}
+		return '';
 	};
 
-	const selectPropertyRow = (event: KeyboardEvent, node: UiNodeDto): void => {
-		if (event.key !== 'Enter' && event.key !== ' ') return;
-		event.preventDefault();
-		session?.selectNode(node.node_id, 'REPLACE');
+	const createManagerNode = (manager: UiNodeDto, position: GraphNodePosition): void => {
+		if (!formula || !graphState || manager.node_type !== PROPERTY_MANAGER_NODE_TYPE) return;
+		const role = getManagerRole(manager);
+		const typeId = managerAnodeType(role);
+		if (!typeId) return;
+		const managerItem = anodeItems.find(
+			(item: UiCreatableUserItem) => item.node_type === `${ANODE_CREATE_PREFIX}${typeId}`
+		);
+		if (!managerItem) return;
+		void runMutation(async () => {
+			const result = await sendCreateUserItemByTypeIntent(
+				formula.node_id,
+				managerItem.node_type,
+				manager.meta.label,
+				{
+					select_when_created: true,
+					created_node_type: ANODE_NODE_TYPE,
+					initial_params: [
+						initialParam('position', {
+							kind: 'vec2',
+							value: [position.x, position.y]
+						})
+					]
+				}
+			);
+			if (!result.success)
+				throw new Error(`failed to create manager node for ${manager.meta.label}`);
+			if (result.createdNodeId !== null) {
+				session?.selectNode(result.createdNodeId, 'REPLACE');
+			}
+		});
 	};
 
 	const allowPropertyDrop = (event: DragEvent): void => {
-		if (!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE)) return;
+		if (
+			!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE) &&
+			!event.dataTransfer?.types.includes(MANAGER_DRAG_TYPE)
+		)
+			return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = 'copy';
 	};
 
 	const dropProperty = (event: DragEvent): void => {
-		const nodeId = Number(event.dataTransfer?.getData(PROPERTY_DRAG_TYPE));
-		if (!graphState || !Number.isSafeInteger(nodeId)) return;
-		const property = graphState.nodesById.get(nodeId);
-		if (!property || property.node_type !== PROPERTY_NODE_TYPE) return;
-		event.preventDefault();
-		createPropertyGetter(
-			property,
-			graphEditor?.clientToWorld(event.clientX, event.clientY) ?? {
-				x: 0,
-				y: 0
+		if (!graphState) return;
+		const position = graphEditor?.clientToWorld(event.clientX, event.clientY) ?? { x: 0, y: 0 };
+
+		const propertyId = Number(event.dataTransfer?.getData(PROPERTY_DRAG_TYPE));
+		if (Number.isSafeInteger(propertyId) && propertyId !== 0) {
+			const property = graphState.nodesById.get(propertyId);
+			if (property?.node_type === PROPERTY_NODE_TYPE) {
+				event.preventDefault();
+				createPropertyGetter(property, position);
+				return;
 			}
-		);
+		}
+
+		const managerId = Number(event.dataTransfer?.getData(MANAGER_DRAG_TYPE));
+		if (Number.isSafeInteger(managerId) && managerId !== 0) {
+			const manager = graphState.nodesById.get(managerId);
+			if (manager?.node_type === PROPERTY_MANAGER_NODE_TYPE) {
+				event.preventDefault();
+				createManagerNode(manager, position);
+			}
+		}
 	};
 
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
@@ -445,6 +642,40 @@
 					node: width.node_id,
 					value: { kind: 'float', value: resize.size.width },
 					behaviour: width.data.param.event_behaviour
+				}
+			]);
+		});
+
+	const renameNode = (nodeId: string, label: string): Promise<void> =>
+		runMutation(async () => {
+			if (!graphState) return;
+			const anode = graphState.nodesById.get(Number(nodeId));
+			const nextLabel = label.trim();
+			if (anode?.node_type !== ANODE_NODE_TYPE || nextLabel.length === 0) return;
+			await editParameters(`Rename ${anode.meta.label}`, [
+				{
+					kind: 'patchMeta',
+					node: anode.node_id,
+					patch: { label: nextLabel }
+				}
+			]);
+		});
+
+	const setNodeCollapsed = (nodeId: string, collapsed: boolean): Promise<void> =>
+		runMutation(async () => {
+			if (!graphState) return;
+			const anode = graphState.nodesById.get(Number(nodeId));
+			if (anode?.node_type !== ANODE_NODE_TYPE) return;
+			await editParameters(`${collapsed ? 'Collapse' : 'Expand'} ${anode.meta.label}`, [
+				{
+					kind: 'patchMeta',
+					node: anode.node_id,
+					patch: {
+						presentation: {
+							...(anode.meta.presentation ?? {}),
+							collapsed
+						}
+					}
 				}
 			]);
 		});
@@ -637,35 +868,52 @@
 							<strong>Properties</strong>
 							<span>Drag a property onto the graph to create a getter.</span>
 						</div>
-						{#if properties && properties.creatable_user_items.length > 0}
+						{#if activePropertyContainer && activePropertyContainer.creatable_user_items.length > 0}
 							<NodeAddButton
-								node={properties}
-								items={properties.creatable_user_items}
-								onCreateItem={(item) => createPropertyItem(properties, item)} />
+								node={activePropertyContainer}
+								items={activePropertyContainer.creatable_user_items}
+								onCreateItem={(item) => createPropertyItem(activePropertyContainer, item)} />
 						{/if}
 					</div>
-					<div class="property-tree" role="tree" aria-label="Formula property hierarchy">
-						{#each propertyRows as row (row.node.node_id)}
-							<div
-								class:container={row.container}
-								class:draggable={row.draggable}
-								class="property-row"
-								style={`--property-indent: ${0.45 + row.depth * 0.8}rem`}
-								draggable={row.draggable}
-								role="treeitem"
-								aria-selected={(session?.selectedNodesIds ?? []).includes(row.node.node_id)}
-								tabindex="0"
-								ondragstart={(event) => startPropertyDrag(event, row.node)}
-								onkeydown={(event) => selectPropertyRow(event, row.node)}
-								onclick={() => session?.selectNode(row.node.node_id, 'REPLACE')}>
-								<span class="property-label">{row.node.meta.label}</span>
-								{#if row.draggable}
-									<span class="property-type">{propertyParameterType(row.node)}</span>
+					<div
+						class="property-tree"
+						class:root-drop-active={isPropertyRootDropActive}
+						role="tree"
+						tabindex="0"
+						aria-label="Formula property hierarchy"
+						ondragover={handlePropertyRootDragOver}
+						ondrop={(event) => void handlePropertyRootDrop(event)}
+						ondragleave={() => {
+							if (isPropertyRootDropActive) {
+								propertyDropTarget = null;
+							}
+						}}>
+						{#if properties && properties.children.some((id) => graphState?.nodesById.get(id)?.data.kind !== 'parameter')}
+							{#each properties.children as childId (childId)}
+								{@const child = graphState?.nodesById.get(childId)}
+								{#if child && child.data.kind !== 'parameter'}
+									<OutlinerItem
+										node={child}
+										mode="tree"
+										canRenderNodeChildren={canRenderPropertyChildren}
+										nodeFilter={isPropertyTreeNode}
+										nodeDraggable={canMovePropertyNode}
+										activeDragNodeId={activePropertyDragNodeId}
+										dropTarget={propertyDropTarget}
+										onNodeDragStart={handlePropertyNodeDragStart}
+										onNodeDragOver={handlePropertyNodeDragOver}
+										onNodeDrop={handlePropertyNodeDrop}
+										onNodeDragEnd={() => {
+											if (!propertyMoveInFlight) {
+												clearPropertyDragState();
+											}
+										}}
+										onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')} />
 								{/if}
-							</div>
+							{/each}
 						{:else}
 							<p class="properties-empty">The Formula properties hierarchy is empty.</p>
-						{/each}
+						{/if}
 					</div>
 				</aside>
 			{/if}
@@ -685,6 +933,8 @@
 					onGraphSelectionChange={selectGraphItems}
 					onNodesMove={moveNodes}
 					onNodeResize={resizeNode}
+					onNodeRename={renameNode}
+					onNodeCollapsedChange={setNodeCollapsed}
 					onConnect={connectNodes}
 					onBackgroundContextMenu={openContextMenu}
 					onCreateRequest={openCreateRequest} />
@@ -857,48 +1107,14 @@
 	.property-tree {
 		min-block-size: 0;
 		overflow: auto;
-		padding-block: 0.25rem;
+		padding: 0.25rem;
+		outline: 0.08rem solid transparent;
+		outline-offset: -0.08rem;
 	}
 
-	.property-row {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto auto;
-		align-items: center;
-		gap: 0.35rem;
-		min-block-size: 1.8rem;
-		padding: 0.18rem 0.35rem 0.18rem var(--property-indent);
-		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 45%, transparent);
-		font-size: 0.66rem;
-		cursor: default;
-	}
-
-	.property-row:hover {
-		background: color-mix(in srgb, var(--gc-color-accent) 8%, transparent);
-	}
-
-	.property-row.container > .property-label {
-		font-weight: 650;
-	}
-
-	.property-row.draggable {
-		cursor: grab;
-	}
-
-	.property-row.draggable:active {
-		cursor: grabbing;
-	}
-
-	.property-label {
-		min-inline-size: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.property-type {
-		color: color-mix(in srgb, var(--gc-color-text) 52%, transparent);
-		font-size: 0.58rem;
-		text-transform: uppercase;
+	.property-tree.root-drop-active {
+		background: color-mix(in srgb, var(--gc-color-selection) 8%, transparent);
+		outline-color: color-mix(in srgb, var(--gc-color-selection) 48%, transparent);
 	}
 
 	.properties-empty {

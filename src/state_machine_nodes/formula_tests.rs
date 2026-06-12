@@ -1,4 +1,5 @@
 use golden_core::{
+    color::Color,
     node::{
         DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference,
     },
@@ -8,11 +9,12 @@ use golden_core::{
 };
 
 use super::{
-    ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, AlchemistANode,
-    AlchemistConnection, AlchemistFormulaDefinition, AlchemistProperty,
-    AlchemistPropertyManager, AlchemistPropertiesManager, FORMULA_ITEM_KIND,
-    FormulaLibrary, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
-    PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
+    ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
+    AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
+    AlchemistProperty, AlchemistPropertyManager, AlchemistPropertiesManager,
+    FORMULA_ITEM_KIND, FormulaLibrary, PROPERTIES_DECL_ID,
+    PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
+    formula_from_snapshot,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -128,6 +130,28 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
     }));
     let value = find_child_by_decl(&engine, property, "value")
         .expect("Property value should be a real parameter");
+    assert!(
+        find_child_by_decl(&engine, property, "value_type").is_none(),
+        "Property value type is internal and must not be a child parameter"
+    );
+    let property_color = engine
+        .nodes
+        .get(property)
+        .expect("Property should exist")
+        .node_data()
+        .meta
+        .presentation
+        .color;
+    let value_color = engine
+        .nodes
+        .get(value)
+        .expect("Property value should exist")
+        .node_data()
+        .meta
+        .presentation
+        .color;
+    assert!(property_color.is_some());
+    assert_eq!(property_color, value_color);
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
         node: value,
         value: ParamValue::Float(3.5),
@@ -169,8 +193,8 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .find(|candidate| {
             engine.nodes.get(*candidate).is_some_and(|node| {
                 node.get_type() == AlchemistANode::NODE_TYPE
-                    && parameter_value(&engine, *candidate, "anode_type")
-                        == ParamValue::Str("property".into())
+                    && anode_type(&engine, *candidate).as_deref()
+                        == Some("property")
             })
         })
         .expect("Property getter should be a real ANode");
@@ -184,6 +208,17 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             .user_permissions
             .can_edit_name,
         "Property getter labels must stay synchronized with their property"
+    );
+    assert!(
+        !engine
+            .nodes
+            .get(getter_node)
+            .expect("Property getter should exist")
+            .node_data()
+            .meta
+            .user_permissions
+            .can_edit_color,
+        "Property getter colors must come from their source Property"
     );
     let getter_config = find_child_by_decl(&engine, getter_node, "config")
         .expect("Property getter Config should exist");
@@ -206,10 +241,20 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             }),
         "Property getter configuration must be hidden and read-only"
     );
+    let mut property_presentation = engine
+        .nodes
+        .get(property)
+        .expect("Property should exist")
+        .node_data()
+        .meta
+        .presentation
+        .clone();
+    property_presentation.color = Some(Color::new(0.12, 0.34, 0.56, 1.0));
     let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
         node: property,
         patch: NodeMetaPatch {
             label: Some("Intensity".into()),
+            presentation: Some(property_presentation.clone()),
             ..NodeMetaPatch::default()
         },
     });
@@ -229,6 +274,17 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             .meta
             .label,
         "Intensity"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(getter_node)
+            .expect("Property getter should exist")
+            .node_data()
+            .meta
+            .presentation
+            .color,
+        property_presentation.color
     );
 
     let materialized =
@@ -275,10 +331,20 @@ fn anode_creation_materializes_visible_config_and_socket_nodes() {
         })
         .expect("Constant ANode should be visible under the Formula");
 
-    assert_eq!(
-        parameter_value(&engine, anode, "anode_type"),
-        ParamValue::Str("constant".into())
+    assert!(
+        find_child_by_decl(&engine, anode, "anode_type").is_none(),
+        "ANode type is internal and must not be a child parameter"
     );
+    assert_eq!(anode_type(&engine, anode).as_deref(), Some("constant"));
+    assert!(engine
+        .nodes
+        .get(anode)
+        .expect("Constant ANode should exist")
+        .node_data()
+        .meta
+        .presentation
+        .color
+        .is_some());
     assert_eq!(
         parameter_value(&engine, anode, "position"),
         ParamValue::Vec2(2.0, 3.0)
@@ -302,7 +368,7 @@ fn anode_creation_materializes_visible_config_and_socket_nodes() {
 }
 
 #[test]
-fn anode_config_and_type_changes_reconcile_real_children() {
+fn anode_config_changes_reconcile_real_children() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);
     let anode = direct_children(&engine, formula)
@@ -342,26 +408,6 @@ fn anode_config_and_type_changes_reconcile_real_children() {
         parameter_value(&engine, output, "outputs/value/value_type"),
         ParamValue::Str("vec3".into())
     );
-
-    let anode_type = find_child_by_decl(&engine, anode, "anode_type")
-        .expect("ANode type should be a real parameter");
-    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
-        node: anode_type,
-        value: ParamValue::Str("debug_log".into()),
-        behaviour: ParameterEventBehaviour::Coalesce,
-    });
-    assert!(ack.success, "ANode type edit should succeed: {ack:?}");
-    assert!(
-        direct_children(&engine, config).is_empty(),
-        "stale Constant config should be removed"
-    );
-    assert!(
-        direct_children(&engine, outputs).is_empty(),
-        "stale Constant output should be removed"
-    );
-    let inputs =
-        find_child_by_decl(&engine, anode, "inputs").expect("Inputs should exist");
-    assert_eq!(direct_children(&engine, inputs).len(), 1);
 }
 
 #[test]
@@ -383,16 +429,14 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
         .iter()
         .copied()
         .find(|node| {
-            parameter_value(&engine, *node, "anode_type")
-                == ParamValue::Str("constant".into())
+            anode_type(&engine, *node).as_deref() == Some("constant")
         })
         .expect("Constant should exist");
     let debug = anodes
         .iter()
         .copied()
         .find(|node| {
-            parameter_value(&engine, *node, "anode_type")
-                == ParamValue::Str("debug_log".into())
+            anode_type(&engine, *node).as_deref() == Some("debug_log")
         })
         .expect("Debug Log should exist");
     create_connection(
@@ -662,6 +706,18 @@ fn find_descendant_by_decl(
         }
     }
     None
+}
+
+fn anode_type(engine: &AppEngine, node: NodeId) -> Option<String> {
+    engine
+        .nodes
+        .get(node)?
+        .node_data()
+        .meta
+        .tags
+        .iter()
+        .find_map(|tag| tag.strip_prefix(ANODE_TYPE_TAG_PREFIX))
+        .map(ToOwned::to_owned)
 }
 
 fn parameter_value(
