@@ -1,169 +1,290 @@
 import type { GraphEdge, GraphNode, GraphSocket } from 'golden_alchemist_ui';
+import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 
-export interface AuthoredGraphNode {
-	id: string;
-	typeId: string;
-	label: string;
-	x: number;
-	y: number;
-	width?: number;
-	height?: number;
-	inputs: GraphSocket[];
-	outputs: GraphSocket[];
-}
+export const FORMULA_NODE_TYPE = 'alchemist_formula';
+export const ANODE_NODE_TYPE = 'alchemist_anode';
+export const CONNECTION_NODE_TYPE = 'alchemist_connection';
+export const ANODE_CREATE_PREFIX = 'alchemist_anode:';
+export const PROPERTIES_DECL_ID = 'properties';
+export const PROPERTY_NODE_TYPE = 'alchemist_property';
+export const PROPERTY_MANAGER_NODE_TYPE = 'alchemist_property_manager';
+export const PROPERTY_FOLDER_NODE_TYPE = 'alchemist_property_folder';
 
-export interface AuthoredGraphEdge {
-	id: string;
-	from: {
-		nodeId: string;
-		socketId: string;
-	};
-	to: {
-		nodeId: string;
-		socketId: string;
-	};
-}
+export const TRIGGER_SOCKET_ID = '__trigger';
+export const ANODE_TYPE_TAG_PREFIX = 'alchemist.anode.type:';
 
-export interface AuthoredGraphDocument {
-	version: 1;
-	nodes: AuthoredGraphNode[];
-	edges: AuthoredGraphEdge[];
-}
+export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
+export const MANAGER_REF_TYPE_CONSEQUENCES = 'chataigne.consequences_manager';
+export const MANAGER_REF_TYPE_INPUTS = 'chataigne.inputs_manager';
+export const MANAGER_REF_TYPE_OUTPUTS = 'chataigne.outputs_manager';
+export const MANAGER_REF_TYPE_FILTERS = 'chataigne.filters_manager';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === 'object' && value !== null && !Array.isArray(value);
+const MANAGER_REF_TYPES = new Set([
+	MANAGER_REF_TYPE_CONDITIONS,
+	MANAGER_REF_TYPE_CONSEQUENCES,
+	MANAGER_REF_TYPE_INPUTS,
+	MANAGER_REF_TYPE_OUTPUTS,
+	MANAGER_REF_TYPE_FILTERS
+]);
 
-const finiteNumber = (value: unknown): number | undefined =>
-	typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-
-const parseSocket = (value: unknown): GraphSocket | null => {
-	if (!isRecord(value) || typeof value.id !== 'string' || typeof value.label !== 'string') {
-		return null;
+export const managerAnodeType = (role: string): string => {
+	switch (role) {
+		case 'condition':
+			return MANAGER_REF_TYPE_CONDITIONS;
+		case 'consequence':
+			return MANAGER_REF_TYPE_CONSEQUENCES;
+		case 'input':
+			return MANAGER_REF_TYPE_INPUTS;
+		case 'output':
+			return MANAGER_REF_TYPE_OUTPUTS;
+		case 'filter':
+			return MANAGER_REF_TYPE_FILTERS;
+		default:
+			return '';
 	}
-	return {
-		id: value.id,
-		label: value.label,
-		valueType: typeof value.valueType === 'string' ? value.valueType : undefined,
-		compatible: typeof value.compatible === 'boolean' ? value.compatible : undefined,
-		color: typeof value.color === 'string' ? value.color : undefined
-	};
 };
 
-const parseSockets = (value: unknown): GraphSocket[] | null => {
-	if (!Array.isArray(value)) {
-		return null;
-	}
-	const sockets = value.map(parseSocket);
-	return sockets.every((socket): socket is GraphSocket => socket !== null) ? sockets : null;
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+const metadataColor = (color: UiColorDto | null | undefined): string | undefined => {
+	if (!color) return undefined;
+	const r = Math.round(clamp01(color.r) * 255);
+	const g = Math.round(clamp01(color.g) * 255);
+	const b = Math.round(clamp01(color.b) * 255);
+	return `rgb(${r} ${g} ${b} / ${clamp01(color.a)})`;
 };
 
-const parseNode = (value: unknown): AuthoredGraphNode | null => {
-	if (
-		!isRecord(value) ||
-		typeof value.id !== 'string' ||
-		typeof value.typeId !== 'string' ||
-		typeof value.label !== 'string'
-	) {
-		return null;
+const tagValue = (tags: readonly string[], prefix: string): string | undefined =>
+	tags
+		.find((tag) => tag.startsWith(prefix))
+		?.slice(prefix.length)
+		.trim() || undefined;
+
+export const anodeType = (node: UiNodeDto): string =>
+	tagValue(node.meta.tags, ANODE_TYPE_TAG_PREFIX) ?? '';
+
+export const directChild = (
+	node: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	declId: string
+): UiNodeDto | null => {
+	if (!node) return null;
+	for (const childId of node.children) {
+		const child = nodesById.get(childId);
+		if (child?.decl_id === declId) return child;
 	}
-	const x = finiteNumber(value.x);
-	const y = finiteNumber(value.y);
-	const inputs = parseSockets(value.inputs);
-	const outputs = parseSockets(value.outputs);
-	if (x === undefined || y === undefined || inputs === null || outputs === null) {
-		return null;
-	}
-	return {
-		id: value.id,
-		typeId: value.typeId,
-		label: value.label,
-		x,
-		y,
-		width: finiteNumber(value.width),
-		height: finiteNumber(value.height),
-		inputs,
-		outputs
-	};
+	return null;
 };
 
-const parseSocketRef = (
-	value: unknown
-): {
-	nodeId: string;
-	socketId: string;
-} | null => {
-	if (!isRecord(value) || typeof value.nodeId !== 'string' || typeof value.socketId !== 'string') {
-		return null;
-	}
-	return {
-		nodeId: value.nodeId,
-		socketId: value.socketId
-	};
+export const parameterChild = (
+	node: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	declId: string
+): UiNodeDto | null => {
+	const child = directChild(node, nodesById, declId);
+	return child?.data.kind === 'parameter' ? child : null;
 };
 
-const parseEdge = (value: unknown, index: number): AuthoredGraphEdge | null => {
-	if (!isRecord(value)) {
-		return null;
-	}
-	const from = parseSocketRef(value.from);
-	const to = parseSocketRef(value.to);
-	if (!from || !to) {
-		return null;
-	}
-	return {
-		id: typeof value.id === 'string' ? value.id : `edge-${index}`,
-		from,
-		to
-	};
+export const parameterValue = (
+	node: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	declId: string
+): ParamValue | null => {
+	const child = parameterChild(node, nodesById, declId);
+	return child?.data.kind === 'parameter' ? child.data.param.value : null;
 };
 
-export const parseAuthoredGraph = (source: string): AuthoredGraphDocument | null => {
-	try {
-		const value: unknown = JSON.parse(source);
-		if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.nodes)) {
-			return null;
-		}
-		if (!Array.isArray(value.edges)) {
-			return null;
-		}
-		const nodes = value.nodes.map(parseNode);
-		const edges = value.edges.map(parseEdge);
+const stringParameter = (
+	node: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	declId: string
+): string | null => {
+	const value = parameterValue(node, nodesById, declId);
+	return value?.kind === 'str' ? value.value : null;
+};
+
+const socketParameter = (
+	socket: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	suffix: string
+): string | null => {
+	for (const childId of socket.children) {
+		const child = nodesById.get(childId);
 		if (
-			!nodes.every((node): node is AuthoredGraphNode => node !== null) ||
-			!edges.every((edge): edge is AuthoredGraphEdge => edge !== null)
+			child?.decl_id.endsWith(suffix) &&
+			child.data.kind === 'parameter' &&
+			child.data.param.value.kind === 'str'
 		) {
-			return null;
+			return child.data.param.value.value;
 		}
-		return {
-			version: 1,
-			nodes,
-			edges
-		};
-	} catch {
-		return null;
 	}
+	return null;
 };
 
-export const serializeAuthoredGraph = (document: AuthoredGraphDocument): string =>
-	JSON.stringify(document, null, 2);
+const graphSockets = (
+	anode: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	folderDeclId: 'inputs' | 'outputs',
+	socketNodeType: 'alchemist_input_socket' | 'alchemist_output_socket'
+): GraphSocket[] => {
+	const folder = directChild(anode, nodesById, folderDeclId);
+	if (!folder) return [];
+	return folder.children.flatMap((childId) => {
+		const socket = nodesById.get(childId);
+		if (!socket || socket.node_type !== socketNodeType) return [];
+		const id = socketParameter(socket, nodesById, '/socket_id');
+		if (!id) return [];
+		return [
+			{
+				id,
+				label: socket.meta.label,
+				valueType: socketParameter(socket, nodesById, '/value_type') ?? undefined,
+				color: metadataColor(socket.meta.presentation?.color)
+			}
+		];
+	});
+};
 
-export const toGraphNodes = (document: AuthoredGraphDocument): GraphNode[] =>
-	document.nodes.map((node) => ({
-		id: node.id,
-		label: node.label,
-		subtitle: node.typeId,
-		x: node.x,
-		y: node.y,
-		width: node.width,
-		height: node.height,
-		resizable: true,
-		inputs: node.inputs,
-		outputs: node.outputs
-	}));
+export const formulaANodes = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): UiNodeDto[] =>
+	formula
+		? formula.children.flatMap((childId) => {
+				const child = nodesById.get(childId);
+				return child?.node_type === ANODE_NODE_TYPE ? [child] : [];
+			})
+		: [];
 
-export const toGraphEdges = (document: AuthoredGraphDocument): GraphEdge[] =>
-	document.edges.map((edge) => ({
-		id: edge.id,
-		from: edge.from,
-		to: edge.to
-	}));
+export const formulaConnections = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): UiNodeDto[] =>
+	formula
+		? formula.children.flatMap((childId) => {
+				const child = nodesById.get(childId);
+				return child?.node_type === CONNECTION_NODE_TYPE ? [child] : [];
+			})
+		: [];
+
+const formulaPropertiesByUuid = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): ReadonlyMap<string, UiNodeDto> => {
+	const propertiesRoot = directChild(formula, nodesById, PROPERTIES_DECL_ID);
+	const byUuid = new Map<string, UiNodeDto>();
+	const pending = propertiesRoot ? [...propertiesRoot.children] : [];
+	while (pending.length > 0) {
+		const node = nodesById.get(pending.pop() as NodeId);
+		if (!node) continue;
+		if (node.node_type === PROPERTY_NODE_TYPE) {
+			byUuid.set(node.uuid, node);
+		}
+		pending.push(...node.children);
+	}
+	return byUuid;
+};
+
+export const toGraphNodes = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	_catalogItems: readonly UiCreatableUserItem[] = []
+): GraphNode[] => {
+	const propertiesByUuid = formulaPropertiesByUuid(formula, nodesById);
+	return formulaANodes(formula, nodesById).map((anode) => {
+		const position = parameterValue(anode, nodesById, 'position');
+		const sizeParameter = parameterChild(anode, nodesById, 'size');
+		const size =
+			sizeParameter?.data.kind === 'parameter' && sizeParameter.meta.enabled
+				? sizeParameter.data.param.value
+				: null;
+		const typeId = anodeType(anode);
+		const propertyGetter = typeId === 'property';
+		const managerRef = MANAGER_REF_TYPES.has(typeId);
+		const compactNode = propertyGetter || managerRef;
+		const description = anode.meta.description?.trim();
+		const allInputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
+		const triggerSocket = allInputs.find((s) => s.id === TRIGGER_SOCKET_ID);
+		const bodyInputs = triggerSocket
+			? allInputs.filter((s) => s.id !== TRIGGER_SOCKET_ID)
+			: allInputs;
+		const config = directChild(anode, nodesById, 'config');
+		const propertyId = propertyGetter
+			? stringParameter(config, nodesById, 'config/property_id')
+			: null;
+		const propertyNode = propertyId ? propertiesByUuid.get(propertyId) : undefined;
+		return {
+			id: String(anode.node_id),
+			label: anode.meta.label,
+			subtitle: compactNode ? undefined : typeId,
+			description: description ? description : undefined,
+			canRename: anode.meta.user_permissions?.can_edit_name !== false,
+			collapsed: anode.meta.presentation?.collapsed === true,
+			color: metadataColor(
+				propertyNode?.meta.presentation?.color ?? anode.meta.presentation?.color
+			),
+			position: {
+				x: position?.kind === 'vec2' ? position.value[0] : 0,
+				y: position?.kind === 'vec2' ? position.value[1] : 0
+			},
+			size:
+				size?.kind === 'vec2' && size.value[0] > 0 && size.value[1] > 0
+					? { width: size.value[0], height: size.value[1] }
+					: undefined,
+			resizable: !compactNode,
+			invalid: typeId.length === 0,
+			inputs: bodyInputs,
+			outputs: graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket'),
+			headerInputs: triggerSocket ? [triggerSocket] : undefined
+		};
+	});
+};
+
+const referencedNodeId = (
+	value: ParamValue | null,
+	nodeIdByUuid: ReadonlyMap<string, NodeId>
+): NodeId | null => {
+	if (value?.kind !== 'reference') return null;
+	return value.cached_id ?? nodeIdByUuid.get(value.uuid) ?? null;
+};
+
+export const toGraphEdges = (
+	formula: UiNodeDto | null | undefined,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): GraphEdge[] => {
+	const nodeIdByUuid = new Map(
+		formulaANodes(formula, nodesById).map((node) => [node.uuid, node.node_id])
+	);
+	return formulaConnections(formula, nodesById).flatMap((connection) => {
+		const source = referencedNodeId(
+			parameterValue(connection, nodesById, 'source_node'),
+			nodeIdByUuid
+		);
+		const target = referencedNodeId(
+			parameterValue(connection, nodesById, 'target_node'),
+			nodeIdByUuid
+		);
+		const sourceSocket = stringParameter(connection, nodesById, 'source_socket');
+		const targetSocket = stringParameter(connection, nodesById, 'target_socket');
+		if (source === null || target === null || !sourceSocket || !targetSocket) return [];
+		return [
+			{
+				id: String(connection.node_id),
+				from: { nodeId: String(source), socketId: sourceSocket },
+				to: { nodeId: String(target), socketId: targetSocket }
+			}
+		];
+	});
+};
+
+export const configParameters = (
+	anode: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): UiNodeDto[] => {
+	const config = directChild(anode, nodesById, 'config');
+	if (!config) return [];
+	return config.children.flatMap((childId) => {
+		const child = nodesById.get(childId);
+		return child?.data.kind === 'parameter' ? [child] : [];
+	});
+};

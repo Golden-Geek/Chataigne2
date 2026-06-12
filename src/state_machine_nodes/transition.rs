@@ -187,6 +187,11 @@ fn reconciled_state_activity(
 
     let mut desired_activity = HashMap::with_capacity(states.len());
     for members in members_by_component.values() {
+        // A component with no transitions is an isolated state; it can be freely inactive.
+        // Only connected components (linked by at least one transition) require one active state.
+        let is_connected = transitions.iter().any(|(src, tgt)| {
+            members.contains(src) || members.contains(tgt)
+        });
         let chosen = preferred_active
             .filter(|candidate| members.contains(candidate))
             .or_else(|| {
@@ -196,12 +201,15 @@ fn reconciled_state_activity(
                 })
             })
             .or_else(|| {
+                if !is_connected {
+                    return None;
+                }
                 members
                     .iter()
                     .copied()
                     .find(|state| Some(*state) != forced_inactive)
             })
-            .or_else(|| members.first().copied());
+            .or_else(|| if is_connected { members.first().copied() } else { None });
         let Some(chosen) = chosen else {
             continue;
         };

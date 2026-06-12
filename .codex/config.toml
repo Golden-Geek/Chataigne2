@@ -4,13 +4,14 @@ args = ["-y", "@upstash/context7-mcp"]
 env_vars = ["CONTEXT7_API_KEY"]
 
 [mcp_servers.jcodemunch]
-command = "powershell"
-args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\tools\\jcodemunch.ps1", "serve"]
-cwd = "."
+command = "D:\\Projects\\Dev\\Chataigne2\\.venv\\Scripts\\jcodemunch-mcp.exe"
+args = ["serve"]
+cwd = "D:\\Projects\\Dev\\Chataigne2"
 startup_timeout_sec = 30
 tool_timeout_sec = 120
 enabled = true
-required = false
+required = true
+default_tools_approval_mode = "approve"
 
 [mcp_servers.jcodemunch.env]
-PYTHONUTF8 = "1"
+CODE_INDEX_PATH = "C:\\Users\\bkupe\\.code-index"

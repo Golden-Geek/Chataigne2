@@ -1,415 +1,44 @@
-use std::collections::HashMap;
-
 use golden_core::{
+    edit::{Edit, NodeTree},
+    events::Event,
     node,
     node::{
-        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUuid, NodeUserPermissions,
-        UserContainerRules, UserCreatableItem,
+        DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
+        NodeReference, NodeUuid, NodeUserPermissions, UserContainerRules,
+        UserCreatableItem,
     },
-    parameter::{ParamValue, ParamValueProjection, project_param_value},
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck, ReferenceTargetKind,
+    },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-// ─── Condition evaluation helpers ──────────────────────────────────────────
+use crate::app::state_machine_nodes_formula::{
+    PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
+};
+use crate::app::{
+    ConditionManager, ConsequencesManager, FilterChainManager, InputsManager,
+    OutputsManager,
+};
 
-#[derive(Clone, Copy)]
-enum CondEval {
-    Known(bool),
-    Disabled,
-    Error,
-}
-
-/// Per-tick mutable state threaded through the recursive condition evaluation.
-struct CondEvalCtx<'snap, 'state> {
-    snapshot: &'snap ProcessTreeSnapshot,
-    last_source_values: &'state mut HashMap<NodeId, ParamValue>,
-    toggle_states: &'state mut HashMap<NodeId, bool>,
-    prev_raw_results: &'state mut HashMap<NodeId, bool>,
-    script_updates: Vec<(NodeId, &'static str, ParamValue)>,
-}
-
-fn read_enum_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    match snapshot.node(param_id)?.param_value.as_ref()? {
-        ParamValue::Enum(s) | ParamValue::Str(s) => Some(s.clone()),
-        _ => None,
-    }
-}
-
-fn read_float_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<f64> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    match snapshot.node(param_id)?.param_value.as_ref()? {
-        ParamValue::Float(f) => Some(*f),
-        ParamValue::Int(i) => Some(*i as f64),
-        _ => None,
-    }
-}
-
-fn read_bool_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<bool> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    match snapshot.node(param_id)?.param_value.as_ref()? {
-        ParamValue::Bool(b) => Some(*b),
-        _ => None,
-    }
-}
-
-fn read_str_child(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    match snapshot.node(param_id)?.param_value.as_ref()? {
-        ParamValue::Str(s) | ParamValue::Enum(s) => Some(s.clone()),
-        _ => None,
-    }
-}
-
-fn resolve_reference_child(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<NodeId> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    let ParamValue::Reference(reference) = snapshot.node(param_id)?.param_value.as_ref()? else {
-        return None;
-    };
-    reference
-        .cached_id()
-        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
-}
-
-/// Like `resolve_reference_child`, but also returns the projection stored on the reference.
-fn resolve_reference_with_projection(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<(NodeId, Option<ParamValueProjection>)> {
-    let param_id = snapshot.find_child_by_decl_id(parent, decl_id)?;
-    let ParamValue::Reference(reference) = snapshot.node(param_id)?.param_value.as_ref()? else {
-        return None;
-    };
-    let target_id = reference
-        .cached_id()
-        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))?;
-    Some((target_id, reference.projection()))
-}
-
-/// Non-parameter direct children of `container` — the user-added condition items.
-fn condition_item_children(snapshot: &ProcessTreeSnapshot, container: NodeId) -> Vec<NodeId> {
-    snapshot
-        .child_ids(container)
-        .into_iter()
-        .filter(|&id| snapshot.node(id).map_or(false, |n| !n.is_parameter()))
-        .collect()
-}
-
-fn apply_comparator_v2(
-    value: &ParamValue,
-    comparator: &str,
-    reference: f64,
-    reference_max: f64,
-    reference_string: &str,
-) -> bool {
-    match value {
-        ParamValue::Str(s) | ParamValue::Enum(s) => match comparator {
-            "equal" => s == reference_string,
-            "not_equal" => s != reference_string,
-            "contains" => s.contains(reference_string),
-            "starts_with" => s.starts_with(reference_string),
-            "ends_with" => s.ends_with(reference_string),
-            _ => false,
-        },
-        ParamValue::Bool(b) => match comparator {
-            "is_true" => *b,
-            "is_false" => !*b,
-            "equal" => *b == (reference != 0.0),
-            "not_equal" => *b != (reference != 0.0),
-            _ => false,
-        },
-        _ => {
-            let scalar = match value {
-                ParamValue::Float(f) => *f,
-                ParamValue::Int(i) => *i as f64,
-                _ => return false,
-            };
-            match comparator {
-                "equal" => (scalar - reference).abs() < 1e-9,
-                "not_equal" => (scalar - reference).abs() >= 1e-9,
-                "greater_than" => scalar > reference,
-                "greater_than_or_equal" => scalar >= reference,
-                "less_than" => scalar < reference,
-                "less_than_or_equal" => scalar <= reference,
-                "between" => scalar >= reference && scalar <= reference_max,
-                "outside" => scalar < reference || scalar > reference_max,
-                "is_true" => scalar != 0.0,
-                "is_false" => scalar == 0.0,
-                _ => false,
-            }
-        }
-    }
-}
-
-fn valid_comparators_for_value(value: &ParamValue) -> &'static str {
-    match value {
-        ParamValue::Str(_) | ParamValue::Enum(_) => {
-            "equal,not_equal,contains,starts_with,ends_with,value_changed"
-        }
-        ParamValue::Bool(_) => "is_true,is_false,equal,not_equal,value_changed",
-        ParamValue::Float(_) | ParamValue::Int(_) => {
-            "equal,not_equal,greater_than,greater_than_or_equal,less_than,less_than_or_equal,between,outside,is_true,is_false,value_changed"
-        }
-        _ => "value_changed",
-    }
-}
-
-/// Applies toggle semantics to a raw boolean result.
-/// In toggle mode, a false→true edge on `raw_result` flips the stored toggle state.
-/// Without toggle mode, the raw result passes through unchanged.
-fn apply_toggle(
-    cond_id: NodeId,
-    raw_result: bool,
-    toggle_mode: bool,
-    toggle_states: &mut HashMap<NodeId, bool>,
-    prev_raw_results: &mut HashMap<NodeId, bool>,
-) -> bool {
-    let prev_raw = prev_raw_results.get(&cond_id).copied().unwrap_or(false);
-    prev_raw_results.insert(cond_id, raw_result);
-
-    if !toggle_mode {
-        return raw_result;
-    }
-
-    if raw_result && !prev_raw {
-        let new_state = !toggle_states.get(&cond_id).copied().unwrap_or(false);
-        toggle_states.insert(cond_id, new_state);
-    }
-
-    toggle_states.get(&cond_id).copied().unwrap_or(false)
-}
-
-fn evaluate_input_value_condition(ctx: &mut CondEvalCtx<'_, '_>, cond_id: NodeId) -> Option<bool> {
-    let (source_id, projection) = resolve_reference_with_projection(ctx.snapshot, cond_id, "source")?;
-    let raw_source = ctx.snapshot.node(source_id)?.param_value.as_ref()?.clone();
-
-    let effective_value = match projection {
-        Some(proj) => project_param_value(&raw_source, proj).unwrap_or(raw_source),
-        None => raw_source,
-    };
-
-    ctx.script_updates.push((
-        cond_id,
-        "valid_comparators",
-        ParamValue::Str(valid_comparators_for_value(&effective_value).to_owned()),
-    ));
-
-    let comparator = read_enum_child(ctx.snapshot, cond_id, "comparator")
-        .unwrap_or_else(|| "equal".into());
-
-    let raw_result = if comparator == "value_changed" {
-        // Clone previous to release the immutable borrow before any insert.
-        let prev_val = ctx.last_source_values.get(&source_id).cloned();
-        match prev_val {
-            None => {
-                ctx.last_source_values.insert(source_id, effective_value.clone());
-                false
-            }
-            Some(ref prev) if prev == &effective_value => false,
-            _ => {
-                ctx.last_source_values.insert(source_id, effective_value.clone());
-                true
-            }
-        }
-    } else {
-        let reference = read_float_child(ctx.snapshot, cond_id, "reference").unwrap_or(0.0);
-        let reference_max = read_float_child(ctx.snapshot, cond_id, "reference_max").unwrap_or(1.0);
-        let reference_string = read_str_child(ctx.snapshot, cond_id, "reference_string")
-            .unwrap_or_default();
-        apply_comparator_v2(&effective_value, &comparator, reference, reference_max, &reference_string)
-    };
-
-    let toggle_mode = read_bool_child(ctx.snapshot, cond_id, "toggle_mode").unwrap_or(false);
-    let final_result = apply_toggle(
-        cond_id,
-        raw_result,
-        toggle_mode,
-        ctx.toggle_states,
-        ctx.prev_raw_results,
-    );
-
-    ctx.script_updates.push((cond_id, "is_valid", ParamValue::Bool(final_result)));
-    Some(final_result)
-}
-
-fn reduce_results(
-    results: &[CondEval],
-    operator: &str,
-    count: f64,
-    empty_policy: &str,
-    disabled_policy: &str,
-    error_policy: &str,
-) -> bool {
-    let known: Vec<bool> = results
-        .iter()
-        .filter_map(|r| match r {
-            CondEval::Known(b) => Some(*b),
-            CondEval::Disabled => match disabled_policy {
-                "treat_as_invalid" => Some(false),
-                "treat_as_valid" => Some(true),
-                _ => None,
-            },
-            CondEval::Error => match error_policy {
-                "treat_as_invalid" => Some(false),
-                _ => None,
-            },
-        })
-        .collect();
-
-    if known.is_empty() {
-        return empty_policy == "valid";
-    }
-
-    let true_count = known.iter().filter(|&&b| b).count();
-    match operator {
-        "all" => true_count == known.len(),
-        "any" => true_count > 0,
-        "none" => true_count == 0,
-        "at_least" => true_count >= count as usize,
-        "exactly" => true_count == count as usize,
-        _ => false,
-    }
-}
-
-fn evaluate_container(
-    ctx: &mut CondEvalCtx<'_, '_>,
-    container_id: NodeId,
-    operator: &str,
-    count: f64,
-    empty_policy: &str,
-    disabled_policy: &str,
-    error_policy: &str,
-) -> bool {
-    let children = condition_item_children(ctx.snapshot, container_id);
-    if children.is_empty() {
-        return empty_policy == "valid";
-    }
-
-    let mut results = Vec::with_capacity(children.len());
-    for &child_id in &children {
-        let enabled = ctx.snapshot.node(child_id).map_or(true, |n| n.enabled);
-        if !enabled {
-            results.push(CondEval::Disabled);
-            continue;
-        }
-        match evaluate_single_condition(ctx, child_id) {
-            Some(b) => results.push(CondEval::Known(b)),
-            None => results.push(CondEval::Error),
-        }
-    }
-
-    reduce_results(&results, operator, count, empty_policy, disabled_policy, error_policy)
-}
-
-fn evaluate_condition_group(ctx: &mut CondEvalCtx<'_, '_>, group_id: NodeId) -> Option<bool> {
-    let operator = read_enum_child(ctx.snapshot, group_id, "operator")
-        .unwrap_or_else(|| "all".into());
-    let count = read_float_child(ctx.snapshot, group_id, "operator_count").unwrap_or(1.0);
-    let empty_policy = read_enum_child(ctx.snapshot, group_id, "empty_policy")
-        .unwrap_or_else(|| "invalid".into());
-    let disabled_policy = read_enum_child(ctx.snapshot, group_id, "disabled_policy")
-        .unwrap_or_else(|| "ignore".into());
-    let error_policy = read_enum_child(ctx.snapshot, group_id, "error_policy")
-        .unwrap_or_else(|| "treat_as_invalid".into());
-
-    let raw_result =
-        evaluate_container(ctx, group_id, &operator, count, &empty_policy, &disabled_policy, &error_policy);
-
-    let toggle_mode = read_bool_child(ctx.snapshot, group_id, "toggle_mode").unwrap_or(false);
-    let final_result = apply_toggle(
-        group_id,
-        raw_result,
-        toggle_mode,
-        ctx.toggle_states,
-        ctx.prev_raw_results,
-    );
-
-    ctx.script_updates.push((group_id, "is_valid", ParamValue::Bool(final_result)));
-    Some(final_result)
-}
-
-fn evaluate_single_condition(ctx: &mut CondEvalCtx<'_, '_>, cond_id: NodeId) -> Option<bool> {
-    let node_type = ctx.snapshot.node(cond_id)?.node_type.clone();
-    match node_type.as_str() {
-        "sm_input_value_condition" => evaluate_input_value_condition(ctx, cond_id),
-        "sm_condition_group" => evaluate_condition_group(ctx, cond_id),
-        _ => None,
-    }
-}
-
-fn evaluate_condition_manager(ctx: &mut CondEvalCtx<'_, '_>, manager_id: NodeId) -> bool {
-    let operator = read_enum_child(ctx.snapshot, manager_id, "operator")
-        .unwrap_or_else(|| "all".into());
-    let count = read_float_child(ctx.snapshot, manager_id, "operator_count").unwrap_or(1.0);
-    let empty_policy = read_enum_child(ctx.snapshot, manager_id, "empty_policy")
-        .unwrap_or_else(|| "invalid".into());
-    let disabled_policy = read_enum_child(ctx.snapshot, manager_id, "disabled_policy")
-        .unwrap_or_else(|| "ignore".into());
-    let error_policy = read_enum_child(ctx.snapshot, manager_id, "error_policy")
-        .unwrap_or_else(|| "treat_as_invalid".into());
-
-    let result =
-        evaluate_container(ctx, manager_id, &operator, count, &empty_policy, &disabled_policy, &error_policy);
-
-    ctx.script_updates.push((manager_id, "is_valid", ParamValue::Bool(result)));
-    result
-}
-
-// ─── Consequence execution ─────────────────────────────────────────────────
-
-/// Collects the `(target_id, value)` pairs for all enabled consequences in `manager_id`.
-/// Ownership is fully extracted so the caller can drop the snapshot before calling ctx.
-fn collect_consequence_actions(
-    snapshot: &ProcessTreeSnapshot,
-    manager_id: NodeId,
-) -> Vec<(NodeId, ParamValue)> {
-    snapshot
-        .child_ids(manager_id)
-        .into_iter()
-        .filter(|&id| snapshot.node(id).map_or(false, |n| !n.is_parameter() && n.enabled))
-        .filter_map(|child_id| {
-            let node_type = snapshot.node(child_id)?.node_type.clone();
-            match node_type.as_str() {
-                "sm_set_value_consequence" => {
-                    let target = resolve_reference_child(snapshot, child_id, "target")?;
-                    let value = read_float_child(snapshot, child_id, "value").unwrap_or(0.0);
-                    Some(vec![(target, ParamValue::Float(value))])
-                }
-                "sm_send_command_consequence" => {
-                    let target = resolve_reference_child(snapshot, child_id, "target")?;
-                    Some(vec![(target, ParamValue::Trigger())])
-                }
-                _ => None,
-            }
-        })
-        .flatten()
-        .collect()
-}
-
-// ─── End of consequence execution ──────────────────────────────────────────
-
+const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
+const FORMULA_NODE_TYPE: &str = "alchemist_formula";
+const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
-
-const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 
 fn processor_container_rules() -> UserContainerRules {
     UserContainerRules::new(&[PROCESSOR_ITEM_KIND, PROCESSOR_FOLDER_ITEM_KIND])
 }
 
 fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
-    if item_kind == PROCESSOR_ITEM_KIND {
-        // Accept both the raw node type and the "state_processor:{UUID}" encoding
-        // used by UserCreatableItem to carry the formula reference.
-        item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:")
-    } else {
-        item_type == PROCESSOR_FOLDER_NODE_TYPE && item_kind == PROCESSOR_FOLDER_ITEM_KIND
+    match item_kind {
+        PROCESSOR_ITEM_KIND => {
+            item_type == StateProcessor::NODE_TYPE || item_type.starts_with("state_processor:")
+        }
+        PROCESSOR_FOLDER_ITEM_KIND => item_type == PROCESSOR_FOLDER_NODE_TYPE,
+        _ => false,
     }
 }
 
@@ -417,37 +46,261 @@ fn initialize_processor_item(node: &mut dyn Node) {
     node.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
 }
 
-/// Builds the formula item list from the snapshot rooted at `lib_id`.
-/// Each formula node becomes a `UserCreatableItem` whose `node_type` encodes the
-/// formula UUID as `"state_processor:{uuid}"`, carrying the UUID through to
-/// `create_user_item` without requiring extra state.
-fn build_formula_items(snapshot: &ProcessTreeSnapshot, lib_id: NodeId) -> Vec<UserCreatableItem> {
+fn build_formula_items(snapshot: &ProcessTreeSnapshot, library: NodeId) -> Vec<UserCreatableItem> {
     snapshot
-        .child_ids(lib_id)
+        .child_ids(library)
         .into_iter()
         .filter_map(|formula_id| {
-            let n = snapshot.node(formula_id)?;
-            let node_type = format!("state_processor:{}", n.uuid.0);
-            Some(UserCreatableItem::new(node_type, PROCESSOR_ITEM_KIND, &n.label))
+            let formula = snapshot.node(formula_id)?;
+            (formula.node_type == FORMULA_NODE_TYPE).then(|| {
+                UserCreatableItem::new(
+                    format!("state_processor:{}", formula.uuid.0),
+                    PROCESSOR_ITEM_KIND,
+                    &formula.label,
+                )
+            })
         })
         .collect()
 }
 
-/// Finds the FormulaLibrary node id in the snapshot, if present.
 fn find_formula_library(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
     snapshot
         .child_ids(snapshot.root())
         .into_iter()
-        .find(|&id| {
+        .find(|node| {
             snapshot
-                .node(id)
-                .map_or(false, |n| n.node_type == FORMULA_LIBRARY_NODE_TYPE)
+                .node(*node)
+                .is_some_and(|snapshot_node| snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE)
         })
 }
 
-/// Processor manager. Maintains a reactive cache of formula items sourced from the
-/// FormulaLibrary node. Rebuilds the cache whenever FormulaLibrary or its children
-/// change, using event subscriptions to FormulaLibrary's subtree.
+fn locked_instance_permissions() -> NodeUserPermissions {
+    let mut permissions = NodeUserPermissions::all();
+    permissions.can_remove_and_duplicate = false;
+    permissions.can_edit_name = false;
+    permissions
+}
+
+fn processor_surface_decl_id(source_uuid: NodeUuid) -> String {
+    format!("{PROCESSOR_SURFACE_DECL_PREFIX}{}", source_uuid.0)
+}
+
+fn processor_property_parameter(
+    snapshot: &ProcessTreeSnapshot,
+    source: NodeId,
+) -> Option<Parameter> {
+    let source_node = snapshot.node(source)?;
+    let value_id = snapshot.find_child_by_decl_id(source, "value")?;
+    let value = snapshot.node(value_id)?.param_value.clone()?;
+    let mut parameter = Parameter::new(
+        &source_node.label,
+        value,
+        ParameterChangeCheck::ValueChange,
+    );
+    parameter.node_data_mut().meta.decl_id =
+        DeclId(processor_surface_decl_id(source_node.uuid));
+    if let Some(constraints) = snapshot
+        .node(value_id)
+        .and_then(|value| value.param_constraints.clone())
+    {
+        parameter.constraints = constraints;
+    }
+    Some(parameter)
+}
+
+fn processor_property_manager(
+    snapshot: &ProcessTreeSnapshot,
+    source: NodeId,
+) -> Option<Box<dyn Node>> {
+    let source_node = snapshot.node(source)?;
+    let role = snapshot
+        .find_child_by_decl_id(source, "role")
+        .and_then(|role| snapshot.node(role))
+        .and_then(|role| role.param_value.as_ref())
+        .and_then(ParamValue::as_str)?;
+    let mut manager: Box<dyn Node> = match role.as_str() {
+        "condition" => Box::new(ConditionManager::new()),
+        "consequence" => Box::new(ConsequencesManager::new()),
+        "input" => Box::new(InputsManager::new()),
+        "filter" => Box::new(FilterChainManager::new()),
+        "output" => Box::new(OutputsManager::new()),
+        _ => return None,
+    };
+    manager.node_data_mut().meta.label = source_node.label.clone();
+    manager.node_data_mut().meta.decl_id =
+        DeclId(processor_surface_decl_id(source_node.uuid));
+    Some(manager)
+}
+
+fn is_property_exposed(snapshot: &ProcessTreeSnapshot, source: NodeId) -> bool {
+    snapshot
+        .find_child_by_decl_id(source, "exposed")
+        .and_then(|n| snapshot.node(n))
+        .and_then(|n| n.param_value.as_ref())
+        .and_then(ParamValue::as_bool)
+        .unwrap_or(true)
+}
+
+fn processor_surface_child_tree(
+    snapshot: &ProcessTreeSnapshot,
+    source: NodeId,
+) -> Option<NodeTree> {
+    match snapshot.node(source)?.node_type.as_str() {
+        PROPERTY_NODE_TYPE => {
+            if !is_property_exposed(snapshot, source) {
+                return None;
+            }
+            processor_property_parameter(snapshot, source).map(NodeTree::new)
+        }
+        PROPERTY_MANAGER_NODE_TYPE => {
+            processor_property_manager(snapshot, source).map(NodeTree::boxed)
+        }
+        PROPERTY_FOLDER_NODE_TYPE => {
+            let source_node = snapshot.node(source)?;
+            let mut folder = StateProcessorFolder::new();
+            folder.node_data_mut().meta.label = source_node.label.clone();
+            folder.node_data_mut().meta.decl_id =
+                DeclId(processor_surface_decl_id(source_node.uuid));
+            folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
+            let mut tree = NodeTree::new(folder);
+            for child in snapshot.child_ids(source) {
+                if let Some(child_tree) = processor_surface_child_tree(snapshot, child) {
+                    tree.push_child(child_tree);
+                }
+            }
+            Some(tree)
+        }
+        _ => None,
+    }
+}
+
+fn processor_properties_tree(
+    snapshot: &ProcessTreeSnapshot,
+    formula: NodeId,
+) -> NodeTree {
+    let mut properties = StateProcessorProperties::new();
+    properties.node_data_mut().meta.decl_id =
+        DeclId(PROPERTIES_DECL_ID.to_owned());
+    let mut tree = NodeTree::new(properties);
+    if let Some(source_properties) =
+        snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
+    {
+        for source in snapshot.child_ids(source_properties) {
+            if let Some(child) =
+                processor_surface_child_tree(snapshot, source)
+            {
+                tree.push_child(child);
+            }
+        }
+    }
+    tree
+}
+
+fn reconcile_properties_level(
+    snapshot: &ProcessTreeSnapshot,
+    source_container: NodeId,
+    dest_container: NodeId,
+    ctx: &mut ProcessCtx,
+) {
+    let mut desired = std::collections::HashSet::new();
+    for source in snapshot.child_ids(source_container) {
+        let Some(source_node) = snapshot.node(source) else {
+            continue;
+        };
+        let decl_id = processor_surface_decl_id(source_node.uuid);
+        let Some(expected_tree) = processor_surface_child_tree(snapshot, source) else {
+            continue;
+        };
+        desired.insert(decl_id.clone());
+        let Some(existing) =
+            snapshot.find_child_by_decl_id(dest_container, &decl_id)
+        else {
+            let already_queued = ctx.edits.pending.iter().any(|req| {
+                if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
+                    *p == dest_container
+                        && tree.node.node_data().meta.decl_id.0 == decl_id
+                } else {
+                    false
+                }
+            });
+            if !already_queued {
+                ctx.add_child_tree(dest_container, expected_tree, None);
+            }
+            continue;
+        };
+        let Some(existing_node) = snapshot.node(existing) else {
+            continue;
+        };
+        if existing_node.node_type != expected_tree.node_type() {
+            ctx.edits.push(Edit::ReplaceNode {
+                node: existing,
+                new_node: expected_tree.node,
+            });
+            continue;
+        }
+        if existing_node.label != source_node.label {
+            ctx.patch_node_meta(
+                existing,
+                NodeMetaPatch {
+                    label: Some(source_node.label.clone()),
+                    ..NodeMetaPatch::default()
+                },
+            );
+        }
+        if source_node.node_type == PROPERTY_NODE_TYPE {
+            let Some(source_value) =
+                snapshot.find_child_by_decl_id(source, "value")
+            else {
+                continue;
+            };
+            if let Some(constraints) = snapshot
+                .node(source_value)
+                .and_then(|node| node.param_constraints.clone())
+                .filter(|constraints| {
+                    snapshot
+                        .node(existing)
+                        .and_then(|node| node.param_constraints.as_ref())
+                        != Some(constraints)
+                })
+            {
+                ctx.edits.push(Edit::SetParamConstraints {
+                    node: existing,
+                    constraints,
+                });
+            }
+        } else if source_node.node_type == PROPERTY_FOLDER_NODE_TYPE {
+            reconcile_properties_level(snapshot, source, existing, ctx);
+        }
+    }
+
+    for child in snapshot.child_ids(dest_container) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
+            && !desired.contains(&node.decl_id)
+        {
+            ctx.edits.push(Edit::RemoveNode { node: child });
+        }
+    }
+}
+
+#[node("state_processor_properties", label = "Properties")]
+pub struct StateProcessorProperties {}
+
+#[node("state_processor_properties", from_struct)]
+impl Node for StateProcessorProperties {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions =
+            locked_instance_permissions();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
 #[node(
     "state_processor_manager",
     label = "Processors",
@@ -495,45 +348,27 @@ impl Node for StateProcessorManager {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        let self_id = self.id();
-
-        // Find FormulaLibrary and build initial cache; also grab root for subscription.
-        let (root_id, formula_lib_id) = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
-            let root_id = snapshot.root();
-            let lib_id = find_formula_library(snapshot);
-            (root_id, lib_id)
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
         };
-
-        // Subscribe to root at depth=1 so on_node_created fires when FormulaLibrary
-        // is added later (e.g. when StateMachineManager initialises before it).
-        ctx.add_event_listener_subtree(self_id, root_id, 1);
-
-        if let Some(lib_id) = formula_lib_id {
-            ctx.add_event_listener_subtree(self_id, lib_id, 2);
-            if let Some(snapshot) = ctx.tree_snapshot() {
-                self.formula_items = build_formula_items(snapshot, lib_id);
-            }
+        let root = snapshot.root();
+        let library = find_formula_library(snapshot);
+        ctx.add_event_listener_subtree(self.id(), root, 1);
+        if let Some(library) = library {
+            ctx.add_event_listener_subtree(self.id(), library, 2);
         }
+        self.refresh_formula_items(ctx);
     }
 
     fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
-        let is_formula_library = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
+        let is_library = ctx.tree_snapshot().is_some_and(|snapshot| {
             snapshot
                 .node(node)
-                .map_or(false, |n| n.node_type == FORMULA_LIBRARY_NODE_TYPE)
-        };
-
-        if is_formula_library {
-            let self_id = self.id();
-            ctx.add_event_listener_subtree(self_id, node, 2);
+                .is_some_and(|snapshot_node| snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE)
+        });
+        if is_library {
+            ctx.add_event_listener_subtree(self.id(), node, 2);
         }
-
         self.refresh_formula_items(ctx);
     }
 
@@ -554,32 +389,39 @@ impl Node for StateProcessorManager {
     }
 }
 
+const PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC: &str =
+    "state_processor_manager_items_changed";
+
 impl StateProcessorManager {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
-        let items = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
-            find_formula_library(snapshot)
-                .map(|lib_id| build_formula_items(snapshot, lib_id))
-                .unwrap_or_default()
-        };
-        self.formula_items = items;
+        self.formula_items = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| {
+                find_formula_library(snapshot)
+                    .map(|library| build_formula_items(snapshot, library))
+            })
+            .unwrap_or_default();
+        let _ = ctx.emit_custom_payload(
+            PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC,
+            Some(self.id()),
+            &self.formula_items,
+        );
     }
 }
 
-/// Parses `"state_processor:{UUID}"` and returns a pre-configured `StateProcessor`.
 fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
-    let uuid_str = node_type.strip_prefix("state_processor:")?;
-    let uuid = uuid_str.parse::<uuid::Uuid>().ok().map(NodeUuid)?;
+    let formula_uuid = node_type
+        .strip_prefix("state_processor:")?
+        .parse::<uuid::Uuid>()
+        .ok()
+        .map(NodeUuid)?;
     let mut processor = StateProcessor::new();
-    processor
-        .formula_uuid
-        .apply_runtime_value(&ParamValue::Str(uuid.0.to_string()));
+    processor.formula.apply_runtime_value(&ParamValue::Reference(
+        NodeReference::new(formula_uuid),
+    ));
     Some(Box::new(processor))
 }
 
-/// Folder node for grouping processors. Accepts any `state_processor` item.
 #[node("state_processor_folder", label = "Folder")]
 pub struct StateProcessorFolder {}
 
@@ -594,8 +436,6 @@ impl Node for StateProcessorFolder {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        // Folders can't provide the reactive formula list on their own, so they
-        // defer to a Folder item only (processors are added via the parent manager).
         vec![UserCreatableItem::new(
             PROCESSOR_FOLDER_NODE_TYPE,
             PROCESSOR_FOLDER_ITEM_KIND,
@@ -611,7 +451,7 @@ impl Node for StateProcessorFolder {
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        initialize_processor_item(self);
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -619,131 +459,170 @@ impl Node for StateProcessorFolder {
     }
 }
 
-/// A single processor node. `formula_uuid` identifies which formula this
-/// processor instantiates. On fresh creation, the formula's ANode children
-/// are iterated and each one is responsible for creating its manager child.
 #[node("state_processor", label = "Processor")]
 #[children(
-    formula_uuid: String = String::new() (
-        label = "Formula UUID",
-        show_in_inspector_content = false
+    formula: NodeReference (
+        label = "Formula",
+        reference_target_kind = ReferenceTargetKind::AnyNode,
+        reference_allowed_node_types = vec![FORMULA_NODE_TYPE.to_owned()],
+        reference_allow_projections = false
     );
 )]
 pub struct StateProcessor {
-    #[state(default = false)]
-    condition_valid: bool,
-    #[state(default = HashMap::new())]
-    last_source_values: HashMap<NodeId, ParamValue>,
-    #[state(default = HashMap::new())]
-    toggle_states: HashMap<NodeId, bool>,
-    #[state(default = HashMap::new())]
-    prev_raw_results: HashMap<NodeId, bool>,
+    #[state(default = None)]
+    subscribed_formula: Option<NodeId>,
 }
 
 #[node("state_processor", from_struct)]
 impl Node for StateProcessor {
-    fn update_requires_tree_snapshot(&self) -> bool {
-        true
-    }
-
-    fn update(&mut self, ctx: &mut ProcessCtx) {
-        let self_id = self.id();
-        let prev_valid = self.condition_valid;
-
-        let (new_valid, actions, script_updates) = {
-            let Some(snapshot) = ctx.tree_snapshot() else { return; };
-
-            let mut eval = CondEvalCtx {
-                snapshot,
-                last_source_values: &mut self.last_source_values,
-                toggle_states: &mut self.toggle_states,
-                prev_raw_results: &mut self.prev_raw_results,
-                script_updates: Vec::new(),
-            };
-
-            let conditions_mgr = eval.snapshot.find_child_by_decl_id(self_id, "conditions");
-            let new_valid = conditions_mgr
-                .map_or(false, |mgr_id| evaluate_condition_manager(&mut eval, mgr_id));
-
-            let fire_decl_id = match (prev_valid, new_valid) {
-                (false, true) => Some("true_consequences"),
-                (true, false) => Some("false_consequences"),
-                _ => None,
-            };
-
-            let actions = if let Some(decl) = fire_decl_id {
-                eval.snapshot
-                    .find_child_by_decl_id(self_id, decl)
-                    .map(|mgr_id| collect_consequence_actions(eval.snapshot, mgr_id))
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-
-            (new_valid, actions, eval.script_updates)
-        };
-
-        self.condition_valid = new_valid;
-        ctx.set_node_script_property(self_id, "is_valid", ParamValue::Bool(new_valid));
-        for (node_id, key, value) in script_updates {
-            ctx.set_node_script_property(node_id, key, value);
-        }
-        for (target, value) in actions {
-            ctx.set_param(target, value);
-        }
-    }
-
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
+        self.reconcile_formula_properties(ctx);
     }
 
-    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, context: NodeCreationContext) {
-        if context != NodeCreationContext::Fresh {
-            return;
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.refresh_formula_subscription(ctx);
+        self.reconcile_formula_properties(ctx);
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        if param == self.formula.id() {
+            self.refresh_formula_subscription(ctx);
         }
+        self.reconcile_formula_properties(ctx);
+    }
 
-        let uuid_str = self.formula_uuid.get_ref().clone();
-        let Some(uuid) = uuid_str
-            .parse::<uuid::Uuid>()
-            .ok()
-            .map(NodeUuid)
-            .filter(|u| !u.is_nil())
-        else {
-            return;
-        };
+    fn on_node_created(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.reconcile_formula_properties(ctx);
+    }
 
-        // Collect ANode metadata before borrowing ctx mutably.
-        let anode_data: Vec<(String, String, String)> = {
-            let Some(snapshot) = ctx.tree_snapshot() else {
-                return;
-            };
-            let Some(formula_id) = snapshot.node_id_by_uuid(uuid) else {
-                return;
-            };
-            snapshot
-                .child_ids(formula_id)
-                .into_iter()
-                .filter_map(|id| {
-                    let n = snapshot.node(id)?;
-                    Some((n.node_type.clone(), n.label.clone(), n.decl_id.clone()))
-                })
-                .collect()
-        };
+    fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.refresh_formula_subscription(ctx);
+        self.reconcile_formula_properties(ctx);
+    }
 
-        let processor_id = self.id();
-        for (anode_type, anode_label, anode_decl_id) in anode_data {
-            crate::app::state_machine_nodes_formula::instantiate_anode_for_processor(
-                &anode_type,
-                &anode_label,
-                &anode_decl_id,
-                processor_id,
-                ctx,
-            );
-        }
+    fn on_child_added(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: NodeId,
+        _child: NodeId,
+    ) {
+        self.reconcile_formula_properties(ctx);
+    }
+
+    fn on_child_removed(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _parent: NodeId,
+        _child: NodeId,
+    ) {
+        self.reconcile_formula_properties(ctx);
+    }
+
+    fn on_meta_changed(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _node: NodeId,
+        _patch: NodeMetaPatch,
+    ) {
+        self.reconcile_formula_properties(ctx);
+    }
+
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
+        3
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl StateProcessor {
+    fn formula_node(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+    ) -> Option<NodeId> {
+        let reference = self.formula.get_ref();
+        if reference.is_empty() {
+            return None;
+        }
+        snapshot
+            .node_id_by_uuid(reference.uuid())
+            .filter(|formula| {
+                snapshot
+                    .node(*formula)
+                    .is_some_and(|node| node.node_type == FORMULA_NODE_TYPE)
+            })
+    }
+
+    fn refresh_formula_subscription(&mut self, ctx: &mut ProcessCtx) {
+        let next = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| self.formula_node(snapshot));
+        if self.subscribed_formula == next {
+            return;
+        }
+        if let Some(previous) = self.subscribed_formula {
+            ctx.remove_event_listener_subtree(self.id(), previous, 3);
+        }
+        if let Some(next) = next {
+            ctx.add_event_listener_subtree(self.id(), next, 3);
+        }
+        self.subscribed_formula = next;
+    }
+
+    fn reconcile_formula_properties(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let formula = self.formula_node(&snapshot);
+        let existing_properties =
+            snapshot.find_child_by_decl_id(self.id(), PROPERTIES_DECL_ID);
+
+        let Some(formula) = formula else {
+            if let Some(properties) = existing_properties {
+                ctx.edits.push(Edit::RemoveNode { node: properties });
+            }
+            return;
+        };
+
+        let Some(properties) = existing_properties else {
+            let already_queued = ctx.edits.pending.iter().any(|req| {
+                if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
+                    *p == self.id()
+                        && tree.node.node_data().meta.decl_id.0 == PROPERTIES_DECL_ID
+                } else {
+                    false
+                }
+            });
+            if !already_queued {
+                ctx.add_child_tree(
+                    self.id(),
+                    processor_properties_tree(&snapshot, formula),
+                    None,
+                );
+            }
+            return;
+        };
+        let Some(source_properties) =
+            snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
+        else {
+            for child in snapshot.child_ids(properties) {
+                ctx.edits.push(Edit::RemoveNode { node: child });
+            }
+            return;
+        };
+
+        reconcile_properties_level(&snapshot, source_properties, properties, ctx);
     }
 }
 

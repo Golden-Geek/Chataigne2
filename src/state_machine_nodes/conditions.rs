@@ -20,10 +20,11 @@ macro_rules! leaf_condition_init {
 
 // ─── InputValueCondition ─────────────────────────────────────────────────────
 
-/// Reads any parameter source and compares its (optionally projected) value
-/// against a reference. Projection is set on the `source` NodeReference;
-/// comparator options adapt to the resolved source type at runtime via the
-/// `valid_comparators` script property emitted by StateProcessor.
+/// Prototype configuration for the future Managed Condition ANode.
+///
+/// Runtime typing, projections, comparator choices, and reference visibility
+/// must be supplied by that ANode declaration and lowering path. A Processor
+/// must not interpret this node directly.
 #[node("sm_input_value_condition", label = "Input Value")]
 #[children(
     toggle_mode: bool = false (
@@ -38,6 +39,11 @@ macro_rules! leaf_condition_init {
     source: NodeReference (
         label = "Source",
         reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
+    );
+    source_projection: golden_core::parameter::Enum = "none" (
+        label = "Projection",
+        show_in_inspector_content = false,
+        enum_options = ["none"]
     );
     comparator: golden_core::parameter::Enum = "equal" (
         label = "Comparator",

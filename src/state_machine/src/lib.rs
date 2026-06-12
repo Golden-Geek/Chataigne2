@@ -3,7 +3,6 @@
 pub mod alchemist;
 mod arbitration;
 mod manager;
-mod models;
 mod processor;
 pub mod protocol;
 mod state_machine;
@@ -17,7 +16,6 @@ pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,
 };
-pub use models::builtin_formulas;
 pub use processor::{
     Processor, ProcessorCommandPolicy, ProcessorDirtyFlags, ProcessorId, ProcessorLifecycleEvent,
     ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel,
@@ -32,8 +30,6 @@ pub use state_machine::{
 mod arbitration_tests;
 #[cfg(test)]
 mod manager_tests;
-#[cfg(test)]
-mod models_tests;
 #[cfg(test)]
 mod processor_tests;
 #[cfg(test)]

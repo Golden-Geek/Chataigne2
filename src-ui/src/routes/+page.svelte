@@ -16,6 +16,7 @@
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
 	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
 	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
+	import ProcessorFormulaInspectorPanelHeader from '$lib/state_machine/components/ProcessorFormulaInspectorPanelHeader.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 
 	registerNodeInspector('module_command', {
@@ -28,7 +29,8 @@
 	});
 
 	registerNodeInspector('state_processor', {
-		component: ProcessorFormulaInspector
+		component: ProcessorFormulaInspector,
+		panelHeaderComponent: ProcessorFormulaInspectorPanelHeader
 	});
 
 	registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
@@ -51,7 +53,7 @@
 		alchemistEditor: {
 			title: 'Alchemist Editor',
 			component: AlchemistEditorPanel,
-			description: 'Visual formula graph editor for Action and Mapping processors'
+			description: 'Visual editor for custom Alchemist Formulas'
 		},
 		formulaLibrary: {
 			title: 'Formula Library',

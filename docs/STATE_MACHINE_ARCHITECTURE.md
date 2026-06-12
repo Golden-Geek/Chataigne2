@@ -2,10 +2,14 @@
 
 ## Ownership
 
-`golden_alchemist` owns the app-agnostic Formula model, authored graph, type
-solver, compiler, dense execution schedule, runtime memory, diagnostics, and
-primitive ANodes. Formula families are `Action`, `Mapping`, and `CustomUser`.
-It does not contain Chataigne value types or product policy.
+`golden_core` owns the canonical authored Formula hierarchy and persistence.
+Formula, ANode, socket, connection, and configuration parameter records are
+ordinary visible nodes.
+
+`golden_alchemist` owns the app-agnostic transient graph model, type solver,
+compiler, dense execution schedule, runtime memory, diagnostics, and primitive
+ANode declarations. It does not own authoring persistence, Chataigne value
+types, or product policy.
 
 `golden_statechart` owns normalized hierarchical states, regions, active paths,
 history, deterministic transition selection, and enter/exit lifecycle events.
@@ -14,8 +18,8 @@ It does not know about Processors.
 The app-owned `src/state_machine` package registers Chataigne stable-reference
 value types, facets, module inputs, and intent-emitting ANodes. It also owns
 Processors, state-owned Processor Managers, Processor Groups, guard graphs, the
-active execution matrix, command arbitration, built-in Action and Mapping
-Formulas, and protocol DTO generation.
+active execution matrix, command arbitration, Formula integration, and
+protocol DTO generation.
 
 The authored ownership chain is:
 
@@ -31,6 +35,32 @@ A Processor owns one `AlchemistFormulaInstance`. The Processor inspector reads
 the instance's sectioned Formula Surface; graph exposure remains a lower-level
 graph interface and is not the inspector contract.
 
+## Processor Boundary
+
+The Processor is a formula host. It may:
+
+- resolve and instantiate a Formula asset;
+- own per-instance exposed configuration and runtime memory;
+- forward lifecycle and context to the Formula runtime;
+- execute the compiled graph;
+- publish diagnostics and emitted intents.
+
+The Processor must not:
+
+- recognize condition, consequence, filter, or output node types;
+- evaluate comparators, reducers, temporal policies, or branch semantics;
+- choose source projections or reference parameter visibility;
+- dispatch behavior based on a Formula category or label.
+
+All workflow semantics belong to the Formula graph. Rich app-owned concepts such
+as condition lists are implemented as Managed ANodes that expose normal
+`golden_core::Node` configuration and lower that configuration into executable
+Alchemist graph fragments.
+
+Action and Mapping are not special runtime concepts. They may eventually ship
+as ordinary Formula template files authored with the same editor and loaded
+through the same persistence path as every user Formula.
+
 The reusable Rust crates live in the `golden_alchemist_core` submodule. Keeping
 the Chataigne package under `src` makes its product ownership match
 `src/module`; being a Rust package is an implementation detail, not a reusable
@@ -38,8 +68,9 @@ package claim.
 
 ## Runtime Boundary
 
-Authored Alchemist graphs are persisted and edited. Type solving produces a
-resolved graph. Compilation then replaces authored IDs and socket names with
+Authored Formula node subtrees are persisted and edited by Golden Core. The
+app materializes one transient Alchemist graph from a Formula subtree. Type
+solving produces a resolved graph. Compilation then replaces authored IDs and socket names with
 dense execution IDs, numeric value slots, fixed state ranges, and a precomputed
 topological schedule. Runtime ticks never perform type inference or topology
 sorting.
@@ -85,10 +116,26 @@ panel hooks.
 
 ## Implementation Status
 
-The Formula, Formula Instance, Formula Surface, Processor Manager, and Processor
-Group ownership boundaries are implemented.
+The running app has one generic Formula definition node and an empty Formula
+Library by default. The Alchemist editor selects Formula nodes directly and
+projects their real ANode, socket, connection, and parameter descendants onto
+the reusable graph canvas. It edits them through standard Golden Core intents.
+There is no `FormulaDocument` or opaque Formula JSON parameter.
 
-Accumulating context, same-dimension refinement, multiplexed runtime lanes,
-Managed ANode lowering, contextual intents, and contextual transitions are not
-implemented yet. They must extend these boundaries rather than restoring flat
-state processor attachments or introducing a Multiplex Formula.
+Formula assets use Golden Core sparse subtree persistence. A `.formula` file is
+the JSON representation of the Formula node subtree, including its ordinary
+children and parameters.
+
+The app `StateProcessor` is now a small host containing only a constrained
+Formula reference. The previous condition/consequence interpreter and Formula
+slot instantiation path have been removed.
+
+The next foundation work is:
+
+1. Connect the app Processor node to the generic Formula
+   instance/compiler/runtime.
+2. Author Formula Surfaces and bind Processor-specific exposed configuration.
+3. Implement Managed ANode lowering for conditions, consequences, filters, and
+   outputs.
+4. Add context lanes, contextual intents, and contextual transitions on top of
+   that boundary.

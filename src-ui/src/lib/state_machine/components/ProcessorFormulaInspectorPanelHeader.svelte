@@ -1,9 +1,13 @@
 <script lang="ts">
-	import { showPanel, type NodeInspectorComponentProps, type UiNodeDto } from 'golden_ui';
+	import {
+		showPanel,
+		type NodeInspectorPanelHeaderComponentProps,
+		type UiNodeDto
+	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import formulaIconUrl from '../../golden_alchemist_ui/icons/formula.svg';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader }: NodeInspectorPanelHeaderComponentProps = $props();
 
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
@@ -65,12 +69,6 @@
 
 {@render defaultHeader?.(formulaHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content processor-formula-content">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
-
 <style>
 	.processor-formula-header-extra {
 		display: inline-flex;
@@ -131,9 +129,5 @@
 	.formula-open-btn:hover .formula-open-label {
 		max-width: 6rem;
 		opacity: 1;
-	}
-
-	.processor-formula-content {
-		min-inline-size: 0;
 	}
 </style>

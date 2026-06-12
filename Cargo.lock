@@ -8,10 +8,12 @@ version = "0.1.0"
 dependencies = [
  "artnet_protocol",
  "buttplug",
+ "chataigne_state_machine",
  "device_query",
  "elgato-streamdeck",
  "futures-util",
  "gilrs",
+ "golden_alchemist",
  "golden_codegen_support",
  "golden_core",
  "if-addrs",

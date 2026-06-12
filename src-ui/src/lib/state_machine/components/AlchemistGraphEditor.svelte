@@ -2,43 +2,94 @@
 	import {
 		GraphCanvas,
 		type GraphConnectionRequest,
+		type GraphNode,
+		type GraphNodeCreationRequest,
 		type GraphNodeMove,
+		type GraphNodePosition,
 		type GraphNodeResize
 	} from 'golden_alchemist_ui';
-	import { toGraphEdges, toGraphNodes, type AuthoredGraphDocument } from '../alchemistGraph';
+	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+	import { anodeType, configParameters, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
 
 	let {
-		document,
+		formula,
+		nodesById,
 		selectedNodeIds = [],
-		onSelectionChange,
+		selectedEdgeIds = [],
+		catalogItems = [],
+		onGraphSelectionChange,
 		onNodesMove,
 		onNodeResize,
-		onConnect
+		onNodeRename,
+		onNodeCollapsedChange,
+		onConnect,
+		onBackgroundContextMenu,
+		onCreateRequest
 	}: {
-		document: AuthoredGraphDocument;
+		formula: UiNodeDto;
+		nodesById: ReadonlyMap<NodeId, UiNodeDto>;
 		selectedNodeIds?: string[];
-		onSelectionChange?: (nodeIds: string[]) => void;
+		selectedEdgeIds?: string[];
+		catalogItems?: UiCreatableUserItem[];
+		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
 		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
 		onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
+		onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
+		onNodeCollapsedChange?: (nodeId: string, collapsed: boolean) => void | Promise<void>;
 		onConnect?: (connection: GraphConnectionRequest) => void;
+		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
+		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
 	} = $props();
 
-	let nodes = $derived(toGraphNodes(document));
-	let edges = $derived(toGraphEdges(document));
+	let nodes = $derived(toGraphNodes(formula, nodesById, catalogItems));
+	let edges = $derived(toGraphEdges(formula, nodesById));
+	let graphCanvas: {
+		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
+		frameSelection: () => boolean;
+		home: () => boolean;
+		focus: () => void;
+		viewportCenter: () => GraphNodePosition;
+	} | null = $state(null);
+
+	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
+	const isPropertyGetter = (node: UiNodeDto): boolean => anodeType(node) === 'property';
+
+	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
+		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
+	export const frameSelection = (): boolean => graphCanvas?.frameSelection() ?? false;
+	export const home = (): boolean => graphCanvas?.home() ?? false;
+	export const focus = (): void => graphCanvas?.focus();
+	export const viewportCenter = (): GraphNodePosition =>
+		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>
+
+{#snippet nodeContent(graphNode: GraphNode)}
+	{@const node = authoredNode(graphNode.id)}
+	{#if node && !isPropertyGetter(node)}
+		<ANodeConfigEditor parameters={configParameters(node, nodesById)} />
+	{/if}
+{/snippet}
 
 <div class="alchemist-graph-editor">
 	<GraphCanvas
+		bind:this={graphCanvas}
 		{nodes}
 		{edges}
 		{selectedNodeIds}
-		{onSelectionChange}
+		{selectedEdgeIds}
+		{onGraphSelectionChange}
 		{onNodesMove}
 		{onNodeResize}
+		{onNodeRename}
+		{onNodeCollapsedChange}
 		{onConnect}
+		{onBackgroundContextMenu}
+		{onCreateRequest}
+		{nodeContent}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"
-		emptyLabel="This formula has no authored nodes." />
+		emptyLabel="Add an ANode to start this Formula." />
 </div>
 
 <style>
