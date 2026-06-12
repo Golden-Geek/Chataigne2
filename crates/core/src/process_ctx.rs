@@ -8,6 +8,7 @@ use crate::engine::EngineTime;
 use crate::events::{CustomEvent, Event};
 use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
+    PresentationHint,
 };
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
 use serde::Serialize;
@@ -35,6 +36,8 @@ pub struct ProcessTreeNodeSnapshot {
     pub label: String,
     /// Arbitrary classification tags from node metadata.
     pub tags: Vec<String>,
+    /// Presentation hints from node metadata.
+    pub presentation: PresentationHint,
     /// Effective enabled flag.
     ///
     /// This is `true` only when the node itself and every ancestor are enabled.

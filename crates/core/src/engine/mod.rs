@@ -661,6 +661,7 @@ impl<T: Node> Engine<T> {
                     short_name: node_data.meta.short_name.clone(),
                     label: node_data.meta.label.clone(),
                     tags: node_data.meta.tags.clone(),
+                    presentation: node_data.meta.presentation.clone(),
                     enabled: node_data.meta.enabled,
                     can_be_disabled: node_data.meta.can_be_disabled,
                     child_count: 0,
