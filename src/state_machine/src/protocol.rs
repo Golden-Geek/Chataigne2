@@ -45,7 +45,10 @@ pub enum StatechartDeltaDto {
 #[ts(rename_all = "snake_case")]
 pub enum FormulaSurfaceItemKindDto {
     Parameter,
+    Condition,
+    Consequence,
     Input,
+    Filter,
     Output,
     Action,
 }
@@ -54,7 +57,10 @@ impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
     fn from(value: SurfaceItemKind) -> Self {
         match value {
             SurfaceItemKind::Parameter => Self::Parameter,
+            SurfaceItemKind::Condition => Self::Condition,
+            SurfaceItemKind::Consequence => Self::Consequence,
             SurfaceItemKind::Input => Self::Input,
+            SurfaceItemKind::Filter => Self::Filter,
             SurfaceItemKind::Output => Self::Output,
             SurfaceItemKind::Action => Self::Action,
         }
@@ -65,6 +71,7 @@ impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
 pub struct FormulaSurfaceItemDto {
     pub id: String,
     pub label: String,
+    pub path: Vec<String>,
     pub kind: FormulaSurfaceItemKindDto,
     pub value_type: Option<String>,
 }

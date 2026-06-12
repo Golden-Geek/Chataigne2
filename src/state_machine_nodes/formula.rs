@@ -5,22 +5,25 @@ use std::{
 };
 
 use golden_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph,
-    ColorValue, CompileCtx, DiagnosticSeverity, FormulaContextContract, FormulaId,
-    FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeValue, SignatureCtx,
-    StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueTypeId,
-    compile_graph,
+    ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula,
+    AlchemistGraph, ColorValue, CompileCtx, DiagnosticSeverity,
+    FormulaContextContract, FormulaId, FormulaSurface, InputSocketRef,
+    OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
+    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
+    SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindings,
+    TypeConstraint, ValueTypeId, ValueTypeSpec, compile_graph,
 };
 use golden_core::{
     edit::{Edit, NodeTree},
     events::Event,
     item, node,
     node::{
-        DeclId, Node, NodeCreationContext, NodeId, NodeReference,
-        NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
+        DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
+        NodeReference, NodeUserPermissions, NodeUuid, UserContainerRules,
+        UserCreatableItem,
     },
     parameter::{
-        ParamValue, Parameter, ParameterChangeCheck,
+        CssValue, ParamValue, Parameter, ParameterChangeCheck,
         ParameterConstraintPolicy, ParameterEnumOption, ReferenceTargetKind,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
@@ -30,9 +33,20 @@ pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
+pub(crate) const PROPERTY_ITEM_KIND: &str = "alchemist_property";
+pub(crate) const PROPERTY_MANAGER_ITEM_KIND: &str =
+    "alchemist_property_manager";
+pub(crate) const PROPERTY_CREATE_PREFIX: &str = "alchemist_property:";
+pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str =
+    "alchemist_property_manager:";
 
 const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
+pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str =
+    "alchemist_property_manager";
+pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
+const PROPERTY_ANODE_TYPE: &str = "property";
+pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
 
 fn registry() -> golden_alchemist::ANodeRegistry {
     chataigne_state_machine::alchemist::node_registry()
@@ -450,6 +464,12 @@ pub(crate) fn formula_from_snapshot(
             .map_err(|error| error.to_string())?;
     }
 
+    let surface = formula_surface_from_snapshot(
+        snapshot,
+        formula_node,
+        &mut graph,
+    )?;
+
     Ok(AlchemistFormula {
         id: FormulaId::new(formula_snapshot.uuid.0.to_string()),
         version: 1,
@@ -457,7 +477,7 @@ pub(crate) fn formula_from_snapshot(
         description: None,
         tags: formula_snapshot.tags.clone(),
         graph,
-        surface: FormulaSurface::default(),
+        surface,
         context_contract: FormulaContextContract {
             accepts_additional_dimensions: true,
             ..FormulaContextContract::default()
@@ -567,17 +587,21 @@ impl AlchemistANode {
     }
 
     fn reconcile_structure(&mut self, ctx: &mut ProcessCtx) {
-        let type_id = self.anode_type.get_ref().trim();
+        let type_id = self.anode_type.get_ref().trim().to_owned();
         if type_id.is_empty() {
             return;
         }
+        let property_getter = type_id == PROPERTY_ANODE_TYPE;
+        let mut permissions = NodeUserPermissions::all();
+        permissions.can_edit_name = !property_getter;
+        self.node_data_mut().meta.user_permissions = permissions;
         let registry = registry();
-        let Some(declaration) = registry.get(&ANodeTypeId::new(type_id)) else {
+        let Some(declaration) = registry.get(&ANodeTypeId::new(&type_id)) else {
             ctx.set_node_warning_with(
                 self.id(),
                 Some("alchemist_anode"),
                 "Unknown ANode type",
-                Some(type_id),
+                Some(&type_id),
             );
             return;
         };
@@ -622,6 +646,7 @@ impl AlchemistANode {
                         &format!("{} Type", field.label),
                         &type_decl,
                         &selected_type,
+                        property_getter,
                     ),
                 );
                 ValueTypeId::new(selected_type)
@@ -635,14 +660,24 @@ impl AlchemistANode {
                     .unwrap_or_else(|_| field.default_value.clone())
             };
             if let Ok(value) = runtime_value_to_param(&default) {
-                self.ensure_parameter(
+                let mut config_parameter = parameter(
+                    &field.label,
+                    &value_decl,
+                    value,
+                    property_getter,
+                );
+                if property_getter {
+                    config_parameter
+                        .node_data_mut()
+                        .meta
+                        .presentation
+                        .show_in_inspector_content = false;
+                }
+                self.ensure_parameter_node(
                     ctx,
                     &snapshot,
                     config_folder,
-                    &value_decl,
-                    &field.label,
-                    value,
-                    false,
+                    config_parameter,
                 );
             }
         }
@@ -750,25 +785,6 @@ impl AlchemistANode {
         );
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn ensure_parameter(
-        &self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        parent: NodeId,
-        decl_id: &str,
-        label: &str,
-        default: ParamValue,
-        read_only: bool,
-    ) {
-        self.ensure_parameter_node(
-            ctx,
-            snapshot,
-            parent,
-            parameter(label, decl_id, default, read_only),
-        );
-    }
-
     fn ensure_parameter_node(
         &self,
         ctx: &mut ProcessCtx,
@@ -786,6 +802,22 @@ impl AlchemistANode {
             let expected_type = parameter.get_type();
             if existing_snapshot.node_type != expected_type {
                 ctx.replace_node(existing, parameter);
+            } else if parameter.read_only {
+                let presentation =
+                    parameter.node_data().meta.presentation.clone();
+                ctx.call_node_mutation(existing, move |node, _ctx| {
+                    let Some(existing) =
+                        node.as_any_mut().downcast_mut::<Parameter>()
+                    else {
+                        return Err(
+                            "expected an Alchemist config parameter".into(),
+                        );
+                    };
+                    existing.read_only = true;
+                    existing.control_modes_enabled = false;
+                    existing.node_data_mut().meta.presentation = presentation;
+                    Ok(())
+                });
             }
             return;
         }
@@ -814,14 +846,22 @@ fn value_type_parameter(
     label: &str,
     decl_id: &str,
     selected_type: &str,
+    read_only: bool,
 ) -> Parameter {
     let registry = value_types();
     let mut parameter = parameter(
         label,
         decl_id,
         ParamValue::Enum(selected_type.to_owned()),
-        false,
+        read_only,
     );
+    if read_only {
+        parameter
+            .node_data_mut()
+            .meta
+            .presentation
+            .show_in_inspector_content = false;
+    }
     parameter.constraints.enum_options = registry
         .iter()
         .filter(|descriptor| {
@@ -944,6 +984,422 @@ fn output_socket_tree(
         )))
 }
 
+pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 5] = [
+    ("condition", "Conditions"),
+    ("consequence", "Consequences"),
+    ("input", "Inputs"),
+    ("filter", "Filters"),
+    ("output", "Outputs"),
+];
+
+const PROPERTY_TYPES: [(&str, &str); 12] = [
+    ("trigger", "Trigger"),
+    ("int", "Integer"),
+    ("float", "Float"),
+    ("str", "String"),
+    ("file", "File"),
+    ("enum", "Enum"),
+    ("bool", "Boolean"),
+    ("css_value", "CSS Value"),
+    ("vec2", "Vector 2"),
+    ("vec3", "Vector 3"),
+    ("color", "Color"),
+    ("reference", "Reference"),
+];
+
+fn locked_properties_permissions() -> NodeUserPermissions {
+    let mut permissions = NodeUserPermissions::all();
+    permissions.can_remove_and_duplicate = false;
+    permissions.can_edit_name = false;
+    permissions
+}
+
+fn property_default(property_type: &str) -> Option<ParamValue> {
+    Some(match property_type {
+        "trigger" => ParamValue::Trigger(),
+        "int" => ParamValue::Int(0),
+        "float" => ParamValue::Float(0.0),
+        "str" => ParamValue::Str(String::new()),
+        "file" => ParamValue::File(String::new()),
+        "enum" => ParamValue::Enum("option".to_owned()),
+        "bool" => ParamValue::Bool(false),
+        "css_value" => ParamValue::CssValue(CssValue::default()),
+        "vec2" => ParamValue::Vec2(0.0, 0.0),
+        "vec3" => ParamValue::Vec3(0.0, 0.0, 0.0),
+        "color" => ParamValue::Color(0.0, 0.0, 0.0, 1.0),
+        "reference" => {
+            ParamValue::Reference(NodeReference::new(NodeUuid::nil()))
+        }
+        _ => return None,
+    })
+}
+
+fn property_value_type(property_type: &str) -> &'static str {
+    match property_type {
+        "trigger" => "trigger",
+        "int" => "int",
+        "float" => "float",
+        "bool" => "bool",
+        "vec2" => "vec2",
+        "vec3" => "vec3",
+        "color" => "color",
+        "reference" => "chataigne.module_endpoint",
+        _ => "string",
+    }
+}
+
+fn property_parameter(property_type: &str) -> Option<Parameter> {
+    let default = property_default(property_type)?;
+    let mut value = parameter("Value", "value", default, false);
+    if property_type == "enum" {
+        value.constraints.enum_options = vec![ParameterEnumOption {
+            variant_id: "option".to_owned(),
+            value: ParamValue::Enum("option".to_owned()),
+            label: "Option".to_owned(),
+            tags: Vec::new(),
+            ordering: None,
+        }];
+    }
+    Some(value)
+}
+
+fn formula_property_creatable_items() -> Vec<UserCreatableItem> {
+    let mut items = PROPERTY_TYPES
+        .into_iter()
+        .map(|(property_type, label)| {
+            UserCreatableItem::new(
+                format!("{PROPERTY_CREATE_PREFIX}{property_type}"),
+                PROPERTY_ITEM_KIND,
+                label,
+            )
+            .with_menu_path(["Parameter"])
+        })
+        .collect::<Vec<_>>();
+    items.extend(PROPERTY_MANAGER_ROLES.into_iter().map(|(role, label)| {
+        UserCreatableItem::new(
+            format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}"),
+            PROPERTY_MANAGER_ITEM_KIND,
+            label,
+        )
+        .with_menu_path(["Manager"])
+    }));
+    items
+}
+
+fn formula_properties_container_rules() -> UserContainerRules {
+    UserContainerRules::new(&[
+        PROPERTY_ITEM_KIND,
+        PROPERTY_MANAGER_ITEM_KIND,
+    ])
+}
+
+fn formula_properties_accepts(
+    item_type: &str,
+    item_kind: &str,
+) -> bool {
+    match item_kind {
+        PROPERTY_ITEM_KIND => {
+            item_type == PROPERTY_NODE_TYPE
+                || item_type.starts_with(PROPERTY_CREATE_PREFIX)
+        }
+        PROPERTY_MANAGER_ITEM_KIND => {
+            item_type == PROPERTY_MANAGER_NODE_TYPE
+                || item_type.starts_with(PROPERTY_MANAGER_CREATE_PREFIX)
+        }
+        _ => false,
+    }
+}
+
+fn create_formula_property_item(node_type: &str) -> Option<Box<dyn Node>> {
+    if node_type == PROPERTY_NODE_TYPE {
+        return Some(Box::new(AlchemistProperty::for_type("float")));
+    }
+    if let Some(property_type) = node_type.strip_prefix(PROPERTY_CREATE_PREFIX) {
+        return property_default(property_type)
+            .map(|_| Box::new(AlchemistProperty::for_type(property_type)) as _);
+    }
+    let role = node_type.strip_prefix(PROPERTY_MANAGER_CREATE_PREFIX)?;
+    PROPERTY_MANAGER_ROLES
+        .iter()
+        .find(|(candidate, _)| *candidate == role)
+        .map(|(_, label)| {
+            let mut manager = AlchemistPropertyManager::for_role(role);
+            manager.node_data_mut().meta.label = (*label).to_owned();
+            Box::new(manager) as Box<dyn Node>
+        })
+}
+
+fn properties_tree() -> NodeTree {
+    let mut properties = AlchemistPropertiesManager::new();
+    properties.node_data_mut().meta.decl_id =
+        DeclId(PROPERTIES_DECL_ID.to_owned());
+    NodeTree::new(properties)
+}
+
+#[node("alchemist_properties", label = "Properties")]
+pub struct AlchemistPropertiesManager {}
+
+#[node("alchemist_properties", from_struct)]
+impl Node for AlchemistPropertiesManager {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(formula_properties_container_rules())
+    }
+
+    fn user_container_accepts_item(
+        &self,
+        item_type: &str,
+        item_kind: &str,
+    ) -> bool {
+        formula_properties_accepts(item_type, item_kind)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        formula_property_creatable_items()
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        create_formula_property_item(node_type)
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions =
+            locked_properties_permissions();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+#[node("alchemist_property_manager", label = "Manager")]
+#[children(
+    role: golden_core::parameter::Enum = "condition" (
+        label = "Role",
+        enum_options = [
+            "condition",
+            "consequence",
+            "input",
+            "filter",
+            "output"
+        ],
+        read_only = true,
+        show_in_inspector_content = false
+    );
+)]
+pub struct AlchemistPropertyManager {}
+
+#[node("alchemist_property_manager", from_struct)]
+impl Node for AlchemistPropertyManager {
+    fn user_item_kind(&self) -> &str {
+        PROPERTY_MANAGER_ITEM_KIND
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        let mut permissions = NodeUserPermissions::all();
+        permissions.can_edit_name = false;
+        self.node_data_mut().meta.user_permissions = permissions;
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl AlchemistPropertyManager {
+    fn for_role(role: &str) -> Self {
+        let mut manager = Self::new();
+        manager
+            .role
+            .apply_runtime_value(&ParamValue::Enum(role.to_owned()));
+        manager
+    }
+}
+
+#[node("alchemist_property", label = "Property")]
+#[children(
+    property_type: String = String::from("float") (
+        label = "Parameter Type",
+        read_only = true,
+        show_in_inspector_content = false
+    );
+    value_type: String = String::from("float") (
+        label = "Value Type"
+    );
+)]
+pub struct AlchemistProperty {}
+
+#[node("alchemist_property", from_struct)]
+impl Node for AlchemistProperty {
+    fn user_item_kind(&self) -> &str {
+        PROPERTY_ITEM_KIND
+    }
+
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        self.node_data_mut().meta.can_be_disabled = false;
+        self.reconcile_value(ctx);
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.reconcile_value(ctx);
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        if param == self.property_type.id() {
+            self.reconcile_value(ctx);
+        }
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl AlchemistProperty {
+    fn for_type(property_type: &str) -> Self {
+        let mut property = Self::new();
+        property.property_type.apply_runtime_value(&ParamValue::Str(
+            property_type.to_owned(),
+        ));
+        property.value_type.apply_runtime_value(&ParamValue::Str(
+            property_value_type(property_type).to_owned(),
+        ));
+        property
+    }
+
+    fn reconcile_value(&self, ctx: &mut ProcessCtx) {
+        let Some(value) = property_parameter(self.property_type.get_ref()) else {
+            return;
+        };
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if let Some(existing) =
+            snapshot.find_child_by_decl_id(self.id(), "value")
+        {
+            if snapshot.node(existing).is_some_and(|node| {
+                node.node_type == value.get_type()
+            }) {
+                return;
+            }
+            ctx.replace_node(existing, value);
+        } else {
+            ctx.add_child(self.id(), value, None);
+        }
+    }
+}
+
+fn formula_surface_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    graph: &mut AlchemistGraph,
+) -> Result<FormulaSurface, String> {
+    let Some(properties) =
+        snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID)
+    else {
+        return Ok(FormulaSurface::default());
+    };
+    let mut parameter_items = Vec::new();
+    let mut manager_sections = Vec::new();
+    for child in snapshot.child_ids(properties) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.node_type == PROPERTY_NODE_TYPE {
+            parameter_items.push(surface_item_from_property(
+                snapshot, child, graph,
+            )?);
+        } else if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
+            let role = child_string(snapshot, child, "role")
+                .unwrap_or_else(|| "condition".to_owned());
+            manager_sections.push(SurfaceSection {
+                id: SurfaceSectionId::new(role.clone()),
+                label: node.label.clone(),
+                items: Vec::new(),
+                source: SurfaceSource::Formula,
+            });
+        }
+    }
+    let mut sections = vec![SurfaceSection {
+        id: SurfaceSectionId::new("parameter"),
+        label: "Parameters".to_owned(),
+        items: parameter_items,
+        source: SurfaceSource::Formula,
+    }];
+    sections.extend(manager_sections);
+    Ok(FormulaSurface { sections })
+}
+
+fn surface_item_from_property(
+    snapshot: &ProcessTreeSnapshot,
+    property: NodeId,
+    graph: &mut AlchemistGraph,
+) -> Result<SurfaceItem, String> {
+    let node = snapshot
+        .node(property)
+        .ok_or_else(|| format!("Property {property:?} is missing"))?;
+    let value = child_param(snapshot, property, "value")
+        .ok_or_else(|| format!("Property `{}` has no value", node.label))?;
+    let value_type = child_string(snapshot, property, "value_type")
+        .unwrap_or_else(|| {
+            property_value_type(
+                child_string(snapshot, property, "property_type")
+                    .as_deref()
+                    .unwrap_or("float"),
+            )
+            .to_owned()
+        });
+    let value_type = ValueTypeId::new(value_type);
+    let runtime_value = param_to_runtime_value(value, &value_type)?;
+    let id = node.uuid.0.to_string();
+    Ok(SurfaceItem {
+        id: SurfaceItemId::new(id.clone()),
+        label: node.label.clone(),
+        description: None,
+        path: Vec::new(),
+        kind: SurfaceItemKind::Parameter,
+        value_type: Some(ValueTypeSpec::Exact(value_type)),
+        ui: ParamUiHints::default(),
+        bindings: property_bindings(graph, &id, &runtime_value),
+    })
+}
+
+fn property_bindings(
+    graph: &mut AlchemistGraph,
+    property_id: &str,
+    default_value: &RuntimeValue,
+) -> Vec<ANodeFieldPath> {
+    graph
+        .nodes
+        .values_mut()
+        .filter_map(|node| {
+            let matches_property = node.type_id.as_str() == PROPERTY_ANODE_TYPE
+                && node.config.get("property_id").is_some_and(|value| {
+                    matches!(
+                        value,
+                        RuntimeValue::String(value) if value.as_ref() == property_id
+                    )
+                });
+            if !matches_property {
+                return None;
+            }
+            node.config.set("value", default_value.clone());
+            Some(ANodeFieldPath::new(node.id, "value"))
+        })
+        .collect()
+}
+
 #[node("alchemist_connection", label = "Connection")]
 #[children(
     source_node: NodeReference (
@@ -991,9 +1447,10 @@ pub struct AlchemistFormulaDefinition {}
 
 #[item("alchemist_formula", node = "alchemist_formula", from_struct)]
 impl Node for AlchemistFormulaDefinition {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = false;
+        self.reconcile_properties(ctx);
     }
 
     fn on_node_ready(
@@ -1001,6 +1458,8 @@ impl Node for AlchemistFormulaDefinition {
         ctx: &mut ProcessCtx,
         _context: NodeCreationContext,
     ) {
+        self.reconcile_properties(ctx);
+        self.sync_property_getters(ctx);
         self.validate(ctx);
     }
 
@@ -1011,6 +1470,7 @@ impl Node for AlchemistFormulaDefinition {
         _old_value: ParamValue,
     ) {
         if param != self.is_valid.id() && param != self.diagnostics_json.id() {
+            self.sync_property_getters(ctx);
             self.validate(ctx);
         }
     }
@@ -1021,6 +1481,7 @@ impl Node for AlchemistFormulaDefinition {
         _parent: NodeId,
         _child: NodeId,
     ) {
+        self.sync_property_getters(ctx);
         self.validate(ctx);
     }
 
@@ -1031,11 +1492,22 @@ impl Node for AlchemistFormulaDefinition {
         _child: NodeId,
     ) {
         self.remove_dangling_connections(ctx);
+        self.sync_property_getters(ctx);
+        self.validate(ctx);
+    }
+
+    fn on_meta_changed(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _node: NodeId,
+        _patch: NodeMetaPatch,
+    ) {
+        self.sync_property_getters(ctx);
         self.validate(ctx);
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
-        5
+        8
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -1102,6 +1574,18 @@ impl Node for AlchemistFormulaDefinition {
 }
 
 impl AlchemistFormulaDefinition {
+    fn reconcile_properties(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), PROPERTIES_DECL_ID)
+            .is_none()
+        {
+            ctx.add_child_tree(self.id(), properties_tree(), None);
+        }
+    }
+
     fn remove_dangling_connections(&self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
@@ -1130,6 +1614,60 @@ impl AlchemistFormulaDefinition {
                 || target.is_none_or(|uuid| !anode_uuids.contains(&uuid))
             {
                 ctx.edits.push(Edit::RemoveNode { node: child });
+            }
+        }
+    }
+
+    fn sync_property_getters(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(properties) =
+            snapshot.find_child_by_decl_id(self.id(), PROPERTIES_DECL_ID)
+        else {
+            return;
+        };
+        let labels = snapshot
+            .child_ids(properties)
+            .into_iter()
+            .filter_map(|property| {
+                let node = snapshot.node(property)?;
+                (node.node_type == PROPERTY_NODE_TYPE)
+                    .then(|| (node.uuid.0.to_string(), node.label.clone()))
+            })
+            .collect::<HashMap<_, _>>();
+
+        for child in snapshot.child_ids(self.id()) {
+            let Some(anode) = snapshot.node(child) else {
+                continue;
+            };
+            if anode.node_type != ANODE_NODE_TYPE
+                || child_string(&snapshot, child, "anode_type").as_deref()
+                    != Some(PROPERTY_ANODE_TYPE)
+            {
+                continue;
+            }
+            let Some(config) =
+                snapshot.find_child_by_decl_id(child, "config")
+            else {
+                continue;
+            };
+            let Some(property_id) =
+                child_string(&snapshot, config, "config/property_id")
+            else {
+                continue;
+            };
+            let Some(label) = labels.get(&property_id) else {
+                continue;
+            };
+            if &anode.label != label {
+                ctx.patch_node_meta(
+                    child,
+                    NodeMetaPatch {
+                        label: Some(label.clone()),
+                        ..NodeMetaPatch::default()
+                    },
+                );
             }
         }
     }

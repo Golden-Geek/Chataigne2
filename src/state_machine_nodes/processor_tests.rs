@@ -1,16 +1,31 @@
 use golden_core::{
-    node::{Folder, Node, NodeReference},
+    node::{Folder, Node, NodeId, NodeReference},
     parameter::{ParamValue, Parameter},
+    process_ctx::ExecutionPhase,
+    ui_sync::UiEditIntent,
 };
 
-use crate::app::{AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary};
+use crate::app::{
+    AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager,
+    ConsequencesManager, FilterChainManager, FormulaLibrary, InputsManager,
+    OutputsManager,
+};
 
 use super::{
-    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND, StateProcessor,
-    StateProcessorFolder, StateProcessorManager,
+    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
+    PROCESSOR_ITEM_KIND, StateProcessor, StateProcessorFolder,
+    StateProcessorManager, StateProcessorProperties,
+};
+use crate::app::state_machine_nodes_formula::{
+    AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
+    PROPERTY_MANAGER_CREATE_PREFIX,
 };
 
-fn engine_with_formula() -> (AppEngine, golden_core::node::NodeUuid) {
+fn engine_with_formula() -> (
+    AppEngine,
+    NodeId,
+    golden_core::node::NodeUuid,
+) {
     let root: AppNode = Folder::new("root").into();
     let mut engine = AppEngine::new(root);
     engine.add_node(FormulaLibrary::new().into(), None);
@@ -29,12 +44,18 @@ fn engine_with_formula() -> (AppEngine, golden_core::node::NodeUuid) {
     let formula_uuid = formula.node_data().meta.uuid;
     engine.add_user_item(formula.into(), Some(library));
     engine.apply_edits().expect("formula should attach");
-    (engine, formula_uuid)
+    let formula_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == formula_uuid)
+        .map(|(id, _)| id)
+        .expect("Formula should attach");
+    (engine, formula_id, formula_uuid)
 }
 
 #[test]
 fn processor_manager_lists_custom_formulas() {
-    let (mut engine, _) = engine_with_formula();
+    let (mut engine, _, _) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
 
@@ -57,7 +78,7 @@ fn processor_manager_lists_custom_formulas() {
 
 #[test]
 fn processor_created_from_formula_item_keeps_a_stable_reference() {
-    let (mut engine, formula_uuid) = engine_with_formula();
+    let (mut engine, _, formula_uuid) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
     let manager_id = engine
@@ -108,10 +129,61 @@ fn processor_folder_accepts_processors_and_folders() {
 }
 
 #[test]
-fn processor_has_no_formula_specific_children() {
-    let root: AppNode = Folder::new("root").into();
-    let mut engine = AppEngine::new(root);
-    engine.add_node(StateProcessor::new().into(), None);
+fn processor_materializes_formula_properties_as_real_children() {
+    let (mut engine, formula, formula_uuid) = engine_with_formula();
+    let properties = engine
+        .process_tree_snapshot()
+        .find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
+        .expect("Formula Properties should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}float"),
+        label: Some("Amount".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Formula parameter creation should succeed: {ack:?}");
+    let formula_property = engine
+        .process_tree_snapshot()
+        .child_ids(properties)
+        .into_iter()
+        .find(|child| {
+            engine.nodes.get(*child).is_some_and(|node| {
+                node.get_type() == AlchemistProperty::NODE_TYPE
+            })
+        })
+        .expect("Formula parameter should exist");
+    for (role, label) in [
+        ("condition", "Conditions"),
+        ("consequence", "Consequences"),
+        ("input", "Inputs"),
+        ("filter", "Filters"),
+        ("output", "Outputs"),
+    ] {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: properties,
+            node_type: format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}"),
+            label: Some(label.into()),
+            initial_params: Vec::new(),
+        });
+        assert!(
+            ack.success,
+            "Formula {role} manager creation should succeed: {ack:?}"
+        );
+    }
+
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+    let mut processor = StateProcessor::new();
+    processor.formula.apply_runtime_value(&ParamValue::Reference(
+        NodeReference::new(formula_uuid),
+    ));
+    engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
     let processor_id = engine
         .nodes
@@ -119,11 +191,93 @@ fn processor_has_no_formula_specific_children() {
         .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
         .map(|(id, _)| id)
         .expect("Processor should exist");
-    let children = engine
-        .nodes
+    let snapshot = engine.process_tree_snapshot();
+    let instance_properties = snapshot
+        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
+        .expect("Processor should instantiate Formula Properties");
+    assert_eq!(
+        engine
+            .nodes
+            .get(instance_properties)
+            .expect("Processor Properties should exist")
+            .get_type(),
+        StateProcessorProperties::NODE_TYPE
+    );
+    let instance_children = snapshot.child_ids(instance_properties);
+    let parameter = instance_children
         .iter()
-        .filter(|(_, node)| node.node_data().parent == Some(processor_id))
-        .collect::<Vec<_>>();
-    assert_eq!(children.len(), 1);
-    assert_eq!(children[0].1.node_data().meta.decl_id.0, "formula");
+        .copied()
+        .find(|child| {
+            engine.nodes.get(*child).is_some_and(|node| {
+                node.engine_param_snapshot().is_some()
+                    && node.node_data().meta.label == "Amount"
+            })
+        })
+        .expect("Processor should own an editable Amount parameter");
+    assert_eq!(
+        engine
+            .nodes
+            .get(parameter)
+            .and_then(Node::engine_param_snapshot)
+            .map(|parameter| parameter.value),
+        Some(ParamValue::Float(0.0))
+    );
+    for (node_type, label) in [
+        (ConditionManager::NODE_TYPE, "Conditions"),
+        (ConsequencesManager::NODE_TYPE, "Consequences"),
+        (InputsManager::NODE_TYPE, "Inputs"),
+        (FilterChainManager::NODE_TYPE, "Filters"),
+        (OutputsManager::NODE_TYPE, "Outputs"),
+    ] {
+        assert!(instance_children.iter().copied().any(|child| {
+            engine.nodes.get(child).is_some_and(|node| {
+                node.get_type() == node_type
+                    && node.node_data().meta.label == label
+            })
+        }));
+    }
+    let source_uuid = engine
+        .nodes
+        .get(formula_property)
+        .expect("Formula parameter should exist")
+        .node_data()
+        .meta
+        .uuid
+        .0
+        .to_string();
+    assert_eq!(
+        engine
+            .nodes
+            .get(parameter)
+            .expect("Processor parameter should exist")
+            .node_data()
+            .meta
+            .decl_id
+        .0,
+        format!("surface/{source_uuid}")
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}bool"),
+        label: Some("Enabled".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Formula update should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Processor should receive the Formula hierarchy event");
+    engine
+        .apply_edits()
+        .expect("Processor property reconciliation should stabilize");
+    let snapshot = engine.process_tree_snapshot();
+    assert!(
+        snapshot.child_ids(instance_properties).into_iter().any(|child| {
+            engine.nodes.get(child).is_some_and(|node| {
+                node.engine_param_snapshot().is_some()
+                    && node.node_data().meta.label == "Enabled"
+            })
+        }),
+        "Processor should follow Formula property additions"
+    );
 }

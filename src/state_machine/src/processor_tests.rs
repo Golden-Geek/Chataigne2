@@ -71,10 +71,11 @@ fn formula_surface_is_present_in_ui_model() {
             id: SurfaceItemId::new("run"),
             label: "Run".into(),
             description: None,
+            path: Vec::new(),
             kind: SurfaceItemKind::Action,
             value_type: None,
             ui: golden_alchemist::ParamUiHints::default(),
-            binding: None,
+            bindings: Vec::new(),
         }],
         source: SurfaceSource::Formula,
     });

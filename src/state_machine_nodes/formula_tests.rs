@@ -1,14 +1,18 @@
 use golden_core::{
-    node::{DeclId, Folder, Node, NodeId, NodeReference},
-    parameter::{ParamValue, ParameterEventBehaviour},
+    node::{
+        DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference,
+    },
+    parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
     ui_sync::{UiCreateUserItemInitialParam, UiEditIntent},
 };
 
 use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, AlchemistANode,
-    AlchemistConnection, AlchemistFormulaDefinition, FORMULA_ITEM_KIND,
-    FormulaLibrary, formula_from_snapshot,
+    AlchemistConnection, AlchemistFormulaDefinition, AlchemistProperty,
+    AlchemistPropertyManager, AlchemistPropertiesManager, FORMULA_ITEM_KIND,
+    FormulaLibrary, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
+    PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -45,6 +49,216 @@ fn library_created_formula_has_no_opaque_document_parameter() {
     );
     assert!(find_child_by_decl(&engine, formula, "is_valid").is_some());
     assert!(find_child_by_decl(&engine, formula, "diagnostics_json").is_some());
+}
+
+#[test]
+fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula should own a Properties manager");
+    assert_eq!(
+        engine
+            .nodes
+            .get(properties)
+            .expect("Properties manager should exist")
+            .get_type(),
+        AlchemistPropertiesManager::NODE_TYPE
+    );
+    assert!(
+        direct_children(&engine, properties).is_empty(),
+        "Formula categories must be opt-in rather than eagerly materialized"
+    );
+    let parameter_items = engine
+        .nodes
+        .get(properties)
+        .expect("Properties manager should exist")
+        .user_creatable_items();
+    for property_type in [
+        "trigger",
+        "int",
+        "float",
+        "str",
+        "file",
+        "enum",
+        "bool",
+        "css_value",
+        "vec2",
+        "vec3",
+        "color",
+        "reference",
+    ] {
+        assert!(parameter_items.iter().any(|item| {
+            item.node_type
+                == format!("{PROPERTY_CREATE_PREFIX}{property_type}")
+        }));
+    }
+    for role in ["condition", "consequence", "input", "filter", "output"] {
+        assert!(parameter_items.iter().any(|item| {
+            item.node_type
+                == format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}")
+        }));
+    }
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}float"),
+        label: Some("Amount".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Property creation should succeed: {ack:?}");
+    let property = direct_children(&engine, properties)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistProperty::NODE_TYPE
+            })
+        })
+        .expect("Amount property should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_MANAGER_CREATE_PREFIX}condition"),
+        label: Some("Conditions".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Conditions manager creation should succeed: {ack:?}");
+    assert!(direct_children(&engine, properties).into_iter().any(|node| {
+        engine.nodes.get(node).is_some_and(|node| {
+            node.get_type() == AlchemistPropertyManager::NODE_TYPE
+        })
+    }));
+    let value = find_child_by_decl(&engine, property, "value")
+        .expect("Property value should be a real parameter");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: value,
+        value: ParamValue::Float(3.5),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "Property value edit should succeed: {ack:?}");
+
+    let property_uuid = engine
+        .nodes
+        .get(property)
+        .expect("Property should exist")
+        .node_data()
+        .meta
+        .uuid
+        .0
+        .to_string();
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula,
+        node_type: format!("{ANODE_CREATE_PREFIX}property"),
+        label: Some("Amount".into()),
+        initial_params: vec![
+            UiCreateUserItemInitialParam {
+                decl_id: DeclId("config/property_id".into()),
+                value: ParamValue::Str(property_uuid),
+            },
+            UiCreateUserItemInitialParam {
+                decl_id: DeclId("config/value__type".into()),
+                value: ParamValue::Enum("float".into()),
+            },
+            UiCreateUserItemInitialParam {
+                decl_id: DeclId("config/value".into()),
+                value: ParamValue::Float(3.5),
+            },
+        ],
+    });
+    assert!(ack.success, "Property getter creation should succeed: {ack:?}");
+    let getter_node = direct_children(&engine, formula)
+        .into_iter()
+        .find(|candidate| {
+            engine.nodes.get(*candidate).is_some_and(|node| {
+                node.get_type() == AlchemistANode::NODE_TYPE
+                    && parameter_value(&engine, *candidate, "anode_type")
+                        == ParamValue::Str("property".into())
+            })
+        })
+        .expect("Property getter should be a real ANode");
+    assert!(
+        !engine
+            .nodes
+            .get(getter_node)
+            .expect("Property getter should exist")
+            .node_data()
+            .meta
+            .user_permissions
+            .can_edit_name,
+        "Property getter labels must stay synchronized with their property"
+    );
+    let getter_config = find_child_by_decl(&engine, getter_node, "config")
+        .expect("Property getter Config should exist");
+    assert!(
+        direct_children(&engine, getter_config)
+            .into_iter()
+            .filter_map(|child| {
+                engine
+                    .nodes
+                    .get(child)
+                    .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+            })
+            .all(|parameter| {
+                parameter.read_only
+                    && !parameter
+                        .node_data()
+                        .meta
+                        .presentation
+                        .show_in_inspector_content
+            }),
+        "Property getter configuration must be hidden and read-only"
+    );
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: property,
+        patch: NodeMetaPatch {
+            label: Some("Intensity".into()),
+            ..NodeMetaPatch::default()
+        },
+    });
+    assert!(ack.success, "Property rename should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Formula should receive the Property rename");
+    engine
+        .apply_edits()
+        .expect("Property getter label synchronization should stabilize");
+    assert_eq!(
+        engine
+            .nodes
+            .get(getter_node)
+            .expect("Property getter should exist")
+            .node_data()
+            .meta
+            .label,
+        "Intensity"
+    );
+
+    let materialized =
+        formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+            .expect("Formula properties should project to the surface");
+    let item = materialized
+        .surface
+        .sections
+        .iter()
+        .find(|section| section.label == "Parameters")
+        .and_then(|section| section.items.first())
+        .expect("Amount should be exposed to Processors");
+    assert_eq!(item.label, "Intensity");
+    assert!(item.path.is_empty());
+    assert_eq!(item.bindings.len(), 1);
+    assert!(materialized
+        .surface
+        .sections
+        .iter()
+        .any(|section| section.label == "Conditions"));
+    let getter = materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.type_id.as_str() == "property")
+        .expect("Property getter should materialize");
+    assert_eq!(
+        getter.config.get("value"),
+        Some(&golden_alchemist::RuntimeValue::Float(3.5))
+    );
 }
 
 #[test]

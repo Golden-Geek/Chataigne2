@@ -5,6 +5,9 @@ export const FORMULA_NODE_TYPE = 'alchemist_formula';
 export const ANODE_NODE_TYPE = 'alchemist_anode';
 export const CONNECTION_NODE_TYPE = 'alchemist_connection';
 export const ANODE_CREATE_PREFIX = 'alchemist_anode:';
+export const PROPERTIES_DECL_ID = 'properties';
+export const PROPERTY_NODE_TYPE = 'alchemist_property';
+export const PROPERTY_MANAGER_NODE_TYPE = 'alchemist_property_manager';
 
 const FAMILY_HUES: Readonly<Record<string, number>> = {
 	Math: 211,
@@ -155,15 +158,16 @@ export const toGraphNodes = (
 		const width = parameterValue(anode, nodesById, 'width');
 		const typeId = stringParameter(anode, nodesById, 'anode_type') ?? '';
 		const family = familyByType.get(typeId) ?? 'General';
+		const propertyGetter = typeId === 'property';
 		return {
 			id: String(anode.node_id),
 			label: anode.meta.label,
-			subtitle: typeId,
+			subtitle: propertyGetter ? undefined : typeId,
 			color: anodeColor(family, typeId),
 			x: position?.kind === 'vec2' ? position.value[0] : 0,
 			y: position?.kind === 'vec2' ? position.value[1] : 0,
 			width: width?.kind === 'float' && width.value > 0 ? width.value : undefined,
-			resizable: true,
+			resizable: !propertyGetter,
 			invalid: typeId.length === 0,
 			inputs: graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket'),
 			outputs: graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket')

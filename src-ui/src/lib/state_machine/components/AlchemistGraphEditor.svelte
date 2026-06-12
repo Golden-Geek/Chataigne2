@@ -9,7 +9,7 @@
 		type GraphNodeResize
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
-	import { configParameters, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import { configParameters, parameterValue, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
 
 	let {
@@ -41,6 +41,7 @@
 	let nodes = $derived(toGraphNodes(formula, nodesById, catalogItems));
 	let edges = $derived(toGraphEdges(formula, nodesById));
 	let graphCanvas: {
+		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;
 		home: () => boolean;
 		focus: () => void;
@@ -48,7 +49,13 @@
 	} | null = $state(null);
 
 	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
+	const isPropertyGetter = (node: UiNodeDto): boolean => {
+		const type = parameterValue(node, nodesById, 'anode_type');
+		return type?.kind === 'str' && type.value === 'property';
+	};
 
+	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
+		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
 	export const frameSelection = (): boolean => graphCanvas?.frameSelection() ?? false;
 	export const home = (): boolean => graphCanvas?.home() ?? false;
 	export const focus = (): void => graphCanvas?.focus();
@@ -58,7 +65,7 @@
 
 {#snippet nodeContent(graphNode: GraphNode)}
 	{@const node = authoredNode(graphNode.id)}
-	{#if node}
+	{#if node && !isPropertyGetter(node)}
 		<ANodeConfigEditor parameters={configParameters(node, nodesById)} />
 	{/if}
 {/snippet}

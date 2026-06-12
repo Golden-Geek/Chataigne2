@@ -30,10 +30,13 @@
 		ANODE_NODE_TYPE,
 		CONNECTION_NODE_TYPE,
 		FORMULA_NODE_TYPE,
+		PROPERTIES_DECL_ID,
+		PROPERTY_MANAGER_NODE_TYPE,
+		PROPERTY_NODE_TYPE,
+		directChild,
 		formulaANodes,
 		parameterChild,
 		toGraphEdges
-		
 	} from '../alchemistGraph';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
 
@@ -47,6 +50,15 @@
 		origin: string;
 	}
 
+	interface PropertyRow {
+		node: UiNodeDto;
+		depth: number;
+		container: boolean;
+		draggable: boolean;
+	}
+
+	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
+
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
 	let panelState = $derived(
@@ -59,6 +71,7 @@
 	);
 	let panelRoot: HTMLElement | null = $state(null);
 	let graphEditor: {
+		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;
 		home: () => boolean;
 		focus: () => void;
@@ -67,6 +80,7 @@
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let propertiesVisible = $state(true);
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
@@ -139,6 +153,24 @@
 			item.node_type.startsWith(ANODE_CREATE_PREFIX)
 		) ?? []
 	);
+	let properties = $derived(
+		graphState ? directChild(formula, graphState.nodesById, PROPERTIES_DECL_ID) : null
+	);
+	let propertyRows = $derived.by((): PropertyRow[] => {
+		if (!properties || !graphState) return [];
+		return properties.children.flatMap((childId): PropertyRow[] => {
+			const child = graphState.nodesById.get(childId);
+			if (!child || child.data.kind === 'parameter') return [];
+			return [
+				{
+					node: child,
+					depth: 0,
+					container: child.node_type === PROPERTY_MANAGER_NODE_TYPE,
+					draggable: child.node_type === PROPERTY_NODE_TYPE
+				}
+			];
+		});
+	});
 	let anodeNodeIds = $derived(
 		new Set(
 			formula && graphState
@@ -233,6 +265,128 @@
 				session?.selectNode(result.createdNodeId, 'REPLACE');
 			}
 		});
+	};
+
+	const createPropertyItem = (parent: UiNodeDto, item: UiCreatableUserItem): void => {
+		void runMutation(async () => {
+			const result = await sendCreateUserItemByTypeIntent(
+				parent.node_id,
+				item.node_type,
+				item.label,
+				{ select_when_created: true }
+			);
+			if (!result.success) throw new Error(`failed to create ${item.label}`);
+			if (result.createdNodeId !== null) {
+				session?.selectNode(result.createdNodeId, 'REPLACE');
+			}
+		});
+	};
+
+	const propertyValueType = (property: UiNodeDto): string => {
+		if (!graphState) return 'float';
+		const valueType = parameterChild(property, graphState.nodesById, 'value_type');
+		if (
+			valueType?.data.kind === 'parameter' &&
+			valueType.data.param.value.kind === 'str' &&
+			valueType.data.param.value.value.length > 0
+		) {
+			return valueType.data.param.value.value;
+		}
+		const value = parameterChild(property, graphState.nodesById, 'value');
+		if (value?.data.kind !== 'parameter') return 'float';
+		switch (value.data.param.value.kind) {
+			case 'trigger':
+			case 'int':
+			case 'float':
+			case 'bool':
+			case 'vec2':
+			case 'vec3':
+			case 'color':
+				return value.data.param.value.kind;
+			default:
+				return 'string';
+		}
+	};
+
+	const propertyParameterType = (property: UiNodeDto): string => {
+		if (!graphState) return '';
+		const value = parameterChild(property, graphState.nodesById, 'value');
+		return value?.data.kind === 'parameter' ? value.data.param.value.kind : '';
+	};
+
+	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
+		if (!formula || !graphState || property.node_type !== PROPERTY_NODE_TYPE) return;
+		const propertyItem = anodeItems.find(
+			(item) => item.node_type === `${ANODE_CREATE_PREFIX}property`
+		);
+		const value = parameterChild(property, graphState.nodesById, 'value');
+		if (!propertyItem || value?.data.kind !== 'parameter') return;
+		const initialValue = value.data.param.value;
+		void runMutation(async () => {
+			const result = await sendCreateUserItemByTypeIntent(
+				formula.node_id,
+				propertyItem.node_type,
+				property.meta.label,
+				{
+					select_when_created: true,
+					created_node_type: ANODE_NODE_TYPE,
+					initial_params: [
+						initialParam('position', {
+							kind: 'vec2',
+							value: [position.x, position.y]
+						}),
+						initialParam('config/property_id', {
+							kind: 'str',
+							value: property.uuid
+						}),
+						initialParam('config/value__type', {
+							kind: 'enum',
+							value: propertyValueType(property)
+						}),
+						initialParam('config/value', initialValue)
+					]
+				}
+			);
+			if (!result.success) {
+				throw new Error(`failed to create getter for ${property.meta.label}`);
+			}
+			if (result.createdNodeId !== null) {
+				session?.selectNode(result.createdNodeId, 'REPLACE');
+			}
+		});
+	};
+
+	const startPropertyDrag = (event: DragEvent, property: UiNodeDto): void => {
+		if (!event.dataTransfer) return;
+		event.dataTransfer.effectAllowed = 'copy';
+		event.dataTransfer.setData(PROPERTY_DRAG_TYPE, String(property.node_id));
+	};
+
+	const selectPropertyRow = (event: KeyboardEvent, node: UiNodeDto): void => {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		event.preventDefault();
+		session?.selectNode(node.node_id, 'REPLACE');
+	};
+
+	const allowPropertyDrop = (event: DragEvent): void => {
+		if (!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE)) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+	};
+
+	const dropProperty = (event: DragEvent): void => {
+		const nodeId = Number(event.dataTransfer?.getData(PROPERTY_DRAG_TYPE));
+		if (!graphState || !Number.isSafeInteger(nodeId)) return;
+		const property = graphState.nodesById.get(nodeId);
+		if (!property || property.node_type !== PROPERTY_NODE_TYPE) return;
+		event.preventDefault();
+		createPropertyGetter(
+			property,
+			graphEditor?.clientToWorld(event.clientX, event.clientY) ?? {
+				x: 0,
+				y: 0
+			}
+		);
 	};
 
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
@@ -447,6 +601,14 @@
 				</select>
 			</label>
 		{/if}
+		<button
+			type="button"
+			class="properties-toggle"
+			class:active={propertiesVisible}
+			aria-pressed={propertiesVisible}
+			onclick={() => (propertiesVisible = !propertiesVisible)}>
+			Properties
+		</button>
 		{#if formula && anodeItems.length > 0}
 			<div class="node-add">
 				<NodeAddButton
@@ -466,31 +628,77 @@
 		</span>
 	</header>
 
-	<div class="editor-content">
+	<div class:properties-visible={propertiesVisible} class="editor-content">
 		{#if formula && graphState}
-			<AlchemistGraphEditor
-				bind:this={graphEditor}
-				{formula}
-				nodesById={graphState.nodesById}
-				{selectedNodeIds}
-				{selectedEdgeIds}
-				catalogItems={anodeItems}
-				onGraphSelectionChange={selectGraphItems}
-				onNodesMove={moveNodes}
-				onNodeResize={resizeNode}
-				onConnect={connectNodes}
-				onBackgroundContextMenu={openContextMenu}
-				onCreateRequest={openCreateRequest} />
-			{#if diagnostics.length > 0}
-				<aside class="diagnostics" aria-label="Formula diagnostics">
-					{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
-						<div class:error={diagnostic.severity === 'error'} class="diagnostic">
-							<strong>{diagnostic.code}</strong>
-							<span>{diagnostic.message}</span>
+			{#if propertiesVisible}
+				<aside class="properties-panel" aria-label="Formula properties">
+					<div class="properties-heading">
+						<div>
+							<strong>Properties</strong>
+							<span>Drag a property onto the graph to create a getter.</span>
 						</div>
-					{/each}
+						{#if properties && properties.creatable_user_items.length > 0}
+							<NodeAddButton
+								node={properties}
+								items={properties.creatable_user_items}
+								onCreateItem={(item) => createPropertyItem(properties, item)} />
+						{/if}
+					</div>
+					<div class="property-tree" role="tree" aria-label="Formula property hierarchy">
+						{#each propertyRows as row (row.node.node_id)}
+							<div
+								class:container={row.container}
+								class:draggable={row.draggable}
+								class="property-row"
+								style={`--property-indent: ${0.45 + row.depth * 0.8}rem`}
+								draggable={row.draggable}
+								role="treeitem"
+								aria-selected={(session?.selectedNodesIds ?? []).includes(row.node.node_id)}
+								tabindex="0"
+								ondragstart={(event) => startPropertyDrag(event, row.node)}
+								onkeydown={(event) => selectPropertyRow(event, row.node)}
+								onclick={() => session?.selectNode(row.node.node_id, 'REPLACE')}>
+								<span class="property-label">{row.node.meta.label}</span>
+								{#if row.draggable}
+									<span class="property-type">{propertyParameterType(row.node)}</span>
+								{/if}
+							</div>
+						{:else}
+							<p class="properties-empty">The Formula properties hierarchy is empty.</p>
+						{/each}
+					</div>
 				</aside>
 			{/if}
+			<div
+				class="graph-drop-zone"
+				role="application"
+				aria-label="Alchemist graph drop target"
+				ondragover={allowPropertyDrop}
+				ondrop={dropProperty}>
+				<AlchemistGraphEditor
+					bind:this={graphEditor}
+					{formula}
+					nodesById={graphState.nodesById}
+					{selectedNodeIds}
+					{selectedEdgeIds}
+					catalogItems={anodeItems}
+					onGraphSelectionChange={selectGraphItems}
+					onNodesMove={moveNodes}
+					onNodeResize={resizeNode}
+					onConnect={connectNodes}
+					onBackgroundContextMenu={openContextMenu}
+					onCreateRequest={openCreateRequest} />
+				{#if diagnostics.length > 0}
+					<aside class="diagnostics" aria-label="Formula diagnostics">
+						{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
+							<div class:error={diagnostic.severity === 'error'} class="diagnostic">
+								<strong>{diagnostic.code}</strong>
+								<span>{diagnostic.message}</span>
+							</div>
+						{/each}
+					</aside>
+				{/if}
+			</div>
 		{:else}
 			<div class="empty-state">
 				<strong>No Alchemist Formula</strong>
@@ -573,6 +781,24 @@
 		font-size: 0.66rem;
 	}
 
+	.properties-toggle {
+		min-block-size: 1.65rem;
+		padding: 0.2rem 0.5rem;
+		border: 0.06rem solid var(--gc-color-border);
+		border-radius: 0.3rem;
+		background: var(--gc-color-background);
+		color: color-mix(in srgb, var(--gc-color-text) 68%, transparent);
+		font: inherit;
+		font-size: 0.66rem;
+		cursor: pointer;
+	}
+
+	.properties-toggle.active {
+		border-color: color-mix(in srgb, var(--gc-color-accent) 55%, var(--gc-color-border));
+		color: var(--gc-color-text);
+		background: color-mix(in srgb, var(--gc-color-accent) 14%, var(--gc-color-background));
+	}
+
 	.node-add {
 		margin-inline-start: auto;
 	}
@@ -584,8 +810,107 @@
 
 	.editor-content {
 		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		min-inline-size: 0;
 		min-block-size: 0;
+	}
+
+	.editor-content.properties-visible {
+		grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+	}
+
+	.properties-panel {
+		display: grid;
+		grid-template-rows: auto minmax(0, 1fr);
+		min-inline-size: 0;
+		min-block-size: 0;
+		border-inline-end: 0.06rem solid var(--gc-color-border);
+		background: var(--gc-color-background-soft);
+	}
+
+	.properties-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.6rem 0.65rem;
+		border-block-end: 0.06rem solid var(--gc-color-border);
+	}
+
+	.properties-heading div {
+		display: grid;
+		gap: 0.15rem;
+	}
+
+	.properties-heading strong {
+		font-size: 0.75rem;
+	}
+
+	.properties-heading span,
+	.properties-empty {
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		font-size: 0.62rem;
+		line-height: 1.35;
+	}
+
+	.property-tree {
+		min-block-size: 0;
+		overflow: auto;
+		padding-block: 0.25rem;
+	}
+
+	.property-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto;
+		align-items: center;
+		gap: 0.35rem;
+		min-block-size: 1.8rem;
+		padding: 0.18rem 0.35rem 0.18rem var(--property-indent);
+		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 45%, transparent);
+		font-size: 0.66rem;
+		cursor: default;
+	}
+
+	.property-row:hover {
+		background: color-mix(in srgb, var(--gc-color-accent) 8%, transparent);
+	}
+
+	.property-row.container > .property-label {
+		font-weight: 650;
+	}
+
+	.property-row.draggable {
+		cursor: grab;
+	}
+
+	.property-row.draggable:active {
+		cursor: grabbing;
+	}
+
+	.property-label {
+		min-inline-size: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.property-type {
+		color: color-mix(in srgb, var(--gc-color-text) 52%, transparent);
+		font-size: 0.58rem;
+		text-transform: uppercase;
+	}
+
+	.properties-empty {
+		margin: 0;
+		padding: 0.75rem;
+	}
+
+	.graph-drop-zone {
+		position: relative;
+		min-inline-size: 0;
+		min-block-size: 0;
+		overflow: hidden;
 	}
 
 	.empty-state {
