@@ -4,6 +4,8 @@ pub const USER_CONTEXT_NODE_TYPE: &str = "user_context";
 pub const USER_CONTEXT_ITEM_KIND: &str = "user_context";
 /// Default user-facing label for newly created user-context scope nodes.
 pub const USER_CONTEXT_DEFAULT_LABEL: &str = "Context";
+/// Built-in node type id used for folders inside user-authored lexical context scopes.
+pub const USER_CONTEXT_FOLDER_NODE_TYPE: &str = "user_context_folder";
 /// Built-in folder node type id.
 pub const FOLDER_NODE_TYPE: &str = "folder";
 /// Built-in item kind used for parameter control helper nodes.

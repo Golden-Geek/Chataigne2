@@ -211,7 +211,7 @@ pub enum EngineEditError {
         /// Expected currently active id.
         active_client_edit_id: String,
     },
-    /// A user-item operation targeted a location that is not inside a container.
+    /// A user-item operation targeted a parent that is not a container.
     UserItemContainerRequired {
         /// Index of the edit in the drained queue.
         edit_index: usize,
@@ -440,7 +440,7 @@ impl fmt::Display for EngineEditError {
             } => {
                 write!(
                     f,
-                    "edit #{edit_index} ({operation}) requires a container target, but parent {:?} has no container in its ancestry",
+                    "edit #{edit_index} ({operation}) requires a direct container parent, but parent {:?} does not accept user items",
                     parent
                 )
             }

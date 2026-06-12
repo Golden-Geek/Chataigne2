@@ -17,8 +17,8 @@ use crate::node::{
     PARAMETER_ANIMATION_KEY_VALUE_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_RANGE_DECL_ID,
     PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID,
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID,
-    PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
-    UserContainerRules, UserContextNode, UserCreatableItem, UserNodeRole, curve_from_snapshot,
+    PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_FOLDER_NODE_TYPE, USER_CONTEXT_ITEM_KIND,
+    USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserCreatableItem, UserNodeRole, curve_from_snapshot,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints,
@@ -2862,6 +2862,42 @@ fn add_user_item_rejects_kind_when_container_does_not_accept_it() {
 }
 
 #[test]
+fn add_user_item_requires_direct_container_parent() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]),
+        None,
+    );
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("manager should exist");
+    engine.add_node(ContainerTestNode::regular("Leaf", "leaf"), Some(manager));
+    engine.apply_edits().expect("leaf setup should succeed");
+
+    let leaf = engine
+        .nodes
+        .get(manager)
+        .and_then(|node| node.node_data().first_child)
+        .expect("leaf should exist");
+    engine.add_user_item(ContainerTestNode::regular("Sequence 1", "sequence"), Some(leaf));
+
+    let result = engine.apply_edits();
+    assert!(matches!(
+        result,
+        Err(EngineEditError::UserItemContainerRequired {
+            operation: "AddUserItem",
+            ..
+        })
+    ));
+}
+
+#[test]
 fn catalog_creatable_items_include_registered_blueprints() {
     let root = ContainerTestNode::regular("root", "root");
     let mut engine = Engine::new(root);
@@ -3000,7 +3036,7 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
     assert!(
         creatable
             .iter()
-            .any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
+            .any(|item| item.node_type == USER_CONTEXT_FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
         "context scope should expose folder creation"
     );
     for parameter_type in PARAMETER_NODE_TYPES {
@@ -3013,7 +3049,7 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
     }
 
     engine
-        .queue_catalog_create(scope, FOLDER_NODE_TYPE, Some("Inner".to_string()), None)
+        .queue_catalog_create(scope, USER_CONTEXT_FOLDER_NODE_TYPE, Some("Inner".to_string()), None)
         .expect("queueing folder creation should succeed");
     engine
         .queue_catalog_create(scope, "float", Some("Tempo".to_string()), None)
@@ -3044,15 +3080,15 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
         .get_type()
         .to_string();
     assert!(
-        first_type == FOLDER_NODE_TYPE || second_type == FOLDER_NODE_TYPE,
-        "created children should include folder"
+        first_type == USER_CONTEXT_FOLDER_NODE_TYPE || second_type == USER_CONTEXT_FOLDER_NODE_TYPE,
+        "created children should include user-context folder"
     );
     assert!(
         first_type == "float" || second_type == "float",
         "created children should include float parameter"
     );
 
-    let inner_folder = if first_type == FOLDER_NODE_TYPE {
+    let inner_folder = if first_type == USER_CONTEXT_FOLDER_NODE_TYPE {
         first_child
     } else {
         second_child
@@ -3061,7 +3097,7 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
     assert!(
         inner_creatable
             .iter()
-            .any(|item| item.node_type == FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
+            .any(|item| item.node_type == USER_CONTEXT_FOLDER_NODE_TYPE && item.item_kind == FOLDER_NODE_TYPE),
         "folder created in scope should expose folder creation recursively"
     );
     for parameter_type in PARAMETER_NODE_TYPES {
@@ -3564,6 +3600,131 @@ fn move_item_root_between_containers_requires_target_acceptance() {
         .node_data();
     assert_eq!(sequence_data.parent, Some(manager_c));
     assert_eq!(sequence_data.user_role, UserNodeRole::ItemRoot);
+}
+
+#[test]
+fn move_item_root_requires_direct_container_parent() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]),
+        None,
+    );
+    engine.apply_edits().expect("container setup should succeed");
+
+    let manager = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("manager should exist");
+    engine.add_node(ContainerTestNode::regular("Leaf", "leaf"), Some(manager));
+    engine.add_user_item(ContainerTestNode::regular("Sequence 1", "sequence"), Some(manager));
+    engine.apply_edits().expect("initial children should attach");
+
+    let leaf = engine
+        .nodes
+        .get(manager)
+        .and_then(|node| node.node_data().first_child)
+        .expect("leaf should exist");
+    let sequence = engine
+        .nodes
+        .get(leaf)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("sequence should exist");
+
+    engine.edits.push(Edit::MoveNode {
+        node: sequence,
+        new_parent: leaf,
+        new_prev_sibling: None,
+    });
+
+    let result = engine.apply_edits();
+    assert!(matches!(
+        result,
+        Err(EngineEditError::UserItemContainerRequired {
+            operation: "MoveNode",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn move_container_item_root_requires_destination_acceptance() {
+    let root = ContainerTestNode::regular("root", "root");
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        ContainerTestNode::container("Folders", "folder_manager", &["folder"]),
+        None,
+    );
+    engine.add_node(
+        ContainerTestNode::container("Sequences", "sequence_manager", &["sequence"]),
+        None,
+    );
+    engine.apply_edits().expect("container setup should succeed");
+
+    let folder_manager = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("folder manager should exist");
+    let sequence_manager = engine
+        .nodes
+        .get(folder_manager)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("sequence manager should exist");
+
+    engine.add_user_item(
+        ContainerTestNode::container("Group", "folder", &["sequence"]),
+        Some(folder_manager),
+    );
+    engine.apply_edits().expect("folder item should attach");
+
+    let folder = engine
+        .nodes
+        .get(folder_manager)
+        .and_then(|node| node.node_data().first_child)
+        .expect("folder should exist");
+    engine.edits.push(Edit::MoveNode {
+        node: folder,
+        new_parent: sequence_manager,
+        new_prev_sibling: None,
+    });
+
+    let rejected = engine.apply_edits();
+    assert!(matches!(
+        rejected,
+        Err(EngineEditError::UserItemKindRejected {
+            operation: "MoveNode",
+            ..
+        })
+    ));
+
+    engine.add_node(
+        ContainerTestNode::container("More Folders", "folder_manager", &["folder"]),
+        None,
+    );
+    engine.apply_edits().expect("compatible folder target should attach");
+    let compatible_manager = engine
+        .nodes
+        .get(sequence_manager)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("compatible manager should exist");
+
+    engine.edits.push(Edit::MoveNode {
+        node: folder,
+        new_parent: compatible_manager,
+        new_prev_sibling: None,
+    });
+    engine
+        .apply_edits()
+        .expect("folder should move to compatible container");
+
+    assert_eq!(
+        engine.nodes.get(folder).and_then(|node| node.node_data().parent),
+        Some(compatible_manager)
+    );
 }
 
 #[test]

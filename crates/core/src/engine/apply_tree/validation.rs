@@ -143,7 +143,6 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), EngineEditError> {
         let subtree = self.collect_subtree(edit_index, operation, node)?;
         let subtree_set: HashSet<NodeId> = subtree.iter().copied().collect();
-        let target_container = self.nearest_container_ancestor(new_parent);
 
         for moved in subtree {
             let moved_node = self.nodes.get(moved).ok_or(EngineEditError::NodeNotFound {
@@ -156,28 +155,23 @@ impl<T: Node> Engine<T> {
                 continue;
             }
 
-            let old_container = self.nearest_container_ancestor(moved);
+            let old_container = moved_node
+                .node_data()
+                .parent
+                .and_then(|parent| self.nearest_container_ancestor(parent));
             let container_changes = match old_container {
                 Some(container) => !subtree_set.contains(&container),
-                None => target_container.is_some(),
+                None => true,
             };
 
             if !container_changes {
                 continue;
             }
 
-            let Some(target_container) = target_container else {
-                return Err(EngineEditError::UserItemContainerRequired {
-                    edit_index,
-                    operation,
-                    parent: new_parent,
-                });
-            };
-
             self.ensure_item_kind_allowed(
                 edit_index,
                 operation,
-                target_container,
+                new_parent,
                 moved_node.get_type(),
                 moved_node.user_item_kind(),
             )?;

@@ -5,6 +5,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method(),
             Self::UserContext(node) => node.$method(),
+            Self::UserContextFolder(node) => node.$method(),
             Self::Parameter(node) => node.$method(),
             Self::Dashboard(node) => node.$method(),
             Self::DashboardPage(node) => node.$method(),
@@ -32,6 +33,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1),
             Self::UserContext(node) => node.$method($arg1),
+            Self::UserContextFolder(node) => node.$method($arg1),
             Self::Parameter(node) => node.$method($arg1),
             Self::Dashboard(node) => node.$method($arg1),
             Self::DashboardPage(node) => node.$method($arg1),
@@ -59,6 +61,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2),
             Self::UserContext(node) => node.$method($arg1, $arg2),
+            Self::UserContextFolder(node) => node.$method($arg1, $arg2),
             Self::Parameter(node) => node.$method($arg1, $arg2),
             Self::Dashboard(node) => node.$method($arg1, $arg2),
             Self::DashboardPage(node) => node.$method($arg1, $arg2),
@@ -86,6 +89,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3),
+            Self::UserContextFolder(node) => node.$method($arg1, $arg2, $arg3),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3),
             Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3),
             Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3),
@@ -113,6 +117,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::UserContextFolder(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3, $arg4),
@@ -140,6 +145,7 @@ macro_rules! __dispatch_node_enum {
         match $self {
             Self::Folder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::UserContext(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::UserContextFolder(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Parameter(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Dashboard(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::DashboardPage(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
@@ -578,6 +584,7 @@ macro_rules! define_user_item_factory_methods {
 /// Internal node variants are always included automatically:
 /// - `Folder($crate::node::Folder)`
 /// - `UserContext($crate::node::UserContextNode)`
+/// - `UserContextFolder($crate::node::UserContextFolder)`
 /// - `Parameter($crate::parameter::Parameter)`
 /// - `Dashboard($crate::node::DashboardNode)`
 /// - `DashboardPage($crate::node::DashboardPageNode)`
@@ -610,6 +617,7 @@ macro_rules! define_node_enum {
         $vis enum $enum_name {
             Folder(Box<$crate::node::Folder>),
             UserContext(Box<$crate::node::UserContextNode>),
+            UserContextFolder(Box<$crate::node::UserContextFolder>),
             Parameter(Box<$crate::parameter::Parameter>),
             Dashboard(Box<$crate::node::DashboardNode>),
             DashboardPage(Box<$crate::node::DashboardPageNode>),
@@ -654,6 +662,7 @@ macro_rules! define_node_enum {
                 match self {
                     Self::Folder(node) => node.as_ref(),
                     Self::UserContext(node) => node.as_ref(),
+                    Self::UserContextFolder(node) => node.as_ref(),
                     Self::Parameter(node) => node.as_ref(),
                     Self::Dashboard(node) => node.as_ref(),
                     Self::DashboardPage(node) => node.as_ref(),
@@ -683,6 +692,7 @@ macro_rules! define_node_enum {
                 match self {
                     Self::Folder(node) => node.as_mut(),
                     Self::UserContext(node) => node.as_mut(),
+                    Self::UserContextFolder(node) => node.as_mut(),
                     Self::Parameter(node) => node.as_mut(),
                     Self::Dashboard(node) => node.as_mut(),
                     Self::DashboardPage(node) => node.as_mut(),
@@ -1039,6 +1049,7 @@ macro_rules! define_node_enum {
 
                 $crate::__downcast_node_enum_variant!(any, Folder, $crate::node::Folder);
                 $crate::__downcast_node_enum_variant!(any, UserContext, $crate::node::UserContextNode);
+                $crate::__downcast_node_enum_variant!(any, UserContextFolder, $crate::node::UserContextFolder);
                 $crate::__downcast_node_enum_variant!(any, Parameter, $crate::parameter::Parameter);
                 $crate::__downcast_node_enum_variant!(any, Dashboard, $crate::node::DashboardNode);
                 $crate::__downcast_node_enum_variant!(any, DashboardPage, $crate::node::DashboardPageNode);
@@ -1076,6 +1087,9 @@ macro_rules! define_node_enum {
                 }
                 if let Some(node) = <$crate::node::UserContextNode as $crate::node::Node>::project_create(node_type) {
                     return Some(Self::UserContext(Box::new(node)));
+                }
+                if let Some(node) = <$crate::node::UserContextFolder as $crate::node::Node>::project_create(node_type) {
+                    return Some(Self::UserContextFolder(Box::new(node)));
                 }
                 if let Some(node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
                     return Some(Self::Parameter(Box::new(node)));
@@ -1175,6 +1189,11 @@ macro_rules! define_node_enum {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::UserContext(Box::new(node)));
+                }
+                if let Some(mut node) = <$crate::node::UserContextFolder as $crate::node::Node>::project_create(node_type) {
+                    $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
+                    $crate::node::Node::project_decode_data(&mut node, data)?;
+                    return Ok(Self::UserContextFolder(Box::new(node)));
                 }
                 if let Some(mut node) = <$crate::parameter::Parameter as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
@@ -1312,6 +1331,12 @@ macro_rules! define_node_enum {
         impl From<$crate::node::UserContextNode> for $enum_name {
             fn from(node: $crate::node::UserContextNode) -> Self {
                 Self::UserContext(Box::new(node))
+            }
+        }
+
+        impl From<$crate::node::UserContextFolder> for $enum_name {
+            fn from(node: $crate::node::UserContextFolder) -> Self {
+                Self::UserContextFolder(Box::new(node))
             }
         }
 

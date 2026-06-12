@@ -72,14 +72,7 @@ impl<T: Node> Engine<T> {
         let mut node = self.coerce_node_for_engine(edit_index, operation, node)?;
 
         if validate_as_user_item {
-            let container =
-                self.nearest_container_ancestor(parent)
-                    .ok_or(EngineEditError::UserItemContainerRequired {
-                        edit_index,
-                        operation,
-                        parent,
-                    })?;
-            self.ensure_item_kind_allowed(edit_index, operation, container, node.get_type(), node.user_item_kind())?;
+            self.ensure_item_kind_allowed(edit_index, operation, parent, node.get_type(), node.user_item_kind())?;
         }
 
         self.prepare_node_for_insert(&mut node, parent, user_role);

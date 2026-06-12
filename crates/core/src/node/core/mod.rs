@@ -9,7 +9,7 @@ mod script_support;
 mod user_items;
 
 pub use behavior::{Node, NodeCreationContext, ViaTarget};
-pub use builtins::{Folder, UserContextNode};
+pub use builtins::{Folder, UserContextFolder, UserContextNode};
 pub use constants::*;
 pub use events::{EventPropagation, EventSubscription};
 pub use identity::{DeclId, NodeId, NodeReference, NodeUuid};
