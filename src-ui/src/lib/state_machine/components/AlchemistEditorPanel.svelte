@@ -632,18 +632,39 @@
 		runMutation(async () => {
 			if (!graphState) return;
 			const anode = graphState.nodesById.get(Number(resize.nodeId));
-			const width = parameterChild(anode, graphState.nodesById, 'width');
-			if (anode?.node_type !== ANODE_NODE_TYPE || width?.data.kind !== 'parameter') {
-				throw new Error('ANode width parameter is unavailable');
+			const size = parameterChild(anode, graphState.nodesById, 'size');
+			if (
+				anode?.node_type !== ANODE_NODE_TYPE ||
+				size?.data.kind !== 'parameter' ||
+				size.data.param.read_only ||
+				!size.meta.can_be_disabled
+			) {
+				throw new Error('ANode size parameter is unavailable');
 			}
-			await editParameters('Resize ANode', [
-				{
-					kind: 'setParam',
-					node: width.node_id,
-					value: { kind: 'float', value: resize.size.width },
-					behaviour: width.data.param.event_behaviour
-				}
-			]);
+			await editParameters(
+				resize.mode === 'custom' ? 'Resize ANode' : 'Auto-size ANode',
+				resize.mode === 'custom'
+					? [
+							{
+								kind: 'setParam',
+								node: size.node_id,
+								value: { kind: 'vec2', value: [resize.size.width, resize.size.height] },
+								behaviour: size.data.param.event_behaviour
+							},
+							{
+								kind: 'patchMeta',
+								node: size.node_id,
+								patch: { enabled: true }
+							}
+						]
+					: [
+							{
+								kind: 'patchMeta',
+								node: size.node_id,
+								patch: { enabled: false }
+							}
+						]
+			);
 		});
 
 	const renameNode = (nodeId: string, label: string): Promise<void> =>

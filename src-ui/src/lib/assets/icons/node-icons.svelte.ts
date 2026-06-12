@@ -1,6 +1,7 @@
 import type { NodeIconSet } from 'golden_ui';
 import moduleIcon from './nodes/module.svg';
 import moduleManagerIcon from './nodes/module_manager.svg';
+import stateProcessorIcon from './nodes/state_processor.svg';
 import moduleCategoryNetworkIcon from './module/network.svg';
 import moduleCategoryHardwareIcon from './module/hardware.svg';
 import moduleCategoryControllersIcon from './module/controllers.svg';
@@ -14,7 +15,7 @@ export const appIcons: NodeIconSet = {
 	nodeTypes: {
 		module_manager: moduleManagerIcon,
 		module: moduleIcon,
-		state_processor: formulaIcon,
+		state_processor: stateProcessorIcon,
 		alchemist_formula: formulaIcon,
 		alchemist_formula_library: formulaLibraryIcon
 	},

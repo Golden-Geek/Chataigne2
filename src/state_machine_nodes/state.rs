@@ -17,24 +17,16 @@ use golden_core::{
         label = "Description",
         description = "User-authored description for this State."
     );
-    x: f64 = 0.0 (
-        label = "Canvas X",
-        description = "Horizontal position in the State Machine canvas.",
+    position: golden_core::parameter::Vec2 = (0.0, 0.0) (
+        label = "Canvas Position",
+        description = "Position in the State Machine canvas.",
         show_in_inspector_content = false
     );
-    y: f64 = 0.0 (
-        label = "Canvas Y",
-        description = "Vertical position in the State Machine canvas.",
-        show_in_inspector_content = false
-    );
-    width: f64 = 13.0 (
-        label = "Canvas Width",
-        description = "Width in the State Machine canvas.",
-        show_in_inspector_content = false
-    );
-    height: f64 = 8.0 (
-        label = "Canvas Height",
-        description = "Height in the State Machine canvas.",
+    size: golden_core::parameter::Vec2 = (13.0, 8.0) (
+        label = "Canvas Size",
+        description = "Custom size in the State Machine canvas. Disable to use automatic sizing.",
+        enabled = false,
+        can_be_disabled = true,
         show_in_inspector_content = false
     );
     node processors: crate::app::StateProcessorManager = crate::app::StateProcessorManager::new() (

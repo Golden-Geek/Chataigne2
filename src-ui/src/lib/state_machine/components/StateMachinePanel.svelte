@@ -8,7 +8,8 @@
 		type GraphNode,
 		type GraphNodeMove,
 		type GraphNodePosition,
-		type GraphNodeResize
+		type GraphNodeResize,
+		type GraphNodeSize
 	} from 'golden_alchemist_ui';
 	import {
 		ContextMenu,
@@ -40,10 +41,8 @@
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
 	const STATE_NODE_TYPE = 'state';
-	const POSITION_X_DECL_ID = 'x';
-	const POSITION_Y_DECL_ID = 'y';
-	const WIDTH_DECL_ID = 'width';
-	const HEIGHT_DECL_ID = 'height';
+	const POSITION_DECL_ID = 'position';
+	const SIZE_DECL_ID = 'size';
 	const ACTIVE_DECL_ID = 'active';
 	const PROCESSORS_DECL_ID = 'processors';
 	const TRANSITIONS_DECL_ID = 'transitions';
@@ -51,8 +50,15 @@
 	const TRANSITION_NODE_TYPE = 'state_transition';
 	const TRANSITION_INPUT_SOCKET_ID = 'transition-input';
 	const TRANSITION_OUTPUT_SOCKET_ID = 'transition-output';
+	const PROCESSOR_ITEM_KIND = 'state_processor';
+	const PROCESSOR_FOLDER_NODE_TYPE = 'state_processor_folder';
 	const DEFAULT_STATE_WIDTH_REM = 13;
 	const DEFAULT_STATE_HEIGHT_REM = 8;
+	const STATE_AUTO_HEADER_REM = 1.9;
+	const STATE_AUTO_PROCESSOR_HEADER_REM = 1.45;
+	const STATE_AUTO_LIST_PADDING_REM = 0.4;
+	const STATE_AUTO_PROCESSOR_ROW_REM = 1.45;
+	const STATE_AUTO_RESIZER_MARGIN_REM = 1.2;
 	const STATE_PLACEMENT_CLEARANCE_REM = 1;
 	const STATE_PLACEMENT_STEP_REM = 2;
 	const STATE_PLACEMENT_INDEX_CELL_REM = 8;
@@ -185,9 +191,9 @@
 		return null;
 	};
 
-	const floatParameterValue = (node: UiNodeDto, declId: string): number | null => {
+	const vec2ParameterValue = (node: UiNodeDto, declId: string): [number, number] | null => {
 		const parameter = parameterChild(node, declId);
-		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'float') {
+		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'vec2') {
 			return null;
 		}
 		return parameter.data.param.value.value;
@@ -210,21 +216,85 @@
 	};
 
 	const graphPosition = (node: UiNodeDto, index: number): GraphNodePosition => {
-		const x = floatParameterValue(node, POSITION_X_DECL_ID);
-		const y = floatParameterValue(node, POSITION_Y_DECL_ID);
-		if (x === null || y === null) {
+		const position = vec2ParameterValue(node, POSITION_DECL_ID);
+		if (position === null) {
 			return {
 				x: 2 + (index % 4) * 16,
 				y: 2 + Math.floor(index / 4) * 7
 			};
 		}
-		return { x, y };
+		return { x: position[0], y: position[1] };
 	};
 
-	const graphDimension = (node: UiNodeDto, declId: string, fallback: number): number => {
-		const value = floatParameterValue(node, declId);
-		return value !== null && value > 0 ? value : fallback;
+	const graphSize = (node: UiNodeDto): { width: number; height: number } | undefined => {
+		const parameter = parameterChild(node, SIZE_DECL_ID);
+		if (
+			parameter?.data.kind !== 'parameter' ||
+			!parameter.meta.enabled ||
+			parameter.data.param.value.kind !== 'vec2'
+		) {
+			return undefined;
+		}
+		const [width, height] = parameter.data.param.value.value;
+		return width > 0 && height > 0 ? { width, height } : undefined;
 	};
+
+	const isProcessorTreeNode = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
+		Boolean(
+			node &&
+			(node.user_item_kind === PROCESSOR_ITEM_KIND || node.node_type === PROCESSOR_FOLDER_NODE_TYPE)
+		);
+
+	const processorTreeRowCount = (node: UiNodeDto): number => {
+		if (
+			node.node_type !== PROCESSOR_FOLDER_NODE_TYPE ||
+			node.meta.presentation?.collapsed === true
+		) {
+			return 1;
+		}
+		let count = 1;
+		for (const childId of node.children) {
+			const child = session?.graph.state.nodesById.get(childId);
+			if (isProcessorTreeNode(child)) {
+				count += processorTreeRowCount(child);
+			}
+		}
+		return count;
+	};
+
+	const processorManagerRowCount = (manager: UiNodeDto | null): number => {
+		if (!manager) {
+			return 1;
+		}
+		let count = 0;
+		for (const childId of manager.children) {
+			const child = session?.graph.state.nodesById.get(childId);
+			if (isProcessorTreeNode(child)) {
+				count += processorTreeRowCount(child);
+			}
+		}
+		return Math.max(1, count);
+	};
+
+	const graphAutomaticSize = (node: UiNodeDto): GraphNodeSize => {
+		const rows = processorManagerRowCount(declaredChild(node, PROCESSORS_DECL_ID));
+		const contentHeight =
+			STATE_AUTO_HEADER_REM +
+			STATE_AUTO_PROCESSOR_HEADER_REM +
+			STATE_AUTO_LIST_PADDING_REM +
+			rows * STATE_AUTO_PROCESSOR_ROW_REM +
+			STATE_AUTO_RESIZER_MARGIN_REM;
+		return {
+			width: DEFAULT_STATE_WIDTH_REM,
+			height: Math.max(DEFAULT_STATE_HEIGHT_REM, contentHeight)
+		};
+	};
+
+	const graphNodeWidth = (node: GraphNode): number =>
+		node.size?.width ?? node.automaticSize?.width ?? DEFAULT_STATE_WIDTH_REM;
+
+	const graphNodeHeight = (node: GraphNode): number =>
+		node.size?.height ?? node.automaticSize?.height ?? DEFAULT_STATE_HEIGHT_REM;
 
 	const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
@@ -246,9 +316,9 @@
 			canRename: node.meta.user_permissions?.can_edit_name !== false,
 			collapsed: node.meta.presentation?.collapsed === true,
 			color: metadataColor(node.meta.presentation?.color),
-			...graphPosition(node, index),
-			width: graphDimension(node, WIDTH_DECL_ID, DEFAULT_STATE_WIDTH_REM),
-			height: graphDimension(node, HEIGHT_DECL_ID, DEFAULT_STATE_HEIGHT_REM),
+			position: graphPosition(node, index),
+			size: graphSize(node),
+			automaticSize: graphAutomaticSize(node),
 			resizable: true,
 			socketPlacement: 'header',
 			active: boolParameterValue(node, ACTIVE_DECL_ID) ?? false,
@@ -405,19 +475,19 @@
 	const statePlacementIndex = (): Map<string, GraphNode[]> => {
 		const index = new Map<string, GraphNode[]>();
 		for (const node of graphNodes) {
-			const width = node.width ?? DEFAULT_STATE_WIDTH_REM;
-			const height = node.height ?? DEFAULT_STATE_HEIGHT_REM;
+			const width = graphNodeWidth(node);
+			const height = graphNodeHeight(node);
 			const firstX = Math.floor(
-				(node.x - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+				(node.position.x - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
 			);
 			const lastX = Math.floor(
-				(node.x + width + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+				(node.position.x + width + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
 			);
 			const firstY = Math.floor(
-				(node.y - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+				(node.position.y - STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
 			);
 			const lastY = Math.floor(
-				(node.y + height + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
+				(node.position.y + height + STATE_PLACEMENT_CLEARANCE_REM) / STATE_PLACEMENT_INDEX_CELL_REM
 			);
 			for (let cellX = firstX; cellX <= lastX; cellX += 1) {
 				for (let cellY = firstY; cellY <= lastY; cellY += 1) {
@@ -462,12 +532,7 @@
 		}
 		for (const node of nearbyNodes) {
 			if (
-				rectanglesOverlap(
-					candidate,
-					node,
-					node.width ?? DEFAULT_STATE_WIDTH_REM,
-					node.height ?? DEFAULT_STATE_HEIGHT_REM
-				)
+				rectanglesOverlap(candidate, node.position, graphNodeWidth(node), graphNodeHeight(node))
 			) {
 				return false;
 			}
@@ -530,8 +595,10 @@
 			{
 				select_when_created: item.select_when_created,
 				initial_params: [
-					initialParam(POSITION_X_DECL_ID, { kind: 'float', value: position.x }),
-					initialParam(POSITION_Y_DECL_ID, { kind: 'float', value: position.y })
+					initialParam(POSITION_DECL_ID, {
+						kind: 'vec2',
+						value: [position.x, position.y]
+					})
 				]
 			}
 		);
@@ -656,24 +723,16 @@
 			if (!stateNode || stateNode.node_type !== STATE_NODE_TYPE) {
 				return [];
 			}
-			const xParameter = parameterChild(stateNode, POSITION_X_DECL_ID);
-			const yParameter = parameterChild(stateNode, POSITION_Y_DECL_ID);
-			if (
-				xParameter?.data.kind !== 'parameter' ||
-				yParameter?.data.kind !== 'parameter' ||
-				xParameter.data.param.read_only ||
-				yParameter.data.param.read_only
-			) {
+			const positionParameter = parameterChild(stateNode, POSITION_DECL_ID);
+			if (positionParameter?.data.kind !== 'parameter' || positionParameter.data.param.read_only) {
 				return [];
 			}
 			return [
 				{
 					move,
 					stateNode,
-					xParameterId: xParameter.node_id,
-					xBehaviour: xParameter.data.param.event_behaviour,
-					yParameterId: yParameter.node_id,
-					yBehaviour: yParameter.data.param.event_behaviour
+					positionParameterId: positionParameter.node_id,
+					positionBehaviour: positionParameter.data.param.event_behaviour
 				}
 			];
 		});
@@ -693,20 +752,14 @@
 		}
 		try {
 			await Promise.all(
-				writableMoves.flatMap(({ move, xParameterId, xBehaviour, yParameterId, yBehaviour }) => [
+				writableMoves.map(({ move, positionParameterId, positionBehaviour }) =>
 					session.sendIntent({
 						kind: 'setParam',
-						node: xParameterId,
-						value: { kind: 'float', value: move.position.x },
-						behaviour: xBehaviour
-					}),
-					session.sendIntent({
-						kind: 'setParam',
-						node: yParameterId,
-						value: { kind: 'float', value: move.position.y },
-						behaviour: yBehaviour
+						node: positionParameterId,
+						value: { kind: 'vec2', value: [move.position.x, move.position.y] },
+						behaviour: positionBehaviour
 					})
-				])
+				)
 			);
 		} finally {
 			await editSession.end();
@@ -729,37 +782,49 @@
 		if (!stateNode || stateNode.node_type !== STATE_NODE_TYPE) {
 			throw new Error('resized node is not a State');
 		}
-		const widthParameter = parameterChild(stateNode, WIDTH_DECL_ID);
-		const heightParameter = parameterChild(stateNode, HEIGHT_DECL_ID);
+		const sizeParameter = parameterChild(stateNode, SIZE_DECL_ID);
 		if (
-			widthParameter?.data.kind !== 'parameter' ||
-			heightParameter?.data.kind !== 'parameter' ||
-			widthParameter.data.param.read_only ||
-			heightParameter.data.param.read_only
+			sizeParameter?.data.kind !== 'parameter' ||
+			sizeParameter.data.param.read_only ||
+			!sizeParameter.meta.can_be_disabled
 		) {
 			throw new Error('State cannot persist canvas dimensions');
 		}
 
-		const editSession = createUiEditSession(`Resize ${stateNode.meta.label}`, 'state-size');
+		const editSession = createUiEditSession(
+			resize.mode === 'custom'
+				? `Resize ${stateNode.meta.label}`
+				: `Auto-size ${stateNode.meta.label}`,
+			'state-size'
+		);
 		await editSession.begin();
 		if (!editSession.active) {
 			throw new Error('another edit session is already active');
 		}
 		try {
-			await Promise.all([
-				session.sendIntent({
-					kind: 'setParam',
-					node: widthParameter.node_id,
-					value: { kind: 'float', value: resize.size.width },
-					behaviour: widthParameter.data.param.event_behaviour
-				}),
-				session.sendIntent({
-					kind: 'setParam',
-					node: heightParameter.node_id,
-					value: { kind: 'float', value: resize.size.height },
-					behaviour: heightParameter.data.param.event_behaviour
-				})
-			]);
+			const intents =
+				resize.mode === 'custom'
+					? [
+							session.sendIntent({
+								kind: 'setParam',
+								node: sizeParameter.node_id,
+								value: { kind: 'vec2', value: [resize.size.width, resize.size.height] },
+								behaviour: sizeParameter.data.param.event_behaviour
+							}),
+							session.sendIntent({
+								kind: 'patchMeta',
+								node: sizeParameter.node_id,
+								patch: { enabled: true }
+							})
+						]
+					: [
+							session.sendIntent({
+								kind: 'patchMeta',
+								node: sizeParameter.node_id,
+								patch: { enabled: false }
+							})
+						];
+			await Promise.all(intents);
 		} finally {
 			await editSession.end();
 		}

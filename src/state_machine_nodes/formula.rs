@@ -348,12 +348,18 @@ fn child_vec2(
         .map(|value| [value.0, value.1])
 }
 
-fn child_float(
+fn enabled_child_vec2(
     snapshot: &ProcessTreeSnapshot,
     parent: NodeId,
     decl_id: &str,
-) -> Option<f64> {
-    child_param(snapshot, parent, decl_id).and_then(ParamValue::as_float)
+) -> Option<[f64; 2]> {
+    let child = snapshot.find_child_by_decl_id(parent, decl_id)?;
+    let node = snapshot.node(child)?;
+    node.enabled.then_some(())?;
+    node.param_value
+        .as_ref()
+        .and_then(ParamValue::as_vec2)
+        .map(|value| [value.0, value.1])
 }
 
 fn child_bool(
@@ -454,8 +460,8 @@ fn anode_from_snapshot(
         existing_or_default_config(snapshot, anode, declaration.as_ref())?;
     instance.ui.position =
         child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
-    instance.ui.width =
-        child_float(snapshot, anode, "width").filter(|width| *width > 0.0);
+    instance.ui.size = enabled_child_vec2(snapshot, anode, "size")
+        .filter(|size| size[0] > 0.0 && size[1] > 0.0);
     instance.ui.collapsed = node.presentation.collapsed;
 
     let signature = declaration.signature(
@@ -609,8 +615,16 @@ impl Node for AlchemistOutputSocket {
 
 #[node("alchemist_anode", label = "ANode")]
 #[children(
-    position: golden_core::parameter::Vec2 = (0.0, 0.0) (label = "Position");
-    width: f64 = 0.0 (label = "Width");
+    position: golden_core::parameter::Vec2 = (0.0, 0.0) (
+        label = "Position",
+        show_in_inspector_content = false
+    );
+    size: golden_core::parameter::Vec2 = (13.0, 8.0) (
+        label = "Size",
+        enabled = false,
+        can_be_disabled = true,
+        show_in_inspector_content = false
+    );
     trigger_input_enabled: bool = false (label = "Trigger Input");
     folder(config, label = "Config") {}
     folder(inputs, label = "Inputs") {}

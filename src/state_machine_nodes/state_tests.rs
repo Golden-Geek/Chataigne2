@@ -2,7 +2,7 @@ use golden_core::{
     app::ProjectFileSpec,
     color::Color,
     edit::Edit,
-    node::{DeclId, Folder, Node, NodeId, NodeReference},
+    node::{DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
     ui_read_model::UiReadModel,
     ui_sync::{UiCreateUserItemInitialParam, UiEditIntent, UiSubscriptionScope},
@@ -17,10 +17,10 @@ fn state_defaults_are_ready_for_canvas_authoring() {
 
     assert!(state.active.get());
     assert_eq!(state.description.get_ref(), "");
-    assert_eq!(state.x.get(), 0.0);
-    assert_eq!(state.y.get(), 0.0);
-    assert_eq!(state.width.get(), 13.0);
-    assert_eq!(state.height.get(), 8.0);
+    assert_eq!(state.position.get().x, 0.0);
+    assert_eq!(state.position.get().y, 0.0);
+    assert_eq!(state.size.get().x, 13.0);
+    assert_eq!(state.size.get().y, 8.0);
 }
 
 #[test]
@@ -93,14 +93,25 @@ fn state_canvas_geometry_survives_project_reload() {
         value: ParamValue::Reference(golden_core::node::NodeReference::new(target_uuid)),
         behaviour: ParameterEventBehaviour::Coalesce,
     });
-    for (decl_id, value) in [("x", 21.5), ("y", -7.25), ("width", 18.75), ("height", 11.5)] {
+    for (decl_id, value) in [
+        ("position", ParamValue::Vec2(21.5, -7.25)),
+        ("size", ParamValue::Vec2(18.75, 11.5)),
+    ] {
         let param_id = child_by_decl(&engine, state_id, decl_id);
         engine.edits.push(Edit::SetParam {
             node: param_id,
-            value: ParamValue::Float(value),
+            value,
             behaviour: ParameterEventBehaviour::Coalesce,
         });
     }
+    let size_param_id = child_by_decl(&engine, state_id, "size");
+    engine.edits.push(Edit::PatchMeta {
+        node: size_param_id,
+        patch: NodeMetaPatch {
+            enabled: Some(true),
+            ..Default::default()
+        },
+    });
     engine
         .apply_edits()
         .expect("state canvas geometry should update");
@@ -117,15 +128,28 @@ fn state_canvas_geometry_survives_project_reload() {
         .and_then(|manager| manager.node_data().first_child)
         .expect("state should reload under state machine manager");
 
-    for (decl_id, expected) in [("x", 21.5), ("y", -7.25), ("width", 18.75), ("height", 11.5)] {
+    for (decl_id, expected) in [
+        ("position", ParamValue::Vec2(21.5, -7.25)),
+        ("size", ParamValue::Vec2(18.75, 11.5)),
+    ] {
         let param_id = child_by_decl(&loaded, loaded_state_id, decl_id);
         let actual = loaded
             .nodes
             .get(param_id)
             .and_then(|node| node.engine_param_snapshot())
             .map(|snapshot| snapshot.value);
-        assert_eq!(actual, Some(ParamValue::Float(expected)));
+        assert_eq!(actual, Some(expected));
     }
+    assert!(
+        loaded
+            .nodes
+            .get(child_by_decl(&loaded, loaded_state_id, "size"))
+            .expect("loaded size parameter should exist")
+            .node_data()
+            .meta
+            .enabled,
+        "loaded custom size should remain enabled"
+    );
 
     let snapshot = loaded.ui_snapshot(UiSubscriptionScope::WholeGraph);
     let snapshot_state = snapshot
@@ -133,7 +157,10 @@ fn state_canvas_geometry_survives_project_reload() {
         .iter()
         .find(|node| node.node_id == loaded_state_id)
         .expect("reloaded state should be included in UI snapshot");
-    for (decl_id, expected) in [("x", 21.5), ("y", -7.25), ("width", 18.75), ("height", 11.5)] {
+    for (decl_id, expected) in [
+        ("position", ParamValue::Vec2(21.5, -7.25)),
+        ("size", ParamValue::Vec2(18.75, 11.5)),
+    ] {
         let param_id = snapshot_state
             .children
             .iter()
@@ -147,7 +174,10 @@ fn state_canvas_geometry_survives_project_reload() {
         let golden_core::ui_sync::UiNodeDataDto::Parameter { param } = &param_id.data else {
             panic!("snapshot child '{decl_id}' should be a parameter");
         };
-        assert_eq!(param.value, ParamValue::Float(expected));
+        assert_eq!(param.value, expected);
+        if decl_id == "size" {
+            assert!(param_id.meta.enabled, "snapshot custom size should remain enabled");
+        }
     }
 
     let transition_manager_id = snapshot_state
@@ -267,14 +297,16 @@ fn transition_creation_keeps_reload_snapshot_complete() {
 }
 
 fn geometry_initial_params(values: [f64; 4]) -> Vec<UiCreateUserItemInitialParam> {
-    ["x", "y", "width", "height"]
-        .into_iter()
-        .zip(values)
-        .map(|(decl_id, value)| UiCreateUserItemInitialParam {
-            decl_id: DeclId(decl_id.to_string()),
-            value: ParamValue::Float(value),
-        })
-        .collect()
+    vec![
+        UiCreateUserItemInitialParam {
+            decl_id: DeclId("position".to_string()),
+            value: ParamValue::Vec2(values[0], values[1]),
+        },
+        UiCreateUserItemInitialParam {
+            decl_id: DeclId("size".to_string()),
+            value: ParamValue::Vec2(values[2], values[3]),
+        },
+    ]
 }
 
 fn assert_state_geometry_matches(
@@ -284,7 +316,7 @@ fn assert_state_geometry_matches(
 ) {
     let engine_state = snapshot_node(engine_snapshot, state_id);
     let reload_state = snapshot_node(reload_snapshot, state_id);
-    for decl_id in ["x", "y", "width", "height"] {
+    for decl_id in ["position", "size"] {
         let engine_param = snapshot_child_by_decl(engine_snapshot, engine_state, decl_id);
         let reload_param = snapshot_child_by_decl(reload_snapshot, reload_state, decl_id);
         assert_eq!(

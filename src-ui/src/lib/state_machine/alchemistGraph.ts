@@ -193,7 +193,11 @@ export const toGraphNodes = (
 	const propertiesByUuid = formulaPropertiesByUuid(formula, nodesById);
 	return formulaANodes(formula, nodesById).map((anode) => {
 		const position = parameterValue(anode, nodesById, 'position');
-		const width = parameterValue(anode, nodesById, 'width');
+		const sizeParameter = parameterChild(anode, nodesById, 'size');
+		const size =
+			sizeParameter?.data.kind === 'parameter' && sizeParameter.meta.enabled
+				? sizeParameter.data.param.value
+				: null;
 		const typeId = anodeType(anode);
 		const propertyGetter = typeId === 'property';
 		const managerRef = MANAGER_REF_TYPES.has(typeId);
@@ -219,9 +223,14 @@ export const toGraphNodes = (
 			color: metadataColor(
 				propertyNode?.meta.presentation?.color ?? anode.meta.presentation?.color
 			),
-			x: position?.kind === 'vec2' ? position.value[0] : 0,
-			y: position?.kind === 'vec2' ? position.value[1] : 0,
-			width: width?.kind === 'float' && width.value > 0 ? width.value : undefined,
+			position: {
+				x: position?.kind === 'vec2' ? position.value[0] : 0,
+				y: position?.kind === 'vec2' ? position.value[1] : 0
+			},
+			size:
+				size?.kind === 'vec2' && size.value[0] > 0 && size.value[1] > 0
+					? { width: size.value[0], height: size.value[1] }
+					: undefined,
 			resizable: !compactNode,
 			invalid: typeId.length === 0,
 			inputs: bodyInputs,

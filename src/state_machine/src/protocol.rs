@@ -7,10 +7,8 @@ use golden_alchemist::SurfaceItemKind;
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
-    pub x: f64,
-    pub y: f64,
-    pub width: Option<f64>,
-    pub height: Option<f64>,
+    pub position: [f64; 2],
+    pub size: Option<[f64; 2]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
