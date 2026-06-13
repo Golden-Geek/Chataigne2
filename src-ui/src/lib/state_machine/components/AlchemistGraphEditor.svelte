@@ -56,18 +56,20 @@
 	} | null = $state(null);
 
 	let pendingHome = $state(false);
+	let activeFormulaId = $state<NodeId | null>(null);
+	const framedFormulaIds = new Set<NodeId>();
 
 	$effect(() => {
-		// Whenever the formula changes, request a home/frame on next nodes load
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		formula.node_id;
-		pendingHome = true;
+		const formulaId = formula.node_id;
+		if (formulaId === activeFormulaId) return;
+		activeFormulaId = formulaId;
+		pendingHome = !framedFormulaIds.has(formulaId);
 	});
 
 	$effect(() => {
-		if (pendingHome && nodes.length > 0 && graphCanvas) {
+		if (pendingHome && activeFormulaId !== null && nodes.length > 0 && graphCanvas?.home()) {
+			framedFormulaIds.add(activeFormulaId);
 			pendingHome = false;
-			graphCanvas.home();
 		}
 	});
 
@@ -109,6 +111,7 @@
 		{toolbarEnd}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"
+		autoHomeOnMount={false}
 		emptyLabel="Add an ANode to start this Formula." />
 </div>
 

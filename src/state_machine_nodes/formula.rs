@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
-    time::Duration,
 };
 
 use golden_alchemist::{
@@ -11,7 +10,8 @@ use golden_alchemist::{
     OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
     SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
     SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
-    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeSpec, compile_graph,
+    TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeSpec,
+    compile_graph, solve_types,
 };
 use golden_core::{
     color::Color,
@@ -237,53 +237,13 @@ fn param_to_runtime_value(
 ) -> Result<RuntimeValue, String> {
     match value_type.as_str() {
         "unit" => Ok(RuntimeValue::Unit),
-        "bool" => match value {
-            ParamValue::Bool(value) => Ok(RuntimeValue::Bool(*value)),
-            _ => Err("expected a Boolean parameter".into()),
-        },
-        "trigger" => match value {
-            ParamValue::Trigger() => {
-                Ok(RuntimeValue::Trigger(TriggerValue::default()))
-            }
-            _ => Err("expected a Trigger parameter".into()),
-        },
-        "int" => match value {
-            ParamValue::Int(value) => Ok(RuntimeValue::Int(i64::from(*value))),
-            _ => Err("expected an Integer parameter".into()),
-        },
-        "float" => value
-            .as_float()
-            .map(RuntimeValue::Float)
-            .ok_or_else(|| "expected a Float parameter".into()),
-        "string" => value
-            .as_str()
-            .map(|value| RuntimeValue::String(Arc::from(value.as_str())))
-            .ok_or_else(|| "expected a String parameter".into()),
-        "vec2" => value
-            .as_vec2()
-            .map(|value| RuntimeValue::Vec2([value.0, value.1]))
-            .ok_or_else(|| "expected a Vector 2 parameter".into()),
-        "vec3" => value
-            .as_vec3()
-            .map(|value| RuntimeValue::Vec3([value.0, value.1, value.2]))
-            .ok_or_else(|| "expected a Vector 3 parameter".into()),
-        "color" => value
-            .as_color()
-            .map(|value| {
-                RuntimeValue::Color(ColorValue {
-                    red: value.0 as f32,
-                    green: value.1 as f32,
-                    blue: value.2 as f32,
-                    alpha: value.3 as f32,
-                })
-            })
-            .ok_or_else(|| "expected a Color parameter".into()),
-        "duration" => value
-            .as_float()
-            .map(|seconds| {
-                RuntimeValue::Duration(Duration::from_secs_f64(seconds.max(0.0)))
-            })
-            .ok_or_else(|| "expected a duration in seconds".into()),
+        "trigger" => Ok(RuntimeValue::Trigger(TriggerValue {
+            fired: value.as_bool().unwrap_or(matches!(value, ParamValue::Trigger())),
+            ..TriggerValue::default()
+        })),
+        "bool" | "int" | "float" | "string" | "vec2" | "vec3" | "color" | "duration" => {
+            param_to_untyped_runtime_value(value)?.convert_to(value_type)
+        }
         _ => match value {
             ParamValue::Reference(reference) => {
                 let stable_id = if reference.is_empty() {
@@ -301,6 +261,35 @@ fn param_to_runtime_value(
             )),
         },
     }
+}
+
+fn param_to_untyped_runtime_value(value: &ParamValue) -> Result<RuntimeValue, String> {
+    Ok(match value {
+        ParamValue::Trigger() => RuntimeValue::Trigger(TriggerValue::default()),
+        ParamValue::Bool(value) => RuntimeValue::Bool(*value),
+        ParamValue::Int(value) => RuntimeValue::Int(i64::from(*value)),
+        ParamValue::Float(value) => RuntimeValue::Float(*value),
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
+            RuntimeValue::String(Arc::from(value.as_str()))
+        }
+        ParamValue::CssValue(value) => RuntimeValue::Float(value.value),
+        ParamValue::Vec2(x, y) => RuntimeValue::Vec2([*x, *y]),
+        ParamValue::Vec3(x, y, z) => RuntimeValue::Vec3([*x, *y, *z]),
+        ParamValue::Color(r, g, b, a) => RuntimeValue::Color(ColorValue {
+            red: *r as f32,
+            green: *g as f32,
+            blue: *b as f32,
+            alpha: *a as f32,
+        }),
+        ParamValue::Reference(reference) => {
+            let stable_id = if reference.is_empty() {
+                String::new()
+            } else {
+                reference.uuid().0.to_string()
+            };
+            RuntimeValue::String(Arc::from(stable_id))
+        }
+    })
 }
 
 fn config_decl_id(field: &str) -> String {
@@ -368,6 +357,71 @@ fn child_bool(
     decl_id: &str,
 ) -> Option<bool> {
     child_param(snapshot, parent, decl_id).and_then(ParamValue::as_bool)
+}
+
+fn direct_child_under(
+    snapshot: &ProcessTreeSnapshot,
+    ancestor: NodeId,
+    descendant: NodeId,
+) -> Option<NodeId> {
+    let mut child = descendant;
+    let mut parent = snapshot.node(child)?.parent?;
+    while parent != ancestor {
+        child = parent;
+        parent = snapshot.node(child)?.parent?;
+    }
+    Some(child)
+}
+
+fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
+    ctx.edits.pending.iter().any(|request| {
+        matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node)
+    })
+}
+
+fn replace_child_tree_once(
+    ctx: &mut ProcessCtx,
+    parent: NodeId,
+    existing: Option<NodeId>,
+    tree: NodeTree,
+) {
+    if let Some(existing) = existing {
+        if node_removal_pending(ctx, existing) {
+            return;
+        }
+        ctx.edits.push(Edit::RemoveNode { node: existing });
+    }
+    ctx.add_child_tree(parent, tree, None);
+}
+
+fn is_anode_type_variable_config_param(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+    param: NodeId,
+) -> bool {
+    let Some(anode_snapshot) = snapshot.node(anode) else {
+        return false;
+    };
+    let Some(type_id) = anode_type_from_tags(&anode_snapshot.tags)
+        .or_else(|| child_string(snapshot, anode, "anode_type"))
+    else {
+        return false;
+    };
+    let Some(config_folder) = snapshot.find_child_by_decl_id(anode, "config") else {
+        return false;
+    };
+    let registry = registry();
+    let Some(declaration) = registry.get(&ANodeTypeId::new(type_id)) else {
+        return false;
+    };
+    declaration
+        .config_fields()
+        .into_iter()
+        .filter(|field| field.type_variable.is_some())
+        .any(|field| {
+            snapshot.find_child_by_decl_id(config_folder, &config_decl_id(field.id.as_str()))
+                == Some(param)
+        })
 }
 
 fn child_reference_uuid(
@@ -439,6 +493,58 @@ fn existing_or_default_config(
     Ok(config)
 }
 
+fn apply_forced_type_bindings_from_config(
+    snapshot: &ProcessTreeSnapshot,
+    config_folder: NodeId,
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    signature: &golden_alchemist::ANodeSignature,
+    value_types: &golden_alchemist::ValueTypeRegistry,
+    instance: &mut ANodeInstance,
+) {
+    for field in declaration.config_fields() {
+        let Some(variable) = field.type_variable.clone() else {
+            continue;
+        };
+        let decl_id = config_decl_id(field.id.as_str());
+        let Some(parameter_node_id) = snapshot.find_child_by_decl_id(config_folder, &decl_id) else {
+            continue;
+        };
+        let Some(parameter_node) = snapshot.node(parameter_node_id) else {
+            continue;
+        };
+        if !parameter_node.enabled {
+            continue;
+        }
+        let Some(selected_type) = parameter_node
+            .param_value
+            .as_ref()
+            .and_then(ParamValue::as_str)
+        else {
+            continue;
+        };
+        let selected_type = ValueTypeId::new(selected_type);
+        let type_options = field.resolved_type_options(signature, value_types);
+        if !type_options.contains(&selected_type) {
+            continue;
+        }
+        instance.forced_type_bindings.insert(
+            variable,
+            selected_type,
+            TypeBindingSource::ForcedByUser,
+        );
+    }
+}
+
+fn local_signature_bindings(
+    signature: &golden_alchemist::ANodeSignature,
+    instance: &ANodeInstance,
+) -> TypeBindings {
+    let mut bindings = signature.default_bindings.clone();
+    let _ = bindings.merge_from(&instance.type_bindings);
+    let _ = bindings.merge_from(&instance.forced_type_bindings);
+    bindings
+}
+
 fn anode_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
@@ -461,33 +567,23 @@ fn anode_from_snapshot(
         .ok_or_else(|| "ANode Config folder is missing".to_string())?;
     instance.config =
         existing_or_default_config(snapshot, anode, declaration.as_ref())?;
-    for field in declaration.config_fields() {
-        let Some(variable) = field.type_variable else {
-            continue;
-        };
-        let decl_id = config_decl_id(field.id.as_str());
-        let Some(parameter_node_id) = snapshot.find_child_by_decl_id(config_folder, &decl_id) else {
-            continue;
-        };
-        let Some(parameter_node) = snapshot.node(parameter_node_id) else {
-            continue;
-        };
-        if !parameter_node.enabled {
-            continue;
-        }
-        let Some(selected_type) = parameter_node
-            .param_value
-            .as_ref()
-            .and_then(ParamValue::as_str)
-        else {
-            continue;
-        };
-        instance.forced_type_bindings.insert(
-            variable,
-            ValueTypeId::new(selected_type),
-            TypeBindingSource::ForcedByUser,
-        );
-    }
+    let value_types = value_types();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+    };
+    let signature = declaration.signature(
+        &signature_ctx,
+        &instance,
+        &instance.type_bindings,
+    );
+    apply_forced_type_bindings_from_config(
+        snapshot,
+        config_folder,
+        declaration.as_ref(),
+        &signature,
+        &value_types,
+        &mut instance,
+    );
     instance.ui.position =
         child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
     instance.ui.size = enabled_child_vec2(snapshot, anode, "size")
@@ -495,12 +591,11 @@ fn anode_from_snapshot(
     instance.ui.collapsed = node.presentation.collapsed;
 
     let signature = declaration.signature(
-        &SignatureCtx {
-            value_types: &value_types(),
-        },
+        &signature_ctx,
         &instance,
         &instance.type_bindings,
     );
+    let signature_bindings = local_signature_bindings(&signature, &instance);
     if let Some(inputs_folder) = snapshot.find_child_by_decl_id(anode, "inputs") {
         for input in signature.inputs {
             let Some(socket_node) = snapshot.find_child_by_decl_id(
@@ -510,7 +605,7 @@ fn anode_from_snapshot(
                 continue;
             };
             let value_type =
-                constraint_value_type(&input.constraint, &signature.default_bindings);
+                constraint_value_type(&input.constraint, &signature_bindings);
             let value = child_param(
                 snapshot,
                 socket_node,
@@ -696,9 +791,14 @@ impl Node for AlchemistANode {
     fn on_param_change(
         &mut self,
         ctx: &mut ProcessCtx,
-        _param: NodeId,
+        param: NodeId,
         _old_value: ParamValue,
     ) {
+        if ctx.tree_snapshot().is_some_and(|snapshot| {
+            is_anode_type_variable_config_param(snapshot, self.id(), param)
+        }) {
+            return;
+        }
         self.reconcile_structure(ctx);
     }
 
@@ -787,11 +887,31 @@ impl AlchemistANode {
             return;
         };
 
+        let value_types = value_types();
+        let signature_ctx = SignatureCtx {
+            value_types: &value_types,
+        };
+        let mut instance =
+            ANodeInstance::new(declaration.type_id(), declaration.label());
+        instance.config = existing_or_default_config(
+            &snapshot,
+            self.id(),
+            declaration.as_ref(),
+        )
+        .unwrap_or_default();
+        let config_signature = declaration.signature(
+            &signature_ctx,
+            &instance,
+            &instance.type_bindings,
+        );
+
         let mut desired_config = HashSet::new();
         for field in declaration.config_fields() {
             let value_decl = config_decl_id(field.id.as_str());
             desired_config.insert(value_decl.clone());
             if field.type_variable.is_some() {
+                let type_options =
+                    field.resolved_type_options(&config_signature, &value_types);
                 let selected_type = child_string(&snapshot, config_folder, value_decl.as_str())
                     .unwrap_or_else(|| match &field.default_value {
                         RuntimeValue::String(value) => value.to_string(),
@@ -806,6 +926,7 @@ impl AlchemistANode {
                         &value_decl,
                         &selected_type,
                         property_getter,
+                        &type_options,
                     ),
                 );
                 continue;
@@ -813,6 +934,8 @@ impl AlchemistANode {
             let value_type = if field.editor.as_deref() == Some("runtime_value") {
                 let type_decl = config_type_decl_id(field.id.as_str());
                 desired_config.insert(type_decl.clone());
+                let type_options =
+                    field.resolved_type_options(&config_signature, &value_types);
                 let selected_type = child_string(
                     &snapshot,
                     config_folder,
@@ -828,6 +951,7 @@ impl AlchemistANode {
                         &type_decl,
                         &selected_type,
                         property_getter,
+                        &type_options,
                     ),
                 );
                 ValueTypeId::new(selected_type)
@@ -874,29 +998,27 @@ impl AlchemistANode {
             &desired_config,
         );
 
-        let mut instance =
-            ANodeInstance::new(declaration.type_id(), declaration.label());
-        instance.config = existing_or_default_config(
+        apply_forced_type_bindings_from_config(
             &snapshot,
-            self.id(),
+            config_folder,
             declaration.as_ref(),
-        )
-        .unwrap_or_default();
-        let value_types = value_types();
+            &config_signature,
+            &value_types,
+            &mut instance,
+        );
         let signature = declaration.signature(
-            &SignatureCtx {
-                value_types: &value_types,
-            },
+            &signature_ctx,
             &instance,
             &instance.type_bindings,
         );
+        let signature_bindings = local_signature_bindings(&signature, &instance);
 
         let mut desired_inputs = HashSet::new();
         for input in signature.inputs {
             let decl_id = socket_decl_id("inputs", input.id.as_str());
             desired_inputs.insert(decl_id.clone());
             let value_type =
-                constraint_value_type(&input.constraint, &signature.default_bindings);
+                constraint_value_type(&input.constraint, &signature_bindings);
             let default = input
                 .default_value
                 .or_else(|| default_runtime_value(&value_type).ok())
@@ -919,10 +1041,7 @@ impl AlchemistANode {
                     &value_type,
                     &default,
                 ) {
-                    if let Some(existing) = existing {
-                        self.remove_child(ctx, existing);
-                    }
-                    ctx.add_child_tree(inputs_folder, tree, None);
+                    replace_child_tree_once(ctx, inputs_folder, existing, tree);
                 }
             }
         }
@@ -954,7 +1073,7 @@ impl AlchemistANode {
             let decl_id = socket_decl_id("outputs", output.id.as_str());
             desired_outputs.insert(decl_id.clone());
             let value_type =
-                constraint_value_type(&output.constraint, &signature.default_bindings);
+                constraint_value_type(&output.constraint, &signature_bindings);
             let existing =
                 snapshot.find_child_by_decl_id(outputs_folder, &decl_id);
             if existing.is_none_or(|socket| {
@@ -965,17 +1084,15 @@ impl AlchemistANode {
                     &value_type,
                 )
             }) {
-                if let Some(existing) = existing {
-                    self.remove_child(ctx, existing);
-                }
-                ctx.add_child_tree(
+                replace_child_tree_once(
+                    ctx,
                     outputs_folder,
+                    existing,
                     output_socket_tree(
                         output.id.as_str(),
                         &output.label,
                         &value_type,
                     ),
-                    None,
                 );
             }
         }
@@ -1023,12 +1140,34 @@ impl AlchemistANode {
             } else {
                 let can_be_disabled =
                     parameter.node_data().meta.can_be_disabled;
-                if can_be_disabled {
-                    ctx.call_node_mutation(existing, move |node, _ctx| {
-                        node.node_data_mut().meta.can_be_disabled = true;
-                        Ok(())
-                    });
-                }
+                let presentation =
+                    parameter.node_data().meta.presentation.clone();
+                let constraints = parameter.constraints.clone();
+                let default_value = parameter.default_value.clone();
+                let fallback_value = parameter.value.clone();
+                let read_only = parameter.read_only;
+                let control_modes_enabled = parameter.control_modes_enabled;
+                ctx.call_node_mutation(existing, move |node, _ctx| {
+                    let Some(existing) =
+                        node.as_any_mut().downcast_mut::<Parameter>()
+                    else {
+                        return Err(
+                            "expected an Alchemist config parameter".into(),
+                        );
+                    };
+                    existing.constraints = constraints;
+                    existing.default_value = default_value;
+                    existing.read_only = read_only;
+                    existing.control_modes_enabled = control_modes_enabled;
+                    existing.node_data_mut().meta.can_be_disabled =
+                        can_be_disabled;
+                    existing.node_data_mut().meta.presentation = presentation;
+                    existing.value = existing
+                        .constraints
+                        .normalize(existing.value.clone())
+                        .unwrap_or_else(|_| fallback_value.clone());
+                    Ok(())
+                });
             }
             return;
         }
@@ -1047,7 +1186,9 @@ impl AlchemistANode {
                 continue;
             };
             if !desired_decl_ids.contains(child_snapshot.decl_id.as_str()) {
-                self.remove_child(ctx, child);
+                if !node_removal_pending(ctx, child) {
+                    ctx.edits.push(Edit::RemoveNode { node: child });
+                }
             }
         }
     }
@@ -1058,8 +1199,32 @@ fn value_type_parameter(
     decl_id: &str,
     selected_type: &str,
     read_only: bool,
+    type_options: &[ValueTypeId],
 ) -> Parameter {
     let registry = value_types();
+    let options = registry
+        .iter()
+        .filter(|descriptor| {
+            !matches!(
+                descriptor.storage,
+                golden_alchemist::ValueStorageKind::Extension
+            ) && (type_options.is_empty()
+                || type_options.iter().any(|id| id == &descriptor.id))
+        })
+        .map(|descriptor| ParameterEnumOption {
+            variant_id: descriptor.id.to_string(),
+            value: ParamValue::Enum(descriptor.id.to_string()),
+            label: descriptor.label.clone(),
+            tags: Vec::new(),
+            ordering: None,
+        })
+        .collect::<Vec<_>>();
+    let selected_type = options
+        .iter()
+        .any(|option| option.variant_id == selected_type)
+        .then_some(selected_type)
+        .or_else(|| options.first().map(|option| option.variant_id.as_str()))
+        .unwrap_or(selected_type);
     let mut parameter = parameter(
         label,
         decl_id,
@@ -1077,22 +1242,7 @@ fn value_type_parameter(
         parameter.node_data_mut().meta.can_be_disabled = true;
         parameter.node_data_mut().meta.enabled = false;
     }
-    parameter.constraints.enum_options = registry
-        .iter()
-        .filter(|descriptor| {
-            !matches!(
-                descriptor.storage,
-                golden_alchemist::ValueStorageKind::Extension
-            )
-        })
-        .map(|descriptor| ParameterEnumOption {
-            variant_id: descriptor.id.to_string(),
-            value: ParamValue::Enum(descriptor.id.to_string()),
-            label: descriptor.label.clone(),
-            tags: Vec::new(),
-            ordering: None,
-        })
-        .collect();
+    parameter.constraints.enum_options = options;
     parameter.constraints.policy = ParameterConstraintPolicy::Reject;
     parameter
 }
@@ -1791,6 +1941,7 @@ impl Node for AlchemistFormulaDefinition {
     ) {
         self.reconcile_properties(ctx);
         self.sync_property_getters(ctx);
+        self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
 
@@ -1801,7 +1952,22 @@ impl Node for AlchemistFormulaDefinition {
         _old_value: ParamValue,
     ) {
         if param != self.is_valid.id() && param != self.diagnostics_json.id() {
+            let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
+                let child = direct_child_under(snapshot, self.id(), param)?;
+                snapshot
+                    .node(child)
+                    .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+                    .then_some(child)
+                    .filter(|anode| {
+                        !is_anode_type_variable_config_param(
+                            snapshot,
+                            *anode,
+                            param,
+                        )
+                    })
+            });
             self.sync_property_getters(ctx);
+            self.sync_anode_sockets(ctx, skip_anode);
             self.validate(ctx);
         }
     }
@@ -1813,6 +1979,7 @@ impl Node for AlchemistFormulaDefinition {
         _child: NodeId,
     ) {
         self.sync_property_getters(ctx);
+        self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
 
@@ -1824,6 +1991,7 @@ impl Node for AlchemistFormulaDefinition {
     ) {
         self.remove_dangling_connections(ctx);
         self.sync_property_getters(ctx);
+        self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
 
@@ -1834,6 +2002,7 @@ impl Node for AlchemistFormulaDefinition {
         _patch: NodeMetaPatch,
     ) {
         self.sync_property_getters(ctx);
+        self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
 
@@ -1946,6 +2115,133 @@ impl AlchemistFormulaDefinition {
                 || target.is_none_or(|uuid| !anode_uuids.contains(&uuid))
             {
                 ctx.edits.push(Edit::RemoveNode { node: child });
+            }
+        }
+    }
+
+    fn sync_anode_sockets(&self, ctx: &mut ProcessCtx, skip_anode: Option<NodeId>) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Ok(formula) = formula_from_snapshot(&snapshot, self.id()) else {
+            return;
+        };
+        let value_types = value_types();
+        let nodes = registry();
+        let solved = solve_types(
+            &formula.graph,
+            &TypeSolveCtx {
+                value_types: &value_types,
+                nodes: &nodes,
+            },
+        );
+        let signature_ctx = SignatureCtx {
+            value_types: &value_types,
+        };
+
+        for child in snapshot.child_ids(self.id()) {
+            if Some(child) == skip_anode {
+                continue;
+            }
+            let Some(anode) = snapshot.node(child) else {
+                continue;
+            };
+            if anode.node_type != ANODE_NODE_TYPE {
+                continue;
+            }
+            let anode_id = ANodeId::from_uuid(anode.uuid.0);
+            let Some(instance) = formula.graph.nodes.get(&anode_id) else {
+                continue;
+            };
+            let Some(declaration) = nodes.get(&instance.type_id) else {
+                continue;
+            };
+            let Some(inputs_folder) =
+                snapshot.find_child_by_decl_id(child, "inputs")
+            else {
+                continue;
+            };
+            let Some(outputs_folder) =
+                snapshot.find_child_by_decl_id(child, "outputs")
+            else {
+                continue;
+            };
+            let signature =
+                declaration.signature(&signature_ctx, instance, &instance.type_bindings);
+            let fallback_bindings = local_signature_bindings(&signature, instance);
+            let resolved_node = solved.graph.nodes.get(&anode_id);
+
+            for input in signature.inputs {
+                let value_type = resolved_node
+                    .and_then(|node| node.signature.inputs.get(&input.id))
+                    .and_then(|socket| socket.value_type.clone())
+                    .unwrap_or_else(|| {
+                        constraint_value_type(&input.constraint, &fallback_bindings)
+                    });
+                let default = instance
+                    .input_defaults
+                    .get(&input.id)
+                    .cloned()
+                    .or(input.default_value)
+                    .and_then(|value| value.convert_to(&value_type).ok())
+                    .or_else(|| default_runtime_value(&value_type).ok())
+                    .unwrap_or(RuntimeValue::Float(0.0));
+                let decl_id = socket_decl_id("inputs", input.id.as_str());
+                let existing =
+                    snapshot.find_child_by_decl_id(inputs_folder, &decl_id);
+                let needs_rebuild = existing.is_none_or(|socket| {
+                    !input_socket_matches(
+                        &snapshot,
+                        socket,
+                        input.id.as_str(),
+                        &value_type,
+                        &default,
+                    )
+                });
+                if !needs_rebuild {
+                    continue;
+                }
+                if let Ok(tree) = input_socket_tree(
+                    input.id.as_str(),
+                    &input.label,
+                    &value_type,
+                    &default,
+                ) {
+                    replace_child_tree_once(ctx, inputs_folder, existing, tree);
+                }
+            }
+
+            for output in signature.outputs {
+                let value_type = resolved_node
+                    .and_then(|node| node.signature.outputs.get(&output.id))
+                    .and_then(|socket| socket.value_type.clone())
+                    .unwrap_or_else(|| {
+                        constraint_value_type(&output.constraint, &fallback_bindings)
+                    });
+                let decl_id = socket_decl_id("outputs", output.id.as_str());
+                let existing =
+                    snapshot.find_child_by_decl_id(outputs_folder, &decl_id);
+                let needs_rebuild = existing.is_none_or(|socket| {
+                    !output_socket_matches(
+                        &snapshot,
+                        socket,
+                        output.id.as_str(),
+                        &value_type,
+                    )
+                });
+                if !needs_rebuild {
+                    continue;
+                }
+                replace_child_tree_once(
+                    ctx,
+                    outputs_folder,
+                    existing,
+                    output_socket_tree(
+                        output.id.as_str(),
+                        &output.label,
+                        &value_type,
+                    ),
+                );
             }
         }
     }

@@ -411,6 +411,129 @@ fn anode_config_changes_reconcile_real_children() {
 }
 
 #[test]
+fn forced_value_type_updates_all_forceable_numeric_nodes() {
+    for spec in numeric_forceable_node_specs() {
+        for value_type in numeric_value_types() {
+            let (mut engine, formula) = engine_with_formula();
+            create_anode(&mut engine, formula, spec.type_id, 2.0, 3.0);
+            let anode = find_anode_by_type(&engine, formula, spec.type_id);
+            let config =
+                find_child_by_decl(&engine, anode, "config").expect("Config should exist");
+            let value_type_param = find_child_by_decl(&engine, config, "config/value_type")
+                .unwrap_or_else(|| panic!("{} should expose Value Type", spec.type_id));
+
+            assert_eq!(
+                parameter_options(&engine, value_type_param),
+                string_vec(numeric_value_types()),
+                "{} should expose every numeric-like type and nothing else",
+                spec.type_id
+            );
+
+            let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+                node: value_type_param,
+                patch: NodeMetaPatch {
+                    enabled: Some(true),
+                    ..NodeMetaPatch::default()
+                },
+            });
+            assert!(ack.success, "Value Type enable should succeed: {ack:?}");
+            let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+                node: value_type_param,
+                value: ParamValue::Enum((*value_type).into()),
+                behaviour: ParameterEventBehaviour::Coalesce,
+            });
+            assert!(ack.success, "Value Type edit should succeed: {ack:?}");
+            assert_eq!(
+                parameter_value(&engine, config, "config/value_type"),
+                ParamValue::Enum((*value_type).into())
+            );
+            assert!(
+                engine
+                    .process_tree_snapshot()
+                    .node(value_type_param)
+                    .is_some_and(|node| node.enabled
+                        && node.param_value
+                            == Some(ParamValue::Enum((*value_type).into()))),
+                "{} Value Type selector should remain enabled after editing",
+                spec.type_id
+            );
+            assert_eq!(
+                forced_value_type(&engine, formula, spec.type_id),
+                Some((*value_type).to_owned()),
+                "{} should materialize the forced type binding",
+                spec.type_id
+            );
+
+            assert_anode_socket_types(
+                &engine,
+                anode,
+                spec.inputs,
+                spec.outputs,
+                value_type,
+            );
+        }
+    }
+}
+
+#[test]
+fn numeric_nodes_infer_each_supported_connected_type_when_selector_is_disabled() {
+    for spec in numeric_forceable_node_specs() {
+        for value_type in numeric_value_types() {
+            let (mut engine, formula) = engine_with_formula();
+            create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+            create_anode(&mut engine, formula, spec.type_id, 8.0, 3.0);
+            let constant = find_anode_by_type(&engine, formula, "constant");
+            let anode = find_anode_by_type(&engine, formula, spec.type_id);
+            set_constant_value_type(&mut engine, constant, value_type);
+
+            create_connection(&mut engine, formula, constant, "value", anode, spec.inputs[0]);
+
+            assert_anode_socket_types(
+                &engine,
+                anode,
+                spec.inputs,
+                spec.outputs,
+                value_type,
+            );
+        }
+    }
+}
+
+#[test]
+fn generic_nodes_infer_each_connected_primitive_type_without_forced_selector() {
+    for value_type in primitive_value_types() {
+        let (mut engine, formula) = engine_with_formula();
+        create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+        create_anode(&mut engine, formula, "compare", 8.0, 3.0);
+        let constant = find_anode_by_type(&engine, formula, "constant");
+        let compare = find_anode_by_type(&engine, formula, "compare");
+        set_constant_value_type(&mut engine, constant, value_type);
+
+        create_connection(&mut engine, formula, constant, "value", compare, "left");
+
+        assert_anode_socket_types(&engine, compare, &["left", "right"], &[], value_type);
+        assert_socket_type(&engine, compare, "outputs", "result", "bool");
+
+        let (mut engine, formula) = engine_with_formula();
+        create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+        create_anode(&mut engine, formula, "delay_one_tick", 8.0, 3.0);
+        let constant = find_anode_by_type(&engine, formula, "constant");
+        let delay = find_anode_by_type(&engine, formula, "delay_one_tick");
+        let delay_config =
+            find_child_by_decl(&engine, delay, "config").expect("Delay config should exist");
+        assert!(
+            find_child_by_decl(&engine, delay_config, "config/value_type").is_none(),
+            "passthrough nodes should infer from connections without a forced Value Type UI"
+        );
+        set_constant_value_type(&mut engine, constant, value_type);
+
+        create_connection(&mut engine, formula, constant, "value", delay, "value");
+
+        assert_anode_socket_types(&engine, delay, &["value"], &["value"], value_type);
+    }
+}
+
+#[test]
 fn authored_formula_subtree_survives_reload_and_compiles() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);
@@ -579,6 +702,50 @@ fn removing_anode_removes_its_dangling_connections() {
     );
 }
 
+#[derive(Clone, Copy)]
+struct ANodeSocketSpec {
+    type_id: &'static str,
+    inputs: &'static [&'static str],
+    outputs: &'static [&'static str],
+}
+
+const NUMERIC_FORCEABLE_NODE_SPECS: &[ANodeSocketSpec] = &[
+    ANodeSocketSpec {
+        type_id: "add",
+        inputs: &["a", "b"],
+        outputs: &["result"],
+    },
+    ANodeSocketSpec {
+        type_id: "map_range",
+        inputs: &["value", "in_min", "in_max", "out_min", "out_max"],
+        outputs: &["result"],
+    },
+    ANodeSocketSpec {
+        type_id: "clamp",
+        inputs: &["value", "minimum", "maximum"],
+        outputs: &["result"],
+    },
+];
+
+fn numeric_forceable_node_specs() -> &'static [ANodeSocketSpec] {
+    NUMERIC_FORCEABLE_NODE_SPECS
+}
+
+fn numeric_value_types() -> &'static [&'static str] {
+    &["int", "float", "vec2", "vec3", "color"]
+}
+
+fn primitive_value_types() -> &'static [&'static str] {
+    &[
+        "unit", "bool", "trigger", "int", "float", "string", "vec2",
+        "vec3", "color", "duration",
+    ]
+}
+
+fn string_vec(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| (*value).to_owned()).collect()
+}
+
 fn engine_with_formula() -> (AppEngine, NodeId) {
     let root: AppNode = Folder::new("root").into();
     let mut engine = AppEngine::new(root);
@@ -675,6 +842,33 @@ fn create_connection(
     assert!(ack.success, "Connection creation should succeed: {ack:?}");
 }
 
+fn set_constant_value_type(engine: &mut AppEngine, constant: NodeId, value_type: &str) {
+    let config =
+        find_child_by_decl(engine, constant, "config").expect("Constant config should exist");
+    let value_type_param = find_child_by_decl(engine, config, "config/value__type")
+        .expect("Constant value type should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: value_type_param,
+        value: ParamValue::Enum(value_type.into()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "Constant type edit should succeed: {ack:?}");
+}
+
+fn forced_value_type(engine: &AppEngine, formula: NodeId, type_id: &str) -> Option<String> {
+    let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula).ok()?;
+    let value_type = materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.type_id.as_str() == type_id)?
+        .forced_type_bindings
+        .iter()
+        .next()
+        .map(|(_, binding)| binding.value_type.to_string());
+    value_type
+}
+
 fn direct_children(engine: &AppEngine, parent: NodeId) -> Vec<NodeId> {
     engine.process_tree_snapshot().child_ids(parent)
 }
@@ -708,6 +902,13 @@ fn find_descendant_by_decl(
     None
 }
 
+fn find_anode_by_type(engine: &AppEngine, formula: NodeId, type_id: &str) -> NodeId {
+    direct_children(engine, formula)
+        .into_iter()
+        .find(|node| anode_type(engine, *node).as_deref() == Some(type_id))
+        .unwrap_or_else(|| panic!("ANode `{type_id}` should exist"))
+}
+
 fn anode_type(engine: &AppEngine, node: NodeId) -> Option<String> {
     engine
         .nodes
@@ -718,6 +919,63 @@ fn anode_type(engine: &AppEngine, node: NodeId) -> Option<String> {
         .iter()
         .find_map(|tag| tag.strip_prefix(ANODE_TYPE_TAG_PREFIX))
         .map(ToOwned::to_owned)
+}
+
+fn parameter_options(engine: &AppEngine, node: NodeId) -> Vec<String> {
+    engine
+        .nodes
+        .get(node)
+        .and_then(Node::engine_param_snapshot)
+        .map(|snapshot| {
+            snapshot
+                .constraints
+                .enum_options
+                .into_iter()
+                .map(|option| option.variant_id)
+                .collect()
+        })
+        .unwrap_or_else(|| panic!("node `{node:?}` should be a parameter"))
+}
+
+fn assert_anode_socket_types(
+    engine: &AppEngine,
+    anode: NodeId,
+    inputs: &[&str],
+    outputs: &[&str],
+    expected_type: &str,
+) {
+    for input in inputs {
+        assert_socket_type(engine, anode, "inputs", input, expected_type);
+    }
+    for output in outputs {
+        assert_socket_type(engine, anode, "outputs", output, expected_type);
+    }
+}
+
+fn assert_socket_type(
+    engine: &AppEngine,
+    anode: NodeId,
+    direction: &str,
+    socket: &str,
+    expected_type: &str,
+) {
+    let folder =
+        find_child_by_decl(engine, anode, direction).expect("socket folder should exist");
+    let socket_node = find_child_by_decl(
+        engine,
+        folder,
+        &format!("{direction}/{socket}"),
+    )
+    .unwrap_or_else(|| panic!("{direction} socket `{socket}` should exist"));
+    assert_eq!(
+        parameter_value(
+            engine,
+            socket_node,
+            &format!("{direction}/{socket}/value_type"),
+        ),
+        ParamValue::Str(expected_type.into()),
+        "{direction} socket `{socket}` should have type `{expected_type}`"
+    );
 }
 
 fn parameter_value(

@@ -852,11 +852,7 @@
 	{/if}
 {/snippet}
 
-<section
-	bind:this={panelRoot}
-	class="alchemist-editor-panel"
-	aria-label={panelState.title}
-	onpointerdown={() => graphEditor?.focus()}>
+<section bind:this={panelRoot} class="alchemist-editor-panel" aria-label={panelState.title}>
 	<div class="editor-content">
 		{#if formula && graphState}
 			<!-- Slide-in properties panel -->
