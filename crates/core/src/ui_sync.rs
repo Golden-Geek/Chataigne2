@@ -1767,18 +1767,32 @@ impl<T: Node> Engine<T> {
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::RemoveNode { node } => {
-                self.edits.push(Edit::RemoveNode { node });
-                let result = self.apply_edits();
+                let result = self.apply_implicit_ui_edit_session(
+                    "Remove node",
+                    "__ui-remove-node",
+                    ui_client_instance_id,
+                    |engine| {
+                        engine.edits.push(Edit::RemoveNode { node });
+                        engine.apply_ui_stabilization_to_fixed_point(16)
+                    },
+                );
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::RemoveNodes { nodes } => {
-                let mut seen = HashSet::<NodeId>::new();
-                for node in nodes {
-                    if seen.insert(node) {
-                        self.edits.push(Edit::RemoveNode { node });
-                    }
-                }
-                let result = self.apply_edits();
+                let result = self.apply_implicit_ui_edit_session(
+                    "Remove nodes",
+                    "__ui-remove-nodes",
+                    ui_client_instance_id,
+                    |engine| {
+                        let mut seen = HashSet::<NodeId>::new();
+                        for node in nodes {
+                            if seen.insert(node) {
+                                engine.edits.push(Edit::RemoveNode { node });
+                            }
+                        }
+                        engine.apply_ui_stabilization_to_fixed_point(16)
+                    },
+                );
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::CreateUserItem {
@@ -2009,6 +2023,37 @@ impl<T: Node> Engine<T> {
         // );
 
         ack
+    }
+
+    fn apply_implicit_ui_edit_session<F>(
+        &mut self,
+        label: &str,
+        client_edit_id: &str,
+        ui_client_instance_id: Option<&str>,
+        operation: F,
+    ) -> Result<(), crate::engine::EngineEditError>
+    where
+        F: FnOnce(&mut Self) -> Result<(), crate::engine::EngineEditError>,
+    {
+        if self.has_active_edit_session() {
+            return operation(self);
+        }
+
+        let client_edit_id = client_edit_id.to_string();
+        self.edits.push(Edit::BeginEditSession {
+            origin: EditOrigin::Ui,
+            label: Some(label.to_string()),
+            client_edit_id: client_edit_id.clone(),
+            ui_client_instance_id: ui_client_instance_id.map(str::to_owned),
+        });
+        self.apply_edits()?;
+
+        let operation_result = operation(self);
+        self.edits.push(Edit::EndEditSession { client_edit_id });
+        let end_result = self.apply_edits();
+
+        operation_result?;
+        end_result
     }
 
     fn finish_ui_apply_now(&self, before_len: usize, result: Result<(), crate::engine::EngineEditError>) -> UiAck {

@@ -279,7 +279,7 @@ impl<T: Node> HistoryStep<T> {
                     engine.populate_param_cache_entry(id);
                 }
 
-                engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
+                attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 for node in created_ids.iter().rev().copied() {
                     engine.emit_event(EventKind::NodeCreated { node });
@@ -388,7 +388,14 @@ impl<T: Node> HistoryStep<T> {
 
                 engine.nodes.reattach(step.old_id, old_node);
                 engine.populate_param_cache_entry(step.old_id);
-                engine.attach_node_between(0, OP, step.old_id, step.parent, step.prev_sibling, step.next_sibling)?;
+                attach_node_for_history(
+                    engine,
+                    OP,
+                    step.old_id,
+                    step.parent,
+                    step.prev_sibling,
+                    step.next_sibling,
+                )?;
 
                 let first_child = engine
                     .nodes
@@ -485,7 +492,7 @@ impl<T: Node> HistoryStep<T> {
                     engine.nodes.reattach(id, node);
                     engine.populate_param_cache_entry(id);
                 }
-                engine.attach_node_between(0, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
+                attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
 
                 for node in created_ids.iter().rev().copied() {
                     engine.emit_event(EventKind::NodeCreated { node });
@@ -628,7 +635,14 @@ impl<T: Node> HistoryStep<T> {
 
                 engine.nodes.reattach(step.new_id, new_node);
                 engine.populate_param_cache_entry(step.new_id);
-                engine.attach_node_between(0, OP, step.new_id, step.parent, step.prev_sibling, step.next_sibling)?;
+                attach_node_for_history(
+                    engine,
+                    OP,
+                    step.new_id,
+                    step.parent,
+                    step.prev_sibling,
+                    step.next_sibling,
+                )?;
 
                 let first_child = engine
                     .nodes
@@ -692,6 +706,60 @@ impl<T: Node> HistoryStep<T> {
             }
         }
     }
+}
+
+fn attach_node_for_history<T: Node>(
+    engine: &mut Engine<T>,
+    operation: &'static str,
+    node: NodeId,
+    parent: NodeId,
+    prev_sibling: Option<NodeId>,
+    next_sibling: Option<NodeId>,
+) -> Result<(), EngineEditError> {
+    let (prev_sibling, next_sibling) = historical_sibling_bounds(engine, parent, prev_sibling, next_sibling);
+    engine.attach_node_between(0, operation, node, parent, prev_sibling, next_sibling)
+}
+
+fn historical_sibling_bounds<T: Node>(
+    engine: &Engine<T>,
+    parent: NodeId,
+    prev_sibling: Option<NodeId>,
+    next_sibling: Option<NodeId>,
+) -> (Option<NodeId>, Option<NodeId>) {
+    let live_child = |candidate: NodeId| {
+        engine
+            .nodes
+            .get(candidate)
+            .is_some_and(|node| node.node_data().parent == Some(parent))
+    };
+
+    let prev_live = prev_sibling.filter(|sibling| live_child(*sibling));
+    let next_live = next_sibling.filter(|sibling| live_child(*sibling));
+
+    if let (Some(prev), Some(next)) = (prev_live, next_live) {
+        let adjacent = engine
+            .nodes
+            .get(prev)
+            .is_some_and(|node| node.node_data().next_sibling == Some(next));
+        if adjacent {
+            return (Some(prev), Some(next));
+        }
+    }
+
+    if let Some(prev) = prev_live {
+        let next = engine.nodes.get(prev).and_then(|node| node.node_data().next_sibling);
+        return (Some(prev), next);
+    }
+
+    if let Some(next) = next_live {
+        let prev = engine.nodes.get(next).and_then(|node| node.node_data().prev_sibling);
+        return (prev, Some(next));
+    }
+
+    (
+        engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+        None,
+    )
 }
 
 /// Temporarily reattaches then permanently removes a previously detached node payload.
