@@ -10,8 +10,8 @@ use golden_alchemist::{
     FormulaContextContract, FormulaId, FormulaSurface, InputSocketRef,
     OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
     SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
-    SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindings,
-    TypeConstraint, ValueTypeId, ValueTypeSpec, compile_graph,
+    SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
+    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeSpec, compile_graph,
 };
 use golden_core::{
     color::Color,
@@ -456,8 +456,38 @@ fn anode_from_snapshot(
     let mut instance =
         ANodeInstance::new(ANodeTypeId::new(type_id), node.label.clone());
     instance.id = ANodeId::from_uuid(node.uuid.0);
+    let config_folder = snapshot
+        .find_child_by_decl_id(anode, "config")
+        .ok_or_else(|| "ANode Config folder is missing".to_string())?;
     instance.config =
         existing_or_default_config(snapshot, anode, declaration.as_ref())?;
+    for field in declaration.config_fields() {
+        let Some(variable) = field.type_variable else {
+            continue;
+        };
+        let decl_id = config_decl_id(field.id.as_str());
+        let Some(parameter_node_id) = snapshot.find_child_by_decl_id(config_folder, &decl_id) else {
+            continue;
+        };
+        let Some(parameter_node) = snapshot.node(parameter_node_id) else {
+            continue;
+        };
+        if !parameter_node.enabled {
+            continue;
+        }
+        let Some(selected_type) = parameter_node
+            .param_value
+            .as_ref()
+            .and_then(ParamValue::as_str)
+        else {
+            continue;
+        };
+        instance.forced_type_bindings.insert(
+            variable,
+            ValueTypeId::new(selected_type),
+            TypeBindingSource::ForcedByUser,
+        );
+    }
     instance.ui.position =
         child_vec2(snapshot, anode, "position").unwrap_or([0.0, 0.0]);
     instance.ui.size = enabled_child_vec2(snapshot, anode, "size")
@@ -761,6 +791,25 @@ impl AlchemistANode {
         for field in declaration.config_fields() {
             let value_decl = config_decl_id(field.id.as_str());
             desired_config.insert(value_decl.clone());
+            if field.type_variable.is_some() {
+                let selected_type = child_string(&snapshot, config_folder, value_decl.as_str())
+                    .unwrap_or_else(|| match &field.default_value {
+                        RuntimeValue::String(value) => value.to_string(),
+                        value => runtime_value_type_id(value),
+                    });
+                self.ensure_parameter_node(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    value_type_parameter(
+                        &field.label,
+                        &value_decl,
+                        &selected_type,
+                        property_getter,
+                    ),
+                );
+                continue;
+            }
             let value_type = if field.editor.as_deref() == Some("runtime_value") {
                 let type_decl = config_type_decl_id(field.id.as_str());
                 desired_config.insert(type_decl.clone());
@@ -1518,14 +1567,20 @@ impl AlchemistProperty {
     }
 
     fn reconcile_value(&mut self, ctx: &mut ProcessCtx) {
-        let property_type = self.property_type.get_ref().to_owned();
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+
+        // Read the property type from the loaded `property_type` child rather
+        // than the in-memory field: during project load the field may not be
+        // synced yet, while the snapshot already reflects the saved value.
+        let property_type = child_string(&snapshot, self.id(), "property_type")
+            .unwrap_or_else(|| self.property_type.get_ref().to_owned());
+
         if self.node_data().meta.presentation.color.is_none() {
             self.node_data_mut().meta.presentation.color =
                 Some(value_type_color(&property_type));
         }
-        let Some(snapshot) = ctx.tree_snapshot_arc() else {
-            return;
-        };
 
         // Remove legacy / obsolete children
         for decl_id in ["value_type", "range_min", "range_max", "options"] {
@@ -1539,23 +1594,41 @@ impl AlchemistProperty {
         let Some(value) = property_parameter(&property_type) else {
             return;
         };
+        let desired_type = value.get_type();
 
-        if let Some(existing) =
-            snapshot.find_child_by_decl_id(self.id(), "value")
-        {
-            if snapshot.node(existing).is_some_and(|node| {
-                node.node_type == value.get_type()
-            }) {
-                // Type matches — only refresh the display color, preserve
-                // user-edited constraints (range, enum options, etc.)
-                let color = value.node_data().meta.presentation.color;
-                ctx.call_node_mutation(existing, move |node, _ctx| {
-                    node.node_data_mut().meta.presentation.color = color;
-                    Ok(())
-                });
-                return;
+        // Collect every `value` child. Load/reconcile races can leave more than
+        // one (e.g. a transient default created before the saved child loads),
+        // so we keep a single one of the right type and drop the rest.
+        let value_children: Vec<NodeId> = snapshot
+            .child_ids(self.id())
+            .into_iter()
+            .filter(|child| {
+                snapshot
+                    .node(*child)
+                    .is_some_and(|node| node.decl_id == "value")
+            })
+            .collect();
+
+        let mut kept: Option<NodeId> = None;
+        for child in value_children {
+            let matches_type = snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == desired_type);
+            if kept.is_none() && matches_type {
+                kept = Some(child);
+            } else {
+                self.remove_child(ctx, child);
             }
-            ctx.replace_node(existing, value);
+        }
+
+        if let Some(existing) = kept {
+            // Type matches — only refresh the display color, preserve
+            // user-edited constraints (range, enum options, etc.)
+            let color = value.node_data().meta.presentation.color;
+            ctx.call_node_mutation(existing, move |node, _ctx| {
+                node.node_data_mut().meta.presentation.color = color;
+                Ok(())
+            });
         } else {
             ctx.add_child(self.id(), value, None);
         }

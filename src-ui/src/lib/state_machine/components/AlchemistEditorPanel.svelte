@@ -696,6 +696,24 @@
 			]);
 		});
 
+	const socketRootId = (socketId: string): string => {
+		const dotIndex = socketId.lastIndexOf('.');
+		if (dotIndex < 0) return socketId;
+		const component = socketId.slice(dotIndex + 1);
+		return ['x', 'y', 'z', 'r', 'g', 'b', 'a'].includes(component)
+			? socketId.slice(0, dotIndex)
+			: socketId;
+	};
+
+	const targetInputConflict = (edgeSocketId: string, nextSocketId: string): boolean => {
+		const edgeRoot = socketRootId(edgeSocketId);
+		const nextRoot = socketRootId(nextSocketId);
+		if (edgeRoot !== nextRoot) return false;
+		const edgeIsComponent = edgeSocketId !== edgeRoot;
+		const nextIsComponent = nextSocketId !== nextRoot;
+		return !edgeIsComponent || !nextIsComponent || edgeSocketId === nextSocketId;
+	};
+
 	const connectNodes = (connection: GraphConnectionRequest): void => {
 		if (!formula || !graphState) return;
 		const source = graphState.nodesById.get(Number(connection.from.nodeId));
@@ -716,7 +734,8 @@
 		const replacedEdges = edges
 			.filter(
 				(edge) =>
-					edge.to.nodeId === connection.to.nodeId && edge.to.socketId === connection.to.socketId
+					edge.to.nodeId === connection.to.nodeId &&
+					targetInputConflict(edge.to.socketId, connection.to.socketId)
 			)
 			.flatMap((edge) => (edge.id === undefined ? [] : [Number(edge.id)]));
 		void runMutation(async () => {
@@ -824,10 +843,7 @@
 
 {#snippet toolbarEndContent()}
 	{#if formula && anodeItems.length > 0}
-		<NodeAddButton
-			node={formula}
-			items={anodeItems}
-			onCreateItem={(item) => createNode(item)} />
+		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
 	{/if}
 	{#if saveStatus !== 'idle'}
 		<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
@@ -841,7 +857,6 @@
 	class="alchemist-editor-panel"
 	aria-label={panelState.title}
 	onpointerdown={() => graphEditor?.focus()}>
-
 	<div class="editor-content">
 		{#if formula && graphState}
 			<!-- Slide-in properties panel -->
@@ -920,7 +935,10 @@
 						const el = e.currentTarget as HTMLElement;
 						el.setPointerCapture(e.pointerId);
 						el.onpointermove = (ev) => {
-							propertiesWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, startWidth + ev.clientX - startX));
+							propertiesWidth = Math.max(
+								MIN_PANEL_WIDTH,
+								Math.min(MAX_PANEL_WIDTH, startWidth + ev.clientX - startX)
+							);
 						};
 						el.onpointerup = el.onpointercancel = (ev) => {
 							el.releasePointerCapture(ev.pointerId);
@@ -928,7 +946,8 @@
 							el.onpointerup = null;
 							el.onpointercancel = null;
 						};
-					}}></div>
+					}}>
+				</div>
 			</aside>
 
 			<!-- Collapsed-state tab — visible only when panel is hidden -->
@@ -1088,7 +1107,9 @@
 		color: var(--gc-color-text);
 		font: inherit;
 		cursor: pointer;
-		transition: opacity 0.18s, background 0.12s;
+		transition:
+			opacity 0.18s,
+			background 0.12s;
 	}
 
 	.properties-show-tab.panel-visible {
@@ -1097,7 +1118,11 @@
 	}
 
 	.properties-show-tab:not(.panel-visible):hover {
-		background: color-mix(in srgb, var(--gc-color-accent, #66a6ff) 18%, var(--gc-color-background-soft, #1a1a1a));
+		background: color-mix(
+			in srgb,
+			var(--gc-color-accent, #66a6ff) 18%,
+			var(--gc-color-background-soft, #1a1a1a)
+		);
 	}
 
 	/* Resize handle on the right edge of the panel */
