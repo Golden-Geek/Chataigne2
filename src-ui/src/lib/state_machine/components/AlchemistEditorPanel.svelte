@@ -790,7 +790,6 @@
 		contextMenuY = clientY;
 		contextMenuWorldPosition = position;
 		contextMenuOpen = true;
-		graphEditor?.focus();
 	};
 
 	const openContextMenu = (event: MouseEvent, position: GraphNodePosition): void => {

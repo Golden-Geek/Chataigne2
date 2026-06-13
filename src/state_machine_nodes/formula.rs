@@ -25,7 +25,8 @@ use golden_core::{
     },
     parameter::{
         CssValue, ParamValue, Parameter, ParameterChangeCheck,
-        ParameterConstraintPolicy, ParameterEnumOption, ReferenceTargetKind,
+        ParameterConstraintPolicy, ParameterEnumOption, ParameterEventBehaviour,
+        ReferenceTargetKind,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -543,6 +544,50 @@ fn local_signature_bindings(
     let _ = bindings.merge_from(&instance.type_bindings);
     let _ = bindings.merge_from(&instance.forced_type_bindings);
     bindings
+}
+
+fn sync_auto_type_variable_config_params(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    config_folder: NodeId,
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    signature: &golden_alchemist::ANodeSignature,
+    value_types: &golden_alchemist::ValueTypeRegistry,
+    bindings: &TypeBindings,
+) {
+    for field in declaration.config_fields() {
+        let Some(variable) = field.type_variable.clone() else {
+            continue;
+        };
+        let Some(binding) = bindings.get(&variable) else {
+            continue;
+        };
+        let type_options = field.resolved_type_options(signature, value_types);
+        if !type_options.is_empty() && !type_options.contains(&binding.value_type) {
+            continue;
+        }
+        let decl_id = config_decl_id(field.id.as_str());
+        let Some(parameter_node_id) =
+            snapshot.find_child_by_decl_id(config_folder, &decl_id)
+        else {
+            continue;
+        };
+        let Some(parameter_node) = snapshot.node(parameter_node_id) else {
+            continue;
+        };
+        if parameter_node.enabled {
+            continue;
+        }
+        let next_value = ParamValue::Enum(binding.value_type.to_string());
+        if parameter_node.param_value.as_ref() == Some(&next_value) {
+            continue;
+        }
+        ctx.edits.push(Edit::SetParam {
+            node: parameter_node_id,
+            value: next_value,
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
 }
 
 fn anode_from_snapshot(
@@ -2114,7 +2159,9 @@ impl AlchemistFormulaDefinition {
             if source.is_none_or(|uuid| !anode_uuids.contains(&uuid))
                 || target.is_none_or(|uuid| !anode_uuids.contains(&uuid))
             {
-                ctx.edits.push(Edit::RemoveNode { node: child });
+                if !node_removal_pending(ctx, child) {
+                    ctx.edits.push(Edit::RemoveNode { node: child });
+                }
             }
         }
     }
@@ -2156,6 +2203,7 @@ impl AlchemistFormulaDefinition {
             let Some(declaration) = nodes.get(&instance.type_id) else {
                 continue;
             };
+            let config_folder = snapshot.find_child_by_decl_id(child, "config");
             let Some(inputs_folder) =
                 snapshot.find_child_by_decl_id(child, "inputs")
             else {
@@ -2170,6 +2218,21 @@ impl AlchemistFormulaDefinition {
                 declaration.signature(&signature_ctx, instance, &instance.type_bindings);
             let fallback_bindings = local_signature_bindings(&signature, instance);
             let resolved_node = solved.graph.nodes.get(&anode_id);
+            let resolved_bindings = resolved_node
+                .map(|node| &node.bindings)
+                .unwrap_or(&fallback_bindings);
+
+            if let Some(config_folder) = config_folder {
+                sync_auto_type_variable_config_params(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    declaration.as_ref(),
+                    &signature,
+                    &value_types,
+                    resolved_bindings,
+                );
+            }
 
             for input in signature.inputs {
                 let value_type = resolved_node

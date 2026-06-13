@@ -12,6 +12,7 @@ export const PROPERTY_FOLDER_NODE_TYPE = 'alchemist_property_folder';
 
 export const TRIGGER_SOCKET_ID = '__trigger';
 export const ANODE_TYPE_TAG_PREFIX = 'alchemist.anode.type:';
+export const VALUE_TYPE_CONFIG_DECL_ID = 'config/value_type';
 
 export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
 export const MANAGER_REF_TYPE_CONSEQUENCES = 'chataigne.consequences_manager';
@@ -230,6 +231,7 @@ const visibleConfigParameterCount = (
 	return config.children.reduce((count, childId) => {
 		const child = nodesById.get(childId);
 		return child?.data.kind === 'parameter' &&
+			child.decl_id !== VALUE_TYPE_CONFIG_DECL_ID &&
 			child.meta.presentation?.show_in_inspector_content !== false
 			? count + 1
 			: count;
@@ -433,3 +435,19 @@ export const configParameters = (
 		return child?.data.kind === 'parameter' ? [child] : [];
 	});
 };
+
+export const bodyConfigParameters = (
+	anode: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): UiNodeDto[] =>
+	configParameters(anode, nodesById).filter(
+		(parameter) => parameter.decl_id !== VALUE_TYPE_CONFIG_DECL_ID
+	);
+
+export const valueTypeConfigParameter = (
+	anode: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): UiNodeDto | null =>
+	configParameters(anode, nodesById).find(
+		(parameter) => parameter.decl_id === VALUE_TYPE_CONFIG_DECL_ID
+	) ?? null;

@@ -10,8 +10,15 @@
 		type GraphNodeResize
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
-	import { anodeType, configParameters, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import {
+		anodeType,
+		bodyConfigParameters,
+		toGraphEdges,
+		toGraphNodes,
+		valueTypeConfigParameter
+	} from '../alchemistGraph';
 	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
+	import ANodeValueTypeHeaderControl from './ANodeValueTypeHeaderControl.svelte';
 
 	let {
 		formula,
@@ -67,7 +74,13 @@
 	});
 
 	$effect(() => {
-		if (pendingHome && activeFormulaId !== null && nodes.length > 0 && graphCanvas?.home()) {
+		if (!pendingHome || activeFormulaId === null) return;
+		if (nodes.length === 0) {
+			framedFormulaIds.add(activeFormulaId);
+			pendingHome = false;
+			return;
+		}
+		if (graphCanvas?.home()) {
 			framedFormulaIds.add(activeFormulaId);
 			pendingHome = false;
 		}
@@ -88,7 +101,17 @@
 {#snippet nodeContent(graphNode: GraphNode)}
 	{@const node = authoredNode(graphNode.id)}
 	{#if node && !isPropertyGetter(node)}
-		<ANodeConfigEditor parameters={configParameters(node, nodesById)} />
+		<ANodeConfigEditor parameters={bodyConfigParameters(node, nodesById)} />
+	{/if}
+{/snippet}
+
+{#snippet nodeHeaderContent(graphNode: GraphNode)}
+	{@const node = authoredNode(graphNode.id)}
+	{#if node && !isPropertyGetter(node)}
+		{@const valueTypeParameter = valueTypeConfigParameter(node, nodesById)}
+		{#if valueTypeParameter}
+			<ANodeValueTypeHeaderControl parameter={valueTypeParameter} />
+		{/if}
 	{/if}
 {/snippet}
 
@@ -108,6 +131,7 @@
 		{onBackgroundContextMenu}
 		{onCreateRequest}
 		{nodeContent}
+		{nodeHeaderContent}
 		{toolbarEnd}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"

@@ -488,6 +488,14 @@ fn numeric_nodes_infer_each_supported_connected_type_when_selector_is_disabled()
 
             create_connection(&mut engine, formula, constant, "value", anode, spec.inputs[0]);
 
+            let config =
+                find_child_by_decl(&engine, anode, "config").expect("Config should exist");
+            assert_eq!(
+                parameter_value(&engine, config, "config/value_type"),
+                ParamValue::Enum((*value_type).into()),
+                "{} should show its auto-inferred Value Type while the selector is disabled",
+                spec.type_id
+            );
             assert_anode_socket_types(
                 &engine,
                 anode,
@@ -497,6 +505,31 @@ fn numeric_nodes_infer_each_supported_connected_type_when_selector_is_disabled()
             );
         }
     }
+}
+
+#[test]
+fn first_input_decides_auto_value_type_when_multiple_inputs_are_connected() {
+    let (mut engine, formula) = engine_with_formula();
+    create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    create_anode(&mut engine, formula, "constant", 6.0, 3.0);
+    create_anode(&mut engine, formula, "add", 10.0, 3.0);
+    let constants = direct_children(&engine, formula)
+        .into_iter()
+        .filter(|node| anode_type(&engine, *node).as_deref() == Some("constant"))
+        .collect::<Vec<_>>();
+    let add = find_anode_by_type(&engine, formula, "add");
+    set_constant_value_type(&mut engine, constants[0], "vec3");
+    set_constant_value_type(&mut engine, constants[1], "float");
+
+    create_connection(&mut engine, formula, constants[0], "value", add, "b");
+    create_connection(&mut engine, formula, constants[1], "value", add, "a");
+
+    let config = find_child_by_decl(&engine, add, "config").expect("Add config should exist");
+    assert_eq!(
+        parameter_value(&engine, config, "config/value_type"),
+        ParamValue::Enum("float".into())
+    );
+    assert_anode_socket_types(&engine, add, &["a", "b"], &["result"], "float");
 }
 
 #[test]
@@ -699,6 +732,54 @@ fn removing_anode_removes_its_dangling_connections() {
             })
         }),
         "Formula should own cleanup of connections whose endpoint was removed"
+    );
+}
+
+#[test]
+fn undoing_anode_removal_restores_its_connections_in_one_step() {
+    let (mut engine, formula) = engine_with_formula();
+    create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    create_anode(&mut engine, formula, "debug_log", 18.0, 3.0);
+    let anodes = direct_children(&engine, formula)
+        .into_iter()
+        .filter(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistANode::NODE_TYPE
+            })
+        })
+        .collect::<Vec<_>>();
+    create_connection(
+        &mut engine,
+        formula,
+        anodes[0],
+        "value",
+        anodes[1],
+        "value",
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: anodes[1] });
+    assert!(ack.success, "ANode removal should succeed: {ack:?}");
+    assert_eq!(
+        formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+            .expect("Formula should materialize after removal")
+            .graph
+            .edges
+            .len(),
+        0,
+        "Removing an ANode should remove incident connections during UI stabilization"
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(ack.success, "Undoing ANode removal should succeed: {ack:?}");
+    let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+        .expect("Formula should materialize after undo");
+    assert_eq!(materialized.graph.nodes.len(), 2);
+    assert_eq!(materialized.graph.edges.len(), 1);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: anodes[1] });
+    assert!(
+        ack.success,
+        "Removing the restored ANode again should not reference stale nodes: {ack:?}"
     );
 }
 
