@@ -780,12 +780,8 @@ impl Node for OscModuleBase {
         self.ensure_default_output(ctx, snapshot);
     }
 
-    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-        self.refresh_transport(ctx, snapshot);
+    fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        self.transport_dirty = true;
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {

@@ -401,10 +401,11 @@ impl StateProcessorManager {
                     .map(|library| build_formula_items(snapshot, library))
             })
             .unwrap_or_default();
+        let all_items = self.user_creatable_items();
         let _ = ctx.emit_custom_payload(
             PROCESSOR_MANAGER_ITEMS_CHANGED_TOPIC,
             Some(self.id()),
-            &self.formula_items,
+            &all_items,
         );
     }
 }
@@ -423,7 +424,10 @@ fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
 }
 
 #[node("state_processor_folder", label = "Folder")]
-pub struct StateProcessorFolder {}
+pub struct StateProcessorFolder {
+    #[state(default = Vec::new())]
+    formula_items: Vec<UserCreatableItem>,
+}
 
 #[node("state_processor_folder", from_struct)]
 impl Node for StateProcessorFolder {
@@ -436,11 +440,13 @@ impl Node for StateProcessorFolder {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![UserCreatableItem::new(
+        let mut items = self.formula_items.clone();
+        items.push(UserCreatableItem::new(
             PROCESSOR_FOLDER_NODE_TYPE,
             PROCESSOR_FOLDER_ITEM_KIND,
             "Folder",
-        )]
+        ));
+        items
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
@@ -454,8 +460,61 @@ impl Node for StateProcessorFolder {
         initialize_processor_item(self);
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        let root = snapshot.root();
+        let library = find_formula_library(snapshot);
+        ctx.add_event_listener_subtree(self.id(), root, 1);
+        if let Some(library) = library {
+            ctx.add_event_listener_subtree(self.id(), library, 2);
+        }
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        let is_library = ctx.tree_snapshot().is_some_and(|snapshot| {
+            snapshot
+                .node(node)
+                .is_some_and(|snapshot_node| snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE)
+        });
+        if is_library {
+            ctx.add_event_listener_subtree(self.id(), node, 2);
+        }
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
+
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, _parent: NodeId, _child: NodeId) {
+        self.refresh_formula_items(ctx);
+    }
+
     fn project_create(node_type: &str) -> Option<Self> {
         (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+impl StateProcessorFolder {
+    fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
+        self.formula_items = ctx
+            .tree_snapshot()
+            .and_then(|snapshot| {
+                find_formula_library(snapshot)
+                    .map(|library| build_formula_items(snapshot, library))
+            })
+            .unwrap_or_default();
     }
 }
 

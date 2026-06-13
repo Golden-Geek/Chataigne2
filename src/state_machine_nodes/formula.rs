@@ -971,6 +971,15 @@ impl AlchemistANode {
                     existing.node_data_mut().meta.presentation = presentation;
                     Ok(())
                 });
+            } else {
+                let can_be_disabled =
+                    parameter.node_data().meta.can_be_disabled;
+                if can_be_disabled {
+                    ctx.call_node_mutation(existing, move |node, _ctx| {
+                        node.node_data_mut().meta.can_be_disabled = true;
+                        Ok(())
+                    });
+                }
             }
             return;
         }
@@ -1014,6 +1023,10 @@ fn value_type_parameter(
             .meta
             .presentation
             .show_in_inspector_content = false;
+    } else {
+        // ANode-level type selector: disabled by default (auto-inferred from inputs)
+        parameter.node_data_mut().meta.can_be_disabled = true;
+        parameter.node_data_mut().meta.enabled = false;
     }
     parameter.constraints.enum_options = registry
         .iter()
@@ -1102,19 +1115,31 @@ fn input_socket_tree(
     );
     value.node_data_mut().meta.presentation.color =
         Some(value_type_color(value_type.as_str()));
+    let mut socket_id_param = parameter(
+        "Socket ID",
+        format!("{decl_id}/socket_id"),
+        ParamValue::Str(socket_id.to_owned()),
+        true,
+    );
+    socket_id_param
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
+    let mut value_type_param = parameter(
+        "Value Type",
+        format!("{decl_id}/value_type"),
+        ParamValue::Str(value_type.to_string()),
+        true,
+    );
+    value_type_param
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
     Ok(NodeTree::new(socket)
-        .with_child(NodeTree::new(parameter(
-            "Socket ID",
-            format!("{decl_id}/socket_id"),
-            ParamValue::Str(socket_id.to_owned()),
-            true,
-        )))
-        .with_child(NodeTree::new(parameter(
-            "Value Type",
-            format!("{decl_id}/value_type"),
-            ParamValue::Str(value_type.to_string()),
-            true,
-        )))
+        .with_child(NodeTree::new(socket_id_param))
+        .with_child(NodeTree::new(value_type_param))
         .with_child(NodeTree::new(value)))
 }
 
@@ -1129,19 +1154,31 @@ fn output_socket_tree(
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
     socket.node_data_mut().meta.presentation.color =
         Some(value_type_color(value_type.as_str()));
+    let mut socket_id_param = parameter(
+        "Socket ID",
+        format!("{decl_id}/socket_id"),
+        ParamValue::Str(socket_id.to_owned()),
+        true,
+    );
+    socket_id_param
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
+    let mut value_type_param = parameter(
+        "Value Type",
+        format!("{decl_id}/value_type"),
+        ParamValue::Str(value_type.to_string()),
+        true,
+    );
+    value_type_param
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
     NodeTree::new(socket)
-        .with_child(NodeTree::new(parameter(
-            "Socket ID",
-            format!("{decl_id}/socket_id"),
-            ParamValue::Str(socket_id.to_owned()),
-            true,
-        )))
-        .with_child(NodeTree::new(parameter(
-            "Value Type",
-            format!("{decl_id}/value_type"),
-            ParamValue::Str(value_type.to_string()),
-            true,
-        )))
+        .with_child(NodeTree::new(socket_id_param))
+        .with_child(NodeTree::new(value_type_param))
 }
 
 pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 5] = [
@@ -1211,8 +1248,13 @@ fn property_value_type(property_type: &str) -> &'static str {
 fn property_parameter(property_type: &str) -> Option<Parameter> {
     let default = property_default(property_type)?;
     let color = parameter_value_color(&default);
-    let mut value = parameter("Value", "value", default, false);
+    let mut value = parameter("Default value", "value", default, false);
     value.node_data_mut().meta.presentation.color = Some(color);
+    // Allow users to edit range / step / enum options on the default value, and
+    // ensure those constraints are persisted across save/load.
+    let mut permissions = NodeUserPermissions::none();
+    permissions.can_edit_constraints = true;
+    value.node_data_mut().meta.user_permissions = permissions;
     if property_type == "enum" {
         value.constraints.enum_options = vec![ParameterEnumOption {
             variant_id: "option".to_owned(),
@@ -1481,23 +1523,31 @@ impl AlchemistProperty {
             self.node_data_mut().meta.presentation.color =
                 Some(value_type_color(&property_type));
         }
-        let Some(value) = property_parameter(&property_type) else {
-            return;
-        };
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        if let Some(value_type) =
-            snapshot.find_child_by_decl_id(self.id(), "value_type")
-        {
-            self.remove_child(ctx, value_type);
+
+        // Remove legacy / obsolete children
+        for decl_id in ["value_type", "range_min", "range_max", "options"] {
+            if let Some(child) =
+                snapshot.find_child_by_decl_id(self.id(), decl_id)
+            {
+                self.remove_child(ctx, child);
+            }
         }
+
+        let Some(value) = property_parameter(&property_type) else {
+            return;
+        };
+
         if let Some(existing) =
             snapshot.find_child_by_decl_id(self.id(), "value")
         {
             if snapshot.node(existing).is_some_and(|node| {
                 node.node_type == value.get_type()
             }) {
+                // Type matches — only refresh the display color, preserve
+                // user-edited constraints (range, enum options, etc.)
                 let color = value.node_data().meta.presentation.color;
                 ctx.call_node_mutation(existing, move |node, _ctx| {
                     node.node_data_mut().meta.presentation.color = color;
@@ -1644,10 +1694,11 @@ impl Node for AlchemistConnection {
 
 #[node("alchemist_formula", label = "Formula")]
 #[children(
-    is_valid: bool = false (label = "Valid", read_only = true);
+    is_valid: bool = false (label = "Valid", read_only = true, show_in_inspector_content = false);
     diagnostics_json: String = String::from("[]") (
         label = "Diagnostics",
-        read_only = true
+        read_only = true,
+        show_in_inspector_content = false
     );
 )]
 pub struct AlchemistFormulaDefinition {}

@@ -100,6 +100,7 @@ pub struct AppControlModule {
     watched_folder_value_folders: HashMap<NodeId, NodeId>,
     watched_app_auto_labels: HashMap<NodeId, String>,
     ignored_running_value_updates: HashMap<NodeId, bool>,
+    requested_running_control_changes: HashSet<NodeId>,
     pending_running_requests: HashMap<NodeId, bool>,
     has_active_watch_targets: bool,
     watch_config_dirty: bool,
@@ -114,6 +115,7 @@ impl AppControlModule {
             HashMap::new(),
             HashMap::new(),
             HashMap::new(),
+            HashSet::new(),
             HashMap::new(),
             false,
             false,
@@ -683,6 +685,32 @@ impl AppControlModule {
         );
     }
 
+    fn is_running_control_param(&self, snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
+        let Some(param_node) = snapshot.node(param) else {
+            return false;
+        };
+        let Some(parent_id) = param_node.parent else {
+            return false;
+        };
+        self.watched_app_value_folders
+            .values()
+            .any(|folder_id| *folder_id == parent_id)
+            && (param_node.decl_id == "running"
+                || param_node.decl_id.rsplit('/').next() == Some("running")
+                || param_node.short_name == "running")
+    }
+
+    fn is_ignored_running_sync(&self, snapshot: &ProcessTreeSnapshot, param: NodeId) -> bool {
+        let Some(expected) = self.ignored_running_value_updates.get(&param).copied() else {
+            return false;
+        };
+        snapshot
+            .node(param)
+            .and_then(|node| node.param_value.as_ref())
+            .and_then(ParamValue::as_bool)
+            == Some(expected)
+    }
+
     fn clear_watched_app_value_state(
         &mut self,
         snapshot: &ProcessTreeSnapshot,
@@ -694,6 +722,7 @@ impl AppControlModule {
 
         self.pending_running_requests.remove(&running_id);
         self.ignored_running_value_updates.remove(&running_id);
+        self.requested_running_control_changes.remove(&running_id);
     }
 
     fn handle_running_control(
@@ -722,6 +751,7 @@ impl AppControlModule {
 
         if desired_running == actual_running || ignored_sync {
             self.pending_running_requests.remove(&running_id);
+            self.requested_running_control_changes.remove(&running_id);
             self.sync_running_value(snapshot, ctx, value_folder_id, actual_running);
             return;
         }
@@ -731,6 +761,12 @@ impl AppControlModule {
             .get(&running_id)
             .is_some_and(|pending| *pending == desired_running)
         {
+            return;
+        }
+
+        if !self.requested_running_control_changes.remove(&running_id) {
+            self.pending_running_requests.remove(&running_id);
+            self.sync_running_value(snapshot, ctx, value_folder_id, actual_running);
             return;
         }
 
@@ -766,6 +802,7 @@ impl AppControlModule {
             }
             Err(error) => {
                 self.pending_running_requests.remove(&running_id);
+                self.requested_running_control_changes.remove(&running_id);
                 logerror!(format!(
                     "Failed to apply App Control running toggle for '{}': {error}",
                     entry.label,
@@ -1257,6 +1294,11 @@ impl Node for AppControlModule {
             if watch_configuration_changed {
                 self.watch_config_dirty = true;
             }
+            if self.is_running_control_param(snapshot, param)
+                && !self.is_ignored_running_sync(snapshot, param)
+            {
+                self.requested_running_control_changes.insert(param);
+            }
             self.base
                 .emit_script_param_callback(ctx, snapshot, param, &old_value);
         }
@@ -1293,7 +1335,7 @@ impl Node for AppControlModule {
         self.sync_command_target_options(ctx, snapshot, &watched_apps);
     }
 
-    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, _child: NodeId) {
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
@@ -1304,7 +1346,11 @@ impl Node for AppControlModule {
         }
 
         self.watch_config_dirty = true;
-        let watched_apps = self.collect_watched_apps(snapshot);
+        let watched_apps = self
+            .collect_watched_apps(snapshot)
+            .into_iter()
+            .filter(|entry| entry.item_id != child)
+            .collect::<Vec<_>>();
         self.sync_command_target_options(ctx, snapshot, &watched_apps);
     }
 
@@ -1318,6 +1364,7 @@ impl Node for AppControlModule {
         self.watched_folder_value_folders.clear();
         self.watched_app_auto_labels.clear();
         self.ignored_running_value_updates.clear();
+        self.requested_running_control_changes.clear();
         self.pending_running_requests.clear();
         self.has_active_watch_targets = false;
         self.watch_config_dirty = false;
@@ -1616,10 +1663,9 @@ fn create_running_control_param() -> Parameter {
         ParamValue::Bool(false),
         ParameterChangeCheck::ValueChange,
     );
-    parameter.read_only = true;
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
     parameter.node_data_mut().meta.description = Some(
-        "Indicates if the watched application is currently running."
+        "Indicates if the watched application is currently running and can launch or stop it."
             .to_string(),
     );
     let meta = &mut parameter.node_data_mut().meta;
@@ -1862,10 +1908,13 @@ fn watched_app_command_enum_options(
         watched_apps
             .iter()
             .filter(|entry| !entry.target_path.trim().is_empty())
-            .map(|entry| entry.label.as_str()),
+            .map(|entry| entry.label.as_str())
+            .filter(|label| {
+                let trimmed = label.trim();
+                !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case(WATCHED_APP_DEFAULT_LABEL)
+            }),
     )
         .into_iter()
-        .filter(|label| !label.trim().is_empty())
         .map(|label| ParameterEnumOption {
             variant_id: label.clone(),
             value: ParamValue::Enum(label.clone()),

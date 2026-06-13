@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { type Snippet } from 'svelte';
 	import {
 		GraphCanvas,
 		type GraphConnectionRequest,
@@ -25,7 +26,8 @@
 		onNodeCollapsedChange,
 		onConnect,
 		onBackgroundContextMenu,
-		onCreateRequest
+		onCreateRequest,
+		toolbarEnd
 	}: {
 		formula: UiNodeDto;
 		nodesById: ReadonlyMap<NodeId, UiNodeDto>;
@@ -40,6 +42,7 @@
 		onConnect?: (connection: GraphConnectionRequest) => void;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
+		toolbarEnd?: Snippet;
 	} = $props();
 
 	let nodes = $derived(toGraphNodes(formula, nodesById, catalogItems));
@@ -51,6 +54,22 @@
 		focus: () => void;
 		viewportCenter: () => GraphNodePosition;
 	} | null = $state(null);
+
+	let pendingHome = $state(false);
+
+	$effect(() => {
+		// Whenever the formula changes, request a home/frame on next nodes load
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		formula.node_id;
+		pendingHome = true;
+	});
+
+	$effect(() => {
+		if (pendingHome && nodes.length > 0 && graphCanvas) {
+			pendingHome = false;
+			graphCanvas.home();
+		}
+	});
 
 	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
 	const isPropertyGetter = (node: UiNodeDto): boolean => anodeType(node) === 'property';
@@ -87,6 +106,7 @@
 		{onBackgroundContextMenu}
 		{onCreateRequest}
 		{nodeContent}
+		{toolbarEnd}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"
 		emptyLabel="Add an ANode to start this Formula." />

@@ -66,6 +66,10 @@
 	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
 	const MANAGER_DRAG_TYPE = 'application/x-chataigne-alchemist-manager';
 
+	const MIN_PANEL_WIDTH = 160;
+	const MAX_PANEL_WIDTH = 520;
+	const DEFAULT_PANEL_WIDTH = 240;
+
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
 	let panelState = $derived(
@@ -88,6 +92,7 @@
 	let graphState = $derived(session?.graph.state ?? null);
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let propertiesVisible = $state(true);
+	let propertiesWidth = $state(DEFAULT_PANEL_WIDTH);
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
@@ -370,16 +375,6 @@
 			resolveOutlinerDropTarget(graphState, sourceNodeId, properties.node_id, 'inside'),
 			event
 		);
-	};
-
-	const selectFormula = (event: Event): void => {
-		const formulaNodeId = Number((event.currentTarget as HTMLSelectElement).value);
-		if (!Number.isInteger(formulaNodeId)) return;
-		const params = { ...panelState.params, formulaNodeId };
-		updatedPanelState = { ...panelState, params };
-		props.panelApi.updateParams(params);
-		session?.selectNode(formulaNodeId, 'REPLACE');
-		saveStatus = 'idle';
 	};
 
 	const initialParam = (
@@ -827,117 +822,127 @@
 	});
 </script>
 
+{#snippet toolbarEndContent()}
+	{#if formula && anodeItems.length > 0}
+		<NodeAddButton
+			node={formula}
+			items={anodeItems}
+			onCreateItem={(item) => createNode(item)} />
+	{/if}
+	{#if saveStatus !== 'idle'}
+		<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
+			{saveStatus === 'saving' ? '…' : saveStatus === 'saved' ? '✓' : '!'}
+		</span>
+	{/if}
+{/snippet}
+
 <section
 	bind:this={panelRoot}
 	class="alchemist-editor-panel"
 	aria-label={panelState.title}
 	onpointerdown={() => graphEditor?.focus()}>
-	<header>
-		<div class="identity">
-			<strong>{formula?.meta.label ?? 'No Formula selected'}</strong>
-			<span class:valid={formulaValid} class:invalid={!formulaValid && formula !== null}>
-				{formula
-					? formulaValid
-						? 'Compiles successfully'
-						: 'Has compile errors'
-					: 'Formula authoring'}
-			</span>
-		</div>
-		{#if formulaNodes.length > 0}
-			<label class="picker">
-				<span>Formula</span>
-				<select value={formula?.node_id ?? ''} onchange={selectFormula}>
-					{#each formulaNodes as option (option.node_id)}
-						<option value={option.node_id}>{option.meta.label}</option>
-					{/each}
-				</select>
-			</label>
-		{/if}
-		<button
-			type="button"
-			class="properties-toggle"
-			class:active={propertiesVisible}
-			aria-pressed={propertiesVisible}
-			onclick={() => (propertiesVisible = !propertiesVisible)}>
-			Properties
-		</button>
-		{#if formula && anodeItems.length > 0}
-			<div class="node-add">
-				<NodeAddButton
-					node={formula}
-					items={anodeItems}
-					onCreateItem={(item) => createNode(item)} />
-			</div>
-		{/if}
-		<span class:error={saveStatus === 'error'} class="save-status">
-			{saveStatus === 'saving'
-				? 'Saving...'
-				: saveStatus === 'saved'
-					? 'Saved'
-					: saveStatus === 'error'
-						? 'Edit failed'
-						: ''}
-		</span>
-	</header>
 
-	<div class:properties-visible={propertiesVisible} class="editor-content">
+	<div class="editor-content">
 		{#if formula && graphState}
-			{#if propertiesVisible}
-				<aside class="properties-panel" aria-label="Formula properties">
-					<div class="properties-heading">
-						<div>
-							<strong>Properties</strong>
-							<span>Drag a property onto the graph to create a getter.</span>
-						</div>
-						{#if activePropertyContainer && activePropertyContainer.creatable_user_items.length > 0}
-							<NodeAddButton
-								node={activePropertyContainer}
-								items={activePropertyContainer.creatable_user_items}
-								onCreateItem={(item) => createPropertyItem(activePropertyContainer, item)} />
-						{/if}
-					</div>
-					<div
-						class="property-tree"
-						class:root-drop-active={isPropertyRootDropActive}
-						role="tree"
-						tabindex="0"
-						aria-label="Formula property hierarchy"
-						ondragover={handlePropertyRootDragOver}
-						ondrop={(event) => void handlePropertyRootDrop(event)}
-						ondragleave={() => {
-							if (isPropertyRootDropActive) {
-								propertyDropTarget = null;
-							}
-						}}>
-						{#if properties && properties.children.some((id) => graphState?.nodesById.get(id)?.data.kind !== 'parameter')}
-							{#each properties.children as childId (childId)}
-								{@const child = graphState?.nodesById.get(childId)}
-								{#if child && child.data.kind !== 'parameter'}
-									<OutlinerItem
-										node={child}
-										mode="tree"
-										canRenderNodeChildren={canRenderPropertyChildren}
-										nodeFilter={isPropertyTreeNode}
-										nodeDraggable={canMovePropertyNode}
-										activeDragNodeId={activePropertyDragNodeId}
-										dropTarget={propertyDropTarget}
-										onNodeDragStart={handlePropertyNodeDragStart}
-										onNodeDragOver={handlePropertyNodeDragOver}
-										onNodeDrop={handlePropertyNodeDrop}
-										onNodeDragEnd={() => {
-											if (!propertyMoveInFlight) {
-												clearPropertyDragState();
-											}
-										}}
-										onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')} />
-								{/if}
-							{/each}
-						{:else}
-							<p class="properties-empty">The Formula properties hierarchy is empty.</p>
-						{/if}
-					</div>
-				</aside>
-			{/if}
+			<!-- Slide-in properties panel -->
+			<aside
+				class="properties-panel"
+				class:visible={propertiesVisible}
+				style:width="{propertiesWidth}px"
+				aria-label="Formula properties">
+				<div class="properties-heading">
+					<button
+						type="button"
+						class="properties-toggle-btn"
+						aria-pressed={propertiesVisible}
+						title="Hide properties"
+						onclick={() => (propertiesVisible = false)}>
+						<span class="properties-toggle-chevron">‹</span>
+						<span class="properties-toggle-label">Properties</span>
+					</button>
+					{#if activePropertyContainer && activePropertyContainer.creatable_user_items.length > 0}
+						<NodeAddButton
+							node={activePropertyContainer}
+							items={activePropertyContainer.creatable_user_items}
+							onCreateItem={(item) => createPropertyItem(activePropertyContainer, item)} />
+					{/if}
+				</div>
+				<div
+					class="property-tree"
+					class:root-drop-active={isPropertyRootDropActive}
+					role="tree"
+					tabindex="0"
+					aria-label="Formula property hierarchy"
+					ondragover={handlePropertyRootDragOver}
+					ondrop={(event) => void handlePropertyRootDrop(event)}
+					ondragleave={() => {
+						if (isPropertyRootDropActive) {
+							propertyDropTarget = null;
+						}
+					}}>
+					{#if properties && properties.children.some((id) => graphState?.nodesById.get(id)?.data.kind !== 'parameter')}
+						{#each properties.children as childId (childId)}
+							{@const child = graphState?.nodesById.get(childId)}
+							{#if child && child.data.kind !== 'parameter'}
+								<OutlinerItem
+									node={child}
+									mode="tree"
+									canRenderNodeChildren={canRenderPropertyChildren}
+									nodeFilter={isPropertyTreeNode}
+									nodeDraggable={canMovePropertyNode}
+									activeDragNodeId={activePropertyDragNodeId}
+									dropTarget={propertyDropTarget}
+									onNodeDragStart={handlePropertyNodeDragStart}
+									onNodeDragOver={handlePropertyNodeDragOver}
+									onNodeDrop={handlePropertyNodeDrop}
+									onNodeDragEnd={() => {
+										if (!propertyMoveInFlight) {
+											clearPropertyDragState();
+										}
+									}}
+									onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')} />
+							{/if}
+						{/each}
+					{:else}
+						<p class="properties-empty">Drag a property onto the graph to create a getter.</p>
+					{/if}
+				</div>
+				<!-- Resize handle on right edge -->
+				<div
+					class="panel-resize-handle"
+					role="separator"
+					aria-label="Resize properties panel"
+					aria-orientation="vertical"
+					onpointerdown={(e) => {
+						e.preventDefault();
+						const startX = e.clientX;
+						const startWidth = propertiesWidth;
+						const el = e.currentTarget as HTMLElement;
+						el.setPointerCapture(e.pointerId);
+						el.onpointermove = (ev) => {
+							propertiesWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, startWidth + ev.clientX - startX));
+						};
+						el.onpointerup = el.onpointercancel = (ev) => {
+							el.releasePointerCapture(ev.pointerId);
+							el.onpointermove = null;
+							el.onpointerup = null;
+							el.onpointercancel = null;
+						};
+					}}></div>
+			</aside>
+
+			<!-- Collapsed-state tab — visible only when panel is hidden -->
+			<button
+				type="button"
+				class="properties-show-tab"
+				class:panel-visible={propertiesVisible}
+				aria-hidden={propertiesVisible}
+				title="Show properties"
+				onclick={() => (propertiesVisible = true)}>
+				<span class="properties-toggle-chevron">›</span>
+				<span class="properties-toggle-label">Properties</span>
+			</button>
+
 			<div
 				class="graph-drop-zone"
 				role="application"
@@ -958,7 +963,8 @@
 					onNodeCollapsedChange={setNodeCollapsed}
 					onConnect={connectNodes}
 					onBackgroundContextMenu={openContextMenu}
-					onCreateRequest={openCreateRequest} />
+					onCreateRequest={openCreateRequest}
+					toolbarEnd={toolbarEndContent} />
 				{#if diagnostics.length > 0}
 					<aside class="diagnostics" aria-label="Formula diagnostics">
 						{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
@@ -988,8 +994,7 @@
 
 <style>
 	.alchemist-editor-panel {
-		display: grid;
-		grid-template-rows: auto minmax(0, 1fr);
+		position: relative;
 		inline-size: 100%;
 		block-size: 100%;
 		min-inline-size: 0;
@@ -999,105 +1004,116 @@
 		background: var(--gc-color-background);
 	}
 
-	header {
-		display: flex;
-		align-items: center;
-		gap: 0.65rem;
-		min-block-size: 2.7rem;
-		padding: 0.4rem 0.65rem;
-		border-block-end: 0.06rem solid var(--gc-color-border);
-		background: var(--gc-color-background-soft);
-	}
-
-	.identity {
-		display: grid;
-		min-inline-size: 8rem;
-		gap: 0.1rem;
-	}
-
-	.identity strong {
-		font-size: 0.75rem;
-	}
-
-	.identity span,
-	.picker span,
-	.save-status {
-		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
-		font-size: 0.62rem;
-	}
-
-	.identity .valid {
-		color: var(--gc-color-success, #58b878);
-	}
-
-	.identity .invalid,
-	.save-status.error {
-		color: var(--gc-color-error);
-	}
-
-	.picker {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-	}
-
-	.picker select {
-		min-block-size: 1.65rem;
-		padding: 0.2rem 0.45rem;
-		border: 0.06rem solid var(--gc-color-border);
-		border-radius: 0.3rem;
-		background: var(--gc-color-background);
-		color: var(--gc-color-text);
-		font: inherit;
-		font-size: 0.66rem;
-	}
-
-	.properties-toggle {
-		min-block-size: 1.65rem;
-		padding: 0.2rem 0.5rem;
-		border: 0.06rem solid var(--gc-color-border);
-		border-radius: 0.3rem;
-		background: var(--gc-color-background);
-		color: color-mix(in srgb, var(--gc-color-text) 68%, transparent);
-		font: inherit;
-		font-size: 0.66rem;
-		cursor: pointer;
-	}
-
-	.properties-toggle.active {
-		border-color: color-mix(in srgb, var(--gc-color-accent) 55%, var(--gc-color-border));
-		color: var(--gc-color-text);
-		background: color-mix(in srgb, var(--gc-color-accent) 14%, var(--gc-color-background));
-	}
-
-	.node-add {
-		margin-inline-start: auto;
-	}
-
-	.save-status {
-		min-inline-size: 3.5rem;
-		text-align: end;
-	}
-
 	.editor-content {
 		position: relative;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		inline-size: 100%;
+		block-size: 100%;
 		min-inline-size: 0;
 		min-block-size: 0;
+		overflow: hidden;
 	}
 
-	.editor-content.properties-visible {
-		grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
-	}
-
+	/* Properties panel — glass overlay sliding in from the left */
 	.properties-panel {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-start: 0;
+		z-index: 20;
 		display: grid;
-		grid-template-rows: auto minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr) auto;
 		min-inline-size: 0;
 		min-block-size: 0;
-		border-inline-end: 0.06rem solid var(--gc-color-border);
-		background: var(--gc-color-background-soft);
+		border-inline-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 72%, transparent);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		box-shadow: 0.5rem 0 2rem color-mix(in srgb, black 32%, transparent);
+		transform: translateX(-100%);
+		transition: transform 0.22s cubic-bezier(0.2, 0, 0.13, 1);
+		pointer-events: none;
+	}
+
+	.properties-panel.visible {
+		transform: translateX(0);
+		pointer-events: auto;
+	}
+
+	/* Toggle button inside the panel heading */
+	.properties-toggle-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.18rem 0.3rem 0.18rem 0.2rem;
+		border: none;
+		border-radius: 0.3rem;
+		background: transparent;
+		color: var(--gc-color-text);
+		font: inherit;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+
+	.properties-toggle-btn:hover {
+		background: color-mix(in srgb, var(--gc-color-accent, #66a6ff) 14%, transparent);
+	}
+
+	.properties-toggle-chevron {
+		font-size: 0.9rem;
+		line-height: 1;
+		color: color-mix(in srgb, var(--gc-color-text) 65%, transparent);
+	}
+
+	.properties-toggle-label {
+		font-size: 0.74rem;
+		font-weight: 600;
+	}
+
+	/* Collapsed-state tab — shown when panel is hidden */
+	.properties-show-tab {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 25;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.35rem 0.55rem 0.35rem 0.4rem;
+		border: none;
+		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		border-inline-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		border-end-end-radius: 0.4rem;
+		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 72%, transparent);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		color: var(--gc-color-text);
+		font: inherit;
+		cursor: pointer;
+		transition: opacity 0.18s, background 0.12s;
+	}
+
+	.properties-show-tab.panel-visible {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.properties-show-tab:not(.panel-visible):hover {
+		background: color-mix(in srgb, var(--gc-color-accent, #66a6ff) 18%, var(--gc-color-background-soft, #1a1a1a));
+	}
+
+	/* Resize handle on the right edge of the panel */
+	.panel-resize-handle {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-end: 0;
+		inline-size: 0.35rem;
+		cursor: col-resize;
+		z-index: 5;
+		touch-action: none;
+	}
+
+	.panel-resize-handle:hover,
+	.panel-resize-handle:active {
+		background: color-mix(in srgb, var(--gc-color-accent, #66a6ff) 55%, transparent);
 	}
 
 	.properties-heading {
@@ -1105,24 +1121,8 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
-		padding: 0.6rem 0.65rem;
-		border-block-end: 0.06rem solid var(--gc-color-border);
-	}
-
-	.properties-heading div {
-		display: grid;
-		gap: 0.15rem;
-	}
-
-	.properties-heading strong {
-		font-size: 0.75rem;
-	}
-
-	.properties-heading span,
-	.properties-empty {
-		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
-		font-size: 0.62rem;
-		line-height: 1.35;
+		padding: 0.28rem 0.5rem 0.28rem 0.35rem;
+		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
 	}
 
 	.property-tree {
@@ -1141,13 +1141,30 @@
 	.properties-empty {
 		margin: 0;
 		padding: 0.75rem;
+		color: color-mix(in srgb, var(--gc-color-text) 50%, transparent);
+		font-size: 0.65rem;
+		line-height: 1.4;
 	}
 
 	.graph-drop-zone {
-		position: relative;
+		position: absolute;
+		inset: 0;
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: hidden;
+	}
+
+	.save-indicator {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.72rem;
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		min-inline-size: 1rem;
+	}
+
+	.save-indicator.error {
+		color: var(--gc-color-error);
 	}
 
 	.empty-state {
