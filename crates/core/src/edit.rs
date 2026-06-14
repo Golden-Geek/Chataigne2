@@ -289,6 +289,18 @@ impl EditQueue {
                     },
                 });
             }
+            Edit::RemoveNode { node } => {
+                if !self.pending.iter().any(|request| {
+                    matches!(
+                        &request.edit,
+                        Edit::RemoveNode { node: existing_node } if *existing_node == node
+                    )
+                }) {
+                    self.pending.push(EditRequest {
+                        edit: Edit::RemoveNode { node },
+                    });
+                }
+            }
             edit => self.pending.push(EditRequest { edit }),
         }
     }

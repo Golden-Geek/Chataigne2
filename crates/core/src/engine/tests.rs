@@ -9578,6 +9578,32 @@ fn undo_redo_remove_node_restores_same_node_id() {
 }
 
 #[test]
+fn duplicate_remove_node_edits_coalesce_in_queue() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("child".to_string()), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let child = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("child should exist");
+
+    engine.edits.push(Edit::RemoveNode { node: child });
+    engine.edits.push(Edit::RemoveNode { node: child });
+    assert_eq!(
+        engine.edits.pending.len(),
+        1,
+        "identical pending removals should collapse before apply",
+    );
+
+    engine.apply_edits().expect("duplicate remove should apply once");
+    assert!(engine.nodes.get(child).is_none());
+    assert!(engine.undo().expect("undo should restore removed child"));
+    assert!(engine.nodes.get(child).is_some());
+}
+
+#[test]
 fn remove_node_runs_destroy_callbacks_immediately() {
     REMOVE_LIFECYCLE_DESTROY_COUNT.store(0, Ordering::SeqCst);
     REMOVE_LIFECYCLE_READY_COUNT.store(0, Ordering::SeqCst);
