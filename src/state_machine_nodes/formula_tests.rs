@@ -318,6 +318,72 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
 }
 
 #[test]
+fn formula_property_types_survive_project_reload() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula should own a Properties manager");
+    let specs = [
+        ("bool", "Enabled", ParamValue::Bool(false)),
+        ("int", "Count", ParamValue::Int(0)),
+        ("vec2", "Position", ParamValue::Vec2(0.0, 0.0)),
+        ("vec3", "Direction", ParamValue::Vec3(0.0, 0.0, 0.0)),
+        ("color", "Tint", ParamValue::Color(0.0, 0.0, 0.0, 1.0)),
+        ("str", "Name", ParamValue::Str(String::new())),
+    ];
+
+    for (property_type, label, _) in &specs {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: properties,
+            node_type: format!("{PROPERTY_CREATE_PREFIX}{property_type}"),
+            label: Some((*label).into()),
+            initial_params: Vec::new(),
+        });
+        assert!(
+            ack.success,
+            "{property_type} property creation should succeed: {ack:?}"
+        );
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("Project should encode");
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("Project should decode");
+    let loaded_formula = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+        })
+        .map(|(id, _)| id)
+        .expect("Formula should reload");
+    let loaded_properties =
+        find_child_by_decl(&loaded, loaded_formula, PROPERTIES_DECL_ID)
+            .expect("Properties manager should reload");
+
+    for (property_type, label, expected_value) in specs {
+        let property = direct_children(&loaded, loaded_properties)
+            .into_iter()
+            .find(|node| {
+                loaded.nodes.get(*node).is_some_and(|node| {
+                    node.get_type() == AlchemistProperty::NODE_TYPE
+                        && node.node_data().meta.label == label
+                })
+            })
+            .unwrap_or_else(|| panic!("{label} property should reload"));
+        assert_eq!(
+            parameter_value(&loaded, property, "property_type"),
+            ParamValue::Str(property_type.into()),
+            "{label} property type should survive reload"
+        );
+        assert_eq!(
+            parameter_value(&loaded, property, "value"),
+            expected_value,
+            "{label} property value parameter should keep its type"
+        );
+    }
+}
+
+#[test]
 fn anode_creation_materializes_visible_config_and_socket_nodes() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);

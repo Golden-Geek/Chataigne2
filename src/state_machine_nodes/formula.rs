@@ -5,7 +5,8 @@ use std::{
 
 use golden_alchemist::{
     ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula,
-    AlchemistGraph, ColorValue, CompileCtx, DiagnosticSeverity,
+    AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
+    DiagnosticSeverity,
     FormulaContextContract, FormulaId, FormulaSurface, InputSocketRef,
     OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
     SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
@@ -54,6 +55,10 @@ const PROPERTY_ANODE_TYPE: &str = "property";
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
 pub(crate) const TRIGGER_INPUT_SOCKET_ID: &str = "__trigger";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
+const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
+const FORMULA_WARNING_ID: &str = "alchemist_formula";
+const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
+    "alchemist_formula_diagnostic";
 
 fn tagged_value<'a>(tags: &'a [String], prefix: &str) -> Option<&'a str> {
     tags.iter().find_map(|tag| tag.strip_prefix(prefix))
@@ -668,8 +673,8 @@ fn anode_from_snapshot(
 }
 
 pub(crate) fn formula_from_snapshot(
-    snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
+	snapshot: &ProcessTreeSnapshot,
+	formula_node: NodeId,
 ) -> Result<AlchemistFormula, String> {
     let formula_snapshot = snapshot
         .node(formula_node)
@@ -750,6 +755,68 @@ pub(crate) fn formula_from_snapshot(
             ..FormulaContextContract::default()
         },
         migrations: Vec::new(),
+	})
+}
+
+fn formula_anode_node_ids(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> HashMap<ANodeId, NodeId> {
+    snapshot
+        .child_ids(formula_node)
+        .into_iter()
+        .filter_map(|child| {
+            let node = snapshot.node(child)?;
+            (node.node_type == ANODE_NODE_TYPE)
+                .then(|| (ANodeId::from_uuid(node.uuid.0), child))
+        })
+        .collect()
+}
+
+fn diagnostic_origin_node_id(
+    origin: &DiagnosticOrigin,
+    anode_node_ids: &HashMap<ANodeId, NodeId>,
+) -> Option<NodeId> {
+    match origin {
+        DiagnosticOrigin::Node(node)
+        | DiagnosticOrigin::Socket { node, .. } => {
+            anode_node_ids.get(node).copied()
+        }
+        DiagnosticOrigin::Graph
+        | DiagnosticOrigin::Registry
+        | DiagnosticOrigin::Runtime => None,
+    }
+}
+
+fn node_has_warning(
+    snapshot: &ProcessTreeSnapshot,
+    node: NodeId,
+    warning_id: &str,
+) -> bool {
+    snapshot.node(node).is_some_and(|node| {
+        node.presentation
+            .warnings
+            .iter()
+            .any(|warning| warning.id == warning_id)
+    })
+}
+
+fn node_warning_matches(
+    snapshot: &ProcessTreeSnapshot,
+    node: NodeId,
+    warning_id: &str,
+    message: &str,
+    detail: Option<&str>,
+) -> bool {
+    snapshot.node(node).is_some_and(|node| {
+        node.presentation
+            .warnings
+            .iter()
+            .find(|warning| warning.id == warning_id)
+            .is_some_and(|warning| {
+                warning.message == message
+                    && warning.detail.as_deref() == detail
+            })
     })
 }
 
@@ -839,12 +906,29 @@ impl Node for AlchemistANode {
         param: NodeId,
         _old_value: ParamValue,
     ) {
-        if ctx.tree_snapshot().is_some_and(|snapshot| {
-            is_anode_type_variable_config_param(snapshot, self.id(), param)
-        }) {
+        if param == self.trigger_input_enabled.id() {
+            self.reconcile_structure(ctx);
             return;
         }
-        self.reconcile_structure(ctx);
+
+        let should_reconcile = ctx.tree_snapshot().is_some_and(|snapshot| {
+            let Some(config_folder) =
+                snapshot.find_child_by_decl_id(self.id(), "config")
+            else {
+                return false;
+            };
+            snapshot
+                .node(param)
+                .is_some_and(|node| node.parent == Some(config_folder))
+                && !is_anode_type_variable_config_param(
+                    snapshot,
+                    self.id(),
+                    param,
+                )
+        });
+        if should_reconcile {
+            self.reconcile_structure(ctx);
+        }
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -1756,6 +1840,11 @@ impl AlchemistProperty {
         property.property_type.apply_runtime_value(&ParamValue::Str(
             property_type.to_owned(),
         ));
+        set_tag(
+            &mut property.node_data_mut().meta.tags,
+            PROPERTY_TYPE_TAG_PREFIX,
+            property_type,
+        );
         property.node_data_mut().meta.presentation.color =
             Some(value_type_color(property_type));
         property
@@ -1766,15 +1855,46 @@ impl AlchemistProperty {
             return;
         };
 
-        // Read the property type from the loaded `property_type` child rather
-        // than the in-memory field: during project load the field may not be
-        // synced yet, while the snapshot already reflects the saved value.
-        let property_type = child_string(&snapshot, self.id(), "property_type")
-            .unwrap_or_else(|| self.property_type.get_ref().to_owned());
+        // Newly created typed properties carry their type in node metadata so
+        // persistence cannot collapse them back to the default hidden field.
+        // Legacy files still resolve through the saved child.
+        let Some(property_type) =
+            tagged_value(&self.node_data().meta.tags, PROPERTY_TYPE_TAG_PREFIX)
+                .map(str::trim)
+                .filter(|value| property_default(value).is_some())
+                .map(ToOwned::to_owned)
+                .or_else(|| {
+                    child_string(&snapshot, self.id(), "property_type")
+                        .filter(|value| property_default(value).is_some())
+                })
+                .or_else(|| {
+                    let fallback = self.property_type.get_ref();
+                    (fallback != "float").then(|| fallback.to_owned())
+                })
+        else {
+            return;
+        };
 
         if self.node_data().meta.presentation.color.is_none() {
             self.node_data_mut().meta.presentation.color =
                 Some(value_type_color(&property_type));
+        }
+
+        if let Some(property_type_param) =
+            snapshot.find_child_by_decl_id(self.id(), "property_type")
+        {
+            let desired = ParamValue::Str(property_type.clone());
+            if snapshot
+                .node(property_type_param)
+                .and_then(|node| node.param_value.as_ref())
+                != Some(&desired)
+            {
+                ctx.edits.push(Edit::SetParam {
+                    node: property_type_param,
+                    value: desired,
+                    behaviour: ParameterEventBehaviour::Coalesce,
+                });
+            }
         }
 
         // Remove legacy / obsolete children
@@ -2376,6 +2496,8 @@ impl AlchemistFormulaDefinition {
         let Some(snapshot) = ctx.tree_snapshot() else {
             return;
         };
+        let anode_node_ids = formula_anode_node_ids(snapshot, self.id());
+        let mut node_diagnostics = HashMap::<NodeId, Vec<String>>::new();
         let result = formula_from_snapshot(snapshot, self.id()).map(|formula| {
             let value_types = value_types();
             let nodes = registry();
@@ -2389,6 +2511,23 @@ impl AlchemistFormulaDefinition {
         });
         let (valid, diagnostics) = match result {
             Ok(compilation) => {
+                for diagnostic in &compilation.diagnostics {
+                    if !matches!(
+                        diagnostic.severity,
+                        DiagnosticSeverity::Warning | DiagnosticSeverity::Error
+                    ) {
+                        continue;
+                    }
+                    if let Some(node_id) = diagnostic_origin_node_id(
+                        &diagnostic.origin,
+                        &anode_node_ids,
+                    ) {
+                        node_diagnostics
+                            .entry(node_id)
+                            .or_default()
+                            .push(diagnostic.message.clone());
+                    }
+                }
                 let diagnostics = compilation
                     .diagnostics
                     .iter()
@@ -2419,20 +2558,83 @@ impl AlchemistFormulaDefinition {
         };
         let diagnostics_json = serde_json::to_string(&diagnostics)
             .expect("Formula diagnostics must serialize");
-        self.is_valid.set(ctx, valid);
-        self.diagnostics_json.set(ctx, diagnostics_json);
-        if valid {
-            ctx.clear_node_warning(self.id(), Some("alchemist_formula"));
+        let diagnostic_node_ids =
+            node_diagnostics.keys().copied().collect::<HashSet<_>>();
+        let anode_warnings_to_clear = anode_node_ids
+            .values()
+            .copied()
+            .filter(|node_id| {
+                !diagnostic_node_ids.contains(node_id)
+                    && node_has_warning(
+                        snapshot,
+                        *node_id,
+                        ANODE_FORMULA_DIAGNOSTIC_WARNING_ID,
+                    )
+            })
+            .collect::<Vec<_>>();
+        let anode_warnings_to_set = node_diagnostics
+            .into_iter()
+            .filter_map(|(node_id, messages)| {
+                let detail = messages.join("\n");
+                let title = if messages.len() > 1 {
+                    "Formula issues"
+                } else {
+                    "Formula issue"
+                };
+                (!node_warning_matches(
+                    snapshot,
+                    node_id,
+                    ANODE_FORMULA_DIAGNOSTIC_WARNING_ID,
+                    title,
+                    Some(&detail),
+                ))
+                .then_some((node_id, title, detail))
+            })
+            .collect::<Vec<_>>();
+        let formula_warning_to_clear =
+            valid && node_has_warning(snapshot, self.id(), FORMULA_WARNING_ID);
+        let formula_warning_to_set = if valid {
+            None
         } else {
             let summary = diagnostics
                 .first()
                 .and_then(|diagnostic| diagnostic["message"].as_str())
                 .unwrap_or("Formula compilation failed");
-            ctx.set_node_warning_with(
+            (!node_warning_matches(
+                snapshot,
                 self.id(),
-                Some("alchemist_formula"),
+                FORMULA_WARNING_ID,
                 "Formula is invalid",
                 Some(summary),
+            ))
+            .then_some(summary.to_owned())
+        };
+        self.is_valid.set(ctx, valid);
+        self.diagnostics_json.set(ctx, diagnostics_json);
+        for node_id in anode_warnings_to_clear {
+            ctx.clear_node_warning(
+                node_id,
+                Some(ANODE_FORMULA_DIAGNOSTIC_WARNING_ID),
+            );
+        }
+        for (node_id, title, detail) in anode_warnings_to_set {
+            ctx.set_node_warning_with(
+                node_id,
+                Some(ANODE_FORMULA_DIAGNOSTIC_WARNING_ID),
+                title,
+                Some(&detail),
+            );
+        }
+        if valid {
+            if formula_warning_to_clear {
+                ctx.clear_node_warning(self.id(), Some(FORMULA_WARNING_ID));
+            }
+        } else if let Some(summary) = formula_warning_to_set {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_WARNING_ID),
+                "Formula is invalid",
+                Some(&summary),
             );
         }
     }

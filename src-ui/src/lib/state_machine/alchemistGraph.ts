@@ -1,4 +1,4 @@
-import type { GraphEdge, GraphNode, GraphSocket } from 'golden_alchemist_ui';
+import type { GraphConnectionRequest, GraphEdge, GraphNode, GraphSocket } from 'golden_alchemist_ui';
 import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 
 export const FORMULA_NODE_TYPE = 'alchemist_formula';
@@ -86,6 +86,45 @@ const valueTypeColor = (typeId: string | null | undefined): string | undefined =
 	}
 };
 
+const normalizeGraphValueType = (typeId: string | null | undefined): string | null => {
+	const value = typeId?.trim();
+	if (!value) return null;
+	switch (value) {
+		case 'str':
+		case 'file':
+		case 'enum':
+		case 'css_value':
+			return 'string';
+		default:
+			return value;
+	}
+};
+
+const CONVERTIBLE_VALUE_TYPES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+	Object.entries({
+		unit: ['bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
+		bool: ['unit', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
+		trigger: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
+		int: ['unit', 'bool', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
+		float: ['unit', 'bool', 'int', 'string', 'vec2', 'vec3', 'color', 'duration'],
+		string: ['unit', 'bool', 'int', 'float', 'vec2', 'vec3', 'color', 'duration'],
+		vec2: ['unit', 'bool', 'int', 'float', 'string', 'vec3', 'color', 'duration'],
+		vec3: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'color', 'duration'],
+		color: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'duration'],
+		duration: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color']
+	}).map(([source, targets]) => [source, new Set(targets)])
+);
+
+export const canCoerceGraphValueType = (
+	fromType: string | null | undefined,
+	toType: string | null | undefined
+): boolean => {
+	const from = normalizeGraphValueType(fromType);
+	const to = normalizeGraphValueType(toType);
+	if (!from || !to) return true;
+	return from === to || (CONVERTIBLE_VALUE_TYPES.get(from)?.has(to) ?? false);
+};
+
 const componentSpecs = (
 	valueType: string | null | undefined
 ): { component: string; label: string }[] => {
@@ -117,7 +156,8 @@ const socketWithComponents = (
 	id: string,
 	label: string,
 	valueType: string | undefined,
-	color: string | undefined
+	color: string | undefined,
+	defaultParamId?: string
 ): GraphSocket => {
 	const children = componentSpecs(valueType).map(({ component, label }) => ({
 		id: `${id}.${component}`,
@@ -132,6 +172,7 @@ const socketWithComponents = (
 		label,
 		valueType,
 		color,
+		defaultParamId,
 		children: children.length > 0 ? children : undefined
 	};
 };
@@ -203,6 +244,23 @@ const socketParameter = (
 	return null;
 };
 
+const socketDefaultParamId = (
+	socket: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	direction: 'inputs' | 'outputs',
+	socketId: string
+): string | undefined => {
+	if (direction !== 'inputs') return undefined;
+	const declId = `${direction}/${socketId}/value`;
+	for (const childId of socket.children) {
+		const child = nodesById.get(childId);
+		if (child?.decl_id === declId && child.data.kind === 'parameter') {
+			return String(child.node_id);
+		}
+	}
+	return undefined;
+};
+
 const graphSockets = (
 	anode: UiNodeDto,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
@@ -218,7 +276,8 @@ const graphSockets = (
 		if (!id) return [];
 		const valueType = socketParameter(socket, nodesById, '/value_type') ?? undefined;
 		const color = metadataColor(socket.meta.presentation?.color) ?? valueTypeColor(valueType);
-		return [socketWithComponents(id, socket.meta.label, valueType, color)];
+		const defaultParamId = socketDefaultParamId(socket, nodesById, folderDeclId, id);
+		return [socketWithComponents(id, socket.meta.label, valueType, color, defaultParamId)];
 	});
 };
 
@@ -238,6 +297,45 @@ const visibleConfigParameterCount = (
 	}, 0);
 };
 
+const socketLabelWidth = (socket: GraphSocket): number =>
+	1.25 + Math.max(1.2, socket.label.length * 0.36);
+
+const socketDefaultEditorWidth = (socket: GraphSocket): number => {
+	if (!socket.defaultParamId) return 0;
+	switch (normalizeGraphValueType(socket.valueType)) {
+		case 'vec3':
+		case 'color':
+			return 14.4;
+		case 'vec2':
+			return 11.2;
+		case 'bool':
+			return 3.6;
+		case 'int':
+		case 'float':
+		case 'duration':
+			return 9.2;
+		default:
+			return 9.5;
+	}
+};
+
+const inputSocketWidth = (socket: GraphSocket): number =>
+	socketLabelWidth(socket) +
+	(socket.children && socket.children.length > 0 ? 0.85 : 0.35) +
+	socketDefaultEditorWidth(socket);
+
+const outputSocketWidth = (socket: GraphSocket): number =>
+	socketLabelWidth(socket) + (socket.children && socket.children.length > 0 ? 0.85 : 0.35);
+
+const maxSocketWidth = (
+	sockets: readonly GraphSocket[],
+	measure: (socket: GraphSocket) => number
+): number =>
+	sockets.reduce(
+		(width, socket) => Math.max(width, measure(socket), maxSocketWidth(socket.children ?? [], measure)),
+		0
+	);
+
 const graphAutomaticSize = (
 	inputs: readonly GraphSocket[],
 	outputs: readonly GraphSocket[],
@@ -245,8 +343,10 @@ const graphAutomaticSize = (
 ): { width: number; height: number } => {
 	const socketRows = Math.max(inputs.length, outputs.length, 1);
 	const configHeight = configRows > 0 ? 0.35 + configRows * 1.95 : 0;
+	const inputWidth = Math.max(7.5, maxSocketWidth(inputs, inputSocketWidth));
+	const outputWidth = Math.max(3.2, maxSocketWidth(outputs, outputSocketWidth));
 	return {
-		width: 15,
+		width: Math.min(38, Math.max(15, inputWidth + outputWidth + 1.2)),
 		height: 2.35 + socketRows * 1.45 + configHeight + 0.45
 	};
 };
@@ -262,6 +362,38 @@ const collectSockets = (
 			collectSockets(nodeId, socket.children, result);
 		}
 	}
+};
+
+export const graphSocketsByRef = (nodes: readonly GraphNode[]): Map<string, GraphSocket> => {
+	const result = new Map<string, GraphSocket>();
+	for (const node of nodes) {
+		collectSockets(node.id, node.inputs, result);
+		collectSockets(node.id, node.outputs, result);
+		if (node.headerInputs) {
+			collectSockets(node.id, node.headerInputs, result);
+		}
+	}
+	return result;
+};
+
+export const canConnectGraphSockets = (
+	source: GraphSocket | null | undefined,
+	target: GraphSocket | null | undefined
+): boolean => {
+	if (!source || !target) return false;
+	if (source.compatible === false || target.compatible === false) return false;
+	return canCoerceGraphValueType(source.valueType, target.valueType);
+};
+
+export const canConnectGraphConnection = (
+	nodes: readonly GraphNode[],
+	connection: GraphConnectionRequest
+): boolean => {
+	const socketsByRef = graphSocketsByRef(nodes);
+	return canConnectGraphSockets(
+		socketsByRef.get(`${connection.from.nodeId}:${connection.from.socketId}`),
+		socketsByRef.get(`${connection.to.nodeId}:${connection.to.socketId}`)
+	);
 };
 
 const formulaSocketsByRef = (
@@ -325,6 +457,12 @@ const formulaPropertiesByUuid = (
 	return byUuid;
 };
 
+const nodeWarning = (node: UiNodeDto): string | undefined => {
+	const warning = node.meta.presentation?.warnings?.[0];
+	if (!warning) return undefined;
+	return warning.detail?.trim() || warning.message;
+};
+
 export const toGraphNodes = (
 	formula: UiNodeDto | null | undefined,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
@@ -356,6 +494,7 @@ export const toGraphNodes = (
 			? stringParameter(config, nodesById, 'config/property_id')
 			: null;
 		const propertyNode = propertyId ? propertiesByUuid.get(propertyId) : undefined;
+		const warning = nodeWarning(anode);
 		return {
 			id: String(anode.node_id),
 			label: anode.meta.label,
@@ -376,7 +515,8 @@ export const toGraphNodes = (
 					: undefined,
 			automaticSize: compactNode ? undefined : graphAutomaticSize(bodyInputs, outputs, configRows),
 			resizable: !compactNode,
-			invalid: typeId.length === 0,
+			invalid: typeId.length === 0 || warning !== undefined,
+			warning,
 			inputs: bodyInputs,
 			outputs,
 			headerInputs: triggerSocket ? [triggerSocket] : undefined

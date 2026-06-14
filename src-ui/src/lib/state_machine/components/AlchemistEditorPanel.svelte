@@ -47,9 +47,11 @@
 		PROPERTY_NODE_TYPE,
 		directChild,
 		formulaANodes,
+		canConnectGraphConnection,
 		managerAnodeType,
 		parameterChild,
-		toGraphEdges
+		toGraphEdges,
+		toGraphNodes
 	} from '../alchemistGraph';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
 
@@ -163,6 +165,12 @@
 			return [];
 		}
 	});
+	let primaryDiagnostic = $derived(
+		diagnostics.find((diagnostic) => diagnostic.severity === 'error') ?? diagnostics[0] ?? null
+	);
+	let formulaStatusTitle = $derived(
+		formulaValid ? 'Formula valid' : (primaryDiagnostic?.message ?? 'Formula invalid')
+	);
 	let anodeItems = $derived(
 		formula?.creatable_user_items.filter((item) =>
 			item.node_type.startsWith(ANODE_CREATE_PREFIX)
@@ -719,6 +727,8 @@
 		const source = graphState.nodesById.get(Number(connection.from.nodeId));
 		const target = graphState.nodesById.get(Number(connection.to.nodeId));
 		if (source?.node_type !== ANODE_NODE_TYPE || target?.node_type !== ANODE_NODE_TYPE) return;
+		const graphNodes = toGraphNodes(formula, graphState.nodesById, anodeItems);
+		if (!canConnectGraphConnection(graphNodes, connection)) return;
 		const edges = toGraphEdges(formula, graphState.nodesById);
 		if (
 			edges.some(
@@ -844,9 +854,19 @@
 	{#if formula && anodeItems.length > 0}
 		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
 	{/if}
-	{#if saveStatus !== 'idle'}
+	{#if formula}
+		<span
+			class="formula-status"
+			class:valid={formulaValid}
+			class:error={!formulaValid}
+			title={formulaStatusTitle}
+			aria-label={formulaStatusTitle}>
+			{formulaValid ? '✓' : '!'}
+		</span>
+	{/if}
+	{#if saveStatus === 'saving' || saveStatus === 'error'}
 		<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
-			{saveStatus === 'saving' ? '…' : saveStatus === 'saved' ? '✓' : '!'}
+			{saveStatus === 'saving' ? '…' : '!'}
 		</span>
 	{/if}
 {/snippet}
@@ -1174,6 +1194,7 @@
 		overflow: hidden;
 	}
 
+	.formula-status,
 	.save-indicator {
 		display: inline-flex;
 		align-items: center;
@@ -1181,6 +1202,22 @@
 		font-size: 0.72rem;
 		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
 		min-inline-size: 1rem;
+	}
+
+	.formula-status {
+		block-size: 1rem;
+		border: 0.06rem solid currentColor;
+		border-radius: 999rem;
+		font-weight: 800;
+		line-height: 1;
+	}
+
+	.formula-status.valid {
+		color: color-mix(in srgb, var(--gc-color-success, #61d394) 88%, transparent);
+	}
+
+	.formula-status.error {
+		color: var(--gc-color-error);
 	}
 
 	.save-indicator.error {

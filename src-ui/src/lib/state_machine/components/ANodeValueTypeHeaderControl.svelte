@@ -1,7 +1,5 @@
 <script lang="ts">
-	import type { UiNodeDto } from 'golden_ui';
-	import EnableButton from 'golden_ui/components/common/EnableButton.svelte';
-	import DropdownEditor from 'golden_ui/components/panels/inspector/parameters/DropdownEditor.svelte';
+	import { DropdownEditor, EnableButton, type UiNodeDto } from 'golden_ui';
 
 	let { parameter }: { parameter: UiNodeDto } = $props();
 </script>
@@ -23,16 +21,27 @@
 	.value-type-header-control {
 		display: flex;
 		align-items: center;
+		justify-content: flex-end;
 		gap: 0.28rem;
+		block-size: 100%;
 		min-inline-size: 0;
 		max-inline-size: 7.6rem;
 		padding-inline: 0.2rem 0.34rem;
 	}
 
+	.value-type-header-control :global(.enable-button) {
+		flex: 0 0 auto;
+		inline-size: 0.56rem;
+		block-size: 0.56rem;
+		margin: 0;
+	}
+
 	.value-type-select {
+		display: flex;
+		align-items: center;
 		min-inline-size: 4.3rem;
 		max-inline-size: 6.6rem;
-		block-size: 1.05rem;
+		block-size: 1.12rem;
 	}
 
 	.value-type-select :global(.dropdown-editor) {

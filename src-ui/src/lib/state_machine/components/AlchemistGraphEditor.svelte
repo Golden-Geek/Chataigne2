@@ -7,17 +7,20 @@
 		type GraphNodeCreationRequest,
 		type GraphNodeMove,
 		type GraphNodePosition,
-		type GraphNodeResize
+		type GraphNodeResize,
+		type GraphSocket
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import {
 		anodeType,
 		bodyConfigParameters,
+		canConnectGraphConnection,
 		toGraphEdges,
 		toGraphNodes,
 		valueTypeConfigParameter
 	} from '../alchemistGraph';
 	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
+	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
 	import ANodeValueTypeHeaderControl from './ANodeValueTypeHeaderControl.svelte';
 
 	let {
@@ -88,6 +91,10 @@
 
 	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
 	const isPropertyGetter = (node: UiNodeDto): boolean => anodeType(node) === 'property';
+	const inputDefaultParameter = (socket: GraphSocket): UiNodeDto | null =>
+		socket.defaultParamId ? (nodesById.get(Number(socket.defaultParamId)) ?? null) : null;
+	const canConnect = (connection: GraphConnectionRequest): boolean =>
+		canConnectGraphConnection(nodes, connection);
 
 	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
 		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
@@ -115,6 +122,13 @@
 	{/if}
 {/snippet}
 
+{#snippet inputSocketContent(_graphNode: GraphNode, socket: GraphSocket)}
+	{@const parameter = inputDefaultParameter(socket)}
+	{#if parameter}
+		<ANodeSocketDefaultEditor {parameter} />
+	{/if}
+{/snippet}
+
 <div class="alchemist-graph-editor">
 	<GraphCanvas
 		bind:this={graphCanvas}
@@ -128,10 +142,12 @@
 		{onNodeRename}
 		{onNodeCollapsedChange}
 		{onConnect}
+		{canConnect}
 		{onBackgroundContextMenu}
 		{onCreateRequest}
 		{nodeContent}
 		{nodeHeaderContent}
+		{inputSocketContent}
 		{toolbarEnd}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"
