@@ -700,6 +700,11 @@ fn disabled_math_input_count_tracks_connected_trailing_socket() {
         find_child_by_decl(&engine, inputs, "inputs/value3").is_some(),
         "Math should materialize one free trailing dynamic input"
     );
+    assert_eq!(
+        count_children_by_decl(&engine, inputs, "inputs/value3"),
+        1,
+        "Math should not materialize duplicate trailing dynamic inputs"
+    );
 
     let connection_to_value2 = direct_children(&engine, formula)
         .into_iter()
@@ -723,6 +728,51 @@ fn disabled_math_input_count_tracks_connected_trailing_socket() {
     assert!(
         find_child_by_decl(&engine, inputs, "inputs/value3").is_none(),
         "Math should remove obsolete trailing dynamic inputs"
+    );
+}
+
+#[test]
+fn disabled_concatenate_input_count_tracks_connected_trailing_socket() {
+    let (mut engine, formula) = engine_with_formula();
+    create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    create_anode(&mut engine, formula, "constant", 6.0, 3.0);
+    create_anode(&mut engine, formula, "concatenate", 10.0, 3.0);
+    let constants = direct_children(&engine, formula)
+        .into_iter()
+        .filter(|node_id| {
+            engine.nodes.get(*node_id).is_some_and(|node| {
+                node.get_type() == AlchemistANode::NODE_TYPE
+                    && anode_type(&engine, *node_id).as_deref() == Some("constant")
+            })
+        })
+        .collect::<Vec<_>>();
+    let concatenate = find_anode_by_type(&engine, formula, "concatenate");
+    set_constant_value_type(&mut engine, constants[0], "string");
+    set_constant_value_type(&mut engine, constants[1], "string");
+
+    create_connection(&mut engine, formula, constants[0], "value", concatenate, "part1");
+    create_connection(&mut engine, formula, constants[1], "value", concatenate, "part2");
+
+    let config =
+        find_child_by_decl(&engine, concatenate, "config").expect("Concatenate config should exist");
+    let inputs =
+        find_child_by_decl(&engine, concatenate, "inputs").expect("Concatenate inputs should exist");
+    assert_eq!(
+        parameter_value(&engine, config, "config/num_inputs"),
+        ParamValue::Int(3),
+        "Disabled Concatenate num_inputs should auto-grow when all visible inputs are connected"
+    );
+    assert_eq!(
+        count_children_by_decl(&engine, inputs, "inputs/part3"),
+        1,
+        "Concatenate should materialize exactly one free trailing dynamic input"
+    );
+    assert_anode_socket_types(
+        &engine,
+        concatenate,
+        &["part1", "part2", "part3"],
+        &["result"],
+        "string",
     );
 }
 
@@ -1203,6 +1253,19 @@ fn find_child_by_decl(
     engine
         .process_tree_snapshot()
         .find_child_by_decl_id(parent, decl_id)
+}
+
+fn count_children_by_decl(engine: &AppEngine, parent: NodeId, decl_id: &str) -> usize {
+    let snapshot = engine.process_tree_snapshot();
+    snapshot
+        .child_ids(parent)
+        .into_iter()
+        .filter(|child| {
+            snapshot
+                .node(*child)
+                .is_some_and(|node| node.decl_id == decl_id)
+        })
+        .count()
 }
 
 fn find_descendant_by_decl(

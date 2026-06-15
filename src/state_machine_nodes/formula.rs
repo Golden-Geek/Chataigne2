@@ -460,12 +460,56 @@ fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
     })
 }
 
+fn child_add_pending(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
+    ctx.edits.pending.iter().any(|request| match &request.edit {
+        Edit::AddNode {
+            parent: pending_parent,
+            node,
+            ..
+        } => {
+            *pending_parent == parent
+                && node.node_data().meta.decl_id.0.as_str() == decl_id
+        }
+        Edit::AddNodeTree {
+            parent: pending_parent,
+            tree,
+            ..
+        } => {
+            *pending_parent == parent
+                && tree.node.node_data().meta.decl_id.0.as_str() == decl_id
+        }
+        _ => false,
+    })
+}
+
+fn add_child_tree_once(
+    ctx: &mut ProcessCtx,
+    parent: NodeId,
+    tree: NodeTree,
+    after: Option<NodeId>,
+) {
+    let decl_id = tree.node.node_data().meta.decl_id.clone();
+    if child_add_pending(ctx, parent, decl_id.0.as_str()) {
+        return;
+    }
+    ctx.add_child_tree(parent, tree, after);
+}
+
 fn replace_child_tree_once(
     ctx: &mut ProcessCtx,
     parent: NodeId,
     existing: Option<NodeId>,
     tree: NodeTree,
 ) {
+    let decl_id = tree.node.node_data().meta.decl_id.clone();
+    if child_add_pending(ctx, parent, decl_id.0.as_str()) {
+        if let Some(existing) = existing {
+            if !node_removal_pending(ctx, existing) {
+                ctx.edits.push(Edit::RemoveNode { node: existing });
+            }
+        }
+        return;
+    }
     if let Some(existing) = existing {
         if node_removal_pending(ctx, existing) {
             return;
@@ -1429,7 +1473,7 @@ impl AlchemistANode {
                     &ValueTypeId::new("trigger"),
                     &golden_alchemist::RuntimeValue::Trigger(golden_alchemist::TriggerValue::default()),
                 ) {
-                    ctx.add_child_tree(inputs_folder, tree, None);
+                    add_child_tree_once(ctx, inputs_folder, tree, None);
                 }
             }
         }
@@ -1554,14 +1598,29 @@ impl AlchemistANode {
         parent: NodeId,
         desired_decl_ids: &HashSet<String>,
     ) {
+        let replaced_decl_ids = snapshot
+            .child_ids(parent)
+            .into_iter()
+            .filter_map(|child| {
+                let child_snapshot = snapshot.node(child)?;
+                (desired_decl_ids.contains(child_snapshot.decl_id.as_str())
+                    && node_removal_pending(ctx, child))
+                .then(|| child_snapshot.decl_id.clone())
+            })
+            .collect::<HashSet<_>>();
+        let mut retained_decl_ids = HashSet::<String>::new();
         for child in snapshot.child_ids(parent) {
             let Some(child_snapshot) = snapshot.node(child) else {
                 continue;
             };
-            if !desired_decl_ids.contains(child_snapshot.decl_id.as_str()) {
-                if !node_removal_pending(ctx, child) {
-                    ctx.edits.push(Edit::RemoveNode { node: child });
-                }
+            let is_desired =
+                desired_decl_ids.contains(child_snapshot.decl_id.as_str());
+            let is_duplicate = is_desired
+                && (replaced_decl_ids.contains(&child_snapshot.decl_id)
+                    || !retained_decl_ids.insert(child_snapshot.decl_id.clone()));
+            if (!is_desired || is_duplicate) && !node_removal_pending(ctx, child)
+            {
+                ctx.edits.push(Edit::RemoveNode { node: child });
             }
         }
     }
@@ -2633,17 +2692,18 @@ impl AlchemistFormulaDefinition {
                     .or_else(|| default_runtime_value(&value_type).ok())
                     .unwrap_or(RuntimeValue::Float(0.0));
                 let decl_id = socket_decl_id("inputs", input.id.as_str());
-                let existing =
-                    snapshot.find_child_by_decl_id(inputs_folder, &decl_id);
-                let needs_rebuild = existing.is_none_or(|socket| {
-                    !input_socket_matches(
-                        &snapshot,
-                        socket,
-                        input.id.as_str(),
-                        &value_type,
-                        &default,
-                    )
-                });
+                let Some(existing) =
+                    snapshot.find_child_by_decl_id(inputs_folder, &decl_id)
+                else {
+                    continue;
+                };
+                let needs_rebuild = !input_socket_matches(
+                    &snapshot,
+                    existing,
+                    input.id.as_str(),
+                    &value_type,
+                    &default,
+                );
                 if !needs_rebuild {
                     continue;
                 }
@@ -2653,7 +2713,7 @@ impl AlchemistFormulaDefinition {
                     &value_type,
                     &default,
                 ) {
-                    replace_child_tree_once(ctx, inputs_folder, existing, tree);
+                    replace_child_tree_once(ctx, inputs_folder, Some(existing), tree);
                 }
             }
 
@@ -2665,23 +2725,24 @@ impl AlchemistFormulaDefinition {
                         constraint_value_type(&output.constraint, &fallback_bindings)
                     });
                 let decl_id = socket_decl_id("outputs", output.id.as_str());
-                let existing =
-                    snapshot.find_child_by_decl_id(outputs_folder, &decl_id);
-                let needs_rebuild = existing.is_none_or(|socket| {
-                    !output_socket_matches(
-                        &snapshot,
-                        socket,
-                        output.id.as_str(),
-                        &value_type,
-                    )
-                });
+                let Some(existing) =
+                    snapshot.find_child_by_decl_id(outputs_folder, &decl_id)
+                else {
+                    continue;
+                };
+                let needs_rebuild = !output_socket_matches(
+                    &snapshot,
+                    existing,
+                    output.id.as_str(),
+                    &value_type,
+                );
                 if !needs_rebuild {
                     continue;
                 }
                 replace_child_tree_once(
                     ctx,
                     outputs_folder,
-                    existing,
+                    Some(existing),
                     output_socket_tree(
                         output.id.as_str(),
                         &output.label,
