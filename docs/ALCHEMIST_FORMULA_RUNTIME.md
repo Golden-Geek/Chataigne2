@@ -111,6 +111,13 @@ The reusable core boundary is `evaluate_compiled_graph`: callers provide a
 processors own a shared `CompiledAlchemistFormula` reference plus their own
 memory and property frame.
 
+Node declarations own their persistent state shape through `NodeStateLayout`.
+The default maps `ExecutionKind::Stateful` to one runtime value slot and all
+other execution kinds to no slots, but a declaration may request multiple
+runtime value slots when its temporal behavior needs distinct memory cells.
+The compiler assigns each enabled node a contiguous state slice from that
+layout; disabled nodes receive an empty state slice.
+
 Default memory identity:
 
 ```text

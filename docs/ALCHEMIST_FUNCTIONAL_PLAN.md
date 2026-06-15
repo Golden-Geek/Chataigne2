@@ -119,7 +119,7 @@ phases. Do not carry half-remembered implementation details between phases.
 | 1 - Architecture doc first | Done | Ready | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`. |
 | 2 - Property schema and runtime property slots | Done | Ready | Added schema-driven property slots, runtime property frames, and non-materialized processor compile path. |
 | 3 - Split compiled graph from memory | Done | Ready | Added `CompiledAlchemistFormula`, `FormulaCompileKey`, lower-level `evaluate_compiled_graph`, and shared compiled formula use in processor runtime. |
-| 4 - Generalized state layout | Todo | Pending | Not started. |
+| 4 - Generalized state layout | Done | Ready | Added `NodeStateLayout`, declaration-owned state slot sizing, compiler wiring, and layout tests. |
 | 5 - Context axes, stable context keys, sparse lane memory | Todo | Pending | Not started. |
 | 6 - Formula and processor lane analysis | Todo | Pending | Not started. |
 | 7 - Refactor `ProcessorRuntime` | Todo | Pending | Not started. |
