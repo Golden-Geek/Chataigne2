@@ -141,6 +141,36 @@ retains a shared compiled Formula and a sparse `LaneRuntimePool`; lifecycle
 memory resets clear the whole pool and the next evaluation lazily recreates only
 the lanes that are still used.
 
+Formula lane analysis is computed during compilation. Node declarations may
+declare direct context axes; those axes propagate through compiled input sources
+so `FormulaAnalysis` can distinguish all explicit context reads, axes reaching
+stateful nodes, and axes reaching effect emitters.
+
+Processor lane analysis is app-owned. Chataigne combines `FormulaAnalysis` with
+`ProcessorBindingAnalysis` to build a `ProcessorExecutionPlan`:
+
+```text
+required_eval_axes =
+  processor property binding axes
+  union formula explicit context axes
+  union processor input binding axes
+  union processor output routing axes
+  union formula effect axes
+
+required_memory_axes =
+  if formula has stateful nodes:
+    formula state axes
+    union processor property binding axes
+    union processor input binding axes
+  else:
+    empty
+```
+
+The plan selects one of four strategies: `SingleStateless`,
+`MultiStateless`, `SingleStateful`, or `MultiStatefulSparse`. Evaluation uses
+the plan's eval axes to choose context keys, and projects each context key onto
+the plan's memory axes before accessing lane memory.
+
 ## Optimization Matrix
 
 ```text

@@ -5,8 +5,9 @@ use uuid::Uuid;
 use golden_alchemist::{
     AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
     ContextKey, ContextValuePath, DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame,
-    FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
-    RuntimeSubscription, RuntimeValue, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    FormulaAnalysis, FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame, RuntimeOutput,
+    RuntimePropertyFrame, RuntimeSubscription, RuntimeValue, compile_graph, evaluate_compiled_graph,
+    evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::IndexSet;
@@ -80,6 +81,73 @@ pub trait ProcessorContextProvider {
         axis: &ContextAxisId,
         path: &ContextValuePath,
     ) -> Option<RuntimeValue>;
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProcessorBindingAnalysis {
+    pub property_axes: AxisSet,
+    pub input_axes: AxisSet,
+    pub output_axes: AxisSet,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProcessorExecutionStrategy {
+    SingleStateless,
+    MultiStateless,
+    SingleStateful,
+    MultiStatefulSparse,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProcessorExecutionPlan {
+    pub processor_id: ProcessorId,
+    pub available_axes: AxisSet,
+    pub required_eval_axes: AxisSet,
+    pub required_memory_axes: AxisSet,
+    pub strategy: ProcessorExecutionStrategy,
+}
+
+impl ProcessorExecutionPlan {
+    #[must_use]
+    pub fn analyze(
+        processor_id: ProcessorId,
+        formula: &FormulaAnalysis,
+        bindings: &ProcessorBindingAnalysis,
+        available_axes: AxisSet,
+    ) -> Self {
+        let mut required_eval_axes = AxisSet::new();
+        extend_axes(&mut required_eval_axes, &bindings.property_axes);
+        extend_axes(&mut required_eval_axes, &formula.explicit_context_axes);
+        extend_axes(&mut required_eval_axes, &bindings.input_axes);
+        extend_axes(&mut required_eval_axes, &bindings.output_axes);
+        extend_axes(&mut required_eval_axes, &formula.effect_axes);
+
+        let mut required_memory_axes = AxisSet::new();
+        if formula.has_stateful_nodes {
+            extend_axes(&mut required_memory_axes, &formula.state_axes);
+            extend_axes(&mut required_memory_axes, &bindings.property_axes);
+            extend_axes(&mut required_memory_axes, &bindings.input_axes);
+        }
+
+        let strategy = match (formula.has_stateful_nodes, required_eval_axes.is_empty()) {
+            (false, true) => ProcessorExecutionStrategy::SingleStateless,
+            (false, false) => ProcessorExecutionStrategy::MultiStateless,
+            (true, true) => ProcessorExecutionStrategy::SingleStateful,
+            (true, false) => ProcessorExecutionStrategy::MultiStatefulSparse,
+        };
+
+        Self {
+            processor_id,
+            available_axes,
+            required_eval_axes,
+            required_memory_axes,
+            strategy,
+        }
+    }
+}
+
+fn extend_axes(target: &mut AxisSet, source: &AxisSet) {
+    target.extend(source.iter().cloned());
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -173,6 +241,7 @@ impl ProcessorDirtyFlags {
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
+    pub plan: Option<ProcessorExecutionPlan>,
     pub lanes: LaneRuntimePool,
     pub properties: Option<RuntimePropertyFrame>,
     pub active: bool,
@@ -187,6 +256,7 @@ impl ProcessorRuntime {
         Self {
             id,
             compiled: None,
+            plan: None,
             lanes: LaneRuntimePool::default(),
             properties: None,
             active: false,
@@ -250,6 +320,12 @@ impl ProcessorRuntime {
         self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
         self.properties = Some(RuntimePropertyFrame::from_defaults(&compiled.properties));
         self.diagnostics = compiled.diagnostics.clone();
+        self.plan = Some(ProcessorExecutionPlan::analyze(
+            processor.id,
+            &compiled.analysis,
+            &ProcessorBindingAnalysis::default(),
+            AxisSet::new(),
+        ));
         self.compiled = Some(compiled);
         self.dirty = ProcessorDirtyFlags::default();
         true
@@ -257,9 +333,25 @@ impl ProcessorRuntime {
 
     fn clear_runtime(&mut self) {
         self.compiled = None;
+        self.plan = None;
         self.lanes = LaneRuntimePool::default();
         self.properties = None;
         self.subscriptions.clear();
+    }
+
+    pub fn rebuild_execution_plan(
+        &mut self,
+        context_provider: &dyn ProcessorContextProvider,
+        bindings: &ProcessorBindingAnalysis,
+    ) {
+        if let Some(compiled) = &self.compiled {
+            self.plan = Some(ProcessorExecutionPlan::analyze(
+                self.id,
+                &compiled.analysis,
+                bindings,
+                context_provider.available_axes(self.id),
+            ));
+        }
     }
 
     pub fn apply_lifecycle(&mut self, processor: &Processor, event: ProcessorLifecycleEvent) {
@@ -293,7 +385,7 @@ impl ProcessorRuntime {
 
     pub fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
         let provider = DefaultProcessorContextProvider;
-        self.evaluate_with_context_provider(ctx, &provider, &AxisSet::new())
+        self.evaluate_with_context_provider(ctx, &provider)
             .into_iter()
             .next()
             .map(|lane| lane.output)
@@ -304,7 +396,6 @@ impl ProcessorRuntime {
         &mut self,
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
-        required_axes: &AxisSet,
     ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
@@ -315,20 +406,33 @@ impl ProcessorRuntime {
         let Some(properties) = self.properties.clone() else {
             return Vec::new();
         };
+        let plan = self.plan.clone().unwrap_or_else(|| {
+            ProcessorExecutionPlan::analyze(
+                self.id,
+                &compiled.analysis,
+                &ProcessorBindingAnalysis::default(),
+                context_provider.available_axes(self.id),
+            )
+        });
         let mut context_keys = context_provider
-            .iter_context_keys(self.id, required_axes)
+            .iter_context_keys(self.id, &plan.required_eval_axes)
             .collect::<IndexSet<_>>();
-        if context_keys.is_empty() && required_axes.is_empty() {
+        if context_keys.is_empty() && plan.required_eval_axes.is_empty() {
             context_keys.insert(ContextKey::default_lane());
         }
-        self.lanes.retain_keys(&context_keys);
+        let memory_keys = context_keys
+            .iter()
+            .map(|context_key| context_key.project(&plan.required_memory_axes))
+            .collect::<IndexSet<_>>();
+        self.lanes.retain_keys(&memory_keys);
 
         context_keys
             .into_iter()
             .map(|context_key| {
                 let mut debug = DebugCaptureSink::default();
                 let context = RuntimeContextFrame::new(context_key.clone());
-                let output = match self.lanes.memory_for_key(context_key.clone(), &compiled.graph) {
+                let memory_key = context_key.project(&plan.required_memory_axes);
+                let output = match self.lanes.memory_for_key(memory_key, &compiled.graph) {
                     Some(memory) => evaluate_compiled_graph(
                         &compiled.graph,
                         memory,

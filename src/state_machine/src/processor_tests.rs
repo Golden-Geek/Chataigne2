@@ -8,7 +8,10 @@ use golden_alchemist::{
     primitive_node_registry,
 };
 
-use crate::{Processor, ProcessorContextProvider, ProcessorId, ProcessorLifecycleEvent, ProcessorRuntime};
+use crate::{
+    Processor, ProcessorBindingAnalysis, ProcessorContextProvider, ProcessorExecutionStrategy, ProcessorId,
+    ProcessorLifecycleEvent, ProcessorRuntime,
+};
 
 fn formula() -> AlchemistFormula {
     let mut graph = AlchemistGraph::new();
@@ -184,11 +187,15 @@ fn processor_under_multiplex_without_context_reference_runs_one_lane() {
         ContextKey::single("device", "b"),
     ]);
 
-    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider, &AxisSet::new());
+    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider);
 
     assert_eq!(outputs.len(), 1);
     assert_eq!(outputs[0].context_key, None);
     assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(
+        runtime.plan.as_ref().unwrap().strategy,
+        ProcessorExecutionStrategy::SingleStateless
+    );
     assert!(
         provider
             .available_axes(processor.id)
@@ -211,12 +218,22 @@ fn stateless_processor_bound_to_context_runs_lanes_without_memory() {
         ContextKey::single("device", "b"),
     ]);
     let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            input_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
 
-    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider, &axes);
+    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider);
 
     assert_eq!(outputs.len(), 2);
     assert!(outputs.iter().all(|lane| lane.context_key.is_some()));
     assert_eq!(runtime.lanes.memory_count(), 0);
+    let plan = runtime.plan.as_ref().unwrap();
+    assert_eq!(plan.strategy, ProcessorExecutionStrategy::MultiStateless);
+    assert!(plan.required_memory_axes.is_empty());
 }
 
 #[test]
@@ -232,17 +249,27 @@ fn stateful_lanes_have_independent_memory_preserved_by_stable_key() {
     let b = ContextKey::single("device", "b");
     let provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
     let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            input_axes: axes.clone(),
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
     let first_ctx = evaluation_ctx(1, &inputs, &registries);
 
-    let first = runtime.evaluate_with_context_provider(&first_ctx, &provider, &axes);
+    let first = runtime.evaluate_with_context_provider(&first_ctx, &provider);
 
     assert_eq!(first.len(), 2);
     assert!(first.iter().all(|lane| trigger_fired(&lane.output)));
     assert_eq!(runtime.lanes.memory_count(), 2);
+    let plan = runtime.plan.as_ref().unwrap();
+    assert_eq!(plan.strategy, ProcessorExecutionStrategy::MultiStatefulSparse);
+    assert_eq!(plan.required_memory_axes, axes);
 
     let reordered_provider = TestContextProvider::new(vec![b.clone(), a.clone()]);
     let second_ctx = evaluation_ctx(2, &inputs, &registries);
-    let second = runtime.evaluate_with_context_provider(&second_ctx, &reordered_provider, &axes);
+    let second = runtime.evaluate_with_context_provider(&second_ctx, &reordered_provider);
 
     assert_eq!(
         second.iter().map(|lane| lane.context_key.as_ref()).collect::<Vec<_>>(),
@@ -265,21 +292,28 @@ fn removed_context_item_evicts_lane_memory() {
     let b = ContextKey::single("device", "b");
     let provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
     let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            input_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
     let first_ctx = evaluation_ctx(1, &inputs, &registries);
 
-    runtime.evaluate_with_context_provider(&first_ctx, &provider, &axes);
+    runtime.evaluate_with_context_provider(&first_ctx, &provider);
     assert_eq!(runtime.lanes.memory_count(), 2);
 
     let b_only_provider = TestContextProvider::new(vec![b.clone()]);
     let second_ctx = evaluation_ctx(2, &inputs, &registries);
-    let second = runtime.evaluate_with_context_provider(&second_ctx, &b_only_provider, &axes);
+    let second = runtime.evaluate_with_context_provider(&second_ctx, &b_only_provider);
     assert_eq!(second.len(), 1);
     assert!(!trigger_fired(&second[0].output));
     assert_eq!(runtime.lanes.memory_count(), 1);
 
     let restored_provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
     let third_ctx = evaluation_ctx(3, &inputs, &registries);
-    let third = runtime.evaluate_with_context_provider(&third_ctx, &restored_provider, &axes);
+    let third = runtime.evaluate_with_context_provider(&third_ctx, &restored_provider);
     let a_lane = third
         .iter()
         .find(|lane| lane.context_key.as_ref() == Some(&a))
