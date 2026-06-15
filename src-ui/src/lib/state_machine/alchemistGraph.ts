@@ -390,27 +390,25 @@ const socketDefaultEditorWidth = (socket: GraphSocket): number => {
 	switch (normalizeGraphValueType(socket.valueType)) {
 		case 'vec3':
 		case 'color':
-			return 8.4;
+			return 8.2;
 		case 'vec2':
-			return 7.2;
+			return 6.6;
 		case 'bool':
 			return 1.4;
 		case 'int':
 		case 'float':
 		case 'duration':
-			return 5.2;
+			return 4.6;
 		default:
-			return 6.2;
+			return 5.4;
 	}
 };
 
 const inputSocketWidth = (socket: GraphSocket): number =>
-	socketLabelWidth(socket) +
-	(socket.children && socket.children.length > 0 ? 0.85 : 0.35) +
-	socketDefaultEditorWidth(socket);
+	socketLabelWidth(socket) + 0.85 + socketDefaultEditorWidth(socket);
 
 const outputSocketWidth = (socket: GraphSocket): number =>
-	socketLabelWidth(socket) + (socket.children && socket.children.length > 0 ? 0.85 : 0.35);
+	socketLabelWidth(socket) + 0.85;
 
 const maxSocketWidth = (
 	sockets: readonly GraphSocket[],
@@ -429,11 +427,12 @@ const graphAutomaticSize = (
 ): { width: number; height: number } => {
 	const socketRows = Math.max(inputs.length, outputs.length, 1);
 	const configHeight = configRows > 0 ? 0.35 + configRows * 1.95 : 0;
-	const inputWidth = Math.max(7.5, maxSocketWidth(inputs, inputSocketWidth));
-	const outputWidth = Math.max(3.2, maxSocketWidth(outputs, outputSocketWidth));
+	const inputWidth = maxSocketWidth(inputs, inputSocketWidth);
+	const outputWidth = maxSocketWidth(outputs, outputSocketWidth);
+	const socketGap = inputWidth > 0 && outputWidth > 0 ? 0.5 : 0;
 	return {
-		width: Math.min(30, Math.max(11.5, inputWidth + outputWidth + 0.8)),
-		height: 2.35 + socketRows * 1.45 + configHeight + 0.45
+		width: Math.min(28, Math.max(9.5, inputWidth + outputWidth + socketGap + 0.6)),
+		height: 2.05 + socketRows * 1.35 + configHeight + 0.25
 	};
 };
 

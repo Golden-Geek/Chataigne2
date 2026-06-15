@@ -58,6 +58,27 @@
 		block-size: 1.2rem;
 	}
 
+	.socket-default-editor :global(.slider-wrapper) {
+		display: none;
+	}
+
+	.socket-default-editor :global(.number-property-container) {
+		justify-content: stretch;
+		gap: 0;
+	}
+
+	.socket-default-editor :global(.number-field) {
+		inline-size: 100%;
+		width: 100%;
+		max-inline-size: 100%;
+		margin-inline-start: 0;
+		padding-inline: 0.25rem;
+	}
+
+	.socket-default-editor :global(.single-number-editor) {
+		gap: 0.15rem;
+	}
+
 	/* Text fields have plenty of room in the inspector; keep them modest in a node. */
 	.socket-default-editor :global(.string-editor) {
 		inline-size: 100%;
