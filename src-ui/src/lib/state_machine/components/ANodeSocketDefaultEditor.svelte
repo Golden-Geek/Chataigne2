@@ -10,11 +10,11 @@
 		switch (value?.kind) {
 			case 'vec2':
 			case 'vec3':
-				return { layout: 'inline', show_value_fields: true, max_decimals: 2 };
+				return { layout: 'inline', show_value_fields: true, max_decimals: 2, compact: true };
 			case 'int':
-				return { show_value_field: true, max_decimals: 0 };
+				return { show_slider: true, show_value_field: true, max_decimals: 0, compact: true };
 			case 'float':
-				return { show_value_field: true, max_decimals: 3 };
+				return { show_slider: true, show_value_field: true, max_decimals: 3, compact: true };
 			default:
 				return {};
 		}
@@ -58,21 +58,42 @@
 		block-size: 1.2rem;
 	}
 
-	.socket-default-editor :global(.slider-wrapper) {
-		display: none;
-	}
-
 	.socket-default-editor :global(.number-property-container) {
 		justify-content: stretch;
-		gap: 0;
+		align-items: stretch;
+		gap: 0.18rem;
+	}
+
+	.socket-default-editor :global(.slider-wrapper) {
+		display: flex;
+		align-items: stretch;
+		min-inline-size: 0;
+	}
+
+	.socket-default-editor :global(.number-property-container.infinite .slider-wrapper) {
+		flex: 0 0 1.25rem;
+		justify-content: center;
+	}
+
+	.socket-default-editor :global(.number-property-container:not(.infinite) .slider-wrapper) {
+		flex: 1 1 auto;
+		min-inline-size: 2rem;
 	}
 
 	.socket-default-editor :global(.number-field) {
+		flex: 0 0 3.9rem;
+		inline-size: 3.9rem;
+		width: auto;
+		max-inline-size: 3.9rem;
+		margin-inline-start: 0;
+		padding-inline: 0.25rem;
+	}
+
+	.socket-default-editor :global(.number-property-container.field-only .number-field) {
+		flex: 1 1 auto;
 		inline-size: 100%;
 		width: 100%;
 		max-inline-size: 100%;
-		margin-inline-start: 0;
-		padding-inline: 0.25rem;
 	}
 
 	.socket-default-editor :global(.single-number-editor) {

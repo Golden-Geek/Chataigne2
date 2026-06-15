@@ -398,17 +398,13 @@ const socketDefaultEditorWidth = (socket: GraphSocket): number => {
 		case 'int':
 		case 'float':
 		case 'duration':
-			return 4.6;
+			return 8.8;
 		default:
 			return 5.4;
 	}
 };
 
-const inputSocketWidth = (socket: GraphSocket): number =>
-	socketLabelWidth(socket) + 0.85 + socketDefaultEditorWidth(socket);
-
-const outputSocketWidth = (socket: GraphSocket): number =>
-	socketLabelWidth(socket) + 0.85;
+const outputSocketWidth = (socket: GraphSocket): number => socketLabelWidth(socket) + 0.85;
 
 const maxSocketWidth = (
 	sockets: readonly GraphSocket[],
@@ -420,6 +416,13 @@ const maxSocketWidth = (
 		0
 	);
 
+const alignedInputSocketWidth = (sockets: readonly GraphSocket[]): number => {
+	if (sockets.length === 0) return 0;
+	const labelWidth = maxSocketWidth(sockets, socketLabelWidth);
+	const defaultWidth = maxSocketWidth(sockets, socketDefaultEditorWidth);
+	return labelWidth + 0.85 + defaultWidth;
+};
+
 const graphAutomaticSize = (
 	inputs: readonly GraphSocket[],
 	outputs: readonly GraphSocket[],
@@ -427,7 +430,7 @@ const graphAutomaticSize = (
 ): { width: number; height: number } => {
 	const socketRows = Math.max(inputs.length, outputs.length, 1);
 	const configHeight = configRows > 0 ? 0.35 + configRows * 1.95 : 0;
-	const inputWidth = maxSocketWidth(inputs, inputSocketWidth);
+	const inputWidth = alignedInputSocketWidth(inputs);
 	const outputWidth = maxSocketWidth(outputs, outputSocketWidth);
 	const socketGap = inputWidth > 0 && outputWidth > 0 ? 0.5 : 0;
 	return {
