@@ -1,4 +1,10 @@
-import type { GraphConnectionRequest, GraphEdge, GraphNode, GraphSocket } from 'golden_alchemist_ui';
+import type {
+	GraphConnectionRequest,
+	GraphEdge,
+	GraphNode,
+	GraphNodeBypassConnection,
+	GraphSocket
+} from 'golden_alchemist_ui';
 import type { NodeId, ParamValue, UiColorDto, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 
 export const FORMULA_NODE_TYPE = 'alchemist_formula';
@@ -14,32 +20,113 @@ export const TRIGGER_SOCKET_ID = '__trigger';
 export const ANODE_TYPE_TAG_PREFIX = 'alchemist.anode.type:';
 export const VALUE_TYPE_CONFIG_DECL_ID = 'config/value_type';
 
+// A node's value-type selector is rendered in the header (not the body). This is
+// either the dedicated `config/value_type` field (Add/Clamp/MapRange/...) or the
+// implicit type selector that backs a `runtime_value` config field, whose decl id
+// is `config/<field>__type` (e.g. the Constant node's `config/value__type`).
+export const isValueTypeConfigDecl = (declId: string | null | undefined): boolean =>
+	declId === VALUE_TYPE_CONFIG_DECL_ID ||
+	(typeof declId === 'string' && declId.startsWith('config/') && declId.endsWith('__type'));
+
 export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
-export const MANAGER_REF_TYPE_CONSEQUENCES = 'chataigne.consequences_manager';
 export const MANAGER_REF_TYPE_INPUTS = 'chataigne.inputs_manager';
 export const MANAGER_REF_TYPE_OUTPUTS = 'chataigne.outputs_manager';
-export const MANAGER_REF_TYPE_FILTERS = 'chataigne.filters_manager';
+export const ROUTING_ANODE_TYPE = 'chataigne.routing';
 
 const MANAGER_REF_TYPES = new Set([
 	MANAGER_REF_TYPE_CONDITIONS,
-	MANAGER_REF_TYPE_CONSEQUENCES,
 	MANAGER_REF_TYPE_INPUTS,
-	MANAGER_REF_TYPE_OUTPUTS,
-	MANAGER_REF_TYPE_FILTERS
+	MANAGER_REF_TYPE_OUTPUTS
 ]);
+
+const ROUTING_NODE_SIZE = { width: 5.5, height: 2.7 };
+
+const stableHash = (value: string): number => {
+	let hash = 2_166_136_261;
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index) & 0xff;
+		hash = Math.imul(hash, 16_777_619) >>> 0;
+	}
+	return hash >>> 0;
+};
+
+const familyHue = (family: string): number => {
+	switch (family) {
+		case 'Number':
+			return 211;
+		case 'Geometry':
+			return 188;
+		case 'String':
+		case 'Values':
+			return 42;
+		case 'Chataigne':
+			return 326;
+		case 'Logic':
+			return 268;
+		case 'Flow':
+			return 158;
+		case 'Debug':
+			return 14;
+		default:
+			return stableHash(family) % 360;
+	}
+};
+
+const hslToCssRgb = (hue: number, saturation: number, lightness: number): string => {
+	const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+	const huePrime = hue / 60;
+	const x = chroma * (1 - Math.abs((huePrime % 2) - 1));
+	let r1 = 0;
+	let g1 = 0;
+	let b1 = 0;
+	if (huePrime < 1) {
+		r1 = chroma;
+		g1 = x;
+	} else if (huePrime < 2) {
+		r1 = x;
+		g1 = chroma;
+	} else if (huePrime < 3) {
+		g1 = chroma;
+		b1 = x;
+	} else if (huePrime < 4) {
+		g1 = x;
+		b1 = chroma;
+	} else if (huePrime < 5) {
+		r1 = x;
+		b1 = chroma;
+	} else {
+		r1 = chroma;
+		b1 = x;
+	}
+	const m = lightness - chroma / 2;
+	const r = Math.round(clamp01(r1 + m) * 255);
+	const g = Math.round(clamp01(g1 + m) * 255);
+	const b = Math.round(clamp01(b1 + m) * 255);
+	return `rgb(${r} ${g} ${b} / 1)`;
+};
+
+export const anodeCategoryColor = (family: string): string =>
+	hslToCssRgb(familyHue(family), 0.66, 0.54);
+
+export const anodeDefaultColor = (family: string, typeId: string): string => {
+	if (family === 'Routing' || typeId === ROUTING_ANODE_TYPE) {
+		return 'rgb(117 122 128 / 1)';
+	}
+	const variation = stableHash(typeId);
+	const hue = (familyHue(family) + (variation % 25) + 348) % 360;
+	const saturation = (62 + ((variation >>> 8) % 16)) / 100;
+	const lightness = (48 + ((variation >>> 16) % 12)) / 100;
+	return hslToCssRgb(hue, saturation, lightness);
+};
 
 export const managerAnodeType = (role: string): string => {
 	switch (role) {
 		case 'condition':
 			return MANAGER_REF_TYPE_CONDITIONS;
-		case 'consequence':
-			return MANAGER_REF_TYPE_CONSEQUENCES;
 		case 'input':
 			return MANAGER_REF_TYPE_INPUTS;
 		case 'output':
 			return MANAGER_REF_TYPE_OUTPUTS;
-		case 'filter':
-			return MANAGER_REF_TYPE_FILTERS;
 		default:
 			return '';
 	}
@@ -71,6 +158,8 @@ const valueTypeColor = (typeId: string | null | undefined): string | undefined =
 			return 'rgb(122 148 240 / 1)';
 		case 'color':
 			return 'rgb(250 92 82 / 1)';
+		case 'value_array':
+			return 'rgb(130 145 160 / 1)';
 		case 'reference':
 		case 'chataigne.module_endpoint':
 			return 'rgb(163 133 235 / 1)';
@@ -102,16 +191,28 @@ const normalizeGraphValueType = (typeId: string | null | undefined): string | nu
 
 const CONVERTIBLE_VALUE_TYPES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
 	Object.entries({
-		unit: ['bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
-		bool: ['unit', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
-		trigger: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
-		int: ['unit', 'bool', 'float', 'string', 'vec2', 'vec3', 'color', 'duration'],
-		float: ['unit', 'bool', 'int', 'string', 'vec2', 'vec3', 'color', 'duration'],
-		string: ['unit', 'bool', 'int', 'float', 'vec2', 'vec3', 'color', 'duration'],
-		vec2: ['unit', 'bool', 'int', 'float', 'string', 'vec3', 'color', 'duration'],
-		vec3: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'color', 'duration'],
-		color: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'duration'],
-		duration: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color']
+		unit: ['bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration', 'value_array'],
+		bool: ['unit', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'duration', 'value_array'],
+		trigger: [
+			'unit',
+			'bool',
+			'int',
+			'float',
+			'string',
+			'vec2',
+			'vec3',
+			'color',
+			'duration',
+			'value_array'
+		],
+		int: ['unit', 'bool', 'float', 'string', 'vec2', 'vec3', 'color', 'duration', 'value_array'],
+		float: ['unit', 'bool', 'int', 'string', 'vec2', 'vec3', 'color', 'duration', 'value_array'],
+		string: ['unit', 'bool', 'int', 'float', 'vec2', 'vec3', 'color', 'duration', 'value_array'],
+		vec2: ['unit', 'bool', 'int', 'float', 'string', 'vec3', 'color', 'duration', 'value_array'],
+		vec3: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'color', 'duration', 'value_array'],
+		color: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'duration', 'value_array'],
+		duration: ['unit', 'bool', 'int', 'float', 'string', 'vec2', 'vec3', 'color', 'value_array'],
+		value_array: ['string']
 	}).map(([source, targets]) => [source, new Set(targets)])
 );
 
@@ -281,22 +382,6 @@ const graphSockets = (
 	});
 };
 
-const visibleConfigParameterCount = (
-	anode: UiNodeDto,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
-): number => {
-	const config = directChild(anode, nodesById, 'config');
-	if (!config) return 0;
-	return config.children.reduce((count, childId) => {
-		const child = nodesById.get(childId);
-		return child?.data.kind === 'parameter' &&
-			child.decl_id !== VALUE_TYPE_CONFIG_DECL_ID &&
-			child.meta.presentation?.show_in_inspector_content !== false
-			? count + 1
-			: count;
-	}, 0);
-};
-
 const socketLabelWidth = (socket: GraphSocket): number =>
 	1.25 + Math.max(1.2, socket.label.length * 0.36);
 
@@ -305,17 +390,17 @@ const socketDefaultEditorWidth = (socket: GraphSocket): number => {
 	switch (normalizeGraphValueType(socket.valueType)) {
 		case 'vec3':
 		case 'color':
-			return 14.4;
+			return 8.4;
 		case 'vec2':
-			return 11.2;
+			return 7.2;
 		case 'bool':
-			return 3.6;
+			return 1.4;
 		case 'int':
 		case 'float':
 		case 'duration':
-			return 9.2;
+			return 5.2;
 		default:
-			return 9.5;
+			return 6.2;
 	}
 };
 
@@ -332,7 +417,8 @@ const maxSocketWidth = (
 	measure: (socket: GraphSocket) => number
 ): number =>
 	sockets.reduce(
-		(width, socket) => Math.max(width, measure(socket), maxSocketWidth(socket.children ?? [], measure)),
+		(width, socket) =>
+			Math.max(width, measure(socket), maxSocketWidth(socket.children ?? [], measure)),
 		0
 	);
 
@@ -346,9 +432,33 @@ const graphAutomaticSize = (
 	const inputWidth = Math.max(7.5, maxSocketWidth(inputs, inputSocketWidth));
 	const outputWidth = Math.max(3.2, maxSocketWidth(outputs, outputSocketWidth));
 	return {
-		width: Math.min(38, Math.max(15, inputWidth + outputWidth + 1.2)),
+		width: Math.min(30, Math.max(11.5, inputWidth + outputWidth + 0.8)),
 		height: 2.35 + socketRows * 1.45 + configHeight + 0.45
 	};
+};
+
+const disabledBypassConnections = (
+	enabled: boolean,
+	inputs: readonly GraphSocket[],
+	outputs: readonly GraphSocket[]
+): GraphNodeBypassConnection[] | undefined => {
+	if (enabled || inputs.length !== 1 || outputs.length !== 1) {
+		return undefined;
+	}
+	const input = inputs[0];
+	const output = outputs[0];
+	const inputType = normalizeGraphValueType(input.valueType);
+	const outputType = normalizeGraphValueType(output.valueType);
+	if (!inputType || inputType !== outputType) {
+		return undefined;
+	}
+	return [
+		{
+			inputSocketId: input.id,
+			outputSocketId: output.id,
+			color: output.color ?? input.color
+		}
+	];
 };
 
 const collectSockets = (
@@ -479,7 +589,8 @@ export const toGraphNodes = (
 		const typeId = anodeType(anode);
 		const propertyGetter = typeId === 'property';
 		const managerRef = MANAGER_REF_TYPES.has(typeId);
-		const compactNode = propertyGetter || managerRef;
+		const routingNode = typeId === ROUTING_ANODE_TYPE;
+		const compactNode = propertyGetter || managerRef || routingNode;
 		const description = anode.meta.description?.trim();
 		const allInputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
 		const triggerSocket = allInputs.find((s) => s.id === TRIGGER_SOCKET_ID);
@@ -487,8 +598,7 @@ export const toGraphNodes = (
 			? allInputs.filter((s) => s.id !== TRIGGER_SOCKET_ID)
 			: allInputs;
 		const outputs = graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket');
-		const configRows =
-			propertyGetter || managerRef ? 0 : visibleConfigParameterCount(anode, nodesById);
+		const configRows = 0;
 		const config = directChild(anode, nodesById, 'config');
 		const propertyId = propertyGetter
 			? stringParameter(config, nodesById, 'config/property_id')
@@ -497,11 +607,13 @@ export const toGraphNodes = (
 		const warning = nodeWarning(anode);
 		return {
 			id: String(anode.node_id),
-			label: anode.meta.label,
-			subtitle: compactNode ? undefined : typeId,
+			label: routingNode ? '' : anode.meta.label,
+			subtitle: undefined,
 			description: description ? description : undefined,
 			canRename: anode.meta.user_permissions?.can_edit_name !== false,
 			collapsed: anode.meta.presentation?.collapsed === true,
+			enabled: anode.meta.enabled,
+			canDisable: anode.meta.can_be_disabled,
 			color: metadataColor(
 				propertyNode?.meta.presentation?.color ?? anode.meta.presentation?.color
 			),
@@ -510,16 +622,21 @@ export const toGraphNodes = (
 				y: position?.kind === 'vec2' ? position.value[1] : 0
 			},
 			size:
-				size?.kind === 'vec2' && size.value[0] > 0 && size.value[1] > 0
+				!routingNode && size?.kind === 'vec2' && size.value[0] > 0 && size.value[1] > 0
 					? { width: size.value[0], height: size.value[1] }
 					: undefined,
-			automaticSize: compactNode ? undefined : graphAutomaticSize(bodyInputs, outputs, configRows),
+			automaticSize: routingNode
+				? ROUTING_NODE_SIZE
+				: compactNode
+					? undefined
+					: graphAutomaticSize(bodyInputs, outputs, configRows),
 			resizable: !compactNode,
 			invalid: typeId.length === 0 || warning !== undefined,
 			warning,
 			inputs: bodyInputs,
 			outputs,
-			headerInputs: triggerSocket ? [triggerSocket] : undefined
+			headerInputs: triggerSocket ? [triggerSocket] : undefined,
+			bypassConnections: disabledBypassConnections(anode.meta.enabled, bodyInputs, outputs)
 		};
 	});
 };
@@ -534,7 +651,8 @@ const referencedNodeId = (
 
 export const toGraphEdges = (
 	formula: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
+	activeSocketRefs: ReadonlySet<string> = new Set()
 ): GraphEdge[] => {
 	const socketsByRef = formulaSocketsByRef(formula, nodesById);
 	const nodeIdByUuid = new Map(
@@ -558,7 +676,11 @@ export const toGraphEdges = (
 				from: { nodeId: String(source), socketId: sourceSocket },
 				to: { nodeId: String(target), socketId: targetSocket },
 				color: socketsByRef.get(`${source}:${sourceSocket}`)?.color,
-				targetColor: socketsByRef.get(`${target}:${targetSocket}`)?.color
+				targetColor: socketsByRef.get(`${target}:${targetSocket}`)?.color,
+				active:
+					activeSocketRefs.has(`${source}:${sourceSocket}`) ||
+					activeSocketRefs.has(`${target}:${targetSocket}`) ||
+					activeSocketRefs.has(String(connection.node_id))
 			}
 		];
 	});
@@ -581,13 +703,13 @@ export const bodyConfigParameters = (
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>
 ): UiNodeDto[] =>
 	configParameters(anode, nodesById).filter(
-		(parameter) => parameter.decl_id !== VALUE_TYPE_CONFIG_DECL_ID
+		(parameter) => !isValueTypeConfigDecl(parameter.decl_id)
 	);
 
 export const valueTypeConfigParameter = (
 	anode: UiNodeDto,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>
 ): UiNodeDto | null =>
-	configParameters(anode, nodesById).find(
-		(parameter) => parameter.decl_id === VALUE_TYPE_CONFIG_DECL_ID
+	configParameters(anode, nodesById).find((parameter) =>
+		isValueTypeConfigDecl(parameter.decl_id)
 	) ?? null;

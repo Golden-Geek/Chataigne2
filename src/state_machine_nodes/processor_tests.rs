@@ -6,8 +6,7 @@ use golden_core::{
 };
 
 use crate::app::{
-    AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager,
-    ConsequencesManager, FilterChainManager, FormulaLibrary, InputsManager,
+    AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager, FormulaLibrary, InputsManager,
     OutputsManager,
 };
 
@@ -207,10 +206,8 @@ fn processor_materializes_formula_properties_as_real_children() {
         .expect("Formula parameter should exist");
     for (role, label) in [
         ("condition", "Conditions"),
-        ("consequence", "Consequences"),
         ("input", "Inputs"),
-        ("filter", "Filters"),
-        ("output", "Outputs"),
+        ("output", "Output Commands"),
     ] {
         let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
             parent: properties,
@@ -277,10 +274,8 @@ fn processor_materializes_formula_properties_as_real_children() {
     );
     for (node_type, label) in [
         (ConditionManager::NODE_TYPE, "Conditions"),
-        (ConsequencesManager::NODE_TYPE, "Consequences"),
         (InputsManager::NODE_TYPE, "Inputs"),
-        (FilterChainManager::NODE_TYPE, "Filters"),
-        (OutputsManager::NODE_TYPE, "Outputs"),
+        (OutputsManager::NODE_TYPE, "Output Commands"),
     ] {
         assert!(instance_children.iter().copied().any(|child| {
             engine.nodes.get(child).is_some_and(|node| {

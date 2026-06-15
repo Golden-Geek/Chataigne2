@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type {
+		GraphCamera,
 		GraphConnectionRequest,
 		GraphNodeCreationRequest,
 		GraphNodeMove,
@@ -10,9 +11,6 @@
 	import type {
 		ContextMenuAnchor,
 		ContextMenuItem,
-		NodeId,
-		OutlinerDropTarget,
-		OutlinerDropZone,
 		PanelProps,
 		PanelState,
 		UiCreateUserItemInitialParam,
@@ -22,16 +20,14 @@
 	} from 'golden_ui';
 	import {
 		ContextMenu,
+		ManagerListPanel,
 		NodeAddButton,
-		OutlinerItem,
 		buildCreatableItemMenu,
-		canDragOutlinerNode,
-		resolveOutlinerDropTarget
+		canDragOutlinerNode
 	} from 'golden_ui';
 	import {
 		createUiEditSession,
 		sendCreateUserItemByTypeIntent,
-		sendMoveNodeIntent,
 		sendUiIntentBatch
 	} from 'golden_ui/store/ui-intents';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
@@ -41,10 +37,15 @@
 		ANODE_NODE_TYPE,
 		CONNECTION_NODE_TYPE,
 		FORMULA_NODE_TYPE,
+		MANAGER_REF_TYPE_CONDITIONS,
+		MANAGER_REF_TYPE_INPUTS,
+		MANAGER_REF_TYPE_OUTPUTS,
 		PROPERTIES_DECL_ID,
 		PROPERTY_FOLDER_NODE_TYPE,
 		PROPERTY_MANAGER_NODE_TYPE,
 		PROPERTY_NODE_TYPE,
+		anodeCategoryColor,
+		anodeDefaultColor,
 		directChild,
 		formulaANodes,
 		canConnectGraphConnection,
@@ -71,6 +72,13 @@
 	const MIN_PANEL_WIDTH = 160;
 	const MAX_PANEL_WIDTH = 520;
 	const DEFAULT_PANEL_WIDTH = 240;
+	const FORMULA_CAMERA_STORAGE_PREFIX = 'chataigne.alchemist.formula_camera:';
+	const HIDDEN_ANODE_CREATE_TYPES = new Set([
+		`${ANODE_CREATE_PREFIX}property`,
+		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_CONDITIONS}`,
+		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_INPUTS}`,
+		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
+	]);
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -95,17 +103,48 @@
 	let saveStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
 	let propertiesVisible = $state(true);
 	let propertiesWidth = $state(DEFAULT_PANEL_WIDTH);
+	let formulaCameras = $state<Record<string, GraphCamera>>({});
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
 	let contextMenuWorldPosition: GraphNodePosition | null = null;
 	let persistenceTail = Promise.resolve();
-	let activePropertyDragNodeId = $state<NodeId | null>(null);
-	let propertyDropTarget = $state<OutlinerDropTarget | null>(null);
-	let propertyMoveInFlight = $state(false);
 
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
+
+	const formulaCameraStorageKey = (formulaUuid: string): string =>
+		`${FORMULA_CAMERA_STORAGE_PREFIX}${formulaUuid}`;
+
+	const cameraFromStorage = (formulaUuid: string): GraphCamera | undefined => {
+		if (typeof localStorage === 'undefined') return undefined;
+		const raw = localStorage.getItem(formulaCameraStorageKey(formulaUuid));
+		if (!raw) return undefined;
+		try {
+			const parsed = JSON.parse(raw) as Partial<GraphCamera>;
+			const { x, y, zoom } = parsed;
+			if (
+				typeof x === 'number' &&
+				Number.isFinite(x) &&
+				typeof y === 'number' &&
+				Number.isFinite(y) &&
+				typeof zoom === 'number' &&
+				Number.isFinite(zoom) &&
+				zoom > 0
+			) {
+				return { x, y, zoom };
+			}
+		} catch {
+			return undefined;
+		}
+		return undefined;
+	};
+
+	const persistFormulaCamera = (formulaUuid: string, camera: GraphCamera): void => {
+		formulaCameras = { ...formulaCameras, [formulaUuid]: camera };
+		if (typeof localStorage === 'undefined') return;
+		localStorage.setItem(formulaCameraStorageKey(formulaUuid), JSON.stringify(camera));
+	};
 
 	let requestedFormulaNodeId = $derived.by(() => {
 		const value = panelState.params.formulaNodeId;
@@ -138,6 +177,10 @@
 		const requested =
 			requestedFormulaNodeId === null ? null : graphState.nodesById.get(requestedFormulaNodeId);
 		return selectedFormula ?? (isFormula(requested) ? requested : (formulaNodes[0] ?? null));
+	});
+	let formulaCamera = $derived.by((): GraphCamera | undefined => {
+		if (!formula) return undefined;
+		return formulaCameras[formula.uuid] ?? cameraFromStorage(formula.uuid);
 	});
 
 	let diagnosticsParameter = $derived(
@@ -172,15 +215,26 @@
 		formulaValid ? 'Formula valid' : (primaryDiagnostic?.message ?? 'Formula invalid')
 	);
 	let anodeItems = $derived(
-		formula?.creatable_user_items.filter((item) =>
-			item.node_type.startsWith(ANODE_CREATE_PREFIX)
-		) ?? []
+		formula?.creatable_user_items
+			.filter(
+				(item) =>
+					item.node_type.startsWith(ANODE_CREATE_PREFIX) &&
+					!HIDDEN_ANODE_CREATE_TYPES.has(item.node_type)
+			)
+			.map((item) => {
+				const typeId = item.node_type.slice(ANODE_CREATE_PREFIX.length);
+				const category = item.menu_path[0] ?? '';
+				return {
+					...item,
+					menu_path_colors: item.menu_path.map((segment, index) =>
+						index === 0 ? anodeCategoryColor(segment) : anodeDefaultColor(category, typeId)
+					),
+					color: anodeDefaultColor(category, typeId)
+				};
+			}) ?? []
 	);
 	let properties = $derived(
 		graphState ? directChild(formula, graphState.nodesById, PROPERTIES_DECL_ID) : null
-	);
-	let isPropertyRootDropActive = $derived(
-		properties !== null && propertyDropTarget?.hoverNodeId === properties.node_id
 	);
 	let activePropertyContainer = $derived.by((): UiNodeDto | null => {
 		if (!graphState || !properties) return properties ?? null;
@@ -244,24 +298,6 @@
 	const canMovePropertyNode = (node: UiNodeDto): boolean =>
 		isPropertyTreeNode(node) && canDragOutlinerNode(graphState, node);
 
-	const clearPropertyDragState = (): void => {
-		activePropertyDragNodeId = null;
-		propertyDropTarget = null;
-	};
-
-	const isPropertyRowTarget = (target: EventTarget | null): boolean =>
-		target instanceof Element && target.closest('.outliner-item-content') !== null;
-
-	const resolvePropertyDropZone = (event: DragEvent): OutlinerDropZone => {
-		const row = event.currentTarget;
-		if (!(row instanceof HTMLElement)) {
-			return 'inside';
-		}
-		const bounds = row.getBoundingClientRect();
-		const ratio = (event.clientY - bounds.top) / Math.max(bounds.height, 1);
-		return ratio <= 0.3 ? 'before' : ratio >= 0.7 ? 'after' : 'inside';
-	};
-
 	const setPropertyGraphDragData = (node: UiNodeDto, event: DragEvent): void => {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.effectAllowed = 'copyMove';
@@ -270,119 +306,6 @@
 		} else if (node.node_type === PROPERTY_NODE_TYPE) {
 			event.dataTransfer.setData(PROPERTY_DRAG_TYPE, String(node.node_id));
 		}
-	};
-
-	const handlePropertyNodeDragStart = (node: UiNodeDto, event: DragEvent): void => {
-		setPropertyGraphDragData(node, event);
-		if (!canMovePropertyNode(node) || propertyMoveInFlight) {
-			clearPropertyDragState();
-			return;
-		}
-		activePropertyDragNodeId = node.node_id;
-		propertyDropTarget = null;
-	};
-
-	const handlePropertyNodeDragOver = (hoverNode: UiNodeDto, event: DragEvent): void => {
-		if (propertyMoveInFlight || activePropertyDragNodeId === null) {
-			propertyDropTarget = null;
-			return;
-		}
-		const next = resolveOutlinerDropTarget(
-			graphState,
-			activePropertyDragNodeId,
-			hoverNode.node_id,
-			resolvePropertyDropZone(event)
-		);
-		if (!next) {
-			propertyDropTarget = null;
-			return;
-		}
-		event.preventDefault();
-		if (event.dataTransfer) {
-			event.dataTransfer.dropEffect = 'move';
-		}
-		propertyDropTarget = next;
-	};
-
-	const commitPropertyDrop = async (
-		sourceNodeId: NodeId,
-		next: OutlinerDropTarget | null,
-		event: DragEvent
-	): Promise<void> => {
-		clearPropertyDragState();
-		if (!next) {
-			return;
-		}
-		event.preventDefault();
-		event.stopPropagation();
-		propertyMoveInFlight = true;
-		try {
-			await sendMoveNodeIntent(sourceNodeId, next.newParentId, next.newPrevSiblingId ?? undefined);
-		} finally {
-			propertyMoveInFlight = false;
-			clearPropertyDragState();
-		}
-	};
-
-	const handlePropertyNodeDrop = async (hoverNode: UiNodeDto, event: DragEvent): Promise<void> => {
-		const sourceNodeId = activePropertyDragNodeId;
-		if (sourceNodeId === null || propertyMoveInFlight) {
-			clearPropertyDragState();
-			return;
-		}
-		await commitPropertyDrop(
-			sourceNodeId,
-			resolveOutlinerDropTarget(
-				graphState,
-				sourceNodeId,
-				hoverNode.node_id,
-				resolvePropertyDropZone(event)
-			),
-			event
-		);
-	};
-
-	const handlePropertyRootDragOver = (event: DragEvent): void => {
-		if (
-			propertyMoveInFlight ||
-			activePropertyDragNodeId === null ||
-			!properties ||
-			isPropertyRowTarget(event.target)
-		) {
-			return;
-		}
-		const next = resolveOutlinerDropTarget(
-			graphState,
-			activePropertyDragNodeId,
-			properties.node_id,
-			'inside'
-		);
-		if (!next) {
-			propertyDropTarget = null;
-			return;
-		}
-		event.preventDefault();
-		if (event.dataTransfer) {
-			event.dataTransfer.dropEffect = 'move';
-		}
-		propertyDropTarget = next;
-	};
-
-	const handlePropertyRootDrop = async (event: DragEvent): Promise<void> => {
-		const sourceNodeId = activePropertyDragNodeId;
-		if (
-			sourceNodeId === null ||
-			propertyMoveInFlight ||
-			!properties ||
-			isPropertyRowTarget(event.target)
-		) {
-			return;
-		}
-		await commitPropertyDrop(
-			sourceNodeId,
-			resolveOutlinerDropTarget(graphState, sourceNodeId, properties.node_id, 'inside'),
-			event
-		);
 	};
 
 	const initialParam = (
@@ -411,7 +334,12 @@
 		item: UiCreatableUserItem,
 		position: GraphNodePosition = graphEditor?.viewportCenter() ?? { x: 0, y: 0 }
 	): void => {
-		if (!formula || !graphState || !anodeItems.includes(item)) return;
+		if (
+			!formula ||
+			!graphState ||
+			!anodeItems.some((candidate) => candidate.node_type === item.node_type)
+		)
+			return;
 		contextMenuOpen = false;
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
@@ -473,16 +401,13 @@
 
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
 		if (!formula || !graphState || property.node_type !== PROPERTY_NODE_TYPE) return;
-		const propertyItem = anodeItems.find(
-			(item) => item.node_type === `${ANODE_CREATE_PREFIX}property`
-		);
 		const value = parameterChild(property, graphState.nodesById, 'value');
-		if (!propertyItem || value?.data.kind !== 'parameter') return;
+		if (value?.data.kind !== 'parameter') return;
 		const initialValue = value.data.param.value;
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				formula.node_id,
-				propertyItem.node_type,
+				`${ANODE_CREATE_PREFIX}property`,
 				property.meta.label,
 				{
 					select_when_created: true,
@@ -527,10 +452,17 @@
 		const role = getManagerRole(manager);
 		const typeId = managerAnodeType(role);
 		if (!typeId) return;
-		const managerItem = anodeItems.find(
-			(item: UiCreatableUserItem) => item.node_type === `${ANODE_CREATE_PREFIX}${typeId}`
-		);
-		if (!managerItem) return;
+		const managerNodeType = `${ANODE_CREATE_PREFIX}${typeId}`;
+		if (
+			!formula.creatable_user_items.some(
+				(item: UiCreatableUserItem) => item.node_type === managerNodeType
+			)
+		)
+			return;
+		const managerItem = {
+			node_type: managerNodeType,
+			label: manager.meta.label
+		};
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				formula.node_id,
@@ -703,6 +635,25 @@
 				}
 			]);
 		});
+
+	const setNodeEnabled = (nodeId: string, enabled: boolean): Promise<void> =>
+		runMutation(async () => {
+			if (!graphState) return;
+			const anode = graphState.nodesById.get(Number(nodeId));
+			if (anode?.node_type !== ANODE_NODE_TYPE || !anode.meta.can_be_disabled) return;
+			await editParameters(`${enabled ? 'Enable' : 'Disable'} ${anode.meta.label}`, [
+				{
+					kind: 'patchMeta',
+					node: anode.node_id,
+					patch: { enabled }
+				}
+			]);
+		});
+
+	const setFormulaCamera = (camera: GraphCamera): void => {
+		if (!formula) return;
+		persistFormulaCamera(formula.uuid, camera);
+	};
 
 	const socketRootId = (socketId: string): string => {
 		const dotIndex = socketId.lastIndexOf('.');
@@ -890,53 +841,22 @@
 						<span class="properties-toggle-chevron">‹</span>
 						<span class="properties-toggle-label">Properties</span>
 					</button>
-					{#if activePropertyContainer && activePropertyContainer.creatable_user_items.length > 0}
-						<NodeAddButton
-							node={activePropertyContainer}
-							items={activePropertyContainer.creatable_user_items}
-							onCreateItem={(item) => createPropertyItem(activePropertyContainer, item)} />
-					{/if}
 				</div>
-				<div
-					class="property-tree"
-					class:root-drop-active={isPropertyRootDropActive}
-					role="tree"
-					tabindex="0"
-					aria-label="Formula property hierarchy"
-					ondragover={handlePropertyRootDragOver}
-					ondrop={(event) => void handlePropertyRootDrop(event)}
-					ondragleave={() => {
-						if (isPropertyRootDropActive) {
-							propertyDropTarget = null;
-						}
-					}}>
-					{#if properties && properties.children.some((id) => graphState?.nodesById.get(id)?.data.kind !== 'parameter')}
-						{#each properties.children as childId (childId)}
-							{@const child = graphState?.nodesById.get(childId)}
-							{#if child && child.data.kind !== 'parameter'}
-								<OutlinerItem
-									node={child}
-									mode="tree"
-									canRenderNodeChildren={canRenderPropertyChildren}
-									nodeFilter={isPropertyTreeNode}
-									nodeDraggable={canMovePropertyNode}
-									activeDragNodeId={activePropertyDragNodeId}
-									dropTarget={propertyDropTarget}
-									onNodeDragStart={handlePropertyNodeDragStart}
-									onNodeDragOver={handlePropertyNodeDragOver}
-									onNodeDrop={handlePropertyNodeDrop}
-									onNodeDragEnd={() => {
-										if (!propertyMoveInFlight) {
-											clearPropertyDragState();
-										}
-									}}
-									onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')} />
-							{/if}
-						{/each}
-					{:else}
-						<p class="properties-empty">Drag a property onto the graph to create a getter.</p>
-					{/if}
-				</div>
+				<ManagerListPanel
+					managerNode={properties}
+					addTargetNode={activePropertyContainer}
+					addItems={activePropertyContainer?.creatable_user_items}
+					searchPlaceholder="Search properties..."
+					missingMessage="Formula properties are not available."
+					emptyMessage="Drag a property onto the graph to create a getter."
+					rootDropMessage="Drop here to move into Properties."
+					addButtonTitle="Add property item"
+					isTreeNode={isPropertyTreeNode}
+					canRenderNodeChildren={canRenderPropertyChildren}
+					nodeDraggable={canMovePropertyNode}
+					onNodeDragStartData={setPropertyGraphDragData}
+					onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
+					onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
 				<!-- Resize handle on right edge -->
 				<div
 					class="panel-resize-handle"
@@ -995,9 +915,13 @@
 					onNodeResize={resizeNode}
 					onNodeRename={renameNode}
 					onNodeCollapsedChange={setNodeCollapsed}
+					onNodeEnabledChange={setNodeEnabled}
 					onConnect={connectNodes}
 					onBackgroundContextMenu={openContextMenu}
 					onCreateRequest={openCreateRequest}
+					initialCamera={formulaCamera}
+					onCameraChange={setFormulaCamera}
+					viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
 					toolbarEnd={toolbarEndContent} />
 				{#if diagnostics.length > 0}
 					<aside class="diagnostics" aria-label="Formula diagnostics">
@@ -1163,27 +1087,6 @@
 		gap: 0.5rem;
 		padding: 0.28rem 0.5rem 0.28rem 0.35rem;
 		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
-	}
-
-	.property-tree {
-		min-block-size: 0;
-		overflow: auto;
-		padding: 0.25rem;
-		outline: 0.08rem solid transparent;
-		outline-offset: -0.08rem;
-	}
-
-	.property-tree.root-drop-active {
-		background: color-mix(in srgb, var(--gc-color-selection) 8%, transparent);
-		outline-color: color-mix(in srgb, var(--gc-color-selection) 48%, transparent);
-	}
-
-	.properties-empty {
-		margin: 0;
-		padding: 0.75rem;
-		color: color-mix(in srgb, var(--gc-color-text) 50%, transparent);
-		font-size: 0.65rem;
-		line-height: 1.4;
 	}
 
 	.graph-drop-zone {

@@ -2,6 +2,11 @@
 	import { DropdownEditor, EnableButton, type UiNodeDto } from 'golden_ui';
 
 	let { parameter }: { parameter: UiNodeDto } = $props();
+
+	// Some value-type selectors are always-on (e.g. the Constant node, whose type
+	// is explicit because there are no inputs to infer from). Only offer the
+	// enable toggle when the parameter can actually be disabled.
+	let canBeDisabled = $derived(parameter.meta.can_be_disabled ?? false);
 </script>
 
 <div
@@ -11,7 +16,9 @@
 	aria-label="Value Type"
 	title="Value Type"
 	onpointerdown={(event) => event.stopPropagation()}>
-	<EnableButton node={parameter} />
+	{#if canBeDisabled}
+		<EnableButton node={parameter} />
+	{/if}
 	<div class="value-type-select">
 		<DropdownEditor node={parameter} />
 	</div>

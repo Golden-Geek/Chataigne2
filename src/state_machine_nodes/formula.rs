@@ -33,6 +33,10 @@ use golden_core::{
 };
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
+pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
+    "alchemist_formula_folder";
+pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str =
+    "alchemist_formula_folder";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
@@ -87,7 +91,9 @@ fn stable_hash(value: &str) -> u32 {
 
 fn family_hue(family: &str) -> u32 {
     match family {
-        "Math" => 211,
+        "Number" => 211,
+        "Geometry" => 188,
+        "String" => 42,
         "Chataigne" => 326,
         "Values" => 42,
         "Logic" => 268,
@@ -114,6 +120,11 @@ fn hsl_color(hue: f64, saturation: f64, lightness: f64) -> Color {
 }
 
 fn anode_default_color(family: &str, type_id: &str) -> Color {
+    if family == "Routing"
+        || type_id == chataigne_state_machine::alchemist::ROUTING_TYPE
+    {
+        return Color::new(0.46, 0.48, 0.5, 1.0);
+    }
     let variation = stable_hash(type_id);
     let hue = (family_hue(family) + (variation % 25) + 348) % 360;
     let saturation = f64::from(62 + ((variation >> 8) % 16)) / 100.0;
@@ -130,6 +141,7 @@ fn value_type_color(type_id: &str) -> Color {
         "vec2" => Color::new(0.32, 0.72, 0.92, 1.0),
         "vec3" => Color::new(0.48, 0.58, 0.94, 1.0),
         "color" => Color::new(0.98, 0.36, 0.32, 1.0),
+        "value_array" => Color::new(0.51, 0.57, 0.63, 1.0),
         "reference" | "chataigne.module_endpoint" => {
             Color::new(0.64, 0.52, 0.92, 1.0)
         }
@@ -151,6 +163,40 @@ fn registry() -> golden_alchemist::ANodeRegistry {
 
 fn value_types() -> golden_alchemist::ValueTypeRegistry {
     chataigne_state_machine::alchemist::value_type_registry()
+}
+
+fn formula_container_rules() -> UserContainerRules {
+    UserContainerRules::new(&[FORMULA_ITEM_KIND, FORMULA_FOLDER_ITEM_KIND])
+}
+
+fn formula_container_accepts(item_type: &str, item_kind: &str) -> bool {
+    match item_kind {
+        FORMULA_ITEM_KIND => crate::app::declared_user_item_type_matches(
+            item_type,
+            FORMULA_ITEM_KIND,
+        ),
+        FORMULA_FOLDER_ITEM_KIND => item_type == FORMULA_FOLDER_NODE_TYPE,
+        _ => false,
+    }
+}
+
+fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
+    let mut items = crate::app::declared_user_creatable_items(FORMULA_ITEM_KIND);
+    items.push(UserCreatableItem::new(
+        FORMULA_FOLDER_NODE_TYPE,
+        FORMULA_FOLDER_ITEM_KIND,
+        "Folder",
+    ));
+    items
+}
+
+fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
+    crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
+        .or_else(|| {
+            (node_type == FORMULA_FOLDER_NODE_TYPE).then(|| {
+                Box::new(AlchemistFormulaFolder::new()) as Box<dyn Node>
+            })
+        })
 }
 
 fn parameter(
@@ -210,6 +256,19 @@ fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
             f64::from(value.alpha),
         ),
         RuntimeValue::Duration(value) => ParamValue::Float(value.as_secs_f64()),
+        RuntimeValue::Array(values) => ParamValue::Str(
+            values
+                .iter()
+                .map(|value| match value {
+                    RuntimeValue::String(value) => value.to_string(),
+                    RuntimeValue::Int(value) => value.to_string(),
+                    RuntimeValue::Float(value) => value.to_string(),
+                    RuntimeValue::Bool(value) => value.to_string(),
+                    _ => format!("{value:?}"),
+                })
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
         RuntimeValue::Ref(value) => {
             let uuid = value
                 .stable_id
@@ -250,6 +309,17 @@ fn param_to_runtime_value(
         "bool" | "int" | "float" | "string" | "vec2" | "vec3" | "color" | "duration" => {
             param_to_untyped_runtime_value(value)?.convert_to(value_type)
         }
+        "value_array" => match value {
+            ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => {
+                Ok(RuntimeValue::Array(
+                    value
+                        .split(',')
+                        .map(|part| RuntimeValue::String(Arc::from(part.trim())))
+                        .collect(),
+                ))
+            }
+            _ => Ok(RuntimeValue::Array(vec![param_to_untyped_runtime_value(value)?])),
+        },
         _ => match value {
             ParamValue::Reference(reference) => {
                 let stable_id = if reference.is_empty() {
@@ -312,6 +382,11 @@ fn socket_decl_id(direction: &str, socket: &str) -> String {
 
 fn socket_value_decl_id(direction: &str, socket: &str) -> String {
     format!("{direction}/{socket}/value")
+}
+
+fn numbered_socket_index(socket: &str, prefix: &str) -> Option<i32> {
+    let index = socket.strip_prefix(prefix)?;
+    index.parse::<i32>().ok().filter(|index| *index > 0)
 }
 
 fn child_param<'a>(
@@ -459,6 +534,26 @@ fn constraint_value_type(
     }
 }
 
+fn log_config_field() -> golden_alchemist::ANodeConfigFieldDecl {
+    golden_alchemist::ANodeConfigFieldDecl::new(
+        "log",
+        "Log",
+        RuntimeValue::Bool(false),
+    )
+    .with_description("Emit a debug log entry whenever this node processes successfully.")
+}
+
+fn config_fields_for_instance(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    instance: &ANodeInstance,
+) -> Vec<golden_alchemist::ANodeConfigFieldDecl> {
+    let mut fields = declaration.config_fields_for(instance);
+    if !fields.iter().any(|field| field.id.as_str() == "log") {
+        fields.push(log_config_field());
+    }
+    fields
+}
+
 fn existing_or_default_config(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
@@ -469,34 +564,49 @@ fn existing_or_default_config(
         .ok_or_else(|| "ANode Config folder is missing".to_string())?;
     let mut config = golden_alchemist::ANodeConfig::default();
     for field in declaration.config_fields() {
-        let value_type = if field.editor.as_deref() == Some("runtime_value") {
-            child_string(
-                snapshot,
-                config_folder,
-                &config_type_decl_id(field.id.as_str()),
-            )
-            .map(ValueTypeId::new)
-            .unwrap_or_else(|| field.default_value.value_type())
-        } else {
-            field.default_value.value_type()
-        };
-        let value = child_param(
-            snapshot,
-            config_folder,
-            &config_decl_id(field.id.as_str()),
-        )
-        .and_then(|value| param_to_runtime_value(value, &value_type).ok())
-        .unwrap_or_else(|| {
-            if value_type == field.default_value.value_type() {
-                field.default_value.clone()
-            } else {
-                default_runtime_value(&value_type)
-                    .unwrap_or_else(|_| field.default_value.clone())
-            }
-        });
+        let value = config_field_value(snapshot, config_folder, &field);
+        config.set(field.id, value);
+    }
+    let mut instance =
+        ANodeInstance::new(declaration.type_id(), declaration.label());
+    instance.config = config.clone();
+    for field in config_fields_for_instance(declaration, &instance) {
+        let value = config_field_value(snapshot, config_folder, &field);
         config.set(field.id, value);
     }
     Ok(config)
+}
+
+fn config_field_value(
+    snapshot: &ProcessTreeSnapshot,
+    config_folder: NodeId,
+    field: &golden_alchemist::ANodeConfigFieldDecl,
+) -> RuntimeValue {
+    let value_type = if field.editor.as_deref() == Some("runtime_value") {
+        child_string(
+            snapshot,
+            config_folder,
+            &config_type_decl_id(field.id.as_str()),
+        )
+        .map(ValueTypeId::new)
+        .unwrap_or_else(|| field.default_value.value_type())
+    } else {
+        field.default_value.value_type()
+    };
+    child_param(
+        snapshot,
+        config_folder,
+        &config_decl_id(field.id.as_str()),
+    )
+    .and_then(|value| param_to_runtime_value(value, &value_type).ok())
+    .unwrap_or_else(|| {
+        if value_type == field.default_value.value_type() {
+            field.default_value.clone()
+        } else {
+            default_runtime_value(&value_type)
+                .unwrap_or_else(|_| field.default_value.clone())
+        }
+    })
 }
 
 fn apply_forced_type_bindings_from_config(
@@ -507,7 +617,7 @@ fn apply_forced_type_bindings_from_config(
     value_types: &golden_alchemist::ValueTypeRegistry,
     instance: &mut ANodeInstance,
 ) {
-    for field in declaration.config_fields() {
+    for field in config_fields_for_instance(declaration, instance) {
         let Some(variable) = field.type_variable.clone() else {
             continue;
         };
@@ -595,6 +705,91 @@ fn sync_auto_type_variable_config_params(
     }
 }
 
+fn sync_auto_input_count(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+    config_folder: NodeId,
+    type_id: &str,
+) {
+    let socket_prefix = match type_id {
+        "math" => "value",
+        "concatenate" => "part",
+        _ => return,
+    };
+    let Some(count_param) =
+        snapshot.find_child_by_decl_id(config_folder, "config/num_inputs")
+    else {
+        return;
+    };
+    let Some(count_node) = snapshot.node(count_param) else {
+        return;
+    };
+    if count_node.enabled {
+        return;
+    }
+    let Some(anode_snapshot) = snapshot.node(anode) else {
+        return;
+    };
+    let Some(formula) = anode_snapshot.parent else {
+        return;
+    };
+    let target_uuid = anode_snapshot.uuid;
+    let mut connected_indices = HashSet::<i32>::new();
+    for child in snapshot.child_ids(formula) {
+        let Some(connection) = snapshot.node(child) else {
+            continue;
+        };
+        if connection.node_type != CONNECTION_NODE_TYPE {
+            continue;
+        }
+        if child_reference_uuid(snapshot, child, "target_node")
+            != Some(target_uuid)
+        {
+            continue;
+        }
+        let Some(socket) = child_string(snapshot, child, "target_socket")
+        else {
+            continue;
+        };
+        if let Some(index) = numbered_socket_index(&socket, socket_prefix) {
+            connected_indices.insert(index);
+        }
+    }
+    let current = match count_node.param_value.as_ref() {
+        Some(ParamValue::Int(value)) => *value,
+        _ => 2,
+    }
+    .clamp(2, 64);
+    let all_current_inputs_connected =
+        (1..=current).all(|index| connected_indices.contains(&index));
+    let highest_connected = connected_indices.iter().copied().max().unwrap_or(0);
+    let desired = if all_current_inputs_connected {
+        (current + 1).clamp(2, 64)
+    } else if highest_connected < current {
+        (highest_connected + 1).clamp(2, current)
+    } else {
+        current
+    };
+    if count_node.param_value.as_ref() == Some(&ParamValue::Int(desired)) {
+        return;
+    }
+    if ctx.edits.pending.iter().any(|request| {
+        matches!(
+            &request.edit,
+            Edit::SetParam { node, value, .. }
+                if *node == count_param && *value == ParamValue::Int(desired)
+        )
+    }) {
+        return;
+    }
+    ctx.edits.push(Edit::SetParam {
+        node: count_param,
+        value: ParamValue::Int(desired),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+}
+
 fn anode_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
@@ -612,6 +807,7 @@ fn anode_from_snapshot(
     let mut instance =
         ANodeInstance::new(ANodeTypeId::new(type_id), node.label.clone());
     instance.id = ANodeId::from_uuid(node.uuid.0);
+    instance.enabled = node.enabled;
     let config_folder = snapshot
         .find_child_by_decl_id(anode, "config")
         .ok_or_else(|| "ANode Config folder is missing".to_string())?;
@@ -877,7 +1073,7 @@ impl Node for AlchemistANode {
 
     fn init(&mut self, ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-        self.node_data_mut().meta.can_be_disabled = false;
+        self.node_data_mut().meta.can_be_disabled = true;
         self.reconcile_structure(ctx);
     }
 
@@ -947,6 +1143,9 @@ impl AlchemistANode {
         set_tag(&mut meta.tags, ANODE_TYPE_TAG_PREFIX, type_id);
         meta.label = label.to_owned();
         meta.presentation.color = Some(anode_default_color(category, type_id));
+        if type_id == chataigne_state_machine::alchemist::ROUTING_TYPE {
+            meta.presentation.collapsed = true;
+        }
         node
     }
 
@@ -975,15 +1174,14 @@ impl AlchemistANode {
         let manager_ref = matches!(
             type_id.as_str(),
             chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::CONSEQUENCES_MANAGER_TYPE
                 | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
                 | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE
         );
         let mut permissions = NodeUserPermissions::all();
         permissions.can_edit_name = !(property_getter || manager_ref);
         permissions.can_edit_color = !property_getter;
         self.node_data_mut().meta.user_permissions = permissions;
+        self.node_data_mut().meta.can_be_disabled = true;
         let registry = registry();
         let Some(declaration) = registry.get(&ANodeTypeId::new(&type_id)) else {
             ctx.set_node_warning_with(
@@ -1015,6 +1213,7 @@ impl AlchemistANode {
         else {
             return;
         };
+        sync_auto_input_count(ctx, &snapshot, self.id(), config_folder, &type_id);
 
         let value_types = value_types();
         let signature_ctx = SignatureCtx {
@@ -1035,7 +1234,7 @@ impl AlchemistANode {
         );
 
         let mut desired_config = HashSet::new();
-        for field in declaration.config_fields() {
+        for field in config_fields_for_instance(declaration.as_ref(), &instance) {
             let value_decl = config_decl_id(field.id.as_str());
             desired_config.insert(value_decl.clone());
             if field.type_variable.is_some() {
@@ -1071,17 +1270,26 @@ impl AlchemistANode {
                     type_decl.as_str(),
                 )
                 .unwrap_or_else(|| runtime_value_type_id(&field.default_value));
+                let mut type_parameter = value_type_parameter(
+                    &format!("{} Type", field.label),
+                    &type_decl,
+                    &selected_type,
+                    property_getter,
+                    &type_options,
+                );
+                if !property_getter {
+                    // A runtime value's type is explicit (there are no inputs to
+                    // infer it from), so it is shown in the header and stays
+                    // always-on rather than being a disable-to-infer selector.
+                    let meta = &mut type_parameter.node_data_mut().meta;
+                    meta.can_be_disabled = false;
+                    meta.enabled = true;
+                }
                 self.ensure_parameter_node(
                     ctx,
                     &snapshot,
                     config_folder,
-                    value_type_parameter(
-                        &format!("{} Type", field.label),
-                        &type_decl,
-                        &selected_type,
-                        property_getter,
-                        &type_options,
-                    ),
+                    type_parameter,
                 );
                 ValueTypeId::new(selected_type)
             } else {
@@ -1100,6 +1308,42 @@ impl AlchemistANode {
                     value,
                     property_getter,
                 );
+                if !field.enum_options.is_empty() {
+                    let selected = child_string(
+                        &snapshot,
+                        config_folder,
+                        value_decl.as_str(),
+                    )
+                    .or_else(|| match &field.default_value {
+                        RuntimeValue::String(value) => Some(value.to_string()),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                    config_parameter.value = ParamValue::Enum(selected);
+                    config_parameter.default_value =
+                        ParamValue::Enum(match &field.default_value {
+                            RuntimeValue::String(value) => value.to_string(),
+                            _ => String::new(),
+                        });
+                    config_parameter.constraints.enum_options = field
+                        .enum_options
+                        .iter()
+                        .map(|(variant_id, label)| ParameterEnumOption {
+                            variant_id: variant_id.to_string(),
+                            value: ParamValue::Enum(variant_id.to_string()),
+                            label: label.clone(),
+                            tags: Vec::new(),
+                            ordering: None,
+                        })
+                        .collect();
+                    config_parameter.constraints.policy =
+                        ParameterConstraintPolicy::Reject;
+                }
+                if field.editor.as_deref() == Some("optional_count") {
+                    config_parameter.node_data_mut().meta.can_be_disabled =
+                        true;
+                    config_parameter.node_data_mut().meta.enabled = false;
+                }
                 config_parameter
                     .node_data_mut()
                     .meta
@@ -1509,12 +1753,10 @@ fn output_socket_tree(
         .with_child(NodeTree::new(value_type_param))
 }
 
-pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 5] = [
+pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 3] = [
     ("condition", "Conditions"),
-    ("consequence", "Consequences"),
     ("input", "Inputs"),
-    ("filter", "Filters"),
-    ("output", "Outputs"),
+    ("output", "Output Commands"),
 ];
 
 const PROPERTY_TYPES: [(&str, &str); 12] = [
@@ -1746,9 +1988,7 @@ impl Node for AlchemistPropertyFolder {
         label = "Role",
         enum_options = [
             "condition",
-            "consequence",
             "input",
-            "filter",
             "output"
         ],
         read_only = true,
@@ -2290,11 +2530,34 @@ impl AlchemistFormulaDefinition {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        let nodes = registry();
+        for child in snapshot.child_ids(self.id()) {
+            if Some(child) == skip_anode {
+                continue;
+            }
+            let Some(anode) = snapshot.node(child) else {
+                continue;
+            };
+            if anode.node_type != ANODE_NODE_TYPE {
+                continue;
+            }
+            let Some(type_id) = anode_type_from_tags(&anode.tags) else {
+                continue;
+            };
+            if nodes.get(&ANodeTypeId::new(&type_id)).is_none() {
+                continue;
+            }
+            let Some(config_folder) =
+                snapshot.find_child_by_decl_id(child, "config")
+            else {
+                continue;
+            };
+            sync_auto_input_count(ctx, &snapshot, child, config_folder, &type_id);
+        }
         let Ok(formula) = formula_from_snapshot(&snapshot, self.id()) else {
             return;
         };
         let value_types = value_types();
-        let nodes = registry();
         let solved = solve_types(
             &formula.graph,
             &TypeSolveCtx {
@@ -2646,7 +2909,7 @@ pub struct FormulaLibrary {}
 #[node("alchemist_formula_library", from_struct)]
 impl Node for FormulaLibrary {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[FORMULA_ITEM_KIND]))
+        Some(formula_container_rules())
     }
 
     fn user_container_accepts_item(
@@ -2654,25 +2917,56 @@ impl Node for FormulaLibrary {
         item_type: &str,
         item_kind: &str,
     ) -> bool {
-        item_kind == FORMULA_ITEM_KIND
-            && crate::app::declared_user_item_type_matches(
-                item_type,
-                FORMULA_ITEM_KIND,
-            )
+        formula_container_accepts(item_type, item_kind)
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        crate::app::declared_user_creatable_items(FORMULA_ITEM_KIND)
+        formula_container_creatable_items()
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
+        create_formula_container_item(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
+    }
+}
+
+#[node("alchemist_formula_folder", label = "Folder")]
+pub struct AlchemistFormulaFolder {}
+
+#[node("alchemist_formula_folder", from_struct)]
+impl Node for AlchemistFormulaFolder {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(formula_container_rules())
+    }
+
+    fn user_container_accepts_item(
+        &self,
+        item_type: &str,
+        item_kind: &str,
+    ) -> bool {
+        formula_container_accepts(item_type, item_kind)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        formula_container_creatable_items()
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        create_formula_container_item(node_type)
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 

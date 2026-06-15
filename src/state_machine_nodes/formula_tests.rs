@@ -11,8 +11,10 @@ use golden_core::{
 use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
     AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
-    AlchemistProperty, AlchemistPropertyManager, AlchemistPropertiesManager,
-    FORMULA_ITEM_KIND, FormulaLibrary, PROPERTIES_DECL_ID,
+    AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
+    AlchemistPropertiesManager, FORMULA_FOLDER_ITEM_KIND,
+    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FormulaLibrary,
+    PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
     formula_from_snapshot,
 };
@@ -28,6 +30,32 @@ fn formula_library_accepts_real_formula_nodes() {
 }
 
 #[test]
+fn formula_library_and_folders_accept_formulas_and_formula_folders() {
+    let library = FormulaLibrary::new();
+    let folder = AlchemistFormulaFolder::new();
+
+    for container in [&library as &dyn Node, &folder as &dyn Node] {
+        assert!(container.user_container_accepts_item(
+            AlchemistFormulaDefinition::NODE_TYPE,
+            FORMULA_ITEM_KIND
+        ));
+        assert!(container.user_container_accepts_item(
+            FORMULA_FOLDER_NODE_TYPE,
+            FORMULA_FOLDER_ITEM_KIND
+        ));
+        let items = container.user_creatable_items();
+        assert!(items.iter().any(|item| {
+            item.node_type == AlchemistFormulaDefinition::NODE_TYPE
+                && item.item_kind == FORMULA_ITEM_KIND
+        }));
+        assert!(items.iter().any(|item| {
+            item.node_type == FORMULA_FOLDER_NODE_TYPE
+                && item.item_kind == FORMULA_FOLDER_ITEM_KIND
+        }));
+    }
+}
+
+#[test]
 fn formula_exposes_anode_catalog_as_real_user_items() {
     let formula = AlchemistFormulaDefinition::new();
     let items = formula.user_creatable_items();
@@ -39,6 +67,49 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
     assert!(items.iter().any(|item| {
         item.node_type == AlchemistConnection::NODE_TYPE
     }));
+}
+
+#[test]
+fn materialized_anode_preserves_enabled_state() {
+    let (mut engine, formula) = engine_with_formula();
+    let previous_children = direct_children(&engine, formula).len();
+    create_anode(&mut engine, formula, "constant", 0.0, 0.0);
+    let constant = direct_children(&engine, formula)
+        .into_iter()
+        .skip(previous_children)
+        .find(|node_id| {
+            engine
+                .nodes
+                .get(*node_id)
+                .is_some_and(|node| node.get_type() == AlchemistANode::NODE_TYPE)
+        })
+        .expect("Constant ANode should exist");
+
+    assert!(
+        engine
+            .nodes
+            .get(constant)
+            .is_some_and(|node| node.node_data().meta.can_be_disabled),
+        "ANodes should expose the enable switch"
+    );
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: constant,
+        patch: NodeMetaPatch {
+            enabled: Some(false),
+            ..NodeMetaPatch::default()
+        },
+    });
+    assert!(ack.success, "ANode disable should succeed: {ack:?}");
+
+    let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+        .expect("Formula should materialize");
+
+    assert!(materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.type_id.as_str() == "constant")
+        .is_some_and(|node| !node.enabled));
 }
 
 #[test]
@@ -94,7 +165,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
                 == format!("{PROPERTY_CREATE_PREFIX}{property_type}")
         }));
     }
-    for role in ["condition", "consequence", "input", "filter", "output"] {
+    for role in ["condition", "input", "output"] {
         assert!(parameter_items.iter().any(|item| {
             item.node_type
                 == format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}")
@@ -423,6 +494,11 @@ fn anode_creation_materializes_visible_config_and_socket_nodes() {
         find_child_by_decl(&engine, config, "config/value").is_some(),
         "Constant value must be a real parameter"
     );
+    assert_eq!(
+        parameter_value(&engine, config, "config/log"),
+        ParamValue::Bool(false),
+        "Every ANode should materialize the common Log parameter"
+    );
     assert!(
         direct_children(&engine, outputs).into_iter().any(|node| {
             engine.nodes.get(node).is_some_and(|node| {
@@ -578,24 +654,76 @@ fn first_input_decides_auto_value_type_when_multiple_inputs_are_connected() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);
     create_anode(&mut engine, formula, "constant", 6.0, 3.0);
-    create_anode(&mut engine, formula, "add", 10.0, 3.0);
+    create_anode(&mut engine, formula, "math", 10.0, 3.0);
     let constants = direct_children(&engine, formula)
         .into_iter()
         .filter(|node| anode_type(&engine, *node).as_deref() == Some("constant"))
         .collect::<Vec<_>>();
-    let add = find_anode_by_type(&engine, formula, "add");
+    let math = find_anode_by_type(&engine, formula, "math");
     set_constant_value_type(&mut engine, constants[0], "vec3");
     set_constant_value_type(&mut engine, constants[1], "float");
 
-    create_connection(&mut engine, formula, constants[0], "value", add, "b");
-    create_connection(&mut engine, formula, constants[1], "value", add, "a");
+    create_connection(&mut engine, formula, constants[0], "value", math, "value2");
+    create_connection(&mut engine, formula, constants[1], "value", math, "value1");
 
-    let config = find_child_by_decl(&engine, add, "config").expect("Add config should exist");
+    let config = find_child_by_decl(&engine, math, "config").expect("Math config should exist");
     assert_eq!(
         parameter_value(&engine, config, "config/value_type"),
         ParamValue::Enum("float".into())
     );
-    assert_anode_socket_types(&engine, add, &["a", "b"], &["result"], "float");
+    assert_anode_socket_types(&engine, math, &["value1", "value2"], &["result"], "float");
+}
+
+#[test]
+fn disabled_math_input_count_tracks_connected_trailing_socket() {
+    let (mut engine, formula) = engine_with_formula();
+    create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    create_anode(&mut engine, formula, "constant", 6.0, 3.0);
+    create_anode(&mut engine, formula, "math", 10.0, 3.0);
+    let constants = direct_children(&engine, formula)
+        .into_iter()
+        .filter(|node| anode_type(&engine, *node).as_deref() == Some("constant"))
+        .collect::<Vec<_>>();
+    let math = find_anode_by_type(&engine, formula, "math");
+
+    create_connection(&mut engine, formula, constants[0], "value", math, "value1");
+    create_connection(&mut engine, formula, constants[1], "value", math, "value2");
+
+    let config = find_child_by_decl(&engine, math, "config").expect("Math config should exist");
+    let inputs = find_child_by_decl(&engine, math, "inputs").expect("Math inputs should exist");
+    assert_eq!(
+        parameter_value(&engine, config, "config/num_inputs"),
+        ParamValue::Int(3),
+        "Disabled Math num_inputs should auto-grow when all visible inputs are connected"
+    );
+    assert!(
+        find_child_by_decl(&engine, inputs, "inputs/value3").is_some(),
+        "Math should materialize one free trailing dynamic input"
+    );
+
+    let connection_to_value2 = direct_children(&engine, formula)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistConnection::NODE_TYPE
+            }) && parameter_value(&engine, *node, "target_socket")
+                == ParamValue::Str("value2".into())
+        })
+        .expect("Connection to value2 should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode {
+        node: connection_to_value2,
+    });
+    assert!(ack.success, "Connection removal should succeed: {ack:?}");
+
+    assert_eq!(
+        parameter_value(&engine, config, "config/num_inputs"),
+        ParamValue::Int(2),
+        "Disabled Math num_inputs should shrink when the trailing connected socket is removed"
+    );
+    assert!(
+        find_child_by_decl(&engine, inputs, "inputs/value3").is_none(),
+        "Math should remove obsolete trailing dynamic inputs"
+    );
 }
 
 #[test]
@@ -630,6 +758,48 @@ fn generic_nodes_infer_each_connected_primitive_type_without_forced_selector() {
 
         assert_anode_socket_types(&engine, delay, &["value"], &["value"], value_type);
     }
+}
+
+#[test]
+fn routing_node_infers_connected_type_without_value_type_config_and_starts_collapsed() {
+    let (mut engine, formula) = engine_with_formula();
+    create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    create_anode(
+        &mut engine,
+        formula,
+        chataigne_state_machine::alchemist::ROUTING_TYPE,
+        8.0,
+        3.0,
+    );
+    let constant = find_anode_by_type(&engine, formula, "constant");
+    let route = find_anode_by_type(
+        &engine,
+        formula,
+        chataigne_state_machine::alchemist::ROUTING_TYPE,
+    );
+    let route_config =
+        find_child_by_decl(&engine, route, "config").expect("Routing config should exist");
+
+    assert!(
+        find_child_by_decl(&engine, route_config, "config/value_type").is_none(),
+        "routing nodes should infer from connections without a forced Value Type UI"
+    );
+    assert!(
+        engine
+            .nodes
+            .get(route)
+            .expect("Routing node should exist")
+            .node_data()
+            .meta
+            .presentation
+            .collapsed,
+        "routing nodes should start collapsed"
+    );
+    set_constant_value_type(&mut engine, constant, "vec3");
+
+    create_connection(&mut engine, formula, constant, "value", route, "in");
+
+    assert_anode_socket_types(&engine, route, &["in"], &["out"], "vec3");
 }
 
 #[test]
@@ -858,18 +1028,23 @@ struct ANodeSocketSpec {
 
 const NUMERIC_FORCEABLE_NODE_SPECS: &[ANodeSocketSpec] = &[
     ANodeSocketSpec {
-        type_id: "add",
-        inputs: &["a", "b"],
+        type_id: "math",
+        inputs: &["value1", "value2"],
         outputs: &["result"],
     },
     ANodeSocketSpec {
-        type_id: "map_range",
-        inputs: &["value", "in_min", "in_max", "out_min", "out_max"],
+        type_id: "one_minus",
+        inputs: &["value"],
         outputs: &["result"],
     },
     ANodeSocketSpec {
-        type_id: "clamp",
-        inputs: &["value", "minimum", "maximum"],
+        type_id: "inverse",
+        inputs: &["value"],
+        outputs: &["result"],
+    },
+    ANodeSocketSpec {
+        type_id: "negate",
+        inputs: &["value"],
         outputs: &["result"],
     },
 ];

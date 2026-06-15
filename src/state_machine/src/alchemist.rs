@@ -5,22 +5,21 @@ use std::{fmt::Debug, sync::Arc};
 use golden_alchemist::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId,
     CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, ExecutionKind, ExtensionValue, FacetId, InputSocketDecl,
-    NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent, RuntimeValue, SignatureCtx,
-    StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeDescriptor, ValueTypeId,
-    ValueTypeRegistry,
+    NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeValue, SignatureCtx, StableRef,
+    TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind, ValueTypeDescriptor,
+    ValueTypeId, ValueTypeRegistry,
 };
-use serde::{Deserialize, Serialize};
 
 pub use golden_alchemist as alchemist;
 
 pub const MODULE_TYPE: &str = "chataigne.module";
 pub const MODULE_ENDPOINT_TYPE: &str = "chataigne.module_endpoint";
 pub const PARAM_ARRAY_TYPE: &str = "chataigne.param_array";
+pub const PROPERTY_GETTER_TYPE: &str = "property";
 pub const CONDITIONS_MANAGER_TYPE: &str = "chataigne.conditions_manager";
-pub const CONSEQUENCES_MANAGER_TYPE: &str = "chataigne.consequences_manager";
 pub const INPUTS_MANAGER_TYPE: &str = "chataigne.inputs_manager";
 pub const OUTPUTS_MANAGER_TYPE: &str = "chataigne.outputs_manager";
-pub const FILTERS_MANAGER_TYPE: &str = "chataigne.filters_manager";
+pub const ROUTING_TYPE: &str = "chataigne.routing";
 pub const COMMAND_TARGET_TYPE: &str = "chataigne.command_target";
 pub const COMMAND_DRAFT_TYPE: &str = "chataigne.command_draft";
 pub const SEQUENCE_TYPE: &str = "chataigne.sequence";
@@ -108,47 +107,29 @@ fn register_ref(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChataigneNodeKind {
-    ModuleValueInput,
-    CommandBuilder,
-    CommandIntentOutput,
-    SequenceIntentOutput,
-    StateTransitionIntentOutput,
-    StateActive,
+    PropertyGetter,
     ConditionsManagerRef,
-    ConsequencesManagerRef,
     InputsManagerRef,
     OutputsManagerRef,
-    FiltersManagerRef,
+    Routing,
 }
 
 impl ChataigneNodeKind {
-    const ALL: [Self; 11] = [
-        Self::ModuleValueInput,
-        Self::CommandBuilder,
-        Self::CommandIntentOutput,
-        Self::SequenceIntentOutput,
-        Self::StateTransitionIntentOutput,
-        Self::StateActive,
+    const ALL: [Self; 5] = [
+        Self::PropertyGetter,
         Self::ConditionsManagerRef,
-        Self::ConsequencesManagerRef,
         Self::InputsManagerRef,
         Self::OutputsManagerRef,
-        Self::FiltersManagerRef,
+        Self::Routing,
     ];
 
     fn type_id(self) -> &'static str {
         match self {
-            Self::ModuleValueInput => "chataigne.module_value_input",
-            Self::CommandBuilder => "chataigne.command_builder",
-            Self::CommandIntentOutput => "chataigne.command_intent_output",
-            Self::SequenceIntentOutput => "chataigne.sequence_intent_output",
-            Self::StateTransitionIntentOutput => "chataigne.state_transition_intent_output",
-            Self::StateActive => "chataigne.state_active",
+            Self::PropertyGetter => PROPERTY_GETTER_TYPE,
             Self::ConditionsManagerRef => CONDITIONS_MANAGER_TYPE,
-            Self::ConsequencesManagerRef => CONSEQUENCES_MANAGER_TYPE,
             Self::InputsManagerRef => INPUTS_MANAGER_TYPE,
             Self::OutputsManagerRef => OUTPUTS_MANAGER_TYPE,
-            Self::FiltersManagerRef => FILTERS_MANAGER_TYPE,
+            Self::Routing => ROUTING_TYPE,
         }
     }
 }
@@ -162,115 +143,64 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
 
     fn label(&self) -> &'static str {
         match self.0 {
-            ChataigneNodeKind::ModuleValueInput => "Module Value Input",
-            ChataigneNodeKind::CommandBuilder => "Command Builder",
-            ChataigneNodeKind::CommandIntentOutput => "Command Intent Output",
-            ChataigneNodeKind::SequenceIntentOutput => "Sequence Intent Output",
-            ChataigneNodeKind::StateTransitionIntentOutput => "State Transition Intent Output",
-            ChataigneNodeKind::StateActive => "State Active",
-            ChataigneNodeKind::ConditionsManagerRef => "Conditions Manager",
-            ChataigneNodeKind::ConsequencesManagerRef => "Consequences Manager",
-            ChataigneNodeKind::InputsManagerRef => "Inputs Manager",
-            ChataigneNodeKind::OutputsManagerRef => "Outputs Manager",
-            ChataigneNodeKind::FiltersManagerRef => "Filters Manager",
+            ChataigneNodeKind::PropertyGetter => "Property",
+            ChataigneNodeKind::ConditionsManagerRef => "Conditions",
+            ChataigneNodeKind::InputsManagerRef => "Inputs",
+            ChataigneNodeKind::OutputsManagerRef => "Output Commands",
+            ChataigneNodeKind::Routing => "Routing",
         }
     }
 
     fn category(&self) -> &'static str {
-        "Chataigne"
+        match self.0 {
+            ChataigneNodeKind::Routing => "Routing",
+            _ => "Chataigne",
+        }
     }
 
     fn execution_kind(&self) -> ExecutionKind {
         match self.0 {
-            ChataigneNodeKind::ModuleValueInput
-            | ChataigneNodeKind::StateActive
-            | ChataigneNodeKind::InputsManagerRef => ExecutionKind::EventSource,
-            ChataigneNodeKind::CommandBuilder
+            ChataigneNodeKind::InputsManagerRef => ExecutionKind::EventSource,
+            ChataigneNodeKind::OutputsManagerRef => ExecutionKind::EffectEmitter,
+            ChataigneNodeKind::PropertyGetter
             | ChataigneNodeKind::ConditionsManagerRef
-            | ChataigneNodeKind::FiltersManagerRef => ExecutionKind::Pure,
-            ChataigneNodeKind::CommandIntentOutput
-            | ChataigneNodeKind::SequenceIntentOutput
-            | ChataigneNodeKind::StateTransitionIntentOutput
-            | ChataigneNodeKind::ConsequencesManagerRef
-            | ChataigneNodeKind::OutputsManagerRef => ExecutionKind::EffectEmitter,
+            | ChataigneNodeKind::Routing => ExecutionKind::Pure,
         }
     }
 
     fn config_fields(&self) -> Vec<ANodeConfigFieldDecl> {
         match self.0 {
-            ChataigneNodeKind::ModuleValueInput => vec![
-                ANodeConfigFieldDecl::new(
-                    "source",
-                    "Source",
-                    RuntimeValue::Ref(StableRef::new(ValueTypeId::new(MODULE_ENDPOINT_TYPE), "")),
-                )
-                .with_description("Stable reference to the module endpoint to sample.")
-                .with_editor("stable_ref"),
-                ANodeConfigFieldDecl::new("value_type", "Value Type", RuntimeValue::String(Arc::from("bool")))
-                    .with_description("Value type produced by the selected endpoint.")
-                    .with_editor("value_type"),
+            ChataigneNodeKind::PropertyGetter => vec![
+                ANodeConfigFieldDecl::new("property_id", "Property ID", RuntimeValue::String("".into()))
+                    .with_description("Stable Formula property identifier."),
+                ANodeConfigFieldDecl::new("value", "Value", RuntimeValue::Float(0.0))
+                    .with_description("The property default or Processor override.")
+                    .with_editor("runtime_value"),
             ],
             ChataigneNodeKind::ConditionsManagerRef
-            | ChataigneNodeKind::ConsequencesManagerRef
             | ChataigneNodeKind::InputsManagerRef
             | ChataigneNodeKind::OutputsManagerRef
-            | ChataigneNodeKind::FiltersManagerRef => Vec::new(),
-            _ => Vec::new(),
+            | ChataigneNodeKind::Routing => Vec::new(),
         }
     }
 
     fn signature(&self, _ctx: &SignatureCtx<'_>, instance: &ANodeInstance, _bindings: &TypeBindings) -> ANodeSignature {
         match self.0 {
-            ChataigneNodeKind::ModuleValueInput => ANodeSignature {
-                outputs: vec![OutputSocketDecl::new(
-                    "value",
-                    "Value",
-                    TypeConstraint::Exact(configured_value_type(instance)),
-                )],
-                ..ANodeSignature::default()
-            },
-            ChataigneNodeKind::CommandBuilder => ANodeSignature {
-                inputs: vec![
-                    InputSocketDecl::new(
-                        "target",
-                        "Target",
-                        TypeConstraint::Facet(FacetId::new("command_target")),
-                    ),
-                    InputSocketDecl::new("payload", "Payload", TypeConstraint::Any),
-                ],
-                outputs: vec![OutputSocketDecl::new(
-                    "command",
-                    "Command",
-                    TypeConstraint::Exact(ValueTypeId::new(COMMAND_DRAFT_TYPE)),
-                )],
-                ..ANodeSignature::default()
-            },
-            ChataigneNodeKind::CommandIntentOutput => ANodeSignature {
-                inputs: vec![
-                    InputSocketDecl::new("trigger", "Trigger", TypeConstraint::Exact(ValueTypeId::new("trigger"))),
-                    InputSocketDecl::new(
-                        "command",
-                        "Command",
-                        TypeConstraint::Exact(ValueTypeId::new(COMMAND_DRAFT_TYPE)),
-                    ),
-                ],
-                ..ANodeSignature::default()
-            },
-            ChataigneNodeKind::SequenceIntentOutput => intent_signature(SEQUENCE_TYPE),
-            ChataigneNodeKind::StateTransitionIntentOutput => intent_signature(STATE_TYPE),
-            ChataigneNodeKind::StateActive => ANodeSignature {
-                inputs: vec![InputSocketDecl::new(
-                    "state",
-                    "State",
-                    TypeConstraint::Exact(ValueTypeId::new(STATE_TYPE)),
-                )],
-                outputs: vec![OutputSocketDecl::new(
-                    "active",
-                    "Active",
-                    TypeConstraint::Exact(ValueTypeId::new("bool")),
-                )],
-                ..ANodeSignature::default()
-            },
+            ChataigneNodeKind::PropertyGetter => {
+                let value_type = instance
+                    .config
+                    .get("value")
+                    .map_or_else(|| ValueTypeId::new("float"), RuntimeValue::value_type);
+                ANodeSignature {
+                    inputs: Vec::new(),
+                    outputs: vec![OutputSocketDecl::new(
+                        "value",
+                        "Value",
+                        TypeConstraint::Exact(value_type),
+                    )],
+                    ..ANodeSignature::default()
+                }
+            }
             ChataigneNodeKind::ConditionsManagerRef => ANodeSignature {
                 outputs: vec![
                     OutputSocketDecl::new("valid", "Valid", TypeConstraint::Exact(ValueTypeId::new("bool"))),
@@ -281,14 +211,6 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                         TypeConstraint::Exact(ValueTypeId::new("trigger")),
                     ),
                 ],
-                ..ANodeSignature::default()
-            },
-            ChataigneNodeKind::ConsequencesManagerRef => ANodeSignature {
-                inputs: vec![InputSocketDecl::new(
-                    "trigger",
-                    "Trigger",
-                    TypeConstraint::Exact(ValueTypeId::new("trigger")),
-                )],
                 ..ANodeSignature::default()
             },
             ChataigneNodeKind::InputsManagerRef => ANodeSignature {
@@ -310,19 +232,29 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                 ],
                 ..ANodeSignature::default()
             },
-            ChataigneNodeKind::FiltersManagerRef => ANodeSignature {
-                inputs: vec![InputSocketDecl::new(
-                    "parameters",
-                    "Parameters",
-                    TypeConstraint::Exact(ValueTypeId::new(PARAM_ARRAY_TYPE)),
-                )],
-                outputs: vec![OutputSocketDecl::new(
-                    "parameters",
-                    "Parameters",
-                    TypeConstraint::Exact(ValueTypeId::new(PARAM_ARRAY_TYPE)),
-                )],
-                ..ANodeSignature::default()
-            },
+            ChataigneNodeKind::Routing => {
+                let variable = TypeVar::new("TValue");
+                let mut signature = ANodeSignature {
+                    inputs: vec![InputSocketDecl::new(
+                        "in",
+                        "In",
+                        TypeConstraint::Generic(variable.clone()),
+                    )],
+                    outputs: vec![OutputSocketDecl::new(
+                        "out",
+                        "Out",
+                        TypeConstraint::Generic(variable.clone()),
+                    )],
+                    ..ANodeSignature::default()
+                };
+                signature.default_bindings.insert(
+                    variable.clone(),
+                    ValueTypeId::new("float"),
+                    TypeBindingSource::Default,
+                );
+                signature.generic_constraints.insert(variable, TypeConstraint::Any);
+                signature
+            }
         }
     }
 
@@ -332,152 +264,21 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
         _resolved: &ResolvedANodeSignature,
     ) -> Result<CompiledNodeOperation, Diagnostic> {
         let evaluator: Arc<dyn CompiledNodeEvaluator> = match self.0 {
-            ChataigneNodeKind::ModuleValueInput => Arc::new(ReferenceInput {
-                reference: config_ref(instance, "source", MODULE_ENDPOINT_TYPE),
-            }),
-            ChataigneNodeKind::CommandBuilder => Arc::new(CommandBuilder),
-            ChataigneNodeKind::CommandIntentOutput => Arc::new(CommandOutput),
-            ChataigneNodeKind::SequenceIntentOutput => Arc::new(ReferenceIntentOutput {
-                kind: "chataigne.sequence",
-            }),
-            ChataigneNodeKind::StateTransitionIntentOutput => Arc::new(ReferenceIntentOutput {
-                kind: "chataigne.state_transition",
-            }),
-            ChataigneNodeKind::StateActive => Arc::new(StateActive),
+            ChataigneNodeKind::PropertyGetter => {
+                return Ok(CompiledNodeOperation::Constant(
+                    instance
+                        .config
+                        .get("value")
+                        .cloned()
+                        .unwrap_or(RuntimeValue::Float(0.0)),
+                ));
+            }
             ChataigneNodeKind::ConditionsManagerRef => Arc::new(ConditionsManagerRefEval),
-            ChataigneNodeKind::ConsequencesManagerRef => Arc::new(NoOutputEval),
             ChataigneNodeKind::InputsManagerRef => Arc::new(ParamArraySourceEval),
             ChataigneNodeKind::OutputsManagerRef => Arc::new(NoOutputEval),
-            ChataigneNodeKind::FiltersManagerRef => Arc::new(ParamArrayPassThroughEval),
+            ChataigneNodeKind::Routing => Arc::new(RoutingEval),
         };
         Ok(CompiledNodeOperation::Custom(evaluator))
-    }
-}
-
-fn intent_signature(reference_type: &str) -> ANodeSignature {
-    ANodeSignature {
-        inputs: vec![
-            InputSocketDecl::new("trigger", "Trigger", TypeConstraint::Exact(ValueTypeId::new("trigger"))),
-            InputSocketDecl::new(
-                "target",
-                "Target",
-                TypeConstraint::Exact(ValueTypeId::new(reference_type)),
-            ),
-        ],
-        ..ANodeSignature::default()
-    }
-}
-
-fn configured_value_type(instance: &ANodeInstance) -> ValueTypeId {
-    match instance.config.get("value_type") {
-        Some(RuntimeValue::String(value)) => ValueTypeId::new(value.as_ref()),
-        _ => ValueTypeId::new("bool"),
-    }
-}
-
-fn config_ref(instance: &ANodeInstance, field: &str, fallback_type: &str) -> StableRef {
-    match instance.config.get(field) {
-        Some(RuntimeValue::Ref(reference)) => reference.clone(),
-        _ => StableRef::new(ValueTypeId::new(fallback_type), ""),
-    }
-}
-
-#[derive(Debug)]
-struct ReferenceInput {
-    reference: StableRef,
-}
-
-impl CompiledNodeEvaluator for ReferenceInput {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        evaluation
-            .ctx
-            .inputs
-            .get(&self.reference)
-            .cloned()
-            .map(|value| vec![value])
-            .ok_or_else(|| format!("input `{}` is unavailable", self.reference.stable_id))
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct CommandDraft {
-    target: StableRef,
-    payload: RuntimeValue,
-}
-
-#[derive(Debug)]
-struct CommandBuilder;
-
-impl CompiledNodeEvaluator for CommandBuilder {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let [RuntimeValue::Ref(target), payload] = evaluation.inputs else {
-            return Err("Command Builder expects target and payload inputs".into());
-        };
-        let bytes = serde_json::to_vec(&CommandDraft {
-            target: target.clone(),
-            payload: payload.clone(),
-        })
-        .map_err(|error| error.to_string())?;
-        Ok(vec![RuntimeValue::Extension(ExtensionValue::new(
-            ValueTypeId::new(COMMAND_DRAFT_TYPE),
-            bytes,
-        ))])
-    }
-}
-
-#[derive(Debug)]
-struct CommandOutput;
-
-impl CompiledNodeEvaluator for CommandOutput {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let [RuntimeValue::Trigger(trigger), RuntimeValue::Extension(command)] = evaluation.inputs else {
-            return Err("Command Intent Output expects trigger and command inputs".into());
-        };
-        if trigger.fired {
-            let draft: CommandDraft = serde_json::from_slice(&command.payload).map_err(|error| error.to_string())?;
-            evaluation.intents.push(RuntimeIntent {
-                kind: Arc::from("chataigne.command"),
-                target: Some(draft.target),
-                payload: draft.payload,
-                logical_tick: evaluation.ctx.logical_tick,
-            });
-        }
-        Ok(Vec::new())
-    }
-}
-
-#[derive(Debug)]
-struct ReferenceIntentOutput {
-    kind: &'static str,
-}
-
-impl CompiledNodeEvaluator for ReferenceIntentOutput {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let [RuntimeValue::Trigger(trigger), RuntimeValue::Ref(target)] = evaluation.inputs else {
-            return Err("intent output expects trigger and reference inputs".into());
-        };
-        if trigger.fired {
-            evaluation.intents.push(RuntimeIntent {
-                kind: Arc::from(self.kind),
-                target: Some(target.clone()),
-                payload: RuntimeValue::Unit,
-                logical_tick: evaluation.ctx.logical_tick,
-            });
-        }
-        Ok(Vec::new())
-    }
-}
-
-#[derive(Debug)]
-struct StateActive;
-
-impl CompiledNodeEvaluator for StateActive {
-    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        let [RuntimeValue::Ref(state)] = evaluation.inputs else {
-            return Err("State Active expects a state reference".into());
-        };
-        let active = matches!(evaluation.ctx.inputs.get(state), Some(RuntimeValue::Bool(true)));
-        Ok(vec![RuntimeValue::Bool(active)])
     }
 }
 
@@ -516,16 +317,11 @@ impl CompiledNodeEvaluator for ParamArraySourceEval {
 }
 
 #[derive(Debug)]
-struct ParamArrayPassThroughEval;
+struct RoutingEval;
 
-impl CompiledNodeEvaluator for ParamArrayPassThroughEval {
+impl CompiledNodeEvaluator for RoutingEval {
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![evaluation.inputs.first().cloned().unwrap_or_else(|| {
-            RuntimeValue::Extension(ExtensionValue::new(
-                ValueTypeId::new(PARAM_ARRAY_TYPE),
-                Arc::<[u8]>::from([]),
-            ))
-        })])
+        Ok(vec![evaluation.inputs.first().cloned().unwrap_or(RuntimeValue::Unit)])
     }
 }
 

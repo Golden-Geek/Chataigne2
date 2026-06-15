@@ -2,61 +2,64 @@
 	import { type Snippet } from 'svelte';
 	import {
 		GraphCanvas,
+		type GraphCamera,
 		type GraphConnectionRequest,
 		type GraphNode,
 		type GraphNodeCreationRequest,
 		type GraphNodeMove,
 		type GraphNodePosition,
 		type GraphNodeResize,
-		type GraphSocket
+		type GraphSocket,
+		type GraphViewportInset
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
-	import {
-		anodeType,
-		bodyConfigParameters,
-		canConnectGraphConnection,
-		toGraphEdges,
-		toGraphNodes,
-		valueTypeConfigParameter
-	} from '../alchemistGraph';
-	import ANodeConfigEditor from './ANodeConfigEditor.svelte';
+	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
-	import ANodeValueTypeHeaderControl from './ANodeValueTypeHeaderControl.svelte';
 
 	let {
 		formula,
 		nodesById,
 		selectedNodeIds = [],
 		selectedEdgeIds = [],
+		activeSocketRefs = new Set<string>(),
 		catalogItems = [],
 		onGraphSelectionChange,
 		onNodesMove,
 		onNodeResize,
 		onNodeRename,
 		onNodeCollapsedChange,
+		onNodeEnabledChange,
 		onConnect,
 		onBackgroundContextMenu,
 		onCreateRequest,
+		initialCamera,
+		onCameraChange,
+		viewportInset,
 		toolbarEnd
 	}: {
 		formula: UiNodeDto;
 		nodesById: ReadonlyMap<NodeId, UiNodeDto>;
 		selectedNodeIds?: string[];
 		selectedEdgeIds?: string[];
+		activeSocketRefs?: ReadonlySet<string>;
 		catalogItems?: UiCreatableUserItem[];
 		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
 		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
 		onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
 		onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
 		onNodeCollapsedChange?: (nodeId: string, collapsed: boolean) => void | Promise<void>;
+		onNodeEnabledChange?: (nodeId: string, enabled: boolean) => void | Promise<void>;
 		onConnect?: (connection: GraphConnectionRequest) => void;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
+		initialCamera?: GraphCamera;
+		onCameraChange?: (camera: GraphCamera) => void;
+		viewportInset?: GraphViewportInset;
 		toolbarEnd?: Snippet;
 	} = $props();
 
 	let nodes = $derived(toGraphNodes(formula, nodesById, catalogItems));
-	let edges = $derived(toGraphEdges(formula, nodesById));
+	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
 	let graphCanvas: {
 		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
 		frameSelection: () => boolean;
@@ -73,7 +76,7 @@
 		const formulaId = formula.node_id;
 		if (formulaId === activeFormulaId) return;
 		activeFormulaId = formulaId;
-		pendingHome = !framedFormulaIds.has(formulaId);
+		pendingHome = !initialCamera && !framedFormulaIds.has(formulaId);
 	});
 
 	$effect(() => {
@@ -89,8 +92,6 @@
 		}
 	});
 
-	const authoredNode = (id: string): UiNodeDto | null => nodesById.get(Number(id)) ?? null;
-	const isPropertyGetter = (node: UiNodeDto): boolean => anodeType(node) === 'property';
 	const inputDefaultParameter = (socket: GraphSocket): UiNodeDto | null =>
 		socket.defaultParamId ? (nodesById.get(Number(socket.defaultParamId)) ?? null) : null;
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
@@ -104,23 +105,6 @@
 	export const viewportCenter = (): GraphNodePosition =>
 		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>
-
-{#snippet nodeContent(graphNode: GraphNode)}
-	{@const node = authoredNode(graphNode.id)}
-	{#if node && !isPropertyGetter(node)}
-		<ANodeConfigEditor parameters={bodyConfigParameters(node, nodesById)} />
-	{/if}
-{/snippet}
-
-{#snippet nodeHeaderContent(graphNode: GraphNode)}
-	{@const node = authoredNode(graphNode.id)}
-	{#if node && !isPropertyGetter(node)}
-		{@const valueTypeParameter = valueTypeConfigParameter(node, nodesById)}
-		{#if valueTypeParameter}
-			<ANodeValueTypeHeaderControl parameter={valueTypeParameter} />
-		{/if}
-	{/if}
-{/snippet}
 
 {#snippet inputSocketContent(_graphNode: GraphNode, socket: GraphSocket)}
 	{@const parameter = inputDefaultParameter(socket)}
@@ -141,12 +125,14 @@
 		{onNodeResize}
 		{onNodeRename}
 		{onNodeCollapsedChange}
+		{onNodeEnabledChange}
 		{onConnect}
 		{canConnect}
 		{onBackgroundContextMenu}
 		{onCreateRequest}
-		{nodeContent}
-		{nodeHeaderContent}
+		{initialCamera}
+		{onCameraChange}
+		{viewportInset}
 		{inputSocketContent}
 		{toolbarEnd}
 		routeEdgesAroundNodes={true}

@@ -16,10 +16,7 @@ use golden_core::{
 use crate::app::state_machine_nodes_formula::{
     PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
-use crate::app::{
-    ConditionManager, ConsequencesManager, FilterChainManager, InputsManager,
-    OutputsManager,
-};
+use crate::app::{ConditionManager, InputsManager, OutputsManager};
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
@@ -120,9 +117,7 @@ fn processor_property_manager(
         .and_then(ParamValue::as_str)?;
     let mut manager: Box<dyn Node> = match role.as_str() {
         "condition" => Box::new(ConditionManager::new()),
-        "consequence" => Box::new(ConsequencesManager::new()),
         "input" => Box::new(InputsManager::new()),
-        "filter" => Box::new(FilterChainManager::new()),
         "output" => Box::new(OutputsManager::new()),
         _ => return None,
     };
