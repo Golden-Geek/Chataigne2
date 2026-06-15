@@ -83,6 +83,51 @@ This must be runtime-backed, typed, throttled, and lane-aware. It must not be a 
 
 # Revised coding plan for GPT-5.5 Extra High
 
+## Phase execution protocol
+
+Each phase is a bounded work unit and should end in one supercommit. The
+supercommit should contain the implementation, tests, generated artifacts, and
+docs needed for that phase to stand alone in review.
+
+Each phase must update the phase progress ledger before handoff:
+
+```text
+Status values:
+  Todo        not started
+  In progress active in the current chat
+  Blocked     started but waiting on an explicit external decision or missing dependency
+  Done        implemented, verified, and ready to be represented by a supercommit
+
+Supercommit values:
+  Pending     no phase commit has been prepared yet
+  Ready       changes are complete and can be committed as one reviewable unit
+  Committed   the supercommit exists
+```
+
+Use a fresh prompt chat per phase. The new chat should start by reading this
+ledger, the phase section, and any phase-specific docs produced by earlier
+phases. Do not carry half-remembered implementation details between phases.
+
+## Phase progress ledger
+
+| Phase | Status | Supercommit | Notes |
+| --- | --- | --- | --- |
+| 0 - Baseline and stale-test capture | Todo | Pending | Capture current command results before runtime refactors. |
+| 1 - Architecture doc first | Done | Ready | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`. |
+| 2 - Property schema and runtime property slots | Todo | Pending | Not started. |
+| 3 - Split compiled graph from memory | Todo | Pending | Not started. |
+| 4 - Generalized state layout | Todo | Pending | Not started. |
+| 5 - Context axes, stable context keys, sparse lane memory | Todo | Pending | Not started. |
+| 6 - Formula and processor lane analysis | Todo | Pending | Not started. |
+| 7 - Refactor `ProcessorRuntime` | Todo | Pending | Not started. |
+| 8 - Statechart transitions stay global | Todo | Pending | Not started. |
+| 9 - Lane-aware command arbitration for processors | Todo | Pending | Not started. |
+| 10 - Runtime-backed ANode output preview | Todo | Pending | Not started. |
+| 11 - Protocol DTOs and TypeScript generation | Todo | Pending | Not started. |
+| 12 - Formula editor UX model | Todo | Pending | Not started. |
+| 13 - Manager nodes: no silent fake behavior | Todo | Pending | Not started. |
+| 14 - Performance and scalability pass | Todo | Pending | Not started. |
+
 ## Mission
 
 Refactor Alchemist + State Machine toward this model:
