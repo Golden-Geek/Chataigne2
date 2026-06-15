@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
 use uuid::Uuid;
 
 use golden_alchemist::{
-    AlchemistFormula, AlchemistFormulaInstance, AlchemistRuntime, CompileCtx, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, FormulaSurface, RuntimeOutput, RuntimePropertyFrame, RuntimeSubscription, compile_graph,
+    AlchemistFormula, AlchemistFormulaInstance, AlchemistMemory, CompileCtx, CompiledAlchemistFormula,
+    DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame, FormulaRef, FormulaSurface,
+    RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame, RuntimeSubscription, compile_graph,
+    evaluate_compiled_graph,
 };
 use golden_statechart::StateId;
 
@@ -120,7 +124,9 @@ impl ProcessorDirtyFlags {
 
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
-    pub runtime: Option<AlchemistRuntime>,
+    pub compiled: Option<Arc<CompiledAlchemistFormula>>,
+    pub memory: Option<AlchemistMemory>,
+    pub properties: Option<RuntimePropertyFrame>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
     pub subscriptions: Vec<RuntimeSubscription>,
@@ -132,7 +138,9 @@ impl ProcessorRuntime {
     pub fn new(id: ProcessorId) -> Self {
         Self {
             id,
-            runtime: None,
+            compiled: None,
+            memory: None,
+            properties: None,
             active: false,
             dirty: ProcessorDirtyFlags {
                 graph: true,
@@ -145,7 +153,7 @@ impl ProcessorRuntime {
 
     pub fn compile(&mut self, processor: &Processor, formula: &AlchemistFormula, ctx: &CompileCtx<'_>) -> bool {
         if let Err(error) = processor.formula_instance.require_compatible(formula) {
-            self.runtime = None;
+            self.clear_runtime();
             self.diagnostics = vec![Diagnostic::error(
                 "formula_instance_incompatible",
                 error.to_string(),
@@ -161,14 +169,49 @@ impl ProcessorRuntime {
         let result = compile_graph(&formula.graph, &compile_ctx);
         self.diagnostics = result.diagnostics;
         let Some(compiled) = result.compiled else {
-            self.runtime = None;
+            self.clear_runtime();
             return false;
         };
-        self.subscriptions = compiled.subscriptions.clone();
-        let properties = RuntimePropertyFrame::from_defaults(&compiled.properties);
-        self.runtime = Some(AlchemistRuntime::with_property_frame(compiled, properties));
+        let compiled_formula = Arc::new(CompiledAlchemistFormula::new(
+            FormulaRef {
+                id: formula.id.clone(),
+                version: formula.version,
+            },
+            compiled,
+            self.diagnostics.clone(),
+        ));
+        self.compile_from_shared_formula(processor, formula, compiled_formula)
+    }
+
+    pub fn compile_from_shared_formula(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+    ) -> bool {
+        if let Err(error) = processor.formula_instance.require_compatible(formula) {
+            self.clear_runtime();
+            self.diagnostics = vec![Diagnostic::error(
+                "formula_instance_incompatible",
+                error.to_string(),
+                DiagnosticOrigin::Graph,
+            )];
+            return false;
+        }
+        self.subscriptions = compiled.graph.subscriptions.clone();
+        self.memory = Some(AlchemistMemory::for_graph(&compiled.graph));
+        self.properties = Some(RuntimePropertyFrame::from_defaults(&compiled.properties));
+        self.diagnostics = compiled.diagnostics.clone();
+        self.compiled = Some(compiled);
         self.dirty = ProcessorDirtyFlags::default();
         true
+    }
+
+    fn clear_runtime(&mut self) {
+        self.compiled = None;
+        self.memory = None;
+        self.properties = None;
+        self.subscriptions.clear();
     }
 
     pub fn apply_lifecycle(&mut self, processor: &Processor, event: ProcessorLifecycleEvent) {
@@ -195,8 +238,8 @@ impl ProcessorRuntime {
                 ProcessorLifecycleEvent::ProcessorEnable
             )
         );
-        if reset && let Some(compiled) = self.runtime.as_ref().map(|runtime| runtime.compiled.clone()) {
-            self.runtime = Some(AlchemistRuntime::new(compiled));
+        if reset && let Some(compiled) = &self.compiled {
+            self.memory = Some(AlchemistMemory::for_graph(&compiled.graph));
         }
     }
 
@@ -204,9 +247,22 @@ impl ProcessorRuntime {
         if !self.active {
             return RuntimeOutput::default();
         }
-        self.runtime
-            .as_mut()
-            .map_or_else(RuntimeOutput::default, |runtime| runtime.evaluate(ctx))
+        let (Some(compiled), Some(memory), Some(properties)) = (&self.compiled, &mut self.memory, &self.properties)
+        else {
+            return RuntimeOutput::default();
+        };
+        let mut debug = DebugCaptureSink::default();
+        let context = RuntimeContextFrame;
+        evaluate_compiled_graph(
+            &compiled.graph,
+            memory,
+            EvaluationFrame {
+                ctx,
+                properties,
+                context: &context,
+                debug: &mut debug,
+            },
+        )
     }
 }
 

@@ -89,6 +89,9 @@ Each phase is a bounded work unit and should end in one supercommit. The
 supercommit should contain the implementation, tests, generated artifacts, and
 docs needed for that phase to stand alone in review.
 
+Do not leave a completed phase uncommitted. Once a phase reaches `Done`, prepare
+and create its supercommit before starting the next phase.
+
 Each phase must update the phase progress ledger before handoff:
 
 ```text
@@ -112,10 +115,10 @@ phases. Do not carry half-remembered implementation details between phases.
 
 | Phase | Status | Supercommit | Notes |
 | --- | --- | --- | --- |
-| 0 - Baseline and stale-test capture | Todo | Pending | Capture current command results before runtime refactors. |
+| 0 - Baseline and stale-test capture | Todo | Pending | Current stale manager-node tests are marked ignored until Phase 13 replaces removed pre-manager-ref behavior. |
 | 1 - Architecture doc first | Done | Ready | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`. |
 | 2 - Property schema and runtime property slots | Done | Ready | Added schema-driven property slots, runtime property frames, and non-materialized processor compile path. |
-| 3 - Split compiled graph from memory | Todo | Pending | Not started. |
+| 3 - Split compiled graph from memory | Done | Ready | Added `CompiledAlchemistFormula`, `FormulaCompileKey`, lower-level `evaluate_compiled_graph`, and shared compiled formula use in processor runtime. |
 | 4 - Generalized state layout | Todo | Pending | Not started. |
 | 5 - Context axes, stable context keys, sparse lane memory | Todo | Pending | Not started. |
 | 6 - Formula and processor lane analysis | Todo | Pending | Not started. |

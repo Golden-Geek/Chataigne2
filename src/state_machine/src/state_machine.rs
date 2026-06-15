@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use indexmap::{IndexMap, IndexSet};
 
 use golden_alchemist::{
-    AlchemistFormula, AlchemistGraph, AlchemistRuntime, CompileCtx, EvaluationCtx, FormulaId, RuntimeIntent,
-    RuntimeOutput, compile_graph,
+    AlchemistFormula, AlchemistGraph, AlchemistRuntime, CompileCtx, CompiledAlchemistFormula, EvaluationCtx,
+    FormulaCompileKey, FormulaId, FormulaRef, RuntimeIntent, RuntimeOutput, compile_graph,
 };
 use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, TransitionOutcome};
 
@@ -114,6 +116,7 @@ pub struct ChataigneStateMachineRuntime {
 impl ChataigneStateMachineRuntime {
     pub fn compile(machine: &ChataigneStateMachine, ctx: &CompileCtx<'_>) -> Result<Self, Vec<String>> {
         let mut errors = Vec::new();
+        let mut compiled_formulas = IndexMap::<FormulaCompileKey, Arc<CompiledAlchemistFormula>>::new();
         let mut processor_runtimes = IndexMap::new();
         for processor in machine.processors() {
             let Some(formula) = machine.formulas.get(&processor.formula_instance.formula_ref.id) else {
@@ -123,8 +126,34 @@ impl ChataigneStateMachineRuntime {
                 ));
                 continue;
             };
+            let key = FormulaCompileKey::from_formula(formula, u64::from(formula.version), 0, 0);
+            let compiled_formula = if let Some(compiled) = compiled_formulas.get(&key) {
+                Arc::clone(compiled)
+            } else {
+                let formula_ctx = CompileCtx {
+                    value_types: ctx.value_types,
+                    nodes: ctx.nodes,
+                    properties: Some(&formula.properties),
+                };
+                let result = compile_graph(&formula.graph, &formula_ctx);
+                let diagnostics = result.diagnostics;
+                let Some(compiled) = result.compiled else {
+                    errors.extend(diagnostics.into_iter().map(|diagnostic| diagnostic.message));
+                    continue;
+                };
+                let compiled = Arc::new(CompiledAlchemistFormula::new(
+                    FormulaRef {
+                        id: formula.id.clone(),
+                        version: formula.version,
+                    },
+                    compiled,
+                    diagnostics,
+                ));
+                compiled_formulas.insert(key, Arc::clone(&compiled));
+                compiled
+            };
             let mut runtime = ProcessorRuntime::new(processor.id);
-            if !runtime.compile(processor, formula, ctx) {
+            if !runtime.compile_from_shared_formula(processor, formula, compiled_formula) {
                 errors.extend(runtime.diagnostics.iter().map(|diagnostic| diagnostic.message.clone()));
             }
             processor_runtimes.insert(processor.id, runtime);

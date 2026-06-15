@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
@@ -32,6 +32,47 @@ fn constant_formula() -> AlchemistFormula {
 }
 
 #[test]
+fn two_processors_share_same_compiled_formula_arc() {
+    let mut chart = Statechart::new();
+    let state = chart.add_leaf(chart.root_region, "Only").unwrap();
+    chart.set_initial(chart.root_region, state).unwrap();
+    let mut machine = ChataigneStateMachine::new(chart);
+    let formula = constant_formula();
+    let first_processor = Processor::from_formula("First Processor", &formula);
+    let first_id = first_processor.id;
+    let second_processor = Processor::from_formula("Second Processor", &formula);
+    let second_id = second_processor.id;
+    machine.add_formula(formula);
+    machine.add_processor(state, first_processor).unwrap();
+    machine.add_processor(state, second_processor).unwrap();
+
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    let runtime = ChataigneStateMachineRuntime::compile(
+        &machine,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    )
+    .unwrap();
+
+    let first = &runtime.processor_runtimes[&first_id];
+    let second = &runtime.processor_runtimes[&second_id];
+    assert!(Arc::ptr_eq(
+        first.compiled.as_ref().unwrap(),
+        second.compiled.as_ref().unwrap()
+    ));
+    assert_ne!(
+        first.memory.as_ref().unwrap() as *const _,
+        second.memory.as_ref().unwrap() as *const _
+    );
+}
+
+#[test]
 fn state_transition_updates_active_processor_matrix() {
     let mut chart = Statechart::new();
     let first = chart.add_leaf(chart.root_region, "First").unwrap();
@@ -53,7 +94,7 @@ fn state_transition_updates_active_processor_matrix() {
     source.config.set("value", RuntimeValue::Bool(true));
     let source = guard.add_node(source).unwrap();
     let edge = guard
-        .add_node(ANodeInstance::new(ANodeTypeId::new("edge"), "Edge"))
+        .add_node(ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger"))
         .unwrap();
     guard
         .connect(

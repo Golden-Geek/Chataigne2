@@ -105,6 +105,12 @@ the shared compiled Formula, the current `PropertyFrame`, the current runtime
 context, and either no persistent memory or the `LaneMemory` for the selected
 processor lane.
 
+The reusable core boundary is `evaluate_compiled_graph`: callers provide a
+`CompiledAlchemistGraph`, an `AlchemistMemory` frame, and an `EvaluationFrame`.
+`AlchemistRuntime` may remain as a convenience wrapper, but Chataigne
+processors own a shared `CompiledAlchemistFormula` reference plus their own
+memory and property frame.
+
 Default memory identity:
 
 ```text
@@ -150,4 +156,3 @@ reference a processor-lane result as metadata.
 Changing the selected preview lane only changes debug focus. It must not mutate
 the Formula graph, Formula property defaults, processor overrides, or runtime
 memory.
-
