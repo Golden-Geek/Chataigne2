@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
-    FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeRegistries, RuntimeValue, ValueTypeRegistry, primitive_node_registry,
+    FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, LaneRuntimePool, OutputSocketRef,
+    RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
@@ -31,13 +31,41 @@ fn constant_formula() -> AlchemistFormula {
     }
 }
 
+fn stateful_formula() -> AlchemistFormula {
+    let mut graph = AlchemistGraph::new();
+    let mut source = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
+    source.config.set("value", RuntimeValue::Bool(true));
+    let source = graph.add_node(source).unwrap();
+    let edge = graph
+        .add_node(ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger On/Off"))
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(edge, "value"),
+        )
+        .unwrap();
+    AlchemistFormula {
+        id: FormulaId::new("stateful"),
+        version: 1,
+        label: "Stateful".into(),
+        description: None,
+        tags: Vec::new(),
+        graph,
+        properties: FormulaPropertySchema::default(),
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
+}
+
 #[test]
 fn two_processors_share_same_compiled_formula_arc() {
     let mut chart = Statechart::new();
     let state = chart.add_leaf(chart.root_region, "Only").unwrap();
     chart.set_initial(chart.root_region, state).unwrap();
     let mut machine = ChataigneStateMachine::new(chart);
-    let formula = constant_formula();
+    let formula = stateful_formula();
     let first_processor = Processor::from_formula("First Processor", &formula);
     let first_id = first_processor.id;
     let second_processor = Processor::from_formula("Second Processor", &formula);
@@ -66,10 +94,12 @@ fn two_processors_share_same_compiled_formula_arc() {
         first.compiled.as_ref().unwrap(),
         second.compiled.as_ref().unwrap()
     ));
-    assert_ne!(
-        first.memory.as_ref().unwrap() as *const _,
-        second.memory.as_ref().unwrap() as *const _
-    );
+    match (&first.lanes, &second.lanes) {
+        (LaneRuntimePool::Stateful(first_lanes), LaneRuntimePool::Stateful(second_lanes)) => {
+            assert_ne!(first_lanes as *const _, second_lanes as *const _);
+        }
+        _ => panic!("stateful processors should own separate sparse lane pools"),
+    }
 }
 
 #[test]

@@ -128,6 +128,19 @@ No memory is shared between lanes unless a future explicit policy says so.
 Sparse lane pools allocate memory only for lanes that actually evaluate and
 only when the compiled Formula contains stateful nodes.
 
+`golden_alchemist` owns the reusable context identity primitives:
+`ContextAxisId`, `ContextItemId`, `ContextKeyPart`, `ContextKey`,
+`ContextValuePath`, `RuntimeContextFrame`, and `LaneRuntimePool`.
+`ContextKey` is stable identity only; display labels and indices stay outside
+the hot runtime key so reorder operations cannot move memory to the wrong lane.
+
+Chataigne owns `ProcessorContextProvider`. The provider exposes available axes,
+iterates the keys required by the current processor execution plan, and resolves
+context values for future property/input binding work. `ProcessorRuntime`
+retains a shared compiled Formula and a sparse `LaneRuntimePool`; lifecycle
+memory resets clear the whole pool and the next evaluation lazily recreates only
+the lanes that are still used.
+
 ## Optimization Matrix
 
 ```text

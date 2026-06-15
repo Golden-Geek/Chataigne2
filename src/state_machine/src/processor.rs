@@ -3,12 +3,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use golden_alchemist::{
-    AlchemistFormula, AlchemistFormulaInstance, AlchemistMemory, CompileCtx, CompiledAlchemistFormula,
-    DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame, FormulaRef, FormulaSurface,
-    RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame, RuntimeSubscription, compile_graph,
-    evaluate_compiled_graph,
+    AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
+    ContextKey, ContextValuePath, DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame,
+    FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame, RuntimeOutput, RuntimePropertyFrame,
+    RuntimeSubscription, RuntimeValue, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
+use indexmap::IndexSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -62,6 +63,53 @@ pub enum ProcessorLifecycleEvent {
     ProcessorDisable,
     ProjectStart,
     ProjectStop,
+}
+
+pub trait ProcessorContextProvider {
+    fn available_axes(&self, processor_id: ProcessorId) -> AxisSet;
+
+    fn iter_context_keys<'a>(
+        &'a self,
+        processor_id: ProcessorId,
+        axes: &'a AxisSet,
+    ) -> Box<dyn Iterator<Item = ContextKey> + 'a>;
+
+    fn resolve_context_value(
+        &self,
+        key: &ContextKey,
+        axis: &ContextAxisId,
+        path: &ContextValuePath,
+    ) -> Option<RuntimeValue>;
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DefaultProcessorContextProvider;
+
+impl ProcessorContextProvider for DefaultProcessorContextProvider {
+    fn available_axes(&self, _processor_id: ProcessorId) -> AxisSet {
+        AxisSet::new()
+    }
+
+    fn iter_context_keys<'a>(
+        &'a self,
+        _processor_id: ProcessorId,
+        axes: &'a AxisSet,
+    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        if axes.is_empty() {
+            Box::new(std::iter::once(ContextKey::default_lane()))
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    fn resolve_context_value(
+        &self,
+        _key: &ContextKey,
+        _axis: &ContextAxisId,
+        _path: &ContextValuePath,
+    ) -> Option<RuntimeValue> {
+        None
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -125,7 +173,7 @@ impl ProcessorDirtyFlags {
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
-    pub memory: Option<AlchemistMemory>,
+    pub lanes: LaneRuntimePool,
     pub properties: Option<RuntimePropertyFrame>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
@@ -139,7 +187,7 @@ impl ProcessorRuntime {
         Self {
             id,
             compiled: None,
-            memory: None,
+            lanes: LaneRuntimePool::default(),
             properties: None,
             active: false,
             dirty: ProcessorDirtyFlags {
@@ -199,7 +247,7 @@ impl ProcessorRuntime {
             return false;
         }
         self.subscriptions = compiled.graph.subscriptions.clone();
-        self.memory = Some(AlchemistMemory::for_graph(&compiled.graph));
+        self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
         self.properties = Some(RuntimePropertyFrame::from_defaults(&compiled.properties));
         self.diagnostics = compiled.diagnostics.clone();
         self.compiled = Some(compiled);
@@ -209,7 +257,7 @@ impl ProcessorRuntime {
 
     fn clear_runtime(&mut self) {
         self.compiled = None;
-        self.memory = None;
+        self.lanes = LaneRuntimePool::default();
         self.properties = None;
         self.subscriptions.clear();
     }
@@ -238,32 +286,82 @@ impl ProcessorRuntime {
                 ProcessorLifecycleEvent::ProcessorEnable
             )
         );
-        if reset && let Some(compiled) = &self.compiled {
-            self.memory = Some(AlchemistMemory::for_graph(&compiled.graph));
+        if reset {
+            self.lanes.clear();
         }
     }
 
     pub fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
-        if !self.active {
-            return RuntimeOutput::default();
-        }
-        let (Some(compiled), Some(memory), Some(properties)) = (&self.compiled, &mut self.memory, &self.properties)
-        else {
-            return RuntimeOutput::default();
-        };
-        let mut debug = DebugCaptureSink::default();
-        let context = RuntimeContextFrame;
-        evaluate_compiled_graph(
-            &compiled.graph,
-            memory,
-            EvaluationFrame {
-                ctx,
-                properties,
-                context: &context,
-                debug: &mut debug,
-            },
-        )
+        let provider = DefaultProcessorContextProvider;
+        self.evaluate_with_context_provider(ctx, &provider, &AxisSet::new())
+            .into_iter()
+            .next()
+            .map(|lane| lane.output)
+            .unwrap_or_default()
     }
+
+    pub fn evaluate_with_context_provider(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        required_axes: &AxisSet,
+    ) -> Vec<ProcessorLaneOutput> {
+        if !self.active {
+            return Vec::new();
+        }
+        let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
+            return Vec::new();
+        };
+        let Some(properties) = self.properties.clone() else {
+            return Vec::new();
+        };
+        let mut context_keys = context_provider
+            .iter_context_keys(self.id, required_axes)
+            .collect::<IndexSet<_>>();
+        if context_keys.is_empty() && required_axes.is_empty() {
+            context_keys.insert(ContextKey::default_lane());
+        }
+        self.lanes.retain_keys(&context_keys);
+
+        context_keys
+            .into_iter()
+            .map(|context_key| {
+                let mut debug = DebugCaptureSink::default();
+                let context = RuntimeContextFrame::new(context_key.clone());
+                let output = match self.lanes.memory_for_key(context_key.clone(), &compiled.graph) {
+                    Some(memory) => evaluate_compiled_graph(
+                        &compiled.graph,
+                        memory,
+                        EvaluationFrame {
+                            ctx,
+                            properties: &properties,
+                            context: &context,
+                            debug: &mut debug,
+                        },
+                    ),
+                    None => evaluate_compiled_graph_stateless(
+                        &compiled.graph,
+                        EvaluationFrame {
+                            ctx,
+                            properties: &properties,
+                            context: &context,
+                            debug: &mut debug,
+                        },
+                    ),
+                };
+                ProcessorLaneOutput {
+                    context_key: (!context_key.is_default_lane()).then_some(context_key),
+                    output,
+                }
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProcessorLaneOutput {
+    pub context_key: Option<ContextKey>,
+    pub output: RuntimeOutput,
 }
 
 #[derive(Clone, Debug)]

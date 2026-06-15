@@ -1,19 +1,41 @@
 use std::time::Duration;
 
 use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
-    FormulaId, FormulaPropertySchema, FormulaSurface, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue,
-    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry,
+    ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
+    ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
+    InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, SurfaceItem,
+    SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry,
     primitive_node_registry,
 };
 
-use crate::{Processor, ProcessorLifecycleEvent, ProcessorRuntime};
+use crate::{Processor, ProcessorContextProvider, ProcessorId, ProcessorLifecycleEvent, ProcessorRuntime};
 
 fn formula() -> AlchemistFormula {
     let mut graph = AlchemistGraph::new();
     let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
     constant.config.set("value", RuntimeValue::Float(1.0));
     graph.add_node(constant).unwrap();
+    formula_with_graph(graph)
+}
+
+fn stateful_formula() -> AlchemistFormula {
+    let mut graph = AlchemistGraph::new();
+    let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
+    constant.config.set("value", RuntimeValue::Bool(true));
+    let source = graph.add_node(constant).unwrap();
+    let edge = graph
+        .add_node(ANodeInstance::new(ANodeTypeId::new("trigger_on_off"), "Trigger On/Off"))
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(edge, "value"),
+        )
+        .unwrap();
+    formula_with_graph(graph)
+}
+
+fn formula_with_graph(graph: AlchemistGraph) -> AlchemistFormula {
     AlchemistFormula {
         id: FormulaId::new("test"),
         version: 1,
@@ -26,6 +48,89 @@ fn formula() -> AlchemistFormula {
         context_contract: FormulaContextContract::default(),
         migrations: Vec::new(),
     }
+}
+
+#[derive(Clone, Debug)]
+struct TestContextProvider {
+    keys: Vec<ContextKey>,
+    axes: AxisSet,
+}
+
+impl TestContextProvider {
+    fn new(keys: Vec<ContextKey>) -> Self {
+        let mut axes = AxisSet::new();
+        axes.insert(ContextAxisId::new("device"));
+        Self { keys, axes }
+    }
+}
+
+impl ProcessorContextProvider for TestContextProvider {
+    fn available_axes(&self, _processor_id: ProcessorId) -> AxisSet {
+        self.axes.clone()
+    }
+
+    fn iter_context_keys<'a>(
+        &'a self,
+        _processor_id: ProcessorId,
+        axes: &'a AxisSet,
+    ) -> Box<dyn Iterator<Item = ContextKey> + 'a> {
+        if axes.is_empty() {
+            Box::new(std::iter::once(ContextKey::default_lane()))
+        } else {
+            Box::new(self.keys.clone().into_iter())
+        }
+    }
+
+    fn resolve_context_value(
+        &self,
+        _key: &ContextKey,
+        _axis: &ContextAxisId,
+        _path: &ContextValuePath,
+    ) -> Option<RuntimeValue> {
+        None
+    }
+}
+
+fn compile_active_runtime(formula: &AlchemistFormula) -> (Processor, ProcessorRuntime) {
+    let processor = Processor::from_formula("Processor", formula);
+    let mut runtime = ProcessorRuntime::new(processor.id);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    assert!(runtime.compile(
+        &processor,
+        formula,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: Some(&formula.properties),
+        }
+    ));
+    runtime.apply_lifecycle(
+        &processor,
+        ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
+    );
+    (processor, runtime)
+}
+
+fn evaluation_ctx<'a>(
+    logical_tick: u64,
+    inputs: &'a RuntimeInputSnapshot,
+    registries: &'a RuntimeRegistries<'a>,
+) -> EvaluationCtx<'a> {
+    EvaluationCtx {
+        logical_tick,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs,
+        registries,
+    }
+}
+
+fn trigger_fired(output: &RuntimeOutput) -> bool {
+    output
+        .debug_samples
+        .iter()
+        .any(|sample| matches!(&sample.value, RuntimeValue::Trigger(trigger) if trigger.fired))
 }
 
 #[test]
@@ -62,6 +167,131 @@ fn processor_compiles_and_evaluates_only_while_active() {
         ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
     );
     assert_eq!(runtime.evaluate(&ctx).debug_samples.len(), 1);
+}
+
+#[test]
+fn processor_under_multiplex_without_context_reference_runs_one_lane() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+    let provider = TestContextProvider::new(vec![
+        ContextKey::single("device", "a"),
+        ContextKey::single("device", "b"),
+    ]);
+
+    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider, &AxisSet::new());
+
+    assert_eq!(outputs.len(), 1);
+    assert_eq!(outputs[0].context_key, None);
+    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert!(
+        provider
+            .available_axes(processor.id)
+            .contains(&ContextAxisId::new("device"))
+    );
+}
+
+#[test]
+fn stateless_processor_bound_to_context_runs_lanes_without_memory() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+    let provider = TestContextProvider::new(vec![
+        ContextKey::single("device", "a"),
+        ContextKey::single("device", "b"),
+    ]);
+    let axes = provider.available_axes(processor.id);
+
+    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider, &axes);
+
+    assert_eq!(outputs.len(), 2);
+    assert!(outputs.iter().all(|lane| lane.context_key.is_some()));
+    assert_eq!(runtime.lanes.memory_count(), 0);
+}
+
+#[test]
+fn stateful_lanes_have_independent_memory_preserved_by_stable_key() {
+    let formula = stateful_formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let a = ContextKey::single("device", "a");
+    let b = ContextKey::single("device", "b");
+    let provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
+    let axes = provider.available_axes(processor.id);
+    let first_ctx = evaluation_ctx(1, &inputs, &registries);
+
+    let first = runtime.evaluate_with_context_provider(&first_ctx, &provider, &axes);
+
+    assert_eq!(first.len(), 2);
+    assert!(first.iter().all(|lane| trigger_fired(&lane.output)));
+    assert_eq!(runtime.lanes.memory_count(), 2);
+
+    let reordered_provider = TestContextProvider::new(vec![b.clone(), a.clone()]);
+    let second_ctx = evaluation_ctx(2, &inputs, &registries);
+    let second = runtime.evaluate_with_context_provider(&second_ctx, &reordered_provider, &axes);
+
+    assert_eq!(
+        second.iter().map(|lane| lane.context_key.as_ref()).collect::<Vec<_>>(),
+        vec![Some(&b), Some(&a)]
+    );
+    assert!(second.iter().all(|lane| !trigger_fired(&lane.output)));
+    assert_eq!(runtime.lanes.memory_count(), 2);
+}
+
+#[test]
+fn removed_context_item_evicts_lane_memory() {
+    let formula = stateful_formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let a = ContextKey::single("device", "a");
+    let b = ContextKey::single("device", "b");
+    let provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
+    let axes = provider.available_axes(processor.id);
+    let first_ctx = evaluation_ctx(1, &inputs, &registries);
+
+    runtime.evaluate_with_context_provider(&first_ctx, &provider, &axes);
+    assert_eq!(runtime.lanes.memory_count(), 2);
+
+    let b_only_provider = TestContextProvider::new(vec![b.clone()]);
+    let second_ctx = evaluation_ctx(2, &inputs, &registries);
+    let second = runtime.evaluate_with_context_provider(&second_ctx, &b_only_provider, &axes);
+    assert_eq!(second.len(), 1);
+    assert!(!trigger_fired(&second[0].output));
+    assert_eq!(runtime.lanes.memory_count(), 1);
+
+    let restored_provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
+    let third_ctx = evaluation_ctx(3, &inputs, &registries);
+    let third = runtime.evaluate_with_context_provider(&third_ctx, &restored_provider, &axes);
+    let a_lane = third
+        .iter()
+        .find(|lane| lane.context_key.as_ref() == Some(&a))
+        .expect("restored context item should be evaluated");
+    let b_lane = third
+        .iter()
+        .find(|lane| lane.context_key.as_ref() == Some(&b))
+        .expect("preserved context item should be evaluated");
+
+    assert!(trigger_fired(&a_lane.output));
+    assert!(!trigger_fired(&b_lane.output));
+    assert_eq!(runtime.lanes.memory_count(), 2);
 }
 
 #[test]
