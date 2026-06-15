@@ -1,7 +1,12 @@
 {
   // All MCP clients share ~/.code-index. VS Code owns the watcher lifecycle.
   "extra_extensions": {
-    ".svelte": "typescript"
+    ".svelte": "typescript",
+    // Index Markdown docs for text search. jCodeMunch has no Markdown grammar,
+    // so map to "yaml" (an empty-symbol spec): no bogus symbols are extracted,
+    // but the raw file content is stored so search_text finds it.
+    ".md": "yaml",
+    ".markdown": "yaml"
   },
 
   "watch": false,

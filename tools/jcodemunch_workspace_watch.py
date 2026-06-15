@@ -110,15 +110,23 @@ def canonical_repositories(store: IndexStore) -> dict[str, Path]:
             for entry in entries
             if Path(entry.get("source_root", "")).resolve() == source_root
         ]
-        if len(matches) != 1 or not matches[0]["repo"].startswith("local/"):
+        # Prefer the local/* index: that is the namespace resolve_repo and every
+        # query reads from. Stray non-local duplicates (e.g. git-remote-identity
+        # indexes created by another MCP client) are tolerated and ignored here
+        # rather than crashing the watcher on startup.
+        local_matches = [
+            entry for entry in matches if entry["repo"].startswith("local/")
+        ]
+        chosen = local_matches or matches
+        if len(chosen) != 1:
             identities = ", ".join(entry["repo"] for entry in matches) or "none"
             errors.append(f"{source_root} has indexes [{identities}]")
             continue
-        repositories[matches[0]["repo"]] = source_root
+        repositories[chosen[0]["repo"]] = source_root
 
     if errors:
         raise RuntimeError(
-            "Expected exactly one local jCodeMunch index per workspace repository: "
+            "Could not determine a unique jCodeMunch index per workspace repository: "
             + "; ".join(errors)
         )
     return repositories
