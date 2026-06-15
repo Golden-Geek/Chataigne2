@@ -248,14 +248,6 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
                 decl_id: DeclId("config/property_id".into()),
                 value: ParamValue::Str(property_uuid),
             },
-            UiCreateUserItemInitialParam {
-                decl_id: DeclId("config/value__type".into()),
-                value: ParamValue::Enum("float".into()),
-            },
-            UiCreateUserItemInitialParam {
-                decl_id: DeclId("config/value".into()),
-                value: ParamValue::Float(3.5),
-            },
         ],
     });
     assert!(ack.success, "Property getter creation should succeed: {ack:?}");

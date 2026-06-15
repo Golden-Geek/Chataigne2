@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx, EvaluationCtx, FormulaContextContract,
-    FormulaId, FormulaSurface, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId,
-    SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry, primitive_node_registry,
+    FormulaId, FormulaPropertySchema, FormulaSurface, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue,
+    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry,
+    primitive_node_registry,
 };
 
 use crate::{Processor, ProcessorLifecycleEvent, ProcessorRuntime};
@@ -20,6 +21,7 @@ fn formula() -> AlchemistFormula {
         description: None,
         tags: Vec::new(),
         graph,
+        properties: FormulaPropertySchema::default(),
         surface: FormulaSurface::default(),
         context_contract: FormulaContextContract::default(),
         migrations: Vec::new(),
@@ -39,6 +41,7 @@ fn processor_compiles_and_evaluates_only_while_active() {
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
+            properties: Some(&formula.properties),
         }
     ));
     let registries = RuntimeRegistries {

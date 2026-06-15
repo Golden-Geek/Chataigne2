@@ -6,8 +6,8 @@ use std::{
 use golden_alchemist::{
     ANodeFieldPath, ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula,
     AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
-    DiagnosticSeverity,
-    FormulaContextContract, FormulaId, FormulaSurface, InputSocketRef,
+    DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
+    FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
     OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
     SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
     SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
@@ -860,6 +860,7 @@ fn anode_from_snapshot(
     let value_types = value_types();
     let signature_ctx = SignatureCtx {
         value_types: &value_types,
+        properties: None,
     };
     let signature = declaration.signature(
         &signature_ctx,
@@ -981,6 +982,7 @@ pub(crate) fn formula_from_snapshot(
         formula_node,
         &mut graph,
     )?;
+    let properties = formula_property_schema_from_snapshot(snapshot, formula_node);
 
     Ok(AlchemistFormula {
         id: FormulaId::new(formula_snapshot.uuid.0.to_string()),
@@ -989,6 +991,7 @@ pub(crate) fn formula_from_snapshot(
         description: None,
         tags: formula_snapshot.tags.clone(),
         graph,
+        properties,
         surface,
         context_contract: FormulaContextContract {
             accepts_additional_dimensions: true,
@@ -996,6 +999,57 @@ pub(crate) fn formula_from_snapshot(
         },
         migrations: Vec::new(),
 	})
+}
+
+fn formula_property_schema_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> FormulaPropertySchema {
+    let mut schema = FormulaPropertySchema::default();
+    if let Some(properties) =
+        snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID)
+    {
+        collect_property_declarations(snapshot, properties, &mut schema);
+    }
+    schema
+}
+
+fn collect_property_declarations(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    schema: &mut FormulaPropertySchema,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        match node.node_type.as_str() {
+            PROPERTY_NODE_TYPE => {
+                let property_type = child_string(snapshot, child, "property_type")
+                    .unwrap_or_else(|| "float".to_owned());
+                let value_type =
+                    ValueTypeId::new(property_value_type(&property_type));
+                let default_value = child_param(snapshot, child, "value")
+                    .and_then(|value| {
+                        param_to_runtime_value(value, &value_type).ok()
+                    })
+                    .or_else(|| default_runtime_value(&value_type).ok())
+                    .unwrap_or(RuntimeValue::Unit);
+                schema.insert(FormulaPropertyDecl {
+                    id: FormulaPropertyId::new(node.uuid.0.to_string()),
+                    label: node.label.clone(),
+                    description: None,
+                    value_type,
+                    default_value,
+                    ui: ParamUiHints::default(),
+                });
+            }
+            PROPERTY_FOLDER_NODE_TYPE => {
+                collect_property_declarations(snapshot, child, schema);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn formula_anode_node_ids(
@@ -1262,6 +1316,7 @@ impl AlchemistANode {
         let value_types = value_types();
         let signature_ctx = SignatureCtx {
             value_types: &value_types,
+            properties: None,
         };
         let mut instance =
             ANodeInstance::new(declaration.type_id(), declaration.label());
@@ -2622,10 +2677,12 @@ impl AlchemistFormulaDefinition {
             &TypeSolveCtx {
                 value_types: &value_types,
                 nodes: &nodes,
+                properties: Some(&formula.properties),
             },
         );
         let signature_ctx = SignatureCtx {
             value_types: &value_types,
+            properties: Some(&formula.properties),
         };
 
         for child in snapshot.child_ids(self.id()) {
@@ -2830,6 +2887,7 @@ impl AlchemistFormulaDefinition {
                 &CompileCtx {
                     value_types: &value_types,
                     nodes: &nodes,
+                    properties: Some(&formula.properties),
                 },
             )
         });

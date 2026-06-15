@@ -114,7 +114,7 @@ phases. Do not carry half-remembered implementation details between phases.
 | --- | --- | --- | --- |
 | 0 - Baseline and stale-test capture | Todo | Pending | Capture current command results before runtime refactors. |
 | 1 - Architecture doc first | Done | Ready | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`. |
-| 2 - Property schema and runtime property slots | Todo | Pending | Not started. |
+| 2 - Property schema and runtime property slots | Done | Ready | Added schema-driven property slots, runtime property frames, and non-materialized processor compile path. |
 | 3 - Split compiled graph from memory | Todo | Pending | Not started. |
 | 4 - Generalized state layout | Todo | Pending | Not started. |
 | 5 - Context axes, stable context keys, sparse lane memory | Todo | Pending | Not started. |

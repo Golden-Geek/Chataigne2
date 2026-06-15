@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use golden_alchemist::{
     AlchemistFormula, AlchemistFormulaInstance, AlchemistRuntime, CompileCtx, Diagnostic, DiagnosticOrigin,
-    EvaluationCtx, FormulaSurface, RuntimeOutput, RuntimeSubscription, compile_graph,
+    EvaluationCtx, FormulaSurface, RuntimeOutput, RuntimePropertyFrame, RuntimeSubscription, compile_graph,
 };
 use golden_statechart::StateId;
 
@@ -144,26 +144,29 @@ impl ProcessorRuntime {
     }
 
     pub fn compile(&mut self, processor: &Processor, formula: &AlchemistFormula, ctx: &CompileCtx<'_>) -> bool {
-        let graph = match formula.materialize(&processor.formula_instance) {
-            Ok(graph) => graph,
-            Err(error) => {
-                self.runtime = None;
-                self.diagnostics = vec![Diagnostic::error(
-                    "formula_materialization_failed",
-                    error.to_string(),
-                    DiagnosticOrigin::Graph,
-                )];
-                return false;
-            }
+        if let Err(error) = processor.formula_instance.require_compatible(formula) {
+            self.runtime = None;
+            self.diagnostics = vec![Diagnostic::error(
+                "formula_instance_incompatible",
+                error.to_string(),
+                DiagnosticOrigin::Graph,
+            )];
+            return false;
+        }
+        let compile_ctx = CompileCtx {
+            value_types: ctx.value_types,
+            nodes: ctx.nodes,
+            properties: Some(&formula.properties),
         };
-        let result = compile_graph(&graph, ctx);
+        let result = compile_graph(&formula.graph, &compile_ctx);
         self.diagnostics = result.diagnostics;
         let Some(compiled) = result.compiled else {
             self.runtime = None;
             return false;
         };
         self.subscriptions = compiled.subscriptions.clone();
-        self.runtime = Some(AlchemistRuntime::new(compiled));
+        let properties = RuntimePropertyFrame::from_defaults(&compiled.properties);
+        self.runtime = Some(AlchemistRuntime::with_property_frame(compiled, properties));
         self.dirty = ProcessorDirtyFlags::default();
         true
     }

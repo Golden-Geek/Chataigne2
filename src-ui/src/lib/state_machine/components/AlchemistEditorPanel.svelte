@@ -379,31 +379,8 @@
 		});
 	};
 
-	const propertyValueType = (property: UiNodeDto): string => {
-		if (!graphState) return 'float';
-		const value = parameterChild(property, graphState.nodesById, 'value');
-		if (value?.data.kind !== 'parameter') return 'float';
-		switch (value.data.param.value.kind) {
-			case 'trigger':
-			case 'int':
-			case 'float':
-			case 'bool':
-			case 'vec2':
-			case 'vec3':
-			case 'color':
-				return value.data.param.value.kind;
-			case 'reference':
-				return 'chataigne.module_endpoint';
-			default:
-				return 'string';
-		}
-	};
-
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
 		if (!formula || !graphState || property.node_type !== PROPERTY_NODE_TYPE) return;
-		const value = parameterChild(property, graphState.nodesById, 'value');
-		if (value?.data.kind !== 'parameter') return;
-		const initialValue = value.data.param.value;
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				formula.node_id,
@@ -420,12 +397,7 @@
 						initialParam('config/property_id', {
 							kind: 'str',
 							value: property.uuid
-						}),
-						initialParam('config/value__type', {
-							kind: 'enum',
-							value: propertyValueType(property)
-						}),
-						initialParam('config/value', initialValue)
+						})
 					]
 				}
 			);

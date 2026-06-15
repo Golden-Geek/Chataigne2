@@ -54,6 +54,7 @@ fn module_input_can_emit_state_transition_intent() {
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
+            properties: None,
         },
     );
     assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
@@ -132,6 +133,7 @@ fn routing_node_passes_value_to_downstream_consumers() {
         &CompileCtx {
             value_types: &value_types,
             nodes: &nodes,
+            properties: None,
         },
     );
     assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);

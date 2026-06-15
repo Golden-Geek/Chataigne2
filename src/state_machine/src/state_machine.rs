@@ -132,7 +132,12 @@ impl ChataigneStateMachineRuntime {
         let mut guard_runtimes = IndexMap::new();
         for transition in machine.transitions.values() {
             if let Some(graph) = &transition.guard_graph {
-                let result = compile_graph(graph, ctx);
+                let guard_ctx = CompileCtx {
+                    value_types: ctx.value_types,
+                    nodes: ctx.nodes,
+                    properties: None,
+                };
+                let result = compile_graph(graph, &guard_ctx);
                 if let Some(compiled) = result.compiled {
                     guard_runtimes.insert(transition.transition_id, AlchemistRuntime::new(compiled));
                 } else {

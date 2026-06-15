@@ -107,7 +107,6 @@ fn register_ref(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChataigneNodeKind {
-    PropertyGetter,
     ConditionsManagerRef,
     InputsManagerRef,
     OutputsManagerRef,
@@ -115,8 +114,7 @@ pub enum ChataigneNodeKind {
 }
 
 impl ChataigneNodeKind {
-    const ALL: [Self; 5] = [
-        Self::PropertyGetter,
+    const ALL: [Self; 4] = [
         Self::ConditionsManagerRef,
         Self::InputsManagerRef,
         Self::OutputsManagerRef,
@@ -125,7 +123,6 @@ impl ChataigneNodeKind {
 
     fn type_id(self) -> &'static str {
         match self {
-            Self::PropertyGetter => PROPERTY_GETTER_TYPE,
             Self::ConditionsManagerRef => CONDITIONS_MANAGER_TYPE,
             Self::InputsManagerRef => INPUTS_MANAGER_TYPE,
             Self::OutputsManagerRef => OUTPUTS_MANAGER_TYPE,
@@ -143,7 +140,6 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
 
     fn label(&self) -> &'static str {
         match self.0 {
-            ChataigneNodeKind::PropertyGetter => "Property",
             ChataigneNodeKind::ConditionsManagerRef => "Conditions",
             ChataigneNodeKind::InputsManagerRef => "Inputs",
             ChataigneNodeKind::OutputsManagerRef => "Output Commands",
@@ -162,21 +158,12 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
         match self.0 {
             ChataigneNodeKind::InputsManagerRef => ExecutionKind::EventSource,
             ChataigneNodeKind::OutputsManagerRef => ExecutionKind::EffectEmitter,
-            ChataigneNodeKind::PropertyGetter
-            | ChataigneNodeKind::ConditionsManagerRef
-            | ChataigneNodeKind::Routing => ExecutionKind::Pure,
+            ChataigneNodeKind::ConditionsManagerRef | ChataigneNodeKind::Routing => ExecutionKind::Pure,
         }
     }
 
     fn config_fields(&self) -> Vec<ANodeConfigFieldDecl> {
         match self.0 {
-            ChataigneNodeKind::PropertyGetter => vec![
-                ANodeConfigFieldDecl::new("property_id", "Property ID", RuntimeValue::String("".into()))
-                    .with_description("Stable Formula property identifier."),
-                ANodeConfigFieldDecl::new("value", "Value", RuntimeValue::Float(0.0))
-                    .with_description("The property default or Processor override.")
-                    .with_editor("runtime_value"),
-            ],
             ChataigneNodeKind::ConditionsManagerRef
             | ChataigneNodeKind::InputsManagerRef
             | ChataigneNodeKind::OutputsManagerRef
@@ -184,23 +171,13 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
         }
     }
 
-    fn signature(&self, _ctx: &SignatureCtx<'_>, instance: &ANodeInstance, _bindings: &TypeBindings) -> ANodeSignature {
+    fn signature(
+        &self,
+        _ctx: &SignatureCtx<'_>,
+        _instance: &ANodeInstance,
+        _bindings: &TypeBindings,
+    ) -> ANodeSignature {
         match self.0 {
-            ChataigneNodeKind::PropertyGetter => {
-                let value_type = instance
-                    .config
-                    .get("value")
-                    .map_or_else(|| ValueTypeId::new("float"), RuntimeValue::value_type);
-                ANodeSignature {
-                    inputs: Vec::new(),
-                    outputs: vec![OutputSocketDecl::new(
-                        "value",
-                        "Value",
-                        TypeConstraint::Exact(value_type),
-                    )],
-                    ..ANodeSignature::default()
-                }
-            }
             ChataigneNodeKind::ConditionsManagerRef => ANodeSignature {
                 outputs: vec![
                     OutputSocketDecl::new("valid", "Valid", TypeConstraint::Exact(ValueTypeId::new("bool"))),
@@ -260,19 +237,10 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
 
     fn compile_operation(
         &self,
-        instance: &ANodeInstance,
+        _instance: &ANodeInstance,
         _resolved: &ResolvedANodeSignature,
     ) -> Result<CompiledNodeOperation, Diagnostic> {
         let evaluator: Arc<dyn CompiledNodeEvaluator> = match self.0 {
-            ChataigneNodeKind::PropertyGetter => {
-                return Ok(CompiledNodeOperation::Constant(
-                    instance
-                        .config
-                        .get("value")
-                        .cloned()
-                        .unwrap_or(RuntimeValue::Float(0.0)),
-                ));
-            }
             ChataigneNodeKind::ConditionsManagerRef => Arc::new(ConditionsManagerRefEval),
             ChataigneNodeKind::InputsManagerRef => Arc::new(ParamArraySourceEval),
             ChataigneNodeKind::OutputsManagerRef => Arc::new(NoOutputEval),
