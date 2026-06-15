@@ -230,7 +230,10 @@ impl ChataigneStateMachineRuntime {
             ..StateMachineTickOutput::default()
         };
         for processor_id in self.execution.active_processors.clone() {
-            let output = self.processor_runtimes[&processor_id].evaluate(ctx);
+            let Some(processor) = machine.processor(processor_id) else {
+                continue;
+            };
+            let output = self.processor_runtimes[&processor_id].evaluate_processor(processor, ctx);
             result.intents.extend(output.intents.iter().cloned());
             result.processor_outputs.insert(processor_id, output);
         }

@@ -108,8 +108,8 @@ processor lane.
 The reusable core boundary is `evaluate_compiled_graph`: callers provide a
 `CompiledAlchemistGraph`, an `AlchemistMemory` frame, and an `EvaluationFrame`.
 `AlchemistRuntime` may remain as a convenience wrapper, but Chataigne
-processors own a shared `CompiledAlchemistFormula` reference plus their own
-memory and property frame.
+processors own a shared `CompiledAlchemistFormula` reference, an execution
+plan, and a sparse lane-memory pool. They do not own a cached property frame.
 
 Node declarations own their persistent state shape through `NodeStateLayout`.
 The default maps `ExecutionKind::Stateful` to one runtime value slot and all
@@ -140,6 +140,11 @@ context values for future property/input binding work. `ProcessorRuntime`
 retains a shared compiled Formula and a sparse `LaneRuntimePool`; lifecycle
 memory resets clear the whole pool and the next evaluation lazily recreates only
 the lanes that are still used.
+
+During evaluation, `ProcessorRuntime` receives the live `Processor` instance and
+resolves a fresh `RuntimePropertyFrame` for each evaluated context key. Constant
+processor overrides therefore change the property frame without changing the
+compiled Formula arc or the lane memory pool.
 
 Formula lane analysis is computed during compilation. Node declarations may
 declare direct context axes; those axes propagate through compiled input sources

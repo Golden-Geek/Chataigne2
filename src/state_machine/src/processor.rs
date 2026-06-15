@@ -5,12 +5,12 @@ use uuid::Uuid;
 use golden_alchemist::{
     AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
     ContextKey, ContextValuePath, DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame,
-    FormulaAnalysis, FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame, RuntimeOutput,
-    RuntimePropertyFrame, RuntimeSubscription, RuntimeValue, compile_graph, evaluate_compiled_graph,
-    evaluate_compiled_graph_stateless,
+    ExecNodeId, FormulaAnalysis, FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame,
+    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
+    RuntimeValue, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -243,7 +243,6 @@ pub struct ProcessorRuntime {
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
     pub plan: Option<ProcessorExecutionPlan>,
     pub lanes: LaneRuntimePool,
-    pub properties: Option<RuntimePropertyFrame>,
     pub active: bool,
     pub dirty: ProcessorDirtyFlags,
     pub subscriptions: Vec<RuntimeSubscription>,
@@ -258,7 +257,6 @@ impl ProcessorRuntime {
             compiled: None,
             plan: None,
             lanes: LaneRuntimePool::default(),
-            properties: None,
             active: false,
             dirty: ProcessorDirtyFlags {
                 graph: true,
@@ -318,7 +316,6 @@ impl ProcessorRuntime {
         }
         self.subscriptions = compiled.graph.subscriptions.clone();
         self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
-        self.properties = Some(RuntimePropertyFrame::from_defaults(&compiled.properties));
         self.diagnostics = compiled.diagnostics.clone();
         self.plan = Some(ProcessorExecutionPlan::analyze(
             processor.id,
@@ -335,7 +332,6 @@ impl ProcessorRuntime {
         self.compiled = None;
         self.plan = None;
         self.lanes = LaneRuntimePool::default();
-        self.properties = None;
         self.subscriptions.clear();
     }
 
@@ -383,17 +379,14 @@ impl ProcessorRuntime {
         }
     }
 
-    pub fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
+    pub fn evaluate_processor(&mut self, processor: &Processor, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
         let provider = DefaultProcessorContextProvider;
-        self.evaluate_with_context_provider(ctx, &provider)
-            .into_iter()
-            .next()
-            .map(|lane| lane.output)
-            .unwrap_or_default()
+        merge_lane_outputs(self.evaluate_processor_with_context_provider(processor, ctx, &provider))
     }
 
-    pub fn evaluate_with_context_provider(
+    pub fn evaluate_processor_with_context_provider(
         &mut self,
+        processor: &Processor,
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
     ) -> Vec<ProcessorLaneOutput> {
@@ -401,9 +394,6 @@ impl ProcessorRuntime {
             return Vec::new();
         }
         let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
-            return Vec::new();
-        };
-        let Some(properties) = self.properties.clone() else {
             return Vec::new();
         };
         let plan = self.plan.clone().unwrap_or_else(|| {
@@ -431,6 +421,16 @@ impl ProcessorRuntime {
             .map(|context_key| {
                 let mut debug = DebugCaptureSink::default();
                 let context = RuntimeContextFrame::new(context_key.clone());
+                let properties = match self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
+                {
+                    Ok(properties) => properties,
+                    Err(error) => {
+                        return ProcessorLaneOutput {
+                            context_key: (!context_key.is_default_lane()).then_some(context_key),
+                            output: property_frame_error_output(error),
+                        };
+                    }
+                };
                 let memory_key = context_key.project(&plan.required_memory_axes);
                 let output = match self.lanes.memory_for_key(memory_key, &compiled.graph) {
                     Some(memory) => evaluate_compiled_graph(
@@ -459,6 +459,43 @@ impl ProcessorRuntime {
                 }
             })
             .collect()
+    }
+
+    fn resolve_property_frame(
+        &self,
+        processor: &Processor,
+        compiled: &CompiledAlchemistFormula,
+        _context_key: &ContextKey,
+        _context_provider: &dyn ProcessorContextProvider,
+    ) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
+        let mut overrides = IndexMap::new();
+        for (surface_item, value) in &processor.formula_instance.overrides.values {
+            let property_id = FormulaPropertyId::new(surface_item.as_str());
+            if compiled.properties.get(&property_id).is_some() {
+                overrides.insert(property_id, value.clone());
+            }
+        }
+        RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)
+    }
+}
+
+fn merge_lane_outputs(lanes: Vec<ProcessorLaneOutput>) -> RuntimeOutput {
+    let mut output = RuntimeOutput::default();
+    for lane in lanes {
+        output.intents.extend(lane.output.intents);
+        output.diagnostics.extend(lane.output.diagnostics);
+        output.debug_samples.extend(lane.output.debug_samples);
+    }
+    output
+}
+
+fn property_frame_error_output(error: RuntimePropertyFrameError) -> RuntimeOutput {
+    RuntimeOutput {
+        diagnostics: vec![RuntimeDiagnostic {
+            exec_node: ExecNodeId::new(0),
+            message: error.to_string(),
+        }],
+        ..RuntimeOutput::default()
     }
 }
 

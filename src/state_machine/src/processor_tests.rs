@@ -1,11 +1,11 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
-    ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
-    InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, SurfaceItem,
-    SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeRegistry,
-    primitive_node_registry,
+    ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
+    FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput,
+    RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId,
+    SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 
 use crate::{
@@ -36,6 +36,25 @@ fn stateful_formula() -> AlchemistFormula {
         )
         .unwrap();
     formula_with_graph(graph)
+}
+
+fn property_formula(property_id: &str, default_value: RuntimeValue) -> AlchemistFormula {
+    let mut graph = AlchemistGraph::new();
+    let mut property = ANodeInstance::new(ANodeTypeId::new("property"), "Property");
+    property
+        .config
+        .set("property_id", RuntimeValue::String(property_id.into()));
+    graph.add_node(property).unwrap();
+    let mut formula = formula_with_graph(graph);
+    formula.properties.insert(FormulaPropertyDecl {
+        id: FormulaPropertyId::new(property_id),
+        label: "Amount".into(),
+        description: None,
+        value_type: ValueTypeId::new("float"),
+        default_value,
+        ui: golden_alchemist::PropertyUiHints::default(),
+    });
+    formula
 }
 
 fn formula_with_graph(graph: AlchemistGraph) -> AlchemistFormula {
@@ -136,6 +155,13 @@ fn trigger_fired(output: &RuntimeOutput) -> bool {
         .any(|sample| matches!(&sample.value, RuntimeValue::Trigger(trigger) if trigger.fired))
 }
 
+fn first_float(output: &RuntimeOutput) -> Option<f64> {
+    output.debug_samples.iter().find_map(|sample| match sample.value {
+        RuntimeValue::Float(value) => Some(value),
+        _ => None,
+    })
+}
+
 #[test]
 fn processor_compiles_and_evaluates_only_while_active() {
     let formula = formula();
@@ -164,12 +190,40 @@ fn processor_compiles_and_evaluates_only_while_active() {
         registries: &registries,
     };
 
-    assert!(runtime.evaluate(&ctx).debug_samples.is_empty());
+    assert!(runtime.evaluate_processor(&processor, &ctx).debug_samples.is_empty());
     runtime.apply_lifecycle(
         &processor,
         ProcessorLifecycleEvent::StateEnter(golden_statechart::StateId::new()),
     );
-    assert_eq!(runtime.evaluate(&ctx).debug_samples.len(), 1);
+    assert_eq!(runtime.evaluate_processor(&processor, &ctx).debug_samples.len(), 1);
+}
+
+#[test]
+fn override_change_rebuilds_property_frame_not_formula() {
+    let formula = property_formula("amount", RuntimeValue::Float(1.0));
+    let (mut processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let first_ctx = evaluation_ctx(1, &inputs, &registries);
+    let compiled = Arc::clone(runtime.compiled.as_ref().unwrap());
+
+    let first = runtime.evaluate_processor(&processor, &first_ctx);
+    assert_eq!(first_float(&first), Some(1.0));
+
+    processor
+        .formula_instance
+        .overrides
+        .values
+        .insert(SurfaceItemId::new("amount"), RuntimeValue::Float(7.5));
+    let second_ctx = evaluation_ctx(2, &inputs, &registries);
+    let second = runtime.evaluate_processor(&processor, &second_ctx);
+
+    assert_eq!(first_float(&second), Some(7.5));
+    assert!(Arc::ptr_eq(&compiled, runtime.compiled.as_ref().unwrap()));
+    assert_eq!(runtime.lanes.memory_count(), 0);
 }
 
 #[test]
@@ -187,7 +241,7 @@ fn processor_under_multiplex_without_context_reference_runs_one_lane() {
         ContextKey::single("device", "b"),
     ]);
 
-    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider);
+    let outputs = runtime.evaluate_processor_with_context_provider(&processor, &ctx, &provider);
 
     assert_eq!(outputs.len(), 1);
     assert_eq!(outputs[0].context_key, None);
@@ -226,7 +280,7 @@ fn stateless_processor_bound_to_context_runs_lanes_without_memory() {
         },
     );
 
-    let outputs = runtime.evaluate_with_context_provider(&ctx, &provider);
+    let outputs = runtime.evaluate_processor_with_context_provider(&processor, &ctx, &provider);
 
     assert_eq!(outputs.len(), 2);
     assert!(outputs.iter().all(|lane| lane.context_key.is_some()));
@@ -258,7 +312,7 @@ fn stateful_lanes_have_independent_memory_preserved_by_stable_key() {
     );
     let first_ctx = evaluation_ctx(1, &inputs, &registries);
 
-    let first = runtime.evaluate_with_context_provider(&first_ctx, &provider);
+    let first = runtime.evaluate_processor_with_context_provider(&processor, &first_ctx, &provider);
 
     assert_eq!(first.len(), 2);
     assert!(first.iter().all(|lane| trigger_fired(&lane.output)));
@@ -269,7 +323,7 @@ fn stateful_lanes_have_independent_memory_preserved_by_stable_key() {
 
     let reordered_provider = TestContextProvider::new(vec![b.clone(), a.clone()]);
     let second_ctx = evaluation_ctx(2, &inputs, &registries);
-    let second = runtime.evaluate_with_context_provider(&second_ctx, &reordered_provider);
+    let second = runtime.evaluate_processor_with_context_provider(&processor, &second_ctx, &reordered_provider);
 
     assert_eq!(
         second.iter().map(|lane| lane.context_key.as_ref()).collect::<Vec<_>>(),
@@ -301,19 +355,19 @@ fn removed_context_item_evicts_lane_memory() {
     );
     let first_ctx = evaluation_ctx(1, &inputs, &registries);
 
-    runtime.evaluate_with_context_provider(&first_ctx, &provider);
+    runtime.evaluate_processor_with_context_provider(&processor, &first_ctx, &provider);
     assert_eq!(runtime.lanes.memory_count(), 2);
 
     let b_only_provider = TestContextProvider::new(vec![b.clone()]);
     let second_ctx = evaluation_ctx(2, &inputs, &registries);
-    let second = runtime.evaluate_with_context_provider(&second_ctx, &b_only_provider);
+    let second = runtime.evaluate_processor_with_context_provider(&processor, &second_ctx, &b_only_provider);
     assert_eq!(second.len(), 1);
     assert!(!trigger_fired(&second[0].output));
     assert_eq!(runtime.lanes.memory_count(), 1);
 
     let restored_provider = TestContextProvider::new(vec![a.clone(), b.clone()]);
     let third_ctx = evaluation_ctx(3, &inputs, &registries);
-    let third = runtime.evaluate_with_context_provider(&third_ctx, &restored_provider);
+    let third = runtime.evaluate_processor_with_context_provider(&processor, &third_ctx, &restored_provider);
     let a_lane = third
         .iter()
         .find(|lane| lane.context_key.as_ref() == Some(&a))
