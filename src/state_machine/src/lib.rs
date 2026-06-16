@@ -9,7 +9,7 @@ mod state_machine;
 
 pub use arbitration::{
     ArbitrationDecision, ArbitrationResult, BlendPolicy, CommandDispatcher, CommandIntent, CommandIntentArbiter,
-    CommandPolicy, IntentOrigin,
+    CommandPolicy, IntentOrigin, RateLimitScope,
 };
 pub use golden_statechart as statechart;
 pub use manager::{

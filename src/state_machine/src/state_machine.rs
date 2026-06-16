@@ -10,9 +10,9 @@ use golden_alchemist::{
 use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, TransitionOutcome};
 
 use crate::{
-    DefaultProcessorContextProvider, Processor, ProcessorContextProvider, ProcessorGroup, ProcessorGroupId,
-    ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorManager, ProcessorManagerError,
-    ProcessorManagerId, ProcessorRuntime,
+    CommandIntent, CommandPolicy, DefaultProcessorContextProvider, IntentOrigin, Processor, ProcessorCommandPolicy,
+    ProcessorContextProvider, ProcessorGroup, ProcessorGroupId, ProcessorId, ProcessorLaneOutput,
+    ProcessorLifecycleEvent, ProcessorManager, ProcessorManagerError, ProcessorManagerId, ProcessorRuntime,
 };
 
 #[derive(Clone, Debug)]
@@ -106,6 +106,7 @@ pub struct RuntimeExecutionMatrix {
 pub struct StateMachineTickOutput {
     pub transition: Option<TransitionOutcome>,
     pub intents: Vec<RuntimeIntent>,
+    pub command_intents: Vec<CommandIntent>,
     pub transition_outputs: IndexMap<TransitionId, RuntimeOutput>,
     pub processor_outputs: IndexMap<ProcessorId, RuntimeOutput>,
 }
@@ -321,19 +322,37 @@ impl ChataigneStateMachineRuntime {
         };
         if let Some((transition_id, output)) = transition_output {
             result.intents.extend(output.intents.iter().cloned());
+            extend_command_intents(
+                &mut result.command_intents,
+                &output.intents,
+                IntentOrigin::Transition { transition_id },
+                CommandPolicy::LastWriterWins,
+            );
             result.transition_outputs.insert(transition_id, output);
         }
         for processor_id in self.execution.active_processors.clone() {
             let Some(processor) = machine.processor(processor_id) else {
                 continue;
             };
-            let output = merge_processor_lane_outputs(
-                self.processor_runtimes[&processor_id].evaluate_processor_with_context_provider(
-                    processor,
-                    ctx,
-                    context_provider,
-                ),
+            let lanes = self.processor_runtimes[&processor_id].evaluate_processor_with_context_provider(
+                processor,
+                ctx,
+                context_provider,
             );
+            if let Some(policy) = processor_command_policy(processor) {
+                for lane in &lanes {
+                    extend_command_intents(
+                        &mut result.command_intents,
+                        &lane.output.intents,
+                        IntentOrigin::Processor {
+                            processor_id,
+                            context_key: lane.context_key.clone(),
+                        },
+                        policy.clone(),
+                    );
+                }
+            }
+            let output = merge_processor_lane_outputs(lanes);
             result.intents.extend(output.intents.iter().cloned());
             result.processor_outputs.insert(processor_id, output);
         }
@@ -411,4 +430,25 @@ fn merge_processor_lane_outputs(lanes: Vec<ProcessorLaneOutput>) -> RuntimeOutpu
         output.debug_samples.extend(lane.output.debug_samples);
     }
     output
+}
+
+fn extend_command_intents(
+    target: &mut Vec<CommandIntent>,
+    intents: &[RuntimeIntent],
+    origin: IntentOrigin,
+    policy: CommandPolicy,
+) {
+    target.extend(
+        intents
+            .iter()
+            .cloned()
+            .filter_map(|intent| CommandIntent::from_runtime_with_policy(intent, origin.clone(), 0, policy.clone())),
+    );
+}
+
+fn processor_command_policy(processor: &Processor) -> Option<CommandPolicy> {
+    match processor.command_policy {
+        ProcessorCommandPolicy::Inherit => Some(CommandPolicy::LastWriterWins),
+        ProcessorCommandPolicy::Suppress => None,
+    }
 }

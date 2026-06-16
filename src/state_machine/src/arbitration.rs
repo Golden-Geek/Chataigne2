@@ -1,13 +1,19 @@
-use std::{collections::HashMap, time::Duration};
+use std::{cmp::Ordering, collections::HashMap, time::Duration};
 
-use golden_alchemist::{RuntimeIntent, RuntimeValue, StableRef};
+use golden_alchemist::{ContextKey, RuntimeIntent, RuntimeValue, StableRef};
+use golden_statechart::TransitionId;
 
 use crate::ProcessorId;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum IntentOrigin {
-    Processor(ProcessorId),
-    Transition,
+    Processor {
+        processor_id: ProcessorId,
+        context_key: Option<ContextKey>,
+    },
+    Transition {
+        transition_id: TransitionId,
+    },
     System,
 }
 
@@ -17,6 +23,12 @@ pub enum BlendPolicy {
     Add,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RateLimitScope {
+    Target,
+    Origin,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum CommandPolicy {
     FireAndForget,
@@ -24,7 +36,7 @@ pub enum CommandPolicy {
     HighestPriorityWins,
     Queue,
     DropIfSameAsPrevious,
-    RateLimit(Duration),
+    RateLimit { interval: Duration, scope: RateLimitScope },
     Blend(BlendPolicy),
 }
 
@@ -41,6 +53,16 @@ pub struct CommandIntent {
 impl CommandIntent {
     #[must_use]
     pub fn from_runtime(intent: RuntimeIntent, origin: IntentOrigin) -> Option<Self> {
+        Self::from_runtime_with_policy(intent, origin, 0, CommandPolicy::LastWriterWins)
+    }
+
+    #[must_use]
+    pub fn from_runtime_with_policy(
+        intent: RuntimeIntent,
+        origin: IntentOrigin,
+        priority: i32,
+        policy: CommandPolicy,
+    ) -> Option<Self> {
         if intent.kind.as_ref() != "chataigne.command" {
             return None;
         }
@@ -48,8 +70,8 @@ impl CommandIntent {
             origin,
             target: intent.target?,
             payload: intent.payload,
-            priority: 0,
-            policy: CommandPolicy::LastWriterWins,
+            priority,
+            policy,
             logical_tick: intent.logical_tick,
         })
     }
@@ -72,7 +94,7 @@ pub struct ArbitrationResult {
 #[derive(Default)]
 pub struct CommandIntentArbiter {
     previous_payloads: HashMap<StableRef, RuntimeValue>,
-    last_dispatch_tick: HashMap<StableRef, u64>,
+    last_dispatch_tick: HashMap<RateLimitKey, u64>,
 }
 
 impl CommandIntentArbiter {
@@ -91,19 +113,14 @@ impl CommandIntentArbiter {
                 .iter()
                 .all(|(_, intent)| matches!(intent.policy, CommandPolicy::Queue))
             {
+                group.sort_by(command_intent_order);
                 for (_, intent) in group {
                     self.record_dispatch(&intent);
                     result.dispatch.push(intent);
                 }
                 continue;
             }
-            group.sort_by(|(left_index, left), (right_index, right)| {
-                right
-                    .priority
-                    .cmp(&left.priority)
-                    .then_with(|| right.logical_tick.cmp(&left.logical_tick))
-                    .then_with(|| right_index.cmp(left_index))
-            });
+            group.sort_by(command_intent_order);
             let (_, candidate) = group.remove(0);
             let mut losers: Vec<CommandIntent> = group.into_iter().map(|(_, intent)| intent).collect();
             let suppression = self.suppression_reason(&candidate);
@@ -117,7 +134,7 @@ impl CommandIntentArbiter {
             };
             let explanation = suppression.unwrap_or_else(|| {
                 format!(
-                    "selected by priority, logical tick, then stable input order; {} competing intent(s) lost",
+                    "selected by priority, origin, logical tick, then stable input order; {} competing intent(s) lost",
                     losers.len()
                 )
             });
@@ -138,11 +155,12 @@ impl CommandIntentArbiter {
             {
                 Some("dropped because payload matches the previous dispatch".into())
             }
-            CommandPolicy::RateLimit(interval) => {
+            CommandPolicy::RateLimit { interval, scope } => {
                 let minimum_ticks = interval.as_millis().min(u128::from(u64::MAX)) as u64;
-                self.last_dispatch_tick.get(&intent.target).and_then(|last| {
+                let key = RateLimitKey::from_intent(intent, scope);
+                self.last_dispatch_tick.get(&key).and_then(|last| {
                     (intent.logical_tick.saturating_sub(*last) < minimum_ticks)
-                        .then(|| "dropped by target rate limit".into())
+                        .then(|| format!("dropped by {scope:?} rate limit"))
                 })
             }
             _ => None,
@@ -153,7 +171,64 @@ impl CommandIntentArbiter {
         self.previous_payloads
             .insert(intent.target.clone(), intent.payload.clone());
         self.last_dispatch_tick
-            .insert(intent.target.clone(), intent.logical_tick);
+            .insert(RateLimitKey::Target(intent.target.clone()), intent.logical_tick);
+        self.last_dispatch_tick
+            .insert(RateLimitKey::Origin(intent.origin.clone()), intent.logical_tick);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum RateLimitKey {
+    Target(StableRef),
+    Origin(IntentOrigin),
+}
+
+impl RateLimitKey {
+    fn from_intent(intent: &CommandIntent, scope: RateLimitScope) -> Self {
+        match scope {
+            RateLimitScope::Target => Self::Target(intent.target.clone()),
+            RateLimitScope::Origin => Self::Origin(intent.origin.clone()),
+        }
+    }
+}
+
+fn command_intent_order(
+    (left_index, left): &(usize, CommandIntent),
+    (right_index, right): &(usize, CommandIntent),
+) -> Ordering {
+    right
+        .priority
+        .cmp(&left.priority)
+        .then_with(|| compare_origins(&left.origin, &right.origin))
+        .then_with(|| right.logical_tick.cmp(&left.logical_tick))
+        .then_with(|| left_index.cmp(right_index))
+}
+
+fn compare_origins(left: &IntentOrigin, right: &IntentOrigin) -> Ordering {
+    origin_bucket(left)
+        .cmp(&origin_bucket(right))
+        .then_with(|| match (left, right) {
+            (
+                IntentOrigin::Processor {
+                    processor_id: left_processor,
+                    context_key: left_context,
+                },
+                IntentOrigin::Processor {
+                    processor_id: right_processor,
+                    context_key: right_context,
+                },
+            ) => left_processor
+                .cmp(right_processor)
+                .then_with(|| left_context.cmp(right_context)),
+            _ => Ordering::Equal,
+        })
+}
+
+fn origin_bucket(origin: &IntentOrigin) -> u8 {
+    match origin {
+        IntentOrigin::System => 0,
+        IntentOrigin::Transition { .. } => 1,
+        IntentOrigin::Processor { .. } => 2,
     }
 }
 

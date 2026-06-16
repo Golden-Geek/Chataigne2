@@ -11,8 +11,8 @@ use golden_alchemist::{
     CompileCtx, CompiledNodeEvaluator, CompiledNodeOperation, ContextAxisId, ContextKey, ContextValuePath,
     EvaluationCtx, ExecutionKind, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaSurface,
     InputSocketRef, LaneRuntimePool, NodeEvaluation, OutputSocketDecl, OutputSocketRef, ResolvedANodeSignature,
-    RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SignatureCtx, TriggerValue, TypeBindings, TypeConstraint,
-    ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    RuntimeInputSnapshot, RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, StableRef, TriggerValue,
+    TypeBindings, TypeConstraint, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_statechart::Statechart;
 
@@ -77,6 +77,28 @@ fn context_formula() -> AlchemistFormula {
         id: FormulaId::new("context"),
         version: 1,
         label: "Context".into(),
+        description: None,
+        tags: Vec::new(),
+        graph,
+        properties: FormulaPropertySchema::default(),
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
+}
+
+fn command_formula() -> AlchemistFormula {
+    let mut graph = AlchemistGraph::new();
+    graph
+        .add_node(ANodeInstance::new(
+            ANodeTypeId::new("command_emitter"),
+            "Command Emitter",
+        ))
+        .unwrap();
+    AlchemistFormula {
+        id: FormulaId::new("command"),
+        version: 1,
+        label: "Command".into(),
         description: None,
         tags: Vec::new(),
         graph,
@@ -222,6 +244,65 @@ impl ANodeDeclaration for ContextSourceDeclaration {
         _resolved: &ResolvedANodeSignature,
     ) -> Result<CompiledNodeOperation, golden_alchemist::Diagnostic> {
         Ok(CompiledNodeOperation::Constant(RuntimeValue::Float(1.0)))
+    }
+}
+
+#[derive(Clone, Debug)]
+struct CommandEmitterDeclaration;
+
+impl ANodeDeclaration for CommandEmitterDeclaration {
+    fn type_id(&self) -> ANodeTypeId {
+        ANodeTypeId::new("command_emitter")
+    }
+
+    fn label(&self) -> &'static str {
+        "Command Emitter"
+    }
+
+    fn category(&self) -> &'static str {
+        "Test"
+    }
+
+    fn execution_kind(&self) -> ExecutionKind {
+        ExecutionKind::EffectEmitter
+    }
+
+    fn signature(
+        &self,
+        _ctx: &SignatureCtx<'_>,
+        _instance: &ANodeInstance,
+        _bindings: &TypeBindings,
+    ) -> ANodeSignature {
+        ANodeSignature::default()
+    }
+
+    fn context_axes(&self, _instance: &ANodeInstance, _resolved: &ResolvedANodeSignature) -> AxisSet {
+        let mut axes = AxisSet::new();
+        axes.insert(ContextAxisId::new("device"));
+        axes
+    }
+
+    fn compile_operation(
+        &self,
+        _instance: &ANodeInstance,
+        _resolved: &ResolvedANodeSignature,
+    ) -> Result<CompiledNodeOperation, golden_alchemist::Diagnostic> {
+        Ok(CompiledNodeOperation::Custom(Arc::new(CommandEmitterEval)))
+    }
+}
+
+#[derive(Debug)]
+struct CommandEmitterEval;
+
+impl CompiledNodeEvaluator for CommandEmitterEval {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+        evaluation.intents.push(RuntimeIntent {
+            kind: "chataigne.command".into(),
+            target: Some(StableRef::new(ValueTypeId::new("chataigne.command_target"), "target")),
+            payload: RuntimeValue::Float(1.0),
+            logical_tick: evaluation.ctx.logical_tick,
+        });
+        Ok(Vec::new())
     }
 }
 
@@ -454,6 +535,70 @@ fn transition_effect_runs_once_after_transition() {
     assert_eq!(output.transition_outputs[&transition].debug_samples.len(), 1);
     assert_eq!(output.processor_outputs[&processor_id].debug_samples.len(), 30);
     assert_eq!(runtime.execution.active_scopes, machine.chart.active.active_scopes);
+}
+
+#[test]
+fn processor_lane_command_intents_include_context_key() {
+    let mut chart = Statechart::new();
+    let state = chart.add_leaf(chart.root_region, "Only").unwrap();
+    chart.set_initial(chart.root_region, state).unwrap();
+    let mut machine = ChataigneStateMachine::new(chart);
+    let formula = command_formula();
+    let processor = Processor::from_formula("Command Processor", &formula);
+    let processor_id = processor.id;
+    machine.add_formula(formula);
+    machine.add_processor(state, processor).unwrap();
+
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    nodes.register(CommandEmitterDeclaration).unwrap();
+    let mut runtime = ChataigneStateMachineRuntime::compile(
+        &machine,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    )
+    .unwrap();
+    runtime.initialize(&mut machine).unwrap();
+    let inputs = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let provider = TestContextProvider::with_device_count(2);
+
+    let output = runtime
+        .tick_with_context_provider(
+            &mut machine,
+            &EvaluationCtx {
+                logical_tick: 1,
+                delta_time: Duration::ZERO,
+                events: &[],
+                inputs: &inputs,
+                registries: &registries,
+            },
+            &provider,
+        )
+        .unwrap();
+
+    let origins = output
+        .command_intents
+        .iter()
+        .map(|intent| intent.origin.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(output.intents.len(), 2);
+    assert_eq!(origins.len(), 2);
+    assert!(origins.contains(&crate::IntentOrigin::Processor {
+        processor_id,
+        context_key: Some(ContextKey::single("device", "device-0")),
+    }));
+    assert!(origins.contains(&crate::IntentOrigin::Processor {
+        processor_id,
+        context_key: Some(ContextKey::single("device", "device-1")),
+    }));
 }
 
 #[test]

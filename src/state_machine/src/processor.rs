@@ -12,7 +12,7 @@ use golden_alchemist::{
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProcessorId(Uuid);
 
