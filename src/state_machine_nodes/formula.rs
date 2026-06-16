@@ -58,8 +58,8 @@ pub(crate) const PROPERTY_FOLDER_NODE_TYPE: &str =
     "alchemist_property_folder";
 pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
 const PROPERTY_ANODE_TYPE: &str = "property";
+
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
-pub(crate) const TRIGGER_INPUT_SOCKET_ID: &str = "__trigger";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
 const FORMULA_WARNING_ID: &str = "alchemist_formula";
@@ -305,7 +305,7 @@ fn param_to_runtime_value(
     match value_type.as_str() {
         "unit" => Ok(RuntimeValue::Unit),
         "trigger" => Ok(RuntimeValue::Trigger(TriggerValue {
-            fired: value.as_bool().unwrap_or(matches!(value, ParamValue::Trigger())),
+            fired: value.as_bool().unwrap_or(false),
             ..TriggerValue::default()
         })),
         "bool" | "int" | "float" | "string" | "vec2" | "vec3" | "color" | "duration" => {
@@ -434,14 +434,6 @@ fn enabled_child_vec2(
         .map(|value| [value.0, value.1])
 }
 
-fn child_bool(
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    decl_id: &str,
-) -> Option<bool> {
-    child_param(snapshot, parent, decl_id).and_then(ParamValue::as_bool)
-}
-
 fn direct_child_under(
     snapshot: &ProcessTreeSnapshot,
     ancestor: NodeId,
@@ -482,19 +474,6 @@ fn child_add_pending(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
         }
         _ => false,
     })
-}
-
-fn add_child_tree_once(
-    ctx: &mut ProcessCtx,
-    parent: NodeId,
-    tree: NodeTree,
-    after: Option<NodeId>,
-) {
-    let decl_id = tree.node.node_data().meta.decl_id.clone();
-    if child_add_pending(ctx, parent, decl_id.0.as_str()) {
-        return;
-    }
-    ctx.add_child_tree(parent, tree, after);
 }
 
 fn replace_child_tree_once(
@@ -616,9 +595,10 @@ fn config_fields_for_instance(
     instance: &ANodeInstance,
 ) -> Vec<golden_alchemist::ANodeConfigFieldDecl> {
     let mut fields = declaration.config_fields_for(instance);
-    if !fields
-        .iter()
-        .any(|field| field.id.as_str() == PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG)
+    if declaration.process_on_input_change_only_configurable()
+        && !fields
+            .iter()
+            .any(|field| field.id.as_str() == PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG)
     {
         fields.push(process_on_input_change_only_config_field(declaration));
     }
@@ -1231,7 +1211,6 @@ impl Node for AlchemistOutputSocket {
         can_be_disabled = true,
         show_in_inspector_content = false
     );
-    trigger_input_enabled: bool = false (label = "Trigger Input");
     folder(config, label = "Config") {}
     folder(inputs, label = "Inputs") {}
     folder(outputs, label = "Outputs") {}
@@ -1275,11 +1254,6 @@ impl Node for AlchemistANode {
         param: NodeId,
         _old_value: ParamValue,
     ) {
-        if param == self.trigger_input_enabled.id() {
-            self.reconcile_structure(ctx);
-            return;
-        }
-
         let should_reconcile = ctx.tree_snapshot().is_some_and(|snapshot| {
             let Some(config_folder) =
                 snapshot.find_child_by_decl_id(self.id(), "config")
@@ -1604,21 +1578,6 @@ impl AlchemistANode {
                 replace_child_tree_once(ctx, inputs_folder, existing, tree);
             }
         }
-        let trigger_input = child_bool(&snapshot, self.id(), "trigger_input_enabled").unwrap_or(false);
-        let trigger_decl = socket_decl_id("inputs", TRIGGER_INPUT_SOCKET_ID);
-        if trigger_input {
-            desired_inputs.insert(trigger_decl.clone());
-            if snapshot.find_child_by_decl_id(inputs_folder, &trigger_decl).is_none() {
-                let tree = input_socket_tree(
-                    TRIGGER_INPUT_SOCKET_ID,
-                    "Trigger",
-                    &ValueTypeId::new("trigger"),
-                    &golden_alchemist::RuntimeValue::Trigger(golden_alchemist::TriggerValue::default()),
-                );
-                add_child_tree_once(ctx, inputs_folder, tree, None);
-            }
-        }
-
         self.remove_obsolete_children(
             ctx,
             &snapshot,

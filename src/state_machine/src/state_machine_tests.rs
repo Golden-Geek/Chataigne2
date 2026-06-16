@@ -298,6 +298,8 @@ impl CompiledNodeEvaluator for CommandEmitterEval {
     fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
         evaluation.intents.push(RuntimeIntent {
             kind: "chataigne.command".into(),
+            source_node: Some(evaluation.author_node_id),
+            source_socket: None,
             target: Some(StableRef::new(ValueTypeId::new("chataigne.command_target"), "target")),
             payload: RuntimeValue::Float(1.0),
             logical_tick: evaluation.ctx.logical_tick,

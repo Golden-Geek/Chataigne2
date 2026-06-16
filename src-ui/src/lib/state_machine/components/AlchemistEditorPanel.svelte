@@ -58,6 +58,7 @@
 	import type {
 		FormulaPreviewModeDto,
 		ProcessorLaneSummaryDto,
+		RuntimeValueDto,
 		StateMachineProtocolBundle
 	} from '../generated';
 	import {
@@ -99,7 +100,7 @@
 		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
 	]);
 	const PROCESSOR_ITEM_KIND = 'state_processor';
-	const PREVIEW_ACTIVITY_HOLD_MS = 150;
+	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -154,6 +155,39 @@
 		}
 		return '';
 	};
+
+	const runtimeValueSignature = (value: RuntimeValueDto): string => {
+		switch (value.kind) {
+			case 'unit':
+				return 'unit';
+			case 'bool':
+				return `bool:${value.value}`;
+			case 'trigger':
+				return `trigger:${value.fired}:${value.edge_id}:${value.logical_tick}`;
+			case 'int':
+				return `int:${value.value}`;
+			case 'float':
+				return `float:${value.value}`;
+			case 'string':
+				return `string:${value.value}`;
+			case 'vec2':
+			case 'vec3':
+				return `${value.kind}:${value.value.join(':')}`;
+			case 'color':
+				return `color:${value.red}:${value.green}:${value.blue}:${value.alpha}`;
+			case 'duration':
+				return `duration:${value.seconds}`;
+			case 'array':
+				return `array:${value.values.map(runtimeValueSignature).join('|')}`;
+			case 'ref':
+				return `ref:${value.value_type}:${value.stable_id}`;
+			case 'extension':
+				return `extension:${value.value_type}:${value.payload.join(':')}`;
+		}
+	};
+
+	const previewActivitySignature = (preview: FormulaOutputPreviewChip): string =>
+		runtimeValueSignature(preview.value);
 
 	const publishActiveSocketRefs = (): void => {
 		activeSocketRefs = new Set(previewActivityDeadlines.keys());
@@ -412,6 +446,7 @@
 			formula && previewSessionModel.mode
 				? `${formula.uuid}:${previewModeKey(previewSessionModel.mode)}`
 				: '';
+		const scopeChanged = previewScopeKey !== retainedPreviewScopeKey;
 		if (previewScopeKey !== retainedPreviewScopeKey) {
 			retainedPreviewScopeKey = previewScopeKey;
 			resetRetainedPreviewState();
@@ -427,11 +462,15 @@
 		for (const [ref, preview] of incomingOutputPreviews) {
 			const current = next.get(ref);
 			if (current && preview.logicalTick < current.logicalTick) continue;
+			const previewChanged =
+				!current || previewActivitySignature(current) !== previewActivitySignature(preview);
 			next.set(ref, preview);
+			if (!previewChanged) continue;
 			if (preview.value.kind === 'trigger' && !preview.value.fired) continue;
 			updatedRefs.push(ref);
 		}
 		outputPreviews = next;
+		if (scopeChanged) return;
 		if (updatedRefs.length === 0) return;
 		latchPreviewActivity(updatedRefs);
 	});

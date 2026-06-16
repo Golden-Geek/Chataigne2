@@ -1,5 +1,4 @@
 <script lang="ts">
-	import parameterTriggerIcon from '../../golden_ui/style/icons/parameter/trigger.svg';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 
 	let {
@@ -11,16 +10,17 @@
 
 {#if preview}
 	{#if preview.value.kind === 'trigger'}
-		<span
-			class="output-trigger-readout"
-			class:active={preview.active}
-			class:error={preview.status === 'error'}
-			class:inactive={preview.status === 'stale' ||
-				preview.status === 'suppressed' ||
-				preview.status === 'unavailable'}
-			title={preview.title}
-			aria-label={preview.active ? 'Trigger output active' : 'Trigger output idle'}>
-			<img src={parameterTriggerIcon} alt="" aria-hidden="true" />
+		<!-- Trigger outputs have no readout: the connection highlight already
+		     signals that something was sent out. -->
+	{:else if preview.value.kind === 'bool'}
+		<span class="output-bool-readout" title={preview.title}>
+			<input
+				type="checkbox"
+				checked={preview.value.value}
+				readonly
+				tabindex="-1"
+				aria-label={preview.value.value ? 'Boolean output true' : 'Boolean output false'}
+				onclick={(event) => event.preventDefault()} />
 		</span>
 	{:else}
 		<span
@@ -38,7 +38,7 @@
 
 <style>
 	.output-value-chip,
-	.output-trigger-readout {
+	.output-bool-readout {
 		display: inline-flex;
 		align-items: center;
 		justify-content: flex-end;
@@ -47,11 +47,11 @@
 		pointer-events: auto;
 		opacity: 0.78;
 		transition:
-			opacity 0.46s ease,
-			filter 0.46s ease,
-			border-color 0.46s ease,
-			background-color 0.46s ease,
-			color 0.46s ease;
+			opacity 0.05s ease-out,
+			filter 0.05s ease-out,
+			border-color 0.05s ease-out,
+			background-color 0.05s ease-out,
+			color 0.05s ease-out;
 	}
 
 	.output-value-chip {
@@ -76,11 +76,11 @@
 		filter: brightness(1.06);
 		opacity: 1;
 		transition:
-			opacity 0.06s ease-out,
-			filter 0.06s ease-out,
-			border-color 0.06s ease-out,
-			background-color 0.06s ease-out,
-			color 0.06s ease-out;
+			opacity 0.05s ease-out,
+			filter 0.05s ease-out,
+			border-color 0.05s ease-out,
+			background-color 0.05s ease-out,
+			color 0.05s ease-out;
 	}
 
 	.output-value-chip.inactive {
@@ -94,50 +94,22 @@
 		opacity: 1;
 	}
 
-	.output-trigger-readout {
+	/* Bool output: just a read-only checkbox, no box decoration and no
+	   animation so fast on/off toggles stay visible. */
+	.output-bool-readout {
 		justify-content: center;
-		inline-size: 2.15rem;
+		inline-size: 1rem;
 		block-size: 1rem;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-trigger, #8b64ff) 44%, transparent);
-		border-radius: 0.35rem;
-		background: color-mix(in srgb, var(--gc-color-trigger, #8b64ff) 54%, var(--ga-node, #1d2430));
-		filter: brightness(0.92) saturate(0.9);
-	}
-
-	.output-trigger-readout.active {
-		border-color: color-mix(
-			in srgb,
-			var(--gc-color-trigger-engine, var(--gc-color-trigger-on, var(--ga-active, #f2c01a))) 72%,
-			transparent
-		);
-		background: color-mix(
-			in srgb,
-			var(--gc-color-trigger-engine, var(--gc-color-trigger-on, var(--ga-active, #f2c01a))) 82%,
-			var(--ga-node, #1d2430)
-		);
-		filter: brightness(1.08) saturate(1.08);
 		opacity: 1;
-		transition:
-			opacity 0.06s ease-out,
-			filter 0.06s ease-out,
-			border-color 0.06s ease-out,
-			background-color 0.06s ease-out;
+		transition: none;
 	}
 
-	.output-trigger-readout.inactive {
-		opacity: 0.58;
-	}
-
-	.output-trigger-readout.error {
-		border-color: color-mix(in srgb, var(--ga-error, #ff5f75) 70%, transparent);
-		background: color-mix(in srgb, var(--ga-error, #ff5f75) 22%, var(--ga-node, #1d2430));
-		opacity: 1;
-	}
-
-	.output-trigger-readout img {
-		inline-size: 0.72rem;
-		block-size: 0.72rem;
-		padding: 0.1rem;
-		filter: brightness(1.12);
+	.output-bool-readout input {
+		inline-size: 0.92rem;
+		block-size: 0.92rem;
+		margin: 0;
+		accent-color: var(--ga-active, #62d3ff);
+		pointer-events: none;
+		transition: none;
 	}
 </style>

@@ -343,6 +343,25 @@ impl ProcessorRuntime {
     }
 
     pub fn compile(&mut self, processor: &Processor, formula: &AlchemistFormula, ctx: &CompileCtx<'_>) -> bool {
+        self.compile_with_lane_policy(processor, formula, ctx, false)
+    }
+
+    pub fn compile_preserving_compatible_lanes(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        ctx: &CompileCtx<'_>,
+    ) -> bool {
+        self.compile_with_lane_policy(processor, formula, ctx, true)
+    }
+
+    fn compile_with_lane_policy(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        ctx: &CompileCtx<'_>,
+        preserve_compatible_lanes: bool,
+    ) -> bool {
         if let Err(error) = processor.formula_instance.require_compatible(formula) {
             self.clear_runtime();
             self.diagnostics = vec![Diagnostic::error(
@@ -371,7 +390,12 @@ impl ProcessorRuntime {
             compiled,
             self.diagnostics.clone(),
         ));
-        self.compile_from_shared_formula(processor, formula, compiled_formula)
+        self.compile_from_shared_formula_with_lane_policy(
+            processor,
+            formula,
+            compiled_formula,
+            preserve_compatible_lanes,
+        )
     }
 
     pub fn compile_from_shared_formula(
@@ -379,6 +403,25 @@ impl ProcessorRuntime {
         processor: &Processor,
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
+    ) -> bool {
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, false)
+    }
+
+    pub fn compile_from_shared_formula_preserving_compatible_lanes(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+    ) -> bool {
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, true)
+    }
+
+    fn compile_from_shared_formula_with_lane_policy(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+        preserve_compatible_lanes: bool,
     ) -> bool {
         if let Err(error) = processor.formula_instance.require_compatible(formula) {
             self.clear_runtime();
@@ -390,7 +433,9 @@ impl ProcessorRuntime {
             return false;
         }
         self.subscriptions = compiled.graph.subscriptions.clone();
-        self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
+        if !(preserve_compatible_lanes && self.lanes.is_compatible_with_graph(&compiled.graph)) {
+            self.lanes = LaneRuntimePool::for_graph(&compiled.graph);
+        }
         self.diagnostics = compiled.diagnostics.clone();
         self.plan = Some(ProcessorExecutionPlan::analyze(
             processor.id,

@@ -16,7 +16,6 @@ export const PROPERTY_NODE_TYPE = 'alchemist_property';
 export const PROPERTY_MANAGER_NODE_TYPE = 'alchemist_property_manager';
 export const PROPERTY_FOLDER_NODE_TYPE = 'alchemist_property_folder';
 
-export const TRIGGER_SOCKET_ID = '__trigger';
 export const ANODE_TYPE_TAG_PREFIX = 'alchemist.anode.type:';
 export const VALUE_TYPE_CONFIG_DECL_ID = 'config/value_type';
 
@@ -481,9 +480,6 @@ export const graphSocketsByRef = (nodes: readonly GraphNode[]): Map<string, Grap
 	for (const node of nodes) {
 		collectSockets(node.id, node.inputs, result);
 		collectSockets(node.id, node.outputs, result);
-		if (node.headerInputs) {
-			collectSockets(node.id, node.headerInputs, result);
-		}
 	}
 	return result;
 };
@@ -594,11 +590,7 @@ export const toGraphNodes = (
 		const routingNode = typeId === ROUTING_ANODE_TYPE;
 		const compactNode = propertyGetter || managerRef || routingNode;
 		const description = anode.meta.description?.trim();
-		const allInputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
-		const triggerSocket = allInputs.find((s) => s.id === TRIGGER_SOCKET_ID);
-		const bodyInputs = triggerSocket
-			? allInputs.filter((s) => s.id !== TRIGGER_SOCKET_ID)
-			: allInputs;
+		const inputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
 		const outputs = graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket');
 		const configRows = 0;
 		const config = directChild(anode, nodesById, 'config');
@@ -631,14 +623,13 @@ export const toGraphNodes = (
 				? ROUTING_NODE_SIZE
 				: compactNode
 					? undefined
-					: graphAutomaticSize(bodyInputs, outputs, configRows),
+				: graphAutomaticSize(inputs, outputs, configRows),
 			resizable: !compactNode,
 			invalid: typeId.length === 0 || warning !== undefined,
 			warning,
-			inputs: bodyInputs,
+			inputs,
 			outputs,
-			headerInputs: triggerSocket ? [triggerSocket] : undefined,
-			bypassConnections: disabledBypassConnections(anode.meta.enabled, bodyInputs, outputs)
+			bypassConnections: disabledBypassConnections(anode.meta.enabled, inputs, outputs)
 		};
 	});
 };

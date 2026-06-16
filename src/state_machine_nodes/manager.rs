@@ -12,7 +12,8 @@ use chataigne_state_machine::{
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, CompiledAlchemistFormula, EvaluationCtx,
-    RuntimeInputSnapshot, RuntimeRegistries, OutputPreviewStatus, RuntimeValue,
+    DebugValueSample, OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
+    RuntimeRegistries, RuntimeValue, SocketId, TriggerValue,
     SurfaceItemId,
 };
 use golden_core::{
@@ -31,6 +32,7 @@ pub(crate) const STATE_ITEM_KIND: &str = "state";
 const STATE_NODE_TYPE: &str = "state";
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
+const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const PROCESSOR_MANAGER_DECL_ID: &str = "processors";
 const PROCESSOR_NODE_TYPE: &str = "state_processor";
 const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -59,9 +61,27 @@ struct RuntimeFormulaDefaultPreview {
     runtime: ProcessorRuntime,
 }
 
+struct PendingTriggerInput {
+    formula: NodeUuid,
+    anode: NodeUuid,
+    socket: SocketId,
+    value: TriggerValue,
+}
+
+struct FormulaInputValueParam {
+    formula: NodeUuid,
+    anode: NodeUuid,
+    socket: SocketId,
+    is_trigger: bool,
+}
+
 #[derive(Default)]
 struct StateMachineRuntimeCache {
     dirty: bool,
+    dirty_formula_values: HashSet<NodeUuid>,
+    dirty_processor_overrides: HashSet<NodeId>,
+    pending_trigger_inputs: Vec<PendingTriggerInput>,
+    next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
     formula_default_previews: HashMap<String, RuntimeFormulaDefaultPreview>,
     last_preview_signature: Option<String>,
@@ -147,7 +167,13 @@ impl Node for StateMachineManager {
         self.runtime_cache.dirty = true;
     }
 
-    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        if self.mark_processor_override_dirty(ctx, param) {
+            return;
+        }
+        if self.mark_formula_input_value_dirty(ctx, param) {
+            return;
+        }
         self.runtime_cache.dirty = true;
     }
 
@@ -161,17 +187,57 @@ impl Node for StateMachineManager {
 }
 
 impl StateMachineManager {
+    fn mark_processor_override_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return false;
+        };
+        let Some(processor_node) = processor_for_override_change(snapshot.as_ref(), param) else {
+            return false;
+        };
+        self.runtime_cache
+            .dirty_processor_overrides
+            .insert(processor_node);
+        true
+    }
+
+    fn mark_formula_input_value_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return false;
+        };
+        let Some(input) = formula_input_value_param(snapshot.as_ref(), param) else {
+            return false;
+        };
+        self.runtime_cache.dirty = true;
+        self.runtime_cache.dirty_formula_values.insert(input.formula);
+        if input.is_trigger {
+            let edge_id = self.runtime_cache.next_trigger_edge_id;
+            self.runtime_cache.next_trigger_edge_id =
+                self.runtime_cache.next_trigger_edge_id.wrapping_add(1);
+            self.runtime_cache.pending_trigger_inputs.push(PendingTriggerInput {
+                formula: input.formula,
+                anode: input.anode,
+                socket: input.socket,
+                value: TriggerValue::fired(edge_id, ctx.time.tick),
+            });
+        }
+        true
+    }
+
     fn run_processors(&mut self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot.as_ref();
-        let formulas = collect_formulas(snapshot);
+        let mut formulas = collect_formulas(snapshot);
+        let pending_trigger_inputs = std::mem::take(&mut self.runtime_cache.pending_trigger_inputs);
+        apply_pending_trigger_inputs(&mut formulas, pending_trigger_inputs);
         let active_states = active_state_nodes(snapshot, self.id());
         let cache_rebuilt = self.runtime_cache.dirty;
 
         if self.runtime_cache.dirty {
             self.rebuild_runtime_cache(ctx, snapshot, &formulas);
+        } else {
+            self.refresh_dirty_processor_overrides(snapshot, &formulas);
         }
 
         let value_types = value_type_registry();
@@ -297,9 +363,17 @@ impl StateMachineManager {
                         if intent.kind.as_ref() != "debug.log" {
                             continue;
                         }
+                        let (origin, message) = format_debug_log_intent(
+                            snapshot,
+                            runtime_processor.formula_node,
+                            processor_node,
+                            lane.context_key.as_ref(),
+                            &anode_nodes,
+                            intent,
+                        );
                         log!(
-                            origin = processor_node;
-                            format!("{}", runtime_value_label(&intent.payload))
+                            origin = origin;
+                            format!("{}", message)
                         );
                     }
                     for sample in &lane.output.debug_samples {
@@ -310,13 +384,17 @@ impl StateMachineManager {
                         if !anode_logs_runtime_value(snapshot, anode_node) {
                             continue;
                         }
-                        let value = runtime_value_label(&sample.value);
+                        let message = format_debug_value_sample(
+                            snapshot,
+                            runtime_processor.formula_node,
+                            processor_node,
+                            lane.context_key.as_ref(),
+                            anode_node,
+                            sample,
+                        );
                         log!(
                             origin = anode_node;
-                            format!(
-                                "{}:{} = {}",
-                                sample.author_node_id, sample.output_socket, value
-                            )
+                            format!("{}", message)
                         );
                     }
                 }
@@ -402,7 +480,16 @@ impl StateMachineManager {
             if runtime.id != processor.id {
                 runtime = ProcessorRuntime::new(processor.id);
             }
-            if !runtime.compile(&processor, formula, &compile_ctx) {
+            let compiled = if self
+                .runtime_cache
+                .dirty_formula_values
+                .contains(&formula_uuid)
+            {
+                runtime.compile_preserving_compatible_lanes(&processor, formula, &compile_ctx)
+            } else {
+                runtime.compile(&processor, formula, &compile_ctx)
+            };
+            if !compiled {
                 let message = runtime
                     .diagnostics
                     .first()
@@ -428,9 +515,40 @@ impl StateMachineManager {
             );
         }
         self.runtime_cache.processors = next_processors;
+        self.runtime_cache.dirty_processor_overrides.clear();
+        self.runtime_cache.dirty_formula_values.clear();
         self.runtime_cache.formula_default_previews.clear();
         self.runtime_cache.last_preview_signature = None;
         self.runtime_cache.dirty = false;
+    }
+
+    fn refresh_dirty_processor_overrides(
+        &mut self,
+        snapshot: &ProcessTreeSnapshot,
+        formulas: &HashMap<NodeUuid, AlchemistFormula>,
+    ) {
+        let dirty_processors = std::mem::take(&mut self.runtime_cache.dirty_processor_overrides);
+        for processor_node in dirty_processors {
+            let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
+            else {
+                continue;
+            };
+            let Some(formula_uuid) = child_reference_uuid(snapshot, processor_node, "formula")
+            else {
+                self.runtime_cache.dirty = true;
+                continue;
+            };
+            let Some(formula) = formulas.get(&formula_uuid) else {
+                self.runtime_cache.dirty = true;
+                continue;
+            };
+            let Some(processor) = processor_from_snapshot(snapshot, processor_node, formula) else {
+                self.runtime_cache.dirty = true;
+                continue;
+            };
+            runtime_processor.processor = processor;
+            runtime_processor.evaluated_once = false;
+        }
     }
 }
 
@@ -443,6 +561,66 @@ fn collect_formulas(snapshot: &ProcessTreeSnapshot) -> HashMap<NodeUuid, Alchemi
         collect_formulas_in_subtree(snapshot, library, &mut formulas);
     }
     formulas
+}
+
+fn apply_pending_trigger_inputs(
+    formulas: &mut HashMap<NodeUuid, AlchemistFormula>,
+    pending: Vec<PendingTriggerInput>,
+) {
+    for input in pending {
+        let Some(formula) = formulas.get_mut(&input.formula) else {
+            continue;
+        };
+        let anode_id = ANodeId::from_uuid(input.anode.0);
+        let Some(anode) = formula.graph.nodes.get_mut(&anode_id) else {
+            continue;
+        };
+        anode
+            .input_defaults
+            .insert(input.socket, RuntimeValue::Trigger(input.value));
+    }
+}
+
+fn formula_input_value_param(
+    snapshot: &ProcessTreeSnapshot,
+    param: NodeId,
+) -> Option<FormulaInputValueParam> {
+    let param_node = snapshot.node(param)?;
+    let socket = input_value_socket_id(param_node.decl_id.as_str())?;
+    let socket_node = param_node.parent?;
+    let socket_snapshot = snapshot.node(socket_node)?;
+    let expected_socket_decl_id = format!("inputs/{socket}");
+    if !node_matches_decl_id(socket_snapshot.decl_id.as_str(), &expected_socket_decl_id) {
+        return None;
+    }
+    let inputs_folder = socket_snapshot.parent?;
+    let inputs_snapshot = snapshot.node(inputs_folder)?;
+    if !node_matches_decl_id(inputs_snapshot.decl_id.as_str(), "inputs") {
+        return None;
+    }
+    let anode = inputs_snapshot.parent?;
+    let anode_snapshot = snapshot.node(anode)?;
+    if anode_snapshot.node_type != ANODE_NODE_TYPE {
+        return None;
+    }
+    let formula = anode_snapshot.parent?;
+    let formula_snapshot = snapshot.node(formula)?;
+    if formula_snapshot.node_type != FORMULA_NODE_TYPE {
+        return None;
+    }
+    Some(FormulaInputValueParam {
+        formula: formula_snapshot.uuid,
+        anode: anode_snapshot.uuid,
+        socket: SocketId::new(socket),
+        is_trigger: matches!(param_node.param_value.as_ref(), Some(ParamValue::Trigger())),
+    })
+}
+
+fn input_value_socket_id(decl_id: &str) -> Option<&str> {
+    decl_id
+        .strip_prefix("inputs/")?
+        .strip_suffix("/value")
+        .filter(|socket| !socket.is_empty())
 }
 
 fn formula_libraries(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
@@ -514,6 +692,27 @@ fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId
         }
     }
     processors
+}
+
+fn processor_for_override_change(
+    snapshot: &ProcessTreeSnapshot,
+    changed_node: NodeId,
+) -> Option<NodeId> {
+    let mut current = Some(changed_node);
+    let mut properties_root = None;
+    while let Some(node_id) = current {
+        let node = snapshot.node(node_id)?;
+        if node.node_type == PROCESSOR_NODE_TYPE {
+            let processor_properties =
+                snapshot.find_child_by_decl_id(node_id, PROCESSOR_PROPERTIES_DECL_ID)?;
+            return (properties_root == Some(processor_properties)).then_some(node_id);
+        }
+        if node_matches_decl_id(node.decl_id.as_str(), PROCESSOR_PROPERTIES_DECL_ID) {
+            properties_root = Some(node_id);
+        }
+        current = node.parent;
+    }
+    None
 }
 
 fn processor_from_snapshot(
@@ -690,6 +889,102 @@ fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) 
     matches!(anode_type, "debug_value")
 }
 
+fn format_debug_log_intent(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    processor_node: NodeId,
+    context_key: Option<&golden_alchemist::ContextKey>,
+    anode_nodes: &HashMap<ANodeId, NodeId>,
+    intent: &RuntimeIntent,
+) -> (NodeId, String) {
+    let context = runtime_processing_context_label(snapshot, formula_node, processor_node, context_key);
+    let value = runtime_value_label(&intent.payload);
+    let Some(anode_node) = intent.source_node.and_then(|node| anode_nodes.get(&node).copied()) else {
+        return (processor_node, format!("{context} | {value}"));
+    };
+    let node_label = snapshot_node_label(snapshot, anode_node, "ANode");
+    let detail = intent.source_socket.as_ref().map_or_else(
+        || format!(": {value}"),
+        |socket| format!(" / {} = {value}", anode_output_label(snapshot, anode_node, socket)),
+    );
+    (anode_node, format!("{context} | {node_label}{detail}"))
+}
+
+fn format_debug_value_sample(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    processor_node: NodeId,
+    context_key: Option<&golden_alchemist::ContextKey>,
+    anode_node: NodeId,
+    sample: &DebugValueSample,
+) -> String {
+    let context = runtime_processing_context_label(snapshot, formula_node, processor_node, context_key);
+    let node_label = snapshot_node_label(snapshot, anode_node, "ANode");
+    let output_label = anode_output_label(snapshot, anode_node, &sample.output_socket);
+    let value = runtime_value_label(&sample.value);
+    format!("{context} | {node_label} / {output_label} = {value}")
+}
+
+fn runtime_processing_context_label(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    processor_node: NodeId,
+    context_key: Option<&golden_alchemist::ContextKey>,
+) -> String {
+    format!(
+        "Formula: {} / Processor: {} / Lane: {}",
+        snapshot_node_label(snapshot, formula_node, "Formula"),
+        snapshot_node_label(snapshot, processor_node, "Processor"),
+        context_key_label(context_key)
+    )
+}
+
+fn snapshot_node_label(snapshot: &ProcessTreeSnapshot, node: NodeId, fallback: &str) -> String {
+    snapshot
+        .node(node)
+        .map(|node| node.label.trim())
+        .filter(|label| !label.is_empty())
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+fn anode_output_label(
+    snapshot: &ProcessTreeSnapshot,
+    anode_node: NodeId,
+    socket_id: &SocketId,
+) -> String {
+    let Some(outputs) = snapshot.find_child_by_decl_id(anode_node, "outputs") else {
+        return socket_id.to_string();
+    };
+    for child in snapshot.child_ids(outputs) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.node_type != "alchemist_output_socket" {
+            continue;
+        }
+        if socket_runtime_id(snapshot, child).as_deref() == Some(socket_id.as_str()) {
+            return snapshot_node_label(snapshot, child, socket_id.as_str());
+        }
+    }
+    socket_id.to_string()
+}
+
+fn socket_runtime_id(snapshot: &ProcessTreeSnapshot, socket_node: NodeId) -> Option<String> {
+    for child in snapshot.child_ids(socket_node) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if !node.decl_id.ends_with("/socket_id") {
+            continue;
+        }
+        if let Some(ParamValue::Str(value)) = node.param_value.as_ref() {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
 fn tagged_value<'a>(tags: &'a [String], prefix: &str) -> Option<&'a str> {
     tags.iter().find_map(|tag| tag.strip_prefix(prefix))
 }
@@ -758,6 +1053,10 @@ fn child_param<'a>(
         .find_child_by_decl_id(parent, decl_id)
         .and_then(|param| snapshot.node(param))
         .and_then(|node| node.param_value.as_ref())
+}
+
+fn node_matches_decl_id(actual: &str, expected: &str) -> bool {
+    actual == expected || actual.rsplit('/').next() == Some(expected)
 }
 
 fn child_reference_uuid(
