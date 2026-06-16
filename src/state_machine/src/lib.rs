@@ -24,8 +24,8 @@ pub use processor::{
 };
 pub use protocol::export_typescript;
 pub use state_machine::{
-    ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, RuntimeExecutionMatrix,
-    StateMachineTickOutput,
+    ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,
+    GlobalStateMachineContextFrame, RuntimeExecutionMatrix, StateMachineTickOutput, StateMachineTransitionRuntime,
 };
 
 #[cfg(test)]

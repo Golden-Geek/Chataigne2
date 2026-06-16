@@ -123,7 +123,7 @@ phases. Do not carry half-remembered implementation details between phases.
 | 5 - Context axes, stable context keys, sparse lane memory | Done | Committed | Added reusable context-key primitives, sparse `LaneRuntimePool`, Chataigne `ProcessorContextProvider`, lane-pool lifecycle wiring, and sparse memory tests. |
 | 6 - Formula and processor lane analysis | Done | Committed | Added compiler-side formula axis propagation, processor binding analysis, execution-plan strategy selection, and plan-driven evaluation/memory keying. |
 | 7 - Refactor `ProcessorRuntime` | Done | Committed | Removed cached runtime property frame from `ProcessorRuntime`; evaluation now receives the live processor, resolves property frames per evaluated context, and aggregates lane outputs. |
-| 8 - Statechart transitions stay global | Todo | Pending | Not started. |
+| 8 - Statechart transitions stay global | Done | Committed | Added explicit global transition runtimes/context frames, single-pass guard evaluation, once-per-fired-transition effects, and lane fan-out tests that leave the statechart global. |
 | 9 - Lane-aware command arbitration for processors | Todo | Pending | Not started. |
 | 10 - Runtime-backed ANode output preview | Todo | Pending | Not started. |
 | 11 - Protocol DTOs and TypeScript generation | Todo | Pending | Not started. |

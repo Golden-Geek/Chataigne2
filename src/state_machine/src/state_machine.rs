@@ -4,13 +4,15 @@ use indexmap::{IndexMap, IndexSet};
 
 use golden_alchemist::{
     AlchemistFormula, AlchemistGraph, AlchemistRuntime, CompileCtx, CompiledAlchemistFormula, EvaluationCtx,
-    FormulaCompileKey, FormulaId, FormulaRef, RuntimeIntent, RuntimeOutput, compile_graph,
+    FormulaCompileKey, FormulaId, FormulaRef, RuntimeEvent, RuntimeInputSnapshot, RuntimeIntent, RuntimeOutput,
+    compile_graph,
 };
 use golden_statechart::{LifecycleEvent, StateId, Statechart, TransitionId, TransitionOutcome};
 
 use crate::{
-    Processor, ProcessorGroup, ProcessorGroupId, ProcessorId, ProcessorLifecycleEvent, ProcessorManager,
-    ProcessorManagerError, ProcessorManagerId, ProcessorRuntime,
+    DefaultProcessorContextProvider, Processor, ProcessorContextProvider, ProcessorGroup, ProcessorGroupId,
+    ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorManager, ProcessorManagerError,
+    ProcessorManagerId, ProcessorRuntime,
 };
 
 #[derive(Clone, Debug)]
@@ -104,12 +106,84 @@ pub struct RuntimeExecutionMatrix {
 pub struct StateMachineTickOutput {
     pub transition: Option<TransitionOutcome>,
     pub intents: Vec<RuntimeIntent>,
+    pub transition_outputs: IndexMap<TransitionId, RuntimeOutput>,
     pub processor_outputs: IndexMap<ProcessorId, RuntimeOutput>,
+}
+
+pub struct GlobalCompiledGraphRuntime {
+    runtime: AlchemistRuntime,
+}
+
+impl std::fmt::Debug for GlobalCompiledGraphRuntime {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GlobalCompiledGraphRuntime")
+            .finish_non_exhaustive()
+    }
+}
+
+impl GlobalCompiledGraphRuntime {
+    fn new(runtime: AlchemistRuntime) -> Self {
+        Self { runtime }
+    }
+
+    fn evaluate(&mut self, ctx: &EvaluationCtx<'_>, global: &GlobalStateMachineContextFrame<'_>) -> RuntimeOutput {
+        debug_assert_eq!(global.logical_tick, ctx.logical_tick);
+        debug_assert!(std::ptr::eq(global.inputs, ctx.inputs));
+        debug_assert!(std::ptr::eq(global.events, ctx.events));
+        self.runtime.evaluate(ctx)
+    }
+}
+
+#[derive(Debug)]
+pub struct StateMachineTransitionRuntime {
+    pub transition_id: TransitionId,
+    pub guard: Option<GlobalCompiledGraphRuntime>,
+    pub effect: Option<GlobalCompiledGraphRuntime>,
+}
+
+impl StateMachineTransitionRuntime {
+    fn guarded_transition(&self) -> Option<TransitionId> {
+        self.guard.as_ref().map(|_| self.transition_id)
+    }
+
+    fn evaluate_guard(&mut self, ctx: &EvaluationCtx<'_>, global: &GlobalStateMachineContextFrame<'_>) -> bool {
+        self.guard
+            .as_mut()
+            .is_some_and(|guard| output_fires(&guard.evaluate(ctx, global)))
+    }
+
+    fn evaluate_effect(
+        &mut self,
+        ctx: &EvaluationCtx<'_>,
+        global: &GlobalStateMachineContextFrame<'_>,
+    ) -> Option<RuntimeOutput> {
+        self.effect.as_mut().map(|effect| effect.evaluate(ctx, global))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GlobalStateMachineContextFrame<'a> {
+    pub logical_tick: u64,
+    pub active_scopes: &'a IndexSet<StateId>,
+    pub inputs: &'a RuntimeInputSnapshot,
+    pub events: &'a [RuntimeEvent],
+}
+
+impl<'a> GlobalStateMachineContextFrame<'a> {
+    fn from_tick(ctx: &EvaluationCtx<'a>, active_scopes: &'a IndexSet<StateId>) -> Self {
+        Self {
+            logical_tick: ctx.logical_tick,
+            active_scopes,
+            inputs: ctx.inputs,
+            events: ctx.events,
+        }
+    }
 }
 
 pub struct ChataigneStateMachineRuntime {
     pub processor_runtimes: IndexMap<ProcessorId, ProcessorRuntime>,
-    guard_runtimes: IndexMap<TransitionId, AlchemistRuntime>,
+    transition_runtimes: IndexMap<TransitionId, StateMachineTransitionRuntime>,
     pub execution: RuntimeExecutionMatrix,
 }
 
@@ -158,20 +232,25 @@ impl ChataigneStateMachineRuntime {
             }
             processor_runtimes.insert(processor.id, runtime);
         }
-        let mut guard_runtimes = IndexMap::new();
+        let mut transition_runtimes = IndexMap::new();
         for transition in machine.transitions.values() {
-            if let Some(graph) = &transition.guard_graph {
-                let guard_ctx = CompileCtx {
-                    value_types: ctx.value_types,
-                    nodes: ctx.nodes,
-                    properties: None,
-                };
-                let result = compile_graph(graph, &guard_ctx);
-                if let Some(compiled) = result.compiled {
-                    guard_runtimes.insert(transition.transition_id, AlchemistRuntime::new(compiled));
-                } else {
-                    errors.extend(result.diagnostics.into_iter().map(|diagnostic| diagnostic.message));
-                }
+            let guard = transition
+                .guard_graph
+                .as_ref()
+                .and_then(|graph| compile_global_graph_runtime(graph, ctx, &mut errors));
+            let effect = transition
+                .effect_graph
+                .as_ref()
+                .and_then(|graph| compile_global_graph_runtime(graph, ctx, &mut errors));
+            if guard.is_some() || effect.is_some() {
+                transition_runtimes.insert(
+                    transition.transition_id,
+                    StateMachineTransitionRuntime {
+                        transition_id: transition.transition_id,
+                        guard,
+                        effect,
+                    },
+                );
             }
         }
         if !errors.is_empty() {
@@ -179,7 +258,7 @@ impl ChataigneStateMachineRuntime {
         }
         Ok(Self {
             processor_runtimes,
-            guard_runtimes,
+            transition_runtimes,
             execution: RuntimeExecutionMatrix::default(),
         })
     }
@@ -199,41 +278,62 @@ impl ChataigneStateMachineRuntime {
         machine: &mut ChataigneStateMachine,
         ctx: &EvaluationCtx<'_>,
     ) -> Result<StateMachineTickOutput, golden_statechart::StatechartError> {
+        let provider = DefaultProcessorContextProvider;
+        self.tick_with_context_provider(machine, ctx, &provider)
+    }
+
+    pub fn tick_with_context_provider(
+        &mut self,
+        machine: &mut ChataigneStateMachine,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+    ) -> Result<StateMachineTickOutput, golden_statechart::StatechartError> {
         let mut fired_guards = IndexSet::new();
-        for (transition, runtime) in &mut self.guard_runtimes {
-            let output = runtime.evaluate(ctx);
-            if output.debug_samples.iter().any(|sample| {
-                matches!(
-                    sample.value,
-                    golden_alchemist::RuntimeValue::Trigger(trigger) if trigger.fired
-                )
-            }) {
-                fired_guards.insert(*transition);
+        let guard_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active.active_scopes);
+        for runtime in self.transition_runtimes.values_mut() {
+            if runtime.evaluate_guard(ctx, &guard_context) {
+                fired_guards.insert(runtime.transition_id);
             }
         }
-        let guarded: IndexSet<TransitionId> = machine
-            .transitions
+        let guarded: IndexSet<TransitionId> = self
+            .transition_runtimes
             .values()
-            .filter(|transition| transition.guard_graph.is_some())
-            .map(|transition| transition.transition_id)
+            .filter_map(StateMachineTransitionRuntime::guarded_transition)
             .collect();
         let transition = machine
             .chart
             .step(|candidate| !guarded.contains(&candidate.id) || fired_guards.contains(&candidate.id))?;
+        let mut transition_output = None;
         if let Some(outcome) = &transition {
             self.apply_lifecycle(machine, &outcome.lifecycle);
             self.rebuild_execution_matrix(machine);
+            let effect_context = GlobalStateMachineContextFrame::from_tick(ctx, &machine.chart.active.active_scopes);
+            transition_output = self
+                .transition_runtimes
+                .get_mut(&outcome.transition)
+                .and_then(|runtime| runtime.evaluate_effect(ctx, &effect_context))
+                .map(|output| (outcome.transition, output));
         }
 
         let mut result = StateMachineTickOutput {
             transition,
             ..StateMachineTickOutput::default()
         };
+        if let Some((transition_id, output)) = transition_output {
+            result.intents.extend(output.intents.iter().cloned());
+            result.transition_outputs.insert(transition_id, output);
+        }
         for processor_id in self.execution.active_processors.clone() {
             let Some(processor) = machine.processor(processor_id) else {
                 continue;
             };
-            let output = self.processor_runtimes[&processor_id].evaluate_processor(processor, ctx);
+            let output = merge_processor_lane_outputs(
+                self.processor_runtimes[&processor_id].evaluate_processor_with_context_provider(
+                    processor,
+                    ctx,
+                    context_provider,
+                ),
+            );
             result.intents.extend(output.intents.iter().cloned());
             result.processor_outputs.insert(processor_id, output);
         }
@@ -273,4 +373,42 @@ impl ChataigneStateMachineRuntime {
             }
         }
     }
+}
+
+fn compile_global_graph_runtime(
+    graph: &AlchemistGraph,
+    ctx: &CompileCtx<'_>,
+    errors: &mut Vec<String>,
+) -> Option<GlobalCompiledGraphRuntime> {
+    let global_ctx = CompileCtx {
+        value_types: ctx.value_types,
+        nodes: ctx.nodes,
+        properties: None,
+    };
+    let result = compile_graph(graph, &global_ctx);
+    if let Some(compiled) = result.compiled {
+        Some(GlobalCompiledGraphRuntime::new(AlchemistRuntime::new(compiled)))
+    } else {
+        errors.extend(result.diagnostics.into_iter().map(|diagnostic| diagnostic.message));
+        None
+    }
+}
+
+fn output_fires(output: &RuntimeOutput) -> bool {
+    output.debug_samples.iter().any(|sample| {
+        matches!(
+            sample.value,
+            golden_alchemist::RuntimeValue::Trigger(trigger) if trigger.fired
+        )
+    })
+}
+
+fn merge_processor_lane_outputs(lanes: Vec<ProcessorLaneOutput>) -> RuntimeOutput {
+    let mut output = RuntimeOutput::default();
+    for lane in lanes {
+        output.intents.extend(lane.output.intents);
+        output.diagnostics.extend(lane.output.diagnostics);
+        output.debug_samples.extend(lane.output.debug_samples);
+    }
+    output
 }
