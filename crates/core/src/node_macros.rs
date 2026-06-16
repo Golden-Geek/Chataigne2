@@ -25,6 +25,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method(),
             Self::CurveKey(node) => node.$method(),
             Self::CurveEasing(node) => node.$method(),
+            Self::Gradient(node) => node.$method(),
+            Self::GradientStop(node) => node.$method(),
             Self::Script(node) => node.$method(),
             $(Self::$variant(node) => node.$method(),)*
         }
@@ -53,6 +55,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method($arg1),
             Self::CurveKey(node) => node.$method($arg1),
             Self::CurveEasing(node) => node.$method($arg1),
+            Self::Gradient(node) => node.$method($arg1),
+            Self::GradientStop(node) => node.$method($arg1),
             Self::Script(node) => node.$method($arg1),
             $(Self::$variant(node) => node.$method($arg1),)*
         }
@@ -81,6 +85,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method($arg1, $arg2),
             Self::CurveKey(node) => node.$method($arg1, $arg2),
             Self::CurveEasing(node) => node.$method($arg1, $arg2),
+            Self::Gradient(node) => node.$method($arg1, $arg2),
+            Self::GradientStop(node) => node.$method($arg1, $arg2),
             Self::Script(node) => node.$method($arg1, $arg2),
             $(Self::$variant(node) => node.$method($arg1, $arg2),)*
         }
@@ -109,6 +115,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3),
             Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3),
             Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3),
+            Self::Gradient(node) => node.$method($arg1, $arg2, $arg3),
+            Self::GradientStop(node) => node.$method($arg1, $arg2, $arg3),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3),)*
         }
@@ -137,6 +145,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::Gradient(node) => node.$method($arg1, $arg2, $arg3, $arg4),
+            Self::GradientStop(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4),)*
         }
@@ -165,6 +175,8 @@ macro_rules! __dispatch_node_enum {
             Self::CurveRange(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::CurveKey(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::CurveEasing(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::Gradient(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
+            Self::GradientStop(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             Self::Script(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),
             $(Self::$variant(node) => node.$method($arg1, $arg2, $arg3, $arg4, $arg5),)*
         }
@@ -637,6 +649,8 @@ macro_rules! define_node_enum {
             CurveRange(Box<$crate::node::CurveRangeNode>),
             CurveKey(Box<$crate::node::CurveKeyNode>),
             CurveEasing(Box<$crate::node::CurveEasingNode>),
+            Gradient(Box<$crate::node::GradientNode>),
+            GradientStop(Box<$crate::node::GradientStopNode>),
             Script(Box<$crate::script::ScriptNode>),
             $($variant(Box<$node_ty>),)*
         }
@@ -682,6 +696,8 @@ macro_rules! define_node_enum {
                     Self::CurveRange(node) => node.as_ref(),
                     Self::CurveKey(node) => node.as_ref(),
                     Self::CurveEasing(node) => node.as_ref(),
+                    Self::Gradient(node) => node.as_ref(),
+                    Self::GradientStop(node) => node.as_ref(),
                     Self::Script(node) => node.as_ref(),
                     $(Self::$variant(node) => node.as_ref(),)*
                 }
@@ -712,6 +728,8 @@ macro_rules! define_node_enum {
                     Self::CurveRange(node) => node.as_mut(),
                     Self::CurveKey(node) => node.as_mut(),
                     Self::CurveEasing(node) => node.as_mut(),
+                    Self::Gradient(node) => node.as_mut(),
+                    Self::GradientStop(node) => node.as_mut(),
                     Self::Script(node) => node.as_mut(),
                     $(Self::$variant(node) => node.as_mut(),)*
                 }
@@ -1069,6 +1087,8 @@ macro_rules! define_node_enum {
                 $crate::__downcast_node_enum_variant!(any, CurveRange, $crate::node::CurveRangeNode);
                 $crate::__downcast_node_enum_variant!(any, CurveKey, $crate::node::CurveKeyNode);
                 $crate::__downcast_node_enum_variant!(any, CurveEasing, $crate::node::CurveEasingNode);
+                $crate::__downcast_node_enum_variant!(any, Gradient, $crate::node::GradientNode);
+                $crate::__downcast_node_enum_variant!(any, GradientStop, $crate::node::GradientStopNode);
                 $crate::__downcast_node_enum_variant!(any, Script, $crate::script::ScriptNode);
 
                 $(
@@ -1165,6 +1185,12 @@ macro_rules! define_node_enum {
                 }
                 if node_type == $crate::node::PARAMETER_ANIMATION_EASING_NODE_TYPE {
                     return Some(Self::CurveEasing(Box::new($crate::node::CurveEasingNode::new())));
+                }
+                if node_type == $crate::node::GRADIENT_NODE_TYPE {
+                    return Some(Self::Gradient(Box::new($crate::node::GradientNode::new_with_label("Gradient"))));
+                }
+                if node_type == $crate::node::GRADIENT_STOP_NODE_TYPE {
+                    return Some(Self::GradientStop(Box::new($crate::node::GradientStopNode::new_with_label("Stop"))));
                 }
                 if let Some(node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
                     return Some(Self::Script(Box::new(node)));
@@ -1303,6 +1329,16 @@ macro_rules! define_node_enum {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
                     $crate::node::Node::project_decode_data(&mut node, data)?;
                     return Ok(Self::CurveEasing(Box::new(node)));
+                }
+                if node_type == $crate::node::GRADIENT_NODE_TYPE {
+                    let mut node = $crate::node::GradientNode::new_with_label(meta.label.clone());
+                    $crate::node::Node::project_decode_data(&mut node, data)?;
+                    return Ok(Self::Gradient(Box::new(node)));
+                }
+                if node_type == $crate::node::GRADIENT_STOP_NODE_TYPE {
+                    let mut node = $crate::node::GradientStopNode::new_with_label(meta.label.clone());
+                    $crate::node::Node::project_decode_data(&mut node, data)?;
+                    return Ok(Self::GradientStop(Box::new(node)));
                 }
                 if let Some(mut node) = <$crate::script::ScriptNode as $crate::node::Node>::project_create(node_type) {
                     $crate::node::Node::node_data_mut(&mut node).meta.label = meta.label.clone();
@@ -1451,6 +1487,18 @@ macro_rules! define_node_enum {
         impl From<$crate::node::CurveEasingNode> for $enum_name {
             fn from(node: $crate::node::CurveEasingNode) -> Self {
                 Self::CurveEasing(Box::new(node))
+            }
+        }
+
+        impl From<$crate::node::GradientNode> for $enum_name {
+            fn from(node: $crate::node::GradientNode) -> Self {
+                Self::Gradient(Box::new(node))
+            }
+        }
+
+        impl From<$crate::node::GradientStopNode> for $enum_name {
+            fn from(node: $crate::node::GradientStopNode) -> Self {
+                Self::GradientStop(Box::new(node))
             }
         }
 

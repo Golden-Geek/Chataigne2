@@ -35,6 +35,8 @@ pub struct Parameter {
     pub event_behaviour: ParameterEventBehaviour,
     /// Whether this parameter is read-only for UI editing.
     pub read_only: bool,
+    /// Whether sparse persistence should keep value deltas even when `read_only`.
+    pub persist_read_only_value: bool,
     /// Data constraints used for clamping/validation/adaptation.
     pub constraints: ParameterConstraints,
     /// UI-facing editor hints.
@@ -59,6 +61,7 @@ impl Parameter {
             change_check,
             event_behaviour: ParameterEventBehaviour::Coalesce,
             read_only: false,
+            persist_read_only_value: false,
             constraints: ParameterConstraints::default(),
             ui_hints: ParameterUiHints::default(),
             control: ParameterControlState::default(),
@@ -170,6 +173,7 @@ struct ParameterProjectData {
     change_check: ParameterChangeCheck,
     event_behaviour: ParameterEventBehaviour,
     read_only: bool,
+    persist_read_only_value: bool,
     constraints: ParameterConstraints,
     ui_hints: ParameterUiHints,
     control: ParameterControlState,
@@ -185,6 +189,7 @@ fn default_parameter_project_data(node_type: &str) -> Result<ParameterProjectDat
         change_check: ParameterChangeCheck::ValueChange,
         event_behaviour: ParameterEventBehaviour::Coalesce,
         read_only: false,
+        persist_read_only_value: false,
         constraints: ParameterConstraints::default(),
         ui_hints: ParameterUiHints::default(),
         control: ParameterControlState::default(),
@@ -199,6 +204,7 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterProjectData
         change_check: parameter.change_check.clone(),
         event_behaviour: parameter.event_behaviour,
         read_only: parameter.read_only,
+        persist_read_only_value: parameter.persist_read_only_value,
         constraints: parameter.constraints.clone(),
         ui_hints: parameter.ui_hints.clone(),
         control: parameter.control.clone(),
@@ -260,6 +266,10 @@ fn decode_parameter_project_data_with_baseline(
     if let Some(read_only) = object.get("read_only") {
         parsed.read_only =
             serde_json::from_value(read_only.clone()).map_err(|err| format!("invalid read_only payload: {err}"))?;
+    }
+    if let Some(persist_read_only_value) = object.get("persist_read_only_value") {
+        parsed.persist_read_only_value = serde_json::from_value(persist_read_only_value.clone())
+            .map_err(|err| format!("invalid persist_read_only_value payload: {err}"))?;
     }
     if let Some(constraints) = object.get("constraints") {
         parsed.constraints =
@@ -326,6 +336,13 @@ impl Parameter {
                 "read_only".to_string(),
                 serde_json::to_value(self.read_only)
                     .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
+            );
+        }
+        if self.persist_read_only_value != baseline.persist_read_only_value {
+            data.insert(
+                "persist_read_only_value".to_string(),
+                serde_json::to_value(self.persist_read_only_value)
+                    .map_err(|err| format!("failed to encode 'persist_read_only_value' field: {err}"))?,
             );
         }
         if persist_constraints && self.constraints != baseline.constraints {
@@ -454,6 +471,13 @@ impl Node for Parameter {
                     .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
             );
         }
+        if self.persist_read_only_value != baseline.persist_read_only_value {
+            data.insert(
+                "persist_read_only_value".to_string(),
+                serde_json::to_value(self.persist_read_only_value)
+                    .map_err(|err| format!("failed to encode 'persist_read_only_value' field: {err}"))?,
+            );
+        }
         if self.constraints != baseline.constraints {
             data.insert(
                 "constraints".to_string(),
@@ -497,6 +521,7 @@ impl Node for Parameter {
         self.change_check = parsed.change_check;
         self.event_behaviour = parsed.event_behaviour;
         self.read_only = parsed.read_only;
+        self.persist_read_only_value = parsed.persist_read_only_value;
         self.constraints = parsed.constraints;
         self.ui_hints = parsed.ui_hints;
         self.control = parsed.control;

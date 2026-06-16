@@ -94,6 +94,22 @@ pub const PARAMETER_ANIMATION_OFFSET_DECL_ID: &str = "offset";
 pub const PARAMETER_ANIMATION_PHASE_DECL_ID: &str = "phase";
 /// Built-in child `decl_id` for animation node local update rate in hertz.
 pub const PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID: &str = "update_rate_hz";
+/// Built-in node type id for gradient container nodes.
+pub const GRADIENT_NODE_TYPE: &str = "gradient";
+/// Built-in item kind used by gradient container nodes.
+pub const GRADIENT_ITEM_KIND: &str = "gradient";
+/// Built-in `decl_id` for the gradient child hosted inside another node.
+pub const GRADIENT_DECL_ID: &str = "gradient";
+/// Built-in node type id for gradient color-stop nodes.
+pub const GRADIENT_STOP_NODE_TYPE: &str = "gradient_stop";
+/// Built-in item kind used by gradient color-stop nodes.
+pub const GRADIENT_STOP_ITEM_KIND: &str = "gradient_stop";
+/// Built-in `decl_id` for the gradient stop position parameter.
+pub const GRADIENT_STOP_POSITION_DECL_ID: &str = "position";
+/// Built-in `decl_id` for the gradient stop color parameter.
+pub const GRADIENT_STOP_COLOR_DECL_ID: &str = "color";
+/// Built-in `decl_id` for the gradient stop interpolation selector.
+pub const GRADIENT_STOP_INTERPOLATION_DECL_ID: &str = "interpolation";
 /// All built-in parameter node type ids.
 pub const PARAMETER_NODE_TYPES: [&str; 11] = [
     "trigger",

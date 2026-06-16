@@ -2,6 +2,8 @@ mod core;
 /// Built-in node families, node traits, and node-level constants.
 pub mod curve;
 mod dashboard;
+/// Built-in gradient tool nodes (color stops + interpolation) and sampling model.
+pub mod gradient;
 mod handles;
 
 pub use crate::parameter::ParameterValueType;
@@ -25,6 +27,9 @@ pub use dashboard::{
     DashboardNodeWidgetVec2PadOptionsNode, DashboardNodeWidgetVec3EditorOptionsNode, DashboardPageNode,
     DashboardWidgetContainerNode, DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor,
     DashboardWidgetTypeSpec,
+};
+pub use gradient::{
+    Gradient, GradientInterpolation, GradientNode, GradientStop, GradientStopNode, gradient_from_snapshot,
 };
 pub use handles::{DeclaredNodeHandle, NodeHandle, ParameterHandle, PotentialNodeHandle};
 

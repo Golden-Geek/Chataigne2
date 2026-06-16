@@ -1024,7 +1024,7 @@ fn project_persisted_data_from_runtime<T: Node>(
 ) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
     let node_type = node.get_type().to_string();
     let data_value = if let Some(parameter) = node.as_any().downcast_ref::<Parameter>() {
-        let persist_runtime_value = baseline.is_none() || !parameter.read_only;
+        let persist_runtime_value = baseline.is_none() || !parameter.read_only || parameter.persist_read_only_value;
         let persist_constraints = baseline.is_none() || node.node_data().meta.user_permissions.can_edit_constraints;
         parameter.project_encode_data_against_baseline(
             baseline.and_then(|record| record.data.as_ref()),
