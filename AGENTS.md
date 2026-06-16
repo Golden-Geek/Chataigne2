@@ -89,6 +89,8 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 ## Readability And Reviewability
 
 - Optimize for readable diffs, reviewable formatting, and newcomer legibility.
+- Keep source files under 1000 lines by splitting cohesive modules before they become hard to review.
+  Generated files, lockfiles, long-form docs, and intentionally centralized registries may exceed this only when the tradeoff is documented.
 - Do not keep ultra-wide formatting or dense one-line source files.
 - Use standard formatters with sane line widths.
 - Reformat touched code consistently with the repository formatter instead of preserving unreadable layout.
