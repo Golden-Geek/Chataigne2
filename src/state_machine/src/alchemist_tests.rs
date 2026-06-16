@@ -1,17 +1,74 @@
 use std::time::Duration;
 
 use golden_alchemist::{
-    ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, EvaluationCtx, InputSocketRef,
-    OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, StableRef, ValueTypeId, ValueTypeRegistry,
-    compile_graph, primitive_node_registry,
+    ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, CompileResult, DiagnosticOrigin,
+    EvaluationCtx, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, StableRef,
+    ValueTypeId, ValueTypeRegistry, compile_graph, primitive_node_registry,
 };
 
 use crate::alchemist::{
-    MODULE_ENDPOINT_TYPE, MODULE_TYPE, ROUTING_TYPE, STATE_TYPE, register_nodes, register_value_types,
+    CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, MODULE_ENDPOINT_TYPE, MODULE_TYPE, OUTPUTS_MANAGER_TYPE,
+    ROUTING_TYPE, STATE_TYPE, register_nodes, register_value_types,
 };
 
 fn node(id: &str) -> ANodeInstance {
     ANodeInstance::new(ANodeTypeId::new(id), id)
+}
+
+fn compile_single_node(type_id: &str) -> CompileResult {
+    let mut graph = AlchemistGraph::new();
+    graph.add_node(node(type_id)).unwrap();
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    compile_graph(
+        &graph,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    )
+}
+
+#[test]
+fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
+    for (node_type, label, required_behavior) in [
+        (CONDITIONS_MANAGER_TYPE, "Conditions", "condition manager evaluation"),
+        (INPUTS_MANAGER_TYPE, "Inputs", "ParamArray resolution"),
+        (OUTPUTS_MANAGER_TYPE, "Output Commands", "lane-aware processor intents"),
+    ] {
+        let result = compile_single_node(node_type);
+        assert!(result.compiled.is_none(), "{node_type} must not compile silently");
+        assert!(result.has_errors(), "{node_type} must report a compile error");
+        assert_eq!(
+            result.diagnostics.len(),
+            1,
+            "{node_type} should emit one explicit diagnostic"
+        );
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.code, "chataigne_manager_node_unsupported");
+        assert!(
+            diagnostic.message.contains(label),
+            "{node_type} diagnostic should name the manager role: {:?}",
+            diagnostic.message
+        );
+        assert!(
+            diagnostic.message.contains(required_behavior),
+            "{node_type} diagnostic should describe the missing real behavior: {:?}",
+            diagnostic.message
+        );
+        assert!(
+            diagnostic.message.contains("does not return fallback values"),
+            "{node_type} diagnostic should reject fake fallback behavior: {:?}",
+            diagnostic.message
+        );
+        assert!(
+            matches!(&diagnostic.origin, DiagnosticOrigin::Node(_)),
+            "{node_type} diagnostic should point at the authored ANode"
+        );
+    }
 }
 
 #[test]

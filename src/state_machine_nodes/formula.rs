@@ -1507,14 +1507,13 @@ impl AlchemistANode {
                 )
             });
             if needs_rebuild {
-                if let Ok(tree) = input_socket_tree(
+                let tree = input_socket_tree(
                     input.id.as_str(),
                     &input.label,
                     &value_type,
                     &default,
-                ) {
-                    replace_child_tree_once(ctx, inputs_folder, existing, tree);
-                }
+                );
+                replace_child_tree_once(ctx, inputs_folder, existing, tree);
             }
         }
         let trigger_input = child_bool(&snapshot, self.id(), "trigger_input_enabled").unwrap_or(false);
@@ -1522,14 +1521,13 @@ impl AlchemistANode {
         if trigger_input {
             desired_inputs.insert(trigger_decl.clone());
             if snapshot.find_child_by_decl_id(inputs_folder, &trigger_decl).is_none() {
-                if let Ok(tree) = input_socket_tree(
+                let tree = input_socket_tree(
                     TRIGGER_INPUT_SOCKET_ID,
                     "Trigger",
                     &ValueTypeId::new("trigger"),
                     &golden_alchemist::RuntimeValue::Trigger(golden_alchemist::TriggerValue::default()),
-                ) {
-                    add_child_tree_once(ctx, inputs_folder, tree, None);
-                }
+                );
+                add_child_tree_once(ctx, inputs_folder, tree, None);
             }
         }
 
@@ -1759,16 +1757,18 @@ fn input_socket_matches(
     {
         return false;
     }
-    let Some(value) = snapshot.find_child_by_decl_id(
+    let value = snapshot.find_child_by_decl_id(
         socket,
         &socket_value_decl_id("inputs", socket_id),
-    ) else {
-        return false;
-    };
-    snapshot.node(value).is_some_and(|node| {
-        runtime_value_to_param(default)
-            .is_ok_and(|default| node.node_type == parameter_node_type(&default))
-    })
+    );
+    let expected_param = socket_default_param(value_type, default);
+    match (value, expected_param) {
+        (Some(value), Some(default)) => snapshot
+            .node(value)
+            .is_some_and(|node| node.node_type == parameter_node_type(&default)),
+        (None, None) => true,
+        _ => false,
+    }
 }
 
 fn output_socket_matches(
@@ -1786,20 +1786,12 @@ fn input_socket_tree(
     label: &str,
     value_type: &ValueTypeId,
     default: &RuntimeValue,
-) -> Result<NodeTree, String> {
+) -> NodeTree {
     let decl_id = socket_decl_id("inputs", socket_id);
     let mut socket = AlchemistInputSocket::new();
     socket.node_data_mut().meta.label = label.to_owned();
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
     socket.node_data_mut().meta.presentation.color =
-        Some(value_type_color(value_type.as_str()));
-    let mut value = parameter(
-        "Value",
-        socket_value_decl_id("inputs", socket_id),
-        runtime_value_to_param(default)?,
-        false,
-    );
-    value.node_data_mut().meta.presentation.color =
         Some(value_type_color(value_type.as_str()));
     let mut socket_id_param = parameter(
         "Socket ID",
@@ -1823,10 +1815,29 @@ fn input_socket_tree(
         .meta
         .presentation
         .show_in_inspector_content = false;
-    Ok(NodeTree::new(socket)
+    let mut tree = NodeTree::new(socket)
         .with_child(NodeTree::new(socket_id_param))
-        .with_child(NodeTree::new(value_type_param))
-        .with_child(NodeTree::new(value)))
+        .with_child(NodeTree::new(value_type_param));
+    if let Some(default) = socket_default_param(value_type, default) {
+        let mut value = parameter(
+            "Value",
+            socket_value_decl_id("inputs", socket_id),
+            default,
+            false,
+        );
+        value.node_data_mut().meta.presentation.color =
+            Some(value_type_color(value_type.as_str()));
+        tree = tree.with_child(NodeTree::new(value));
+    }
+    tree
+}
+
+fn socket_default_param(value_type: &ValueTypeId, default: &RuntimeValue) -> Option<ParamValue> {
+    let storage = value_types().get(value_type).map(|descriptor| descriptor.storage)?;
+    if matches!(storage, golden_alchemist::ValueStorageKind::Extension) {
+        return None;
+    }
+    runtime_value_to_param(default).ok()
 }
 
 fn output_socket_tree(
@@ -2764,14 +2775,13 @@ impl AlchemistFormulaDefinition {
                 if !needs_rebuild {
                     continue;
                 }
-                if let Ok(tree) = input_socket_tree(
+                let tree = input_socket_tree(
                     input.id.as_str(),
                     &input.label,
                     &value_type,
                     &default,
-                ) {
-                    replace_child_tree_once(ctx, inputs_folder, Some(existing), tree);
-                }
+                );
+                replace_child_tree_once(ctx, inputs_folder, Some(existing), tree);
             }
 
             for output in signature.outputs {

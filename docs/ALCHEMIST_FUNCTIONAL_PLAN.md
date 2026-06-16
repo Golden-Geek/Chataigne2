@@ -128,7 +128,7 @@ phases. Do not carry half-remembered implementation details between phases.
 | 10 - Runtime-backed ANode output preview                  | Done   | Committed   | Added bounded runtime-backed preview capture, authored node/socket/type samples, processor selected-lane filtering, and capture-off tests.                                                |
 | 11 - Protocol DTOs and TypeScript generation              | Done   | Committed   | Added canonical Rust DTOs for context keys, lane summaries, preview modes, runtime values, and output preview samples, then regenerated TypeScript.                                      |
 | 12 - Formula editor UX model                              | Done   | Committed   | Added focused preview-session UI state, visible Recipe/Instance/Lane edit-scope indicators, processor editor params, and lane preview selection controls.                               |
-| 13 - Manager nodes: no silent fake behavior               | Todo   | Pending     | Not started.                                                                                                                                                                              |
+| 13 - Manager nodes: no silent fake behavior               | Done   | Committed   | Manager reference ANodes now compile to explicit unsupported diagnostics instead of fake defaults, with Formula editor diagnostics/warnings and tests.                                      |
 | 14 - Performance and scalability pass                     | Todo   | Pending     | Not started.                                                                                                                                                                              |
 
 ## Mission

@@ -4,10 +4,10 @@ use std::{fmt::Debug, sync::Arc};
 
 use golden_alchemist::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId,
-    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, ExecutionKind, ExtensionValue, FacetId, InputSocketDecl,
-    NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeValue, SignatureCtx, StableRef,
-    TriggerValue, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind, ValueTypeDescriptor,
-    ValueTypeId, ValueTypeRegistry,
+    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, DiagnosticOrigin, ExecutionKind, ExtensionValue, FacetId,
+    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeValue,
+    SignatureCtx, StableRef, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
+    ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 
 pub use golden_alchemist as alchemist;
@@ -237,51 +237,45 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
 
     fn compile_operation(
         &self,
-        _instance: &ANodeInstance,
+        instance: &ANodeInstance,
         _resolved: &ResolvedANodeSignature,
     ) -> Result<CompiledNodeOperation, Diagnostic> {
         let evaluator: Arc<dyn CompiledNodeEvaluator> = match self.0 {
-            ChataigneNodeKind::ConditionsManagerRef => Arc::new(ConditionsManagerRefEval),
-            ChataigneNodeKind::InputsManagerRef => Arc::new(ParamArraySourceEval),
-            ChataigneNodeKind::OutputsManagerRef => Arc::new(NoOutputEval),
+            ChataigneNodeKind::ConditionsManagerRef => {
+                return Err(unsupported_manager_node_diagnostic(
+                    instance,
+                    "Conditions",
+                    "condition manager evaluation in processor lanes or global transition context",
+                ));
+            }
+            ChataigneNodeKind::InputsManagerRef => {
+                return Err(unsupported_manager_node_diagnostic(
+                    instance,
+                    "Inputs",
+                    "ParamArray resolution from the current processor context",
+                ));
+            }
+            ChataigneNodeKind::OutputsManagerRef => {
+                return Err(unsupported_manager_node_diagnostic(
+                    instance,
+                    "Output Commands",
+                    "lane-aware processor intents or global transition-origin intents",
+                ));
+            }
             ChataigneNodeKind::Routing => Arc::new(RoutingEval),
         };
         Ok(CompiledNodeOperation::Custom(evaluator))
     }
 }
 
-#[derive(Debug)]
-struct ConditionsManagerRefEval;
-
-impl CompiledNodeEvaluator for ConditionsManagerRefEval {
-    fn evaluate(&self, _evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![
-            RuntimeValue::Bool(false),
-            RuntimeValue::Trigger(TriggerValue::default()),
-            RuntimeValue::Trigger(TriggerValue::default()),
-        ])
-    }
-}
-
-#[derive(Debug)]
-struct NoOutputEval;
-
-impl CompiledNodeEvaluator for NoOutputEval {
-    fn evaluate(&self, _evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![])
-    }
-}
-
-#[derive(Debug)]
-struct ParamArraySourceEval;
-
-impl CompiledNodeEvaluator for ParamArraySourceEval {
-    fn evaluate(&self, _evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
-        Ok(vec![RuntimeValue::Extension(ExtensionValue::new(
-            ValueTypeId::new(PARAM_ARRAY_TYPE),
-            Arc::<[u8]>::from([]),
-        ))])
-    }
+fn unsupported_manager_node_diagnostic(instance: &ANodeInstance, label: &str, required_behavior: &str) -> Diagnostic {
+    Diagnostic::error(
+        "chataigne_manager_node_unsupported",
+        format!(
+            "Chataigne {label} manager ANode is not implemented yet; it is unavailable until {required_behavior} is wired. It does not return fallback values."
+        ),
+        DiagnosticOrigin::Node(instance.id),
+    )
 }
 
 #[derive(Debug)]

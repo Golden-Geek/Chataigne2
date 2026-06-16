@@ -83,6 +83,30 @@ guards evaluate once in `GlobalStateMachineContext`, and transition effects run
 once after a transition fires. If a transition needs processor-derived data,
 that data must arrive through an explicit global aggregation or manager result.
 
+## Manager Reference Nodes
+
+Chataigne manager reference ANodes for Conditions, Inputs, and Output Commands
+are app-owned product integrations, not reusable Alchemist primitives. Until
+their real runtime contracts are implemented, these nodes compile to explicit
+`chataigne_manager_node_unsupported` diagnostics.
+
+They must not return fake defaults such as `false`, an empty `ParamArray`, or a
+silently dropped command. The Formula editor surfaces the compile diagnostic
+through the formula validity flag, formula diagnostics JSON, and authored ANode
+warnings so unsupported manager behavior is visible before runtime.
+
+The intended contracts remain:
+
+```text
+Inside processor formula:
+  context_key may exist.
+  output commands emit processor-origin intents with that optional context key.
+
+Inside transition graph:
+  no processor context key exists.
+  output commands emit transition-origin intents after the transition fires.
+```
+
 ## Property Runtime
 
 Property nodes read typed runtime slots:

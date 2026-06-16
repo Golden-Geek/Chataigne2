@@ -70,6 +70,58 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
 }
 
 #[test]
+fn manager_reference_anodes_mark_formula_unavailable_in_editor_state() {
+    for (type_id, label) in [
+        (
+            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE,
+            "Conditions",
+        ),
+        (
+            chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
+            "Inputs",
+        ),
+        (
+            chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
+            "Output Commands",
+        ),
+    ] {
+        let (mut engine, formula) = engine_with_formula();
+        create_anode(&mut engine, formula, type_id, 0.0, 0.0);
+        let anode = find_anode_by_type(&engine, formula, type_id);
+
+        assert_eq!(
+            parameter_value(&engine, formula, "is_valid"),
+            ParamValue::Bool(false),
+            "{label} manager ref should mark the formula invalid"
+        );
+        let diagnostics_json = match parameter_value(&engine, formula, "diagnostics_json") {
+            ParamValue::Str(value) => value,
+            other => panic!("diagnostics_json should be a string, got {other:?}"),
+        };
+        let diagnostics: Vec<serde_json::Value> =
+            serde_json::from_str(&diagnostics_json).expect("diagnostics_json should parse");
+        assert!(
+            diagnostics.iter().any(|diagnostic| {
+                diagnostic["code"] == "chataigne_manager_node_unsupported"
+                    && diagnostic["message"]
+                        .as_str()
+                        .is_some_and(|message| message.contains(label))
+            }),
+            "{label} manager ref should expose the unsupported diagnostic: {diagnostics_json}"
+        );
+
+        assert!(
+            node_has_warning_id(&engine, formula, "alchemist_formula"),
+            "{label} manager ref should set the formula warning"
+        );
+        assert!(
+            node_has_warning_id(&engine, anode, "alchemist_formula_diagnostic"),
+            "{label} manager ref should set an ANode warning"
+        );
+    }
+}
+
+#[test]
 fn materialized_anode_preserves_enabled_state() {
     let (mut engine, formula) = engine_with_formula();
     let previous_children = direct_children(&engine, formula).len();
@@ -1368,4 +1420,17 @@ fn parameter_value(
         .and_then(Node::engine_param_snapshot)
         .map(|snapshot| snapshot.value)
         .unwrap_or_else(|| panic!("`{decl_id}` should be a parameter"))
+}
+
+fn node_has_warning_id(engine: &AppEngine, node: NodeId, warning_id: &str) -> bool {
+    engine
+        .process_tree_snapshot()
+        .node(node)
+        .is_some_and(|snapshot| {
+            snapshot
+                .presentation
+                .warnings
+                .iter()
+                .any(|warning| warning.id == warning_id)
+        })
 }
