@@ -280,9 +280,7 @@ pub enum ProcessorDebugCapture {
 
 impl Default for ProcessorDebugCapture {
     fn default() -> Self {
-        Self::All {
-            history_len: usize::MAX,
-        }
+        Self::Off
     }
 }
 

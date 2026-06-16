@@ -226,6 +226,8 @@ It only means no persistent lane memory.
 Output preview capture is opt-in and bounded. The editor may request Formula
 default preview, one processor default lane, one selected processor lane, or a
 selected node subset. No graph/editor view should leave capture enabled.
+Normal processor ticking uses `ProcessorDebugCapture::Off`; value samples for
+previews or tests must be requested explicitly with a bounded history length.
 
 Each processor-originated preview sample must include the processor id and the
 optional context key. Transition-originated diagnostics and effects use a
