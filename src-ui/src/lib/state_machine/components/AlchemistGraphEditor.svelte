@@ -38,6 +38,7 @@
 		initialCamera,
 		onCameraChange,
 		viewportInset,
+		autoWire = true,
 		toolbarEnd
 	}: {
 		formula: UiNodeDto;
@@ -59,6 +60,7 @@
 		initialCamera?: GraphCamera;
 		onCameraChange?: (camera: GraphCamera) => void;
 		viewportInset?: GraphViewportInset;
+		autoWire?: boolean;
 		toolbarEnd?: Snippet;
 	} = $props();
 
@@ -165,7 +167,7 @@
 		{inputSocketContent}
 		{outputSocketContent}
 		{toolbarEnd}
-		routeEdgesAroundNodes={true}
+		routeEdgesAroundNodes={autoWire}
 		socketLabels="always"
 		autoHomeOnMount={false}
 		emptyLabel="Add an ANode to start this Formula." />

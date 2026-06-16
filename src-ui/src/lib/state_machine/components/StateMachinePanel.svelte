@@ -37,6 +37,7 @@
 	} from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
+	import AutoWireToggle from './AutoWireToggle.svelte';
 	import StateProcessorManager from './StateProcessorManager.svelte';
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
@@ -67,7 +68,7 @@
 
 	interface StateMachinePanelPersistedState {
 		camera?: GraphCamera;
-		avoidStateObstacles?: boolean;
+		autoWire?: boolean;
 	}
 
 	const graphCamera = (value: unknown): GraphCamera | undefined => {
@@ -123,17 +124,17 @@
 	let geometryPersistenceTail = Promise.resolve();
 	let pendingCamera: GraphCamera | null = null;
 	let cameraPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
-	let avoidStateObstacles = $state(false);
-	let initializedRoutingPanelId: string | null = null;
+	let autoWire = $state(false);
+	let initializedAutoWirePanelId: string | null = null;
 
 	$effect(() => {
-		if (initializedRoutingPanelId === panelState.panelId) {
+		if (initializedAutoWirePanelId === panelState.panelId) {
 			return;
 		}
-		avoidStateObstacles =
-			readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params)
-				.avoidStateObstacles === true;
-		initializedRoutingPanelId = panelState.panelId;
+		autoWire =
+			readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params).autoWire ===
+			true;
+		initializedAutoWirePanelId = panelState.panelId;
 	});
 
 	let initialCamera = $derived.by(() =>
@@ -454,9 +455,9 @@
 		session.selectNodes(hierarchyNodeIds, 'REPLACE');
 	};
 
-	const setAvoidStateObstacles = (event: Event): void => {
-		avoidStateObstacles = (event.currentTarget as HTMLInputElement).checked;
-		writePanelPersistedState(props.panelApi, { avoidStateObstacles });
+	const setAutoWire = (enabled: boolean): void => {
+		autoWire = enabled;
+		writePanelPersistedState(props.panelApi, { autoWire });
 	};
 
 	const rectanglesOverlap = (
@@ -905,10 +906,7 @@
 			<NodeAddButton
 				node={manager}
 				onCreateItem={(item) => createState(item, graphCanvas?.viewportCenter())} />
-			<label class="wire-routing-toggle" title="Automatically route transition wires around States">
-				<input type="checkbox" checked={avoidStateObstacles} onchange={setAvoidStateObstacles} />
-				<span>Avoid states</span>
-			</label>
+			<AutoWireToggle checked={autoWire} onchange={setAutoWire} />
 		</div>
 	{/if}
 
@@ -926,7 +924,7 @@
 		onConnect={connectStates}
 		nodeContent={stateNodeContent}
 		onBackgroundContextMenu={openContextMenu}
-		routeEdgesAroundNodes={avoidStateObstacles}
+		routeEdgesAroundNodes={autoWire}
 		{initialCamera}
 		onCameraChange={persistCamera}
 		{emptyLabel} />
@@ -963,23 +961,4 @@
 		padding: 0.15rem;
 	}
 
-	.wire-routing-toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.28rem;
-		min-block-size: 1.45rem;
-		padding-inline: 0.4rem;
-		border-radius: 0.35rem;
-		background: color-mix(in srgb, var(--gc-color-background) 84%, transparent);
-		color: color-mix(in srgb, var(--gc-color-text) 78%, transparent);
-		font-size: 0.66rem;
-		cursor: pointer;
-		backdrop-filter: blur(0.5rem);
-	}
-
-	.wire-routing-toggle input {
-		inline-size: 0.8rem;
-		block-size: 0.8rem;
-		margin: 0;
-	}
 </style>

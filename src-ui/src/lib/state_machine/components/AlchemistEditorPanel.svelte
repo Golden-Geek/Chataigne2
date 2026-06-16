@@ -27,6 +27,10 @@
 		canDragOutlinerNode
 	} from 'golden_ui';
 	import {
+		readPanelPersistedState,
+		writePanelPersistedState
+	} from 'golden_ui/dockview/panel-persistence';
+	import {
 		createUiEditSession,
 		sendCreateUserItemByTypeIntent,
 		sendUiIntentBatch
@@ -68,6 +72,7 @@
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
+	import AutoWireToggle from './AutoWireToggle.svelte';
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
 	import ProcessorLaneSelector from './ProcessorLaneSelector.svelte';
 
@@ -84,6 +89,10 @@
 	interface PreviewTarget {
 		kind: 'formula' | 'processor';
 		nodeId: number;
+	}
+
+	interface AlchemistEditorPanelPersistedState {
+		autoWire?: boolean;
 	}
 
 	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
@@ -126,6 +135,8 @@
 	let propertiesVisible = $state(true);
 	let propertiesWidth = $state(DEFAULT_PANEL_WIDTH);
 	let formulaCameras = $state<Record<string, GraphCamera>>({});
+	let autoWire = $state(true);
+	let initializedAutoWirePanelId: string | null = null;
 	let previewTarget = $state<PreviewTarget | null>(null);
 	let outputPreviews = $state(new Map<string, FormulaOutputPreviewChip>());
 	let activeSocketRefs = $state(new Set<string>());
@@ -140,6 +151,21 @@
 	let previewActivityDeadlines = new Map<string, number>();
 
 	const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+	$effect(() => {
+		if (initializedAutoWirePanelId === panelState.panelId) {
+			return;
+		}
+		autoWire =
+			readPanelPersistedState<AlchemistEditorPanelPersistedState>(panelState.params).autoWire !==
+			false;
+		initializedAutoWirePanelId = panelState.panelId;
+	});
+
+	const setAutoWire = (enabled: boolean): void => {
+		autoWire = enabled;
+		writePanelPersistedState(props.panelApi, { autoWire });
+	};
 
 	const previewModeKey = (mode: FormulaPreviewModeDto | null): string => {
 		if (!mode) return '';
@@ -1135,6 +1161,9 @@
 		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
 	{/if}
 	{#if formula}
+		<AutoWireToggle checked={autoWire} onchange={setAutoWire} />
+	{/if}
+	{#if formula}
 		<span
 			class="formula-status"
 			class:valid={formulaValid}
@@ -1253,6 +1282,7 @@
 					initialCamera={formulaCamera}
 					onCameraChange={setFormulaCamera}
 					viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
+					{autoWire}
 					toolbarEnd={toolbarEndContent} />
 				{#if diagnostics.length > 0}
 					<aside class="diagnostics" aria-label="Formula diagnostics">
