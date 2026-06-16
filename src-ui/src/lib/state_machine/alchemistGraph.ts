@@ -329,12 +329,12 @@ const stringParameter = (
 const socketParameter = (
 	socket: UiNodeDto,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
-	suffix: string
+	declId: string
 ): string | null => {
 	for (const childId of socket.children) {
 		const child = nodesById.get(childId);
 		if (
-			child?.decl_id.endsWith(suffix) &&
+			child?.decl_id === declId &&
 			child.data.kind === 'parameter' &&
 			child.data.param.value.kind === 'str'
 		) {
@@ -369,12 +369,17 @@ const graphSockets = (
 ): GraphSocket[] => {
 	const folder = directChild(anode, nodesById, folderDeclId);
 	if (!folder) return [];
+	const socketIds = new Set<string>();
 	return folder.children.flatMap((childId) => {
 		const socket = nodesById.get(childId);
 		if (!socket || socket.node_type !== socketNodeType) return [];
-		const id = socketParameter(socket, nodesById, '/socket_id');
+		const declId = socket.decl_id;
+		if (!declId.startsWith(`${folderDeclId}/`)) return [];
+		const id = socketParameter(socket, nodesById, `${declId}/socket_id`);
 		if (!id) return [];
-		const valueType = socketParameter(socket, nodesById, '/value_type') ?? undefined;
+		if (socketIds.has(id)) return [];
+		socketIds.add(id);
+		const valueType = socketParameter(socket, nodesById, `${declId}/value_type`) ?? undefined;
 		const color = metadataColor(socket.meta.presentation?.color) ?? valueTypeColor(valueType);
 		const defaultParamId = socketDefaultParamId(socket, nodesById, folderDeclId, id);
 		return [socketWithComponents(id, socket.meta.label, valueType, color, defaultParamId)];
@@ -623,7 +628,7 @@ export const toGraphNodes = (
 				? ROUTING_NODE_SIZE
 				: compactNode
 					? undefined
-				: graphAutomaticSize(inputs, outputs, configRows),
+					: graphAutomaticSize(inputs, outputs, configRows),
 			resizable: !compactNode,
 			invalid: typeId.length === 0 || warning !== undefined,
 			warning,

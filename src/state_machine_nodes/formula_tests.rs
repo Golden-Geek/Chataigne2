@@ -1,4 +1,5 @@
 use golden_core::{
+    app::ProjectNode,
     color::Color,
     node::{
         DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference,
@@ -20,6 +21,28 @@ use super::{
     formula_from_snapshot, param_to_runtime_value,
 };
 use crate::app::{AppEngine, AppNode};
+
+#[test]
+fn trigger_parameter_snapshot_materializes_idle() {
+    let value = param_to_runtime_value(&ParamValue::Trigger(), &ValueTypeId::new("trigger"))
+        .expect("trigger parameter should convert to a runtime trigger");
+
+    assert_eq!(value, RuntimeValue::Trigger(TriggerValue::default()));
+}
+
+#[test]
+fn boolean_trigger_parameter_materializes_fired() {
+    let value = param_to_runtime_value(&ParamValue::Bool(true), &ValueTypeId::new("trigger"))
+        .expect("boolean trigger parameter should convert to a runtime trigger");
+
+    assert_eq!(
+        value,
+        RuntimeValue::Trigger(TriggerValue {
+            fired: true,
+            ..TriggerValue::default()
+        })
+    );
+}
 
 #[test]
 fn formula_library_accepts_real_formula_nodes() {
@@ -1219,6 +1242,62 @@ fn undoing_anode_removal_restores_its_connections_in_one_step() {
     );
 }
 
+#[test]
+fn duplicating_multiple_anodes_offsets_positions_without_corrupting_sockets() {
+    let (mut engine, formula) = engine_with_formula();
+    let type_ids = [
+        "constant",
+        "math",
+        "one_minus",
+        "inverse",
+        "negate",
+        "constant",
+        "math",
+        "one_minus",
+        "inverse",
+        "negate",
+        "constant",
+        "math",
+        "one_minus",
+        "inverse",
+        "negate",
+    ];
+    let originals = type_ids
+        .iter()
+        .enumerate()
+        .map(|(index, type_id)| {
+            create_anode(
+                &mut engine,
+                formula,
+                type_id,
+                2.0 + index as f64 * 3.0,
+                3.0 + (index % 3) as f64 * 2.0,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let mut prev_sibling = originals.last().copied();
+    for (index, source) in originals.iter().copied().enumerate() {
+        let copy = duplicate_anode(
+            &mut engine,
+            formula,
+            source,
+            prev_sibling,
+            &format!("ANode Copy {index}"),
+        );
+        let ParamValue::Vec2(x, y) = parameter_value(&engine, source, "position") else {
+            panic!("source ANode position should be vec2");
+        };
+        assert_eq!(
+            parameter_value(&engine, copy, "position"),
+            ParamValue::Vec2(x + 1.5, y + 1.5)
+        );
+        assert_unique_socket_ids(&engine, copy, "inputs");
+        assert_unique_socket_ids(&engine, copy, "outputs");
+        prev_sibling = Some(copy);
+    }
+}
+
 #[derive(Clone, Copy)]
 struct ANodeSocketSpec {
     type_id: &'static str,
@@ -1303,7 +1382,8 @@ fn create_anode(
     type_id: &str,
     x: f64,
     y: f64,
-) {
+) -> NodeId {
+    let before = direct_children(engine, formula);
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: formula,
         node_type: format!("{ANODE_CREATE_PREFIX}{type_id}"),
@@ -1314,6 +1394,35 @@ fn create_anode(
         }],
     });
     assert!(ack.success, "ANode creation should succeed: {ack:?}");
+    direct_children(engine, formula)
+        .into_iter()
+        .find(|node| !before.contains(node) && anode_type(engine, *node).is_some())
+        .unwrap_or_else(|| panic!("created ANode `{type_id}` should exist"))
+}
+
+fn duplicate_anode(
+    engine: &mut AppEngine,
+    formula: NodeId,
+    source: NodeId,
+    new_prev_sibling: Option<NodeId>,
+    label: &str,
+) -> NodeId {
+    let duplicate = engine
+        .duplicate_subtree_with(
+            source,
+            formula,
+            new_prev_sibling,
+            Some(label.to_owned()),
+            |node| node.project_encode_data(),
+            <AppNode as ProjectNode>::project_decode_node,
+        )
+        .unwrap_or_else(|err| panic!("ANode duplicate should succeed: {err:?}"));
+
+    assert!(
+        anode_type(engine, duplicate).is_some(),
+        "duplicated node `{label}` should be an ANode"
+    );
+    duplicate
 }
 
 fn create_connection(
@@ -1511,6 +1620,40 @@ fn assert_socket_type(
         ParamValue::Str(expected_type.into()),
         "{direction} socket `{socket}` should have type `{expected_type}`"
     );
+}
+
+fn assert_unique_socket_ids(engine: &AppEngine, anode: NodeId, direction: &str) {
+    let ids = socket_ids(engine, anode, direction);
+    let mut unique = std::collections::HashSet::new();
+    for id in &ids {
+        assert!(
+            unique.insert(id.clone()),
+            "{direction} socket ids should be unique for `{anode:?}`: {ids:?}"
+        );
+    }
+}
+
+fn socket_ids(engine: &AppEngine, anode: NodeId, direction: &str) -> Vec<String> {
+    let folder =
+        find_child_by_decl(engine, anode, direction).expect("socket folder should exist");
+    direct_children(engine, folder)
+        .into_iter()
+        .map(|socket| {
+            let socket_decl_id = engine
+                .nodes
+                .get(socket)
+                .expect("socket node should exist")
+                .node_data()
+                .meta
+                .decl_id
+                .0
+                .clone();
+            match parameter_value(engine, socket, &format!("{socket_decl_id}/socket_id")) {
+                ParamValue::Str(value) => value,
+                other => panic!("socket id should be a string, got {other:?}"),
+            }
+        })
+        .collect()
 }
 
 fn parameter_value(

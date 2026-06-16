@@ -1240,10 +1240,9 @@ impl Node for AlchemistANode {
                 return;
             };
             if let Some([x, y]) = child_vec2(&snapshot, self.id(), "position") {
-                ctx.set_param(
-                    self.position.id(),
-                    ParamValue::Vec2(x + 1.5, y + 1.5),
-                );
+                if let Some(position) = snapshot.find_child_by_decl_id(self.id(), "position") {
+                    ctx.set_param(position, ParamValue::Vec2(x + 1.5, y + 1.5));
+                }
             }
         }
     }
@@ -1824,6 +1823,21 @@ fn socket_value_type(
     )
 }
 
+fn socket_id_matches(
+    snapshot: &ProcessTreeSnapshot,
+    socket: NodeId,
+    direction: &str,
+    socket_id: &str,
+) -> bool {
+    child_string(
+        snapshot,
+        socket,
+        &format!("{direction}/{socket_id}/socket_id"),
+    )
+    .as_deref()
+        == Some(socket_id)
+}
+
 fn input_socket_matches(
     snapshot: &ProcessTreeSnapshot,
     socket: NodeId,
@@ -1831,6 +1845,9 @@ fn input_socket_matches(
     value_type: &ValueTypeId,
     default: &RuntimeValue,
 ) -> bool {
+    if !socket_id_matches(snapshot, socket, "inputs", socket_id) {
+        return false;
+    }
     if socket_value_type(snapshot, socket, "inputs", socket_id).as_deref()
         != Some(value_type.as_str())
     {
@@ -1856,6 +1873,9 @@ fn output_socket_matches(
     socket_id: &str,
     value_type: &ValueTypeId,
 ) -> bool {
+    if !socket_id_matches(snapshot, socket, "outputs", socket_id) {
+        return false;
+    }
     socket_value_type(snapshot, socket, "outputs", socket_id).as_deref()
         == Some(value_type.as_str())
 }
