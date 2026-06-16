@@ -180,6 +180,9 @@ pub struct UiProjectFileSpec {
     pub display_name: String,
     /// Preferred filename extension without a leading dot.
     pub extension: String,
+    /// Resolved host path for the currently open project document, when any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_path: Option<String>,
 }
 
 impl Default for UiProjectFileSpec {
@@ -187,16 +190,25 @@ impl Default for UiProjectFileSpec {
         Self {
             display_name: "Project".to_string(),
             extension: "json".to_string(),
+            current_path: None,
+        }
+    }
+}
+
+impl UiProjectFileSpec {
+    /// Builds UI project-file metadata from an app file spec and active host path.
+    pub fn from_project_file_spec(spec: crate::app::ProjectFileSpec, current_path: Option<String>) -> Self {
+        Self {
+            display_name: spec.normalized_display_name(),
+            extension: spec.normalized_extension(),
+            current_path,
         }
     }
 }
 
 impl From<crate::app::ProjectFileSpec> for UiProjectFileSpec {
     fn from(spec: crate::app::ProjectFileSpec) -> Self {
-        Self {
-            display_name: spec.normalized_display_name(),
-            extension: spec.normalized_extension(),
-        }
+        Self::from_project_file_spec(spec, None)
     }
 }
 

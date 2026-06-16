@@ -8,13 +8,13 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use futures_util::{SinkExt, StreamExt};
-use golden_engine::app::{ProjectLifecycle, prepare_engine_for_runtime};
+use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::node::Node;
 use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
-    UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest,
+    UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
     UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
     UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
     UiReplayRequest as ReplayRequest, UiScriptConfigRequest as ScriptConfigRequest,
@@ -78,9 +78,60 @@ impl Default for UiServerConfig {
     }
 }
 
+#[derive(Clone)]
+struct ProjectFileSession {
+    state: Arc<Mutex<ProjectFileSessionState>>,
+}
+
+struct ProjectFileSessionState {
+    file_spec: ProjectFileSpec,
+    current_path: Option<String>,
+}
+
+impl ProjectFileSession {
+    fn new(file_spec: ProjectFileSpec) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ProjectFileSessionState {
+                file_spec,
+                current_path: None,
+            })),
+        }
+    }
+
+    fn snapshot(&self) -> UiProjectFileSpec {
+        let state = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        UiProjectFileSpec::from_project_file_spec(state.file_spec.clone(), state.current_path.clone())
+    }
+
+    fn set_current_path(&self, path: String) {
+        let mut state = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let normalized = path.trim();
+        state.current_path = if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized.to_string())
+        };
+    }
+
+    fn clear_current_path(&self) {
+        let mut state = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        state.current_path = None;
+    }
+}
+
 struct ServerState<T: ProjectLifecycle> {
     engine: Arc<Mutex<Engine<T>>>,
     read_model: Arc<UiReadModel>,
+    project_file: ProjectFileSession,
     ws_hub: WsHubHandle,
     frontend_assets: &'static [UiAsset],
 }
@@ -90,6 +141,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
         Self {
             engine: self.engine.clone(),
             read_model: self.read_model.clone(),
+            project_file: self.project_file.clone(),
             ws_hub: self.ws_hub.clone(),
             frontend_assets: self.frontend_assets,
         }
@@ -230,14 +282,15 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
 fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     read_model: &Arc<UiReadModel>,
+    project_file: &ProjectFileSession,
 ) {
     let guard = lock_engine(engine);
     read_model.replace_from_engine(
         &*guard,
-        T::project_file_spec(),
+        project_file.snapshot(),
         UiReadModelReplaceReason::ProjectReplaced,
     );
-    read_model.publish_engine_events_since(&*guard, None, T::project_file_spec());
+    read_model.publish_engine_events_since(&*guard, None);
 }
 
 fn normalize_ui_client_instance_id(raw: &str) -> Option<String> {
@@ -407,9 +460,10 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     engine: Arc<Mutex<Engine<T>>>,
     config: UiServerConfig,
 ) -> std::io::Result<()> {
+    let project_file = ProjectFileSession::new(T::project_file_spec());
     let read_model = {
         let guard = lock_engine(&engine);
-        Arc::new(UiReadModel::from_engine(&*guard, T::project_file_spec()))
+        Arc::new(UiReadModel::from_engine(&*guard, project_file.snapshot()))
     };
     spawn_runtime_loop(engine.clone(), read_model.clone(), config.tick_interval);
     let ws_hub = spawn_ws_hub(
@@ -429,6 +483,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     let state = ServerState {
         engine,
         read_model,
+        project_file,
         ws_hub,
         frontend_assets: config.frontend_assets,
     };
@@ -478,7 +533,7 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
                 if let Err(err) = guard.run_tick(elapsed) {
                     report_runtime_tick_failure(&err);
                 } else {
-                    read_model.publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
+                    read_model.publish_engine_events_since(&*guard, before_event_time);
                 }
             }
 
@@ -623,7 +678,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         let _ = guard.cancel_active_ui_edit_session_for_client(&client_instance_id);
                         read_model.collect_event_batch(&*guard, before_event_time)
                     };
-                    read_model.apply_event_capture(capture, T::project_file_spec());
+                    read_model.apply_event_capture(capture);
                 }
             }
         }
@@ -644,7 +699,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
                     read_model.collect_event_batch(&*guard, before_event_time)
                 };
-                read_model.apply_event_capture(capture, T::project_file_spec());
+                read_model.apply_event_capture(capture);
             }
             eprintln!(
                 "[ui-ws] client {client_id} unregistered (removed_subscriptions={subscription_count}, connected_clients={})",
@@ -697,7 +752,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     total_started,
                 )
             }; // engine lock dropped here
-            let batch = read_model.apply_event_capture(capture, T::project_file_spec());
+            let batch = read_model.apply_event_capture(capture);
             log_ui_intent_timing("ui-ws", &timing);
 
             for time in batch.events.iter().map(|e| e.time) {
@@ -750,7 +805,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             }; // engine lock dropped here
             let mut produced_times = Vec::<EngineTime>::new();
             for capture in captures {
-                let batch = read_model.apply_event_capture(capture, T::project_file_spec());
+                let batch = read_model.apply_event_capture(capture);
                 produced_times.extend(batch.events.iter().map(|e| e.time));
             }
             let batch_total_ms = total_started.elapsed().as_millis();
@@ -998,9 +1053,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 if let Some(client_instance_id) = client_instance_id.as_deref() {
                     let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                     let _ = guard.cancel_active_ui_edit_session_for_client(client_instance_id);
-                    state
-                        .read_model
-                        .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
+                    state.read_model.publish_engine_events_since(&*guard, before_event_time);
                 }
                 lock_wait_elapsed
             } else {
@@ -1119,9 +1172,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let mut guard = lock_engine(&state.engine);
             let before_event_time = guard.ui_event_log().last().map(|event| event.time);
             let update_result = guard.ui_set_script_config(payload.node, payload.config, payload.force_reload);
-            state
-                .read_model
-                .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
+            state.read_model.publish_engine_events_since(&*guard, before_event_time);
             drop(guard);
 
             match update_result {
@@ -1140,9 +1191,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let mut guard = lock_engine(&state.engine);
             let before_event_time = guard.ui_event_log().last().map(|event| event.time);
             let reload_result = guard.ui_reload_script(payload.node);
-            state
-                .read_model
-                .publish_engine_events_since(&*guard, before_event_time, T::project_file_spec());
+            state.read_model.publish_engine_events_since(&*guard, before_event_time);
             drop(guard);
 
             match reload_result {
@@ -1156,7 +1205,8 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         }
         ("POST", "/api/ui/project-new") => match project_host::create_new_project(&state.engine) {
             Ok(()) => {
-                refresh_read_model_after_project_replace(&state.engine, &state.read_model);
+                state.project_file.clear_current_path();
+                refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
                 write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
             }
             Err(err) => {
@@ -1167,7 +1217,9 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
             match project_host::save_project(&state.engine, &payload.path) {
-                Ok(()) => {
+                Ok(path) => {
+                    state.project_file.set_current_path(path);
+                    state.read_model.set_project_file(state.project_file.snapshot());
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1179,8 +1231,9 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
             match project_host::load_project(&state.engine, &payload.path) {
-                Ok(()) => {
-                    refresh_read_model_after_project_replace(&state.engine, &state.read_model);
+                Ok(path) => {
+                    state.project_file.set_current_path(path);
+                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
                     write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
                 }
                 Err(err) => {
@@ -1197,7 +1250,8 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             })?;
             match project_host::upload_project_and_load(&state.engine, &payload.file_name, &payload.contents) {
                 Ok(path) => {
-                    refresh_read_model_after_project_replace(&state.engine, &state.read_model);
+                    state.project_file.set_current_path(path.clone());
+                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
                     write_json(stream, "200 OK", &ProjectPathDto { path })?;
                 }
                 Err(err) => {
@@ -1224,7 +1278,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                     total_started,
                 )
             }; // engine lock dropped here
-            state.read_model.apply_event_capture(capture, T::project_file_spec());
+            state.read_model.apply_event_capture(capture);
             log_ui_intent_timing("ui-http", &timing);
 
             write_json(stream, "200 OK", &ack)?;
@@ -1261,7 +1315,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             }; // engine lock dropped here
             let mut total_events = 0usize;
             for capture in captures {
-                let batch = state.read_model.apply_event_capture(capture, T::project_file_spec());
+                let batch = state.read_model.apply_event_capture(capture);
                 total_events += batch.events.len();
             }
             let batch_total_ms = total_started.elapsed().as_millis();

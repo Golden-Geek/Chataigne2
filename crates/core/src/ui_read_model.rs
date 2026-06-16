@@ -13,7 +13,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 
-use crate::app::ProjectFileSpec;
 use crate::contexts::UiUserContextsDto;
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
@@ -85,8 +84,12 @@ pub struct UiReadModel {
 
 impl UiReadModel {
     /// Builds a read model from the current engine state (acquires no external locks).
-    pub fn from_engine<T: Node>(engine: &Engine<T>, project_file: ProjectFileSpec) -> Self {
-        let snapshot = snapshot_from_engine(engine, project_file.clone());
+    pub fn from_engine<T, P>(engine: &Engine<T>, project_file: P) -> Self
+    where
+        T: Node,
+        P: Into<UiProjectFileSpec>,
+    {
+        let snapshot = snapshot_from_engine(engine, project_file.into());
         let at = snapshot.at;
         let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
         let node_store = nodes_to_store(&snapshot.nodes);
@@ -119,13 +122,12 @@ impl UiReadModel {
     }
 
     /// Rebuilds the entire model from the live engine (project load/replace or initial build).
-    pub fn replace_from_engine<T: Node>(
-        &self,
-        engine: &Engine<T>,
-        project_file: ProjectFileSpec,
-        reason: UiReadModelReplaceReason,
-    ) {
-        let snapshot = Arc::new(snapshot_from_engine(engine, project_file));
+    pub fn replace_from_engine<T, P>(&self, engine: &Engine<T>, project_file: P, reason: UiReadModelReplaceReason)
+    where
+        T: Node,
+        P: Into<UiProjectFileSpec>,
+    {
+        let snapshot = Arc::new(snapshot_from_engine(engine, project_file.into()));
         let at = snapshot.at;
         let latest_event_time = engine.ui_event_log().last().map(|event| event.time);
 
@@ -159,6 +161,18 @@ impl UiReadModel {
         }
     }
 
+    /// Updates host-owned project-file metadata without touching graph projection state.
+    pub fn set_project_file<P>(&self, project_file: P)
+    where
+        P: Into<UiProjectFileSpec>,
+    {
+        {
+            let mut header = self.snapshot_header.lock().expect("ui read model poisoned");
+            header.project_file = project_file.into();
+        }
+        self.rebuild_current_from_store();
+    }
+
     // -----------------------------------------------------------------------
     // Two-step publish: collect inside lock, apply outside lock.
     // -----------------------------------------------------------------------
@@ -187,7 +201,7 @@ impl UiReadModel {
     /// All graph and parameter events update the `node_store`. Structural events also rebuild
     /// `current` from pre-built DTOs without traversing the engine. Pure parameter changes defer
     /// that O(N) rebuild until the next structural batch.
-    pub fn apply_event_capture(&self, capture: UiEventCapture, project_file: ProjectFileSpec) -> UiEventBatch {
+    pub fn apply_event_capture(&self, capture: UiEventCapture) -> UiEventBatch {
         let UiEventCapture {
             batch,
             history,
@@ -223,7 +237,6 @@ impl UiReadModel {
                 header.at = at;
                 header.history = history;
                 header.user_contexts = user_contexts;
-                header.project_file = UiProjectFileSpec::from(project_file);
             }
 
             self.rebuild_current_from_store();
@@ -247,10 +260,9 @@ impl UiReadModel {
         &self,
         engine: &Engine<T>,
         previous_event_time: Option<EngineTime>,
-        project_file: ProjectFileSpec,
     ) -> UiEventBatch {
         let capture = self.collect_event_batch(engine, previous_event_time);
-        self.apply_event_capture(capture, project_file)
+        self.apply_event_capture(capture)
     }
 
     // -----------------------------------------------------------------------
@@ -365,9 +377,9 @@ impl UiReadModel {
 // Full-snapshot helpers (only for initial build / project replace)
 // ---------------------------------------------------------------------------
 
-fn snapshot_from_engine<T: Node>(engine: &Engine<T>, project_file: ProjectFileSpec) -> UiSnapshot {
+fn snapshot_from_engine<T: Node>(engine: &Engine<T>, project_file: UiProjectFileSpec) -> UiSnapshot {
     let mut snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
-    snapshot.project_file = UiProjectFileSpec::from(project_file);
+    snapshot.project_file = project_file;
     snapshot
 }
 

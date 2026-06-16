@@ -43,6 +43,8 @@ impl GradientStopNode {
     ) -> Self {
         let mut node_data = NodeData::new(label.into());
         node_data.meta.can_be_disabled = false;
+        // The gradient editor drives stops via the ribbon; keep the inline stop inspector folded by default.
+        node_data.meta.presentation.collapsed = true;
         Self {
             node_data,
             default_position: position.clamp(0.0, 1.0),

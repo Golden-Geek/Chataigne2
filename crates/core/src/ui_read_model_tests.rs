@@ -1,8 +1,7 @@
-use crate::app::ProjectFileSpec;
 use crate::engine::Engine;
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
-use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto};
+use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec};
 
 fn apply_param_change(engine: &mut Engine<Parameter>, value: i32) {
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -32,14 +31,13 @@ fn publish_engine_events_since_survives_event_log_compaction() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
     engine.set_ui_event_log_capacity(4);
 
-    let project_file = ProjectFileSpec::default();
-    let read_model = UiReadModel::from_engine(&engine, project_file.clone());
+    let read_model = UiReadModel::from_engine(&engine, crate::ui_sync::UiProjectFileSpec::default());
 
     for value in 1..=3 {
         apply_param_change(&mut engine, value);
     }
 
-    let initial_batch = read_model.publish_engine_events_since(&engine, None, project_file.clone());
+    let initial_batch = read_model.publish_engine_events_since(&engine, None);
     assert_eq!(batch_param_values(&initial_batch), vec![1, 2, 3]);
 
     let before_event_time = engine.ui_event_log().last().map(|event| event.time);
@@ -53,19 +51,18 @@ fn publish_engine_events_since_survives_event_log_compaction() {
         "retained ui log should compact to capacity"
     );
 
-    let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time, project_file);
+    let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time);
     assert_eq!(batch_param_values(&compacted_batch), vec![4, 5, 6, 7]);
 }
 
 #[test]
 fn first_param_change_survives_the_next_structural_rebuild() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
-    let project_file = ProjectFileSpec::default();
-    let read_model = UiReadModel::from_engine(&engine, project_file.clone());
+    let read_model = UiReadModel::from_engine(&engine, crate::ui_sync::UiProjectFileSpec::default());
 
     let param_cursor = read_model.current_event_time();
     apply_param_change(&mut engine, 7);
-    let param_batch = read_model.publish_engine_events_since(&engine, param_cursor, project_file.clone());
+    let param_batch = read_model.publish_engine_events_since(&engine, param_cursor);
     assert_eq!(batch_param_values(&param_batch), vec![7]);
 
     let structural_cursor = read_model.current_event_time();
@@ -75,7 +72,7 @@ fn first_param_change_survives_the_next_structural_rebuild() {
         Some(root),
     );
     engine.apply_edits().expect("child should attach");
-    read_model.publish_engine_events_since(&engine, structural_cursor, project_file);
+    read_model.publish_engine_events_since(&engine, structural_cursor);
 
     let snapshot = read_model.current_snapshot();
     let root = snapshot
@@ -88,4 +85,26 @@ fn first_param_change_survives_the_next_structural_rebuild() {
     };
     assert_eq!(param.value, ParamValue::Int(7));
     assert_eq!(param.default_value, Some(ParamValue::Int(0)));
+}
+
+#[test]
+fn project_file_path_survives_structural_rebuild() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let project_file = UiProjectFileSpec {
+        display_name: "Noisette".to_string(),
+        extension: "noisette".to_string(),
+        current_path: Some("D:/Projects/example.noisette".to_string()),
+    };
+    let read_model = UiReadModel::from_engine(&engine, project_file.clone());
+
+    let structural_cursor = read_model.current_event_time();
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("child", ParamValue::Int(1), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.apply_edits().expect("child should attach");
+    read_model.publish_engine_events_since(&engine, structural_cursor);
+
+    assert_eq!(read_model.current_snapshot().project_file, project_file);
 }

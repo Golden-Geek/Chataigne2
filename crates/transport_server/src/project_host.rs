@@ -129,7 +129,10 @@ pub(crate) fn create_new_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<
     replace_live_engine(engine, next_engine, "project_new")
 }
 
-pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, raw_path: &str) -> Result<(), String> {
+pub(crate) fn save_project<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_path: &str,
+) -> Result<String, String> {
     let file_spec = T::project_file_spec();
     let path = normalize_project_save_path(raw_path, &file_spec)
         .ok_or_else(|| "project-save path cannot be empty".to_string())?;
@@ -165,10 +168,13 @@ pub(crate) fn save_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
         write_elapsed.as_millis(),
         started.elapsed().as_millis()
     );
-    Ok(())
+    Ok(path)
 }
 
-pub(crate) fn load_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, raw_path: &str) -> Result<(), String> {
+pub(crate) fn load_project<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_path: &str,
+) -> Result<String, String> {
     let path = normalize_project_path(raw_path).ok_or_else(|| "project-load path cannot be empty".to_string())?;
 
     let started = Instant::now();
@@ -194,7 +200,7 @@ pub(crate) fn load_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>, 
         replace_elapsed.as_millis(),
         started.elapsed().as_millis()
     );
-    Ok(())
+    Ok(path)
 }
 
 pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
@@ -221,8 +227,7 @@ pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
         .map_err(|err| format!("failed to write uploaded project file {}: {err}", path.display()))?;
 
     let normalized_path = path.to_string_lossy().to_string();
-    load_project(engine, &normalized_path)?;
-    Ok(normalized_path)
+    load_project(engine, &normalized_path)
 }
 
 #[cfg(test)]
