@@ -36,4 +36,6 @@ mod manager_tests;
 #[cfg(test)]
 mod processor_tests;
 #[cfg(test)]
+mod protocol_tests;
+#[cfg(test)]
 mod state_machine_tests;
