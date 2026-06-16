@@ -41,7 +41,9 @@
 			panelId: 'alchemist-editor',
 			panelType: 'alchemistEditor',
 			title: `Alchemist: ${node.meta.label}`,
-			params: formulaNode ? { formulaNodeId: formulaNode.node_id } : {},
+			params: formulaNode
+				? { formulaNodeId: formulaNode.node_id, processorNodeId: node.node_id }
+				: { processorNodeId: node.node_id },
 			position: {
 				referencePanelId: 'state-machine',
 				direction: 'within'
@@ -52,7 +54,7 @@
 
 {#snippet formulaHeaderExtra()}
 	<span class="processor-formula-header-extra">
-		<span class="formula-kind">{formulaKind}</span>
+		<!-- <span class="formula-kind">{formulaKind}</span> -->
 		<button
 			type="button"
 			class="formula-open-btn"
@@ -78,7 +80,7 @@
 		margin-inline-start: 0.2rem;
 	}
 
-	.formula-kind {
+	/* .formula-kind {
 		padding: 0.12rem 0.34rem;
 		border: 0.06rem solid color-mix(in srgb, var(--gc-color-accent) 45%, transparent);
 		border-radius: 999rem;
@@ -87,7 +89,7 @@
 		font-weight: 650;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-	}
+	} */
 
 	.formula-open-btn {
 		display: inline-flex;

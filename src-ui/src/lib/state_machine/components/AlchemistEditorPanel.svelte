@@ -54,7 +54,11 @@
 		toGraphEdges,
 		toGraphNodes
 	} from '../alchemistGraph';
+	import type { ProcessorLaneSummaryDto } from '../generated';
+	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
+	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
+	import ProcessorLaneSelector from './ProcessorLaneSelector.svelte';
 
 	const DIAGNOSTICS_DECL_ID = 'diagnostics_json';
 	const VALID_DECL_ID = 'is_valid';
@@ -79,6 +83,7 @@
 		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_INPUTS}`,
 		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
 	]);
+	const PROCESSOR_ITEM_KIND = 'state_processor';
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -151,6 +156,15 @@
 		const parsed = typeof value === 'number' ? value : Number(value);
 		return Number.isInteger(parsed) ? parsed : null;
 	});
+	let requestedProcessorNodeId = $derived.by(() => {
+		const value = panelState.params.processorNodeId;
+		const parsed = typeof value === 'number' ? value : Number(value);
+		return Number.isInteger(parsed) ? parsed : null;
+	});
+	let requestedProcessorLaneSummaries = $derived.by((): ProcessorLaneSummaryDto[] => {
+		const value = panelState.params.processorLanes;
+		return Array.isArray(value) ? (value as ProcessorLaneSummaryDto[]) : [];
+	});
 
 	let formulaNodes = $derived.by((): UiNodeDto[] => {
 		if (!graphState) return [];
@@ -176,8 +190,16 @@
 		if (!graphState) return null;
 		const requested =
 			requestedFormulaNodeId === null ? null : graphState.nodesById.get(requestedFormulaNodeId);
-		return selectedFormula ?? (isFormula(requested) ? requested : (formulaNodes[0] ?? null));
+		return isFormula(requested) ? requested : (selectedFormula ?? formulaNodes[0] ?? null);
 	});
+	let processorNode = $derived.by((): UiNodeDto | null => {
+		if (!graphState || requestedProcessorNodeId === null) return null;
+		const requested = graphState.nodesById.get(requestedProcessorNodeId);
+		return requested?.user_item_kind === PROCESSOR_ITEM_KIND ? requested : null;
+	});
+	let previewSessionModel = $derived(
+		formulaPreviewSessionStore.model(formula, processorNode, requestedProcessorLaneSummaries)
+	);
 	let formulaCamera = $derived.by((): GraphCamera | undefined => {
 		if (!formula) return undefined;
 		return formulaCameras[formula.uuid] ?? cameraFromStorage(formula.uuid);
@@ -774,6 +796,14 @@
 </script>
 
 {#snippet toolbarEndContent()}
+	{#if formula}
+		<FormulaPreviewModeSelector model={previewSessionModel} />
+		<ProcessorLaneSelector
+			lanes={previewSessionModel.lanes}
+			selectedLaneId={previewSessionModel.selectedLaneId}
+			onSelect={(laneId) =>
+				formulaPreviewSessionStore.selectLane(processorNode?.node_id ?? null, laneId)} />
+	{/if}
 	{#if formula && anodeItems.length > 0}
 		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
 	{/if}
