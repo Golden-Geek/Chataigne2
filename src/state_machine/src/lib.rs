@@ -17,10 +17,11 @@ pub use manager::{
     ProcessorManagerId,
 };
 pub use processor::{
-    DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorCommandPolicy,
-    ProcessorContextProvider, ProcessorDirtyFlags, ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorId,
-    ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime,
-    ProcessorUiModel,
+    ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,
+    ProcessorCommandPolicy, ProcessorContextProvider, ProcessorDebugCapture, ProcessorDirtyFlags,
+    ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent,
+    ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel,
+    processor_output_preview_samples,
 };
 pub use protocol::export_typescript;
 pub use state_machine::{

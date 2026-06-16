@@ -113,23 +113,23 @@ phases. Do not carry half-remembered implementation details between phases.
 
 ## Phase progress ledger
 
-| Phase | Status | Supercommit | Notes |
-| --- | --- | --- | --- |
-| 0 - Baseline and stale-test capture | Todo | Pending | Current stale manager-node tests are marked ignored until Phase 13 replaces removed pre-manager-ref behavior. |
-| 1 - Architecture doc first | Done | Ready | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`. |
-| 2 - Property schema and runtime property slots | Done | Ready | Added schema-driven property slots, runtime property frames, and non-materialized processor compile path. |
-| 3 - Split compiled graph from memory | Done | Ready | Added `CompiledAlchemistFormula`, `FormulaCompileKey`, lower-level `evaluate_compiled_graph`, and shared compiled formula use in processor runtime. |
-| 4 - Generalized state layout | Done | Ready | Added `NodeStateLayout`, declaration-owned state slot sizing, compiler wiring, and layout tests. |
-| 5 - Context axes, stable context keys, sparse lane memory | Done | Committed | Added reusable context-key primitives, sparse `LaneRuntimePool`, Chataigne `ProcessorContextProvider`, lane-pool lifecycle wiring, and sparse memory tests. |
-| 6 - Formula and processor lane analysis | Done | Committed | Added compiler-side formula axis propagation, processor binding analysis, execution-plan strategy selection, and plan-driven evaluation/memory keying. |
-| 7 - Refactor `ProcessorRuntime` | Done | Committed | Removed cached runtime property frame from `ProcessorRuntime`; evaluation now receives the live processor, resolves property frames per evaluated context, and aggregates lane outputs. |
-| 8 - Statechart transitions stay global | Done | Committed | Added explicit global transition runtimes/context frames, single-pass guard evaluation, once-per-fired-transition effects, and lane fan-out tests that leave the statechart global. |
-| 9 - Lane-aware command arbitration for processors | Done | Committed | Added processor/transition/system command origins, processor lane context keys, deterministic origin-aware arbitration, scoped rate limiting, and tick-level command intent extraction. |
-| 10 - Runtime-backed ANode output preview | Todo | Pending | Not started. |
-| 11 - Protocol DTOs and TypeScript generation | Todo | Pending | Not started. |
-| 12 - Formula editor UX model | Todo | Pending | Not started. |
-| 13 - Manager nodes: no silent fake behavior | Todo | Pending | Not started. |
-| 14 - Performance and scalability pass | Todo | Pending | Not started. |
+| Phase                                                     | Status | Supercommit | Notes                                                                                                                                                                                     |
+| --------------------------------------------------------- | ------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 - Baseline and stale-test capture                       | Todo   | Pending     | Current stale manager-node tests are marked ignored until Phase 13 replaces removed pre-manager-ref behavior.                                                                             |
+| 1 - Architecture doc first                                | Done   | Commited    | Added `docs/ALCHEMIST_FORMULA_RUNTIME.md`.                                                                                                                                              |
+| 2 - Property schema and runtime property slots            | Done   | Commited    | Added schema-driven property slots, runtime property frames, and non-materialized processor compile path.                                                                                 |
+| 3 - Split compiled graph from memory                      | Done   | Commited    | Added `CompiledAlchemistFormula`, `FormulaCompileKey`, lower-level `evaluate_compiled_graph`, and shared compiled formula use in processor runtime.                                 |
+| 4 - Generalized state layout                              | Done   | Commited    | Added `NodeStateLayout`, declaration-owned state slot sizing, compiler wiring, and layout tests.                                                                                        |
+| 5 - Context axes, stable context keys, sparse lane memory | Done   | Committed   | Added reusable context-key primitives, sparse `LaneRuntimePool`, Chataigne `ProcessorContextProvider`, lane-pool lifecycle wiring, and sparse memory tests.                           |
+| 6 - Formula and processor lane analysis                   | Done   | Committed   | Added compiler-side formula axis propagation, processor binding analysis, execution-plan strategy selection, and plan-driven evaluation/memory keying.                                    |
+| 7 - Refactor `ProcessorRuntime`                         | Done   | Committed   | Removed cached runtime property frame from `ProcessorRuntime`; evaluation now receives the live processor, resolves property frames per evaluated context, and aggregates lane outputs. |
+| 8 - Statechart transitions stay global                    | Done   | Committed   | Added explicit global transition runtimes/context frames, single-pass guard evaluation, once-per-fired-transition effects, and lane fan-out tests that leave the statechart global.       |
+| 9 - Lane-aware command arbitration for processors         | Done   | Committed   | Added processor/transition/system command origins, processor lane context keys, deterministic origin-aware arbitration, scoped rate limiting, and tick-level command intent extraction.   |
+| 10 - Runtime-backed ANode output preview                  | Done   | Committed   | Added bounded runtime-backed preview capture, authored node/socket/type samples, processor selected-lane filtering, and capture-off tests.                                                |
+| 11 - Protocol DTOs and TypeScript generation              | Todo   | Pending     | Not started.                                                                                                                                                                              |
+| 12 - Formula editor UX model                              | Todo   | Pending     | Not started.                                                                                                                                                                              |
+| 13 - Manager nodes: no silent fake behavior               | Todo   | Pending     | Not started.                                                                                                                                                                              |
+| 14 - Performance and scalability pass                     | Todo   | Pending     | Not started.                                                                                                                                                                              |
 
 ## Mission
 
@@ -1279,8 +1279,8 @@ Statechart active state unchanged and global
 
 That milestone proves the architecture is correct before adding the full multiplex UI, transition-effect cleanup, and manager-node production semantics.
 
-[1]: https://github.com/Golden-Geek/Chataigne2/blob/main/src/state_machine/src/state_machine.rs "Chataigne2/src/state_machine/src/state_machine.rs at main · Golden-Geek/Chataigne2 · GitHub"
-[2]: https://github.com/Golden-Geek/golden_alchemist_core/blob/3b0dd282b0c06f158e296a045b1960a499b790ca/crates/golden_alchemist/src/formula.rs "golden_alchemist_core/crates/golden_alchemist/src/formula.rs at 3b0dd282b0c06f158e296a045b1960a499b790ca · Golden-Geek/golden_alchemist_core · GitHub"
-[3]: https://raw.githubusercontent.com/Golden-Geek/Chataigne2/main/ARCHITECTURE.md "raw.githubusercontent.com"
-[4]: https://raw.githubusercontent.com/Golden-Geek/Chataigne2/main/AGENTS.md "raw.githubusercontent.com"
-[5]: https://github.com/Golden-Geek/golden_alchemist_core/blob/3b0dd282b0c06f158e296a045b1960a499b790ca/crates/golden_alchemist/src/runtime.rs "golden_alchemist_core/crates/golden_alchemist/src/runtime.rs at 3b0dd282b0c06f158e296a045b1960a499b790ca · Golden-Geek/golden_alchemist_core · GitHub"
+[1]: https://github.com/Golden-Geek/Chataigne2/blob/main/src/state_machine/src/state_machine.rs
+[2]: https://github.com/Golden-Geek/golden_alchemist_core/blob/3b0dd282b0c06f158e296a045b1960a499b790ca/crates/golden_alchemist/src/formula.rs
+[3]: https://raw.githubusercontent.com/Golden-Geek/Chataigne2/main/ARCHITECTURE.md
+[4]: https://raw.githubusercontent.com/Golden-Geek/Chataigne2/main/AGENTS.md
+[5]: https://github.com/Golden-Geek/golden_alchemist_core/blob/3b0dd282b0c06f158e296a045b1960a499b790ca/crates/golden_alchemist/src/runtime.rs

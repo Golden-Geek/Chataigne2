@@ -3,14 +3,14 @@ use std::{sync::Arc, time::Duration};
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
     ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
-    FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput,
-    RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection, SurfaceSectionId,
-    SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
+    RuntimeOutput, RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
+    SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 
 use crate::{
-    Processor, ProcessorBindingAnalysis, ProcessorContextProvider, ProcessorExecutionStrategy, ProcessorId,
-    ProcessorLifecycleEvent, ProcessorRuntime,
+    DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorContextProvider,
+    ProcessorDebugCapture, ProcessorExecutionStrategy, ProcessorId, ProcessorLifecycleEvent, ProcessorRuntime,
 };
 
 fn formula() -> AlchemistFormula {
@@ -380,6 +380,207 @@ fn removed_context_item_evicts_lane_memory() {
     assert!(trigger_fired(&a_lane.output));
     assert!(!trigger_fired(&b_lane.output));
     assert_eq!(runtime.lanes.memory_count(), 2);
+}
+
+#[test]
+fn processor_preview_shows_override_resolved_values() {
+    let formula = property_formula("amount", RuntimeValue::Float(1.0));
+    let (mut processor, mut runtime) = compile_active_runtime(&formula);
+    processor
+        .formula_instance
+        .overrides
+        .values
+        .insert(SurfaceItemId::new("amount"), RuntimeValue::Float(7.5));
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(5, &inputs, &registries);
+    let provider = DefaultProcessorContextProvider;
+
+    let samples = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &ctx,
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: None,
+            history_len: 4,
+        },
+    );
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(&samples[0].formula_id, &formula.id);
+    assert_eq!(samples[0].processor_id, Some(processor.id));
+    assert!(samples[0].context_key.is_none());
+    assert_eq!(&samples[0].value, &RuntimeValue::Float(7.5));
+    assert_eq!(samples[0].status, OutputPreviewStatus::Live);
+}
+
+#[test]
+fn multiplexed_processor_preview_filters_to_selected_lane() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let ctx = evaluation_ctx(1, &inputs, &registries);
+    let selected = ContextKey::single("device", "b");
+    let provider = TestContextProvider::new(vec![
+        ContextKey::single("device", "a"),
+        selected.clone(),
+        ContextKey::single("device", "c"),
+    ]);
+    let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            output_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+
+    let samples = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &ctx,
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: Some(selected.clone()),
+            history_len: 8,
+        },
+    );
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].processor_id, Some(processor.id));
+    assert_eq!(samples[0].context_key.as_ref(), Some(&selected));
+}
+
+#[test]
+fn changing_selected_lane_changes_preview_samples_only() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let compiled = Arc::clone(runtime.compiled.as_ref().unwrap());
+    let original_override_count = processor.formula_instance.overrides.values.len();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let provider = TestContextProvider::new(vec![
+        ContextKey::single("device", "a"),
+        ContextKey::single("device", "b"),
+    ]);
+    let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            output_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+    let a = ContextKey::single("device", "a");
+    let b = ContextKey::single("device", "b");
+
+    let first = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: Some(a.clone()),
+            history_len: 4,
+        },
+    );
+    let second = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &evaluation_ctx(2, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: Some(b.clone()),
+            history_len: 4,
+        },
+    );
+
+    assert_eq!(first[0].context_key.as_ref(), Some(&a));
+    assert_eq!(second[0].context_key.as_ref(), Some(&b));
+    assert!(Arc::ptr_eq(&compiled, runtime.compiled.as_ref().unwrap()));
+    assert_eq!(
+        processor.formula_instance.overrides.values.len(),
+        original_override_count
+    );
+    assert_eq!(runtime.lanes.memory_count(), 0);
+}
+
+#[test]
+fn large_graph_preview_does_not_capture_all_lanes() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let selected = ContextKey::single("device", "lane-7");
+    let provider = TestContextProvider::new(
+        (0..10)
+            .map(|index| ContextKey::single("device", format!("lane-{index}")))
+            .collect(),
+    );
+    let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            output_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+
+    let samples = runtime.evaluate_processor_preview_with_context_provider(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::ProcessorLane {
+            context_key: Some(selected.clone()),
+            history_len: 2,
+        },
+    );
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].context_key.as_ref(), Some(&selected));
+}
+
+#[test]
+fn processor_preview_capture_off_when_editor_not_visible() {
+    let formula = formula();
+    let (processor, mut runtime) = compile_active_runtime(&formula);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let provider = TestContextProvider::new(vec![
+        ContextKey::single("device", "a"),
+        ContextKey::single("device", "b"),
+    ]);
+    let axes = provider.available_axes(processor.id);
+    runtime.rebuild_execution_plan(
+        &provider,
+        &ProcessorBindingAnalysis {
+            output_axes: axes,
+            ..ProcessorBindingAnalysis::default()
+        },
+    );
+
+    let lanes = runtime.evaluate_processor_with_context_provider_and_capture(
+        &processor,
+        &evaluation_ctx(1, &inputs, &registries),
+        &provider,
+        &ProcessorDebugCapture::Off,
+    );
+
+    assert_eq!(lanes.len(), 2);
+    assert!(lanes.iter().all(|lane| lane.output.debug_samples.is_empty()));
 }
 
 #[test]

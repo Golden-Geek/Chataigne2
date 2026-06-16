@@ -3,11 +3,12 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use golden_alchemist::{
-    AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
-    ContextKey, ContextValuePath, DebugCaptureSink, Diagnostic, DiagnosticOrigin, EvaluationCtx, EvaluationFrame,
-    ExecNodeId, FormulaAnalysis, FormulaPropertyId, FormulaRef, FormulaSurface, LaneRuntimePool, RuntimeContextFrame,
-    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
-    RuntimeValue, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
+    ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
+    EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
+    FormulaSurface, LaneRuntimePool, OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput,
+    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, RuntimeValue, SocketId, ValueTypeId,
+    compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
@@ -249,6 +250,60 @@ pub struct ProcessorRuntime {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ProcessorDebugCapture {
+    Off,
+    All {
+        history_len: usize,
+    },
+    ProcessorLane {
+        context_key: Option<ContextKey>,
+        history_len: usize,
+    },
+    SelectedNodes {
+        context_key: Option<ContextKey>,
+        nodes: IndexSet<ANodeId>,
+        history_len: usize,
+    },
+}
+
+impl Default for ProcessorDebugCapture {
+    fn default() -> Self {
+        Self::All {
+            history_len: usize::MAX,
+        }
+    }
+}
+
+impl ProcessorDebugCapture {
+    fn debug_capture_mode(&self, formula_id: &FormulaId) -> DebugCaptureMode {
+        match self {
+            Self::Off => DebugCaptureMode::Off,
+            Self::All { history_len } => DebugCaptureMode::All {
+                history_len: *history_len,
+            },
+            Self::ProcessorLane {
+                context_key,
+                history_len,
+            } => DebugCaptureMode::ProcessorLane {
+                formula_id: formula_id.clone(),
+                context_key: context_key.clone(),
+                history_len: *history_len,
+            },
+            Self::SelectedNodes {
+                context_key,
+                nodes,
+                history_len,
+            } => DebugCaptureMode::SelectedNodes {
+                formula_id: Some(formula_id.clone()),
+                context_key: context_key.clone(),
+                nodes: nodes.clone(),
+                history_len: *history_len,
+            },
+        }
+    }
+}
+
 impl ProcessorRuntime {
     #[must_use]
     pub fn new(id: ProcessorId) -> Self {
@@ -390,6 +445,37 @@ impl ProcessorRuntime {
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
     ) -> Vec<ProcessorLaneOutput> {
+        self.evaluate_processor_with_context_provider_and_capture(
+            processor,
+            ctx,
+            context_provider,
+            &ProcessorDebugCapture::default(),
+        )
+    }
+
+    pub fn evaluate_processor_preview_with_context_provider(
+        &mut self,
+        processor: &Processor,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        capture: &ProcessorDebugCapture,
+    ) -> Vec<ANodeOutputPreviewSample> {
+        let formula_id = self.compiled.as_ref().map(|compiled| compiled.formula_ref.id.clone());
+        let lanes =
+            self.evaluate_processor_with_context_provider_and_capture(processor, ctx, context_provider, capture);
+        let Some(formula_id) = formula_id else {
+            return Vec::new();
+        };
+        processor_output_preview_samples(processor.id, &formula_id, lanes)
+    }
+
+    pub fn evaluate_processor_with_context_provider_and_capture(
+        &mut self,
+        processor: &Processor,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        capture: &ProcessorDebugCapture,
+    ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
         }
@@ -419,7 +505,7 @@ impl ProcessorRuntime {
         context_keys
             .into_iter()
             .map(|context_key| {
-                let mut debug = DebugCaptureSink::default();
+                let mut debug = DebugCaptureSink::new(capture.debug_capture_mode(&compiled.formula_ref.id));
                 let context = RuntimeContextFrame::new(context_key.clone());
                 let properties = match self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
                 {
@@ -503,6 +589,57 @@ fn property_frame_error_output(error: RuntimePropertyFrameError) -> RuntimeOutpu
 pub struct ProcessorLaneOutput {
     pub context_key: Option<ContextKey>,
     pub output: RuntimeOutput,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ANodeOutputPreviewSample {
+    pub formula_id: FormulaId,
+    pub processor_id: Option<ProcessorId>,
+    pub context_key: Option<ContextKey>,
+    pub author_node_id: ANodeId,
+    pub exec_node: ExecNodeId,
+    pub output_socket: SocketId,
+    pub value_type: ValueTypeId,
+    pub value: RuntimeValue,
+    pub logical_tick: u64,
+    pub status: OutputPreviewStatus,
+}
+
+impl ANodeOutputPreviewSample {
+    fn from_debug_sample(
+        processor_id: Option<ProcessorId>,
+        fallback_formula_id: &FormulaId,
+        sample: DebugValueSample,
+    ) -> Self {
+        Self {
+            formula_id: sample.formula_id.unwrap_or_else(|| fallback_formula_id.clone()),
+            processor_id,
+            context_key: sample.context_key,
+            author_node_id: sample.author_node_id,
+            exec_node: sample.exec_node,
+            output_socket: sample.output_socket,
+            value_type: sample.value_type,
+            value: sample.value,
+            logical_tick: sample.logical_tick,
+            status: sample.status,
+        }
+    }
+}
+
+pub fn processor_output_preview_samples(
+    processor_id: ProcessorId,
+    formula_id: &FormulaId,
+    lanes: Vec<ProcessorLaneOutput>,
+) -> Vec<ANodeOutputPreviewSample> {
+    lanes
+        .into_iter()
+        .flat_map(|lane| {
+            lane.output
+                .debug_samples
+                .into_iter()
+                .map(move |sample| ANodeOutputPreviewSample::from_debug_sample(Some(processor_id), formula_id, sample))
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug)]
