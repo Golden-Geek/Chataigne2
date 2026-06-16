@@ -23,7 +23,9 @@ pub use processor::{
     ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel,
     processor_output_preview_samples,
 };
-pub use protocol::export_typescript;
+pub use protocol::{
+    ANodeOutputPreviewSampleDto, ContextKeyDto, ProcessorLaneSummaryDto, StateMachineProtocolBundle, export_typescript,
+};
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,
     GlobalStateMachineContextFrame, RuntimeExecutionMatrix, StateMachineTickOutput, StateMachineTransitionRuntime,

@@ -11,6 +11,7 @@
 	import type {
 		ContextMenuAnchor,
 		ContextMenuItem,
+		NodeId,
 		PanelProps,
 		PanelState,
 		UiCreateUserItemInitialParam,
@@ -54,7 +55,11 @@
 		toGraphEdges,
 		toGraphNodes
 	} from '../alchemistGraph';
-	import type { ProcessorLaneSummaryDto } from '../generated';
+	import type { ProcessorLaneSummaryDto, StateMachineProtocolBundle } from '../generated';
+	import {
+		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
+		formulaOutputPreviewMap
+	} from '../preview/formulaOutputPreviewStore.svelte';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
@@ -117,6 +122,9 @@
 
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
+
+	const isProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
+		node?.user_item_kind === PROCESSOR_ITEM_KIND;
 
 	const formulaCameraStorageKey = (formulaUuid: string): string =>
 		`${FORMULA_CAMERA_STORAGE_PREFIX}${formulaUuid}`;
@@ -186,19 +194,94 @@
 		return null;
 	});
 
+	let selectedProcessor = $derived.by((): UiNodeDto | null => {
+		if (!session || !graphState) return null;
+		for (const selectedId of session.selectedNodesIds) {
+			let currentId: number | undefined = selectedId;
+			while (currentId !== undefined) {
+				const current = graphState.nodesById.get(currentId);
+				if (isProcessor(current)) return current;
+				currentId = graphState.parentById.get(currentId);
+			}
+		}
+		return null;
+	});
+
+	let requestedProcessor = $derived.by((): UiNodeDto | null => {
+		if (!graphState) return null;
+		if (requestedProcessorNodeId === null) return null;
+		const requested = graphState.nodesById.get(requestedProcessorNodeId);
+		return isProcessor(requested) ? requested : null;
+	});
+
+	let processorNode = $derived.by((): UiNodeDto | null => {
+		if (selectedProcessor) return selectedProcessor;
+		if (selectedFormula) return null;
+		return requestedProcessor;
+	});
+
+	const formulaForProcessor = (processor: UiNodeDto | null): UiNodeDto | null => {
+		if (!graphState || !processor) return null;
+		const formulaParam = parameterChild(processor, graphState.nodesById, 'formula');
+		if (
+			formulaParam?.data.kind !== 'parameter' ||
+			formulaParam.data.param.value.kind !== 'reference'
+		) {
+			return null;
+		}
+		const reference = formulaParam.data.param.value;
+		if (reference.cached_id !== undefined) {
+			const cached = graphState.nodesById.get(reference.cached_id);
+			if (isFormula(cached) && cached.uuid === reference.uuid) return cached;
+		}
+		for (const node of graphState.nodesById.values()) {
+			if (isFormula(node) && node.uuid === reference.uuid) return node;
+		}
+		return null;
+	};
+
 	let formula = $derived.by((): UiNodeDto | null => {
 		if (!graphState) return null;
+		const processorFormula = formulaForProcessor(processorNode);
+		if (processorFormula) return processorFormula;
 		const requested =
 			requestedFormulaNodeId === null ? null : graphState.nodesById.get(requestedFormulaNodeId);
 		return isFormula(requested) ? requested : (selectedFormula ?? formulaNodes[0] ?? null);
 	});
-	let processorNode = $derived.by((): UiNodeDto | null => {
-		if (!graphState || requestedProcessorNodeId === null) return null;
-		const requested = graphState.nodesById.get(requestedProcessorNodeId);
-		return requested?.user_item_kind === PROCESSOR_ITEM_KIND ? requested : null;
+	let runtimePreviewSequence = $derived(
+		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
+	);
+	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
+		runtimePreviewSequence;
+		return (
+			session?.getCustomEventPayload<StateMachineProtocolBundle>(
+				STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+			) ?? null
+		);
 	});
+	let runtimeProcessorLaneSummaries = $derived.by((): ProcessorLaneSummaryDto[] => {
+		if (!processorNode || !runtimePreviewBundle) return [];
+		return runtimePreviewBundle.processor_lanes.filter(
+			(lane) => lane.processor_id === processorNode.uuid
+		);
+	});
+	let processorLaneSummaries = $derived(
+		requestedProcessor?.node_id === processorNode?.node_id &&
+			requestedProcessorLaneSummaries.length > 0
+			? requestedProcessorLaneSummaries
+			: runtimeProcessorLaneSummaries
+	);
 	let previewSessionModel = $derived(
-		formulaPreviewSessionStore.model(formula, processorNode, requestedProcessorLaneSummaries)
+		formulaPreviewSessionStore.model(formula, processorNode, processorLaneSummaries)
+	);
+	let outputPreviews = $derived.by(() =>
+		formulaOutputPreviewMap(
+			formula,
+			graphState?.nodesById ?? new Map(),
+			runtimePreviewBundle,
+			processorNode?.uuid ?? null,
+			previewSessionModel.selectedLaneId
+		)
 	);
 	let formulaCamera = $derived.by((): GraphCamera | undefined => {
 		if (!formula) return undefined;
@@ -524,8 +607,14 @@
 	const editParameters = async (label: string, intents: UiEditIntent[]): Promise<void> => {
 		if (intents.length === 0) return;
 		const editSession = createUiEditSession(label, 'alchemist-formula');
-		await editSession.begin();
-		if (!editSession.active) throw new Error('another edit session is already active');
+		const deadline = Date.now() + 750;
+		while (!editSession.active && Date.now() <= deadline) {
+			await editSession.begin();
+			if (!editSession.active) {
+				await new Promise((resolve) => setTimeout(resolve, 16));
+			}
+		}
+		if (!editSession.active) throw new Error('could not start Alchemist edit session');
 		try {
 			const result = await sendUiIntentBatch(intents);
 			if (!result.success)
@@ -556,6 +645,47 @@
 				intents
 			);
 		});
+
+	const canRemoveNode = (nodeId: NodeId): boolean => {
+		const node = graphState?.nodesById.get(nodeId);
+		return node?.meta.user_permissions.can_remove_and_duplicate === true;
+	};
+
+	const removeSelectedGraphItems = async (): Promise<boolean> => {
+		if (!formula || !graphState || !session) return false;
+		const selectedIds = new Set(session.selectedNodesIds);
+		const selectedAnodeIds = [...selectedIds].filter(
+			(nodeId) => anodeNodeIds.has(nodeId) && canRemoveNode(nodeId)
+		);
+		const selectedAnodeIdSet = new Set(selectedAnodeIds);
+		const removeIds = new Set<NodeId>();
+
+		for (const nodeId of selectedIds) {
+			if ((anodeNodeIds.has(nodeId) || connectionNodeIds.has(nodeId)) && canRemoveNode(nodeId)) {
+				removeIds.add(nodeId);
+			}
+		}
+
+		if (selectedAnodeIdSet.size > 0) {
+			for (const edge of toGraphEdges(formula, graphState.nodesById)) {
+				const edgeNodeId = edge.id === undefined ? NaN : Number(edge.id);
+				if (!Number.isSafeInteger(edgeNodeId) || !canRemoveNode(edgeNodeId)) continue;
+				const sourceNodeId = Number(edge.from.nodeId);
+				const targetNodeId = Number(edge.to.nodeId);
+				if (selectedAnodeIdSet.has(sourceNodeId) || selectedAnodeIdSet.has(targetNodeId)) {
+					removeIds.add(edgeNodeId);
+				}
+			}
+		}
+
+		if (removeIds.size === 0) return false;
+		await runMutation(async () => {
+			await editParameters('Delete Alchemist Graph Selection', [
+				{ kind: 'removeNodes', nodes: [...removeIds] }
+			]);
+		});
+		return true;
+	};
 
 	const resizeNode = (resize: GraphNodeResize): Promise<void> =>
 		runMutation(async () => {
@@ -787,10 +917,16 @@
 			},
 			{ priority: 100 }
 		);
+		const unregisterDeleteSelection = registerCommandHandler(
+			'edit.deleteSelection',
+			() => (panelOwnsFocus() ? removeSelectedGraphItems() : false),
+			{ priority: 100 }
+		);
 		return () => {
 			unregisterFrame();
 			unregisterHome();
 			unregisterSelectAll();
+			unregisterDeleteSelection();
 		};
 	});
 </script>
@@ -911,6 +1047,7 @@
 					nodesById={graphState.nodesById}
 					{selectedNodeIds}
 					{selectedEdgeIds}
+					{outputPreviews}
 					catalogItems={anodeItems}
 					onGraphSelectionChange={selectGraphItems}
 					onNodesMove={moveNodes}

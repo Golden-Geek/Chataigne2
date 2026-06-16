@@ -1,13 +1,69 @@
+use std::collections::{HashMap, HashSet};
+
+use chataigne_state_machine::{
+    ANodeOutputPreviewSampleDto, ContextKeyDto, DefaultProcessorContextProvider,
+    Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto,
+    ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
+    StateMachineProtocolBundle, processor_output_preview_samples,
+    alchemist::{node_registry, value_type_registry},
+};
+use golden_alchemist::{
+    ANodeId, AlchemistFormula, EvaluationCtx, RuntimeInputSnapshot, RuntimeRegistries,
+    RuntimeValue, SurfaceItemId,
+};
 use golden_core::{
+    engine::NodeExecutionRule,
+    log,
     node,
-    node::{Node, NodeUserPermissions, UserContainerRules, UserCreatableItem},
-    process_ctx::ProcessCtx,
+    node::{
+        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeUserPermissions,
+        NodeUuid, UserContainerRules, UserCreatableItem,
+    },
+    parameter::ParamValue,
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 pub(crate) const STATE_ITEM_KIND: &str = "state";
+const STATE_NODE_TYPE: &str = "state";
+const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
+const FORMULA_NODE_TYPE: &str = "alchemist_formula";
+const PROCESSOR_MANAGER_DECL_ID: &str = "processors";
+const PROCESSOR_NODE_TYPE: &str = "state_processor";
+const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
+const PROCESSOR_PROPERTIES_DECL_ID: &str = "properties";
+const STATE_MACHINE_RUNTIME_HZ: u32 = 60;
+const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC: &str = "chataigne.state_machine.runtime_preview";
+const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 4;
+const STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS: u64 = 60;
+const STATE_MACHINE_LOG_MIN_TICKS: u64 = 30;
+const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
+
+struct RuntimeProcessor {
+    processor: Processor,
+    runtime: ProcessorRuntime,
+    formula_node: NodeId,
+    evaluated_once: bool,
+}
+
+struct RuntimeLogRecord {
+    value: String,
+    tick: u64,
+}
+
+#[derive(Default)]
+struct StateMachineRuntimeCache {
+    dirty: bool,
+    processors: HashMap<NodeId, RuntimeProcessor>,
+    last_preview_signature: Option<String>,
+    last_preview_tick: Option<u64>,
+    last_log_values: HashMap<String, RuntimeLogRecord>,
+}
 
 #[node("state_machine_manager", label = "State Machine")]
-pub struct StateMachineManager {}
+pub struct StateMachineManager {
+    #[state(default = StateMachineRuntimeCache::default())]
+    runtime_cache: StateMachineRuntimeCache,
+}
 
 #[node("state_machine_manager", from_struct)]
 impl Node for StateMachineManager {
@@ -31,9 +87,35 @@ impl Node for StateMachineManager {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
+        self.runtime_cache.dirty = true;
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.runtime_cache.dirty = true;
+            return;
+        };
+        ctx.add_event_listener_subtree(self.id(), snapshot.root(), 1);
+        for library in formula_libraries(&snapshot) {
+            ctx.add_event_listener_subtree(self.id(), library, u32::MAX);
+        }
+        self.runtime_cache.dirty = true;
+    }
+
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        self.run_processors(ctx);
+    }
+
+    fn update_requires_tree_snapshot(&self) -> bool {
+        true
+    }
+
+    fn execution_rule(&self) -> NodeExecutionRule {
+        NodeExecutionRule::periodic(STATE_MACHINE_RUNTIME_HZ)
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: golden_core::node::NodeId, _child: golden_core::node::NodeId) {
+        self.runtime_cache.dirty = true;
         crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
     }
 
@@ -43,9 +125,582 @@ impl Node for StateMachineManager {
         _parent: golden_core::node::NodeId,
         _child: golden_core::node::NodeId,
     ) {
+        self.runtime_cache.dirty = true;
         crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
+    }
+
+    fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {
+        self.runtime_cache.dirty = true;
+    }
+
+    fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {
+        self.runtime_cache.dirty = true;
+    }
+
+    fn on_param_change(&mut self, _ctx: &mut ProcessCtx, _param: NodeId, _old_value: ParamValue) {
+        self.runtime_cache.dirty = true;
+    }
+
+    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {
+        self.runtime_cache.dirty = true;
+    }
+
+    fn child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
+        u32::MAX
+    }
+}
+
+impl StateMachineManager {
+    fn run_processors(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot.as_ref();
+        let formulas = collect_formulas(snapshot);
+        let active_states = active_state_nodes(snapshot, self.id());
+        let cache_rebuilt = self.runtime_cache.dirty;
+
+        if self.runtime_cache.dirty {
+            self.rebuild_runtime_cache(ctx, snapshot, &formulas);
+        }
+
+        let value_types = value_type_registry();
+        let registries = RuntimeRegistries {
+            value_types: &value_types,
+        };
+        let inputs = RuntimeInputSnapshot::default();
+        let eval_ctx = EvaluationCtx {
+            logical_tick: ctx.time.tick,
+            delta_time: ctx.delta_time,
+            events: &[],
+            inputs: &inputs,
+            registries: &registries,
+        };
+        let provider = DefaultProcessorContextProvider;
+        let capture = ProcessorDebugCapture::All {
+            history_len: usize::MAX,
+        };
+        let mut output_preview = Vec::new();
+        let mut processor_lanes = Vec::new();
+        let mut evaluated_any = false;
+
+        for state in active_states {
+            let Some(processor_manager) =
+                snapshot.find_child_by_decl_id(state, PROCESSOR_MANAGER_DECL_ID)
+            else {
+                continue;
+            };
+            for processor_node in processor_nodes(snapshot, processor_manager) {
+                let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
+                else {
+                    continue;
+                };
+                if runtime_processor.evaluated_once
+                    && !processor_needs_continuous_evaluation(&runtime_processor.runtime)
+                {
+                    continue;
+                }
+                let formula_id = runtime_processor
+                    .runtime
+                    .compiled
+                    .as_ref()
+                    .map(|compiled| compiled.formula_ref.id.clone());
+                runtime_processor.runtime.apply_lifecycle(
+                    &runtime_processor.processor,
+                    ProcessorLifecycleEvent::ProjectStart,
+                );
+                let lanes = runtime_processor
+                    .runtime
+                    .evaluate_processor_with_context_provider_and_capture(
+                        &runtime_processor.processor,
+                        &eval_ctx,
+                        &provider,
+                        &capture,
+                    );
+                evaluated_any = true;
+                runtime_processor.evaluated_once = true;
+                let anode_nodes = formula_anode_node_ids(snapshot, runtime_processor.formula_node);
+                for diagnostic in &runtime_processor.runtime.diagnostics {
+                    if should_emit_runtime_log(
+                        &mut self.runtime_cache.last_log_values,
+                        ctx.time.tick,
+                        format!("processor:{processor_node:?}:compile"),
+                        diagnostic.message.as_str(),
+                    ) {
+                        log!(
+                            origin = processor_node;
+                            format!("Processor diagnostic: {}", diagnostic.message)
+                        );
+                    }
+                }
+                if let Some(formula_id) = formula_id.as_ref() {
+                    output_preview.extend(processor_output_preview_samples(
+                        runtime_processor.processor.id,
+                        formula_id,
+                        lanes.clone(),
+                    ));
+                }
+                for lane in &lanes {
+                    processor_lanes.push(processor_lane_summary(
+                        runtime_processor.processor.id,
+                        lane,
+                        ctx.time.tick,
+                        processor_needs_continuous_evaluation(&runtime_processor.runtime),
+                    ));
+                    for diagnostic in &lane.output.diagnostics {
+                        if should_emit_runtime_log(
+                            &mut self.runtime_cache.last_log_values,
+                            ctx.time.tick,
+                            format!("processor:{processor_node:?}:runtime"),
+                            diagnostic.message.as_str(),
+                        ) {
+                            log!(
+                                origin = processor_node;
+                                format!("Processor runtime diagnostic: {}", diagnostic.message)
+                            );
+                        }
+                    }
+                    for intent in &lane.output.intents {
+                        if intent.kind.as_ref() != "debug.log" {
+                            continue;
+                        }
+                        log!(
+                            origin = processor_node;
+                            format!("{}", runtime_value_label(&intent.payload))
+                        );
+                    }
+                    for sample in &lane.output.debug_samples {
+                        let Some(anode_node) = anode_nodes.get(&sample.author_node_id).copied()
+                        else {
+                            continue;
+                        };
+                        if !anode_logs_runtime_value(snapshot, anode_node) {
+                            continue;
+                        }
+                        let value = runtime_value_label(&sample.value);
+                        log!(
+                            origin = anode_node;
+                            format!(
+                                "{}:{} = {}",
+                                sample.author_node_id, sample.output_socket, value
+                            )
+                        );
+                    }
+                }
+            }
+        }
+        if evaluated_any || cache_rebuilt {
+            self.publish_output_preview(ctx, output_preview, processor_lanes);
+        }
+    }
+
+    fn publish_output_preview(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        samples: Vec<chataigne_state_machine::ANodeOutputPreviewSample>,
+        processor_lanes: Vec<ProcessorLaneSummaryDto>,
+    ) {
+        let signature = output_preview_signature(&samples);
+        let changed = self
+            .runtime_cache
+            .last_preview_signature
+            .as_ref()
+            .is_none_or(|previous| previous != &signature);
+        let elapsed = self
+            .runtime_cache
+            .last_preview_tick
+            .map(|tick| ctx.time.tick.saturating_sub(tick));
+        let should_publish = match elapsed {
+            None => true,
+            Some(elapsed) if changed => elapsed >= STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS,
+            Some(elapsed) => elapsed >= STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS,
+        };
+        if !should_publish {
+            return;
+        }
+        let bundle = StateMachineProtocolBundle {
+            statechart_deltas: Vec::new(),
+            processors: Vec::new(),
+            diagnostics: Vec::new(),
+            runtime_debug: Vec::new(),
+            processor_lanes,
+            preview_mode: None,
+            output_preview: samples.iter().map(ANodeOutputPreviewSampleDto::from).collect(),
+        };
+        let _ = ctx.emit_custom_payload(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC, None, &bundle);
+        self.runtime_cache.last_preview_signature = Some(signature);
+        self.runtime_cache.last_preview_tick = Some(ctx.time.tick);
+    }
+
+    fn rebuild_runtime_cache(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        formulas: &HashMap<NodeUuid, AlchemistFormula>,
+    ) {
+        let mut next_processors = HashMap::new();
+        let value_types = value_type_registry();
+        let nodes = node_registry();
+        let compile_ctx = golden_alchemist::CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        };
+        let active_processors = active_processor_nodes(snapshot, self.id());
+        for processor_node in active_processors {
+            let Some(formula_uuid) = child_reference_uuid(snapshot, processor_node, "formula") else {
+                continue;
+            };
+            let Some(formula_node) = snapshot.node_id_by_uuid(formula_uuid) else {
+                continue;
+            };
+            let Some(formula) = formulas.get(&formula_uuid) else {
+                continue;
+            };
+            let Some(processor) = processor_from_snapshot(snapshot, processor_node, formula) else {
+                continue;
+            };
+            let mut runtime = self
+                .runtime_cache
+                .processors
+                .remove(&processor_node)
+                .map(|cached| cached.runtime)
+                .unwrap_or_else(|| ProcessorRuntime::new(processor.id));
+            if runtime.id != processor.id {
+                runtime = ProcessorRuntime::new(processor.id);
+            }
+            if !runtime.compile(&processor, formula, &compile_ctx) {
+                let message = runtime
+                    .diagnostics
+                    .first()
+                    .map(|diagnostic| diagnostic.message.as_str())
+                    .unwrap_or("Processor formula failed to compile");
+                ctx.set_node_warning_with(
+                    processor_node,
+                    Some(STATE_MACHINE_RUNTIME_WARNING_ID),
+                    "Processor is not running",
+                    Some(message),
+                );
+            } else {
+                ctx.clear_node_warning(processor_node, Some(STATE_MACHINE_RUNTIME_WARNING_ID));
+            }
+            next_processors.insert(
+                processor_node,
+                RuntimeProcessor {
+                    processor,
+                    runtime,
+                    formula_node,
+                    evaluated_once: false,
+                },
+            );
+        }
+        self.runtime_cache.processors = next_processors;
+        self.runtime_cache.last_preview_signature = None;
+        self.runtime_cache.dirty = false;
     }
 }
 
 #[cfg(test)]
 mod manager_tests;
+
+fn collect_formulas(snapshot: &ProcessTreeSnapshot) -> HashMap<NodeUuid, AlchemistFormula> {
+    let mut formulas = HashMap::new();
+    for library in formula_libraries(snapshot) {
+        collect_formulas_in_subtree(snapshot, library, &mut formulas);
+    }
+    formulas
+}
+
+fn formula_libraries(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
+    snapshot
+        .child_ids(snapshot.root())
+        .into_iter()
+        .filter(|node| {
+            snapshot.node(*node).is_some_and(|snapshot_node| {
+                snapshot_node.node_type == FORMULA_LIBRARY_NODE_TYPE
+            })
+        })
+        .collect()
+}
+
+fn collect_formulas_in_subtree(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    formulas: &mut HashMap<NodeUuid, AlchemistFormula>,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.node_type == FORMULA_NODE_TYPE {
+            if let Ok(formula) =
+                crate::app::state_machine_nodes_formula::formula_from_snapshot(snapshot, child)
+            {
+                formulas.insert(node.uuid, formula);
+            }
+        } else {
+            collect_formulas_in_subtree(snapshot, child, formulas);
+        }
+    }
+}
+
+fn active_state_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> Vec<NodeId> {
+    snapshot
+        .child_ids(manager)
+        .into_iter()
+        .filter(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == STATE_NODE_TYPE)
+                && child_param(snapshot, *state, "active")
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false)
+        })
+        .collect()
+}
+
+fn active_processor_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> HashSet<NodeId> {
+    active_state_nodes(snapshot, manager)
+        .into_iter()
+        .filter_map(|state| snapshot.find_child_by_decl_id(state, PROCESSOR_MANAGER_DECL_ID))
+        .flat_map(|processor_manager| processor_nodes(snapshot, processor_manager))
+        .collect()
+}
+
+fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId> {
+    let mut processors = Vec::new();
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        match node.node_type.as_str() {
+            PROCESSOR_NODE_TYPE => processors.push(child),
+            PROCESSOR_FOLDER_NODE_TYPE => processors.extend(processor_nodes(snapshot, child)),
+            _ => {}
+        }
+    }
+    processors
+}
+
+fn processor_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    formula: &AlchemistFormula,
+) -> Option<Processor> {
+    let node = snapshot.node(processor_node)?;
+    let mut processor = Processor::from_formula(&node.label, formula);
+    processor.id = chataigne_state_machine::ProcessorId::from_uuid(node.uuid.0);
+    processor.lifecycle = ProcessorLifecyclePolicy::AlwaysActive;
+    apply_processor_overrides(snapshot, processor_node, &mut processor);
+    Some(processor)
+}
+
+fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
+    runtime
+        .compiled
+        .as_ref()
+        .is_some_and(|compiled| compiled.analysis.has_stateful_nodes)
+}
+
+fn processor_lane_summary(
+    processor_id: chataigne_state_machine::ProcessorId,
+    lane: &chataigne_state_machine::ProcessorLaneOutput,
+    tick: u64,
+    has_memory: bool,
+) -> ProcessorLaneSummaryDto {
+    ProcessorLaneSummaryDto {
+        processor_id: processor_id.to_string(),
+        context_key: lane.context_key.as_ref().map(ContextKeyDto::from),
+        label: context_key_label(lane.context_key.as_ref()),
+        has_memory,
+        last_tick: Some(tick),
+        diagnostics_count: lane.output.diagnostics.len(),
+    }
+}
+
+fn context_key_label(context_key: Option<&golden_alchemist::ContextKey>) -> String {
+    let Some(context_key) = context_key else {
+        return "Default lane".to_string();
+    };
+    if context_key.is_default_lane() {
+        return "Default lane".to_string();
+    }
+    context_key
+        .iter()
+        .map(|part| part.item.as_str())
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
+fn output_preview_signature(samples: &[chataigne_state_machine::ANodeOutputPreviewSample]) -> String {
+    let mut parts = samples
+        .iter()
+        .map(|sample| {
+            format!(
+                "{}:{}:{:?}:{}:{}:{}",
+                sample.formula_id,
+                sample
+                    .processor_id
+                    .map(|processor_id| processor_id.to_string())
+                    .unwrap_or_default(),
+                sample.context_key,
+                sample.author_node_id,
+                sample.output_socket,
+                runtime_value_label(&sample.value)
+            )
+        })
+        .collect::<Vec<_>>();
+    parts.sort();
+    parts.join("|")
+}
+
+fn should_emit_runtime_log(
+    last_values: &mut HashMap<String, RuntimeLogRecord>,
+    tick: u64,
+    key: String,
+    value: &str,
+) -> bool {
+    if let Some(previous) = last_values.get(&key) {
+        if previous.value == value {
+            return false;
+        }
+        if tick.saturating_sub(previous.tick) < STATE_MACHINE_LOG_MIN_TICKS {
+            return false;
+        }
+    }
+    last_values.insert(
+        key,
+        RuntimeLogRecord {
+            value: value.to_string(),
+            tick,
+        },
+    );
+    true
+}
+
+fn formula_anode_node_ids(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> HashMap<ANodeId, NodeId> {
+    snapshot
+        .child_ids(formula_node)
+        .into_iter()
+        .filter_map(|child| {
+            let node = snapshot.node(child)?;
+            (node.node_type == "alchemist_anode").then(|| (ANodeId::from_uuid(node.uuid.0), child))
+        })
+        .collect()
+}
+
+fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) -> bool {
+    let anode_type = snapshot
+        .node(anode_node)
+        .and_then(|node| tagged_value(&node.tags, "alchemist.anode.type:"))
+        .unwrap_or_default();
+    matches!(anode_type, "debug_value")
+}
+
+fn tagged_value<'a>(tags: &'a [String], prefix: &str) -> Option<&'a str> {
+    tags.iter().find_map(|tag| tag.strip_prefix(prefix))
+}
+
+fn apply_processor_overrides(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    processor: &mut Processor,
+) {
+    let Some(properties) = snapshot.find_child_by_decl_id(processor_node, PROCESSOR_PROPERTIES_DECL_ID)
+    else {
+        return;
+    };
+    collect_processor_property_overrides(snapshot, properties, processor);
+}
+
+fn collect_processor_property_overrides(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    processor: &mut Processor,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.node_type == "folder" {
+            collect_processor_property_overrides(snapshot, child, processor);
+            continue;
+        }
+        let Some(value) = child_param(snapshot, child, "value") else {
+            continue;
+        };
+        let Some(surface_id) = node
+            .decl_id
+            .strip_prefix("surface/")
+            .map(SurfaceItemId::new)
+        else {
+            continue;
+        };
+        if let Some(runtime_value) = param_to_runtime_value(value) {
+            processor
+                .formula_instance
+                .overrides
+                .values
+                .insert(surface_id, runtime_value);
+        }
+    }
+}
+
+fn child_param<'a>(
+    snapshot: &'a ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<&'a ParamValue> {
+    snapshot
+        .find_child_by_decl_id(parent, decl_id)
+        .and_then(|param| snapshot.node(param))
+        .and_then(|node| node.param_value.as_ref())
+}
+
+fn child_reference_uuid(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeUuid> {
+    child_param(snapshot, parent, decl_id).and_then(|value| match value {
+        ParamValue::Reference(reference) => Some(reference.uuid()),
+        _ => None,
+    })
+}
+
+fn param_to_runtime_value(value: &ParamValue) -> Option<RuntimeValue> {
+    match value {
+        ParamValue::Bool(value) => Some(RuntimeValue::Bool(*value)),
+        ParamValue::Int(value) => Some(RuntimeValue::Int(i64::from(*value))),
+        ParamValue::Float(value) => Some(RuntimeValue::Float(*value)),
+        ParamValue::Str(value) => Some(RuntimeValue::String(value.clone().into())),
+        ParamValue::Color(r, g, b, a) => Some(RuntimeValue::Color(golden_alchemist::ColorValue {
+            red: *r as f32,
+            green: *g as f32,
+            blue: *b as f32,
+            alpha: *a as f32,
+        })),
+        _ => None,
+    }
+}
+
+fn runtime_value_label(value: &RuntimeValue) -> String {
+    match value {
+        RuntimeValue::Unit => "unit".to_string(),
+        RuntimeValue::Bool(value) => value.to_string(),
+        RuntimeValue::Int(value) => value.to_string(),
+        RuntimeValue::Float(value) => format!("{value:.3}"),
+        RuntimeValue::String(value) => value.to_string(),
+        RuntimeValue::Trigger(value) => {
+            if value.fired {
+                "trigger fired".to_string()
+            } else {
+                "trigger idle".to_string()
+            }
+        }
+        other => format!("{other:?}"),
+    }
+}

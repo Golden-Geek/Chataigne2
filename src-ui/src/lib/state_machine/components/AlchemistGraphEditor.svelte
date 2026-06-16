@@ -14,7 +14,9 @@
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
+	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
+	import ANodeOutputValueChip from './ANodeOutputValueChip.svelte';
 
 	let {
 		formula,
@@ -22,6 +24,7 @@
 		selectedNodeIds = [],
 		selectedEdgeIds = [],
 		activeSocketRefs = new Set<string>(),
+		outputPreviews = new Map<string, FormulaOutputPreviewChip>(),
 		catalogItems = [],
 		onGraphSelectionChange,
 		onNodesMove,
@@ -42,6 +45,7 @@
 		selectedNodeIds?: string[];
 		selectedEdgeIds?: string[];
 		activeSocketRefs?: ReadonlySet<string>;
+		outputPreviews?: ReadonlyMap<string, FormulaOutputPreviewChip>;
 		catalogItems?: UiCreatableUserItem[];
 		onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
 		onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
@@ -94,6 +98,8 @@
 
 	const inputDefaultParameter = (socket: GraphSocket): UiNodeDto | null =>
 		socket.defaultParamId ? (nodesById.get(Number(socket.defaultParamId)) ?? null) : null;
+	const outputPreview = (graphNode: GraphNode, socket: GraphSocket): FormulaOutputPreviewChip | null =>
+		outputPreviews.get(`${graphNode.id}:${socket.id}`) ?? null;
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
 		canConnectGraphConnection(nodes, connection);
 
@@ -111,6 +117,10 @@
 	{#if parameter}
 		<ANodeSocketDefaultEditor {parameter} />
 	{/if}
+{/snippet}
+
+{#snippet outputSocketContent(graphNode: GraphNode, socket: GraphSocket)}
+	<ANodeOutputValueChip preview={outputPreview(graphNode, socket)} />
 {/snippet}
 
 <div class="alchemist-graph-editor">
@@ -134,6 +144,7 @@
 		{onCameraChange}
 		{viewportInset}
 		{inputSocketContent}
+		{outputSocketContent}
 		{toolbarEnd}
 		routeEdgesAroundNodes={true}
 		socketLabels="always"

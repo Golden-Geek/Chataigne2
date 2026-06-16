@@ -1207,6 +1207,7 @@ fn sync_gamepad_device_enum_options(ctx: &mut ProcessCtx, param_id: NodeId, opti
         replacement.default_value = parameter.default_value.clone();
         replacement.event_behaviour = ParameterEventBehaviour::Coalesce;
         replacement.read_only = parameter.read_only;
+        replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
         replacement.constraints.enum_options = next_options;
         replacement.ui_hints = parameter.ui_hints.clone();

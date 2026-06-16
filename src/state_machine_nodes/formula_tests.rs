@@ -499,6 +499,111 @@ fn formula_property_types_survive_project_reload() {
 }
 
 #[test]
+fn formula_property_getter_keeps_property_id_after_project_reload() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula should own a Properties manager");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}float"),
+        label: Some("Amount".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Property creation should succeed: {ack:?}");
+    let property = direct_children(&engine, properties)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistProperty::NODE_TYPE
+                    && node.node_data().meta.label == "Amount"
+            })
+        })
+        .expect("Amount property should exist");
+    let property_uuid = engine
+        .nodes
+        .get(property)
+        .expect("Amount property should exist")
+        .node_data()
+        .meta
+        .uuid
+        .0
+        .to_string();
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula,
+        node_type: format!("{ANODE_CREATE_PREFIX}property"),
+        label: Some("Amount".into()),
+        initial_params: vec![UiCreateUserItemInitialParam {
+            decl_id: DeclId("config/property_id".into()),
+            value: ParamValue::Str(property_uuid.clone()),
+        }],
+    });
+    assert!(
+        ack.success,
+        "Property getter creation should succeed: {ack:?}"
+    );
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("Project should encode");
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("Project should decode");
+    let loaded_formula = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+        })
+        .map(|(id, _)| id)
+        .expect("Formula should reload");
+    loaded
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Reloaded Formula should validate");
+    loaded
+        .apply_edits()
+        .expect("Reloaded Formula validation edits should apply");
+
+    let loaded_getter = find_anode_by_type(&loaded, loaded_formula, "property");
+    assert!(
+        !node_has_warning_id(
+            &loaded,
+            loaded_getter,
+            "alchemist_formula_diagnostic"
+        ),
+        "Reloaded property getter should not warn about a missing property_id"
+    );
+    let loaded_getter_config =
+        find_child_by_decl(&loaded, loaded_getter, "config")
+            .expect("Property getter Config should reload");
+    assert_eq!(
+        parameter_value(
+            &loaded,
+            loaded_getter_config,
+            "config/property_id"
+        ),
+        ParamValue::Str(property_uuid.clone())
+    );
+
+    let materialized =
+        formula_from_snapshot(&loaded.process_tree_snapshot(), loaded_formula)
+            .expect("Reloaded Formula should materialize");
+    let getter = materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.type_id.as_str() == "property")
+        .expect("Property getter should materialize");
+    assert!(
+        matches!(
+            getter.config.get("property_id"),
+            Some(golden_alchemist::RuntimeValue::String(value))
+                if value.as_ref() == property_uuid
+        ),
+        "Reloaded property getter should keep its stable property_id"
+    );
+}
+
+#[test]
 fn anode_creation_materializes_visible_config_and_socket_nodes() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);

@@ -13,19 +13,60 @@
 	];
 </script>
 
-<div class="preview-mode" aria-label="Formula preview mode">
-	{#each modes as mode}
-		<span
-			class="preview-mode-item"
-			class:active={model.level === mode.id}
-			class:disabled={mode.id !== 'formula_recipe' && model.processorNodeId === null}
-			aria-current={model.level === mode.id ? 'true' : undefined}>
-			{mode.label}
-		</span>
-	{/each}
+<div class="preview-context" aria-label="Formula preview context">
+	<div class="preview-labels">
+		<span class="preview-title">{model.title}</span>
+		<span class="preview-subtitle">{model.subtitle}</span>
+	</div>
+	<div class="preview-mode" aria-label="Formula preview mode">
+		{#each modes as mode}
+			<span
+				class="preview-mode-item"
+				class:active={model.level === mode.id}
+				class:disabled={mode.id !== 'formula_recipe' && model.processorNodeId === null}
+				aria-current={model.level === mode.id ? 'true' : undefined}>
+				{mode.label}
+			</span>
+		{/each}
+	</div>
 </div>
 
 <style>
+	.preview-context {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		min-inline-size: 0;
+	}
+
+	.preview-labels {
+		display: inline-flex;
+		flex-direction: column;
+		justify-content: center;
+		min-inline-size: 0;
+		max-inline-size: 18rem;
+		line-height: 1.05;
+	}
+
+	.preview-title,
+	.preview-subtitle {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.preview-title {
+		color: var(--gc-color-text);
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+
+	.preview-subtitle {
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		font-size: 0.62rem;
+		font-weight: 600;
+	}
+
 	.preview-mode {
 		display: inline-grid;
 		grid-template-columns: repeat(3, minmax(0, auto));

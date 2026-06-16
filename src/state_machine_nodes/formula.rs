@@ -20,9 +20,10 @@ use golden_core::{
     events::Event,
     item, node,
     node::{
-        DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
-        NodeReference, NodeUserPermissions, NodeUuid, UserContainerRules,
-        UserCreatableItem,
+        DeclId, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
+        NodeCreationContext, NodeId, NodeMetaPatch, NodeReference,
+        NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
+        gradient_from_snapshot,
     },
     parameter::{
         CssValue, ParamValue, Parameter, ParameterChangeCheck,
@@ -626,6 +627,9 @@ fn config_field_value(
     config_folder: NodeId,
     field: &golden_alchemist::ANodeConfigFieldDecl,
 ) -> RuntimeValue {
+    if field.editor.as_deref() == Some("gradient") {
+        return gradient_config_value(snapshot, config_folder, field);
+    }
     let value_type = if field.editor.as_deref() == Some("runtime_value") {
         child_string(
             snapshot,
@@ -651,6 +655,42 @@ fn config_field_value(
                 .unwrap_or_else(|_| field.default_value.clone())
         }
     })
+}
+
+/// Reads a hosted gradient node subtree into the structured `Array` config value
+/// consumed by the Gradient Sampler ANode evaluator.
+fn gradient_config_value(
+    snapshot: &ProcessTreeSnapshot,
+    config_folder: NodeId,
+    field: &golden_alchemist::ANodeConfigFieldDecl,
+) -> RuntimeValue {
+    let stops = snapshot
+        .find_child_by_decl_id(config_folder, config_decl_id(field.id.as_str()).as_str())
+        .and_then(|gradient_node| gradient_from_snapshot(snapshot, gradient_node))
+        .map(|gradient| {
+            gradient
+                .stops()
+                .iter()
+                .map(gradient_stop_to_runtime_value)
+                .collect::<Vec<_>>()
+        });
+    match stops {
+        Some(stops) if !stops.is_empty() => RuntimeValue::Array(stops),
+        _ => field.default_value.clone(),
+    }
+}
+
+fn gradient_stop_to_runtime_value(stop: &GradientStop) -> RuntimeValue {
+    RuntimeValue::Array(vec![
+        RuntimeValue::Float(stop.position),
+        RuntimeValue::Color(ColorValue {
+            red: stop.color.r() as f32,
+            green: stop.color.g() as f32,
+            blue: stop.color.b() as f32,
+            alpha: stop.color.a() as f32,
+        }),
+        RuntimeValue::String(Arc::from(stop.interpolation.variant_id())),
+    ])
 }
 
 fn apply_forced_type_bindings_from_config(
@@ -1336,6 +1376,16 @@ impl AlchemistANode {
         for field in config_fields_for_instance(declaration.as_ref(), &instance) {
             let value_decl = config_decl_id(field.id.as_str());
             desired_config.insert(value_decl.clone());
+            if field.editor.as_deref() == Some("gradient") {
+                self.ensure_gradient_config_node(
+                    ctx,
+                    &snapshot,
+                    config_folder,
+                    value_decl.as_str(),
+                    &field.label,
+                );
+                continue;
+            }
             if field.type_variable.is_some() {
                 let type_options =
                     field.resolved_type_options(&config_signature, &value_types);
@@ -1407,6 +1457,9 @@ impl AlchemistANode {
                     value,
                     property_getter,
                 );
+                if property_getter && field.id.as_str() == "property_id" {
+                    config_parameter.persist_read_only_value = true;
+                }
                 if !field.enum_options.is_empty() {
                     let selected = child_string(
                         &snapshot,
@@ -1594,6 +1647,8 @@ impl AlchemistANode {
             } else if parameter.read_only {
                 let presentation =
                     parameter.node_data().meta.presentation.clone();
+                let persist_read_only_value =
+                    parameter.persist_read_only_value;
                 ctx.call_node_mutation(existing, move |node, _ctx| {
                     let Some(existing) =
                         node.as_any_mut().downcast_mut::<Parameter>()
@@ -1603,6 +1658,8 @@ impl AlchemistANode {
                         );
                     };
                     existing.read_only = true;
+                    existing.persist_read_only_value =
+                        persist_read_only_value;
                     existing.control_modes_enabled = false;
                     existing.node_data_mut().meta.presentation = presentation;
                     Ok(())
@@ -1616,6 +1673,8 @@ impl AlchemistANode {
                 let default_value = parameter.default_value.clone();
                 let fallback_value = parameter.value.clone();
                 let read_only = parameter.read_only;
+                let persist_read_only_value =
+                    parameter.persist_read_only_value;
                 let control_modes_enabled = parameter.control_modes_enabled;
                 ctx.call_node_mutation(existing, move |node, _ctx| {
                     let Some(existing) =
@@ -1628,6 +1687,8 @@ impl AlchemistANode {
                     existing.constraints = constraints;
                     existing.default_value = default_value;
                     existing.read_only = read_only;
+                    existing.persist_read_only_value =
+                        persist_read_only_value;
                     existing.control_modes_enabled = control_modes_enabled;
                     existing.node_data_mut().meta.can_be_disabled =
                         can_be_disabled;
@@ -1642,6 +1703,30 @@ impl AlchemistANode {
             return;
         }
         ctx.add_child(parent, parameter, None);
+    }
+
+    fn ensure_gradient_config_node(
+        &self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        config_folder: NodeId,
+        decl_id: &str,
+        label: &str,
+    ) {
+        if let Some(existing) =
+            snapshot.find_child_by_decl_id(config_folder, decl_id)
+        {
+            if snapshot
+                .node(existing)
+                .is_some_and(|node| node.node_type == GRADIENT_NODE_TYPE)
+            {
+                return;
+            }
+            ctx.edits.push(Edit::RemoveNode { node: existing });
+        }
+        let mut gradient = GradientNode::new_with_label(label);
+        gradient.node_data_mut().meta.decl_id = DeclId(decl_id.to_string());
+        ctx.add_child(config_folder, gradient, None);
     }
 
     fn remove_obsolete_children(

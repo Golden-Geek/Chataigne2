@@ -91,12 +91,12 @@ class FormulaPreviewSessionStore {
 				: processor === null
 					? { kind: 'formula_defaults', formula_id: formula.uuid }
 					: selectedLane?.contextKey
-						? {
-								kind: 'processor_lane',
-								processor_id: String(processor.node_id),
-								context_key: selectedLane.contextKey
-							}
-						: { kind: 'processor_default_lane', processor_id: String(processor.node_id) };
+							? {
+									kind: 'processor_lane',
+									processor_id: processor.uuid,
+									context_key: selectedLane.contextKey
+								}
+							: { kind: 'processor_default_lane', processor_id: processor.uuid };
 
 		return {
 			formulaNodeId: formula?.node_id ?? null,
@@ -106,7 +106,11 @@ class FormulaPreviewSessionStore {
 			lanes,
 			selectedLaneId: selectedLane?.id ?? null,
 			title: formula?.meta.label ?? 'No Formula',
-			subtitle: processor ? processor.meta.label : 'Formula recipe'
+			subtitle: processor
+				? selectedLane?.contextKey
+					? `${processor.meta.label} / ${selectedLane.label}`
+					: processor.meta.label
+				: 'Formula recipe'
 		};
 	}
 }

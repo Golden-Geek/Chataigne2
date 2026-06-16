@@ -272,6 +272,7 @@ pub(crate) fn sync_midi_port_enum_options(ctx: &mut ProcessCtx, param_id: NodeId
         replacement.default_value = parameter.default_value.clone();
         replacement.event_behaviour = parameter.event_behaviour;
         replacement.read_only = parameter.read_only;
+        replacement.persist_read_only_value = parameter.persist_read_only_value;
         replacement.constraints = parameter.constraints.clone();
         replacement.constraints.enum_options = next_options;
         replacement.ui_hints = parameter.ui_hints.clone();
