@@ -145,6 +145,12 @@ impl ProcessorExecutionPlan {
             extend_axes(&mut required_memory_axes, &bindings.property_axes);
             extend_axes(&mut required_memory_axes, &bindings.input_axes);
         }
+        if formula.has_input_gated_nodes {
+            extend_axes(&mut required_memory_axes, &bindings.property_axes);
+            extend_axes(&mut required_memory_axes, &formula.explicit_context_axes);
+            extend_axes(&mut required_memory_axes, &bindings.input_axes);
+            extend_axes(&mut required_memory_axes, &formula.effect_axes);
+        }
 
         let strategy = match (formula.has_stateful_nodes, required_eval_axes.is_empty()) {
             (false, true) => ProcessorExecutionStrategy::SingleStateless,
@@ -490,6 +496,27 @@ impl ProcessorRuntime {
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
     ) -> Vec<ProcessorLaneOutput> {
+        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, true)
+    }
+
+    pub fn evaluate_processor_with_context_provider_and_send_capture(
+        &mut self,
+        processor: &Processor,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        capture: &ProcessorDebugCapture,
+    ) -> Vec<ProcessorLaneOutput> {
+        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, false)
+    }
+
+    fn evaluate_processor_with_context_provider_and_capture_mode(
+        &mut self,
+        processor: &Processor,
+        ctx: &EvaluationCtx<'_>,
+        context_provider: &dyn ProcessorContextProvider,
+        capture: &ProcessorDebugCapture,
+        capture_unchanged_outputs: bool,
+    ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
         }
@@ -541,6 +568,8 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
+                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            capture_unchanged_outputs,
                         },
                     ),
                     None => evaluate_compiled_graph_stateless(
@@ -550,6 +579,8 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
+                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            capture_unchanged_outputs,
                         },
                     ),
                 };

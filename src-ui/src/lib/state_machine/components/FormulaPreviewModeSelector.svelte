@@ -7,7 +7,7 @@
 	let { model }: { model: FormulaPreviewSessionModel } = $props();
 
 	const modes: { id: FormulaPreviewEditLevel; label: string }[] = [
-		{ id: 'formula_recipe', label: 'Recipe' },
+		{ id: 'formula_recipe', label: 'Defaults' },
 		{ id: 'processor_instance', label: 'Instance' },
 		{ id: 'selected_lane', label: 'Lane' }
 	];

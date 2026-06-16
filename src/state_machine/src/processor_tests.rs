@@ -261,7 +261,7 @@ fn override_change_rebuilds_property_frame_not_formula() {
 
     assert_eq!(first_float(&second), Some(7.5));
     assert!(Arc::ptr_eq(&compiled, runtime.compiled.as_ref().unwrap()));
-    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(runtime.lanes.memory_count(), 1);
 }
 
 #[test]
@@ -283,7 +283,7 @@ fn processor_under_multiplex_without_context_reference_runs_one_lane() {
 
     assert_eq!(outputs.len(), 1);
     assert_eq!(outputs[0].context_key, None);
-    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(runtime.lanes.memory_count(), 1);
     assert_eq!(
         runtime.plan.as_ref().unwrap().strategy,
         ProcessorExecutionStrategy::SingleStateless
@@ -296,7 +296,7 @@ fn processor_under_multiplex_without_context_reference_runs_one_lane() {
 }
 
 #[test]
-fn stateless_processor_bound_to_context_runs_lanes_without_memory() {
+fn stateless_processor_bound_to_context_runs_lanes_with_input_process_cache() {
     let formula = formula();
     let (processor, mut runtime) = compile_active_runtime(&formula);
     let value_types = ValueTypeRegistry::with_primitives();
@@ -322,10 +322,10 @@ fn stateless_processor_bound_to_context_runs_lanes_without_memory() {
 
     assert_eq!(outputs.len(), 2);
     assert!(outputs.iter().all(|lane| lane.context_key.is_some()));
-    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(runtime.lanes.memory_count(), 2);
     let plan = runtime.plan.as_ref().unwrap();
     assert_eq!(plan.strategy, ProcessorExecutionStrategy::MultiStateless);
-    assert!(plan.required_memory_axes.is_empty());
+    assert!(plan.required_memory_axes.contains(&ContextAxisId::new("device")));
 }
 
 #[test]
@@ -563,7 +563,7 @@ fn changing_selected_lane_changes_preview_samples_only() {
         processor.formula_instance.overrides.values.len(),
         original_override_count
     );
-    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(runtime.lanes.memory_count(), 1);
 }
 
 #[test]
@@ -605,7 +605,7 @@ fn large_graph_preview_does_not_capture_all_lanes() {
 }
 
 #[test]
-fn ten_thousand_stateless_processors_share_compile_and_allocate_no_memory() {
+fn ten_thousand_stateless_processors_share_compile_and_allocate_one_process_cache() {
     let formula = formula();
     let (_first_processor, first_runtime) = compile_active_runtime(&formula);
     let compiled = Arc::clone(first_runtime.compiled.as_ref().unwrap());
@@ -629,7 +629,7 @@ fn ten_thousand_stateless_processors_share_compile_and_allocate_no_memory() {
 
         assert!(Arc::ptr_eq(runtime.compiled.as_ref().unwrap(), &compiled));
         assert!(output.debug_samples.is_empty());
-        assert_eq!(runtime.lanes.memory_count(), 0);
+        assert_eq!(runtime.lanes.memory_count(), 1);
     }
 }
 
@@ -706,7 +706,7 @@ fn selected_lane_preview_in_large_graph_captures_only_selected_lane() {
             .iter()
             .all(|sample| sample.context_key.as_ref() == Some(&selected))
     );
-    assert_eq!(runtime.lanes.memory_count(), 0);
+    assert_eq!(runtime.lanes.memory_count(), 1);
 }
 
 #[test]

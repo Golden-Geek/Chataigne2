@@ -3,6 +3,7 @@ import { formulaANodes } from '../alchemistGraph';
 import type {
 	ANodeOutputPreviewSampleDto,
 	ContextKeyDto,
+	FormulaPreviewModeDto,
 	RuntimeValueDto,
 	StateMachineProtocolBundle
 } from '../generated';
@@ -14,6 +15,8 @@ export interface FormulaOutputPreviewChip {
 	title: string;
 	status: ANodeOutputPreviewSampleDto['status'];
 	logicalTick: number;
+	value: RuntimeValueDto;
+	active?: boolean;
 }
 
 const DEFAULT_LANE_ID = '__default__';
@@ -78,22 +81,40 @@ const newerSample = (
 	sample: ANodeOutputPreviewSampleDto
 ): boolean => current === undefined || logicalTick(sample.logical_tick) >= current.logicalTick;
 
+const sampleMatchesPreviewMode = (
+	sample: ANodeOutputPreviewSampleDto,
+	mode: FormulaPreviewModeDto
+): boolean => {
+	switch (mode.kind) {
+		case 'formula_defaults':
+			return sample.formula_id === mode.formula_id && sample.processor_id === null;
+		case 'processor_default_lane':
+			return (
+				sample.processor_id === mode.processor_id &&
+				contextKeyId(sample.context_key) === DEFAULT_LANE_ID
+			);
+		case 'processor_lane':
+			return (
+				sample.processor_id === mode.processor_id &&
+				contextKeyId(sample.context_key) === contextKeyId(mode.context_key)
+			);
+	}
+};
+
 export const formulaOutputPreviewMap = (
 	formula: UiNodeDto | null,
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
 	bundle: StateMachineProtocolBundle | null,
-	processorUuid: string | null,
-	selectedLaneId: string | null
+	mode: FormulaPreviewModeDto | null
 ): ReadonlyMap<string, FormulaOutputPreviewChip> => {
-	if (!formula || !bundle) return new Map();
+	if (!formula || !bundle || !mode) return new Map();
 	const anodeNodeIdByUuid = new Map(
 		formulaANodes(formula, nodesById).map((anode) => [anode.uuid, anode.node_id])
 	);
 	const result = new Map<string, FormulaOutputPreviewChip>();
 	for (const sample of bundle.output_preview) {
 		if (sample.formula_id !== formula.uuid) continue;
-		if (processorUuid !== null && sample.processor_id !== processorUuid) continue;
-		if (selectedLaneId !== null && contextKeyId(sample.context_key) !== selectedLaneId) continue;
+		if (!sampleMatchesPreviewMode(sample, mode)) continue;
 		const nodeId = anodeNodeIdByUuid.get(sample.node_id);
 		if (nodeId === undefined) continue;
 		const label = runtimeValueLabel(sample.value);
@@ -105,7 +126,8 @@ export const formulaOutputPreviewMap = (
 			label,
 			title: runtimeValueTitle(sample),
 			status: sample.status,
-			logicalTick: logicalTick(sample.logical_tick)
+			logicalTick: logicalTick(sample.logical_tick),
+			value: sample.value
 		});
 	}
 	return result;

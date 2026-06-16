@@ -1,11 +1,12 @@
 use golden_core::{
     engine::EngineTime,
-    node::{Folder, Node},
+    node::{DeclId, Folder, Node},
+    parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ExecutionPhase, ProcessCtx},
     ui_sync::UiEditIntent,
 };
 
-use super::{STATE_ITEM_KIND, StateMachineManager};
+use super::{processor_override_value, STATE_ITEM_KIND, StateMachineManager};
 
 #[test]
 fn state_machine_manager_is_fixed_and_creates_states() {
@@ -64,4 +65,32 @@ fn states_do_not_accept_user_items() {
         new_prev_sibling: None,
     });
     assert!(!ack.success, "states must not accept nested user items");
+}
+
+#[test]
+fn processor_override_value_reads_direct_parameter_nodes() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    let mut parameter = Parameter::new(
+        "Amount",
+        ParamValue::Float(7.5),
+        ParameterChangeCheck::ValueChange,
+    );
+    parameter.node_data_mut().meta.decl_id = DeclId("surface/amount".to_owned());
+    engine.add_node(parameter.into(), None);
+    engine
+        .apply_edits()
+        .expect("override parameter should attach");
+    let parameter_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.decl_id.0 == "surface/amount")
+        .map(|(id, _)| id)
+        .expect("override parameter should exist");
+    let snapshot = engine.process_tree_snapshot();
+
+    assert_eq!(
+        processor_override_value(&snapshot, parameter_id),
+        Some(&ParamValue::Float(7.5))
+    );
 }

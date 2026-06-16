@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use chataigne_state_machine::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, DefaultProcessorContextProvider,
@@ -8,8 +11,9 @@ use chataigne_state_machine::{
     alchemist::{node_registry, value_type_registry},
 };
 use golden_alchemist::{
-    ANodeId, AlchemistFormula, EvaluationCtx, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SurfaceItemId,
+    ANodeId, AlchemistFormula, CompiledAlchemistFormula, EvaluationCtx,
+    RuntimeInputSnapshot, RuntimeRegistries, OutputPreviewStatus, RuntimeValue,
+    SurfaceItemId,
 };
 use golden_core::{
     engine::NodeExecutionRule,
@@ -33,7 +37,7 @@ const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
 const PROCESSOR_PROPERTIES_DECL_ID: &str = "properties";
 const STATE_MACHINE_RUNTIME_HZ: u32 = 60;
 const STATE_MACHINE_RUNTIME_PREVIEW_TOPIC: &str = "chataigne.state_machine.runtime_preview";
-const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 4;
+const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 1;
 const STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS: u64 = 60;
 const STATE_MACHINE_LOG_MIN_TICKS: u64 = 30;
 const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
@@ -50,10 +54,16 @@ struct RuntimeLogRecord {
     tick: u64,
 }
 
+struct RuntimeFormulaDefaultPreview {
+    processor: Processor,
+    runtime: ProcessorRuntime,
+}
+
 #[derive(Default)]
 struct StateMachineRuntimeCache {
     dirty: bool,
     processors: HashMap<NodeId, RuntimeProcessor>,
+    formula_default_previews: HashMap<String, RuntimeFormulaDefaultPreview>,
     last_preview_signature: Option<String>,
     last_preview_tick: Option<u64>,
     last_log_values: HashMap<String, RuntimeLogRecord>,
@@ -181,6 +191,7 @@ impl StateMachineManager {
             history_len: usize::MAX,
         };
         let mut output_preview = Vec::new();
+        let mut previewed_formula_defaults = HashSet::new();
         let mut processor_lanes = Vec::new();
         let mut evaluated_any = false;
 
@@ -200,9 +211,12 @@ impl StateMachineManager {
                 {
                     continue;
                 }
-                let formula_id = runtime_processor
+                let compiled_formula = runtime_processor
                     .runtime
                     .compiled
+                    .as_ref()
+                    .map(Arc::clone);
+                let formula_id = compiled_formula
                     .as_ref()
                     .map(|compiled| compiled.formula_ref.id.clone());
                 runtime_processor.runtime.apply_lifecycle(
@@ -211,7 +225,7 @@ impl StateMachineManager {
                 );
                 let lanes = runtime_processor
                     .runtime
-                    .evaluate_processor_with_context_provider_and_capture(
+                    .evaluate_processor_with_context_provider_and_send_capture(
                         &runtime_processor.processor,
                         &eval_ctx,
                         &provider,
@@ -239,6 +253,25 @@ impl StateMachineManager {
                         formula_id,
                         lanes.clone(),
                     ));
+                    if previewed_formula_defaults.insert(formula_id.to_string()) {
+                        let formula_uuid = snapshot
+                            .node(runtime_processor.formula_node)
+                            .map(|node| node.uuid);
+                        if let (Some(compiled_formula), Some(formula)) = (
+                            compiled_formula.as_ref().map(Arc::clone),
+                            formula_uuid.and_then(|uuid| formulas.get(&uuid)),
+                        )
+                        {
+                            output_preview.extend(formula_default_output_preview_samples(
+                                &mut self.runtime_cache.formula_default_previews,
+                                compiled_formula,
+                                formula,
+                                &eval_ctx,
+                                &provider,
+                                &capture,
+                            ));
+                        }
+                    }
                 }
                 for lane in &lanes {
                     processor_lanes.push(processor_lane_summary(
@@ -395,6 +428,7 @@ impl StateMachineManager {
             );
         }
         self.runtime_cache.processors = next_processors;
+        self.runtime_cache.formula_default_previews.clear();
         self.runtime_cache.last_preview_signature = None;
         self.runtime_cache.dirty = false;
     }
@@ -495,11 +529,57 @@ fn processor_from_snapshot(
     Some(processor)
 }
 
+fn formula_default_output_preview_samples(
+    cache: &mut HashMap<String, RuntimeFormulaDefaultPreview>,
+    compiled: Arc<CompiledAlchemistFormula>,
+    formula: &AlchemistFormula,
+    ctx: &EvaluationCtx<'_>,
+    provider: &DefaultProcessorContextProvider,
+    capture: &ProcessorDebugCapture,
+) -> Vec<chataigne_state_machine::ANodeOutputPreviewSample> {
+    let key = formula.id.to_string();
+    let entry = cache.entry(key).or_insert_with(|| {
+        let mut processor =
+            Processor::from_formula(format!("{} defaults", formula.label), formula);
+        processor.lifecycle = ProcessorLifecyclePolicy::AlwaysActive;
+        RuntimeFormulaDefaultPreview {
+            runtime: ProcessorRuntime::new(processor.id),
+            processor,
+        }
+    });
+    let needs_compile = entry.runtime.compiled.as_ref().is_none_or(|current| {
+        current.formula_ref.id != compiled.formula_ref.id
+            || current.formula_ref.version != compiled.formula_ref.version
+    });
+    if needs_compile
+        && !entry
+            .runtime
+            .compile_from_shared_formula(&entry.processor, formula, compiled)
+    {
+        return Vec::new();
+    }
+    entry
+        .runtime
+        .apply_lifecycle(&entry.processor, ProcessorLifecycleEvent::ProjectStart);
+    let lanes = entry.runtime.evaluate_processor_with_context_provider_and_send_capture(
+        &entry.processor,
+        ctx,
+        provider,
+        capture,
+    );
+    let mut samples = processor_output_preview_samples(entry.processor.id, &formula.id, lanes);
+    for sample in &mut samples {
+        sample.processor_id = None;
+        sample.status = OutputPreviewStatus::DefaultPreview;
+    }
+    samples
+}
+
 fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
     runtime
         .compiled
         .as_ref()
-        .is_some_and(|compiled| compiled.analysis.has_stateful_nodes)
+        .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
 }
 
 fn processor_lane_summary(
@@ -546,12 +626,22 @@ fn output_preview_signature(samples: &[chataigne_state_machine::ANodeOutputPrevi
                 sample.context_key,
                 sample.author_node_id,
                 sample.output_socket,
-                runtime_value_label(&sample.value)
+                preview_value_signature(&sample.value)
             )
         })
         .collect::<Vec<_>>();
     parts.sort();
     parts.join("|")
+}
+
+fn preview_value_signature(value: &RuntimeValue) -> String {
+    match value {
+        RuntimeValue::Trigger(trigger) => format!(
+            "trigger:{}:{}:{}",
+            trigger.fired, trigger.edge_id, trigger.logical_tick
+        ),
+        other => format!("{other:?}"),
+    }
 }
 
 fn should_emit_runtime_log(
@@ -625,11 +715,11 @@ fn collect_processor_property_overrides(
         let Some(node) = snapshot.node(child) else {
             continue;
         };
-        if node.node_type == "folder" {
+        if node.node_type == PROCESSOR_FOLDER_NODE_TYPE {
             collect_processor_property_overrides(snapshot, child, processor);
             continue;
         }
-        let Some(value) = child_param(snapshot, child, "value") else {
+        let Some(value) = processor_override_value(snapshot, child) else {
             continue;
         };
         let Some(surface_id) = node
@@ -647,6 +737,16 @@ fn collect_processor_property_overrides(
                 .insert(surface_id, runtime_value);
         }
     }
+}
+
+fn processor_override_value<'a>(
+    snapshot: &'a ProcessTreeSnapshot,
+    property: NodeId,
+) -> Option<&'a ParamValue> {
+    snapshot
+        .node(property)
+        .and_then(|node| node.param_value.as_ref())
+        .or_else(|| child_param(snapshot, property, "value"))
 }
 
 fn child_param<'a>(

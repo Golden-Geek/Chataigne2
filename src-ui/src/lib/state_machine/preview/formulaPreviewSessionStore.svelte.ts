@@ -42,6 +42,15 @@ const laneOption = (lane: ProcessorLaneSummaryDto): FormulaPreviewLaneOption => 
 	diagnosticsCount: lane.diagnostics_count
 });
 
+const previewSubtitle = (
+	processor: UiNodeDto | null,
+	selectedLane: FormulaPreviewLaneOption | null
+): string => {
+	if (processor === null) return 'Formula defaults';
+	const laneLabel = selectedLane?.contextKey ? selectedLane.label : 'Default lane';
+	return `Processor instance: ${processor.meta.label} / ${laneLabel}`;
+};
+
 class FormulaPreviewSessionStore {
 	private selectedLaneByProcessor = $state<Record<string, string>>({});
 
@@ -91,12 +100,12 @@ class FormulaPreviewSessionStore {
 				: processor === null
 					? { kind: 'formula_defaults', formula_id: formula.uuid }
 					: selectedLane?.contextKey
-							? {
-									kind: 'processor_lane',
-									processor_id: processor.uuid,
-									context_key: selectedLane.contextKey
-								}
-							: { kind: 'processor_default_lane', processor_id: processor.uuid };
+						? {
+								kind: 'processor_lane',
+								processor_id: processor.uuid,
+								context_key: selectedLane.contextKey
+							}
+						: { kind: 'processor_default_lane', processor_id: processor.uuid };
 
 		return {
 			formulaNodeId: formula?.node_id ?? null,
@@ -105,12 +114,8 @@ class FormulaPreviewSessionStore {
 			mode,
 			lanes,
 			selectedLaneId: selectedLane?.id ?? null,
-			title: formula?.meta.label ?? 'No Formula',
-			subtitle: processor
-				? selectedLane?.contextKey
-					? `${processor.meta.label} / ${selectedLane.label}`
-					: processor.meta.label
-				: 'Formula recipe'
+			title: formula ? `Watching ${formula.meta.label}` : 'No Formula',
+			subtitle: previewSubtitle(processor, selectedLane)
 		};
 	}
 }

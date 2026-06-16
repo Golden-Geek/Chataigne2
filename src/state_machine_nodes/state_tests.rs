@@ -257,7 +257,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
         }
     }
     let capture = read_model.collect_event_batch(&engine, previous_event_time);
-    read_model.apply_event_capture(capture, project_file.clone());
+    read_model.apply_event_capture(capture);
 
     let previous_event_time = read_model.current_event_time();
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
@@ -272,7 +272,7 @@ fn transition_creation_keeps_reload_snapshot_complete() {
     assert!(ack.success, "transition creation should succeed: {ack:?}");
 
     let capture = read_model.collect_event_batch(&engine, previous_event_time);
-    read_model.apply_event_capture(capture, project_file);
+    read_model.apply_event_capture(capture);
 
     let engine_snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
     let reload_snapshot = read_model.current_snapshot();

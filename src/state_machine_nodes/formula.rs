@@ -12,6 +12,7 @@ use golden_alchemist::{
     SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
     SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
     TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeSpec,
+    PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG,
     compile_graph, solve_types,
 };
 use golden_core::{
@@ -588,11 +589,45 @@ fn log_config_field() -> golden_alchemist::ANodeConfigFieldDecl {
     .with_description("Emit a debug log entry whenever this node processes successfully.")
 }
 
+fn process_on_input_change_only_config_field(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> golden_alchemist::ANodeConfigFieldDecl {
+    golden_alchemist::ANodeConfigFieldDecl::new(
+        PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
+        "Process on input change only",
+        RuntimeValue::Bool(declaration.default_process_on_input_change_only()),
+    )
+    .with_description("Skip this ANode while all of its runtime inputs are unchanged.")
+}
+
+fn send_on_output_change_only_config_field(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> golden_alchemist::ANodeConfigFieldDecl {
+    golden_alchemist::ANodeConfigFieldDecl::new(
+        SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG,
+        "Send on output change only",
+        RuntimeValue::Bool(declaration.default_send_on_output_change_only()),
+    )
+    .with_description("Suppress output sends and preview activity while the output value is unchanged.")
+}
+
 fn config_fields_for_instance(
     declaration: &dyn golden_alchemist::ANodeDeclaration,
     instance: &ANodeInstance,
 ) -> Vec<golden_alchemist::ANodeConfigFieldDecl> {
     let mut fields = declaration.config_fields_for(instance);
+    if !fields
+        .iter()
+        .any(|field| field.id.as_str() == PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG)
+    {
+        fields.push(process_on_input_change_only_config_field(declaration));
+    }
+    if !fields
+        .iter()
+        .any(|field| field.id.as_str() == SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG)
+    {
+        fields.push(send_on_output_change_only_config_field(declaration));
+    }
     if !fields.iter().any(|field| field.id.as_str() == "log") {
         fields.push(log_config_field());
     }

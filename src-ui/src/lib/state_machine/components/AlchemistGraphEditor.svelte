@@ -62,7 +62,20 @@
 		toolbarEnd?: Snippet;
 	} = $props();
 
-	let nodes = $derived(toGraphNodes(formula, nodesById, catalogItems));
+	let activeNodeIds = $derived.by(() => {
+		const result = new Set<string>();
+		for (const ref of activeSocketRefs) {
+			const separator = ref.indexOf(':');
+			if (separator <= 0) continue;
+			result.add(ref.slice(0, separator));
+		}
+		return result;
+	});
+	let nodes = $derived(
+		toGraphNodes(formula, nodesById, catalogItems).map((node) =>
+			activeNodeIds.has(node.id) ? { ...node, active: true } : node
+		)
+	);
 	let edges = $derived(toGraphEdges(formula, nodesById, activeSocketRefs));
 	let graphCanvas: {
 		clientToWorld: (clientX: number, clientY: number) => GraphNodePosition;
@@ -98,8 +111,14 @@
 
 	const inputDefaultParameter = (socket: GraphSocket): UiNodeDto | null =>
 		socket.defaultParamId ? (nodesById.get(Number(socket.defaultParamId)) ?? null) : null;
-	const outputPreview = (graphNode: GraphNode, socket: GraphSocket): FormulaOutputPreviewChip | null =>
-		outputPreviews.get(`${graphNode.id}:${socket.id}`) ?? null;
+	const outputPreview = (
+		graphNode: GraphNode,
+		socket: GraphSocket
+	): FormulaOutputPreviewChip | null => {
+		const key = `${graphNode.id}:${socket.id}`;
+		const preview = outputPreviews.get(key);
+		return preview ? { ...preview, active: activeSocketRefs.has(key) } : null;
+	};
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
 		canConnectGraphConnection(nodes, connection);
 

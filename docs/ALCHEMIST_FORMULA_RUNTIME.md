@@ -69,6 +69,26 @@ the UI.
 ANode socket. It includes enough identity to map runtime execution back to the
 Formula editor and, when applicable, to the selected processor lane.
 
+## ANode Process And Send Policy
+
+Each authored ANode carries app-visible processing controls in its config:
+`process_on_input_change_only` and `send_on_output_change_only`. Both default
+to `true`; declarations for continuous primitives such as LFO, noise,
+metronome, smooth filter, speed, and delay opt out of input-change-only
+processing by default.
+
+`golden_alchemist_core` compiles those config values into each execution node.
+Input-change-only nodes keep a lightweight per-lane process cache and are
+skipped when their resolved runtime inputs are unchanged. Output-change-only
+nodes still update runtime slots when they process, but they do not emit
+debug/preview send samples when the semantic output value is unchanged. Idle
+non-fired triggers compare as unchanged even when their tick metadata differs.
+
+Preview inspection and runtime traffic are separate capture modes. Inspector
+preview may force unchanged nodes to resample current values, while the
+state-machine runtime preview reports only values that were actually sent so
+the graph UI can highlight active wires and dim idle wires.
+
 ## Required Invariants
 
 ```text

@@ -55,10 +55,15 @@
 		toGraphEdges,
 		toGraphNodes
 	} from '../alchemistGraph';
-	import type { ProcessorLaneSummaryDto, StateMachineProtocolBundle } from '../generated';
+	import type {
+		FormulaPreviewModeDto,
+		ProcessorLaneSummaryDto,
+		StateMachineProtocolBundle
+	} from '../generated';
 	import {
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
-		formulaOutputPreviewMap
+		formulaOutputPreviewMap,
+		type FormulaOutputPreviewChip
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
@@ -75,6 +80,11 @@
 		origin: string;
 	}
 
+	interface PreviewTarget {
+		kind: 'formula' | 'processor';
+		nodeId: number;
+	}
+
 	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
 	const MANAGER_DRAG_TYPE = 'application/x-chataigne-alchemist-manager';
 
@@ -89,6 +99,7 @@
 		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
 	]);
 	const PROCESSOR_ITEM_KIND = 'state_processor';
+	const PREVIEW_ACTIVITY_HOLD_MS = 150;
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -114,17 +125,99 @@
 	let propertiesVisible = $state(true);
 	let propertiesWidth = $state(DEFAULT_PANEL_WIDTH);
 	let formulaCameras = $state<Record<string, GraphCamera>>({});
+	let previewTarget = $state<PreviewTarget | null>(null);
+	let outputPreviews = $state(new Map<string, FormulaOutputPreviewChip>());
+	let activeSocketRefs = $state(new Set<string>());
+	let retainedPreviewScopeKey = $state('');
+	let lastMergedPreviewSequence = $state<number | null>(null);
 	let contextMenuOpen = $state(false);
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
 	let contextMenuWorldPosition: GraphNodePosition | null = null;
 	let persistenceTail = Promise.resolve();
+	let previewActivityTimeout: ReturnType<typeof setTimeout> | null = null;
+	let previewActivityDeadlines = new Map<string, number>();
+
+	const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+	const previewModeKey = (mode: FormulaPreviewModeDto | null): string => {
+		if (!mode) return '';
+		switch (mode.kind) {
+			case 'formula_defaults':
+				return `${mode.kind}:${mode.formula_id}`;
+			case 'processor_default_lane':
+				return `${mode.kind}:${mode.processor_id}`;
+			case 'processor_lane':
+				return `${mode.kind}:${mode.processor_id}:${mode.context_key.parts
+					.map((part) => `${part.axis_id}:${part.item_id}`)
+					.join('|')}`;
+		}
+		return '';
+	};
+
+	const publishActiveSocketRefs = (): void => {
+		activeSocketRefs = new Set(previewActivityDeadlines.keys());
+	};
+
+	const cancelPreviewActivityTimeout = (): void => {
+		if (previewActivityTimeout !== null) {
+			clearTimeout(previewActivityTimeout);
+			previewActivityTimeout = null;
+		}
+	};
+
+	const prunePreviewActivity = (): void => {
+		const currentTime = nowMs();
+		let changed = false;
+		for (const [ref, deadline] of previewActivityDeadlines) {
+			if (deadline > currentTime) continue;
+			previewActivityDeadlines.delete(ref);
+			changed = true;
+		}
+		if (changed) {
+			publishActiveSocketRefs();
+		}
+		schedulePreviewActivityPrune();
+	};
+
+	const schedulePreviewActivityPrune = (): void => {
+		cancelPreviewActivityTimeout();
+		if (previewActivityDeadlines.size === 0) return;
+		const nextDeadline = Math.min(...previewActivityDeadlines.values());
+		previewActivityTimeout = setTimeout(prunePreviewActivity, Math.max(0, nextDeadline - nowMs()));
+	};
+
+	const clearPreviewActivity = (): void => {
+		cancelPreviewActivityTimeout();
+		previewActivityDeadlines = new Map();
+		activeSocketRefs = new Set();
+	};
+
+	const resetRetainedPreviewState = (): void => {
+		outputPreviews = new Map();
+		lastMergedPreviewSequence = null;
+		clearPreviewActivity();
+	};
+
+	const latchPreviewActivity = (refs: Iterable<string>): void => {
+		const deadline = nowMs() + PREVIEW_ACTIVITY_HOLD_MS;
+		let changed = false;
+		for (const ref of refs) {
+			if ((previewActivityDeadlines.get(ref) ?? 0) >= deadline) continue;
+			previewActivityDeadlines.set(ref, deadline);
+			changed = true;
+		}
+		if (changed) {
+			publishActiveSocketRefs();
+			schedulePreviewActivityPrune();
+		}
+	};
 
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
 
 	const isProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
-		node?.user_item_kind === PROCESSOR_ITEM_KIND;
+		node?.user_item_kind === PROCESSOR_ITEM_KIND || node?.node_type === PROCESSOR_ITEM_KIND;
 
 	const formulaCameraStorageKey = (formulaUuid: string): string =>
 		`${FORMULA_CAMERA_STORAGE_PREFIX}${formulaUuid}`;
@@ -184,12 +277,8 @@
 	let selectedFormula = $derived.by((): UiNodeDto | null => {
 		if (!session || !graphState) return null;
 		for (const selectedId of session.selectedNodesIds) {
-			let currentId: number | undefined = selectedId;
-			while (currentId !== undefined) {
-				const current = graphState.nodesById.get(currentId);
-				if (isFormula(current)) return current;
-				currentId = graphState.parentById.get(currentId);
-			}
+			const selected = graphState.nodesById.get(selectedId);
+			if (isFormula(selected)) return selected;
 		}
 		return null;
 	});
@@ -197,14 +286,17 @@
 	let selectedProcessor = $derived.by((): UiNodeDto | null => {
 		if (!session || !graphState) return null;
 		for (const selectedId of session.selectedNodesIds) {
-			let currentId: number | undefined = selectedId;
-			while (currentId !== undefined) {
-				const current = graphState.nodesById.get(currentId);
-				if (isProcessor(current)) return current;
-				currentId = graphState.parentById.get(currentId);
-			}
+			const selected = graphState.nodesById.get(selectedId);
+			if (isProcessor(selected)) return selected;
 		}
 		return null;
+	});
+
+	let requestedFormula = $derived.by((): UiNodeDto | null => {
+		if (!graphState) return null;
+		if (requestedFormulaNodeId === null) return null;
+		const requested = graphState.nodesById.get(requestedFormulaNodeId);
+		return isFormula(requested) ? requested : null;
 	});
 
 	let requestedProcessor = $derived.by((): UiNodeDto | null => {
@@ -214,10 +306,43 @@
 		return isProcessor(requested) ? requested : null;
 	});
 
+	const setPreviewTarget = (next: PreviewTarget | null): void => {
+		if (previewTarget?.kind === next?.kind && previewTarget?.nodeId === next?.nodeId) return;
+		previewTarget = next;
+	};
+
+	const previewTargetNode = (target: PreviewTarget | null): UiNodeDto | null => {
+		if (!graphState || target === null) return null;
+		const node = graphState.nodesById.get(target.nodeId);
+		if (target.kind === 'processor') return isProcessor(node) ? node : null;
+		return isFormula(node) ? node : null;
+	};
+
+	$effect(() => {
+		if (selectedProcessor) {
+			setPreviewTarget({ kind: 'processor', nodeId: selectedProcessor.node_id });
+			return;
+		}
+		if (selectedFormula) {
+			setPreviewTarget({ kind: 'formula', nodeId: selectedFormula.node_id });
+			return;
+		}
+		if (previewTargetNode(previewTarget) !== null) return;
+		if (requestedProcessor) {
+			setPreviewTarget({ kind: 'processor', nodeId: requestedProcessor.node_id });
+			return;
+		}
+		if (requestedFormula) {
+			setPreviewTarget({ kind: 'formula', nodeId: requestedFormula.node_id });
+			return;
+		}
+		const firstFormula = formulaNodes[0] ?? null;
+		setPreviewTarget(firstFormula ? { kind: 'formula', nodeId: firstFormula.node_id } : null);
+	});
+
 	let processorNode = $derived.by((): UiNodeDto | null => {
-		if (selectedProcessor) return selectedProcessor;
-		if (selectedFormula) return null;
-		return requestedProcessor;
+		if (previewTarget?.kind !== 'processor') return null;
+		return previewTargetNode(previewTarget);
 	});
 
 	const formulaForProcessor = (processor: UiNodeDto | null): UiNodeDto | null => {
@@ -244,9 +369,8 @@
 		if (!graphState) return null;
 		const processorFormula = formulaForProcessor(processorNode);
 		if (processorFormula) return processorFormula;
-		const requested =
-			requestedFormulaNodeId === null ? null : graphState.nodesById.get(requestedFormulaNodeId);
-		return isFormula(requested) ? requested : (selectedFormula ?? formulaNodes[0] ?? null);
+		if (previewTarget?.kind === 'formula') return previewTargetNode(previewTarget);
+		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
 	let runtimePreviewSequence = $derived(
 		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
@@ -274,15 +398,43 @@
 	let previewSessionModel = $derived(
 		formulaPreviewSessionStore.model(formula, processorNode, processorLaneSummaries)
 	);
-	let outputPreviews = $derived.by(() =>
+	let incomingOutputPreviews = $derived.by(() =>
 		formulaOutputPreviewMap(
 			formula,
 			graphState?.nodesById ?? new Map(),
 			runtimePreviewBundle,
-			processorNode?.uuid ?? null,
-			previewSessionModel.selectedLaneId
+			previewSessionModel.mode
 		)
 	);
+	$effect(() => () => clearPreviewActivity());
+	$effect(() => {
+		const previewScopeKey =
+			formula && previewSessionModel.mode
+				? `${formula.uuid}:${previewModeKey(previewSessionModel.mode)}`
+				: '';
+		if (previewScopeKey !== retainedPreviewScopeKey) {
+			retainedPreviewScopeKey = previewScopeKey;
+			resetRetainedPreviewState();
+		}
+		if (!previewScopeKey) return;
+		const sequence = runtimePreviewSequence;
+		if (lastMergedPreviewSequence === sequence) return;
+		lastMergedPreviewSequence = sequence;
+		if (incomingOutputPreviews.size === 0) return;
+
+		const next = new Map(outputPreviews);
+		const updatedRefs: string[] = [];
+		for (const [ref, preview] of incomingOutputPreviews) {
+			const current = next.get(ref);
+			if (current && preview.logicalTick < current.logicalTick) continue;
+			next.set(ref, preview);
+			if (preview.value.kind === 'trigger' && !preview.value.fired) continue;
+			updatedRefs.push(ref);
+		}
+		outputPreviews = next;
+		if (updatedRefs.length === 0) return;
+		latchPreviewActivity(updatedRefs);
+	});
 	let formulaCamera = $derived.by((): GraphCamera | undefined => {
 		if (!formula) return undefined;
 		return formulaCameras[formula.uuid] ?? cameraFromStorage(formula.uuid);
@@ -1048,6 +1200,7 @@
 					{selectedNodeIds}
 					{selectedEdgeIds}
 					{outputPreviews}
+					{activeSocketRefs}
 					catalogItems={anodeItems}
 					onGraphSelectionChange={selectGraphItems}
 					onNodesMove={moveNodes}

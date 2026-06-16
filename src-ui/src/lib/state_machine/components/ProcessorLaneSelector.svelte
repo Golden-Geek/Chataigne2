@@ -14,8 +14,9 @@
 
 {#if lanes.length > 1}
 	<label class="lane-selector">
-		<span>Lane</span>
+		<span>Preview lane</span>
 		<select
+			aria-label="Preview lane"
 			value={selectedLaneId ?? lanes[0]?.id ?? ''}
 			onchange={(event) => onSelect(event.currentTarget.value)}>
 			{#each lanes as lane}
