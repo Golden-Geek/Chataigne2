@@ -9,8 +9,8 @@ use crate::engine::{Engine, EngineTime, ProjectPersistenceError};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
-    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta,
-    NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
+    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch,
+    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
@@ -56,9 +56,7 @@ fn is_empty_duplicate_dependent_user_items(value: &[UiDuplicateDependentUserItem
     value.is_empty()
 }
 
-fn is_empty_duplicate_dependent_initial_params(
-    value: &[UiDuplicateDependentUserItemInitialParam],
-) -> bool {
+fn is_empty_duplicate_dependent_initial_params(value: &[UiDuplicateDependentUserItemInitialParam]) -> bool {
     value.is_empty()
 }
 
@@ -1831,12 +1829,8 @@ impl<T: Node> Engine<T> {
                 &mut decode_node,
             )?;
             if !spec.initial_params.is_empty() {
-                self.ui_apply_initial_params_to_node(
-                    duplicated_root,
-                    spec.initial_params,
-                    "DuplicateNodes",
-                )
-                .map_err(ProjectPersistenceError::Engine)?;
+                self.ui_apply_initial_params_to_node(duplicated_root, spec.initial_params, "DuplicateNodes")
+                    .map_err(ProjectPersistenceError::Engine)?;
             }
             copied_by_source.insert(source, duplicated_root);
             copied_roots.push(duplicated_root);
@@ -1845,12 +1839,7 @@ impl<T: Node> Engine<T> {
         for spec in created_items {
             let source = spec.source;
             let created_root = self
-                .ui_apply_create_user_item_returning_node(
-                    spec.parent,
-                    spec.node_type,
-                    spec.label,
-                    spec.initial_params,
-                )
+                .ui_apply_create_user_item_returning_node(spec.parent, spec.node_type, spec.label, spec.initial_params)
                 .map_err(ProjectPersistenceError::Engine)?;
             copied_by_source.insert(source, created_root);
             copied_roots.push(created_root);
@@ -1859,13 +1848,8 @@ impl<T: Node> Engine<T> {
         for item in dependent_items {
             let initial_params =
                 self.ui_resolve_duplicate_dependent_initial_params(item.initial_params, &copied_by_source)?;
-            self.ui_apply_create_user_item_returning_node(
-                item.parent,
-                item.node_type,
-                item.label,
-                initial_params,
-            )
-            .map_err(ProjectPersistenceError::Engine)?;
+            self.ui_apply_create_user_item_returning_node(item.parent, item.node_type, item.label, initial_params)
+                .map_err(ProjectPersistenceError::Engine)?;
         }
 
         Ok(copied_roots)
@@ -1879,29 +1863,29 @@ impl<T: Node> Engine<T> {
         initial_params
             .into_iter()
             .map(|initial_param| {
-                let value = match initial_param.value {
-                    UiDuplicateDependentInitialParamValue::Literal { value } => value,
-                    UiDuplicateDependentInitialParamValue::DuplicatedNodeReference { source } => {
-                        let copied = copied_by_source.get(&source).copied().ok_or_else(|| {
-                            ProjectPersistenceError::Codec {
-                                node_type: "duplicateNodes".to_string(),
-                                message: format!(
-                                    "dependent item references source node {:?} that was not copied",
-                                    source
-                                ),
-                            }
-                        })?;
-                        let node = self
-                            .nodes
-                            .get(copied)
-                            .ok_or(ProjectPersistenceError::MissingNode(copied))?;
-                        let node_data = node.node_data();
-                        let mut reference =
-                            NodeReference::with_cached_id(node_data.meta.uuid, Some(copied));
-                        reference.cached_name = Some(node_data.meta.label.clone());
-                        ParamValue::Reference(reference)
-                    }
-                };
+                let value =
+                    match initial_param.value {
+                        UiDuplicateDependentInitialParamValue::Literal { value } => value,
+                        UiDuplicateDependentInitialParamValue::DuplicatedNodeReference { source } => {
+                            let copied = copied_by_source.get(&source).copied().ok_or_else(|| {
+                                ProjectPersistenceError::Codec {
+                                    node_type: "duplicateNodes".to_string(),
+                                    message: format!(
+                                        "dependent item references source node {:?} that was not copied",
+                                        source
+                                    ),
+                                }
+                            })?;
+                            let node = self
+                                .nodes
+                                .get(copied)
+                                .ok_or(ProjectPersistenceError::MissingNode(copied))?;
+                            let node_data = node.node_data();
+                            let mut reference = NodeReference::with_cached_id(node_data.meta.uuid, Some(copied));
+                            reference.cached_name = Some(node_data.meta.label.clone());
+                            ParamValue::Reference(reference)
+                        }
+                    };
                 Ok(UiCreateUserItemInitialParam {
                     decl_id: initial_param.decl_id,
                     value,
