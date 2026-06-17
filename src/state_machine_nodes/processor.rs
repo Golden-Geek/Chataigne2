@@ -14,6 +14,7 @@ use golden_core::{
 };
 
 use crate::app::state_machine_nodes_formula::{
+    node_has_warning, node_warning_detail, node_warning_matches, FORMULA_WARNING_ID,
     PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{ConditionManager, InputsManager, OutputsManager};
@@ -21,6 +22,7 @@ use crate::app::{ConditionManager, InputsManager, OutputsManager};
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
 const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
+const PROCESSOR_FORMULA_WARNING_ID: &str = "state_processor_formula";
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -531,7 +533,7 @@ pub struct StateProcessor {
 impl Node for StateProcessor {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_node_ready(
@@ -540,7 +542,7 @@ impl Node for StateProcessor {
         _context: NodeCreationContext,
     ) {
         self.refresh_formula_subscription(ctx);
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_param_change(
@@ -552,16 +554,16 @@ impl Node for StateProcessor {
         if param == self.formula.id() {
             self.refresh_formula_subscription(ctx);
         }
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_node_created(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, _node: NodeId) {
         self.refresh_formula_subscription(ctx);
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_child_added(
@@ -570,7 +572,7 @@ impl Node for StateProcessor {
         _parent: NodeId,
         _child: NodeId,
     ) {
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_child_removed(
@@ -579,7 +581,7 @@ impl Node for StateProcessor {
         _parent: NodeId,
         _child: NodeId,
     ) {
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn on_meta_changed(
@@ -588,7 +590,7 @@ impl Node for StateProcessor {
         _node: NodeId,
         _patch: NodeMetaPatch,
     ) {
-        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula(ctx);
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -632,6 +634,64 @@ impl StateProcessor {
             ctx.add_event_listener_subtree(self.id(), next, 3);
         }
         self.subscribed_formula = next;
+    }
+
+    fn reconcile_formula(&self, ctx: &mut ProcessCtx) {
+        self.reconcile_formula_properties(ctx);
+        self.reconcile_formula_warning(ctx);
+    }
+
+    /// Surface a warning on the processor itself when its formula reference is
+    /// missing or the referenced formula has compilation errors, so the
+    /// problem is visible directly in the processor list without opening the
+    /// formula.
+    fn reconcile_formula_warning(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+
+        let warning = match self.formula_node(&snapshot) {
+            None => {
+                let detail = if self.formula.get_ref().is_empty() {
+                    "This processor has no formula assigned."
+                } else {
+                    "The referenced formula could not be found."
+                };
+                Some(("Missing formula", detail.to_owned()))
+            }
+            Some(formula) => {
+                node_has_warning(&snapshot, formula, FORMULA_WARNING_ID).then(|| {
+                    let detail =
+                        node_warning_detail(&snapshot, formula, FORMULA_WARNING_ID)
+                            .unwrap_or_else(|| "The formula has errors.".to_owned());
+                    ("Formula has errors", detail)
+                })
+            }
+        };
+
+        match warning {
+            None => {
+                if node_has_warning(&snapshot, self.id(), PROCESSOR_FORMULA_WARNING_ID) {
+                    ctx.clear_node_warning(self.id(), Some(PROCESSOR_FORMULA_WARNING_ID));
+                }
+            }
+            Some((message, detail)) => {
+                if !node_warning_matches(
+                    &snapshot,
+                    self.id(),
+                    PROCESSOR_FORMULA_WARNING_ID,
+                    message,
+                    Some(&detail),
+                ) {
+                    ctx.set_node_warning_with(
+                        self.id(),
+                        Some(PROCESSOR_FORMULA_WARNING_ID),
+                        message,
+                        Some(&detail),
+                    );
+                }
+            }
+        }
     }
 
     fn reconcile_formula_properties(&self, ctx: &mut ProcessCtx) {

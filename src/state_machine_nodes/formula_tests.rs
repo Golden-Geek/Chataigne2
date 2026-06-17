@@ -1,6 +1,7 @@
 use golden_core::{
     app::ProjectNode,
     color::Color,
+    edit::{Edit, EditOrigin},
     node::{
         DeclId, Folder, Node, NodeId, NodeMetaPatch, NodeReference,
     },
@@ -306,15 +307,6 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
     });
     assert!(ack.success, "Property value edit should succeed: {ack:?}");
 
-    let property_uuid = engine
-        .nodes
-        .get(property)
-        .expect("Property should exist")
-        .node_data()
-        .meta
-        .uuid
-        .0
-        .to_string();
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: formula,
         node_type: format!("{ANODE_CREATE_PREFIX}property"),
@@ -322,7 +314,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         initial_params: vec![
             UiCreateUserItemInitialParam {
                 decl_id: DeclId("config/property_id".into()),
-                value: ParamValue::Str(property_uuid),
+                value: reference_to_node(&engine, property),
             },
         ],
     });
@@ -337,48 +329,44 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             })
         })
         .expect("Property getter should be a real ANode");
+    let getter_meta = &engine
+        .nodes
+        .get(getter_node)
+        .expect("Property getter should exist")
+        .node_data()
+        .meta;
     assert!(
-        !engine
-            .nodes
-            .get(getter_node)
-            .expect("Property getter should exist")
-            .node_data()
-            .meta
-            .user_permissions
-            .can_edit_name,
-        "Property getter labels must stay synchronized with their property"
+        getter_meta.user_permissions.can_edit_name,
+        "Property getters should follow normal ANode naming permissions"
     );
     assert!(
-        !engine
-            .nodes
-            .get(getter_node)
-            .expect("Property getter should exist")
-            .node_data()
-            .meta
-            .user_permissions
-            .can_edit_color,
-        "Property getter colors must come from their source Property"
+        getter_meta.user_permissions.can_edit_color,
+        "Property getters should follow normal ANode color permissions"
     );
     let getter_config = find_child_by_decl(&engine, getter_node, "config")
         .expect("Property getter Config should exist");
+    let property_id = find_child_by_decl(&engine, getter_config, "config/property_id")
+        .expect("Property getter should expose a property reference parameter");
+    let property_id_parameter = engine
+        .nodes
+        .get(property_id)
+        .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+        .expect("Property getter binding should be a Parameter node");
     assert!(
-        direct_children(&engine, getter_config)
-            .into_iter()
-            .filter_map(|child| {
-                engine
-                    .nodes
-                    .get(child)
-                    .and_then(|node| node.as_any().downcast_ref::<Parameter>())
-            })
-            .all(|parameter| {
-                parameter.read_only
-                    && !parameter
-                        .node_data()
-                        .meta
-                        .presentation
-                        .show_in_inspector_content
-            }),
-        "Property getter configuration must be hidden and read-only"
+        !property_id_parameter.read_only,
+        "Property getter binding should be user-editable"
+    );
+    assert!(
+        property_id_parameter
+            .node_data()
+            .meta
+            .presentation
+            .show_in_inspector_content,
+        "Property getter binding should be visible in the inspector"
+    );
+    assert_eq!(
+        parameter_value(&engine, getter_config, "config/property_id"),
+        reference_to_node(&engine, property)
     );
     let mut property_presentation = engine
         .nodes
@@ -544,15 +532,7 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
             })
         })
         .expect("Amount property should exist");
-    let property_uuid = engine
-        .nodes
-        .get(property)
-        .expect("Amount property should exist")
-        .node_data()
-        .meta
-        .uuid
-        .0
-        .to_string();
+    let property_uuid = node_uuid_string(&engine, property);
 
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: formula,
@@ -560,7 +540,7 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
         label: Some("Amount".into()),
         initial_params: vec![UiCreateUserItemInitialParam {
             decl_id: DeclId("config/property_id".into()),
-            value: ParamValue::Str(property_uuid.clone()),
+            value: reference_to_node(&engine, property),
         }],
     });
     assert!(
@@ -587,6 +567,17 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
         .apply_edits()
         .expect("Reloaded Formula validation edits should apply");
 
+    let loaded_properties = find_child_by_decl(&loaded, loaded_formula, PROPERTIES_DECL_ID)
+        .expect("Reloaded Formula should own a Properties manager");
+    let loaded_property = direct_children(&loaded, loaded_properties)
+        .into_iter()
+        .find(|node| {
+            loaded.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistProperty::NODE_TYPE
+                    && node.node_data().meta.label == "Amount"
+            })
+        })
+        .expect("Reloaded Amount property should exist");
     let loaded_getter = find_anode_by_type(&loaded, loaded_formula, "property");
     assert!(
         !node_has_warning_id(
@@ -605,7 +596,7 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
             loaded_getter_config,
             "config/property_id"
         ),
-        ParamValue::Str(property_uuid.clone())
+        reference_to_node(&loaded, loaded_property)
     );
 
     let materialized =
@@ -620,11 +611,250 @@ fn formula_property_getter_keeps_property_id_after_project_reload() {
     assert!(
         matches!(
             getter.config.get("property_id"),
-            Some(golden_alchemist::RuntimeValue::String(value))
-                if value.as_ref() == property_uuid
+            Some(golden_alchemist::RuntimeValue::Ref(value))
+                if value.stable_id.as_ref() == property_uuid
         ),
         "Reloaded property getter should keep its stable property_id"
     );
+}
+
+#[test]
+fn duplicate_property_anode_inside_edit_session_is_one_undo_step() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula properties root should exist");
+    let property = create_property(&mut engine, properties, "Float", "float");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula,
+        node_type: format!("{ANODE_CREATE_PREFIX}property"),
+        label: Some("Float".into()),
+        initial_params: vec![UiCreateUserItemInitialParam {
+            decl_id: DeclId("config/property_id".into()),
+            value: reference_to_node(&engine, property),
+        }],
+    });
+    assert!(
+        ack.success,
+        "Property getter creation should succeed: {ack:?}"
+    );
+
+    let source = find_anode_by_type(&engine, formula, "property");
+    let before_property_getters = count_anodes_by_type(&engine, formula, "property");
+    let before_undo_len = engine.undo_len();
+    let session_id = "duplicate-property-getter";
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Duplicate ANode".to_owned()),
+        client_edit_id: session_id.to_owned(),
+        ui_client_instance_id: None,
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should begin");
+
+    let duplicate = duplicate_anode(
+        &mut engine,
+        formula,
+        source,
+        Some(source),
+        "Float Copy",
+    );
+    assert_eq!(
+        count_anodes_by_type(&engine, formula, "property"),
+        before_property_getters + 1,
+        "duplicate_subtree_with should create exactly one property getter"
+    );
+    assert!(
+        engine.has_active_edit_session(),
+        "duplicate_subtree_with must preserve the active edit session"
+    );
+    assert_eq!(
+        engine.undo_len(),
+        before_undo_len,
+        "session should not commit before end"
+    );
+
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: session_id.to_owned(),
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should end");
+
+    assert!(!engine.has_active_edit_session());
+    assert_eq!(
+        engine.undo_len(),
+        before_undo_len + 1,
+        "duplicate should be one undo step"
+    );
+    assert!(engine.nodes.get(duplicate).is_some());
+
+    assert!(engine.undo().expect("undo should succeed"));
+    assert_eq!(
+        count_anodes_by_type(&engine, formula, "property"),
+        before_property_getters,
+        "one undo should remove the duplicated getter"
+    );
+}
+
+#[test]
+fn undoing_property_anode_removal_restores_getter_without_stale_history() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula properties root should exist");
+    let property = create_property(&mut engine, properties, "Float", "float");
+    let getter = create_property_anode(&mut engine, formula, property, 2.0, 3.0);
+    let before_undo_len = engine.undo_len();
+
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: getter });
+    assert!(
+        ack.success,
+        "Property getter removal should succeed: {ack:?}"
+    );
+    assert_eq!(count_anodes_by_type(&engine, formula, "property"), 0);
+
+    let ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(
+        ack.success,
+        "Undoing property getter removal should succeed: {ack:?}"
+    );
+    assert_eq!(count_anodes_by_type(&engine, formula, "property"), 1);
+    assert!(
+        engine.nodes.get(getter).is_some(),
+        "Undo should restore the removed getter at its original node id"
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(
+        ack.success,
+        "Undoing property getter creation should succeed without stale child history: {ack:?}"
+    );
+    assert_eq!(engine.undo_len(), before_undo_len - 1);
+    assert_eq!(count_anodes_by_type(&engine, formula, "property"), 0);
+}
+
+#[test]
+fn undoing_property_anode_duplicate_removes_duplicate_before_position_history() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula properties root should exist");
+    let property = create_property(&mut engine, properties, "Float", "float");
+    let source = create_property_anode(&mut engine, formula, property, 2.0, 3.0);
+    let before_property_getters = count_anodes_by_type(&engine, formula, "property");
+    let before_undo_len = engine.undo_len();
+    let session_id = "duplicate-property-getter-with-position";
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Duplicate ANode".to_owned()),
+        client_edit_id: session_id.to_owned(),
+        ui_client_instance_id: None,
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should begin");
+
+    let duplicate = duplicate_anode(
+        &mut engine,
+        formula,
+        source,
+        Some(source),
+        "Float Copy",
+    );
+    engine
+        .ui_apply_initial_params_to_node(
+            duplicate,
+            vec![UiCreateUserItemInitialParam {
+                decl_id: DeclId("position".into()),
+                value: ParamValue::Vec2(18.0, 12.0),
+            }],
+            "DuplicateNode",
+        )
+        .expect("duplicate position initializer should apply");
+
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: session_id.to_owned(),
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should end");
+
+    assert_eq!(
+        engine.undo_len(),
+        before_undo_len + 1,
+        "duplicate and position initializer should be one undo step"
+    );
+    assert_eq!(
+        count_anodes_by_type(&engine, formula, "property"),
+        before_property_getters + 1
+    );
+
+    assert!(engine.undo().expect("undo duplicate should succeed"));
+    assert_eq!(
+        count_anodes_by_type(&engine, formula, "property"),
+        before_property_getters,
+        "undo should remove the duplicate instead of only reverting its position"
+    );
+    assert!(
+        engine.nodes.get(duplicate).is_none(),
+        "duplicate node should be detached by the first undo"
+    );
+
+    assert!(engine.redo().expect("redo duplicate should succeed"));
+    assert_eq!(
+        anode_position(&engine, duplicate),
+        Some((18.0, 12.0)),
+        "redo should restore the duplicate at its initialized UI position"
+    );
+}
+
+#[test]
+fn removing_source_property_anode_preserves_duplicate_getter() {
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula properties root should exist");
+    let property = create_property(&mut engine, properties, "Float", "float");
+    let source = create_property_anode(&mut engine, formula, property, 2.0, 3.0);
+    let session_id = "duplicate-property-getter-source-removal";
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Duplicate ANode".to_owned()),
+        client_edit_id: session_id.to_owned(),
+        ui_client_instance_id: None,
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should begin");
+    let duplicate = duplicate_anode(
+        &mut engine,
+        formula,
+        source,
+        Some(source),
+        "Float Copy",
+    );
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: session_id.to_owned(),
+    });
+    engine
+        .apply_edits()
+        .expect("duplicate session should end");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: source });
+    assert!(
+        ack.success,
+        "Removing the source property getter should succeed: {ack:?}"
+    );
+    assert!(
+        engine.nodes.get(source).is_none(),
+        "source getter should be removed"
+    );
+    assert!(
+        engine.nodes.get(duplicate).is_some(),
+        "duplicate getter should remain when the source getter is removed"
+    );
+    assert_eq!(count_anodes_by_type(&engine, formula, "property"), 1);
 }
 
 #[test]
@@ -1425,6 +1655,88 @@ fn duplicate_anode(
     duplicate
 }
 
+fn create_property(
+    engine: &mut AppEngine,
+    properties: NodeId,
+    label: &str,
+    property_type: &str,
+) -> NodeId {
+    let before = direct_children(engine, properties);
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: properties,
+        node_type: format!("{PROPERTY_CREATE_PREFIX}{property_type}"),
+        label: Some(label.to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "Property creation should succeed: {ack:?}");
+    direct_children(engine, properties)
+        .into_iter()
+        .find(|node| {
+            !before.contains(node)
+                && engine
+                    .nodes
+                    .get(*node)
+                    .is_some_and(|node| node.get_type() == AlchemistProperty::NODE_TYPE)
+        })
+        .unwrap_or_else(|| panic!("created Property `{label}` should exist"))
+}
+
+fn create_property_anode(
+    engine: &mut AppEngine,
+    formula: NodeId,
+    property: NodeId,
+    x: f64,
+    y: f64,
+) -> NodeId {
+    let before = direct_children(engine, formula);
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: formula,
+        node_type: format!("{ANODE_CREATE_PREFIX}property"),
+        label: Some("Float".into()),
+        initial_params: vec![
+            UiCreateUserItemInitialParam {
+                decl_id: DeclId("config/property_id".into()),
+                value: reference_to_node(engine, property),
+            },
+            UiCreateUserItemInitialParam {
+                decl_id: DeclId("position".into()),
+                value: ParamValue::Vec2(x, y),
+            },
+        ],
+    });
+    assert!(
+        ack.success,
+        "Property getter creation should succeed: {ack:?}"
+    );
+    direct_children(engine, formula)
+        .into_iter()
+        .find(|node| !before.contains(node) && anode_type(engine, *node).as_deref() == Some("property"))
+        .unwrap_or_else(|| panic!("created property ANode should exist"))
+}
+
+fn reference_to_node(engine: &AppEngine, node: NodeId) -> ParamValue {
+    let uuid = engine
+        .nodes
+        .get(node)
+        .expect("Referenced node should exist")
+        .node_data()
+        .meta
+        .uuid;
+    ParamValue::Reference(NodeReference::new(uuid))
+}
+
+fn node_uuid_string(engine: &AppEngine, node: NodeId) -> String {
+    engine
+        .nodes
+        .get(node)
+        .expect("Node should exist")
+        .node_data()
+        .meta
+        .uuid
+        .0
+        .to_string()
+}
+
 fn create_connection(
     engine: &mut AppEngine,
     formula: NodeId,
@@ -1551,6 +1863,23 @@ fn find_anode_by_type(engine: &AppEngine, formula: NodeId, type_id: &str) -> Nod
         .into_iter()
         .find(|node| anode_type(engine, *node).as_deref() == Some(type_id))
         .unwrap_or_else(|| panic!("ANode `{type_id}` should exist"))
+}
+
+fn count_anodes_by_type(engine: &AppEngine, formula: NodeId, type_id: &str) -> usize {
+    direct_children(engine, formula)
+        .into_iter()
+        .filter(|node| anode_type(engine, *node).as_deref() == Some(type_id))
+        .count()
+}
+
+fn anode_position(engine: &AppEngine, anode: NodeId) -> Option<(f64, f64)> {
+    let position = find_child_by_decl(engine, anode, "position")?;
+    let parameter = engine
+        .nodes
+        .get(position)?
+        .as_any()
+        .downcast_ref::<Parameter>()?;
+    parameter.value.as_vec2().map(|value| (value.0, value.1))
 }
 
 fn anode_type(engine: &AppEngine, node: NodeId) -> Option<String> {

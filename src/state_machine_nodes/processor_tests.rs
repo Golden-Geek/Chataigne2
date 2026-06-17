@@ -471,3 +471,63 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
         "Dynamically added nested property should appear in processor folder"
     );
 }
+
+fn node_has_warning_id(engine: &AppEngine, node: NodeId, warning_id: &str) -> bool {
+    engine
+        .process_tree_snapshot()
+        .node(node)
+        .is_some_and(|snapshot| {
+            snapshot
+                .presentation
+                .warnings
+                .iter()
+                .any(|warning| warning.id == warning_id)
+        })
+}
+
+fn attach_processor_referencing(
+    engine: &mut AppEngine,
+    formula_uuid: golden_core::node::NodeUuid,
+) -> NodeId {
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+    let mut processor = StateProcessor::new();
+    processor.formula.apply_runtime_value(&ParamValue::Reference(
+        NodeReference::new(formula_uuid),
+    ));
+    engine.add_user_item(processor.into(), Some(manager_id));
+    engine.apply_edits().expect("Processor should attach");
+    engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Processor should exist")
+}
+
+#[test]
+fn processor_with_valid_formula_has_no_warning() {
+    let (mut engine, _, formula_uuid) = engine_with_formula();
+    let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
+    assert!(
+        !node_has_warning_id(&engine, processor_id, super::PROCESSOR_FORMULA_WARNING_ID),
+        "Processor with a valid formula reference should not warn"
+    );
+}
+
+#[test]
+fn processor_with_missing_formula_reference_sets_warning() {
+    let (mut engine, _, _) = engine_with_formula();
+    let missing_uuid = golden_core::node::NodeUuid(uuid::Uuid::new_v4());
+    let processor_id = attach_processor_referencing(&mut engine, missing_uuid);
+    assert!(
+        node_has_warning_id(&engine, processor_id, super::PROCESSOR_FORMULA_WARNING_ID),
+        "Processor referencing a missing formula should expose a warning"
+    );
+}

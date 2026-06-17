@@ -4,8 +4,8 @@ use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
     ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
     FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeOutput, RuntimeRegistries, RuntimeValue, SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
-    SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
+    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
 };
 
 use crate::{
@@ -41,9 +41,10 @@ fn stateful_formula() -> AlchemistFormula {
 fn property_formula(property_id: &str, default_value: RuntimeValue) -> AlchemistFormula {
     let mut graph = AlchemistGraph::new();
     let mut property = ANodeInstance::new(ANodeTypeId::new("property"), "Property");
-    property
-        .config
-        .set("property_id", RuntimeValue::String(property_id.into()));
+    property.config.set(
+        "property_id",
+        RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), property_id)),
+    );
     graph.add_node(property).unwrap();
     let mut formula = formula_with_graph(graph);
     formula.properties.insert(FormulaPropertyDecl {

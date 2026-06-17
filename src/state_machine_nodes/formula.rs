@@ -62,7 +62,7 @@ const PROPERTY_ANODE_TYPE: &str = "property";
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
-const FORMULA_WARNING_ID: &str = "alchemist_formula";
+pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
 const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
     "alchemist_formula_diagnostic";
 
@@ -539,6 +539,24 @@ fn child_reference_uuid(
         ParamValue::Reference(reference) => Some(reference.uuid()),
         _ => None,
     })
+}
+
+fn property_meta_by_uuid(
+    snapshot: &ProcessTreeSnapshot,
+    properties: NodeId,
+    property_uuid: NodeUuid,
+) -> Option<(String, Option<Color>)> {
+    let mut pending = snapshot.child_ids(properties);
+    while let Some(candidate) = pending.pop() {
+        let Some(node) = snapshot.node(candidate) else {
+            continue;
+        };
+        if node.node_type == PROPERTY_NODE_TYPE && node.uuid == property_uuid {
+            return Some((node.label.clone(), node.presentation.color));
+        }
+        pending.extend(snapshot.child_ids(candidate));
+    }
+    None
 }
 
 fn constraint_value_type(
@@ -1137,7 +1155,7 @@ fn diagnostic_origin_node_id(
     }
 }
 
-fn node_has_warning(
+pub(crate) fn node_has_warning(
     snapshot: &ProcessTreeSnapshot,
     node: NodeId,
     warning_id: &str,
@@ -1150,7 +1168,21 @@ fn node_has_warning(
     })
 }
 
-fn node_warning_matches(
+pub(crate) fn node_warning_detail(
+    snapshot: &ProcessTreeSnapshot,
+    node: NodeId,
+    warning_id: &str,
+) -> Option<String> {
+    snapshot.node(node).and_then(|node| {
+        node.presentation
+            .warnings
+            .iter()
+            .find(|warning| warning.id == warning_id)
+            .and_then(|warning| warning.detail.clone())
+    })
+}
+
+pub(crate) fn node_warning_matches(
     snapshot: &ProcessTreeSnapshot,
     node: NodeId,
     warning_id: &str,
@@ -1235,6 +1267,7 @@ impl Node for AlchemistANode {
         context: NodeCreationContext,
     ) {
         self.reconcile_structure(ctx);
+        self.mirror_property_reference_presentation(ctx);
         if context == NodeCreationContext::Duplicate {
             let Some(snapshot) = ctx.tree_snapshot_arc() else {
                 return;
@@ -1270,6 +1303,7 @@ impl Node for AlchemistANode {
         });
         if should_reconcile {
             self.reconcile_structure(ctx);
+            self.mirror_property_reference_presentation(ctx);
         }
     }
 
@@ -1316,7 +1350,6 @@ impl AlchemistANode {
         {
             self.remove_child(ctx, legacy_type_child);
         }
-        let property_getter = type_id == PROPERTY_ANODE_TYPE;
         let manager_ref = matches!(
             type_id.as_str(),
             chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
@@ -1324,8 +1357,7 @@ impl AlchemistANode {
                 | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
         );
         let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = !(property_getter || manager_ref);
-        permissions.can_edit_color = !property_getter;
+        permissions.can_edit_name = !manager_ref;
         self.node_data_mut().meta.user_permissions = permissions;
         self.node_data_mut().meta.can_be_disabled = true;
         let registry = registry();
@@ -1410,7 +1442,7 @@ impl AlchemistANode {
                         &field.label,
                         &value_decl,
                         &selected_type,
-                        property_getter,
+                        false,
                         &type_options,
                     ),
                 );
@@ -1431,17 +1463,15 @@ impl AlchemistANode {
                     &format!("{} Type", field.label),
                     &type_decl,
                     &selected_type,
-                    property_getter,
+                    false,
                     &type_options,
                 );
-                if !property_getter {
-                    // A runtime value's type is explicit (there are no inputs to
-                    // infer it from), so it is shown in the header and stays
-                    // always-on rather than being a disable-to-infer selector.
-                    let meta = &mut type_parameter.node_data_mut().meta;
-                    meta.can_be_disabled = false;
-                    meta.enabled = true;
-                }
+                // A runtime value's type is explicit (there are no inputs to
+                // infer it from), so it is shown in the header and stays
+                // always-on rather than being a disable-to-infer selector.
+                let meta = &mut type_parameter.node_data_mut().meta;
+                meta.can_be_disabled = false;
+                meta.enabled = true;
                 self.ensure_parameter_node(
                     ctx,
                     &snapshot,
@@ -1463,11 +1493,8 @@ impl AlchemistANode {
                     &field.label,
                     &value_decl,
                     value,
-                    property_getter,
+                    false,
                 );
-                if property_getter && field.id.as_str() == "property_id" {
-                    config_parameter.persist_read_only_value = true;
-                }
                 if !field.enum_options.is_empty() {
                     let selected = child_string(
                         &snapshot,
@@ -1509,13 +1536,6 @@ impl AlchemistANode {
                     .meta
                     .presentation
                     .color = Some(value_type_color(value_type.as_str()));
-                if property_getter {
-                    config_parameter
-                        .node_data_mut()
-                        .meta
-                        .presentation
-                        .show_in_inspector_content = false;
-                }
                 self.ensure_parameter_node(
                     ctx,
                     &snapshot,
@@ -1618,6 +1638,33 @@ impl AlchemistANode {
             outputs_folder,
             &desired_outputs,
         );
+    }
+
+    fn mirror_property_reference_presentation(&mut self, ctx: &mut ProcessCtx) {
+        if anode_type_from_tags(&self.node_data().meta.tags).as_deref() != Some(PROPERTY_ANODE_TYPE) {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(config) = snapshot.find_child_by_decl_id(self.id(), "config") else {
+            return;
+        };
+        let Some(property_uuid) = child_reference_uuid(&snapshot, config, "config/property_id") else {
+            return;
+        };
+        let Some(formula) = snapshot.node(self.id()).and_then(|node| node.parent) else {
+            return;
+        };
+        let Some(properties) = snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID) else {
+            return;
+        };
+        let Some((label, color)) = property_meta_by_uuid(&snapshot, properties, property_uuid) else {
+            return;
+        };
+        let meta = &mut self.node_data_mut().meta;
+        meta.label = label;
+        meta.presentation.color = color;
     }
 
     fn ensure_parameter_node(
@@ -2497,7 +2544,7 @@ fn property_bindings(
                 && node.config.get("property_id").is_some_and(|value| {
                     matches!(
                         value,
-                        RuntimeValue::String(value) if value.as_ref() == property_id
+                        RuntimeValue::Ref(value) if value.stable_id.as_ref() == property_id
                     )
                 });
             if !matches_property {
@@ -2595,7 +2642,6 @@ impl Node for AlchemistFormulaDefinition {
                         )
                     })
             });
-            self.sync_property_getters(ctx);
             self.sync_anode_sockets(ctx, skip_anode);
             self.validate(ctx);
         }
@@ -2607,7 +2653,6 @@ impl Node for AlchemistFormulaDefinition {
         _parent: NodeId,
         _child: NodeId,
     ) {
-        self.sync_property_getters(ctx);
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
@@ -2619,7 +2664,6 @@ impl Node for AlchemistFormulaDefinition {
         _child: NodeId,
     ) {
         self.remove_dangling_connections(ctx);
-        self.sync_property_getters(ctx);
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
@@ -2627,10 +2671,16 @@ impl Node for AlchemistFormulaDefinition {
     fn on_meta_changed(
         &mut self,
         ctx: &mut ProcessCtx,
-        _node: NodeId,
+        node: NodeId,
         _patch: NodeMetaPatch,
     ) {
-        self.sync_property_getters(ctx);
+        if ctx.tree_snapshot().is_some_and(|snapshot| {
+            snapshot
+                .node(node)
+                .is_some_and(|node| node.node_type == PROPERTY_NODE_TYPE)
+        }) {
+            self.sync_property_getters(ctx);
+        }
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
     }
@@ -2928,20 +2978,6 @@ impl AlchemistFormulaDefinition {
         else {
             return;
         };
-        let properties_by_id = snapshot
-            .child_ids(properties)
-            .into_iter()
-            .filter_map(|property| {
-                let node = snapshot.node(property)?;
-                (node.node_type == PROPERTY_NODE_TYPE).then(|| {
-                    (
-                        node.uuid.0.to_string(),
-                        (node.label.clone(), node.presentation.color),
-                    )
-                })
-            })
-            .collect::<HashMap<_, _>>();
-
         for child in snapshot.child_ids(self.id()) {
             let Some(anode) = snapshot.node(child) else {
                 continue;
@@ -2957,24 +2993,29 @@ impl AlchemistFormulaDefinition {
             else {
                 continue;
             };
-            let Some(property_id) =
-                child_string(&snapshot, config, "config/property_id")
+            let Some(property_uuid) =
+                child_reference_uuid(&snapshot, config, "config/property_id")
             else {
                 continue;
             };
-            let Some((label, color)) = properties_by_id.get(&property_id)
+            let Some((label, color)) = property_meta_by_uuid(
+                &snapshot,
+                properties,
+                property_uuid,
+            )
             else {
                 continue;
             };
-            if &anode.label != label || anode.presentation.color != *color {
+            let label_changed = anode.label != label;
+            let color_changed = anode.presentation.color != color;
+            if label_changed || color_changed {
                 let mut presentation = anode.presentation.clone();
-                presentation.color = *color;
+                presentation.color = color;
                 ctx.patch_node_meta(
                     child,
                     NodeMetaPatch {
-                        label: (&anode.label != label).then(|| label.clone()),
-                        presentation: (anode.presentation.color != *color)
-                            .then_some(presentation),
+                        label: label_changed.then_some(label),
+                        presentation: color_changed.then_some(presentation),
                         ..NodeMetaPatch::default()
                     },
                 );

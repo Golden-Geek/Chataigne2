@@ -30,11 +30,7 @@
 		readPanelPersistedState,
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
-	import {
-		createUiEditSession,
-		sendCreateUserItemByTypeIntent,
-		sendUiIntentBatch
-	} from 'golden_ui/store/ui-intents';
+	import { sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import {
@@ -65,6 +61,14 @@
 		RuntimeValueDto,
 		StateMachineProtocolBundle
 	} from '../generated';
+	import {
+		buildAlchemistClipboard,
+		createCopiedConnectionIntent,
+		findEmptyAlchemistDuplicateOffset,
+		formulaChildLabels,
+		nextAlchemistCopyLabel,
+		type AlchemistClipboard
+	} from '../alchemistClipboard';
 	import {
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
 		formulaOutputPreviewMap,
@@ -146,6 +150,8 @@
 	let contextMenuX = $state(0);
 	let contextMenuY = $state(0);
 	let contextMenuWorldPosition: GraphNodePosition | null = null;
+	let alchemistClipboard = $state<AlchemistClipboard | null>(null);
+	let alchemistDuplicateInProgress = false;
 	let persistenceTail = Promise.resolve();
 	let previewActivityTimeout: ReturnType<typeof setTimeout> | null = null;
 	let previewActivityDeadlines = new Map<string, number>();
@@ -717,8 +723,11 @@
 							value: [position.x, position.y]
 						}),
 						initialParam('config/property_id', {
-							kind: 'str',
-							value: property.uuid
+							kind: 'reference',
+							uuid: property.uuid,
+							cached_id: property.node_id,
+							cached_name: property.meta.label,
+							relative_path_from_root: []
 						})
 					]
 				}
@@ -821,24 +830,282 @@
 		);
 	});
 
-	const editParameters = async (label: string, intents: UiEditIntent[]): Promise<void> => {
-		if (intents.length === 0) return;
-		const editSession = createUiEditSession(label, 'alchemist-formula');
+	const delay = (durationMs: number): Promise<void> =>
+		new Promise((resolve) => setTimeout(resolve, durationMs));
+
+	const nextAlchemistEditId = (prefix: string): string =>
+		`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+	const waitForAlchemistEditIdle = async (operation: string): Promise<void> => {
+		if (!session) throw new Error(`${operation} requires an active workbench session`);
+		if (session.hasActiveEditSession) {
+			await session.refreshSnapshot();
+		}
 		const deadline = Date.now() + 750;
-		while (!editSession.active && Date.now() <= deadline) {
-			await editSession.begin();
-			if (!editSession.active) {
-				await new Promise((resolve) => setTimeout(resolve, 16));
+		while (session.hasActiveEditSession && Date.now() <= deadline) {
+			await delay(16);
+		}
+		if (session.hasActiveEditSession) {
+			throw new Error(`${operation} is blocked by an active edit session`);
+		}
+	};
+
+	const closeAlchemistEditSession = async (
+		clientEditId: string,
+		forceRefresh = false
+	): Promise<void> => {
+		if (!session) return;
+		if (!session.hasActiveEditSession) {
+			if (forceRefresh) {
+				await session.refreshSnapshot();
+			}
+			return;
+		}
+		const endIntent: UiEditIntent = { kind: 'endEdit', client_edit_id: clientEditId };
+		try {
+			await session.sendIntents([endIntent]);
+		} catch {
+			await session.refreshSnapshot();
+		}
+		const deadline = Date.now() + 750;
+		while (session.hasActiveEditSession && Date.now() <= deadline) {
+			await delay(16);
+		}
+	};
+
+	const sendAlchemistEditBatch = async (
+		label: string,
+		intents: UiEditIntent[],
+		idPrefix = 'alchemist-edit'
+	): Promise<void> => {
+		if (intents.length === 0) return;
+		if (!session) throw new Error(`${label} requires an active workbench session`);
+		await waitForAlchemistEditIdle(label);
+		const clientEditId = nextAlchemistEditId(idPrefix);
+		try {
+			await session.sendIntents([
+				{ kind: 'beginEdit', client_edit_id: clientEditId, label },
+				...intents,
+				{ kind: 'endEdit', client_edit_id: clientEditId }
+			]);
+		} catch (error) {
+			await closeAlchemistEditSession(clientEditId, true);
+			throw error;
+		}
+	};
+
+	const editParameters = async (label: string, intents: UiEditIntent[]): Promise<void> =>
+		sendAlchemistEditBatch(label, intents, 'alchemist-formula');
+
+	const selectedAlchemistClipboard = (): AlchemistClipboard | null => {
+		if (!formula || !graphState || !session) return null;
+		return buildAlchemistClipboard({
+			formula,
+			nodesById: graphState.nodesById,
+			selectedNodeIds: session.selectedNodesIds,
+			anodeNodeIds,
+			anodeItems
+		});
+	};
+
+	const waitForCreatedAnodeLabel = async (
+		parentId: NodeId,
+		knownChildren: Set<NodeId>,
+		label: string
+	): Promise<UiNodeDto | null> => {
+		const deadline = Date.now() + 750;
+		const normalizedLabel = label.trim();
+		while (Date.now() <= deadline) {
+			const parent = graphState?.nodesById.get(parentId);
+			if (parent) {
+				for (const childId of parent.children) {
+					if (knownChildren.has(childId)) continue;
+					const child = graphState?.nodesById.get(childId);
+					if (child?.node_type === ANODE_NODE_TYPE && child.meta.label.trim() === normalizedLabel) {
+						return child;
+					}
+				}
+			}
+			await new Promise((resolve) => setTimeout(resolve, 16));
+		}
+		return null;
+	};
+
+	const duplicateClipboardIntoFormula = async (
+		clipboard: AlchemistClipboard,
+		label: string
+	): Promise<boolean> => {
+		if (!formula || !graphState || !session || clipboard.nodes.length === 0) return false;
+		const preferSourcePosition = clipboard.formulaId === formula.node_id;
+		const offset = findEmptyAlchemistDuplicateOffset({
+			nodes: clipboard.nodes,
+			formula,
+			nodesById: graphState.nodesById,
+			anodeItems,
+			viewportCenter: graphEditor?.viewportCenter() ?? null,
+			preferSourcePosition
+		});
+		const usedLabels = formulaChildLabels(formula, graphState.nodesById);
+		const clientEditId = nextAlchemistEditId('alchemist-duplicate');
+		await waitForAlchemistEditIdle(label);
+
+		const createdBySource = new Map<NodeId, UiNodeDto>();
+		const createdNodeIds: NodeId[] = [];
+		const createdLabels: Array<{ sourceId: NodeId; label: string }> = [];
+		const duplicateIntents: UiEditIntent[] = [];
+		let insertAfterNodeId: NodeId | undefined =
+			preferSourcePosition && clipboard.nodes.length > 0
+				? clipboard.nodes[clipboard.nodes.length - 1].sourceId
+				: formula.children[formula.children.length - 1];
+
+		for (const entry of clipboard.nodes) {
+			const nextPosition = {
+				x: entry.position.x + offset.x,
+				y: entry.position.y + offset.y
+			};
+			const nextLabel = nextAlchemistCopyLabel(entry, usedLabels);
+			const source = graphState.nodesById.get(entry.sourceId);
+			if (
+				source?.node_type === ANODE_NODE_TYPE &&
+				source.meta.user_permissions.can_remove_and_duplicate
+			) {
+				duplicateIntents.push({
+					kind: 'duplicateNode',
+					source: source.node_id,
+					new_parent: formula.node_id,
+					new_prev_sibling: insertAfterNodeId,
+					label: nextLabel,
+					initial_params: [
+						initialParam('position', {
+							kind: 'vec2',
+							value: [nextPosition.x, nextPosition.y]
+						})
+					]
+				});
+			} else if (
+				formula.creatable_user_items.some((item) => item.node_type === entry.createNodeType)
+			) {
+				duplicateIntents.push({
+					kind: 'createUserItem',
+					parent: formula.node_id,
+					node_type: entry.createNodeType,
+					label: nextLabel,
+					initial_params: [
+						initialParam('position', {
+							kind: 'vec2',
+							value: [nextPosition.x, nextPosition.y]
+						})
+					]
+				});
+			} else {
+				continue;
+			}
+			createdLabels.push({ sourceId: entry.sourceId, label: nextLabel });
+			insertAfterNodeId = undefined;
+		}
+
+		if (duplicateIntents.length === 0) return false;
+
+		const knownChildren = new Set(formula.children);
+		const needsConnectionPass = clipboard.edges.length > 0;
+		const beginIntent: UiEditIntent = { kind: 'beginEdit', client_edit_id: clientEditId, label };
+		const endIntent: UiEditIntent = { kind: 'endEdit', client_edit_id: clientEditId };
+		let duplicateSessionMayNeedCleanup = true;
+		let duplicateFailed = false;
+		try {
+			await session.sendIntents([
+				beginIntent,
+				...duplicateIntents,
+				...(needsConnectionPass ? [] : [endIntent])
+			]);
+			if (!needsConnectionPass) {
+				duplicateSessionMayNeedCleanup = false;
+			}
+
+			for (const createdLabel of createdLabels) {
+				const created = await waitForCreatedAnodeLabel(
+					formula.node_id,
+					knownChildren,
+					createdLabel.label
+				);
+				if (!created) continue;
+				knownChildren.add(created.node_id);
+				createdBySource.set(createdLabel.sourceId, created);
+				createdNodeIds.push(created.node_id);
+			}
+
+			if (needsConnectionPass) {
+				const connectionIntents = clipboard.edges
+					.map((edge) => createCopiedConnectionIntent(edge, createdBySource, formula, initialParam))
+					.filter((intent): intent is UiEditIntent => intent !== null);
+				await session.sendIntents([...connectionIntents, endIntent]);
+				duplicateSessionMayNeedCleanup = false;
+			}
+		} catch (error) {
+			duplicateFailed = true;
+			throw error;
+		} finally {
+			if (duplicateSessionMayNeedCleanup) {
+				await closeAlchemistEditSession(clientEditId, duplicateFailed);
 			}
 		}
-		if (!editSession.active) throw new Error('could not start Alchemist edit session');
-		try {
-			const result = await sendUiIntentBatch(intents);
-			if (!result.success)
-				throw new Error(`${intents.length - result.appliedCount} edits were rejected`);
-		} finally {
-			await editSession.end();
+
+		if (createdNodeIds.length > 0) {
+			session.selectNodes(createdNodeIds, 'REPLACE');
 		}
+		return true;
+	};
+
+	const copySelectedGraphItems = (): boolean => {
+		const clipboard = selectedAlchemistClipboard();
+		if (!clipboard) return false;
+		alchemistClipboard = clipboard;
+		return true;
+	};
+
+	const duplicateSelectedGraphItems = async (): Promise<boolean> => {
+		if (alchemistDuplicateInProgress) return true;
+		const clipboard = selectedAlchemistClipboard();
+		if (!clipboard) return false;
+		let duplicated = false;
+		alchemistDuplicateInProgress = true;
+		await runMutation(async () => {
+			try {
+				duplicated = await duplicateClipboardIntoFormula(
+					clipboard,
+					clipboard.nodes.length === 1
+						? 'Duplicate ANode'
+						: `Duplicate ${clipboard.nodes.length} ANodes`
+				);
+			} finally {
+				alchemistDuplicateInProgress = false;
+			}
+		});
+		return duplicated;
+	};
+
+	const pasteGraphItems = async (): Promise<boolean> => {
+		if (alchemistDuplicateInProgress) return true;
+		const clipboard = alchemistClipboard;
+		if (!clipboard) return false;
+		let pasted = false;
+		alchemistDuplicateInProgress = true;
+		await runMutation(async () => {
+			try {
+				pasted = await duplicateClipboardIntoFormula(
+					clipboard,
+					clipboard.nodes.length === 1 ? 'Paste ANode' : `Paste ${clipboard.nodes.length} ANodes`
+				);
+			} finally {
+				alchemistDuplicateInProgress = false;
+			}
+		});
+		return pasted;
+	};
+
+	const cutSelectedGraphItems = async (): Promise<boolean> => {
+		if (!copySelectedGraphItems()) return false;
+		return removeSelectedGraphItems();
 	};
 
 	const moveNodes = (moves: GraphNodeMove[]): Promise<void> =>
@@ -1139,11 +1406,35 @@
 			() => (panelOwnsFocus() ? removeSelectedGraphItems() : false),
 			{ priority: 100 }
 		);
+		const unregisterCopy = registerCommandHandler(
+			'edit.copy',
+			() => (panelOwnsFocus() ? copySelectedGraphItems() : false),
+			{ priority: 100 }
+		);
+		const unregisterCut = registerCommandHandler(
+			'edit.cut',
+			() => (panelOwnsFocus() ? cutSelectedGraphItems() : false),
+			{ priority: 100 }
+		);
+		const unregisterDuplicate = registerCommandHandler(
+			'edit.duplicate',
+			() => (panelOwnsFocus() ? duplicateSelectedGraphItems() : false),
+			{ priority: 100 }
+		);
+		const unregisterPaste = registerCommandHandler(
+			'edit.paste',
+			() => (panelOwnsFocus() ? pasteGraphItems() : false),
+			{ priority: 100 }
+		);
 		return () => {
 			unregisterFrame();
 			unregisterHome();
 			unregisterSelectAll();
 			unregisterDeleteSelection();
+			unregisterCopy();
+			unregisterCut();
+			unregisterDuplicate();
+			unregisterPaste();
 		};
 	});
 </script>

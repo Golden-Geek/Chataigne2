@@ -552,24 +552,6 @@ export const formulaConnections = (
 			})
 		: [];
 
-const formulaPropertiesByUuid = (
-	formula: UiNodeDto | null | undefined,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
-): ReadonlyMap<string, UiNodeDto> => {
-	const propertiesRoot = directChild(formula, nodesById, PROPERTIES_DECL_ID);
-	const byUuid = new Map<string, UiNodeDto>();
-	const pending = propertiesRoot ? [...propertiesRoot.children] : [];
-	while (pending.length > 0) {
-		const node = nodesById.get(pending.pop() as NodeId);
-		if (!node) continue;
-		if (node.node_type === PROPERTY_NODE_TYPE) {
-			byUuid.set(node.uuid, node);
-		}
-		pending.push(...node.children);
-	}
-	return byUuid;
-};
-
 const nodeWarning = (node: UiNodeDto): string | undefined => {
 	const warning = node.meta.presentation?.warnings?.[0];
 	if (!warning) return undefined;
@@ -581,7 +563,6 @@ export const toGraphNodes = (
 	nodesById: ReadonlyMap<NodeId, UiNodeDto>,
 	_catalogItems: readonly UiCreatableUserItem[] = []
 ): GraphNode[] => {
-	const propertiesByUuid = formulaPropertiesByUuid(formula, nodesById);
 	return formulaANodes(formula, nodesById).map((anode) => {
 		const position = parameterValue(anode, nodesById, 'position');
 		const sizeParameter = parameterChild(anode, nodesById, 'size');
@@ -590,19 +571,13 @@ export const toGraphNodes = (
 				? sizeParameter.data.param.value
 				: null;
 		const typeId = anodeType(anode);
-		const propertyGetter = typeId === 'property';
 		const managerRef = MANAGER_REF_TYPES.has(typeId);
 		const routingNode = typeId === ROUTING_ANODE_TYPE;
-		const compactNode = propertyGetter || managerRef || routingNode;
+		const compactNode = managerRef || routingNode;
 		const description = anode.meta.description?.trim();
 		const inputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
 		const outputs = graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket');
 		const configRows = 0;
-		const config = directChild(anode, nodesById, 'config');
-		const propertyId = propertyGetter
-			? stringParameter(config, nodesById, 'config/property_id')
-			: null;
-		const propertyNode = propertyId ? propertiesByUuid.get(propertyId) : undefined;
 		const warning = nodeWarning(anode);
 		return {
 			id: String(anode.node_id),
@@ -613,9 +588,7 @@ export const toGraphNodes = (
 			collapsed: anode.meta.presentation?.collapsed === true,
 			enabled: anode.meta.enabled,
 			canDisable: anode.meta.can_be_disabled,
-			color: metadataColor(
-				propertyNode?.meta.presentation?.color ?? anode.meta.presentation?.color
-			),
+			color: metadataColor(anode.meta.presentation?.color),
 			position: {
 				x: position?.kind === 'vec2' ? position.value[0] : 0,
 				y: position?.kind === 'vec2' ? position.value[1] : 0

@@ -1,0 +1,520 @@
+{
+  "version": "1.0",
+  "root": {
+    "uuid": "a94797c2-09c3-49fd-b4be-888a75e9a7e6",
+    "type": "folder",
+    "meta": {
+      "decl_id": "root",
+      "short_name": "root",
+      "enabled": true,
+      "can_be_disabled": false,
+      "label": "Root"
+    },
+    "children": [
+      {
+        "uuid": "0b45cd1c-521e-43d6-995c-96c88c402ced",
+        "type": "dashboard"
+      },
+      {
+        "uuid": "8be56d50-31eb-4622-b3a0-59c4637eba01",
+        "type": "alchemist_formula_library",
+        "children": [
+          {
+            "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab",
+            "type": "alchemist_formula",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "e131bcad-57b7-4e55-9b50-1cc2846e0a25",
+                "type": "alchemist_properties",
+                "meta": {
+                  "decl_id": "properties"
+                },
+                "children": [
+                  {
+                    "uuid": "a2ce9457-d058-46ac-8be5-858401790157",
+                    "type": "alchemist_property",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Float"
+                    },
+                    "children": [
+                      {
+                        "uuid": "9ca12827-9484-4e6d-a919-a4fcea9a235f",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "value"
+                        },
+                        "data": {
+                          "value": {
+                            "Float": 3.7000000000000535
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "209dc863-7624-43a5-bfad-87ec7bacc192",
+                    "type": "alchemist_property",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "decl_id": "floatCopy",
+                      "short_name": "floatCopy",
+                      "label": "Float Copy"
+                    },
+                    "children": [
+                      {
+                        "uuid": "5ec12e55-48b9-4fc1-8966-a4df745d0d6d",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "value"
+                        },
+                        "data": {
+                          "value": {
+                            "Float": 3.200000000000054
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "afc328a8-bda4-4aae-93ee-5c0287601f86",
+                    "type": "alchemist_property",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "String",
+                      "tags": [
+                        "alchemist.property.type:str"
+                      ],
+                      "presentation": {
+                        "color": {
+                          "r": 0.92,
+                          "g": 0.68,
+                          "b": 0.26,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "729fb9ab-1710-47fb-9ff6-6df47c5991c8",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "property_type"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "str"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "ac11c0c1-db21-46a1-b3bc-452d31bace7f",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "Float",
+                  "tags": [
+                    "alchemist.anode.type:property"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.28,
+                      "g": 0.74,
+                      "b": 0.52,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "6a49e0ed-505d-4d55-b567-2808aaf5119d",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          105.3556840483399,
+                          4.341502225891944
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "f5f5c437-2b85-485f-9bb4-a61420bbca75",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "5de1b84a-143b-4d30-a6f9-1a3fc8925e3c",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/property_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Float",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "property"
+                              ],
+                              "uuid": "a2ce9457-d058-46ac-8be5-858401790157"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "37aca193-c54f-4c83-9777-8dc4d946f25b",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs"
+                    },
+                    "children": [
+                      {
+                        "uuid": "e0609af6-a932-4e6e-9453-17619f776e5e",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/value",
+                          "presentation": {
+                            "color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "66574954-1be1-4743-ac2f-e94cd97ca151",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/value/socket_id",
+                              "short_name": "socketId",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "value"
+                              },
+                              "read_only": true
+                            }
+                          },
+                          {
+                            "uuid": "afdeeb44-7d6c-4f85-a39b-085fad766f47",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/value/value_type",
+                              "short_name": "valueType",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "control_modes_enabled": false,
+                              "default_value": {
+                                "Str": "float"
+                              },
+                              "read_only": true
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "a6f945d3-c0b3-4c24-b9d5-f91c612d9d3b",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "Math",
+                  "tags": [
+                    "alchemist.anode.type:math"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.2476000000000001,
+                      "g": 0.5183466666666666,
+                      "b": 0.8724000000000001,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "1b43b68f-955b-4165-96fa-9c62e72f0e09",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          100.17819030989833,
+                          12.346770317717173
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "8afee67c-c6a1-4e15-acfe-26efc5d27a0d",
+                "type": "alchemist_connection",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "connection",
+                  "short_name": "connection",
+                  "label": "Connection",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "8144c581-b727-4cdc-8b48-cb79cc7162b6",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Float",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "ac11c0c1-db21-46a1-b3bc-452d31bace7f"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "ec37d1e5-d448-43fc-b3ff-f71f54cf7713",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "value"
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "5c704b69-2971-4409-8eb6-6eda5ca83206",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Math",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "a6f945d3-c0b3-4c24-b9d5-f91c612d9d3b"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "7bb83810-64eb-4b20-a42d-0ea21e2f1289",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "value1"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "765323d3-8d56-4bf6-889e-94e6f151998a",
+        "type": "module_manager"
+      },
+      {
+        "uuid": "ea58c5b8-9ccc-4908-8f7f-a66d1c355e06",
+        "type": "state_machine_manager",
+        "children": [
+          {
+            "uuid": "7d9e94c1-d913-4cb7-af72-63f1789e99d9",
+            "type": "state",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "54520638-ee24-4c9f-8f4d-bd7469049a80",
+                "type": "vec2",
+                "meta": {
+                  "decl_id": "position"
+                },
+                "data": {
+                  "value": {
+                    "Vec2": [
+                      93.0,
+                      16.5
+                    ]
+                  }
+                }
+              },
+              {
+                "uuid": "486a5b04-3b18-4781-a55b-277d46c8fd48",
+                "type": "vec2",
+                "meta": {
+                  "decl_id": "size",
+                  "enabled": true
+                },
+                "data": {
+                  "value": {
+                    "Vec2": [
+                      18.09404775856326,
+                      13.09404902039818
+                    ]
+                  }
+                }
+              },
+              {
+                "uuid": "a0f941fd-7c7d-40e7-8ae6-b743fc4af975",
+                "type": "state_processor_manager",
+                "meta": {
+                  "decl_id": "processors",
+                  "presentation": {
+                    "show_in_nested_inspector": false
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "59c382cc-b9e2-4064-a361-d4cf121133ae",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Formula"
+                    },
+                    "children": [
+                      {
+                        "uuid": "dd6ad4b9-5159-4ca6-9d69-a4359775e0d3",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Formula",
+                              "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "386e5945-ffd1-4eaf-8182-5c4abaea9cc2",
+                        "type": "state_processor_properties",
+                        "children": [
+                          {
+                            "uuid": "b9a25719-2330-4781-9abb-1c67eebe28cc",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "surface/a2ce9457-d058-46ac-8be5-858401790157",
+                              "label": "Float"
+                            }
+                          },
+                          {
+                            "uuid": "cdd0a576-b635-427b-9896-5dc8d3414160",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "surface/afc328a8-bda4-4aae-93ee-5c0287601f86",
+                              "short_name": "string",
+                              "label": "String"
+                            }
+                          },
+                          {
+                            "uuid": "213dfe76-28b7-4dc1-b579-bbfd2f8ae8c4",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "surface/209dc863-7624-43a5-bfad-87ec7bacc192",
+                              "short_name": "floatCopy",
+                              "label": "Float Copy"
+                            },
+                            "data": {
+                              "default_value": {
+                                "Float": 3.7000000000000535
+                              },
+                              "value": {
+                                "Float": 3.7000000000000535
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
