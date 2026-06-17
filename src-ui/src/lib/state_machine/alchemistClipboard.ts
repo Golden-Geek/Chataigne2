@@ -1,15 +1,8 @@
 import type { GraphEdge, GraphNode, GraphNodePosition } from 'golden_alchemist_ui';
-import type {
-	NodeId,
-	UiCreateUserItemInitialParam,
-	UiCreatableUserItem,
-	UiEditIntent,
-	UiNodeDto
-} from 'golden_ui';
+import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
 import {
 	ANODE_CREATE_PREFIX,
 	ANODE_NODE_TYPE,
-	CONNECTION_NODE_TYPE,
 	anodeType,
 	toGraphEdges,
 	toGraphNodes
@@ -291,41 +284,3 @@ export const formulaChildLabels = (
 			.map((childId) => nodesById.get(childId)?.meta.label.trim())
 			.filter((label): label is string => label !== undefined && label.length > 0)
 	);
-
-export const createCopiedConnectionIntent = (
-	edge: AlchemistClipboardEdge,
-	createdBySource: ReadonlyMap<NodeId, UiNodeDto>,
-	formula: UiNodeDto,
-	initialParam: (
-		decl_id: string,
-		value: UiCreateUserItemInitialParam['value']
-	) => UiCreateUserItemInitialParam
-): UiEditIntent | null => {
-	const source = createdBySource.get(edge.sourceNodeId);
-	const target = createdBySource.get(edge.targetNodeId);
-	if (!source || !target) return null;
-	return {
-		kind: 'createUserItem',
-		parent: formula.node_id,
-		node_type: CONNECTION_NODE_TYPE,
-		label: 'Connection',
-		initial_params: [
-			initialParam('source_node', {
-				kind: 'reference',
-				uuid: source.uuid,
-				cached_id: source.node_id,
-				cached_name: source.meta.label,
-				relative_path_from_root: []
-			}),
-			initialParam('source_socket', { kind: 'str', value: edge.sourceSocketId }),
-			initialParam('target_node', {
-				kind: 'reference',
-				uuid: target.uuid,
-				cached_id: target.node_id,
-				cached_name: target.meta.label,
-				relative_path_from_root: []
-			}),
-			initialParam('target_socket', { kind: 'str', value: edge.targetSocketId })
-		]
-	};
-};

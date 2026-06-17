@@ -194,7 +194,7 @@
                     },
                     "children": [
                       {
-                        "uuid": "e0609af6-a932-4e6e-9453-17619f776e5e",
+                        "uuid": "68aa4022-9405-4d47-8f06-c21bbc4b00f8",
                         "type": "alchemist_output_socket",
                         "meta": {
                           "decl_id": "outputs/value",
@@ -209,7 +209,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "66574954-1be1-4743-ac2f-e94cd97ca151",
+                            "uuid": "8df53c30-604b-4ff5-8eaf-808d569ed68b",
                             "type": "str",
                             "meta": {
                               "decl_id": "outputs/value/socket_id",
@@ -228,7 +228,7 @@
                             }
                           },
                           {
-                            "uuid": "afdeeb44-7d6c-4f85-a39b-085fad766f47",
+                            "uuid": "eb6c7550-4b5b-4fa9-bae4-2e5a7c8397aa",
                             "type": "str",
                             "meta": {
                               "decl_id": "outputs/value/value_type",

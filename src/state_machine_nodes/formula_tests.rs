@@ -7,7 +7,11 @@ use golden_core::{
     },
     parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
-    ui_sync::{UiCreateUserItemInitialParam, UiEditIntent},
+    ui_sync::{
+        UiCreateUserItemInitialParam, UiDuplicateDependentInitialParamValue,
+        UiDuplicateDependentUserItem, UiDuplicateDependentUserItemInitialParam,
+        UiDuplicateNodeSpec, UiEditIntent,
+    },
 };
 use golden_alchemist::{RuntimeValue, TriggerValue, ValueTypeId};
 
@@ -1526,6 +1530,145 @@ fn duplicating_multiple_anodes_offsets_positions_without_corrupting_sockets() {
         assert_unique_socket_ids(&engine, copy, "outputs");
         prev_sibling = Some(copy);
     }
+}
+
+#[test]
+fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
+    let (mut engine, formula) = engine_with_formula();
+    let source = create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    let target = create_anode(&mut engine, formula, "debug_log", 18.0, 3.0);
+    create_connection(&mut engine, formula, source, "value", target, "value");
+
+    let edit_id = "test-duplicate-connected-anodes".to_string();
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Duplicate connected ANodes".into()),
+        client_edit_id: edit_id.clone(),
+        ui_client_instance_id: None,
+    });
+    engine
+        .apply_edits()
+        .expect("Duplicate edit session should begin");
+
+    let copied = engine
+        .ui_apply_duplicate_nodes_with_dependent_user_items(
+            vec![
+                UiDuplicateNodeSpec {
+                    source,
+                    new_parent: formula,
+                    new_prev_sibling: Some(target),
+                    label: Some("Constant Copy".into()),
+                    initial_params: vec![UiCreateUserItemInitialParam {
+                        decl_id: DeclId("position".into()),
+                        value: ParamValue::Vec2(22.0, 3.0),
+                    }],
+                },
+                UiDuplicateNodeSpec {
+                    source: target,
+                    new_parent: formula,
+                    new_prev_sibling: None,
+                    label: Some("Debug Copy".into()),
+                    initial_params: vec![UiCreateUserItemInitialParam {
+                        decl_id: DeclId("position".into()),
+                        value: ParamValue::Vec2(38.0, 3.0),
+                    }],
+                },
+            ],
+            Vec::new(),
+            vec![UiDuplicateDependentUserItem {
+                parent: formula,
+                node_type: AlchemistConnection::NODE_TYPE.to_owned(),
+                label: Some("Connection".into()),
+                initial_params: vec![
+                    UiDuplicateDependentUserItemInitialParam {
+                        decl_id: DeclId("source_node".into()),
+                        value: UiDuplicateDependentInitialParamValue::DuplicatedNodeReference {
+                            source,
+                        },
+                    },
+                    UiDuplicateDependentUserItemInitialParam {
+                        decl_id: DeclId("source_socket".into()),
+                        value: UiDuplicateDependentInitialParamValue::Literal {
+                            value: ParamValue::Str("value".into()),
+                        },
+                    },
+                    UiDuplicateDependentUserItemInitialParam {
+                        decl_id: DeclId("target_node".into()),
+                        value: UiDuplicateDependentInitialParamValue::DuplicatedNodeReference {
+                            source: target,
+                        },
+                    },
+                    UiDuplicateDependentUserItemInitialParam {
+                        decl_id: DeclId("target_socket".into()),
+                        value: UiDuplicateDependentInitialParamValue::Literal {
+                            value: ParamValue::Str("value".into()),
+                        },
+                    },
+                ],
+            }],
+            |node| node.project_encode_data(),
+            <AppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("Connected ANode duplicate batch should apply");
+
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: edit_id,
+    });
+    engine
+        .apply_edits()
+        .expect("Duplicate edit session should end");
+
+    assert_eq!(copied.len(), 2);
+    assert_eq!(
+        parameter_value(&engine, copied[0], "position"),
+        ParamValue::Vec2(22.0, 3.0)
+    );
+    assert_eq!(
+        parameter_value(&engine, copied[1], "position"),
+        ParamValue::Vec2(38.0, 3.0)
+    );
+
+    let materialized = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+        .expect("Formula should materialize after connected duplicate");
+    assert_eq!(materialized.graph.nodes.len(), 4);
+    assert_eq!(materialized.graph.edges.len(), 2);
+    let copied_source = materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.label == "Constant Copy")
+        .expect("Copied source ANode should materialize")
+        .id
+        .clone();
+    let copied_target = materialized
+        .graph
+        .nodes
+        .values()
+        .find(|node| node.label == "Debug Copy")
+        .expect("Copied target ANode should materialize")
+        .id
+        .clone();
+    assert!(
+        materialized.graph.edges.iter().any(|edge| {
+            edge.from.node == copied_source
+                && edge.from.socket.to_string() == "value"
+                && edge.to.node == copied_target
+                && edge.to.socket.to_string() == "value"
+        }),
+        "Copied edge should connect the copied source and target ANodes"
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(
+        ack.success,
+        "Undoing connected duplicate should remove the whole copied block: {ack:?}"
+    );
+    let materialized_after_undo = formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+        .expect("Formula should materialize after duplicate undo");
+    assert_eq!(materialized_after_undo.graph.nodes.len(), 2);
+    assert_eq!(materialized_after_undo.graph.edges.len(), 1);
+    assert!(engine.nodes.get(copied[0]).is_none());
+    assert!(engine.nodes.get(copied[1]).is_none());
 }
 
 #[derive(Clone, Copy)]

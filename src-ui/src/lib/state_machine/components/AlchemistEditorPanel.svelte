@@ -16,6 +16,9 @@
 		PanelState,
 		UiCreateUserItemInitialParam,
 		UiCreatableUserItem,
+		UiDuplicateCreateUserItemSpec,
+		UiDuplicateDependentUserItem,
+		UiDuplicateNodeSpec,
 		UiEditIntent,
 		UiNodeDto
 	} from 'golden_ui';
@@ -63,7 +66,6 @@
 	} from '../generated';
 	import {
 		buildAlchemistClipboard,
-		createCopiedConnectionIntent,
 		findEmptyAlchemistDuplicateOffset,
 		formulaChildLabels,
 		nextAlchemistCopyLabel,
@@ -946,13 +948,10 @@
 			preferSourcePosition
 		});
 		const usedLabels = formulaChildLabels(formula, graphState.nodesById);
-		const clientEditId = nextAlchemistEditId('alchemist-duplicate');
-		await waitForAlchemistEditIdle(label);
 
-		const createdBySource = new Map<NodeId, UiNodeDto>();
-		const createdNodeIds: NodeId[] = [];
-		const createdLabels: Array<{ sourceId: NodeId; label: string }> = [];
-		const duplicateIntents: UiEditIntent[] = [];
+		const createdLabels: string[] = [];
+		const duplicateNodes: UiDuplicateNodeSpec[] = [];
+		const createdItems: UiDuplicateCreateUserItemSpec[] = [];
 		let insertAfterNodeId: NodeId | undefined =
 			preferSourcePosition && clipboard.nodes.length > 0
 				? clipboard.nodes[clipboard.nodes.length - 1].sourceId
@@ -969,8 +968,7 @@
 				source?.node_type === ANODE_NODE_TYPE &&
 				source.meta.user_permissions.can_remove_and_duplicate
 			) {
-				duplicateIntents.push({
-					kind: 'duplicateNode',
+				duplicateNodes.push({
 					source: source.node_id,
 					new_parent: formula.node_id,
 					new_prev_sibling: insertAfterNodeId,
@@ -985,8 +983,8 @@
 			} else if (
 				formula.creatable_user_items.some((item) => item.node_type === entry.createNodeType)
 			) {
-				duplicateIntents.push({
-					kind: 'createUserItem',
+				createdItems.push({
+					source: entry.sourceId,
 					parent: formula.node_id,
 					node_type: entry.createNodeType,
 					label: nextLabel,
@@ -1000,54 +998,64 @@
 			} else {
 				continue;
 			}
-			createdLabels.push({ sourceId: entry.sourceId, label: nextLabel });
+			createdLabels.push(nextLabel);
 			insertAfterNodeId = undefined;
 		}
 
-		if (duplicateIntents.length === 0) return false;
+		if (duplicateNodes.length === 0 && createdItems.length === 0) return false;
 
 		const knownChildren = new Set(formula.children);
-		const needsConnectionPass = clipboard.edges.length > 0;
-		const beginIntent: UiEditIntent = { kind: 'beginEdit', client_edit_id: clientEditId, label };
-		const endIntent: UiEditIntent = { kind: 'endEdit', client_edit_id: clientEditId };
-		let duplicateSessionMayNeedCleanup = true;
-		let duplicateFailed = false;
-		try {
-			await session.sendIntents([
-				beginIntent,
-				...duplicateIntents,
-				...(needsConnectionPass ? [] : [endIntent])
-			]);
-			if (!needsConnectionPass) {
-				duplicateSessionMayNeedCleanup = false;
-			}
+		const copiedSourceIds = new Set<NodeId>([
+			...duplicateNodes.map((entry) => entry.source),
+			...createdItems.map((entry) => entry.source)
+		]);
+		const dependentItems: UiDuplicateDependentUserItem[] = clipboard.edges
+			.filter(
+				(edge) => copiedSourceIds.has(edge.sourceNodeId) && copiedSourceIds.has(edge.targetNodeId)
+			)
+			.map((edge) => ({
+				parent: formula.node_id,
+				node_type: CONNECTION_NODE_TYPE,
+				label: 'Connection',
+				initial_params: [
+					{
+						decl_id: 'source_node',
+						value: { kind: 'duplicatedNodeReference', source: edge.sourceNodeId }
+					},
+					{
+						decl_id: 'source_socket',
+						value: { kind: 'literal', value: { kind: 'str', value: edge.sourceSocketId } }
+					},
+					{
+						decl_id: 'target_node',
+						value: { kind: 'duplicatedNodeReference', source: edge.targetNodeId }
+					},
+					{
+						decl_id: 'target_socket',
+						value: { kind: 'literal', value: { kind: 'str', value: edge.targetSocketId } }
+					}
+				]
+			}));
 
-			for (const createdLabel of createdLabels) {
-				const created = await waitForCreatedAnodeLabel(
-					formula.node_id,
-					knownChildren,
-					createdLabel.label
-				);
-				if (!created) continue;
-				knownChildren.add(created.node_id);
-				createdBySource.set(createdLabel.sourceId, created);
-				createdNodeIds.push(created.node_id);
-			}
+		await sendAlchemistEditBatch(
+			label,
+			[
+				{
+					kind: 'duplicateNodes',
+					nodes: duplicateNodes,
+					created_items: createdItems,
+					dependent_items: dependentItems
+				}
+			],
+			'alchemist-duplicate'
+		);
 
-			if (needsConnectionPass) {
-				const connectionIntents = clipboard.edges
-					.map((edge) => createCopiedConnectionIntent(edge, createdBySource, formula, initialParam))
-					.filter((intent): intent is UiEditIntent => intent !== null);
-				await session.sendIntents([...connectionIntents, endIntent]);
-				duplicateSessionMayNeedCleanup = false;
-			}
-		} catch (error) {
-			duplicateFailed = true;
-			throw error;
-		} finally {
-			if (duplicateSessionMayNeedCleanup) {
-				await closeAlchemistEditSession(clientEditId, duplicateFailed);
-			}
+		const createdNodeIds: NodeId[] = [];
+		for (const createdLabel of createdLabels) {
+			const created = await waitForCreatedAnodeLabel(formula.node_id, knownChildren, createdLabel);
+			if (!created) continue;
+			knownChildren.add(created.node_id);
+			createdNodeIds.push(created.node_id);
 		}
 
 		if (createdNodeIds.length > 0) {
