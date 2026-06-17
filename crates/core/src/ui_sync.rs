@@ -5,12 +5,12 @@ use ts_rs::TS;
 
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
-use crate::engine::{Engine, EngineTime};
+use crate::engine::{Engine, EngineTime, ProjectPersistenceError};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
-    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMetaPatch,
-    NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
+    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta,
+    NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
@@ -41,6 +41,24 @@ fn is_false(value: &bool) -> bool {
 }
 
 fn is_empty_create_user_item_initial_params(value: &[UiCreateUserItemInitialParam]) -> bool {
+    value.is_empty()
+}
+
+fn is_empty_duplicate_node_specs(value: &[UiDuplicateNodeSpec]) -> bool {
+    value.is_empty()
+}
+
+fn is_empty_duplicate_create_user_item_specs(value: &[UiDuplicateCreateUserItemSpec]) -> bool {
+    value.is_empty()
+}
+
+fn is_empty_duplicate_dependent_user_items(value: &[UiDuplicateDependentUserItem]) -> bool {
+    value.is_empty()
+}
+
+fn is_empty_duplicate_dependent_initial_params(
+    value: &[UiDuplicateDependentUserItemInitialParam],
+) -> bool {
     value.is_empty()
 }
 
@@ -604,6 +622,81 @@ pub struct UiCreateUserItemInitialParam {
     pub value: ParamValue,
 }
 
+/// One existing subtree root to clone as part of a copy batch.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDuplicateNodeSpec {
+    /// Source node id to clone. Also acts as the key used by dependent references.
+    pub source: NodeId,
+    /// Parent receiving the duplicated subtree root.
+    pub new_parent: NodeId,
+    /// Optional sibling after which insertion occurs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_prev_sibling: Option<NodeId>,
+    /// Optional explicit label for the duplicated root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// Optional direct parameter values applied to the duplicated root before the batch completes.
+    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
+    pub initial_params: Vec<UiCreateUserItemInitialParam>,
+}
+
+/// One fresh user item to create as part of a copy batch.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDuplicateCreateUserItemSpec {
+    /// Source key used by dependent references to address this created item.
+    pub source: NodeId,
+    /// Parent receiving the created item.
+    pub parent: NodeId,
+    /// Runtime node type identifier to instantiate.
+    pub node_type: String,
+    /// Optional explicit label for the new item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// Optional direct parameter values applied to the created root before the batch completes.
+    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
+    pub initial_params: Vec<UiCreateUserItemInitialParam>,
+}
+
+/// Initializer for an item that depends on roots materialized earlier in the same copy batch.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDuplicateDependentUserItemInitialParam {
+    /// Direct child decl id on the newly-created dependent item.
+    pub decl_id: DeclId,
+    /// Literal value or a reference resolved from the copy batch source map.
+    pub value: UiDuplicateDependentInitialParamValue,
+}
+
+/// Value source for a dependent item initializer inside a copy batch.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum UiDuplicateDependentInitialParamValue {
+    /// Use this parameter value as-is.
+    Literal {
+        /// Parameter value assigned directly to the dependent item.
+        value: ParamValue,
+    },
+    /// Reference the copied root produced from `source`.
+    DuplicatedNodeReference {
+        /// Source key whose copied root becomes the reference target.
+        source: NodeId,
+    },
+}
+
+/// One dependent user item to create after copy-batch roots have been materialized.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDuplicateDependentUserItem {
+    /// Parent receiving the dependent item.
+    pub parent: NodeId,
+    /// Runtime node type identifier to instantiate.
+    pub node_type: String,
+    /// Optional explicit label for the dependent item.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// Initial values applied after references to copied roots have been resolved.
+    #[serde(default, skip_serializing_if = "is_empty_duplicate_dependent_initial_params")]
+    pub initial_params: Vec<UiDuplicateDependentUserItemInitialParam>,
+}
+
 /// Post-edit direct child order for one parent node.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiChildrenOrderPatch {
@@ -1106,6 +1199,18 @@ pub enum UiEditIntent {
         /// Optional direct parameter values applied to the duplicated root before the intent completes.
         #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
         initial_params: Vec<UiCreateUserItemInitialParam>,
+    },
+    /// Materializes copied roots and dependent user items as one edit.
+    DuplicateNodes {
+        /// Existing subtree roots to clone.
+        #[serde(default, skip_serializing_if = "is_empty_duplicate_node_specs")]
+        nodes: Vec<UiDuplicateNodeSpec>,
+        /// Fresh user items to create and expose to dependent references.
+        #[serde(default, skip_serializing_if = "is_empty_duplicate_create_user_item_specs")]
+        created_items: Vec<UiDuplicateCreateUserItemSpec>,
+        /// Items whose initial parameters can reference roots created earlier in the batch.
+        #[serde(default, skip_serializing_if = "is_empty_duplicate_dependent_user_items")]
+        dependent_items: Vec<UiDuplicateDependentUserItem>,
     },
     /// Replaces one curve range with a sparse bezier fit of recorded samples.
     FitAnimationCurvePath {
@@ -1671,6 +1776,17 @@ impl<T: Node> Engine<T> {
         label: Option<String>,
         initial_params: Vec<UiCreateUserItemInitialParam>,
     ) -> Result<(), crate::engine::EngineEditError> {
+        self.ui_apply_create_user_item_returning_node(parent, node_type, label, initial_params)
+            .map(|_| ())
+    }
+
+    fn ui_apply_create_user_item_returning_node(
+        &mut self,
+        parent: NodeId,
+        node_type: String,
+        label: Option<String>,
+        initial_params: Vec<UiCreateUserItemInitialParam>,
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
         const OPERATION: &str = "CreateUserItem";
 
         let known_children: HashSet<NodeId> = self
@@ -1681,12 +1797,117 @@ impl<T: Node> Engine<T> {
         self.queue_catalog_create(parent, node_type, label, None)?;
         self.apply_ui_stabilization_to_fixed_point(16)?;
 
-        if initial_params.is_empty() {
-            return Ok(());
+        let created_child = self.ui_resolve_created_child(parent, &known_children)?;
+        if !initial_params.is_empty() {
+            self.ui_apply_initial_params_to_node(created_child, initial_params, OPERATION)?;
+        }
+        Ok(created_child)
+    }
+
+    /// Duplicates/copied roots and then creates dependent user items within the same edit session.
+    pub fn ui_apply_duplicate_nodes_with_dependent_user_items<Encode, Decode>(
+        &mut self,
+        nodes: Vec<UiDuplicateNodeSpec>,
+        created_items: Vec<UiDuplicateCreateUserItemSpec>,
+        dependent_items: Vec<UiDuplicateDependentUserItem>,
+        mut encode_data: Encode,
+        mut decode_node: Decode,
+    ) -> Result<Vec<NodeId>, ProjectPersistenceError>
+    where
+        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        let mut copied_by_source = HashMap::<NodeId, NodeId>::new();
+        let mut copied_roots = Vec::with_capacity(nodes.len() + created_items.len());
+
+        for spec in nodes {
+            let source = spec.source;
+            let duplicated_root = self.duplicate_subtree_with(
+                source,
+                spec.new_parent,
+                spec.new_prev_sibling,
+                spec.label,
+                &mut encode_data,
+                &mut decode_node,
+            )?;
+            if !spec.initial_params.is_empty() {
+                self.ui_apply_initial_params_to_node(
+                    duplicated_root,
+                    spec.initial_params,
+                    "DuplicateNodes",
+                )
+                .map_err(ProjectPersistenceError::Engine)?;
+            }
+            copied_by_source.insert(source, duplicated_root);
+            copied_roots.push(duplicated_root);
         }
 
-        let created_child = self.ui_resolve_created_child(parent, &known_children)?;
-        self.ui_apply_initial_params_to_node(created_child, initial_params, OPERATION)
+        for spec in created_items {
+            let source = spec.source;
+            let created_root = self
+                .ui_apply_create_user_item_returning_node(
+                    spec.parent,
+                    spec.node_type,
+                    spec.label,
+                    spec.initial_params,
+                )
+                .map_err(ProjectPersistenceError::Engine)?;
+            copied_by_source.insert(source, created_root);
+            copied_roots.push(created_root);
+        }
+
+        for item in dependent_items {
+            let initial_params =
+                self.ui_resolve_duplicate_dependent_initial_params(item.initial_params, &copied_by_source)?;
+            self.ui_apply_create_user_item_returning_node(
+                item.parent,
+                item.node_type,
+                item.label,
+                initial_params,
+            )
+            .map_err(ProjectPersistenceError::Engine)?;
+        }
+
+        Ok(copied_roots)
+    }
+
+    fn ui_resolve_duplicate_dependent_initial_params(
+        &self,
+        initial_params: Vec<UiDuplicateDependentUserItemInitialParam>,
+        copied_by_source: &HashMap<NodeId, NodeId>,
+    ) -> Result<Vec<UiCreateUserItemInitialParam>, ProjectPersistenceError> {
+        initial_params
+            .into_iter()
+            .map(|initial_param| {
+                let value = match initial_param.value {
+                    UiDuplicateDependentInitialParamValue::Literal { value } => value,
+                    UiDuplicateDependentInitialParamValue::DuplicatedNodeReference { source } => {
+                        let copied = copied_by_source.get(&source).copied().ok_or_else(|| {
+                            ProjectPersistenceError::Codec {
+                                node_type: "duplicateNodes".to_string(),
+                                message: format!(
+                                    "dependent item references source node {:?} that was not copied",
+                                    source
+                                ),
+                            }
+                        })?;
+                        let node = self
+                            .nodes
+                            .get(copied)
+                            .ok_or(ProjectPersistenceError::MissingNode(copied))?;
+                        let node_data = node.node_data();
+                        let mut reference =
+                            NodeReference::with_cached_id(node_data.meta.uuid, Some(copied));
+                        reference.cached_name = Some(node_data.meta.label.clone());
+                        ParamValue::Reference(reference)
+                    }
+                };
+                Ok(UiCreateUserItemInitialParam {
+                    decl_id: initial_param.decl_id,
+                    value,
+                })
+            })
+            .collect()
     }
 
     /// Applies direct parameter initializers to an already-created user item root.
@@ -1848,6 +2069,23 @@ impl<T: Node> Engine<T> {
                 error_message: Some(format!(
                     "duplicateNode requires transport-level project codec support (source={}, new_parent={}, new_prev_sibling={:?}, label={:?})",
                     source.0, new_parent.0, new_prev_sibling, label
+                )),
+                earliest_event_time: None,
+                history: self.ui_history_state(),
+            },
+            UiEditIntent::DuplicateNodes {
+                nodes,
+                created_items,
+                dependent_items,
+            } => UiAck {
+                success: false,
+                status: UiAckStatus::Rejected,
+                error_code: Some("duplicate_nodes_transport_required".to_string()),
+                error_message: Some(format!(
+                    "duplicateNodes requires transport-level project codec support (nodes={}, created_items={}, dependent_items={})",
+                    nodes.len(),
+                    created_items.len(),
+                    dependent_items.len()
                 )),
                 earliest_event_time: None,
                 history: self.ui_history_state(),

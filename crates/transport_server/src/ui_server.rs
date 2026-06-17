@@ -203,6 +203,38 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
                 history: engine.ui_history_state(),
             },
         },
+        UiEditIntent::DuplicateNodes {
+            nodes,
+            created_items,
+            dependent_items,
+        } => match engine.ui_apply_duplicate_nodes_with_dependent_user_items(
+            nodes,
+            created_items,
+            dependent_items,
+            |node| node.project_encode_data(),
+            |node_type, data, meta| T::project_decode_node(node_type, data, meta),
+        ) {
+            Ok(_) => UiAck {
+                success: true,
+                status: UiAckStatus::Applied,
+                error_code: None,
+                error_message: None,
+                earliest_event_time: engine
+                    .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
+                    .events
+                    .first()
+                    .map(|event| event.time),
+                history: engine.ui_history_state(),
+            },
+            Err(err) => UiAck {
+                success: false,
+                status: UiAckStatus::Rejected,
+                error_code: Some("duplicate_nodes_failed".to_string()),
+                error_message: Some(err.to_string()),
+                earliest_event_time: None,
+                history: engine.ui_history_state(),
+            },
+        },
         other => engine.apply_ui_intent_from_client(other, ui_client_instance_id),
     }
 }
@@ -219,6 +251,7 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
         UiEditIntent::RemoveNodes { .. } => "remove_nodes",
         UiEditIntent::CreateUserItem { .. } => "create_user_item",
         UiEditIntent::DuplicateNode { .. } => "duplicate",
+        UiEditIntent::DuplicateNodes { .. } => "duplicate_nodes",
         UiEditIntent::FitAnimationCurvePath { .. } => "fit_animation_curve_path",
         UiEditIntent::PatchMeta { .. } => "rename",
         UiEditIntent::EnsureUserContextScope { .. } => "ensure_user_context_scope",
