@@ -22,8 +22,8 @@ use crate::app::{ConditionManager, InputsManager, OutputsManager};
 mod catalog;
 
 pub(crate) use self::catalog::{
-    FormulaCatalog, FormulaSourceRef, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
-    BUILTIN_MAPPING_FORMULA_ID,
+    FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
 };
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
@@ -396,13 +396,8 @@ impl StateProcessorManager {
 
 fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
     let source = FormulaSourceRef::parse_processor_create_type(node_type).ok()?;
-    let FormulaSourceRef::ProjectNode(reference) = source else {
-        return None;
-    };
     let mut processor = StateProcessor::new();
-    processor
-        .formula
-        .apply_runtime_value(&ParamValue::Reference(reference));
+    processor.set_formula_source(source);
     Some(Box::new(processor))
 }
 
@@ -508,6 +503,8 @@ impl StateProcessorFolder {
     );
 )]
 pub struct StateProcessor {
+    #[state(default = ProcessorFormulaSourceState::default(), persist)]
+    formula_source: ProcessorFormulaSourceState,
     #[state(default = None)]
     subscribed_formula: Option<NodeId>,
 }
@@ -535,6 +532,7 @@ impl Node for StateProcessor {
         _old_value: ParamValue,
     ) {
         if param == self.formula.id() {
+            self.sync_formula_source_from_reference();
             self.refresh_formula_subscription(ctx);
         }
         self.reconcile_formula(ctx);
@@ -586,21 +584,56 @@ impl Node for StateProcessor {
 }
 
 impl StateProcessor {
-    fn formula_node(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Option<NodeId> {
+    fn set_formula_source(&mut self, source: FormulaSourceRef) {
+        self.formula_source = ProcessorFormulaSourceState::from_source(&source);
+        match source {
+            FormulaSourceRef::ProjectNode(reference) => self
+                .formula
+                .apply_runtime_value(&ParamValue::Reference(reference)),
+            FormulaSourceRef::Builtin { .. } => self
+                .formula
+                .apply_runtime_value(&ParamValue::Reference(NodeReference::default())),
+        };
+    }
+
+    fn sync_formula_source_from_reference(&mut self) {
         let reference = self.formula.get_ref();
-        if reference.is_empty() {
-            return None;
+        self.formula_source = if reference.is_empty() {
+            ProcessorFormulaSourceState::Empty
+        } else {
+            ProcessorFormulaSourceState::from_source(&FormulaSourceRef::ProjectNode(
+                reference.clone(),
+            ))
+        };
+    }
+
+    fn formula_source_ref(
+        &self,
+    ) -> Result<Option<FormulaSourceRef>, catalog::FormulaSourceParseError> {
+        match self.formula_source.to_source_ref()? {
+            Some(source) => Ok(Some(source)),
+            None => {
+                let reference = self.formula.get_ref();
+                if reference.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(FormulaSourceRef::ProjectNode(reference.clone())))
+                }
+            }
         }
-        snapshot
-            .node_id_by_uuid(reference.uuid())
-            .filter(|formula| {
-                snapshot
-                    .node(*formula)
-                    .is_some_and(|node| node.node_type == FORMULA_NODE_TYPE)
-            })
+    }
+
+    fn formula_node(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+        let FormulaSourceRef::ProjectNode(reference) =
+            self.formula_source_ref().ok().flatten()?
+        else {
+            return None;
+        };
+        snapshot.node_id_by_uuid(reference.uuid()).filter(|formula| {
+            snapshot
+                .node(*formula)
+                .is_some_and(|node| node.node_type == FORMULA_NODE_TYPE)
+        })
     }
 
     fn refresh_formula_subscription(&mut self, ctx: &mut ProcessCtx) {
@@ -633,23 +666,33 @@ impl StateProcessor {
             return;
         };
 
-        let warning = match self.formula_node(&snapshot) {
-            None => {
-                let detail = if self.formula.get_ref().is_empty() {
-                    "This processor has no formula assigned."
-                } else {
-                    "The referenced formula could not be found."
-                };
-                Some(("Missing formula", detail.to_owned()))
+        let warning = match self.formula_source_ref() {
+            Err(error) => Some(("Invalid formula source", error.to_string())),
+            Ok(None) => Some((
+                "Missing formula",
+                "This processor has no formula assigned.".to_owned(),
+            )),
+            Ok(Some(source @ FormulaSourceRef::Builtin { .. })) => {
+                let catalog = FormulaCatalog::from_snapshot(&snapshot);
+                catalog
+                    .resolve_builtin(&source)
+                    .err()
+                    .map(|error| ("Missing formula", error.to_string()))
             }
-            Some(formula) => {
+            Ok(Some(FormulaSourceRef::ProjectNode(_))) => match self.formula_node(&snapshot) {
+                None => Some((
+                    "Missing formula",
+                    "The referenced formula could not be found.".to_owned(),
+                )),
+                Some(formula) => {
                 node_has_warning(&snapshot, formula, FORMULA_WARNING_ID).then(|| {
                     let detail =
                         node_warning_detail(&snapshot, formula, FORMULA_WARNING_ID)
                             .unwrap_or_else(|| "The formula has errors.".to_owned());
                     ("Formula has errors", detail)
                 })
-            }
+                }
+            },
         };
 
         match warning {

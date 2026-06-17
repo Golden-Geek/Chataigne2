@@ -11,10 +11,10 @@ use crate::app::{
 };
 
 use super::{
-    FormulaCatalog, FormulaSourceRef, PROCESSOR_FOLDER_ITEM_KIND,
-    PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND, StateProcessor,
-    StateProcessorFolder, StateProcessorManager, StateProcessorProperties,
-    BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
+    FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND,
+    StateProcessor, StateProcessorFolder, StateProcessorManager,
+    StateProcessorProperties, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
     BUILTIN_MAPPING_FORMULA_ID,
 };
 use crate::app::state_machine_nodes_formula::{
@@ -159,6 +159,106 @@ fn invalid_builtin_formula_source_fails_cleanly() {
     assert!(parse_error
         .to_string()
         .contains("invalid builtin formula version"));
+}
+
+#[test]
+fn processor_created_from_typed_project_item_keeps_source_and_reference() {
+    let (_, _, formula_uuid) = engine_with_formula();
+    let manager = StateProcessorManager::new();
+    let processor = manager
+        .create_user_item(&format!("state_processor:project:{}", formula_uuid.0))
+        .expect("typed project processor should be creatable");
+    let processor = processor
+        .as_any()
+        .downcast_ref::<StateProcessor>()
+        .expect("created item should be a state processor");
+
+    assert!(matches!(
+        processor.formula_source.to_source_ref(),
+        Ok(Some(FormulaSourceRef::ProjectNode(reference))) if reference.uuid() == formula_uuid
+    ));
+    assert_eq!(processor.formula.get_ref().uuid(), formula_uuid);
+}
+
+#[test]
+fn processor_created_from_builtin_mapping_item_keeps_source_without_project_reference() {
+    let manager = StateProcessorManager::new();
+    let processor = manager
+        .create_user_item("state_processor:builtin:chataigne.mapping@1")
+        .expect("builtin Mapping processor should be creatable");
+    let processor = processor
+        .as_any()
+        .downcast_ref::<StateProcessor>()
+        .expect("created item should be a state processor");
+
+    assert!(matches!(
+        processor.formula_source.to_source_ref(),
+        Ok(Some(FormulaSourceRef::Builtin {
+            package,
+            formula_id,
+            version,
+        })) if package.as_ref() == BUILTIN_FORMULA_PACKAGE
+            && formula_id.as_ref() == BUILTIN_MAPPING_FORMULA_ID
+            && version == BUILTIN_FORMULA_VERSION
+    ));
+    assert!(processor.formula.get_ref().is_empty());
+}
+
+#[test]
+fn processor_formula_source_state_serializes_builtin_source() {
+    let state = ProcessorFormulaSourceState::from_source(&FormulaSourceRef::builtin(
+        BUILTIN_FORMULA_PACKAGE,
+        BUILTIN_MAPPING_FORMULA_ID,
+        BUILTIN_FORMULA_VERSION,
+    ));
+    let json = serde_json::to_string(&state).expect("source state should serialize");
+    let restored: ProcessorFormulaSourceState =
+        serde_json::from_str(&json).expect("source state should deserialize");
+
+    assert_eq!(restored, state);
+    assert!(matches!(
+        restored.to_source_ref(),
+        Ok(Some(FormulaSourceRef::Builtin {
+            package,
+            formula_id,
+            version,
+        })) if package.as_ref() == BUILTIN_FORMULA_PACKAGE
+            && formula_id.as_ref() == BUILTIN_MAPPING_FORMULA_ID
+            && version == BUILTIN_FORMULA_VERSION
+    ));
+}
+
+#[test]
+fn builtin_mapping_processor_has_no_missing_formula_warning() {
+    let (mut engine, _, _) = engine_with_formula();
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+    let mut processor = StateProcessor::new();
+    processor.set_formula_source(FormulaSourceRef::builtin(
+        BUILTIN_FORMULA_PACKAGE,
+        BUILTIN_MAPPING_FORMULA_ID,
+        BUILTIN_FORMULA_VERSION,
+    ));
+    engine.add_user_item(processor.into(), Some(manager_id));
+    engine.apply_edits().expect("Processor should attach");
+    let processor_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Processor should exist");
+
+    assert!(!node_has_warning_id(
+        &engine,
+        processor_id,
+        "state_processor_formula"
+    ));
 }
 
 #[test]

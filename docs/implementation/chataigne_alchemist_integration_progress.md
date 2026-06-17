@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 1 - Formula catalog and built-in formula sources is complete and
-ready for the Phase 1 supercommit.
+Phase 2 - Processor formula sources is complete and ready for the Phase 2
+supercommit.
 
 ## Completed Tasks
 
@@ -45,16 +45,32 @@ ready for the Phase 1 supercommit.
   `cargo test --workspace` passed with 282 app tests and 34
   state-machine tests. The existing 2 ignored Alchemist tests remain ignored
   as stale pre-manager-ref behavior.
+- Completed Phase 1 supercommit:
+  `a6086e0 supercommit: chataigne alchemist integration phase 1 - formula catalog`
+- Added persisted `ProcessorFormulaSourceState` on `StateProcessor`.
+- Added typed processor source writes for both project formulas and built-ins.
+- Kept legacy project processors viable by falling back to the old `Formula`
+  node reference when the persisted source state is empty.
+- Synced the typed source state when the legacy project `Formula` reference
+  parameter changes.
+- Updated processor creation so built-in `Action` and `Mapping` create
+  source-backed processor nodes instead of failing creation.
+- Updated processor warnings so valid built-in sources do not report a
+  missing project formula.
+- Added source-state serialization coverage.
+- Ran targeted processor tests:
+  `cargo test app::state_machine_nodes_processor::processor_tests -- --nocapture`
+  passed with 15 tests.
+- Ran full workspace validation:
+  `cargo test --workspace` passed with 286 app tests and 34
+  state-machine tests. The existing 2 ignored Alchemist tests remain ignored
+  as stale pre-manager-ref behavior.
 
 ## Pending Tasks
 
-- Complete the Phase 1 supercommit.
-- Start Phase 2 by replacing `StateProcessor`'s project-only formula
-  reference with a typed formula source selection.
-- Make built-in `Action` and `Mapping` processor creation produce valid
-  source-backed processor instances. Phase 1 intentionally stops at catalog
-  visibility and built-in formula resolution because `StateProcessor` cannot
-  yet persist a built-in source.
+- Complete the Phase 2 supercommit.
+- Start Phase 3 by replacing placeholder built-in formulas with shipped
+  built-in formula package loading.
 
 ## Baseline Architecture Summary
 
@@ -130,17 +146,38 @@ ready for the Phase 1 supercommit.
   `state_processor:builtin:<package>.<formula_id>@<version>`.
 - Invalid built-in source strings and unknown built-in sources return explicit
   errors; they do not silently fall back to fake project nodes.
-- Actual built-in processor instance creation is deferred to Phase 2 because
-  the current `StateProcessor` data model only stores a project
-  `NodeReference`.
+- Built-in processor instance creation now persists a typed built-in source
+  state and clears the legacy project reference parameter.
+
+## Processor Formula Reference Migration
+
+- `StateProcessor` now persists `ProcessorFormulaSourceState`.
+- New project processors store a project source state and still mirror the
+  project formula into the existing `Formula` reference parameter.
+- New built-in processors store a built-in source state and keep the legacy
+  `Formula` reference empty.
+- Existing project processors with only a legacy `Formula` reference continue
+  to resolve through a fallback path.
+- Formula reference parameter edits resync the typed source state to a project
+  source.
+
+## Creation Item Protocol
+
+- Project formula creation uses
+  `state_processor:project:<formula_uuid>`.
+- Built-in formula creation uses
+  `state_processor:builtin:chataigne.action@1` and
+  `state_processor:builtin:chataigne.mapping@1`.
+- Legacy `state_processor:<formula_uuid>` parsing remains as a narrow
+  transition path for old project formula creation strings.
 
 ## Blocking Design Issues
 
-- Built-in `Action` and `Mapping` are represented as catalog entries, but
-  processor instances still cannot persist them until Phase 2 replaces the
-  project-only formula reference model.
-- The processor palette is catalog-driven, but processor creation still has
-  to bridge through `UserCreatableItem` string IDs at the UI/node boundary.
+- Built-in `Action` and `Mapping` can now create source-backed processor
+  instances, but their formulas are still placeholder in-memory built-ins
+  until Phase 3 adds shipped formula package loading.
+- The processor palette and creation path still bridge through
+  `UserCreatableItem` string IDs at the UI/node boundary.
 - Processor creation is parsed from ad-hoc strings at the node creation
   boundary and then immediately loses source information by storing only a
   project node reference.
@@ -177,6 +214,9 @@ ready for the Phase 1 supercommit.
 - Phase 1 deliberately keeps actual built-in processor creation for Phase 2.
   Creating those processors before `StateProcessor` can store
   `FormulaSourceRef` would put built-in state in the wrong field.
+- Phase 2 uses a persisted source-state model while retaining the existing
+  project `Formula` reference parameter as a transitional UI/project-formula
+  mirror.
 
 ## Migration Notes
 
@@ -187,6 +227,8 @@ ready for the Phase 1 supercommit.
 - Phase 1 accepts both legacy `state_processor:<uuid>` and typed
   `state_processor:project:<uuid>` project source strings. This is a narrow
   transitional parser, not a long-term compatibility policy.
+- Phase 2 does not force-migrate existing project processors. Empty source
+  state plus a non-empty legacy formula reference resolves as a project source.
 - Current value collection naming is `chataigne.param_array`; Phase 5 needs
   to either migrate that persisted type or explicitly reject old data.
 
@@ -201,8 +243,10 @@ ready for the Phase 1 supercommit.
 - Large graph performance tests already exist and pass. Later managed-region
   and pipeline-lowering work must preserve sparse lane memory and shared
   compiled formula behavior.
-- Until Phase 2 lands, built-in Action/Mapping palette entries identify valid
-  catalog sources but do not yet create valid processor instances.
+- Unknown built-in source strings can still instantiate a processor if they
+  are manually passed through the creation boundary; the processor surfaces an
+  explicit missing-source warning. Phase 3 should narrow this once package
+  loading owns the complete built-in list.
 
 ## Tests Added
 
@@ -211,10 +255,16 @@ ready for the Phase 1 supercommit.
 - `builtins_are_not_formula_library_items`
 - Updated `processor_manager_lists_custom_formulas` to assert catalog-backed
   built-ins plus the existing project formula entry.
+- `processor_created_from_typed_project_item_keeps_source_and_reference`
+- `processor_created_from_builtin_mapping_item_keeps_source_without_project_reference`
+- `processor_formula_source_state_serializes_builtin_source`
+- `builtin_mapping_processor_has_no_missing_formula_warning`
 
 ## Supercommit History
 
 - Completed:
   `f4b9888 supercommit: chataigne alchemist integration phase 0 - baseline audit`
+- Completed:
+  `a6086e0 supercommit: chataigne alchemist integration phase 1 - formula catalog`
 - Pending commit:
-  `supercommit: chataigne alchemist integration phase 1 - formula catalog`
+  `supercommit: chataigne alchemist integration phase 2 - processor formula sources`

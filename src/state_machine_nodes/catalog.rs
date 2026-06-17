@@ -8,6 +8,7 @@ use golden_core::{
     node::{NodeId, NodeReference, NodeUuid, UserCreatableItem},
     process_ctx::ProcessTreeSnapshot,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::app::state_machine_nodes_formula::formula_from_snapshot;
 
@@ -29,6 +30,60 @@ pub(crate) enum FormulaSourceRef {
         formula_id: Arc<str>,
         version: u32,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) enum ProcessorFormulaSourceState {
+    Empty,
+    Project { uuid: String },
+    Builtin {
+        package: String,
+        formula_id: String,
+        version: u32,
+    },
+}
+
+impl Default for ProcessorFormulaSourceState {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+
+impl ProcessorFormulaSourceState {
+    pub(crate) fn from_source(source: &FormulaSourceRef) -> Self {
+        match source {
+            FormulaSourceRef::ProjectNode(reference) => Self::Project {
+                uuid: reference.uuid().0.to_string(),
+            },
+            FormulaSourceRef::Builtin {
+                package,
+                formula_id,
+                version,
+            } => Self::Builtin {
+                package: package.to_string(),
+                formula_id: formula_id.to_string(),
+                version: *version,
+            },
+        }
+    }
+
+    pub(crate) fn to_source_ref(
+        &self,
+    ) -> Result<Option<FormulaSourceRef>, FormulaSourceParseError> {
+        match self {
+            Self::Empty => Ok(None),
+            Self::Project { uuid } => parse_project_formula_source(uuid).map(Some),
+            Self::Builtin {
+                package,
+                formula_id,
+                version,
+            } => Ok(Some(FormulaSourceRef::builtin(
+                package.as_str(),
+                formula_id.as_str(),
+                *version,
+            ))),
+        }
+    }
 }
 
 impl FormulaSourceRef {
