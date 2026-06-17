@@ -1103,6 +1103,9 @@ pub enum UiEditIntent {
         /// Optional explicit label for the duplicated root.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         label: Option<String>,
+        /// Optional direct parameter values applied to the duplicated root before the intent completes.
+        #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
+        initial_params: Vec<UiCreateUserItemInitialParam>,
     },
     /// Replaces one curve range with a sparse bezier fit of recorded samples.
     FitAnimationCurvePath {
@@ -1683,13 +1686,23 @@ impl<T: Node> Engine<T> {
         }
 
         let created_child = self.ui_resolve_created_child(parent, &known_children)?;
+        self.ui_apply_initial_params_to_node(created_child, initial_params, OPERATION)
+    }
+
+    /// Applies direct parameter initializers to an already-created user item root.
+    pub fn ui_apply_initial_params_to_node(
+        &mut self,
+        created_child: NodeId,
+        initial_params: Vec<UiCreateUserItemInitialParam>,
+        operation: &'static str,
+    ) -> Result<(), crate::engine::EngineEditError> {
         for initial_param in initial_params {
             let Some(param_node) =
                 self.ui_find_created_item_param_node(created_child, initial_param.decl_id.0.as_str())
             else {
                 return Err(crate::engine::EngineEditError::NodeMutationRejected {
                     edit_index: 0,
-                    operation: OPERATION,
+                    operation,
                     node: created_child,
                     node_type: self
                         .nodes
@@ -1708,7 +1721,7 @@ impl<T: Node> Engine<T> {
                 value: initial_param.value,
                 behaviour: ParameterEventBehaviour::Coalesce,
             });
-            self.apply_ui_stabilization_to_fixed_point(16)?;
+            self.apply_ui_initialization_to_fixed_point(16)?;
         }
 
         Ok(())
@@ -1813,7 +1826,13 @@ impl<T: Node> Engine<T> {
                 label,
                 initial_params,
             } => {
-                let result = self.ui_apply_create_user_item(parent, node_type, label, initial_params);
+                let edit_label = label.clone().unwrap_or_else(|| "Create user item".to_string());
+                let result = self.apply_implicit_ui_edit_session(
+                    &edit_label,
+                    "__ui-create-user-item",
+                    ui_client_instance_id,
+                    |engine| engine.ui_apply_create_user_item(parent, node_type, label, initial_params),
+                );
                 self.finish_ui_apply_now(before_len, result)
             }
             UiEditIntent::DuplicateNode {
@@ -1821,6 +1840,7 @@ impl<T: Node> Engine<T> {
                 new_parent,
                 new_prev_sibling,
                 label,
+                initial_params: _,
             } => UiAck {
                 success: false,
                 status: UiAckStatus::Rejected,
@@ -2140,6 +2160,40 @@ impl<T: Node> Engine<T> {
                 .map(|node| node.get_type().to_string())
                 .unwrap_or_else(|| "unknown".to_string()),
             message: format!("ui intent left pending edits or inbox events after {pass_limit} stabilization passes"),
+        })
+    }
+
+    fn apply_ui_initialization_to_fixed_point(
+        &mut self,
+        max_passes: usize,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        let pass_limit = max_passes.max(1);
+        for _ in 0..pass_limit {
+            if !self.edits.pending.is_empty() {
+                self.apply_edits_without_history()?;
+            }
+
+            if !self.inbox.events.is_empty() {
+                self.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)?;
+            }
+
+            if self.edits.pending.is_empty() && self.inbox.events.is_empty() {
+                return Ok(());
+            }
+        }
+
+        Err(crate::engine::EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation: "UiApplyInitializationFixedPoint",
+            node: self.root,
+            node_type: self
+                .nodes
+                .get(self.root)
+                .map(|node| node.get_type().to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            message: format!(
+                "ui initializer left pending edits or inbox events after {pass_limit} stabilization passes"
+            ),
         })
     }
 

@@ -207,6 +207,11 @@ impl UiReadModel {
             history,
             user_contexts,
         } = capture;
+        {
+            let mut header = self.snapshot_header.lock().expect("ui read model poisoned");
+            header.history = history;
+            header.user_contexts = user_contexts;
+        }
         if batch.events.is_empty() {
             return batch;
         }
@@ -235,8 +240,6 @@ impl UiReadModel {
             {
                 let mut header = self.snapshot_header.lock().expect("ui read model poisoned");
                 header.at = at;
-                header.history = history;
-                header.user_contexts = user_contexts;
             }
 
             self.rebuild_current_from_store();
@@ -273,6 +276,13 @@ impl UiReadModel {
     pub fn snapshot_for_scope(&self, scope: UiSubscriptionScope) -> UiSnapshot {
         let snapshot = self.current_snapshot();
         let mut out = (*snapshot).clone();
+        {
+            let header = self.snapshot_header.lock().expect("ui read model poisoned");
+            out.at = header.at;
+            out.history = header.history.clone();
+            out.user_contexts = header.user_contexts.clone();
+            out.project_file = header.project_file.clone();
+        }
         out.scope = scope.clone();
         out.nodes = filter_snapshot_nodes(&snapshot, scope);
         out.protocol_version = UI_PROTOCOL_VERSION.to_string();

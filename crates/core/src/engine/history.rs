@@ -239,7 +239,13 @@ impl<T: Node> HistoryStep<T> {
                     return Ok(());
                 }
 
-                let subtree = engine.collect_subtree(0, OP, step.node)?;
+                let subtree = match engine.collect_subtree(0, OP, step.node) {
+                    Ok(subtree) => subtree,
+                    Err(EngineEditError::NodeNotFound { node, .. }) if node == step.node => {
+                        return Ok(());
+                    }
+                    Err(err) => return Err(err),
+                };
                 engine.run_destroy_for_subtree(subtree.as_slice());
                 let (parent, prev_sibling, next_sibling) = engine.node_position(0, OP, step.node)?;
                 engine.detach_node(0, OP, step.node)?;

@@ -161,6 +161,7 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
             new_parent,
             new_prev_sibling,
             label,
+            initial_params,
         } => match engine.duplicate_subtree_with(
             source,
             new_parent,
@@ -169,18 +170,30 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
             |node| node.project_encode_data(),
             |node_type, data, meta| T::project_decode_node(node_type, data, meta),
         ) {
-            Ok(_) => UiAck {
-                success: true,
-                status: UiAckStatus::Applied,
-                error_code: None,
-                error_message: None,
-                earliest_event_time: engine
-                    .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
-                    .events
-                    .first()
-                    .map(|event| event.time),
-                history: engine.ui_history_state(),
-            },
+            Ok(duplicated_root) => {
+                match engine.ui_apply_initial_params_to_node(duplicated_root, initial_params, "DuplicateNode") {
+                    Ok(()) => UiAck {
+                        success: true,
+                        status: UiAckStatus::Applied,
+                        error_code: None,
+                        error_message: None,
+                        earliest_event_time: engine
+                            .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
+                            .events
+                            .first()
+                            .map(|event| event.time),
+                        history: engine.ui_history_state(),
+                    },
+                    Err(err) => UiAck {
+                        success: false,
+                        status: UiAckStatus::Rejected,
+                        error_code: Some("duplicate_node_failed".to_string()),
+                        error_message: Some(err.to_string()),
+                        earliest_event_time: None,
+                        history: engine.ui_history_state(),
+                    },
+                }
+            }
             Err(err) => UiAck {
                 success: false,
                 status: UiAckStatus::Rejected,
@@ -277,6 +290,17 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
         timing.requires_resync,
         timing.total_ms
     );
+}
+
+fn skipped_after_failed_batch_ack<T: ProjectLifecycle>(engine: &Engine<T>) -> UiAck {
+    UiAck {
+        success: false,
+        status: UiAckStatus::Rejected,
+        error_code: Some("intent_batch_cancelled".to_string()),
+        error_message: Some("intent batch stopped after a previous failure".to_string()),
+        earliest_event_time: None,
+        history: engine.ui_history_state(),
+    }
 }
 
 fn refresh_read_model_after_project_replace<T: ProjectLifecycle>(
@@ -785,7 +809,24 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                     .get(&client_id)
                     .and_then(|client| client.client_instance_id.as_deref());
 
+                let mut opened_edit_session: Option<String> = None;
+                let mut stop_after_failure = false;
                 for (index, intent) in intents.into_iter().enumerate() {
+                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(|active_id| {
+                        matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id)
+                    });
+                    if stop_after_failure && !is_matching_end_edit {
+                        acks.push(skipped_after_failed_batch_ack(&guard));
+                        continue;
+                    }
+                    let begin_edit_id = match &intent {
+                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
+                    let end_edit_id = match &intent {
+                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
                     let intent_started = if index == 0 { total_started } else { Instant::now() };
                     let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
                     let (ack, capture, timing) = apply_ui_intent_with_timing(
@@ -796,9 +837,21 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         lock_wait_ms,
                         intent_started,
                     );
+                    let should_stop = !ack.success;
+                    if ack.success {
+                        if let Some(client_edit_id) = begin_edit_id {
+                            opened_edit_session = Some(client_edit_id);
+                        }
+                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
+                            opened_edit_session = None;
+                        }
+                    }
                     acks.push(ack);
                     captures.push(capture);
                     timing_rows.push(timing);
+                    if should_stop {
+                        stop_after_failure = true;
+                    }
                 }
 
                 (acks, captures, timing_rows)
@@ -1296,7 +1349,24 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 let mut acks = Vec::<UiAck>::with_capacity(intents.len());
                 let mut captures = Vec::<UiEventCapture>::with_capacity(intents.len());
                 let mut timing_rows = Vec::<UiIntentTiming>::new();
+                let mut opened_edit_session: Option<String> = None;
+                let mut stop_after_failure = false;
                 for (index, intent) in intents.into_iter().enumerate() {
+                    let is_matching_end_edit = opened_edit_session.as_ref().is_some_and(|active_id| {
+                        matches!(&intent, UiEditIntent::EndEdit { client_edit_id } if client_edit_id == active_id)
+                    });
+                    if stop_after_failure && !is_matching_end_edit {
+                        acks.push(skipped_after_failed_batch_ack(&guard));
+                        continue;
+                    }
+                    let begin_edit_id = match &intent {
+                        UiEditIntent::BeginEdit { client_edit_id, .. } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
+                    let end_edit_id = match &intent {
+                        UiEditIntent::EndEdit { client_edit_id } => Some(client_edit_id.clone()),
+                        _ => None,
+                    };
                     let intent_started = if index == 0 { total_started } else { Instant::now() };
                     let lock_wait_ms = if index == 0 { first_lock_wait_ms } else { 0 };
                     let (ack, capture, timing) = apply_ui_intent_with_timing(
@@ -1307,9 +1377,21 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                         lock_wait_ms,
                         intent_started,
                     );
+                    let should_stop = !ack.success;
+                    if ack.success {
+                        if let Some(client_edit_id) = begin_edit_id {
+                            opened_edit_session = Some(client_edit_id);
+                        }
+                        if end_edit_id.as_ref() == opened_edit_session.as_ref() {
+                            opened_edit_session = None;
+                        }
+                    }
                     acks.push(ack);
                     captures.push(capture);
                     timing_rows.push(timing);
+                    if should_stop {
+                        stop_after_failure = true;
+                    }
                 }
                 (acks, captures, timing_rows)
             }; // engine lock dropped here

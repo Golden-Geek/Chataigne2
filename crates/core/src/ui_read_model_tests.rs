@@ -1,7 +1,8 @@
+use crate::edit::{Edit, EditOrigin};
 use crate::engine::Engine;
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
-use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec};
+use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
 
 fn apply_param_change(engine: &mut Engine<Parameter>, value: i32) {
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -107,4 +108,58 @@ fn project_file_path_survives_structural_rebuild() {
     read_model.publish_engine_events_since(&engine, structural_cursor);
 
     assert_eq!(read_model.current_snapshot().project_file, project_file);
+}
+
+#[test]
+fn eventless_end_edit_updates_snapshot_history_after_structural_edit() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let session_id = "duplicate-anode";
+
+    engine.edits.push(Edit::BeginEditSession {
+        origin: EditOrigin::Ui,
+        label: Some("Duplicate ANode".to_string()),
+        client_edit_id: session_id.to_string(),
+        ui_client_instance_id: None,
+    });
+    engine.apply_edits().expect("edit session should begin");
+    read_model.publish_engine_events_since(&engine, read_model.current_event_time());
+
+    let structural_cursor = read_model.current_event_time();
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("child", ParamValue::Int(1), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine
+        .apply_edits()
+        .expect("structural edit should apply inside edit session");
+    read_model.publish_engine_events_since(&engine, structural_cursor);
+
+    assert!(
+        read_model
+            .snapshot_for_scope(UiSubscriptionScope::WholeGraph)
+            .history
+            .active_edit_session,
+        "structural edit capture should expose the active edit session"
+    );
+
+    let end_cursor = read_model.current_event_time();
+    engine.edits.push(Edit::EndEditSession {
+        client_edit_id: session_id.to_string(),
+    });
+    engine.apply_edits().expect("edit session should end");
+    let end_batch = read_model.publish_engine_events_since(&engine, end_cursor);
+
+    assert!(
+        end_batch.events.is_empty(),
+        "ending an edit session should not need graph events to update history"
+    );
+    assert!(
+        !read_model
+            .snapshot_for_scope(UiSubscriptionScope::WholeGraph)
+            .history
+            .active_edit_session,
+        "eventless end edit capture should clear snapshot history"
+    );
 }
