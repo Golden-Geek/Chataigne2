@@ -19,6 +19,13 @@ use crate::app::state_machine_nodes_formula::{
 };
 use crate::app::{ConditionManager, InputsManager, OutputsManager};
 
+mod catalog;
+
+pub(crate) use self::catalog::{
+    FormulaCatalog, FormulaSourceRef, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
+    BUILTIN_MAPPING_FORMULA_ID,
+};
+
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
 const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
@@ -43,23 +50,6 @@ fn processor_container_accepts(item_type: &str, item_kind: &str) -> bool {
 
 fn initialize_processor_item(node: &mut dyn Node) {
     node.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
-}
-
-fn build_formula_items(snapshot: &ProcessTreeSnapshot, library: NodeId) -> Vec<UserCreatableItem> {
-    snapshot
-        .child_ids(library)
-        .into_iter()
-        .filter_map(|formula_id| {
-            let formula = snapshot.node(formula_id)?;
-            (formula.node_type == FORMULA_NODE_TYPE).then(|| {
-                UserCreatableItem::new(
-                    format!("state_processor:{}", formula.uuid.0),
-                    PROCESSOR_ITEM_KIND,
-                    &formula.label,
-                )
-            })
-        })
-        .collect()
 }
 
 fn find_formula_library(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
@@ -393,10 +383,7 @@ impl StateProcessorManager {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
         self.formula_items = ctx
             .tree_snapshot()
-            .and_then(|snapshot| {
-                find_formula_library(snapshot)
-                    .map(|library| build_formula_items(snapshot, library))
-            })
+            .map(|snapshot| FormulaCatalog::from_snapshot(snapshot).processor_palette_items())
             .unwrap_or_default();
         let all_items = self.user_creatable_items();
         let _ = ctx.emit_custom_payload(
@@ -408,15 +395,14 @@ impl StateProcessorManager {
 }
 
 fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
-    let formula_uuid = node_type
-        .strip_prefix("state_processor:")?
-        .parse::<uuid::Uuid>()
-        .ok()
-        .map(NodeUuid)?;
+    let source = FormulaSourceRef::parse_processor_create_type(node_type).ok()?;
+    let FormulaSourceRef::ProjectNode(reference) = source else {
+        return None;
+    };
     let mut processor = StateProcessor::new();
-    processor.formula.apply_runtime_value(&ParamValue::Reference(
-        NodeReference::new(formula_uuid),
-    ));
+    processor
+        .formula
+        .apply_runtime_value(&ParamValue::Reference(reference));
     Some(Box::new(processor))
 }
 
@@ -507,10 +493,7 @@ impl StateProcessorFolder {
     fn refresh_formula_items(&mut self, ctx: &mut ProcessCtx) {
         self.formula_items = ctx
             .tree_snapshot()
-            .and_then(|snapshot| {
-                find_formula_library(snapshot)
-                    .map(|library| build_formula_items(snapshot, library))
-            })
+            .map(|snapshot| FormulaCatalog::from_snapshot(snapshot).processor_palette_items())
             .unwrap_or_default();
     }
 }

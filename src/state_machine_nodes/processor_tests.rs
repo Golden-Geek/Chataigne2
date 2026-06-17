@@ -11,9 +11,11 @@ use crate::app::{
 };
 
 use super::{
-    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
-    PROCESSOR_ITEM_KIND, StateProcessor, StateProcessorFolder,
-    StateProcessorManager, StateProcessorProperties,
+    FormulaCatalog, FormulaSourceRef, PROCESSOR_FOLDER_ITEM_KIND,
+    PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND, StateProcessor,
+    StateProcessorFolder, StateProcessorManager, StateProcessorProperties,
+    BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
+    BUILTIN_MAPPING_FORMULA_ID,
 };
 use crate::app::state_machine_nodes_formula::{
     AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
@@ -54,7 +56,7 @@ fn engine_with_formula() -> (
 
 #[test]
 fn processor_manager_lists_custom_formulas() {
-    let (mut engine, _, _) = engine_with_formula();
+    let (mut engine, _, formula_uuid) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
 
@@ -70,9 +72,93 @@ fn processor_manager_lists_custom_formulas() {
         .filter(|item| item.item_kind == PROCESSOR_ITEM_KIND)
         .collect::<Vec<_>>();
 
-    assert_eq!(formula_items.len(), 1);
-    assert_eq!(formula_items[0].label, "Custom Formula");
-    assert!(formula_items[0].node_type.starts_with("state_processor:"));
+    let labels = formula_items
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(labels, vec!["Action", "Mapping", "Custom Formula"]);
+    assert_eq!(
+        formula_items[0].node_type,
+        "state_processor:builtin:chataigne.action@1"
+    );
+    assert_eq!(
+        formula_items[1].node_type,
+        "state_processor:builtin:chataigne.mapping@1"
+    );
+    assert_eq!(
+        formula_items[2].node_type,
+        format!("state_processor:project:{}", formula_uuid.0)
+    );
+}
+
+#[test]
+fn builtins_are_not_formula_library_items() {
+    let (engine, _, _) = engine_with_formula();
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("formula library should exist");
+    let labels = library
+        .user_creatable_items()
+        .into_iter()
+        .map(|item| item.label)
+        .collect::<Vec<_>>();
+
+    assert!(!labels.iter().any(|label| label == "Action"));
+    assert!(!labels.iter().any(|label| label == "Mapping"));
+}
+
+#[test]
+fn builtin_formula_sources_parse_and_resolve() {
+    let catalog = FormulaCatalog::with_builtins();
+    let source = FormulaSourceRef::parse_processor_create_type(
+        "state_processor:builtin:chataigne.mapping@1",
+    )
+    .expect("builtin source should parse");
+    let FormulaSourceRef::Builtin {
+        package,
+        formula_id,
+        version,
+    } = &source
+    else {
+        panic!("expected builtin source");
+    };
+    assert_eq!(package.as_ref(), BUILTIN_FORMULA_PACKAGE);
+    assert_eq!(formula_id.as_ref(), BUILTIN_MAPPING_FORMULA_ID);
+    assert_eq!(*version, BUILTIN_FORMULA_VERSION);
+
+    let formula = catalog
+        .resolve_builtin(&source)
+        .expect("builtin Mapping should resolve");
+    assert_eq!(formula.label, "Mapping");
+    assert_eq!(formula.version, BUILTIN_FORMULA_VERSION);
+}
+
+#[test]
+fn invalid_builtin_formula_source_fails_cleanly() {
+    let catalog = FormulaCatalog::with_builtins();
+    let source = FormulaSourceRef::builtin(
+        BUILTIN_FORMULA_PACKAGE,
+        "missing",
+        BUILTIN_FORMULA_VERSION,
+    );
+    let error = catalog
+        .resolve_builtin(&source)
+        .expect_err("unknown builtin should fail");
+
+    assert!(error
+        .to_string()
+        .contains("builtin formula source 'builtin:chataigne.missing@1'"));
+
+    let parse_error = FormulaSourceRef::parse_processor_create_type(
+        "state_processor:builtin:chataigne.mapping@bad",
+    )
+    .expect_err("invalid builtin version should fail");
+    assert!(parse_error
+        .to_string()
+        .contains("invalid builtin formula version"));
 }
 
 #[test]
