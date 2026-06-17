@@ -570,9 +570,10 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
         "macos"
     };
 
+    // Runs at document-start, before <html> exists, so guard documentElement
+    // (otherwise `document.documentElement.dataset` throws on null at launch).
     let init_script = format!(
-        "window.__PLATFORM__ = '{}'; document.documentElement.dataset.platform = '{}';",
-        os, os
+        "window.__PLATFORM__ = '{os}'; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"
     );
 
     let dispatch_close_requested_to_frontend = |window: &tauri::Window<R>| -> bool {
