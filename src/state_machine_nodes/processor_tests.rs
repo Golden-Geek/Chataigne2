@@ -1,3 +1,4 @@
+use golden_alchemist::{ManagedRegionKind, SurfaceItemKind};
 use golden_core::{
     node::{Folder, Node, NodeId, NodeReference},
     parameter::{ParamValue, Parameter},
@@ -180,6 +181,85 @@ fn builtin_formula_package_loads_action_and_single_mapping() {
 }
 
 #[test]
+fn builtin_formulas_expose_empty_managed_regions() {
+    let catalog = FormulaCatalog::with_builtins();
+    let action = catalog
+        .resolve_builtin(&FormulaSourceRef::builtin(
+            BUILTIN_FORMULA_PACKAGE,
+            BUILTIN_ACTION_FORMULA_ID,
+            BUILTIN_FORMULA_VERSION,
+        ))
+        .expect("builtin Action should resolve");
+    let mapping = catalog
+        .resolve_builtin(&FormulaSourceRef::builtin(
+            BUILTIN_FORMULA_PACKAGE,
+            BUILTIN_MAPPING_FORMULA_ID,
+            BUILTIN_FORMULA_VERSION,
+        ))
+        .expect("builtin Mapping should resolve");
+
+    assert_region_kinds(
+        &mapping,
+        &[
+            ("inputs", ManagedRegionKind::InputSet, SurfaceItemKind::Input),
+            (
+                "filters",
+                ManagedRegionKind::FilterPipeline,
+                SurfaceItemKind::Filter,
+            ),
+            ("outputs", ManagedRegionKind::OutputSet, SurfaceItemKind::Output),
+        ],
+    );
+    assert_region_kinds(
+        &action,
+        &[
+            (
+                "trigger",
+                ManagedRegionKind::ActionTrigger,
+                SurfaceItemKind::Input,
+            ),
+            (
+                "pipeline",
+                ManagedRegionKind::FilterPipeline,
+                SurfaceItemKind::Filter,
+            ),
+            (
+                "commands",
+                ManagedRegionKind::ActionCommands,
+                SurfaceItemKind::Action,
+            ),
+        ],
+    );
+    assert!(!mapping
+        .surface
+        .managed_regions
+        .iter()
+        .any(|region| region.id.as_str().contains("condition")));
+
+    let mapping_instance = mapping.instantiate();
+    mapping_instance
+        .managed_regions
+        .validate_against(&mapping.surface)
+        .expect("empty Mapping regions should be valid");
+    assert!(mapping_instance
+        .managed_regions
+        .regions
+        .values()
+        .all(|region| region.items.is_empty()));
+
+    let action_instance = action.instantiate();
+    action_instance
+        .managed_regions
+        .validate_against(&action.surface)
+        .expect("empty Action regions should be valid");
+    assert!(action_instance
+        .managed_regions
+        .regions
+        .values()
+        .all(|region| region.items.is_empty()));
+}
+
+#[test]
 fn invalid_builtin_formula_source_fails_cleanly() {
     let catalog = FormulaCatalog::with_builtins();
     let source = FormulaSourceRef::builtin(
@@ -202,6 +282,30 @@ fn invalid_builtin_formula_source_fails_cleanly() {
     assert!(parse_error
         .to_string()
         .contains("invalid builtin formula version"));
+}
+
+fn assert_region_kinds(
+    formula: &golden_alchemist::AlchemistFormula,
+    expected: &[(&str, ManagedRegionKind, SurfaceItemKind)],
+) {
+    let actual = formula
+        .surface
+        .managed_regions
+        .iter()
+        .map(|region| {
+            (
+                region.id.as_str().to_owned(),
+                region.kind,
+                region.accepted_roles.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let expected = expected
+        .iter()
+        .map(|(id, kind, role)| ((*id).to_owned(), *kind, vec![*role]))
+        .collect::<Vec<_>>();
+
+    assert_eq!(actual, expected);
 }
 
 #[test]

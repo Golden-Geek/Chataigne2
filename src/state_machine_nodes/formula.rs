@@ -2499,7 +2499,10 @@ fn formula_surface_from_snapshot(
         source: SurfaceSource::Formula,
     }];
     sections.extend(manager_sections);
-    Ok(FormulaSurface { sections })
+    Ok(FormulaSurface {
+        sections,
+        managed_regions: Vec::new(),
+    })
 }
 
 fn surface_item_from_property(

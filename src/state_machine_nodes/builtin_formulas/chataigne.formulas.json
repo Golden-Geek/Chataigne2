@@ -17,6 +17,35 @@
         "can_duplicate_to_library": true,
         "open_readonly_from_processor": true
       },
+      "surface": {
+        "sections": [],
+        "managed_regions": [
+          {
+            "id": "trigger",
+            "kind": "action_trigger",
+            "label": "Trigger",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Input"]
+          },
+          {
+            "id": "pipeline",
+            "kind": "filter_pipeline",
+            "label": "Pipeline",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Filter"]
+          },
+          {
+            "id": "commands",
+            "kind": "action_commands",
+            "label": "Commands",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Action"]
+          }
+        ]
+      },
       "processor_template": true
     },
     {
@@ -34,6 +63,35 @@
         "show_in_processor_palette": true,
         "can_duplicate_to_library": true,
         "open_readonly_from_processor": true
+      },
+      "surface": {
+        "sections": [],
+        "managed_regions": [
+          {
+            "id": "inputs",
+            "kind": "input_set",
+            "label": "Inputs",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Input"]
+          },
+          {
+            "id": "filters",
+            "kind": "filter_pipeline",
+            "label": "Filters",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Filter"]
+          },
+          {
+            "id": "outputs",
+            "kind": "output_set",
+            "label": "Outputs",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Output"]
+          }
+        ]
       },
       "processor_template": true
     }

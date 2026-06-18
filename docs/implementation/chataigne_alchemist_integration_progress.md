@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 4 - Managed region model is next. No Phase 4 implementation has started
-yet.
+Phase 5 - ValueSet is next after the Phase 4 managed region model
+supercommit.
 
 ## Completed Tasks
 
@@ -87,15 +87,58 @@ yet.
   `cargo test --workspace` passed with 287 app tests and 34
   state-machine tests. The existing 2 ignored Alchemist tests remain ignored
   as stale pre-manager-ref behavior.
+- Completed Phase 3 supercommit:
+  `1ecd2c7 supercommit: chataigne alchemist integration phase 3 - builtin formulas`
+- Added reusable managed-region authoring metadata to
+  `golden_alchemist::FormulaSurface`.
+- Added `ManagedRegionKind` values for `InputSet`, `FilterPipeline`,
+  `OutputSet`, `ActionTrigger`, and `ActionCommands`.
+- Added `ManagedRegionDefinition`, `ManagedSocketRef`,
+  `ManagedRegionInstances`, `ManagedRegionInstance`, `ManagedItemInstance`,
+  and `ManagedItemUiState`.
+- Added `ManagedRegionId` and `ManagedItemId` to the Alchemist ID layer.
+- Added `managed_regions` to `AlchemistFormulaInstance`; formula
+  instantiation now materializes empty region instances from the formula
+  surface definitions.
+- Added explicit validation for managed-region instance references so stale
+  or invalid region IDs report a diagnostic instead of being accepted
+  silently.
+- Declared the built-in `Action` managed regions in the shipped package:
+  `trigger`, `pipeline`, and `commands`.
+- Declared the built-in `Mapping` managed regions in the shipped package:
+  `inputs`, `filters`, and `outputs`.
+- Kept `ConditionGate` out of the managed region model; conditions remain
+  future filter-capable ANodes.
+- Kept project-authored formula surfaces on the existing section-only path
+  with an empty managed-region list.
+- Ran reusable Alchemist targeted tests:
+  `cargo test -p golden_alchemist formula_tests -- --nocapture` passed with
+  4 tests.
+- Ran targeted processor tests:
+  `cargo test app::state_machine_nodes_processor::processor_tests -- --nocapture`
+  passed with 17 tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  90 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 34 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+- Completed reusable Alchemist submodule Phase 4 commit:
+  `06a7712 supercommit: chataigne alchemist integration phase 4 - managed regions`
 
 ## Pending Tasks
 
-- Start Phase 4 by introducing the managed region model for built-in Mapping
-  and Action surfaces.
-- Define serializable managed region kinds for `InputSet`, `FilterPipeline`,
-  `OutputSet`, `ActionTrigger`, and `ActionCommands`.
-- Keep `ConditionGate` out of the managed region kind list; it belongs in the
-  filter-capable ANode model in later phases.
+- Start Phase 5 by replacing the narrow `param_array` /
+  `parameters_array` value collection concept with `ValueSet`.
+- Decide whether the current `chataigne.param_array` project data should be
+  migrated or rejected as a clean schema break.
+- Keep `ValueSet` as a boundary collection type; do not make every ANode
+  array-aware.
 
 ## Baseline Architecture Summary
 
@@ -203,6 +246,56 @@ yet.
 - Built-ins remain hidden from the project formula library and visible in the
   processor palette through their package visibility metadata.
 
+## Managed Region Model
+
+- Managed regions are serialized authoring metadata on
+  `golden_alchemist::FormulaSurface`.
+- Region definitions are generic reusable formula-surface data, not
+  Chataigne-specific runtime evaluators.
+- Region instances live on `AlchemistFormulaInstance` as
+  `ManagedRegionInstances`.
+- `AlchemistFormula::instantiate` creates one empty instance for each managed
+  region definition so empty built-in `Action` and `Mapping` processors are
+  valid before later lowering/runtime phases exist.
+- Supported Phase 4 region kinds are exactly:
+  `InputSet`, `FilterPipeline`, `OutputSet`, `ActionTrigger`, and
+  `ActionCommands`.
+- `ConditionGate`, condition regions, and mapping-specific condition regions
+  were intentionally not added.
+- `ManagedSocketRef` can point a future region to formula graph sockets, but
+  the Phase 4 built-ins keep sockets empty because their graphs are still
+  intentionally empty.
+- `ManagedRegionInstances::validate_against` reports unknown region IDs
+  explicitly.
+
+## Region Ownership
+
+- `golden_alchemist` owns the reusable region data structures and validation
+  primitive because they are formula-surface metadata.
+- Chataigne owns the `Action` and `Mapping` built-in region declarations in
+  `src/state_machine_nodes/builtin_formulas/chataigne.formulas.json`.
+- Project-authored formula snapshots currently produce no managed regions;
+  managed regions are introduced first for the shipped built-ins.
+
+## Serialization Strategy
+
+- `FormulaSurface.managed_regions` has a serde default so older serialized
+  surfaces without managed-region metadata still deserialize as section-only
+  surfaces.
+- `ManagedRegionKind` serializes as snake_case for package readability, for
+  example `filter_pipeline` and `action_commands`.
+- Empty region instances serialize as normal instance state through
+  `AlchemistFormulaInstance.managed_regions`.
+
+## Known Missing UI Integration
+
+- Managed regions are not yet exposed through the Rust protocol DTOs or
+  generated TypeScript output.
+- Processor UI still uses the existing formula property surface; Phase 16 will
+  project managed regions into the Svelte surfaces.
+- No managed-region lowering or runtime execution exists yet. That remains
+  Phase 8 and Phase 9 work.
+
 ## Processor Formula Reference Migration
 
 - `StateProcessor` now persists `ProcessorFormulaSourceState`.
@@ -280,6 +373,17 @@ yet.
   file-discovery dependency before package management exists.
 - Phase 3 ships empty graph definitions for built-ins instead of adding
   shortcut evaluators. Managed regions and lowering remain later phases.
+- Phase 4 stores managed region definitions on `FormulaSurface`, because they
+  are authoring metadata for formula surfaces and should not create a separate
+  app-only side table.
+- Phase 4 stores instance region state on `AlchemistFormulaInstance`, keeping
+  future per-processor managed items with the formula instance rather than the
+  shared built-in formula definition.
+- Phase 4 deliberately does not add `ConditionGate` to the region kind list.
+  Conditions will enter as filter-capable ANodes in a later phase.
+- Phase 4 does not expose managed regions in the protocol yet. The backend
+  model and built-in package format are now durable enough for later UI work,
+  but Phase 16 owns Svelte projection and interaction design.
 
 ## Migration Notes
 
@@ -294,6 +398,8 @@ yet.
   state plus a non-empty legacy formula reference resolves as a project source.
 - Current value collection naming is `chataigne.param_array`; Phase 5 needs
   to either migrate that persisted type or explicitly reject old data.
+- `FormulaSurface.managed_regions` uses a serde default, so existing formula
+  surfaces without the field deserialize as empty managed-region surfaces.
 
 ## Known Risks
 
@@ -315,6 +421,11 @@ yet.
 - Empty built-in graphs are valid for Phase 3 but not user-complete. Phase 4
   must add managed region definitions before the built-in surfaces become
   useful.
+- Managed regions are now declared, but they do not yet lower to executable
+  graph behavior. The built-in processors remain structurally valid but not
+  end-to-end useful until later pipeline and InputSet/OutputSet phases.
+- Protocol/UI projection of managed regions is deferred, so frontend surfaces
+  cannot use the new metadata yet.
 
 ## Tests Added
 
@@ -328,6 +439,10 @@ yet.
 - `processor_formula_source_state_serializes_builtin_source`
 - `builtin_mapping_processor_has_no_missing_formula_warning`
 - `builtin_formula_package_loads_action_and_single_mapping`
+- `managed_region_kind_roundtrips_through_json`
+- `empty_managed_regions_are_instantiated_from_surface`
+- `invalid_managed_region_reference_reports_diagnostic`
+- `builtin_formulas_expose_empty_managed_regions`
 
 ## Supercommit History
 
@@ -338,4 +453,9 @@ yet.
 - Completed:
   `4fff469 supercommit: chataigne alchemist integration phase 2 - processor formula sources`
 - Completed in the current supercommit:
-  `supercommit: chataigne alchemist integration phase 3 - builtin formulas`
+- Completed:
+  `1ecd2c7 supercommit: chataigne alchemist integration phase 3 - builtin formulas`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 4 - managed regions`
+- Reusable Alchemist submodule commit:
+  `06a7712 supercommit: chataigne alchemist integration phase 4 - managed regions`
