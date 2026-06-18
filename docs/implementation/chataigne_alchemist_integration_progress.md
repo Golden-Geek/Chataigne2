@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 8 - Pipeline shape checker is next after the Phase 7 ConditionGate
-ANode supercommit.
+Phase 9 - Filter pipeline lowering is next after the Phase 8 pipeline shape
+checker supercommit.
 
 ## Completed Tasks
 
@@ -222,14 +222,53 @@ ANode supercommit.
   7 tests.
 - Completed reusable Alchemist submodule Phase 7 commit:
   `6089db0 supercommit: chataigne alchemist integration phase 7 - condition gate anode`
+- Added a reusable typed linear pipeline shape checker in
+  `golden_alchemist`.
+- Added `PipelineShape` variants for:
+  `Single`, `ValueSet`, `Trigger`, `CommandIntent`, and `Unknown`.
+- Added public pipeline check result types:
+  `PipelineShapeCheckItem`, `PipelineShapeStep`, `PipelineShapeDiagnostic`,
+  and `PipelineShapeResult`.
+- Added `check_filter_pipeline_shapes` as the reusable Phase 8 boundary.
+- The checker consumes Phase 6 `ANodeRoleCapability` metadata and rejects
+  nodes that do not declare the `Filter` role.
+- The checker records explicit cardinality transitions from
+  `PipelineCardinality`: `Elementwise`, `Aggregate`, `Reshape`, `Expand`,
+  and `WholeSet`.
+- `ConditionGate` preserves the incoming shape through its `WholeSet`
+  capability.
+- `Aggregate` explicitly collapses `ValueSet<T>` to `Single<T>`.
+- `Expand` explicitly turns `Single<T>` into `ValueSet<T>`.
+- `Reshape` uses the declaration signature's primary output type; it reports
+  a diagnostic when that output shape cannot be resolved.
+- No merge or broadcast behavior is inferred without an explicit
+  `Aggregate` or `Expand` capability.
+- Added Phase 8 pipeline tests covering elementwise `ValueSet`, aggregate to
+  `Single`, Pack Vec3-style reshape, invalid non-filter node rejection,
+  `ConditionGate` shape preservation, and Broadcast-style expansion.
+- Used shape-only test declarations for Pack Vec3 and Broadcast coverage
+  instead of registering placeholder production ANodes.
+- Ran targeted reusable Alchemist tests:
+  `cargo test -p golden_alchemist pipeline -- --nocapture` passed with
+  6 tests.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  107 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 38 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+- Completed reusable Alchemist submodule Phase 8 commit:
+  `96437b6 supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
 
 ## Pending Tasks
 
-- Start Phase 8 by implementing a typed linear pipeline shape checker.
-- The checker should consume Phase 6 capability metadata and reject nodes
-  without a matching role.
-- Preserve explicit shape changes; do not silently merge inputs or broadcast
-  values without a declared capability.
+- Start Phase 9 by lowering managed filter pipeline regions into normal
+  Alchemist graph structure.
+- Use the Phase 8 shape checker during lowering so invalid filter pipelines
+  fail with diagnostics instead of implicit wiring.
+- Preserve the existing rule that merge, reshape, and broadcast behavior must
+  be declared by ANode capability metadata.
 
 ## Baseline Architecture Summary
 
@@ -453,8 +492,8 @@ ANode supercommit.
 ## Temporary Compatibility Exceptions
 
 - Dedicated `Clamp`, `MapRange`, `Math Aggregate`, `Pack Vec2`, `Pack Vec3`,
-  `Select Input`, `Broadcast`, and `ConditionGate` declarations do not all
-  exist yet, so Phase 6 did not invent placeholder nodes.
+  `Select Input`, and `Broadcast` declarations do not all exist yet, so Phase
+  6 did not invent placeholder nodes.
 - Current `math` is registered as aggregate-capable because it already accepts
   a variable number of numeric inputs and emits one result, but later shape
   checking may refine operator-specific behavior.
@@ -513,6 +552,44 @@ ANode supercommit.
 - `submodules/golden_alchemist_core/crates/golden_alchemist/src/runtime_tests.rs`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## Pipeline Shape Checker Design
+
+- The checker is reusable `golden_alchemist` infrastructure, not
+  Chataigne-specific processor policy.
+- It accepts a linear sequence of ANode declarations plus their authored
+  instances and walks from an initial `PipelineShape`.
+- It discovers usable pipeline nodes through `ANodeRoleCapability` entries for
+  `SurfaceItemKind::Filter`.
+- Each accepted node adds a `PipelineShapeStep` recording the input shape,
+  output shape, node type, and cardinality used.
+- Invalid nodes add `PipelineShapeDiagnostic` entries and do not silently
+  change the current shape.
+- The checker does not mutate graphs or create sockets. Phase 9 lowering will
+  use the trace to decide which graph edits to author.
+
+## Pipeline Shape Transitions
+
+- `Elementwise` preserves `Single<T>` and `ValueSet<T>`, updating the value
+  type only when the node's primary output signature resolves to a concrete
+  type.
+- `WholeSet` preserves the complete input shape. This is how
+  `ConditionGate` can gate a whole `ValueSet` without lane-aware lowering.
+- `Aggregate` converts `ValueSet<T>` to `Single<T>` and preserves
+  `Single<T>`.
+- `Reshape` converts value shapes to `Single<Output>` using the declaration's
+  primary output socket type.
+- `Expand` converts `Single<T>` to `ValueSet<T>` with an unknown target axis
+  until a real lowering phase supplies one.
+- `Trigger`, `CommandIntent`, and `Unknown` remain explicit shapes. Non-whole
+  value filters reject trigger and command-intent shapes for now.
+
+## Phase 8 Affected Files
+
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/lib.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/pipeline.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/pipeline_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
@@ -520,7 +597,7 @@ ANode supercommit.
 - Processor UI still uses the existing formula property surface; Phase 16 will
   project managed regions into the Svelte surfaces.
 - No managed-region lowering or runtime execution exists yet. That remains
-  Phase 8 and Phase 9 work.
+  Phase 9 and later work.
 
 ## Processor Formula Reference Migration
 
@@ -554,8 +631,9 @@ ANode supercommit.
 - Processor creation is parsed from ad-hoc strings at the node creation
   boundary and then immediately loses source information by storing only a
   project node reference.
-- Phase 5 renamed the value collection boundary to `ValueSet`, but no
-  InputSet, OutputSet, or pipeline lowering behavior exists yet.
+- Phase 5 renamed the value collection boundary to `ValueSet`, and Phase 8
+  added a checker for pipeline shapes, but no InputSet, OutputSet, or pipeline
+  lowering behavior exists yet.
 - Manager references and manager-specific condition/filter concepts still
   exist beside Alchemist ANodes, so later phases must remove duplicated
   evaluation paths rather than layering more runtime branches onto them.
@@ -627,7 +705,13 @@ ANode supercommit.
 - Phase 7 keeps `ConditionGate` generic and reusable. Mapping, Action, and
   custom formulas will all use it through normal ANode capability discovery.
 - Phase 7 implements whole-value gating first because per-lane `ValueSet`
-  semantics require the later shape checker and lowering work.
+  semantics require later lane-aware lowering work.
+- Phase 8 keeps the pipeline checker declaration-driven and reusable. Chataigne
+  lowering code should consume its diagnostics instead of duplicating shape
+  policy in the app layer.
+- Phase 8 uses shape-only test declarations for Pack Vec3 and Broadcast
+  scenarios. This proves checker behavior without adding fake production
+  ANodes before the catalog actually owns those nodes.
 
 ## Migration Notes
 
@@ -674,14 +758,20 @@ ANode supercommit.
 - `ValueSet` has a typed payload model but no real InputSet/OutputSet
   materialization or dispatch path yet. Those remain later managed-region and
   lowering phases.
-- Capability metadata exists, but no pipeline shape checker or lowering path
-  consumes it yet. That remains Phase 8 and Phase 9 work.
+- Capability metadata now feeds the Phase 8 pipeline shape checker, but no
+  managed-region lowering path consumes the checker yet. That remains Phase 9
+  work.
 - The initial primitive capability set is intentionally conservative. Missing
-  dedicated pack, broadcast, select, clamp, and condition gate nodes are
-  deferred rather than faked.
+  dedicated pack, broadcast, select, and clamp nodes are deferred rather than
+  faked.
 - Per-lane ConditionGate mode is a declared config value but currently returns
   an explicit runtime diagnostic if selected. This avoids hidden fallback
   behavior before lane-aware ValueSet lowering exists.
+- The Phase 8 checker validates linear shape transitions, not full graph type
+  solving. Socket-level type compatibility remains the responsibility of the
+  existing Alchemist type solver and the future Phase 9 lowering path.
+- `Expand` currently produces a `ValueSet` with an unknown axis. Phase 9 must
+  choose the target axis explicitly when it lowers real pipeline regions.
 
 ## Tests Added
 
@@ -716,6 +806,12 @@ ANode supercommit.
 - `condition_gate_output_default_uses_default_input`
 - `condition_gate_block_trigger_suppresses_fired_edge`
 - `condition_gate_whole_valueset_gate_uses_default_whole_value`
+- `elementwise_filter_preserves_valueset_shape`
+- `aggregate_filter_collapses_valueset_to_single`
+- `reshape_filter_can_pack_valueset_items_to_vec3`
+- `checker_rejects_nodes_without_filter_capability`
+- `condition_gate_preserves_pipeline_shape`
+- `expand_filter_broadcasts_single_value_to_valueset`
 
 ## Supercommit History
 
@@ -742,3 +838,7 @@ ANode supercommit.
   `supercommit: chataigne alchemist integration phase 7 - condition gate anode`
 - Reusable Alchemist submodule commit:
   `6089db0 supercommit: chataigne alchemist integration phase 7 - condition gate anode`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
+- Reusable Alchemist submodule commit:
+  `96437b6 supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
