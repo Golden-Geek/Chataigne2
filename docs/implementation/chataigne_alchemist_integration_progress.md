@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 7 - ConditionGate as a filter ANode is next after the Phase 6 ANode
-capability metadata supercommit.
+Phase 8 - Pipeline shape checker is next after the Phase 7 ConditionGate
+ANode supercommit.
 
 ## Completed Tasks
 
@@ -167,11 +167,6 @@ capability metadata supercommit.
   `cargo test --workspace` passed with 288 app tests and 38 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
-- Completed reusable Alchemist submodule Phase 6 commit:
-  `28beff1 supercommit: chataigne alchemist integration phase 6 - anode capabilities`
-- Ran full reusable Alchemist validation:
-  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
-  90 `golden_alchemist` tests and 4 `golden_statechart` tests.
 - Added reusable ANode role capability metadata to `golden_alchemist`.
 - Added `ANodeRoleCapability`, `AutoWirePolicy`, `PipelineCardinality`, and
   `ManagedUiMode`.
@@ -201,14 +196,40 @@ capability metadata supercommit.
   `cargo test --workspace` passed with 288 app tests and 38 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+- Completed reusable Alchemist submodule Phase 6 commit:
+  `28beff1 supercommit: chataigne alchemist integration phase 6 - anode capabilities`
+- Added `ConditionGate` as a reusable primitive ANode in `golden_alchemist`.
+- Registered `ConditionGate` as a filter-capable ANode through the Phase 6
+  capability metadata, with gate autowiring from `value` and `condition` to
+  output `value`.
+- Added `ConditionGate` config for mode:
+  `pass_when_true`, `pass_when_false`, `hold_last`, `output_default`, and
+  `block_trigger`.
+- Added explicit `gate_application` config:
+  `whole` and `per_lane`.
+- Implemented whole-value gating. This covers normal single values, triggers,
+  command-intent-like extension values, and app-owned opaque `ValueSet`
+  extension payloads as complete values.
+- Left per-lane `ValueSet` gating explicitly unsupported until lane-aware
+  ValueSet lowering exists; it returns a runtime diagnostic instead of
+  silently pretending to gate lanes.
+- Added `ConditionGate` runtime behavior tests for pass, block, hold-last,
+  explicit default output, trigger blocking, and whole extension-value gating.
+- Added reusable Alchemist capability coverage proving `ConditionGate`
+  appears as a filter-capable ANode.
+- Ran targeted reusable Alchemist tests:
+  `cargo test -p golden_alchemist condition_gate -- --nocapture` passed with
+  7 tests.
+- Completed reusable Alchemist submodule Phase 7 commit:
+  `6089db0 supercommit: chataigne alchemist integration phase 7 - condition gate anode`
 
 ## Pending Tasks
 
-- Start Phase 7 by implementing `ConditionGate` as a reusable filter-capable
-  ANode.
-- Do not add a Mapping-specific condition subsystem; Mapping should discover
-  `ConditionGate` through the capability metadata added in Phase 6.
-- Preserve explicit ValueSet whole-set versus per-lane gate semantics.
+- Start Phase 8 by implementing a typed linear pipeline shape checker.
+- The checker should consume Phase 6 capability metadata and reject nodes
+  without a matching role.
+- Preserve explicit shape changes; do not silently merge inputs or broadcast
+  values without a declared capability.
 
 ## Baseline Architecture Summary
 
@@ -450,6 +471,48 @@ capability metadata supercommit.
 - `submodules/golden_alchemist_core/crates/golden_alchemist/src/library_tests.rs`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## ConditionGate Behavior
+
+- `ConditionGate` is a reusable primitive Alchemist ANode, not a Mapping
+  special case.
+- Inputs:
+  `value: TValue`, `condition: bool`, `default_value: TValue`.
+- Outputs:
+  `value: TValue`, `passed: bool`, `blocked: bool`.
+- `PassWhenTrue` emits `value` when the condition is true, otherwise
+  `default_value`.
+- `PassWhenFalse` emits `value` when the condition is false, otherwise
+  `default_value`.
+- `HoldLast` stores the last passing value in node state and re-emits it while
+  blocked; before any value has passed, it emits `default_value`.
+- `OutputDefault` always emits `default_value` while blocked.
+- `BlockTrigger` preserves trigger metadata while forcing `fired = false`
+  when blocked.
+
+## Gate Modes Implemented
+
+- `PassWhenTrue`
+- `PassWhenFalse`
+- `HoldLast`
+- `OutputDefault`
+- `BlockTrigger`
+
+## ValueSet Gating Semantics
+
+- Phase 7 implements whole-value gating.
+- App-owned `ValueSet` payloads are opaque extension values at the reusable
+  Alchemist layer, so the whole extension payload is passed or blocked.
+- Per-lane gating is intentionally not implemented yet. It requires the
+  lane-aware ValueSet lowering work planned for later phases.
+
+## Phase 7 Affected Files
+
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library/anodes/mod.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library/anodes/condition_gate.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library_tests.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/runtime_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
@@ -561,6 +624,10 @@ capability metadata supercommit.
   filter/action/input/output node lists.
 - Phase 6 deliberately registers only capabilities for nodes that exist now.
   Future nodes must declare their own capabilities when they are added.
+- Phase 7 keeps `ConditionGate` generic and reusable. Mapping, Action, and
+  custom formulas will all use it through normal ANode capability discovery.
+- Phase 7 implements whole-value gating first because per-lane `ValueSet`
+  semantics require the later shape checker and lowering work.
 
 ## Migration Notes
 
@@ -612,6 +679,9 @@ capability metadata supercommit.
 - The initial primitive capability set is intentionally conservative. Missing
   dedicated pack, broadcast, select, clamp, and condition gate nodes are
   deferred rather than faked.
+- Per-lane ConditionGate mode is a declared config value but currently returns
+  an explicit runtime diagnostic if selected. This avoids hidden fallback
+  behavior before lane-aware ValueSet lowering exists.
 
 ## Tests Added
 
@@ -639,6 +709,13 @@ capability metadata supercommit.
 - `non_filter_node_has_no_filter_capability`
 - `primary_socket_autowiring_is_declared_for_unary_filters`
 - `capability_metadata_roundtrips_through_json`
+- `condition_gate_declares_filter_gate_capability`
+- `condition_gate_true_condition_passes_value`
+- `condition_gate_false_condition_blocks_value`
+- `condition_gate_hold_last_outputs_previous_passed_value`
+- `condition_gate_output_default_uses_default_input`
+- `condition_gate_block_trigger_suppresses_fired_edge`
+- `condition_gate_whole_valueset_gate_uses_default_whole_value`
 
 ## Supercommit History
 
@@ -661,3 +738,7 @@ capability metadata supercommit.
   `supercommit: chataigne alchemist integration phase 6 - anode capabilities`
 - Reusable Alchemist submodule commit:
   `28beff1 supercommit: chataigne alchemist integration phase 6 - anode capabilities`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 7 - condition gate anode`
+- Reusable Alchemist submodule commit:
+  `6089db0 supercommit: chataigne alchemist integration phase 7 - condition gate anode`
