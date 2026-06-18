@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 6 - ANode role and pipeline capability metadata is next after the
-Phase 5 ValueSet supercommit.
+Phase 7 - ConditionGate as a filter ANode is next after the Phase 6 ANode
+capability metadata supercommit.
 
 ## Completed Tasks
 
@@ -167,18 +167,48 @@ Phase 5 ValueSet supercommit.
   `cargo test --workspace` passed with 288 app tests and 38 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+- Completed reusable Alchemist submodule Phase 6 commit:
+  `28beff1 supercommit: chataigne alchemist integration phase 6 - anode capabilities`
 - Ran full reusable Alchemist validation:
   `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
   90 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Added reusable ANode role capability metadata to `golden_alchemist`.
+- Added `ANodeRoleCapability`, `AutoWirePolicy`, `PipelineCardinality`, and
+  `ManagedUiMode`.
+- Added `ANodeDeclaration::role_capabilities` and
+  `ANodeDeclaration::supports_role` as declaration-level metadata hooks.
+- Added `ANodeRegistry::declarations_with_role` so managers and future
+  pipeline compilers can discover filter-capable nodes without matching
+  node type strings.
+- Registered initial existing primitive filter capabilities for:
+  `math`, `function`, `remap`, `smooth_filter`, `one_minus`, `inverse`,
+  `negate`, `speed`, `coordinate_system`, `angle_conversion`,
+  `convert_to_color`, and `extract_color`.
+- Declared unary transform autowiring for existing unary filters with
+  `value` input and `result` output.
+- Declared aggregate/reshape cardinality metadata for existing primitives
+  where the current node shape is already clear.
+- Added reusable Alchemist coverage for filter-capable discovery,
+  non-filter rejection, primary socket autowiring, and capability JSON
+  roundtrip.
+- Ran targeted reusable Alchemist tests:
+  `cargo test -p golden_alchemist library_tests -- --nocapture` passed with
+  38 tests.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  94 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 38 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
 
 ## Pending Tasks
 
-- Start Phase 6 by adding declarative ANode role and pipeline capability
-  metadata.
-- Keep capabilities declarative; do not introduce ad-hoc Mapping or Action
-  processor branches.
-- Preserve `ValueSet` as a boundary collection type while designing
-  elementwise, aggregate, reshape, expand, and whole-set pipeline roles.
+- Start Phase 7 by implementing `ConditionGate` as a reusable filter-capable
+  ANode.
+- Do not add a Mapping-specific condition subsystem; Mapping should discover
+  `ConditionGate` through the capability metadata added in Phase 6.
+- Preserve explicit ValueSet whole-set versus per-lane gate semantics.
 
 ## Baseline Architecture Summary
 
@@ -372,6 +402,54 @@ Phase 5 ValueSet supercommit.
 - `docs/ALCHEMIST_FUNCTIONAL_PLAN.md`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## Capability Metadata Design
+
+- Capability metadata lives on `golden_alchemist::ANodeDeclaration` because
+  it describes reusable node declarations, not Chataigne processor policy.
+- `ANodeRoleCapability` records the managed surface role, primary sockets,
+  autowire policy, pipeline cardinality, and compact/full managed UI mode.
+- `AutoWirePolicy` currently supports:
+  `None`, `UnaryTransform`, `Source`, `Sink`, and `Gate`.
+- `PipelineCardinality` currently supports:
+  `Elementwise`, `Aggregate`, `Reshape`, `Expand`, and `WholeSet`.
+- `ManagedUiMode` currently supports:
+  `FullGraph` and `CompactRow`.
+- `ANodeRegistry::declarations_with_role(SurfaceItemKind::Filter)` is the
+  discovery boundary future managers and pipeline compilers should use.
+
+## Registered Initial Node Capabilities
+
+- Elementwise filters:
+  `function`, `remap`, `smooth_filter`, `one_minus`, `inverse`, `negate`,
+  `speed`, `coordinate_system`, and `angle_conversion`.
+- Aggregate filters:
+  `math`.
+- Reshape filters:
+  `convert_to_color` and `extract_color`.
+- Existing unary filters declare `AutoWirePolicy::UnaryTransform` with
+  primary `value` input and `result` output.
+
+## Temporary Compatibility Exceptions
+
+- Dedicated `Clamp`, `MapRange`, `Math Aggregate`, `Pack Vec2`, `Pack Vec3`,
+  `Select Input`, `Broadcast`, and `ConditionGate` declarations do not all
+  exist yet, so Phase 6 did not invent placeholder nodes.
+- Current `math` is registered as aggregate-capable because it already accepts
+  a variable number of numeric inputs and emits one result, but later shape
+  checking may refine operator-specific behavior.
+- `convert_to_color` and `extract_color` are registered as reshape filters
+  using their existing color/channel behavior. Dedicated pack/project nodes
+  remain future work.
+
+## Phase 6 Affected Files
+
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/node.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/registry.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/lib.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library/anodes/mod.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
@@ -478,6 +556,11 @@ Phase 5 ValueSet supercommit.
 - Phase 5 intentionally rejects the old `chataigne.param_array` runtime type
   rather than registering a compatibility alias. This matches the clean schema
   break stance until an explicit migration phase requires otherwise.
+- Phase 6 keeps capability metadata on reusable ANode declarations. Chataigne
+  processor managers should consume these capabilities rather than duplicating
+  filter/action/input/output node lists.
+- Phase 6 deliberately registers only capabilities for nodes that exist now.
+  Future nodes must declare their own capabilities when they are added.
 
 ## Migration Notes
 
@@ -524,6 +607,11 @@ Phase 5 ValueSet supercommit.
 - `ValueSet` has a typed payload model but no real InputSet/OutputSet
   materialization or dispatch path yet. Those remain later managed-region and
   lowering phases.
+- Capability metadata exists, but no pipeline shape checker or lowering path
+  consumes it yet. That remains Phase 8 and Phase 9 work.
+- The initial primitive capability set is intentionally conservative. Missing
+  dedicated pack, broadcast, select, clamp, and condition gate nodes are
+  deferred rather than faked.
 
 ## Tests Added
 
@@ -547,6 +635,10 @@ Phase 5 ValueSet supercommit.
 - `old_parameter_array_runtime_type_is_not_accepted_as_valueset`
 - `valueset_type_is_registered_as_extension_without_legacy_alias`
 - `manager_reference_sockets_expose_valueset`
+- `filter_capable_node_discovery_is_declaration_driven`
+- `non_filter_node_has_no_filter_capability`
+- `primary_socket_autowiring_is_declared_for_unary_filters`
+- `capability_metadata_roundtrips_through_json`
 
 ## Supercommit History
 
@@ -565,3 +657,7 @@ Phase 5 ValueSet supercommit.
   `06a7712 supercommit: chataigne alchemist integration phase 4 - managed regions`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 5 - value set`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 6 - anode capabilities`
+- Reusable Alchemist submodule commit:
+  `28beff1 supercommit: chataigne alchemist integration phase 6 - anode capabilities`
