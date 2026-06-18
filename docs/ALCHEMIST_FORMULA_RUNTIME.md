@@ -110,7 +110,7 @@ are app-owned product integrations, not reusable Alchemist primitives. Until
 their real runtime contracts are implemented, these nodes compile to explicit
 `chataigne_manager_node_unsupported` diagnostics.
 
-They must not return fake defaults such as `false`, an empty `ParamArray`, or a
+They must not return fake defaults such as `false`, an empty `ValueSet`, or a
 silently dropped command. The Formula editor surfaces the compile diagnostic
 through the formula validity flag, formula diagnostics JSON, and authored ANode
 warnings so unsupported manager behavior is visible before runtime.

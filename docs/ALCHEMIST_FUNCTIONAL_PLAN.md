@@ -1174,7 +1174,7 @@ Explicit WIP:
 
 ```text
 Inputs:
-  resolve current context input values into ParamArray
+  resolve current context input values into ValueSet
 
 Conditions:
   evaluate global condition manager when used by transition

@@ -2,13 +2,15 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, CompileResult, DiagnosticOrigin,
-    EvaluationCtx, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, StableRef,
-    ValueTypeId, ValueTypeRegistry, compile_graph, primitive_node_registry,
+    EvaluationCtx, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue,
+    SignatureCtx, StableRef, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry,
+    compile_graph, primitive_node_registry,
 };
 
+use crate::ValueSet;
 use crate::alchemist::{
     CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, MODULE_ENDPOINT_TYPE, MODULE_TYPE, OUTPUTS_MANAGER_TYPE,
-    ROUTING_TYPE, STATE_TYPE, register_nodes, register_value_types,
+    ROUTING_TYPE, STATE_TYPE, VALUE_SET_TYPE, register_nodes, register_value_types,
 };
 
 fn node(id: &str) -> ANodeInstance {
@@ -36,7 +38,7 @@ fn compile_single_node(type_id: &str) -> CompileResult {
 fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
     for (node_type, label, required_behavior) in [
         (CONDITIONS_MANAGER_TYPE, "Conditions", "condition manager evaluation"),
-        (INPUTS_MANAGER_TYPE, "Inputs", "ParamArray resolution"),
+        (INPUTS_MANAGER_TYPE, "Inputs", "ValueSet resolution"),
         (OUTPUTS_MANAGER_TYPE, "Output Commands", "lane-aware processor intents"),
     ] {
         let result = compile_single_node(node_type);
@@ -69,6 +71,51 @@ fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
             "{node_type} diagnostic should point at the authored ANode"
         );
     }
+}
+
+#[test]
+fn valueset_type_is_registered_as_extension_without_legacy_alias() {
+    let mut registry = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut registry).unwrap();
+
+    let descriptor = registry.get(&ValueTypeId::new(VALUE_SET_TYPE)).unwrap();
+    assert_eq!(descriptor.label, "Value Set");
+    assert_eq!(descriptor.storage, ValueStorageKind::Extension);
+    assert!(!registry.contains(&ValueTypeId::new("chataigne.param_array")));
+    let default_value = registry.default_value(&ValueTypeId::new(VALUE_SET_TYPE)).unwrap();
+    assert_eq!(default_value.value_type(), ValueTypeId::new(VALUE_SET_TYPE));
+    assert_eq!(ValueSet::from_runtime_value(&default_value).unwrap(), ValueSet::new(0));
+}
+
+#[test]
+fn manager_reference_sockets_expose_valueset() {
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    let ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let bindings = TypeBindings::default();
+
+    let inputs_decl = nodes.get(&ANodeTypeId::new(INPUTS_MANAGER_TYPE)).unwrap();
+    let inputs = inputs_decl.signature(&ctx, &node(INPUTS_MANAGER_TYPE), &bindings);
+    assert_eq!(inputs.outputs[0].id.as_str(), "values");
+    assert_eq!(inputs.outputs[0].label, "Values");
+    assert_eq!(
+        inputs.outputs[0].constraint,
+        TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE))
+    );
+
+    let outputs_decl = nodes.get(&ANodeTypeId::new(OUTPUTS_MANAGER_TYPE)).unwrap();
+    let outputs = outputs_decl.signature(&ctx, &node(OUTPUTS_MANAGER_TYPE), &bindings);
+    assert_eq!(outputs.inputs[0].id.as_str(), "values");
+    assert_eq!(outputs.inputs[0].label, "Values");
+    assert_eq!(
+        outputs.inputs[0].constraint,
+        TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE))
+    );
 }
 
 #[test]

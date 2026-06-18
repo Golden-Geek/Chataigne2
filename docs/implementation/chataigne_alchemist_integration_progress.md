@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 5 - ValueSet is next after the Phase 4 managed region model
-supercommit.
+Phase 6 - ANode role and pipeline capability metadata is next after the
+Phase 5 ValueSet supercommit.
 
 ## Completed Tasks
 
@@ -130,15 +130,55 @@ supercommit.
   pre-manager-ref behavior.
 - Completed reusable Alchemist submodule Phase 4 commit:
   `06a7712 supercommit: chataigne alchemist integration phase 4 - managed regions`
+- Added the Phase 5 `ValueSet` boundary model in
+  `src/state_machine/src/value_set.rs`.
+- Added stable `ValueLaneKey`, `ValueSetEntry`, `ValueSet`, and
+  `ValueSetError` types for future InputSet, filter pipeline, and OutputSet
+  work.
+- Registered the app-specific Alchemist value type as
+  `VALUE_SET_TYPE = "chataigne.value_set"` with the user-facing label
+  `Value Set`.
+- Renamed manager reference ANode sockets from `parameters` / `Parameters`
+  to `values` / `Values`.
+- Chose a clean schema break for the old `chataigne.param_array` runtime
+  type. It is not registered as an alias and `ValueSet::from_runtime_value`
+  rejects it explicitly.
+- Updated the manager-reference unsupported diagnostic to refer to
+  `ValueSet` resolution instead of `ParamArray` resolution.
+- Updated architecture docs that still referenced manager fake defaults or
+  input aggregation as `ParamArray`.
+- Added coverage for ValueSet construction, stable lane keys, runtime
+  extension serialization, old type rejection, registry registration, and
+  manager socket exposure.
+- Ran targeted ValueSet tests:
+  `cargo test -p chataigne_state_machine value_set -- --nocapture` passed
+  with 4 tests.
+- Ran targeted manager-reference tests:
+  `cargo test -p chataigne_state_machine manager_reference -- --nocapture`
+  passed with 2 tests.
+- Ran targeted ValueSet registration test:
+  `cargo test -p chataigne_state_machine valueset_type -- --nocapture`
+  passed with 1 test.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 38 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  90 `golden_alchemist` tests and 4 `golden_statechart` tests.
 
 ## Pending Tasks
 
-- Start Phase 5 by replacing the narrow `param_array` /
-  `parameters_array` value collection concept with `ValueSet`.
-- Decide whether the current `chataigne.param_array` project data should be
-  migrated or rejected as a clean schema break.
-- Keep `ValueSet` as a boundary collection type; do not make every ANode
-  array-aware.
+- Start Phase 6 by adding declarative ANode role and pipeline capability
+  metadata.
+- Keep capabilities declarative; do not introduce ad-hoc Mapping or Action
+  processor branches.
+- Preserve `ValueSet` as a boundary collection type while designing
+  elementwise, aggregate, reshape, expand, and whole-set pipeline roles.
 
 ## Baseline Architecture Summary
 
@@ -163,9 +203,10 @@ supercommit.
   TypeScript output, which gives Phase 1 and later phases a protocol boundary
   to extend rather than inventing a parallel UI model.
 - App-specific Alchemist registration lives in
-  `src/state_machine/src/alchemist.rs`. It registers Chataigne value facets,
-  including `PARAM_ARRAY_TYPE = "chataigne.param_array"` with the user-facing
-  label `Parameter Array`.
+  `src/state_machine/src/alchemist.rs`. At the Phase 0 baseline this still
+  registered the narrow `chataigne.param_array` / `Parameter Array` value
+  collection, which Phase 5 replaced with `chataigne.value_set` /
+  `Value Set`.
 - Existing manager-reference ANodes are intentionally incomplete at runtime:
   baseline tests assert that manager reference nodes compile as explicit
   unsupported diagnostics, and two stale pre-manager-ref runtime tests remain
@@ -287,6 +328,50 @@ supercommit.
 - Empty region instances serialize as normal instance state through
   `AlchemistFormulaInstance.managed_regions`.
 
+## ValueSet Type Design
+
+- `VALUE_SET_TYPE` is the app-owned Alchemist extension value type
+  `chataigne.value_set`.
+- `ValueSet` is a boundary collection type with:
+  `entries: Vec<ValueSetEntry>` and `logical_tick: u64`.
+- `ValueSetEntry` stores a stable `ValueLaneKey`, user-facing `label`,
+  optional `StableRef` source, and the current `RuntimeValue`.
+- `ValueLaneKey` rejects empty keys so future reorder and lane-memory work has
+  a durable identity boundary instead of positional indices only.
+- `ValueSet` serializes through `RuntimeValue::Extension` using a JSON payload.
+  This keeps the reusable Alchemist runtime extension boundary intact while
+  giving Chataigne a typed model for later InputSet and OutputSet phases.
+
+## Renamed Symbols
+
+- `PARAM_ARRAY_TYPE` was removed.
+- `VALUE_SET_TYPE` now names the registered collection value type.
+- The Inputs manager reference output socket is now `values` / `Values`.
+- The Output Commands manager reference input socket is now `values` /
+  `Values`.
+- Manager-reference unsupported diagnostics now refer to `ValueSet`
+  resolution.
+
+## ValueSet Migration Choice
+
+- Phase 5 intentionally rejects `chataigne.param_array` as a clean schema
+  break.
+- No alias, compatibility registration, or fake default conversion was added.
+- A later migration phase may add an explicit project migration if saved
+  projects with the old type need to be supported, but the runtime and type
+  registry now use only `chataigne.value_set`.
+
+## Phase 5 Affected Files
+
+- `src/state_machine/src/value_set.rs`
+- `src/state_machine/src/value_set_tests.rs`
+- `src/state_machine/src/alchemist.rs`
+- `src/state_machine/src/alchemist_tests.rs`
+- `src/state_machine/src/lib.rs`
+- `docs/ALCHEMIST_FORMULA_RUNTIME.md`
+- `docs/ALCHEMIST_FUNCTIONAL_PLAN.md`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
@@ -328,8 +413,8 @@ supercommit.
 - Processor creation is parsed from ad-hoc strings at the node creation
   boundary and then immediately loses source information by storing only a
   project node reference.
-- `chataigne.param_array` and the `Parameter Array` label are too narrow for
-  the planned input/filter/output value collection boundary.
+- Phase 5 renamed the value collection boundary to `ValueSet`, but no
+  InputSet, OutputSet, or pipeline lowering behavior exists yet.
 - Manager references and manager-specific condition/filter concepts still
   exist beside Alchemist ANodes, so later phases must remove duplicated
   evaluation paths rather than layering more runtime branches onto them.
@@ -343,6 +428,7 @@ supercommit.
 - `src/state_machine/src/alchemist.rs`
 - `src/state_machine/src/protocol.rs`
 - `src/state_machine/src/processor.rs`
+- `src/state_machine/src/value_set.rs`
 - `src/state_machine_nodes/manager.rs`
 - `src/state_machine_nodes/conditions/`
 - `src/state_machine_nodes/managed_nodes/`
@@ -384,6 +470,14 @@ supercommit.
 - Phase 4 does not expose managed regions in the protocol yet. The backend
   model and built-in package format are now durable enough for later UI work,
   but Phase 16 owns Svelte projection and interaction design.
+- Phase 5 keeps `ValueSet` app-owned and encoded as a
+  `RuntimeValue::Extension` payload instead of adding a reusable Alchemist
+  primitive. Later phases can decide whether generic collection/lane helpers
+  belong in `golden_alchemist`, but the Chataigne type itself remains product
+  owned.
+- Phase 5 intentionally rejects the old `chataigne.param_array` runtime type
+  rather than registering a compatibility alias. This matches the clean schema
+  break stance until an explicit migration phase requires otherwise.
 
 ## Migration Notes
 
@@ -396,8 +490,9 @@ supercommit.
   transitional parser, not a long-term compatibility policy.
 - Phase 2 does not force-migrate existing project processors. Empty source
   state plus a non-empty legacy formula reference resolves as a project source.
-- Current value collection naming is `chataigne.param_array`; Phase 5 needs
-  to either migrate that persisted type or explicitly reject old data.
+- The old value collection runtime type `chataigne.param_array` is not
+  registered after Phase 5. `ValueSet::from_runtime_value` reports it as the
+  wrong runtime type.
 - `FormulaSurface.managed_regions` uses a serde default, so existing formula
   surfaces without the field deserialize as empty managed-region surfaces.
 
@@ -426,6 +521,9 @@ supercommit.
   end-to-end useful until later pipeline and InputSet/OutputSet phases.
 - Protocol/UI projection of managed regions is deferred, so frontend surfaces
   cannot use the new metadata yet.
+- `ValueSet` has a typed payload model but no real InputSet/OutputSet
+  materialization or dispatch path yet. Those remain later managed-region and
+  lowering phases.
 
 ## Tests Added
 
@@ -443,6 +541,12 @@ supercommit.
 - `empty_managed_regions_are_instantiated_from_surface`
 - `invalid_managed_region_reference_reports_diagnostic`
 - `builtin_formulas_expose_empty_managed_regions`
+- `value_set_constructs_with_stable_lane_keys`
+- `value_set_rejects_empty_lane_keys`
+- `value_set_roundtrips_through_runtime_extension_payload`
+- `old_parameter_array_runtime_type_is_not_accepted_as_valueset`
+- `valueset_type_is_registered_as_extension_without_legacy_alias`
+- `manager_reference_sockets_expose_valueset`
 
 ## Supercommit History
 
@@ -459,3 +563,5 @@ supercommit.
   `supercommit: chataigne alchemist integration phase 4 - managed regions`
 - Reusable Alchemist submodule commit:
   `06a7712 supercommit: chataigne alchemist integration phase 4 - managed regions`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 5 - value set`

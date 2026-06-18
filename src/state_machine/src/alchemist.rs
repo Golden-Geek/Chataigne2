@@ -12,9 +12,12 @@ use golden_alchemist::{
 
 pub use golden_alchemist as alchemist;
 
+use crate::value_set::ValueSet;
+
+pub use crate::value_set::VALUE_SET_TYPE;
+
 pub const MODULE_TYPE: &str = "chataigne.module";
 pub const MODULE_ENDPOINT_TYPE: &str = "chataigne.module_endpoint";
-pub const PARAM_ARRAY_TYPE: &str = "chataigne.param_array";
 pub const PROPERTY_GETTER_TYPE: &str = "property";
 pub const CONDITIONS_MANAGER_TYPE: &str = "chataigne.conditions_manager";
 pub const INPUTS_MANAGER_TYPE: &str = "chataigne.inputs_manager";
@@ -29,14 +32,13 @@ pub const DASHBOARD_TARGET_TYPE: &str = "chataigne.dashboard_target";
 
 pub fn register_value_types(registry: &mut ValueTypeRegistry) -> Result<(), RegistryError> {
     registry.register(ValueTypeDescriptor::new(
-        ValueTypeId::new(PARAM_ARRAY_TYPE),
-        "Parameter Array",
+        ValueTypeId::new(VALUE_SET_TYPE),
+        "Value Set",
         ValueStorageKind::Extension,
         || {
-            RuntimeValue::Extension(ExtensionValue::new(
-                ValueTypeId::new(PARAM_ARRAY_TYPE),
-                Arc::<[u8]>::from([]),
-            ))
+            ValueSet::new(0)
+                .to_runtime_value()
+                .expect("empty ValueSet must serialize")
         },
     ))?;
     register_ref(registry, MODULE_TYPE, "Module", &["node_ref", "command_target"])?;
@@ -192,18 +194,18 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             },
             ChataigneNodeKind::InputsManagerRef => ANodeSignature {
                 outputs: vec![OutputSocketDecl::new(
-                    "parameters",
-                    "Parameters",
-                    TypeConstraint::Exact(ValueTypeId::new(PARAM_ARRAY_TYPE)),
+                    "values",
+                    "Values",
+                    TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE)),
                 )],
                 ..ANodeSignature::default()
             },
             ChataigneNodeKind::OutputsManagerRef => ANodeSignature {
                 inputs: vec![
                     InputSocketDecl::new(
-                        "parameters",
-                        "Parameters",
-                        TypeConstraint::Exact(ValueTypeId::new(PARAM_ARRAY_TYPE)),
+                        "values",
+                        "Values",
+                        TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE)),
                     ),
                     InputSocketDecl::new("trigger", "Trigger", TypeConstraint::Exact(ValueTypeId::new("trigger"))),
                 ],
@@ -252,7 +254,7 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                 return Err(unsupported_manager_node_diagnostic(
                     instance,
                     "Inputs",
-                    "ParamArray resolution from the current processor context",
+                    "ValueSet resolution from the current processor context",
                 ));
             }
             ChataigneNodeKind::OutputsManagerRef => {
