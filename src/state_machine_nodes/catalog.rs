@@ -1,8 +1,8 @@
-use std::{error::Error, fmt, sync::Arc};
+use std::{collections::HashSet, error::Error, fmt, sync::Arc};
 
 use golden_alchemist::{
     AlchemistFormula, AlchemistGraph, FormulaContextContract, FormulaId,
-    FormulaPropertySchema, FormulaSurface,
+    FormulaMigration, FormulaPropertySchema, FormulaSurface,
 };
 use golden_core::{
     node::{NodeId, NodeReference, NodeUuid, UserCreatableItem},
@@ -14,6 +14,8 @@ use crate::app::state_machine_nodes_formula::formula_from_snapshot;
 
 use super::{find_formula_library, FORMULA_NODE_TYPE, PROCESSOR_ITEM_KIND};
 
+const BUILTIN_FORMULA_PACKAGE_SOURCE: &str =
+    include_str!("builtin_formulas/chataigne.formulas.json");
 pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const PROCESSOR_BUILTIN_CREATE_PREFIX: &str = "state_processor:builtin:";
@@ -255,15 +257,6 @@ impl FormulaVisibility {
             open_readonly_from_processor: false,
         }
     }
-
-    fn builtin_processor_template() -> Self {
-        Self {
-            show_in_formula_library: false,
-            show_in_processor_palette: true,
-            can_duplicate_to_library: true,
-            open_readonly_from_processor: true,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -273,6 +266,7 @@ pub(crate) struct FormulaCatalogEntry {
     pub(crate) description: String,
     pub(crate) visibility: FormulaVisibility,
     pub(crate) processor_template: Option<ProcessorTemplateMeta>,
+    formula: Option<AlchemistFormula>,
 }
 
 impl FormulaCatalogEntry {
@@ -289,6 +283,25 @@ impl FormulaCatalogEntry {
             description: description.into(),
             visibility,
             processor_template,
+            formula: None,
+        }
+    }
+
+    fn builtin_processor_template(
+        source: FormulaSourceRef,
+        label: impl Into<String>,
+        description: impl Into<String>,
+        visibility: FormulaVisibility,
+        formula: AlchemistFormula,
+    ) -> Self {
+        let processor_template = Some(ProcessorTemplateMeta::from_source(&source));
+        Self {
+            source,
+            label: label.into(),
+            description: description.into(),
+            visibility,
+            processor_template,
+            formula: Some(formula),
         }
     }
 }
@@ -308,35 +321,17 @@ impl FormulaCatalog {
     }
 
     pub(crate) fn with_builtins() -> Self {
-        let mut catalog = Self::default();
-        catalog.entries.push(Self::builtin_processor_entry(
-            BUILTIN_ACTION_FORMULA_ID,
-            "Action",
-            "Built-in action formula surface.",
-        ));
-        catalog.entries.push(Self::builtin_processor_entry(
-            BUILTIN_MAPPING_FORMULA_ID,
-            "Mapping",
-            "Built-in mapping formula surface.",
-        ));
-        catalog
+        Self::from_builtin_package_source(BUILTIN_FORMULA_PACKAGE_SOURCE)
+            .expect("embedded Chataigne built-in formula package should load")
     }
 
-    fn builtin_processor_entry(
-        formula_id: &'static str,
-        label: &'static str,
-        description: &'static str,
-    ) -> FormulaCatalogEntry {
-        FormulaCatalogEntry::processor_template(
-            FormulaSourceRef::builtin(
-                BUILTIN_FORMULA_PACKAGE,
-                formula_id,
-                BUILTIN_FORMULA_VERSION,
-            ),
-            label,
-            description,
-            FormulaVisibility::builtin_processor_template(),
-        )
+    pub(crate) fn from_builtin_package_source(
+        source: &str,
+    ) -> Result<Self, BuiltinFormulaPackageError> {
+        let package = BuiltinFormulaPackage::decode(source)?;
+        Ok(Self {
+            entries: package.into_entries()?,
+        })
     }
 
     fn add_project_formulas(&mut self, snapshot: &ProcessTreeSnapshot, library: NodeId) {
@@ -393,7 +388,13 @@ impl FormulaCatalog {
         source: &FormulaSourceRef,
     ) -> Result<AlchemistFormula, FormulaCatalogError> {
         self.builtin_entry(source)
-            .map(builtin_formula_from_entry)
+            .and_then(|entry| {
+                let mut formula = entry.formula.clone()?;
+                if formula.description.is_none() && !entry.description.is_empty() {
+                    formula.description = Some(entry.description.clone());
+                }
+                Some(formula)
+            })
             .ok_or_else(|| FormulaCatalogError::BuiltinFormulaNotFound {
                 source: source.clone(),
             })
@@ -437,29 +438,161 @@ impl FormulaCatalog {
     }
 }
 
-fn builtin_formula_from_entry(entry: &FormulaCatalogEntry) -> AlchemistFormula {
-    let FormulaSourceRef::Builtin {
-        package,
-        formula_id,
-        version,
-    } = &entry.source
-    else {
-        unreachable!("builtin formula entry requires a builtin source");
-    };
+#[derive(Debug, Deserialize)]
+struct BuiltinFormulaPackage {
+    package: String,
+    formulas: Vec<BuiltinFormulaDefinition>,
+}
 
-    AlchemistFormula {
-        id: FormulaId::new(format!("{}.{}", package, formula_id)),
-        version: *version,
-        label: entry.label.clone(),
-        description: Some(entry.description.clone()),
-        tags: vec![format!("builtin:{}.{}@{}", package, formula_id, version)],
-        graph: AlchemistGraph::new(),
-        properties: FormulaPropertySchema::default(),
-        surface: FormulaSurface::default(),
-        context_contract: FormulaContextContract::default(),
-        migrations: Vec::new(),
+impl BuiltinFormulaPackage {
+    fn decode(source: &str) -> Result<Self, BuiltinFormulaPackageError> {
+        serde_json::from_str(source).map_err(BuiltinFormulaPackageError::Decode)
+    }
+
+    fn into_entries(self) -> Result<Vec<FormulaCatalogEntry>, BuiltinFormulaPackageError> {
+        let package = self.package.trim();
+        if package.is_empty() {
+            return Err(BuiltinFormulaPackageError::EmptyPackage);
+        }
+
+        let mut seen = HashSet::new();
+        self.formulas
+            .into_iter()
+            .map(|formula| {
+                let key = format!("{}.{}@{}", package, formula.formula_id, formula.version);
+                if !seen.insert(key.clone()) {
+                    return Err(BuiltinFormulaPackageError::DuplicateFormula { source: key });
+                }
+                formula.into_catalog_entry(package)
+            })
+            .collect()
     }
 }
+
+#[derive(Debug, Deserialize)]
+struct BuiltinFormulaDefinition {
+    formula_id: String,
+    version: u32,
+    label: String,
+    description: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    graph: AlchemistGraph,
+    #[serde(default)]
+    properties: FormulaPropertySchema,
+    #[serde(default)]
+    surface: FormulaSurface,
+    #[serde(default)]
+    context_contract: FormulaContextContract,
+    #[serde(default)]
+    migrations: Vec<FormulaMigration>,
+    visibility: BuiltinFormulaVisibility,
+    #[serde(default = "default_builtin_processor_template")]
+    processor_template: bool,
+}
+
+impl BuiltinFormulaDefinition {
+    fn into_catalog_entry(
+        self,
+        package: &str,
+    ) -> Result<FormulaCatalogEntry, BuiltinFormulaPackageError> {
+        let formula_id = self.formula_id.trim();
+        if formula_id.is_empty() {
+            return Err(BuiltinFormulaPackageError::EmptyFormulaId {
+                package: package.to_owned(),
+            });
+        }
+
+        let source = FormulaSourceRef::builtin(
+            package.to_owned(),
+            formula_id.to_owned(),
+            self.version,
+        );
+        let tags = self.tags;
+        let mut graph = self.graph;
+        if graph.metadata.label.is_empty() {
+            graph.metadata.label = self.label.clone();
+        }
+        if graph.metadata.description.is_none() {
+            graph.metadata.description = Some(self.description.clone());
+        }
+        if graph.metadata.tags.is_empty() {
+            graph.metadata.tags = tags.clone();
+        }
+        let formula = AlchemistFormula {
+            id: FormulaId::new(format!("{}.{}", package, formula_id)),
+            version: self.version,
+            label: self.label.clone(),
+            description: Some(self.description.clone()),
+            tags,
+            graph,
+            properties: self.properties,
+            surface: self.surface,
+            context_contract: self.context_contract,
+            migrations: self.migrations,
+        };
+        let mut entry = FormulaCatalogEntry::builtin_processor_template(
+            source,
+            self.label,
+            self.description,
+            self.visibility.into(),
+            formula,
+        );
+        if !self.processor_template {
+            entry.processor_template = None;
+        }
+        Ok(entry)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct BuiltinFormulaVisibility {
+    show_in_formula_library: bool,
+    show_in_processor_palette: bool,
+    can_duplicate_to_library: bool,
+    open_readonly_from_processor: bool,
+}
+
+impl From<BuiltinFormulaVisibility> for FormulaVisibility {
+    fn from(value: BuiltinFormulaVisibility) -> Self {
+        Self {
+            show_in_formula_library: value.show_in_formula_library,
+            show_in_processor_palette: value.show_in_processor_palette,
+            can_duplicate_to_library: value.can_duplicate_to_library,
+            open_readonly_from_processor: value.open_readonly_from_processor,
+        }
+    }
+}
+
+const fn default_builtin_processor_template() -> bool {
+    true
+}
+
+#[derive(Debug)]
+pub(crate) enum BuiltinFormulaPackageError {
+    Decode(serde_json::Error),
+    EmptyPackage,
+    EmptyFormulaId { package: String },
+    DuplicateFormula { source: String },
+}
+
+impl fmt::Display for BuiltinFormulaPackageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Decode(error) => write!(f, "failed to decode builtin formula package: {error}"),
+            Self::EmptyPackage => write!(f, "builtin formula package has an empty package id"),
+            Self::EmptyFormulaId { package } => {
+                write!(f, "builtin formula package '{package}' contains an empty formula id")
+            }
+            Self::DuplicateFormula { source } => {
+                write!(f, "builtin formula package contains duplicate formula '{source}'")
+            }
+        }
+    }
+}
+
+impl Error for BuiltinFormulaPackageError {}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]

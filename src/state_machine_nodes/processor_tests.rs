@@ -14,8 +14,8 @@ use super::{
     FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
     PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND,
     StateProcessor, StateProcessorFolder, StateProcessorManager,
-    StateProcessorProperties, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
-    BUILTIN_MAPPING_FORMULA_ID,
+    StateProcessorProperties, BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE,
+    BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
 };
 use crate::app::state_machine_nodes_formula::{
     AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
@@ -134,6 +134,49 @@ fn builtin_formula_sources_parse_and_resolve() {
         .expect("builtin Mapping should resolve");
     assert_eq!(formula.label, "Mapping");
     assert_eq!(formula.version, BUILTIN_FORMULA_VERSION);
+}
+
+#[test]
+fn builtin_formula_package_loads_action_and_single_mapping() {
+    let catalog = FormulaCatalog::with_builtins();
+    let palette_entries = catalog.processor_palette_entries().collect::<Vec<_>>();
+    let labels = palette_entries
+        .iter()
+        .map(|entry| entry.label.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(labels.iter().filter(|label| **label == "Action").count(), 1);
+    assert_eq!(labels.iter().filter(|label| **label == "Mapping").count(), 1);
+    assert_eq!(
+        labels
+            .iter()
+            .filter(|label| label.starts_with("Mapping"))
+            .copied()
+            .collect::<Vec<_>>(),
+        vec!["Mapping"]
+    );
+
+    let action = catalog
+        .resolve_builtin(&FormulaSourceRef::builtin(
+            BUILTIN_FORMULA_PACKAGE,
+            BUILTIN_ACTION_FORMULA_ID,
+            BUILTIN_FORMULA_VERSION,
+        ))
+        .expect("builtin Action should resolve from the shipped package");
+    let mapping = catalog
+        .resolve_builtin(&FormulaSourceRef::builtin(
+            BUILTIN_FORMULA_PACKAGE,
+            BUILTIN_MAPPING_FORMULA_ID,
+            BUILTIN_FORMULA_VERSION,
+        ))
+        .expect("builtin Mapping should resolve from the shipped package");
+
+    assert_eq!(action.id.to_string(), "chataigne.action");
+    assert_eq!(mapping.id.to_string(), "chataigne.mapping");
+    assert!(action.tags.iter().any(|tag| tag == "builtin_package:chataigne"));
+    assert!(mapping.tags.iter().any(|tag| tag == "builtin_package:chataigne"));
+    assert!(action.graph.nodes.is_empty());
+    assert!(mapping.graph.nodes.is_empty());
 }
 
 #[test]

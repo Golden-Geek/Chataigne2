@@ -23,7 +23,8 @@ mod catalog;
 
 pub(crate) use self::catalog::{
     FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
-    BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
+    BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
+    BUILTIN_MAPPING_FORMULA_ID,
 };
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";

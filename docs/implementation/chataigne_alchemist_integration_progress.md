@@ -2,8 +2,8 @@
 
 ## Current Phase
 
-Phase 2 - Processor formula sources is complete and ready for the Phase 2
-supercommit.
+Phase 4 - Managed region model is next. No Phase 4 implementation has started
+yet.
 
 ## Completed Tasks
 
@@ -65,12 +65,37 @@ supercommit.
   `cargo test --workspace` passed with 286 app tests and 34
   state-machine tests. The existing 2 ignored Alchemist tests remain ignored
   as stale pre-manager-ref behavior.
+- Completed Phase 2 supercommit:
+  `4fff469 supercommit: chataigne alchemist integration phase 2 - processor formula sources`
+- Added a compile-time included built-in formula package file at
+  `src/state_machine_nodes/builtin_formulas/chataigne.formulas.json`.
+- Replaced catalog-time placeholder construction with package loading through
+  `FormulaCatalog::from_builtin_package_source`.
+- Added package validation for empty package IDs, empty formula IDs, duplicate
+  formula sources, and JSON decode failures.
+- Built-in `Action` and `Mapping` now resolve by cloning shipped package
+  definitions, not by synthesizing formula metadata at the resolver boundary.
+- Kept the Phase 3 formulas as explicit empty-graph definitions until managed
+  regions land in Phase 4. No fake Action or Mapping runtime behavior was
+  added.
+- Added coverage proving the shipped package exposes exactly one `Action` and
+  exactly one `Mapping`, with no Mapping variants.
+- Ran targeted processor tests:
+  `cargo test app::state_machine_nodes_processor::processor_tests -- --nocapture`
+  passed with 16 tests.
+- Ran full workspace validation:
+  `cargo test --workspace` passed with 287 app tests and 34
+  state-machine tests. The existing 2 ignored Alchemist tests remain ignored
+  as stale pre-manager-ref behavior.
 
 ## Pending Tasks
 
-- Complete the Phase 2 supercommit.
-- Start Phase 3 by replacing placeholder built-in formulas with shipped
-  built-in formula package loading.
+- Start Phase 4 by introducing the managed region model for built-in Mapping
+  and Action surfaces.
+- Define serializable managed region kinds for `InputSet`, `FilterPipeline`,
+  `OutputSet`, `ActionTrigger`, and `ActionCommands`.
+- Keep `ConditionGate` out of the managed region kind list; it belongs in the
+  filter-capable ANode model in later phases.
 
 ## Baseline Architecture Summary
 
@@ -129,9 +154,9 @@ supercommit.
   and processor folder palette refresh.
 - Built-ins are not inserted into the project formula library. They are
   catalog entries with built-in sources.
-- Built-in formulas currently resolve to empty placeholder
-  `AlchemistFormula` values with built-in metadata. Phase 3 replaces this
-  placeholder with shipped built-in formula package loading.
+- Built-in formulas load from a shipped package asset under the app-owned
+  `src/state_machine_nodes/builtin_formulas` boundary. The package owns the
+  catalog metadata and formula identity for built-in `Action` and `Mapping`.
 
 ## Source Resolution Behavior
 
@@ -148,6 +173,35 @@ supercommit.
   errors; they do not silently fall back to fake project nodes.
 - Built-in processor instance creation now persists a typed built-in source
   state and clears the legacy project reference parameter.
+- Built-in resolution now clones the formula definition loaded from the
+  embedded package file. Unknown built-in sources still fail with an explicit
+  `BuiltinFormulaNotFound` diagnostic path.
+
+## Built-in Formula Package Format
+
+- The initial package file is JSON and is compiled into the app with
+  `include_str!`.
+- The package has a package ID (`chataigne`) and a list of formula definitions.
+- Each formula definition owns:
+  `formula_id`, `version`, `label`, `description`, `tags`, visibility flags,
+  and whether it is a processor template.
+- Formula definitions can also carry normal Alchemist formula fields:
+  graph, property schema, surface, context contract, and migrations.
+- The initial shipped formula IDs are:
+  `chataigne.action@1` and `chataigne.mapping@1`.
+- The initial built-in formulas intentionally contain empty Alchemist graphs.
+  Phase 4 will add managed regions; Phase 3 adds no fake runtime behavior.
+
+## Built-in Formula Loading Path
+
+- `FormulaCatalog::with_builtins` decodes
+  `src/state_machine_nodes/builtin_formulas/chataigne.formulas.json`.
+- `FormulaCatalog::from_builtin_package_source` validates and converts package
+  definitions into catalog entries.
+- `FormulaCatalog::resolve_builtin` returns the loaded formula definition for
+  the matching built-in source.
+- Built-ins remain hidden from the project formula library and visible in the
+  processor palette through their package visibility metadata.
 
 ## Processor Formula Reference Migration
 
@@ -173,9 +227,9 @@ supercommit.
 
 ## Blocking Design Issues
 
-- Built-in `Action` and `Mapping` can now create source-backed processor
-  instances, but their formulas are still placeholder in-memory built-ins
-  until Phase 3 adds shipped formula package loading.
+- Built-in `Action` and `Mapping` can create source-backed processor
+  instances and resolve through shipped package definitions, but their graphs
+  are intentionally empty until Phase 4 adds managed regions.
 - The processor palette and creation path still bridge through
   `UserCreatableItem` string IDs at the UI/node boundary.
 - Processor creation is parsed from ad-hoc strings at the node creation
@@ -191,6 +245,7 @@ supercommit.
 
 - `src/state_machine_nodes/processor.rs`
 - `src/state_machine_nodes/catalog.rs`
+- `src/state_machine_nodes/builtin_formulas/chataigne.formulas.json`
 - `src/state_machine_nodes/formula.rs`
 - `src/state_machine/src/alchemist.rs`
 - `src/state_machine/src/protocol.rs`
@@ -217,6 +272,14 @@ supercommit.
 - Phase 2 uses a persisted source-state model while retaining the existing
   project `Formula` reference parameter as a transitional UI/project-formula
   mirror.
+- Phase 3 keeps Chataigne built-in package files in the app layer because
+  `Action` and `Mapping` are product-owned formulas, not reusable
+  `golden_*` package policy.
+- Phase 3 uses a compile-time included JSON package. That gives deterministic
+  startup, keeps desktop/headless behavior identical, and avoids a host/runtime
+  file-discovery dependency before package management exists.
+- Phase 3 ships empty graph definitions for built-ins instead of adding
+  shortcut evaluators. Managed regions and lowering remain later phases.
 
 ## Migration Notes
 
@@ -245,8 +308,13 @@ supercommit.
   compiled formula behavior.
 - Unknown built-in source strings can still instantiate a processor if they
   are manually passed through the creation boundary; the processor surfaces an
-  explicit missing-source warning. Phase 3 should narrow this once package
-  loading owns the complete built-in list.
+  explicit missing-source warning. Package loading now owns the complete
+  shipped built-in list, but the creation boundary still accepts parsed
+  built-in source strings so diagnostics remain the guardrail until later
+  hardening.
+- Empty built-in graphs are valid for Phase 3 but not user-complete. Phase 4
+  must add managed region definitions before the built-in surfaces become
+  useful.
 
 ## Tests Added
 
@@ -259,6 +327,7 @@ supercommit.
 - `processor_created_from_builtin_mapping_item_keeps_source_without_project_reference`
 - `processor_formula_source_state_serializes_builtin_source`
 - `builtin_mapping_processor_has_no_missing_formula_warning`
+- `builtin_formula_package_loads_action_and_single_mapping`
 
 ## Supercommit History
 
@@ -266,5 +335,7 @@ supercommit.
   `f4b9888 supercommit: chataigne alchemist integration phase 0 - baseline audit`
 - Completed:
   `a6086e0 supercommit: chataigne alchemist integration phase 1 - formula catalog`
-- Pending commit:
-  `supercommit: chataigne alchemist integration phase 2 - processor formula sources`
+- Completed:
+  `4fff469 supercommit: chataigne alchemist integration phase 2 - processor formula sources`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 3 - builtin formulas`

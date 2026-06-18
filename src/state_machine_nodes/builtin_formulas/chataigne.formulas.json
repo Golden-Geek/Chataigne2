@@ -1,0 +1,41 @@
+{
+  "package": "chataigne",
+  "formulas": [
+    {
+      "formula_id": "action",
+      "version": 1,
+      "label": "Action",
+      "description": "Built-in action formula surface.",
+      "tags": [
+        "builtin:chataigne.action@1",
+        "builtin_package:chataigne",
+        "processor_surface:action"
+      ],
+      "visibility": {
+        "show_in_formula_library": false,
+        "show_in_processor_palette": true,
+        "can_duplicate_to_library": true,
+        "open_readonly_from_processor": true
+      },
+      "processor_template": true
+    },
+    {
+      "formula_id": "mapping",
+      "version": 1,
+      "label": "Mapping",
+      "description": "Built-in mapping formula surface.",
+      "tags": [
+        "builtin:chataigne.mapping@1",
+        "builtin_package:chataigne",
+        "processor_surface:mapping"
+      ],
+      "visibility": {
+        "show_in_formula_library": false,
+        "show_in_processor_palette": true,
+        "can_duplicate_to_library": true,
+        "open_readonly_from_processor": true
+      },
+      "processor_template": true
+    }
+  ]
+}
