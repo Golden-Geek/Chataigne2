@@ -2,8 +2,13 @@
 
 ## Current Phase
 
-Phase 9 - Filter pipeline lowering is next after the Phase 8 pipeline shape
-checker supercommit.
+Phase 9 - Filter pipeline lowering is complete. Reusable
+`golden_alchemist` lowering now materializes declaration-driven linear
+managed filter-pipeline items, formula materialization has an opt-in managed
+filter-pipeline path, and the Chataigne state-machine layer owns the
+lane-aware `ValueSet` execution bridge for map, aggregate, and pack/projection
+pipelines. The next phase is InputSet region materialization for built-in
+Mapping processors.
 
 ## Completed Tasks
 
@@ -260,15 +265,100 @@ checker supercommit.
   pre-manager-ref behavior.
 - Completed reusable Alchemist submodule Phase 8 commit:
   `96437b6 supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
+- Added the first Phase 9 reusable filter-pipeline lowering boundary in
+  `golden_alchemist`.
+- Added `PipelineLoweringCtx`, `PipelineLoweringDiagnostic`,
+  `PipelineLoweringDiagnosticKind`, `FilterPipelineLoweringResult`, and
+  `lower_filter_pipeline_region`.
+- Added `AlchemistFormula::materialize_with_filter_pipelines` as an opt-in
+  context-aware materialization path for formulas that want managed
+  filter-pipeline regions lowered after ordinary property overrides.
+- Kept the existing lightweight `AlchemistFormula::materialize` API unchanged
+  for callers that do not have an ANode registry, value type registry, or
+  explicit filter-pipeline starting shapes.
+- The lowerer validates managed region kind, region instance identity,
+  accepted role metadata, and declared input/output boundary sockets before
+  graph mutation.
+- The lowerer resolves each enabled managed item through `ANodeRegistry`,
+  runs the Phase 8 shape checker, and refuses to mutate the graph when
+  declarations are missing or the shape checker reports diagnostics.
+- The lowerer inserts the actual managed `ANodeInstance`s into a draft graph
+  and autowires only explicit linear policies:
+  `UnaryTransform`, `Gate`, or paired primary input/output sockets.
+- Disabled managed filter items are skipped during lowering while remaining
+  in the authoring region instance.
+- Non-filter items and aggregate/reshape/expand nodes without linear
+  autowire sockets fail with diagnostics instead of implicit wiring.
+- Added shape-trace-aware lowering diagnostics so `ValueSet` elementwise,
+  aggregate, reshape, and expand transitions are not materialized as ordinary
+  scalar graph wiring before lane-aware MapEach/reduction/broadcast support
+  exists.
+- Lowering diagnostics now carry stable typed kinds, including
+  `UnsupportedValueSetElementwise`, `UnsupportedValueSetAggregate`,
+  `UnsupportedValueSetReshape`, and `UnsupportedValueSetExpand`, so later
+  Chataigne integration can branch on diagnostics without parsing messages.
+- `AlchemistFormula::materialize_with_filter_pipelines` now preserves typed
+  lowering diagnostics and shape diagnostics in
+  `FormulaMaterializationError::ManagedRegionLoweringFailed`.
+- Whole-set filters such as `ConditionGate` remain lowerable over `ValueSet`
+  because they intentionally preserve the complete value shape.
+- Ran targeted reusable Alchemist tests:
+  `cargo test -p golden_alchemist pipeline -- --nocapture` passed with
+  15 tests.
+- Ran targeted reusable Alchemist formula tests:
+  `cargo test -p golden_alchemist formula_tests -- --nocapture` passed with
+  7 tests.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  116 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 38 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+- Added reusable `Clamp` and `Pack Vec3` primitive ANodes in
+  `golden_alchemist`, including capability metadata, signatures, compile
+  operations, and catalog tests.
+- Fixed reusable compiler scheduling so `CompiledExecNode`s, state ranges,
+  debug source maps, and runtime evaluation all share exec IDs assigned from
+  true topological order instead of graph insertion order.
+- Added the app-owned `ValueSetPipelineRuntime` for lane-aware elementwise
+  filter execution. It compiles one scalar pipeline graph and evaluates each
+  `ValueSet` lane through a stable `ContextKey`, preserving lane keys, labels,
+  sources, logical ticks, runtime diagnostics, and debug samples.
+- Added `ValueSetProjectionRuntime` for fixed-slot whole-set projection
+  pipelines such as aggregate reductions and `Pack Vec3`.
+- `ValueSetPipelineRuntime` uses `LaneRuntimePool` so stateful filters such as
+  `Smooth Filter` keep independent memory per value lane without materializing
+  one graph copy per lane.
+- Added Phase 9 app runtime coverage for Remap + Clamp map chains,
+  independent Smooth lane memory, aggregate reduction, Pack Vec3 projection,
+  and ConditionGate inside a pipeline.
+- Ran targeted Phase 9 app tests:
+  `cargo test -p chataigne_state_machine value_set_pipeline -- --nocapture`
+  passed with 6 tests.
+- Ran targeted reusable Alchemist tests for compiler, library, pipeline, and
+  formula lowering paths; all targeted filters passed.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 44 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+- Completed reusable Alchemist submodule Phase 9 commit:
+  `5b1fca2 supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
 
 ## Pending Tasks
 
-- Start Phase 9 by lowering managed filter pipeline regions into normal
-  Alchemist graph structure.
-- Use the Phase 8 shape checker during lowering so invalid filter pipelines
-  fail with diagnostics instead of implicit wiring.
-- Preserve the existing rule that merge, reshape, and broadcast behavior must
-  be declared by ANode capability metadata.
+- Implement Phase 10 InputSet managed-region materialization for built-in
+  Mapping processors.
+- Implement the later OutputSet region and dispatch path before built-in
+  Mapping/Action processors can be end-to-end useful.
+- Project managed regions through the Rust protocol DTOs and generated
+  TypeScript output for the Svelte editor phases.
+- Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
+  target axis from future InputSet/OutputSet metadata before production
+  lowering can safely materialize it.
 
 ## Baseline Architecture Summary
 
@@ -590,14 +680,88 @@ checker supercommit.
 - `submodules/golden_alchemist_core/crates/golden_alchemist/src/pipeline_tests.rs`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## Phase 9 Lowering Strategy
+
+- Phase 9 now has a reusable graph-authoring lowerer in
+  `golden_alchemist::pipeline`.
+- The lowerer is intentionally declaration-driven. It consumes
+  `ANodeRegistry` and `ANodeRoleCapability` metadata rather than matching
+  node type strings.
+- Managed region instances remain authoring data. Lowering clones the shared
+  formula graph into a draft, inserts the processor-instance managed ANodes,
+  and returns the lowered graph only if all validation and graph edits
+  succeed.
+- `AlchemistFormula::materialize_with_filter_pipelines` applies ordinary
+  surface overrides first, validates managed-region instances, requires an
+  explicit initial `PipelineShape` for each filter region, and then lowers
+  each filter region into the materialized graph.
+- The original `AlchemistFormula::materialize` path remains a
+  property-override-only API. This keeps registry-dependent managed lowering
+  out of callers that cannot provide type and node registries.
+- Linear graph autowiring currently supports declarations that expose:
+  `AutoWirePolicy::UnaryTransform`, `AutoWirePolicy::Gate`, or explicit
+  primary input and output sockets.
+- `ConditionGate` lowers as a normal filter-capable ANode through its gate
+  autowire metadata.
+- Shape-changing or lane-wise `ValueSet` transitions are detected from the
+  Phase 8 shape trace before reusable graph mutation. Elementwise, aggregate,
+  reshape, and expand transitions involving `ValueSet` still return reusable
+  diagnostics instead of lowering to invalid scalar wiring.
+- Lowering diagnostics are typed with `PipelineLoweringDiagnosticKind`; this
+  is the stable reusable boundary for app-owned `ValueSet` lane strategies and
+  UI diagnostics.
+- Disabled managed items are not inserted into the executable graph.
+- Chataigne's app-owned lane runtime handles `ValueSet` elementwise map
+  semantics by compiling one scalar graph and evaluating entries through
+  lane-specific `ContextKey`s.
+- Stateful lane filters use `LaneRuntimePool`, so each live value lane owns
+  independent Alchemist memory while inactive lanes can be retained or dropped
+  without recompiling the graph.
+- Aggregate and pack/projection semantics are explicit fixed-slot whole-set
+  projections. This matches the upcoming InputSet model, where selected inputs
+  define stable lane order before a projection node evaluates.
+
+## Phase 9 Current Limitations
+
+- Built-in `Action` and `Mapping` package definitions still have empty graph
+  boundaries. InputSet/OutputSet phases must supply concrete boundary sockets
+  before the built-ins can call the reusable lowerer and app-owned lane
+  runtimes end to end.
+- `materialize_with_filter_pipelines` requires callers to provide the initial
+  shape for each filter pipeline. Automatic shape derivation from boundary
+  sockets remains deferred until the built-ins expose concrete typed boundary
+  nodes.
+- The app-owned projection runtime is fixed-slot by design. Dynamic arbitrary
+  lane aggregation remains deferred until InputSet metadata can define stable
+  selected lane order.
+- Expand/broadcast to new `ValueSet` axes remains explicit future work.
+
+## Phase 9 Affected Files
+
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/lib.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/compile.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/compile_tests.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/formula.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/formula_tests.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library/anodes/mod.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library/anodes/pack_vec3.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/library_tests.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/pipeline.rs`
+- `submodules/golden_alchemist_core/crates/golden_alchemist/src/pipeline_tests.rs`
+- `src/state_machine/src/lib.rs`
+- `src/state_machine/src/value_set_pipeline.rs`
+- `src/state_machine/src/value_set_pipeline_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
   generated TypeScript output.
 - Processor UI still uses the existing formula property surface; Phase 16 will
   project managed regions into the Svelte surfaces.
-- No managed-region lowering or runtime execution exists yet. That remains
-  Phase 9 and later work.
+- Phase 9 has reusable graph-materialization and app-owned lane/projection
+  runtime building blocks, but built-in Mapping/Action still need concrete
+  InputSet/OutputSet boundaries before they can execute end to end.
 
 ## Processor Formula Reference Migration
 
@@ -750,28 +914,42 @@ checker supercommit.
 - Empty built-in graphs are valid for Phase 3 but not user-complete. Phase 4
   must add managed region definitions before the built-in surfaces become
   useful.
-- Managed regions are now declared, but they do not yet lower to executable
-  graph behavior. The built-in processors remain structurally valid but not
-  end-to-end useful until later pipeline and InputSet/OutputSet phases.
+- Managed regions can lower to executable filter-pipeline graph behavior, but
+  the built-in processors remain structurally valid rather than end-to-end
+  useful until InputSet/OutputSet phases provide concrete boundaries.
 - Protocol/UI projection of managed regions is deferred, so frontend surfaces
   cannot use the new metadata yet.
 - `ValueSet` has a typed payload model but no real InputSet/OutputSet
   materialization or dispatch path yet. Those remain later managed-region and
   lowering phases.
-- Capability metadata now feeds the Phase 8 pipeline shape checker, but no
-  managed-region lowering path consumes the checker yet. That remains Phase 9
-  work.
-- The initial primitive capability set is intentionally conservative. Missing
-  dedicated pack, broadcast, select, and clamp nodes are deferred rather than
-  faked.
+- Capability metadata now feeds both the Phase 8 pipeline shape checker and
+  the Phase 9 managed-region lowering path.
+- The primitive capability set remains intentionally conservative. Clamp and
+  Pack Vec3 are now production ANodes; broadcast/select behavior remains
+  deferred rather than faked.
 - Per-lane ConditionGate mode is a declared config value but currently returns
   an explicit runtime diagnostic if selected. This avoids hidden fallback
   behavior before lane-aware ValueSet lowering exists.
-- The Phase 8 checker validates linear shape transitions, not full graph type
-  solving. Socket-level type compatibility remains the responsibility of the
-  existing Alchemist type solver and the future Phase 9 lowering path.
-- `Expand` currently produces a `ValueSet` with an unknown axis. Phase 9 must
-  choose the target axis explicitly when it lowers real pipeline regions.
+- The Phase 8 checker validates pipeline shape transitions, not full graph
+  type solving. Socket-level type compatibility remains the responsibility of
+  the existing Alchemist type solver and Phase 9 lowering/materialization.
+- `Expand` currently produces a `ValueSet` with an unknown axis. A later phase
+  must choose the target axis explicitly when it lowers real broadcast regions.
+- `materialize_with_filter_pipelines` requires explicit initial shapes from
+  the caller. That keeps hidden type inference out of the materialization path
+  until real built-in boundary nodes can provide typed sockets.
+- Formula-level managed lowering failures now preserve both the reusable
+  lowering diagnostics and the shape-checker diagnostics.
+- The first Phase 9 lowerer deliberately rejects aggregate/reshape/expand
+  nodes that do not expose linear autowire sockets. This avoids implicit
+  merge/broadcast behavior until lane-aware lowering makes those transitions
+  explicit.
+- The first Phase 9 lowerer also rejects `ValueSet` elementwise lowering for
+  scalar filters such as Remap. This prevents the graph from wiring a whole
+  `ValueSet` extension value into a scalar socket while still allowing
+  whole-set filters like `ConditionGate`.
+- Phase 9 now has graph-authoring tests and app runtime tests for the
+  lane-aware `ValueSet` execution strategy.
 
 ## Tests Added
 
@@ -798,6 +976,8 @@ checker supercommit.
 - `filter_capable_node_discovery_is_declaration_driven`
 - `non_filter_node_has_no_filter_capability`
 - `primary_socket_autowiring_is_declared_for_unary_filters`
+- `clamp_signature_is_declared`
+- `pack_vec3_signature_is_declared`
 - `capability_metadata_roundtrips_through_json`
 - `condition_gate_declares_filter_gate_capability`
 - `condition_gate_true_condition_passes_value`
@@ -812,6 +992,21 @@ checker supercommit.
 - `checker_rejects_nodes_without_filter_capability`
 - `condition_gate_preserves_pipeline_shape`
 - `expand_filter_broadcasts_single_value_to_valueset`
+- `lowering_autowires_enabled_filter_items_into_graph`
+- `lowering_skips_disabled_filter_items`
+- `lowering_rejects_non_filter_items_without_mutating_graph`
+- `lowering_requires_linear_autowire_sockets`
+- `lowering_rejects_valueset_elementwise_until_lane_strategy_exists`
+- `lowering_allows_whole_valueset_filters`
+- `materialize_with_filter_pipelines_lowers_managed_filter_items`
+- `materialize_with_filter_pipelines_requires_initial_shape`
+- `materialize_with_filter_pipelines_rejects_valueset_elementwise_without_lane_strategy`
+- `remap_clamp_chain_maps_each_lane`
+- `smooth_filter_keeps_independent_lane_memory`
+- `aggregate_reduces_multiple_lanes_to_one_value`
+- `pack_vec3_projects_three_lanes_to_vector`
+- `elementwise_remap_preserves_lanes_and_values`
+- `whole_set_condition_gate_can_run_per_lane_with_defaults`
 
 ## Supercommit History
 
@@ -842,3 +1037,7 @@ checker supercommit.
   `supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
 - Reusable Alchemist submodule commit:
   `96437b6 supercommit: chataigne alchemist integration phase 8 - pipeline shape checker`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
+- Reusable Alchemist submodule commit:
+  `5b1fca2 supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`

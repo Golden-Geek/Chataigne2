@@ -7,6 +7,7 @@ mod processor;
 pub mod protocol;
 mod state_machine;
 pub mod value_set;
+mod value_set_pipeline;
 
 pub use arbitration::{
     ArbitrationDecision, ArbitrationResult, BlendPolicy, CommandDispatcher, CommandIntent, CommandIntentArbiter,
@@ -32,6 +33,7 @@ pub use state_machine::{
     GlobalStateMachineContextFrame, RuntimeExecutionMatrix, StateMachineTickOutput, StateMachineTransitionRuntime,
 };
 pub use value_set::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError};
+pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime};
 
 #[cfg(test)]
 mod arbitration_tests;
@@ -43,5 +45,7 @@ mod processor_tests;
 mod protocol_tests;
 #[cfg(test)]
 mod state_machine_tests;
+#[cfg(test)]
+mod value_set_pipeline_tests;
 #[cfg(test)]
 mod value_set_tests;
