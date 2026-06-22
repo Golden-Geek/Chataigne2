@@ -1,11 +1,12 @@
 use std::time::Duration;
 
 use golden_alchemist::{
-    ANodeDeclaration, ANodeInstance, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraph, CompileCtx,
-    EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaRef, FormulaSurface, ManagedItemId,
-    ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
-    ManagedRegionKind, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SocketId, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry,
+    ANodeDeclaration, ANodeId, ANodeInstance, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraph,
+    AlchemistRuntime, CompileCtx, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaRef,
+    FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition,
+    ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, OutputSocketRef, PrimitiveNodeDeclaration,
+    PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SocketId, StableRef, SurfaceItemKind,
+    TriggerValue, ValueTypeId, ValueTypeRegistry, compile_graph,
 };
 use golden_statechart::StateId;
 
@@ -116,6 +117,48 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
     assert!(output.diagnostics.is_empty());
     assert_eq!(output.intents[0].payload, RuntimeValue::Float(0.5));
     assert_eq!(output.intents[1].payload, RuntimeValue::Float(1.0));
+}
+
+#[test]
+fn manager_filter_chain_matches_direct_anode_result() {
+    let (formula, mut instance) = formula_and_instance();
+    let source = endpoint_ref("module/value");
+    let target = command_target("target/value");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("inputs"),
+        region("inputs", vec![input_item("Value", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("filters"),
+        region("filters", vec![remap_item(0.0, 10.0, 0.0, 2.0), clamp_item(0.0, 1.0)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("outputs"),
+        region("outputs", vec![output_item("Value", target.clone())]),
+    );
+
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ManagedFormulaRuntime::compile(&formula, &instance, &compile_ctx)
+        .unwrap()
+        .unwrap();
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Float(7.5));
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(12, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 1);
+    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+    assert_eq!(output.intents[0].payload, direct_remap_clamp_result(7.5));
 }
 
 #[test]
@@ -375,6 +418,42 @@ fn action_condition_gate_passes_command() {
 }
 
 #[test]
+fn manager_condition_gate_matches_direct_anode_result() {
+    let (formula, mut instance) = action_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    let target = command_target("target/action");
+    let trigger = TriggerValue::fired(10, 18);
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("pipeline"),
+        region("pipeline", vec![condition_gate_item(true)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region("commands", vec![output_item("Action", target.clone())]),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(trigger));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(18, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 1);
+    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+    assert_eq!(output.intents[0].payload, direct_condition_gate_result(trigger, true));
+}
+
+#[test]
 fn processor_runtime_evaluates_managed_action_sidecar() {
     let (formula, mut instance) = action_formula_and_instance();
     let source = endpoint_ref("module/trigger");
@@ -599,6 +678,107 @@ fn managed_item_for_primitive(kind: PrimitiveNodeKind) -> ManagedItemInstance {
         enabled: true,
         ui_state: ManagedItemUiState::default(),
     }
+}
+
+fn direct_remap_clamp_result(value: f64) -> RuntimeValue {
+    let mut graph = AlchemistGraph::new();
+    let mut source = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("constant"), "Value");
+    source.config.set("value", RuntimeValue::Float(value));
+    let mut remap = primitive_anode(PrimitiveNodeKind::Remap);
+    remap
+        .input_defaults
+        .insert(SocketId::new("in_min"), RuntimeValue::Float(0.0));
+    remap
+        .input_defaults
+        .insert(SocketId::new("in_max"), RuntimeValue::Float(10.0));
+    remap
+        .input_defaults
+        .insert(SocketId::new("out_min"), RuntimeValue::Float(0.0));
+    remap
+        .input_defaults
+        .insert(SocketId::new("out_max"), RuntimeValue::Float(2.0));
+    let mut clamp = primitive_anode(PrimitiveNodeKind::Clamp);
+    clamp
+        .input_defaults
+        .insert(SocketId::new("minimum"), RuntimeValue::Float(0.0));
+    clamp
+        .input_defaults
+        .insert(SocketId::new("maximum"), RuntimeValue::Float(1.0));
+
+    let source = graph.add_node(source).unwrap();
+    let remap = graph.add_node(remap).unwrap();
+    let clamp = graph.add_node(clamp).unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(remap, "value"),
+        )
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(remap, "result"),
+            InputSocketRef::new(clamp, "value"),
+        )
+        .unwrap();
+
+    evaluate_direct_output(graph, clamp, "result")
+}
+
+fn direct_condition_gate_result(trigger: TriggerValue, condition: bool) -> RuntimeValue {
+    let mut graph = AlchemistGraph::new();
+    let mut source = ANodeInstance::new(golden_alchemist::ANodeTypeId::new("constant"), "Trigger");
+    source.config.set("value", RuntimeValue::Trigger(trigger));
+    let mut gate = primitive_anode(PrimitiveNodeKind::ConditionGate);
+    gate.config.set("mode", RuntimeValue::String("block_trigger".into()));
+    gate.input_defaults
+        .insert(SocketId::new("condition"), RuntimeValue::Bool(condition));
+    gate.input_defaults.insert(
+        SocketId::new("default_value"),
+        RuntimeValue::Trigger(TriggerValue::default()),
+    );
+
+    let source = graph.add_node(source).unwrap();
+    let gate = graph.add_node(gate).unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(gate, "value"),
+        )
+        .unwrap();
+
+    evaluate_direct_output(graph, gate, "value")
+}
+
+fn primitive_anode(kind: PrimitiveNodeKind) -> ANodeInstance {
+    let declaration = PrimitiveNodeDeclaration::new(kind);
+    ANodeInstance::new(declaration.type_id(), declaration.label())
+}
+
+fn evaluate_direct_output(graph: AlchemistGraph, output_node: ANodeId, socket: &str) -> RuntimeValue {
+    let (value_types, nodes) = registries();
+    let compiled = compile_graph(
+        &graph,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    );
+    assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let inputs = RuntimeInputSnapshot::default();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(1, &inputs, &registries);
+    let output = runtime.evaluate(&ctx);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    output
+        .debug_samples
+        .into_iter()
+        .find(|sample| sample.author_node_id == output_node && sample.output_socket.as_str() == socket)
+        .unwrap_or_else(|| panic!("missing direct `{socket}` output sample"))
+        .value
 }
 
 fn endpoint_ref(id: &str) -> StableRef {

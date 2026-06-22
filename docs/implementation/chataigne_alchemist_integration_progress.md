@@ -2,13 +2,12 @@
 
 ## Current Phase
 
-Phase 14 - manager reference ANodes as bridges is complete. The Chataigne
-manager ref ANodes now compile as explicit StableRef-backed bridge nodes instead
-of unsupported placeholders. Inputs and Conditions read manager-provided
-ValueSets from `EvaluationCtx.inputs`, Outputs emits command intents toward an
-outputs-manager target, and missing/unbound refs remain explicit diagnostics
-with no fake fallback values. The next phase is Phase 15 - remove duplicated
-manager-specific filter and condition logic.
+Phase 15 - remove duplicated manager-specific filter and condition logic is
+complete. The audit found no remaining active manager-owned filter or condition
+evaluators in the app layer; the old condition/filter nodes are now documented
+as tree/UI persistence wrappers only. New parity tests prove managed filter and
+condition paths produce the same values as direct Alchemist ANode graphs. The
+next phase is Phase 16 - Svelte UI integration for the managed formula surfaces.
 
 ## Completed Tasks
 
@@ -524,11 +523,49 @@ manager-specific filter and condition logic.
   The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
 
+## Phase 15 - Remove Duplicated Manager Logic - Complete
+
+- Audited the old manager condition and filter node wrappers for active runtime
+  behavior:
+  `sm_input_value_condition`, `sm_input_node_condition`, `sm_script_condition`,
+  `sm_condition_group`, `sm_remap_filter`, `sm_smoothing_filter`,
+  `sm_invert_filter`, and `sm_clamp_filter`.
+- Confirmed those wrappers no longer contain active manager-owned evaluator
+  logic. They remain only as tree/UI/persistence shells around labels,
+  parameters, child organization, item-kind registration, and permissions.
+- Updated wrapper comments to make the boundary explicit: processors must not
+  interpret these nodes directly, and runtime behavior belongs to managed ANodes,
+  formula lowering, and Alchemist evaluation.
+- Added regression coverage proving the managed filter pipeline produces the
+  same result as a direct Remap -> Clamp Alchemist graph.
+- Added regression coverage proving a managed Action ConditionGate filter
+  produces the same trigger payload as a direct ConditionGate Alchemist graph.
+- Kept obsolete wrappers registered for now so existing project trees and tests
+  can still load their UI/persistence shells; later UI phases can decide whether
+  to hide or migrate them from creation palettes.
+- Ran targeted Phase 15 state-machine tests:
+  `cargo test -p chataigne_state_machine managed_formula -- --nocapture` passed
+  with 11 tests.
+- Ran manager-focused state-machine tests:
+  `cargo test -p chataigne_state_machine manager_ -- --nocapture` passed with
+  11 tests.
+- Ran full state-machine validation:
+  `cargo test -p chataigne_state_machine` passed with 72 tests and 2 ignored
+  stale pre-manager-ref tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 72 state-machine tests.
+  The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+
 ## Pending Tasks
 
-- Remove duplicated Phase 15 manager-specific filter and condition evaluation
-  paths now that the shared ANodes, managed filter pipeline, and manager bridge
-  nodes own the reusable behavior.
 - Project managed regions through the Rust protocol DTOs and generated
   TypeScript output for the Svelte editor phases.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
@@ -1165,6 +1202,10 @@ manager-specific filter and condition logic.
 - Phase 14 introduces stable ref value types for manager bridges. Existing
   unconfigured manager ref ANodes intentionally stay invalid until a real
   manager source or target is selected.
+- Phase 15 leaves legacy condition/filter wrapper node type IDs registered.
+  Their runtime semantics are removed/deprecated; they are retained only for
+  tree/UI/persistence compatibility until the managed UI migration chooses a
+  palette and project migration policy.
 
 ## Known Risks
 
@@ -1230,6 +1271,10 @@ manager-specific filter and condition logic.
 - Phase 14 models `OutputsManagerRef` as a command-intent emitter targeting an
   outputs-manager StableRef. The command dispatcher remains the only boundary
   that should translate those intents into concrete module IO.
+- Phase 15 found no active app-layer evaluator functions to delete for the old
+  wrappers. The risk is future confusion rather than current duplicate runtime
+  behavior, so the code now documents wrappers as metadata-only and pins the
+  managed-vs-direct ANode parity in tests.
 
 ## Tests Added
 
@@ -1307,6 +1352,8 @@ manager-specific filter and condition logic.
 - `output_manager_bridge_suppresses_idle_trigger`
 - Updated `manager_reference_anodes_mark_formula_unavailable_in_editor_state`
   to assert bridge diagnostics instead of unsupported-node diagnostics.
+- `manager_filter_chain_matches_direct_anode_result`
+- `manager_condition_gate_matches_direct_anode_result`
 
 ## Supercommit History
 
@@ -1353,3 +1400,5 @@ manager-specific filter and condition logic.
   `099715a supercommit: chataigne alchemist integration phase 13 - builtin action`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 14 - manager bridges`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 15 - remove duplicate manager logic`

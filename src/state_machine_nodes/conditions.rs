@@ -20,7 +20,7 @@ macro_rules! leaf_condition_init {
 
 // ─── InputValueCondition ─────────────────────────────────────────────────────
 
-/// Prototype configuration for the future Managed Condition ANode.
+/// Legacy condition wrapper retained for tree/UI persistence.
 ///
 /// Runtime typing, projections, comparator choices, and reference visibility
 /// must be supplied by that ANode declaration and lowering path. A Processor
@@ -84,9 +84,11 @@ impl Node for InputValueCondition {
 
 // ─── InputNodeCondition ──────────────────────────────────────────────────────
 
-/// Asks a target node whether a named condition endpoint holds.
-/// Available endpoints are discovered from the target node's condition
-/// provider registry; `endpoint_id` stores the selected key.
+/// Legacy condition wrapper retained for tree/UI persistence.
+///
+/// Runtime endpoint lookup and comparison behavior must be supplied by a
+/// managed condition ANode and lowering path. A Processor must not interpret
+/// this node directly.
 #[node("sm_input_node_condition", label = "Input Node")]
 #[children(
     toggle_mode: bool = false (
@@ -143,8 +145,10 @@ impl Node for InputNodeCondition {
 
 // ─── ScriptCondition ─────────────────────────────────────────────────────────
 
-/// Condition evaluated by a user-authored script. The script reads context
-/// and parameter values and sets the condition valid or invalid.
+/// Legacy script-condition wrapper retained for tree/UI persistence.
+///
+/// Script execution must happen behind a managed condition ANode or host
+/// scripting boundary. A Processor must not interpret this node directly.
 #[node("sm_script_condition", label = "Script")]
 #[children(
     toggle_mode: bool = false (
@@ -170,9 +174,10 @@ impl Node for ScriptCondition {
 
 // ─── ConditionGroup ──────────────────────────────────────────────────────────
 
-/// Combines child conditions with a reduce operator. Acts as a single condition
-/// to its parent while itself accepting nested `sm_condition` items —
-/// enabling fully recursive condition trees.
+/// Legacy condition-group wrapper retained for tree/UI persistence.
+///
+/// Runtime reduction behavior must be supplied by a managed condition ANode and
+/// lowering path. This wrapper only owns authored child organization.
 #[node("sm_condition_group", label = "Condition Group")]
 #[children(
     toggle_mode: bool = false (
