@@ -13,6 +13,8 @@ use golden_alchemist::{
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
 
+use crate::ManagedFormulaRuntime;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProcessorId(Uuid);
@@ -264,6 +266,7 @@ impl ProcessorDirtyFlags {
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
+    pub managed_formula: Option<ManagedFormulaRuntime>,
     pub plan: Option<ProcessorExecutionPlan>,
     pub lanes: LaneRuntimePool,
     pub active: bool,
@@ -330,6 +333,7 @@ impl ProcessorRuntime {
         Self {
             id,
             compiled: None,
+            managed_formula: None,
             plan: None,
             lanes: LaneRuntimePool::default(),
             active: false,
@@ -390,10 +394,19 @@ impl ProcessorRuntime {
             compiled,
             self.diagnostics.clone(),
         ));
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
         self.compile_from_shared_formula_with_lane_policy(
             processor,
             formula,
             compiled_formula,
+            managed_formula,
             preserve_compatible_lanes,
         )
     }
@@ -404,7 +417,25 @@ impl ProcessorRuntime {
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
     ) -> bool {
-        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, false)
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, None, false)
+    }
+
+    pub fn compile_from_shared_formula_with_compile_ctx(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+        ctx: &CompileCtx<'_>,
+    ) -> bool {
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, managed_formula, false)
     }
 
     pub fn compile_from_shared_formula_preserving_compatible_lanes(
@@ -413,7 +444,7 @@ impl ProcessorRuntime {
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
     ) -> bool {
-        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, true)
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, None, true)
     }
 
     fn compile_from_shared_formula_with_lane_policy(
@@ -421,6 +452,7 @@ impl ProcessorRuntime {
         processor: &Processor,
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
+        managed_formula: Option<ManagedFormulaRuntime>,
         preserve_compatible_lanes: bool,
     ) -> bool {
         if let Err(error) = processor.formula_instance.require_compatible(formula) {
@@ -444,12 +476,14 @@ impl ProcessorRuntime {
             AxisSet::new(),
         ));
         self.compiled = Some(compiled);
+        self.managed_formula = managed_formula;
         self.dirty = ProcessorDirtyFlags::default();
         true
     }
 
     fn clear_runtime(&mut self) {
         self.compiled = None;
+        self.managed_formula = None;
         self.plan = None;
         self.lanes = LaneRuntimePool::default();
         self.subscriptions.clear();
@@ -564,6 +598,12 @@ impl ProcessorRuntime {
     ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
+        }
+        if let Some(managed_formula) = self.managed_formula.as_mut() {
+            return vec![ProcessorLaneOutput {
+                context_key: None,
+                output: managed_formula.evaluate(ctx),
+            }];
         }
         let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
             return Vec::new();

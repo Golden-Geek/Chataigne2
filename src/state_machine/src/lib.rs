@@ -3,6 +3,7 @@
 pub mod alchemist;
 mod arbitration;
 mod input_set;
+mod managed_formula;
 mod manager;
 mod output_set;
 mod processor;
@@ -17,6 +18,7 @@ pub use arbitration::{
 };
 pub use golden_statechart as statechart;
 pub use input_set::{INPUT_SOURCE_FIELD, InputSetError, InputSetItem, InputSetMaterialization, InputSetRuntime};
+pub use managed_formula::{ManagedFormulaError, ManagedFormulaRuntime};
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,
@@ -45,6 +47,8 @@ pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, Val
 mod arbitration_tests;
 #[cfg(test)]
 mod input_set_tests;
+#[cfg(test)]
+mod managed_formula_tests;
 #[cfg(test)]
 mod manager_tests;
 #[cfg(test)]

@@ -228,7 +228,7 @@ impl ChataigneStateMachineRuntime {
                 compiled
             };
             let mut runtime = ProcessorRuntime::new(processor.id);
-            if !runtime.compile_from_shared_formula(processor, formula, compiled_formula) {
+            if !runtime.compile_from_shared_formula_with_compile_ctx(processor, formula, compiled_formula, ctx) {
                 errors.extend(runtime.diagnostics.iter().map(|diagnostic| diagnostic.message.clone()));
             }
             processor_runtimes.insert(processor.id, runtime);

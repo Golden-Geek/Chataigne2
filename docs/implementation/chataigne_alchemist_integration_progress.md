@@ -2,12 +2,12 @@
 
 ## Current Phase
 
-Phase 11 - OutputSet region intent materialization is complete. The
-Chataigne state-machine layer now owns typed InputSet and OutputSet runtime
-boundaries around the Phase 9 `ValueSet` filter/projection runtimes.
-OutputSet produces `RuntimeIntent`s only; module IO remains behind the
-existing command-intent arbitration and dispatcher boundary. The next phase is
-built-in Mapping end-to-end orchestration.
+Phase 12 - built-in Mapping managed orchestration is complete. The
+Chataigne state-machine layer now composes typed InputSet, optional
+FilterPipeline, and OutputSet managed regions through a reusable managed
+formula runtime. Mapping still emits `RuntimeIntent`s only; module IO remains
+behind the existing command-intent arbitration and dispatcher boundary. The
+next phase is Phase 13 - built-in Action pipeline end-to-end.
 
 ## Completed Tasks
 
@@ -374,6 +374,7 @@ built-in Mapping end-to-end orchestration.
   `cargo test --workspace` passed with 288 app tests and 49 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+
 - Added the Phase 11 app-owned OutputSet materialization boundary in
   `src/state_machine/src/output_set.rs`.
 - Added `OutputSetRuntime`, `OutputSetItem`, and
@@ -409,10 +410,47 @@ built-in Mapping end-to-end orchestration.
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
 
+## Phase 12 - Built-in Mapping Managed Orchestration - Complete
+
+- Added a generic managed formula runtime in `chataigne_state_machine` that
+  composes InputSet, optional FilterPipeline, and OutputSet regions by managed
+  region kind rather than by the Mapping formula id.
+- Processor compilation now builds the managed runtime sidecar when a formula
+  surface declares the reusable InputSet/FilterPipeline/OutputSet shape; ordinary
+  formula graphs keep the existing compiled-graph execution path.
+- Managed filters compile lazily from the materialized ValueSet payload type and
+  lane count, so endpoint `StableRef` types are not treated as payload data
+  types.
+- Covered pass-through mapping, elementwise filter chains, aggregate projection,
+  and Pack Vec3 projection with runtime tests using real built-in primitive
+  declarations.
+- Covered the `ProcessorRuntime` sidecar path with a managed Mapping-style
+  processor test.
+- Made `golden_alchemist` value-type and ANode registries cloneable so managed
+  runtimes can lazily compile filter projections by observed payload type without
+  holding compile-context borrows.
+- Ran targeted Phase 12 state-machine tests:
+  `cargo test -p chataigne_state_machine managed_formula -- --nocapture` passed
+  with 5 tests.
+- Ran full state-machine validation:
+  `cargo test -p chataigne_state_machine` passed with 60 tests and 2 ignored
+  stale pre-manager-ref tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 60 state-machine tests.
+  The existing 2 ignored Alchemist tests remain ignored as stale pre-manager-ref
+  behavior.
+
 ## Pending Tasks
 
-- Orchestrate InputSet -> filter/projection runtime -> OutputSet for built-in
-  Mapping processors before Mapping can be end-to-end useful.
+- Build the Phase 13 Action processor path from trigger, optional ConditionGate,
+  and command regions for the built-in `chataigne.action@1` formula.
 - Project managed regions through the Rust protocol DTOs and generated
   TypeScript output for the Svelte editor phases.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
