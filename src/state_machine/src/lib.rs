@@ -2,6 +2,7 @@
 
 pub mod alchemist;
 mod arbitration;
+mod input_set;
 mod manager;
 mod processor;
 pub mod protocol;
@@ -14,6 +15,7 @@ pub use arbitration::{
     CommandPolicy, IntentOrigin, RateLimitScope,
 };
 pub use golden_statechart as statechart;
+pub use input_set::{INPUT_SOURCE_FIELD, InputSetError, InputSetItem, InputSetMaterialization, InputSetRuntime};
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,
@@ -37,6 +39,8 @@ pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, Val
 
 #[cfg(test)]
 mod arbitration_tests;
+#[cfg(test)]
+mod input_set_tests;
 #[cfg(test)]
 mod manager_tests;
 #[cfg(test)]

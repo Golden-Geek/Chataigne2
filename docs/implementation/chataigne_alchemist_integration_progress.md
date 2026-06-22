@@ -2,13 +2,11 @@
 
 ## Current Phase
 
-Phase 9 - Filter pipeline lowering is complete. Reusable
-`golden_alchemist` lowering now materializes declaration-driven linear
-managed filter-pipeline items, formula materialization has an opt-in managed
-filter-pipeline path, and the Chataigne state-machine layer owns the
-lane-aware `ValueSet` execution bridge for map, aggregate, and pack/projection
-pipelines. The next phase is InputSet region materialization for built-in
-Mapping processors.
+Phase 10 - InputSet region materialization is complete. The Chataigne
+state-machine layer now owns a typed InputSet runtime boundary that turns
+authored input-region items into `ValueSet` entries from `EvaluationCtx`
+runtime input snapshots. The next phase is OutputSet region intent
+materialization for built-in Mapping processors.
 
 ## Completed Tasks
 
@@ -347,11 +345,37 @@ Mapping processors.
   pre-manager-ref behavior.
 - Completed reusable Alchemist submodule Phase 9 commit:
   `5b1fca2 supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
+- Added the Phase 10 app-owned InputSet materialization boundary in
+  `src/state_machine/src/input_set.rs`.
+- Added `InputSetRuntime`, `InputSetItem`, and `InputSetMaterialization`.
+- InputSet materialization reads selected `StableRef` sources from
+  `EvaluationCtx.inputs` and emits `ValueSet` entries without fallback values.
+- Added managed-region parsing for `ManagedRegionKind::InputSet` instances
+  that contain authored input items with a `source` StableRef config field.
+- Chose stable lane keys from persisted managed item IDs, so reordering inputs
+  preserves lane identity independently of authored order.
+- Disabled input items are excluded from the materialized `ValueSet`.
+- Missing input source values produce an explicit `input_set_missing_source`
+  diagnostic and no fake entry.
+- Kept `InputsManagerRef` ANode runtime behavior unchanged and unsupported;
+  manager reference bridges remain Phase 14 work.
+- Ran targeted Phase 10 state-machine tests:
+  `cargo test -p chataigne_state_machine input_set -- --nocapture` passed
+  with 5 tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 49 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
 
 ## Pending Tasks
 
-- Implement Phase 10 InputSet managed-region materialization for built-in
-  Mapping processors.
 - Implement the later OutputSet region and dispatch path before built-in
   Mapping/Action processors can be end-to-end useful.
 - Project managed regions through the Rust protocol DTOs and generated
@@ -753,6 +777,49 @@ Mapping processors.
 - `src/state_machine/src/value_set_pipeline_tests.rs`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## Phase 10 InputSet Source Model
+
+- InputSet is implemented in the app-owned state-machine crate, not in
+  reusable `golden_alchemist`, because it materializes Chataigne runtime input
+  sources into the app-owned `ValueSet` type.
+- The first supported source model is an authored `StableRef` stored in each
+  managed input item's `source` config field.
+- At evaluation time, `InputSetRuntime` resolves each enabled source through
+  `EvaluationCtx.inputs`.
+- The materializer returns a `ValueSet` plus diagnostics. It does not insert
+  placeholder values for unavailable sources.
+- This phase deliberately does not alter `InputsManagerRef`; manager-reference
+  bridge ANodes remain unsupported until the manager bridge phase.
+
+## Phase 10 Stable Lane Key Strategy
+
+- Managed input items use the persisted `ManagedItemId` as the lane identity.
+- The `ValueLaneKey` format is `input:<managed_item_uuid>`.
+- Reordering input items changes output order but preserves each item's lane
+  key, allowing later lane memory and projection code to remain stable.
+- Each `ValueSetEntry` also carries the original `StableRef` as `source`, so
+  dispatch, diagnostics, and future UI can still show the selected endpoint.
+
+## Phase 10 Supported Sources
+
+- Runtime input snapshot values keyed by `StableRef`.
+- StableRef-backed Chataigne module endpoint references are the intended first
+  concrete source type.
+
+## Phase 10 Unsupported Sources
+
+- Dynamic discovery of all sources under a context axis.
+- Input fallback/default values for missing sources.
+- Direct manager-reference ANode evaluation.
+- Output dispatch and end-to-end Mapping execution.
+
+## Phase 10 Affected Files
+
+- `src/state_machine/src/lib.rs`
+- `src/state_machine/src/input_set.rs`
+- `src/state_machine/src/input_set_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
@@ -761,7 +828,8 @@ Mapping processors.
   project managed regions into the Svelte surfaces.
 - Phase 9 has reusable graph-materialization and app-owned lane/projection
   runtime building blocks, but built-in Mapping/Action still need concrete
-  InputSet/OutputSet boundaries before they can execute end to end.
+  OutputSet boundaries and protocol/UI projection before they can execute end
+  to end.
 
 ## Processor Formula Reference Migration
 
@@ -916,12 +984,12 @@ Mapping processors.
   useful.
 - Managed regions can lower to executable filter-pipeline graph behavior, but
   the built-in processors remain structurally valid rather than end-to-end
-  useful until InputSet/OutputSet phases provide concrete boundaries.
+  useful until OutputSet and orchestration phases provide the remaining
+  boundaries.
 - Protocol/UI projection of managed regions is deferred, so frontend surfaces
   cannot use the new metadata yet.
-- `ValueSet` has a typed payload model but no real InputSet/OutputSet
-  materialization or dispatch path yet. Those remain later managed-region and
-  lowering phases.
+- `ValueSet` has a typed payload model and Phase 10 InputSet materialization,
+  but no OutputSet materialization or dispatch path yet.
 - Capability metadata now feeds both the Phase 8 pipeline shape checker and
   the Phase 9 managed-region lowering path.
 - The primitive capability set remains intentionally conservative. Clamp and
@@ -1007,6 +1075,11 @@ Mapping processors.
 - `pack_vec3_projects_three_lanes_to_vector`
 - `elementwise_remap_preserves_lanes_and_values`
 - `whole_set_condition_gate_can_run_per_lane_with_defaults`
+- `single_input_materializes_valueset_entry`
+- `multiple_inputs_materialize_in_authored_order`
+- `input_reorder_preserves_lane_identity`
+- `disabled_input_is_excluded`
+- `missing_input_reports_diagnostic_without_fake_value`
 
 ## Supercommit History
 
@@ -1041,3 +1114,5 @@ Mapping processors.
   `supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
 - Reusable Alchemist submodule commit:
   `5b1fca2 supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 10 - input set region`
