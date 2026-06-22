@@ -483,6 +483,62 @@ fn builtin_mapping_processor_instantiates_managed_region_folders() {
 }
 
 #[test]
+fn builtin_action_processor_instantiates_managed_region_folders() {
+    let (mut engine, _, _) = engine_with_formula();
+    let processor_id = attach_builtin_action_processor(&mut engine);
+    let snapshot = engine.process_tree_snapshot();
+    let source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("Processor should expose its formula source key");
+
+    assert_eq!(
+        snapshot
+            .node(source_key)
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Str(
+            "state_processor:builtin:chataigne.action@1".to_owned()
+        ))
+    );
+
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own a Managed Regions root");
+    let actual = snapshot
+        .child_ids(regions_root)
+        .into_iter()
+        .map(|child| {
+            let node = engine.nodes.get(child).expect("region should exist");
+            (
+                node.get_type().to_owned(),
+                node.node_data().meta.decl_id.0.clone(),
+                node.node_data().meta.label.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual,
+        vec![
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("trigger"),
+                "Trigger".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("pipeline"),
+                "Pipeline".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("commands"),
+                "Commands".to_owned()
+            )
+        ]
+    );
+}
+
+#[test]
 fn managed_region_palette_accepts_only_matching_anode_roles() {
     let (mut engine, _, _) = engine_with_formula();
     let processor_id = attach_builtin_mapping_processor(&mut engine);
@@ -502,7 +558,21 @@ fn managed_region_palette_accepts_only_matching_anode_roles() {
             &processor_managed_region_decl_id("inputs"),
         )
         .expect("Mapping should expose an Inputs region");
+    let outputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("outputs"),
+        )
+        .expect("Mapping should expose an Outputs region");
     let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate");
+    let input_type = format!(
+        "{ANODE_CREATE_PREFIX}{}",
+        chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
+    );
+    let output_type = format!(
+        "{ANODE_CREATE_PREFIX}{}",
+        chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
+    );
 
     let filter_items = engine
         .nodes
@@ -514,10 +584,21 @@ fn managed_region_palette_accepts_only_matching_anode_roles() {
         .get(inputs)
         .expect("Inputs region should exist")
         .user_creatable_items();
+    let output_items = engine
+        .nodes
+        .get(outputs)
+        .expect("Outputs region should exist")
+        .user_creatable_items();
 
     assert!(filter_items
         .iter()
         .any(|item| item.node_type == condition_gate_type));
+    assert!(input_items
+        .iter()
+        .any(|item| item.node_type == input_type));
+    assert!(output_items
+        .iter()
+        .any(|item| item.node_type == output_type));
     assert!(!input_items
         .iter()
         .any(|item| item.node_type == condition_gate_type));
@@ -550,6 +631,136 @@ fn managed_region_palette_accepts_only_matching_anode_roles() {
             .get(child)
             .is_some_and(|node| node.get_type() == ANODE_NODE_TYPE)
     }));
+
+    let accepted = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: inputs,
+        node_type: input_type,
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        accepted.success,
+        "Inputs region should accept Inputs manager ref ANodes: {accepted:?}"
+    );
+
+    let accepted = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: outputs,
+        node_type: output_type,
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        accepted.success,
+        "Outputs region should accept Output Commands manager ref ANodes: {accepted:?}"
+    );
+}
+
+#[test]
+fn managed_region_items_survive_sparse_project_reload() {
+    let (mut engine, _, _) = engine_with_formula();
+    let processor_id = attach_builtin_mapping_processor(&mut engine);
+    let snapshot = engine.process_tree_snapshot();
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own Managed Regions");
+    let inputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("inputs"),
+        )
+        .expect("Mapping should expose an Inputs region");
+    let filters = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("filters"),
+        )
+        .expect("Mapping should expose a Filters region");
+    let outputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("outputs"),
+        )
+        .expect("Mapping should expose an Outputs region");
+    let input_type = format!(
+        "{ANODE_CREATE_PREFIX}{}",
+        chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
+    );
+    let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate");
+    let output_type = format!(
+        "{ANODE_CREATE_PREFIX}{}",
+        chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
+    );
+
+    for (parent, node_type, label) in [
+        (inputs, input_type, "Inputs"),
+        (filters, condition_gate_type, "ConditionGate"),
+        (outputs, output_type, "Outputs"),
+    ] {
+        let result = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent,
+            node_type,
+            label: None,
+            initial_params: Vec::new(),
+        });
+        assert!(
+            result.success,
+            "{label} region item should be accepted: {result:?}"
+        );
+    }
+    engine
+        .apply_edits()
+        .expect("managed region items should materialize");
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("project should serialize");
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("project should reload");
+    for _ in 0..4 {
+        loaded
+            .apply_edits()
+            .expect("declared processor children should reconcile");
+    }
+    let round_tripped = golden_core::app::to_sparse_project_json_pretty(&loaded)
+        .expect("reloaded project should serialize");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&round_tripped)
+            .expect("round-tripped project json should parse"),
+        serde_json::from_str::<serde_json::Value>(&json).expect("project json should parse"),
+        "save, reload, and save should keep managed-region item data stable"
+    );
+
+    let loaded_processor = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor should reload");
+    let loaded_snapshot = loaded.process_tree_snapshot();
+    let loaded_regions_root = loaded_snapshot
+        .find_child_by_decl_id(loaded_processor, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Managed Regions root should reload");
+    for region_id in ["inputs", "filters", "outputs"] {
+        let loaded_region = loaded_snapshot
+            .find_child_by_decl_id(
+                loaded_regions_root,
+                &processor_managed_region_decl_id(region_id),
+            )
+            .unwrap_or_else(|| panic!("{region_id} region should reload"));
+        let loaded_anodes = loaded_snapshot
+            .child_ids(loaded_region)
+            .into_iter()
+            .filter(|child| {
+                loaded
+                    .nodes
+                    .get(*child)
+                    .is_some_and(|node| node.get_type() == ANODE_NODE_TYPE)
+            })
+            .count();
+        assert_eq!(
+            loaded_anodes, 1,
+            "the user-authored {region_id} item should survive sparse project reload"
+        );
+    }
 }
 
 #[test]
@@ -989,6 +1200,14 @@ fn attach_processor_referencing(
 }
 
 fn attach_builtin_mapping_processor(engine: &mut AppEngine) -> NodeId {
+    attach_builtin_processor(engine, BUILTIN_MAPPING_FORMULA_ID)
+}
+
+fn attach_builtin_action_processor(engine: &mut AppEngine) -> NodeId {
+    attach_builtin_processor(engine, BUILTIN_ACTION_FORMULA_ID)
+}
+
+fn attach_builtin_processor(engine: &mut AppEngine, formula_id: &str) -> NodeId {
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
     let manager_id = engine
@@ -1000,7 +1219,7 @@ fn attach_builtin_mapping_processor(engine: &mut AppEngine) -> NodeId {
     let mut processor = StateProcessor::new();
     processor.set_formula_source(FormulaSourceRef::builtin(
         BUILTIN_FORMULA_PACKAGE,
-        BUILTIN_MAPPING_FORMULA_ID,
+        formula_id,
         BUILTIN_FORMULA_VERSION,
     ));
     engine.add_user_item(processor.into(), Some(manager_id));

@@ -3,10 +3,11 @@
 use std::{fmt::Debug, sync::Arc};
 
 use golden_alchemist::{
-    ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId,
-    CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, DiagnosticOrigin, ExecutionKind, ExtensionValue, FacetId,
-    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent,
-    RuntimeValue, SignatureCtx, StableRef, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
+    ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeRoleCapability, ANodeSignature,
+    ANodeTypeId, AutoWirePolicy, CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, DiagnosticOrigin,
+    ExecutionKind, ExtensionValue, FacetId, InputSocketDecl, ManagedUiMode, NodeEvaluation, OutputSocketDecl,
+    PipelineCardinality, RegistryError, ResolvedANodeSignature, RuntimeIntent, RuntimeValue, SignatureCtx, SocketId,
+    StableRef, SurfaceItemKind, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
     ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 
@@ -178,6 +179,33 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
             ChataigneNodeKind::InputsManagerRef => ExecutionKind::EventSource,
             ChataigneNodeKind::OutputsManagerRef => ExecutionKind::EffectEmitter,
             ChataigneNodeKind::ConditionsManagerRef | ChataigneNodeKind::Routing => ExecutionKind::Pure,
+        }
+    }
+
+    fn role_capabilities(&self) -> Vec<ANodeRoleCapability> {
+        match self.0 {
+            ChataigneNodeKind::InputsManagerRef => vec![ANodeRoleCapability {
+                role: SurfaceItemKind::Input,
+                primary_input: None,
+                primary_output: Some(SocketId::new("values")),
+                autowire: AutoWirePolicy::Source {
+                    output: SocketId::new("values"),
+                },
+                cardinality: PipelineCardinality::WholeSet,
+                ui_mode: ManagedUiMode::CompactRow,
+            }],
+            ChataigneNodeKind::OutputsManagerRef => vec![ANodeRoleCapability {
+                role: SurfaceItemKind::Output,
+                primary_input: Some(SocketId::new("values")),
+                primary_output: None,
+                autowire: AutoWirePolicy::Sink {
+                    input: SocketId::new("values"),
+                    trigger: Some(SocketId::new("trigger")),
+                },
+                cardinality: PipelineCardinality::WholeSet,
+                ui_mode: ManagedUiMode::CompactRow,
+            }],
+            ChataigneNodeKind::ConditionsManagerRef | ChataigneNodeKind::Routing => Vec::new(),
         }
     }
 

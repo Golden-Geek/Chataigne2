@@ -12,8 +12,12 @@ managed region resolves its folder, exposes the backend-filtered add menu, and
 offers a ConditionGate shortcut when that item is valid for the region. The
 current palette-polish slice categorizes processor creation items at the
 catalog boundary so the Add menu presents Action / Mapping under Built-ins and
-user formulas under Project Formulas. The remaining Phase 16 work is end-to-end
-product verification and any save/reload polish still needed.
+user formulas under Project Formulas. The current verification slice declares
+the app-owned Inputs and Output Commands manager-ref ANodes as managed-region
+source/sink capabilities, then pins Action/Mapping region materialization,
+Input/Filter/Output region creation, and sparse project save/reload in tests.
+Phase 16 is buildable; browser-level smoke remains useful when running the
+full desktop UI, but the core creation and persistence paths are automated.
 
 ## Completed Tasks
 
@@ -1310,6 +1314,14 @@ product verification and any save/reload polish still needed.
   templates use the `Built-ins` menu path and project formula templates use the
   `Project Formulas` menu path. The Svelte manager keeps using the shared
   `NodeAddButton` menu instead of duplicating palette logic.
+- App-owned Inputs and Output Commands manager-ref ANodes now declare
+  `SurfaceItemKind::Input` / `SurfaceItemKind::Output` capabilities with
+  source/sink autowire metadata, so managed regions can expose them through the
+  same backend-filtered ANode palette as filters.
+- Sparse project save/reload is covered for processor-owned managed-region
+  items. A Mapping processor with authored Input, ConditionGate filter, and
+  Output items round-trips through sparse project JSON without declared-default
+  churn.
 
 ## Tests Added
 
@@ -1393,12 +1405,16 @@ product verification and any save/reload polish still needed.
 - `managed_region_definition_dto_preserves_role_and_socket_contract`
 - `managed_region_instance_dto_preserves_item_identity_and_ui_state`
 - `builtin_mapping_processor_instantiates_managed_region_folders`
+- `builtin_action_processor_instantiates_managed_region_folders`
 - `managed_region_palette_accepts_only_matching_anode_roles`
+- `managed_region_items_survive_sparse_project_reload`
 - `processor_formula_resolver_reads_builtin_source_key`
 - `npm run check` in `src-ui` passes with 0 Svelte/TypeScript diagnostics for
   the managed-region controls.
 - Updated `processor_manager_lists_custom_formulas` to assert processor palette
   menu paths for built-ins and project formulas.
+- Updated `managed_region_palette_accepts_only_matching_anode_roles` to assert
+  Input, Filter, and Output region creation through backend role capabilities.
 
 ## Supercommit History
 
@@ -1455,3 +1471,5 @@ product verification and any save/reload polish still needed.
   `supercommit: chataigne alchemist integration phase 16 - managed region ui controls`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 16 - processor palette polish`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 16 - managed region verification`
