@@ -2,24 +2,28 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistGraph, AlchemistRuntime, CompileCtx, CompileResult, DiagnosticOrigin,
-    EvaluationCtx, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue,
-    SignatureCtx, StableRef, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId, ValueTypeRegistry,
-    compile_graph, primitive_node_registry,
+    EvaluationCtx, InputSocketRef, OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries,
+    RuntimeValue, SignatureCtx, StableRef, TriggerValue, TypeBindings, TypeConstraint, ValueStorageKind, ValueTypeId,
+    ValueTypeRegistry, compile_graph, primitive_node_registry,
 };
 
-use crate::ValueSet;
 use crate::alchemist::{
     CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, MODULE_ENDPOINT_TYPE, MODULE_TYPE, OUTPUTS_MANAGER_TYPE,
     ROUTING_TYPE, STATE_TYPE, VALUE_SET_TYPE, register_nodes, register_value_types,
 };
+use crate::{COMMAND_INTENT_KIND, INPUT_SOURCE_FIELD, OUTPUT_TARGET_FIELD, ValueLaneKey, ValueSet, ValueSetEntry};
 
 fn node(id: &str) -> ANodeInstance {
     ANodeInstance::new(ANodeTypeId::new(id), id)
 }
 
 fn compile_single_node(type_id: &str) -> CompileResult {
+    compile_node(node(type_id))
+}
+
+fn compile_node(instance: ANodeInstance) -> CompileResult {
     let mut graph = AlchemistGraph::new();
-    graph.add_node(node(type_id)).unwrap();
+    graph.add_node(instance).unwrap();
     let mut value_types = ValueTypeRegistry::with_primitives();
     register_value_types(&mut value_types).unwrap();
     let mut nodes = primitive_node_registry();
@@ -34,15 +38,108 @@ fn compile_single_node(type_id: &str) -> CompileResult {
     )
 }
 
+fn manager_ref(value_type: &str, stable_id: &str) -> StableRef {
+    StableRef::new(ValueTypeId::new(value_type), stable_id)
+}
+
+fn evaluate_source_bridge(node_type: &str, field: &str, source: StableRef, values: ValueSet) -> RuntimeOutput {
+    let mut instance = node(node_type);
+    instance.config.set(field, RuntimeValue::Ref(source.clone()));
+    let compiled = compile_node(instance);
+    assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, values.to_runtime_value().unwrap());
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+
+    runtime.evaluate(&EvaluationCtx {
+        logical_tick: 22,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    })
+}
+
+fn compile_output_bridge_graph(target: StableRef, value: RuntimeValue, trigger: Option<RuntimeValue>) -> CompileResult {
+    let mut value_node = node("constant");
+    value_node.config.set("value", value);
+    let mut output_node = node(OUTPUTS_MANAGER_TYPE);
+    output_node.config.set(OUTPUT_TARGET_FIELD, RuntimeValue::Ref(target));
+
+    let mut graph = AlchemistGraph::new();
+    let value_node = graph.add_node(value_node).unwrap();
+    let output_node = graph.add_node(output_node).unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(value_node, "value"),
+            InputSocketRef::new(output_node, "values"),
+        )
+        .unwrap();
+
+    if let Some(trigger) = trigger {
+        let mut trigger_node = node("constant");
+        trigger_node.config.set("value", trigger);
+        let trigger_node = graph.add_node(trigger_node).unwrap();
+        graph
+            .connect(
+                OutputSocketRef::new(trigger_node, "value"),
+                InputSocketRef::new(output_node, "trigger"),
+            )
+            .unwrap();
+    }
+
+    let mut value_types = ValueTypeRegistry::with_primitives();
+    register_value_types(&mut value_types).unwrap();
+    let mut nodes = primitive_node_registry();
+    register_nodes(&mut nodes).unwrap();
+    let compiled = compile_graph(
+        &graph,
+        &CompileCtx {
+            value_types: &value_types,
+            nodes: &nodes,
+            properties: None,
+        },
+    );
+    assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
+    compiled
+}
+
+fn sample_value(result: &RuntimeOutput, socket: &str) -> RuntimeValue {
+    result
+        .debug_samples
+        .iter()
+        .find(|sample| sample.output_socket.as_str() == socket)
+        .unwrap_or_else(|| panic!("missing `{socket}` sample"))
+        .value
+        .clone()
+}
+
 #[test]
-fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
-    for (node_type, label, required_behavior) in [
-        (CONDITIONS_MANAGER_TYPE, "Conditions", "condition manager evaluation"),
-        (INPUTS_MANAGER_TYPE, "Inputs", "ValueSet resolution"),
-        (OUTPUTS_MANAGER_TYPE, "Output Commands", "lane-aware processor intents"),
+fn manager_reference_nodes_require_configured_bridge_refs() {
+    for (node_type, label, field, value_type) in [
+        (
+            CONDITIONS_MANAGER_TYPE,
+            "Conditions",
+            INPUT_SOURCE_FIELD,
+            CONDITIONS_MANAGER_TYPE,
+        ),
+        (INPUTS_MANAGER_TYPE, "Inputs", INPUT_SOURCE_FIELD, INPUTS_MANAGER_TYPE),
+        (
+            OUTPUTS_MANAGER_TYPE,
+            "Output Commands",
+            OUTPUT_TARGET_FIELD,
+            OUTPUTS_MANAGER_TYPE,
+        ),
     ] {
         let result = compile_single_node(node_type);
-        assert!(result.compiled.is_none(), "{node_type} must not compile silently");
+        assert!(
+            result.compiled.is_none(),
+            "{node_type} must not compile without a bridge ref"
+        );
         assert!(result.has_errors(), "{node_type} must report a compile error");
         assert_eq!(
             result.diagnostics.len(),
@@ -50,15 +147,15 @@ fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
             "{node_type} should emit one explicit diagnostic"
         );
         let diagnostic = &result.diagnostics[0];
-        assert_eq!(diagnostic.code, "chataigne_manager_node_unsupported");
+        assert_eq!(diagnostic.code, "chataigne_manager_bridge_missing_ref");
         assert!(
             diagnostic.message.contains(label),
             "{node_type} diagnostic should name the manager role: {:?}",
             diagnostic.message
         );
         assert!(
-            diagnostic.message.contains(required_behavior),
-            "{node_type} diagnostic should describe the missing real behavior: {:?}",
+            diagnostic.message.contains(field) && diagnostic.message.contains(value_type),
+            "{node_type} diagnostic should describe the missing bridge ref: {:?}",
             diagnostic.message
         );
         assert!(
@@ -70,7 +167,192 @@ fn manager_reference_nodes_compile_as_explicit_unsupported_diagnostics() {
             matches!(&diagnostic.origin, DiagnosticOrigin::Node(_)),
             "{node_type} diagnostic should point at the authored ANode"
         );
+
+        let mut unbound = node(node_type);
+        unbound.config.set(
+            field,
+            RuntimeValue::Ref(StableRef::new(ValueTypeId::new(value_type), "")),
+        );
+        let result = compile_node(unbound);
+        assert!(result.has_errors(), "{node_type} must reject unbound bridge refs");
+        assert_eq!(result.diagnostics[0].code, "chataigne_manager_bridge_unbound_ref");
+
+        let mut invalid = node(node_type);
+        invalid.config.set(field, RuntimeValue::Float(1.0));
+        let result = compile_node(invalid);
+        assert!(result.has_errors(), "{node_type} must reject non-ref bridge config");
+        assert_eq!(result.diagnostics[0].code, "chataigne_manager_bridge_invalid_ref");
     }
+}
+
+#[test]
+fn input_manager_bridge_exposes_valueset_from_runtime_source() {
+    let source = manager_ref(INPUTS_MANAGER_TYPE, "inputs/main");
+    let values = ValueSet::with_entries(
+        3,
+        vec![ValueSetEntry::new(
+            ValueLaneKey::new("x").unwrap(),
+            "X",
+            RuntimeValue::Float(0.5),
+        )],
+    );
+    let result = evaluate_source_bridge(INPUTS_MANAGER_TYPE, INPUT_SOURCE_FIELD, source.clone(), values.clone());
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let sample = result
+        .debug_samples
+        .iter()
+        .find(|sample| sample.output_socket.as_str() == "values")
+        .expect("inputs bridge should publish values output");
+    assert_eq!(ValueSet::from_runtime_value(&sample.value).unwrap(), values);
+}
+
+#[test]
+fn input_manager_bridge_missing_runtime_source_emits_no_fallback_sample() {
+    let source = manager_ref(INPUTS_MANAGER_TYPE, "inputs/missing");
+    let mut instance = node(INPUTS_MANAGER_TYPE);
+    let authored = instance.id;
+    instance.config.set(INPUT_SOURCE_FIELD, RuntimeValue::Ref(source));
+    let compiled = compile_node(instance);
+    assert!(!compiled.has_errors(), "{:?}", compiled.diagnostics);
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let result = runtime.evaluate(&EvaluationCtx {
+        logical_tick: 1,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+
+    assert_eq!(result.diagnostics.len(), 1);
+    assert!(
+        result
+            .debug_samples
+            .iter()
+            .all(|sample| sample.author_node_id != authored)
+    );
+}
+
+#[test]
+fn condition_manager_bridge_exposes_bool_and_trigger_lanes() {
+    let source = manager_ref(CONDITIONS_MANAGER_TYPE, "conditions/main");
+    let on_true = TriggerValue::fired(7, 22);
+    let on_false = TriggerValue::default();
+    let values = ValueSet::with_entries(
+        22,
+        vec![
+            ValueSetEntry::new(ValueLaneKey::new("valid").unwrap(), "Valid", RuntimeValue::Bool(true)),
+            ValueSetEntry::new(
+                ValueLaneKey::new("on_true").unwrap(),
+                "On True",
+                RuntimeValue::Trigger(on_true),
+            ),
+            ValueSetEntry::new(
+                ValueLaneKey::new("on_false").unwrap(),
+                "On False",
+                RuntimeValue::Trigger(on_false),
+            ),
+        ],
+    );
+    let result = evaluate_source_bridge(CONDITIONS_MANAGER_TYPE, INPUT_SOURCE_FIELD, source.clone(), values);
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(sample_value(&result, "valid"), RuntimeValue::Bool(true));
+    assert_eq!(sample_value(&result, "on_true"), RuntimeValue::Trigger(on_true));
+    assert_eq!(sample_value(&result, "on_false"), RuntimeValue::Trigger(on_false));
+}
+
+#[test]
+fn output_manager_bridge_emits_command_intent_with_optional_trigger() {
+    let target = manager_ref(OUTPUTS_MANAGER_TYPE, "outputs/main");
+    let compiled = compile_output_bridge_graph(target.clone(), RuntimeValue::Float(0.75), None);
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let result = runtime.evaluate(&EvaluationCtx {
+        logical_tick: 12,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.intents.len(), 1);
+    assert_eq!(result.intents[0].kind.as_ref(), COMMAND_INTENT_KIND);
+    assert_eq!(result.intents[0].target.as_ref(), Some(&target));
+    assert_eq!(result.intents[0].payload, RuntimeValue::Float(0.75));
+}
+
+#[test]
+fn output_manager_bridge_emits_valueset_payload() {
+    let target = manager_ref(OUTPUTS_MANAGER_TYPE, "outputs/main");
+    let values = ValueSet::with_entries(
+        12,
+        vec![ValueSetEntry::new(
+            ValueLaneKey::new("level").unwrap(),
+            "Level",
+            RuntimeValue::Float(0.75),
+        )],
+    );
+    let payload = values.to_runtime_value().unwrap();
+    let compiled = compile_output_bridge_graph(target.clone(), payload.clone(), None);
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let result = runtime.evaluate(&EvaluationCtx {
+        logical_tick: 12,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.intents.len(), 1);
+    assert_eq!(result.intents[0].target.as_ref(), Some(&target));
+    assert_eq!(result.intents[0].payload, payload);
+}
+
+#[test]
+fn output_manager_bridge_suppresses_idle_trigger() {
+    let target = manager_ref(OUTPUTS_MANAGER_TYPE, "outputs/main");
+    let compiled = compile_output_bridge_graph(
+        target,
+        RuntimeValue::Float(0.75),
+        Some(RuntimeValue::Trigger(TriggerValue::default())),
+    );
+    let mut runtime = AlchemistRuntime::new(compiled.compiled.unwrap());
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+
+    let result = runtime.evaluate(&EvaluationCtx {
+        logical_tick: 12,
+        delta_time: Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    });
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.intents.is_empty());
 }
 
 #[test]
@@ -112,9 +394,15 @@ fn manager_reference_sockets_expose_valueset() {
     let outputs = outputs_decl.signature(&ctx, &node(OUTPUTS_MANAGER_TYPE), &bindings);
     assert_eq!(outputs.inputs[0].id.as_str(), "values");
     assert_eq!(outputs.inputs[0].label, "Values");
-    assert_eq!(
-        outputs.inputs[0].constraint,
-        TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE))
+    assert!(
+        outputs.inputs[0]
+            .constraint
+            .accepts_value_type(&ValueTypeId::new(VALUE_SET_TYPE), &value_types)
+    );
+    assert!(
+        outputs.inputs[0]
+            .constraint
+            .accepts_value_type(&ValueTypeId::new("float"), &value_types)
     );
 }
 

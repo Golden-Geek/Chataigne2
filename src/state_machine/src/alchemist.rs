@@ -5,14 +5,18 @@ use std::{fmt::Debug, sync::Arc};
 use golden_alchemist::{
     ANodeConfigFieldDecl, ANodeDeclaration, ANodeInstance, ANodeRegistry, ANodeSignature, ANodeTypeId,
     CompiledNodeEvaluator, CompiledNodeOperation, Diagnostic, DiagnosticOrigin, ExecutionKind, ExtensionValue, FacetId,
-    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeValue,
-    SignatureCtx, StableRef, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
+    InputSocketDecl, NodeEvaluation, OutputSocketDecl, RegistryError, ResolvedANodeSignature, RuntimeIntent,
+    RuntimeValue, SignatureCtx, StableRef, TypeBindingSource, TypeBindings, TypeConstraint, TypeVar, ValueStorageKind,
     ValueTypeDescriptor, ValueTypeId, ValueTypeRegistry,
 };
 
 pub use golden_alchemist as alchemist;
 
-use crate::value_set::ValueSet;
+use crate::{
+    input_set::INPUT_SOURCE_FIELD,
+    output_set::{COMMAND_INTENT_KIND, OUTPUT_TARGET_FIELD},
+    value_set::ValueSet,
+};
 
 pub use crate::value_set::VALUE_SET_TYPE;
 
@@ -47,6 +51,19 @@ pub fn register_value_types(registry: &mut ValueTypeRegistry) -> Result<(), Regi
         MODULE_ENDPOINT_TYPE,
         "Module Endpoint",
         &["node_ref", "command_target"],
+    )?;
+    register_ref(
+        registry,
+        CONDITIONS_MANAGER_TYPE,
+        "Conditions Manager",
+        &["condition_manager"],
+    )?;
+    register_ref(registry, INPUTS_MANAGER_TYPE, "Inputs Manager", &["inputs_manager"])?;
+    register_ref(
+        registry,
+        OUTPUTS_MANAGER_TYPE,
+        "Outputs Manager",
+        &["outputs_manager", "command_target"],
     )?;
     register_ref(registry, COMMAND_TARGET_TYPE, "Command Target", &["command_target"])?;
     register_ref(registry, SEQUENCE_TYPE, "Sequence", &["launchable", "time_source"])?;
@@ -166,10 +183,25 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
 
     fn config_fields(&self) -> Vec<ANodeConfigFieldDecl> {
         match self.0 {
-            ChataigneNodeKind::ConditionsManagerRef
-            | ChataigneNodeKind::InputsManagerRef
-            | ChataigneNodeKind::OutputsManagerRef
-            | ChataigneNodeKind::Routing => Vec::new(),
+            ChataigneNodeKind::ConditionsManagerRef => vec![manager_ref_config_field(
+                INPUT_SOURCE_FIELD,
+                "Source",
+                CONDITIONS_MANAGER_TYPE,
+                "Conditions manager source to bridge into compact condition sockets.",
+            )],
+            ChataigneNodeKind::InputsManagerRef => vec![manager_ref_config_field(
+                INPUT_SOURCE_FIELD,
+                "Source",
+                INPUTS_MANAGER_TYPE,
+                "Inputs manager source to bridge as a ValueSet.",
+            )],
+            ChataigneNodeKind::OutputsManagerRef => vec![manager_ref_config_field(
+                OUTPUT_TARGET_FIELD,
+                "Target",
+                OUTPUTS_MANAGER_TYPE,
+                "Outputs manager target that receives bridged command payloads.",
+            )],
+            ChataigneNodeKind::Routing => Vec::new(),
         }
     }
 
@@ -205,9 +237,20 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
                     InputSocketDecl::new(
                         "values",
                         "Values",
-                        TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE)),
+                        TypeConstraint::OneOf(vec![
+                            TypeConstraint::Exact(ValueTypeId::new(VALUE_SET_TYPE)),
+                            TypeConstraint::Primitive,
+                        ]),
                     ),
-                    InputSocketDecl::new("trigger", "Trigger", TypeConstraint::Exact(ValueTypeId::new("trigger"))),
+                    InputSocketDecl::new(
+                        "trigger",
+                        "Trigger",
+                        TypeConstraint::OneOf(vec![
+                            TypeConstraint::Exact(ValueTypeId::new("trigger")),
+                            TypeConstraint::Exact(ValueTypeId::new("unit")),
+                        ]),
+                    )
+                    .with_default(RuntimeValue::Unit),
                 ],
                 ..ANodeSignature::default()
             },
@@ -243,41 +286,221 @@ impl ANodeDeclaration for ChataigneNodeDeclaration {
         _resolved: &ResolvedANodeSignature,
     ) -> Result<CompiledNodeOperation, Diagnostic> {
         let evaluator: Arc<dyn CompiledNodeEvaluator> = match self.0 {
-            ChataigneNodeKind::ConditionsManagerRef => {
-                return Err(unsupported_manager_node_diagnostic(
-                    instance,
-                    "Conditions",
-                    "condition manager evaluation in processor lanes or global transition context",
-                ));
-            }
-            ChataigneNodeKind::InputsManagerRef => {
-                return Err(unsupported_manager_node_diagnostic(
-                    instance,
-                    "Inputs",
-                    "ValueSet resolution from the current processor context",
-                ));
-            }
-            ChataigneNodeKind::OutputsManagerRef => {
-                return Err(unsupported_manager_node_diagnostic(
-                    instance,
-                    "Output Commands",
-                    "lane-aware processor intents or global transition-origin intents",
-                ));
-            }
+            ChataigneNodeKind::ConditionsManagerRef => Arc::new(ConditionsManagerRefEval {
+                source: manager_ref_config(instance, INPUT_SOURCE_FIELD, "Conditions", CONDITIONS_MANAGER_TYPE)?,
+            }),
+            ChataigneNodeKind::InputsManagerRef => Arc::new(InputsManagerRefEval {
+                source: manager_ref_config(instance, INPUT_SOURCE_FIELD, "Inputs", INPUTS_MANAGER_TYPE)?,
+            }),
+            ChataigneNodeKind::OutputsManagerRef => Arc::new(OutputsManagerRefEval {
+                target: manager_ref_config(instance, OUTPUT_TARGET_FIELD, "Output Commands", OUTPUTS_MANAGER_TYPE)?,
+            }),
             ChataigneNodeKind::Routing => Arc::new(RoutingEval),
         };
         Ok(CompiledNodeOperation::Custom(evaluator))
     }
 }
 
-fn unsupported_manager_node_diagnostic(instance: &ANodeInstance, label: &str, required_behavior: &str) -> Diagnostic {
+fn manager_ref_config_field(
+    id: &'static str,
+    label: &'static str,
+    value_type: &'static str,
+    description: &'static str,
+) -> ANodeConfigFieldDecl {
+    ANodeConfigFieldDecl::new(
+        id,
+        label,
+        RuntimeValue::Ref(StableRef::new(ValueTypeId::new(value_type), "")),
+    )
+    .with_description(description)
+}
+
+fn manager_ref_config(
+    instance: &ANodeInstance,
+    field: &'static str,
+    label: &'static str,
+    expected_type: &'static str,
+) -> Result<StableRef, Diagnostic> {
+    match instance.config.get(field) {
+        Some(RuntimeValue::Ref(reference)) if reference.value_type.as_str() == expected_type => {
+            if reference.stable_id.is_empty() {
+                return Err(unbound_manager_ref_diagnostic(instance, label, field));
+            }
+            Ok(reference.clone())
+        }
+        Some(RuntimeValue::Ref(reference)) => Err(invalid_manager_ref_diagnostic(
+            instance,
+            label,
+            field,
+            &format!("reference type `{}`", reference.value_type),
+            expected_type,
+        )),
+        Some(value) => Err(invalid_manager_ref_diagnostic(
+            instance,
+            label,
+            field,
+            &format!("runtime value `{}`", value.value_type()),
+            expected_type,
+        )),
+        None => Err(missing_manager_ref_diagnostic(instance, label, field, expected_type)),
+    }
+}
+
+fn missing_manager_ref_diagnostic(
+    instance: &ANodeInstance,
+    label: &'static str,
+    field: &'static str,
+    expected_type: &'static str,
+) -> Diagnostic {
     Diagnostic::error(
-        "chataigne_manager_node_unsupported",
+        "chataigne_manager_bridge_missing_ref",
         format!(
-            "Chataigne {label} manager ANode is not implemented yet; it is unavailable until {required_behavior} is wired. It does not return fallback values."
+            "Chataigne {label} manager bridge is missing `{field}` StableRef config of type `{expected_type}`. It does not return fallback values."
         ),
         DiagnosticOrigin::Node(instance.id),
     )
+}
+
+fn invalid_manager_ref_diagnostic(
+    instance: &ANodeInstance,
+    label: &'static str,
+    field: &'static str,
+    actual: &str,
+    expected_type: &'static str,
+) -> Diagnostic {
+    Diagnostic::error(
+        "chataigne_manager_bridge_invalid_ref",
+        format!(
+            "Chataigne {label} manager bridge has invalid `{field}` config {actual}; expected StableRef type `{expected_type}`. It does not return fallback values."
+        ),
+        DiagnosticOrigin::Node(instance.id),
+    )
+}
+
+fn unbound_manager_ref_diagnostic(instance: &ANodeInstance, label: &'static str, field: &'static str) -> Diagnostic {
+    Diagnostic::error(
+        "chataigne_manager_bridge_unbound_ref",
+        format!(
+            "Chataigne {label} manager bridge has an unbound `{field}` reference. Select a manager target before compiling; it does not return fallback values."
+        ),
+        DiagnosticOrigin::Node(instance.id),
+    )
+}
+
+#[derive(Debug)]
+struct ConditionsManagerRefEval {
+    source: StableRef,
+}
+
+impl CompiledNodeEvaluator for ConditionsManagerRefEval {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+        let value = evaluation.ctx.inputs.get(&self.source).ok_or_else(|| {
+            format!(
+                "Conditions manager bridge could not resolve source `{}`.",
+                self.source.stable_id
+            )
+        })?;
+        let values = ValueSet::from_runtime_value(value).map_err(|error| {
+            format!(
+                "Conditions manager bridge source `{}` did not produce a ValueSet: {error}",
+                self.source.stable_id
+            )
+        })?;
+
+        Ok(vec![
+            condition_lane_bool(&values, "valid")?,
+            condition_lane_trigger(&values, "on_true")?,
+            condition_lane_trigger(&values, "on_false")?,
+        ])
+    }
+}
+
+#[derive(Debug)]
+struct InputsManagerRefEval {
+    source: StableRef,
+}
+
+impl CompiledNodeEvaluator for InputsManagerRefEval {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+        let value = evaluation.ctx.inputs.get(&self.source).ok_or_else(|| {
+            format!(
+                "Inputs manager bridge could not resolve source `{}`.",
+                self.source.stable_id
+            )
+        })?;
+        ValueSet::from_runtime_value(value).map_err(|error| {
+            format!(
+                "Inputs manager bridge source `{}` did not produce a ValueSet: {error}",
+                self.source.stable_id
+            )
+        })?;
+        Ok(vec![value.clone()])
+    }
+}
+
+#[derive(Debug)]
+struct OutputsManagerRefEval {
+    target: StableRef,
+}
+
+impl CompiledNodeEvaluator for OutputsManagerRefEval {
+    fn evaluate(&self, evaluation: &mut NodeEvaluation<'_, '_>) -> Result<Vec<RuntimeValue>, String> {
+        let value = evaluation
+            .inputs
+            .first()
+            .ok_or_else(|| "Outputs manager bridge expects a values input.".to_string())?;
+        let should_emit = match evaluation.inputs.get(1).unwrap_or(&RuntimeValue::Unit) {
+            RuntimeValue::Unit => true,
+            RuntimeValue::Trigger(trigger) => trigger.fired,
+            value => {
+                return Err(format!(
+                    "Outputs manager bridge trigger input resolved `{}`; expected `trigger` or `unit`.",
+                    value.value_type()
+                ));
+            }
+        };
+
+        if should_emit {
+            evaluation.intents.push(RuntimeIntent {
+                kind: COMMAND_INTENT_KIND.into(),
+                source_node: Some(evaluation.author_node_id),
+                source_socket: None,
+                target: Some(self.target.clone()),
+                payload: value.clone(),
+                logical_tick: evaluation.ctx.logical_tick,
+            });
+        }
+        Ok(Vec::new())
+    }
+}
+
+fn condition_lane_bool(values: &ValueSet, key: &'static str) -> Result<RuntimeValue, String> {
+    match condition_lane(values, key)? {
+        RuntimeValue::Bool(value) => Ok(RuntimeValue::Bool(*value)),
+        value => Err(format!(
+            "Conditions manager bridge lane `{key}` resolved `{}`; expected `bool`.",
+            value.value_type()
+        )),
+    }
+}
+
+fn condition_lane_trigger(values: &ValueSet, key: &'static str) -> Result<RuntimeValue, String> {
+    match condition_lane(values, key)? {
+        RuntimeValue::Trigger(value) => Ok(RuntimeValue::Trigger(*value)),
+        value => Err(format!(
+            "Conditions manager bridge lane `{key}` resolved `{}`; expected `trigger`.",
+            value.value_type()
+        )),
+    }
+}
+
+fn condition_lane<'a>(values: &'a ValueSet, key: &'static str) -> Result<&'a RuntimeValue, String> {
+    values
+        .entries
+        .iter()
+        .find(|entry| entry.key.as_str() == key)
+        .map(|entry| &entry.value)
+        .ok_or_else(|| format!("Conditions manager bridge ValueSet is missing `{key}` lane."))
 }
 
 #[derive(Debug)]

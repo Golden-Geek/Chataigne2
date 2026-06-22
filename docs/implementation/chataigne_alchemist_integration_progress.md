@@ -2,12 +2,13 @@
 
 ## Current Phase
 
-Phase 13 - built-in Action pipeline end-to-end is complete. The Chataigne
-state-machine layer now composes ActionTrigger, optional FilterPipeline, and
-ActionCommands managed regions through the same reusable managed formula runtime
-used by Mapping. Action emits `RuntimeIntent`s only; module IO remains behind the
-existing command-intent arbitration and dispatcher boundary. The next phase is
-Phase 14 - manager reference ANodes as bridges.
+Phase 14 - manager reference ANodes as bridges is complete. The Chataigne
+manager ref ANodes now compile as explicit StableRef-backed bridge nodes instead
+of unsupported placeholders. Inputs and Conditions read manager-provided
+ValueSets from `EvaluationCtx.inputs`, Outputs emits command intents toward an
+outputs-manager target, and missing/unbound refs remain explicit diagnostics
+with no fake fallback values. The next phase is Phase 15 - remove duplicated
+manager-specific filter and condition logic.
 
 ## Completed Tasks
 
@@ -482,11 +483,52 @@ Phase 14 - manager reference ANodes as bridges.
   The existing 2 ignored Alchemist tests remain ignored as stale pre-manager-ref
   behavior.
 
+## Phase 14 - Manager Reference Bridges - Complete
+
+- Registered StableRef value types for the Chataigne Conditions, Inputs, and
+  Outputs manager bridge targets.
+- Converted `ConditionsManagerRef`, `InputsManagerRef`, and
+  `OutputsManagerRef` from explicit unsupported compile failures into real
+  bridge ANodes with required `source` or `target` StableRef config fields.
+- Kept bridge refs strict: missing, unbound, wrong value-type, or non-reference
+  config reports compile diagnostics and does not emit fallback values.
+- `InputsManagerRef` now reads a manager-provided ValueSet from
+  `EvaluationCtx.inputs` and exposes it on its compact `values` output.
+- `ConditionsManagerRef` now reads a manager-provided ValueSet and projects the
+  `valid`, `on_true`, and `on_false` lanes to bool/trigger sockets.
+- `OutputsManagerRef` now accepts either a ValueSet or primitive single value,
+  uses an optional trigger input with a unit default, and emits
+  `chataigne.command` intents toward the configured outputs-manager target.
+- Kept the bridge implementation manager-agnostic: it imports no manager runtime
+  code and only adapts runtime snapshots and command intents.
+- Updated the app-layer formula editor diagnostic test so unconfigured manager
+  refs remain invalid through the real formula materialization path.
+- Ran targeted Phase 14 state-machine tests:
+  `cargo test -p chataigne_state_machine alchemist -- --nocapture` passed with
+  10 tests and 2 ignored stale tests.
+- Ran targeted app editor diagnostic validation:
+  `cargo test manager_reference_anodes_mark_formula_unavailable_in_editor_state -- --nocapture`
+  passed with 1 test.
+- Ran full state-machine validation:
+  `cargo test -p chataigne_state_machine` passed with 70 tests and 2 ignored
+  stale pre-manager-ref tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 70 state-machine tests.
+  The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+
 ## Pending Tasks
 
-- Convert manager reference ANodes into Phase 14 bridge nodes so manager-backed
-  inputs, outputs, and commands can feed managed formulas without direct manager
-  runtime imports.
+- Remove duplicated Phase 15 manager-specific filter and condition evaluation
+  paths now that the shared ANodes, managed filter pipeline, and manager bridge
+  nodes own the reusable behavior.
 - Project managed regions through the Rust protocol DTOs and generated
   TypeScript output for the Svelte editor phases.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
@@ -1120,6 +1162,9 @@ Phase 14 - manager reference ANodes as bridges.
   wrong runtime type.
 - `FormulaSurface.managed_regions` uses a serde default, so existing formula
   surfaces without the field deserialize as empty managed-region surfaces.
+- Phase 14 introduces stable ref value types for manager bridges. Existing
+  unconfigured manager ref ANodes intentionally stay invalid until a real
+  manager source or target is selected.
 
 ## Known Risks
 
@@ -1178,6 +1223,13 @@ Phase 14 - manager reference ANodes as bridges.
   whole-set filters like `ConditionGate`.
 - Phase 9 now has graph-authoring tests and app runtime tests for the
   lane-aware `ValueSet` execution strategy.
+- Phase 14 bridges deliberately read manager outputs from `EvaluationCtx.inputs`
+  rather than importing manager runtime code. That keeps the ANodes as
+  IO-boundary adapters and avoids duplicated manager logic inside the graph
+  evaluator.
+- Phase 14 models `OutputsManagerRef` as a command-intent emitter targeting an
+  outputs-manager StableRef. The command dispatcher remains the only boundary
+  that should translate those intents into concrete module IO.
 
 ## Tests Added
 
@@ -1246,6 +1298,15 @@ Phase 14 - manager reference ANodes as bridges.
 - `single_value_with_multiple_outputs_reports_diagnostic_without_broadcast`
 - `valueset_output_count_mismatch_reports_diagnostic_without_partial_dispatch`
 - `disabled_output_is_excluded`
+- `manager_reference_nodes_require_configured_bridge_refs`
+- `input_manager_bridge_exposes_valueset_from_runtime_source`
+- `input_manager_bridge_missing_runtime_source_emits_no_fallback_sample`
+- `condition_manager_bridge_exposes_bool_and_trigger_lanes`
+- `output_manager_bridge_emits_command_intent_with_optional_trigger`
+- `output_manager_bridge_emits_valueset_payload`
+- `output_manager_bridge_suppresses_idle_trigger`
+- Updated `manager_reference_anodes_mark_formula_unavailable_in_editor_state`
+  to assert bridge diagnostics instead of unsupported-node diagnostics.
 
 ## Supercommit History
 
@@ -1284,3 +1345,11 @@ Phase 14 - manager reference ANodes as bridges.
   `supercommit: chataigne alchemist integration phase 10 - input set region`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 11 - output set region`
+- Completed:
+  `49751b1 supercommit: chataigne alchemist integration phase 12 - builtin mapping`
+- Reusable Alchemist submodule commit:
+  `dd95244 support: make alchemist registries cloneable`
+- Completed:
+  `099715a supercommit: chataigne alchemist integration phase 13 - builtin action`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 14 - manager bridges`

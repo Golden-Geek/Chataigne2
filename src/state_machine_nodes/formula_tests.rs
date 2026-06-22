@@ -131,12 +131,14 @@ fn manager_reference_anodes_mark_formula_unavailable_in_editor_state() {
             serde_json::from_str(&diagnostics_json).expect("diagnostics_json should parse");
         assert!(
             diagnostics.iter().any(|diagnostic| {
-                diagnostic["code"] == "chataigne_manager_node_unsupported"
+                diagnostic["code"]
+                    .as_str()
+                    .is_some_and(|code| code.starts_with("chataigne_manager_bridge_"))
                     && diagnostic["message"]
                         .as_str()
                         .is_some_and(|message| message.contains(label))
             }),
-            "{label} manager ref should expose the unsupported diagnostic: {diagnostics_json}"
+            "{label} manager ref should expose the bridge diagnostic: {diagnostics_json}"
         );
 
         assert!(
