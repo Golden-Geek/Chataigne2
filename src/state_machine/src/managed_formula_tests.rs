@@ -5,7 +5,7 @@ use golden_alchemist::{
     EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaRef, FormulaSurface, ManagedItemId,
     ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
     ManagedRegionKind, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
-    RuntimeValue, SocketId, StableRef, SurfaceItemKind, ValueTypeId, ValueTypeRegistry,
+    RuntimeValue, SocketId, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry,
 };
 use golden_statechart::StateId;
 
@@ -270,6 +270,149 @@ fn processor_runtime_evaluates_managed_mapping_sidecar() {
     assert_eq!(output.intents[0].payload, RuntimeValue::Float(50.0));
 }
 
+#[test]
+fn action_trigger_produces_command_intent() {
+    let (formula, mut instance) = action_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    let target = command_target("target/action");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region("commands", vec![output_item("Command", target.clone())]),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(7, 15)));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(15, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 1);
+    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+    let RuntimeValue::Trigger(trigger) = output.intents[0].payload else {
+        panic!("Action command should carry trigger payload");
+    };
+    assert!(trigger.fired);
+    assert_eq!(trigger.edge_id, 7);
+}
+
+#[test]
+fn action_condition_gate_blocks_command() {
+    let (formula, mut instance) = action_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("pipeline"),
+        region("pipeline", vec![condition_gate_item(false)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region(
+            "commands",
+            vec![output_item("Command", command_target("target/action"))],
+        ),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(8, 16)));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(16, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert!(output.intents.is_empty());
+}
+
+#[test]
+fn action_condition_gate_passes_command() {
+    let (formula, mut instance) = action_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    let target = command_target("target/action");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("pipeline"),
+        region("pipeline", vec![condition_gate_item(true)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region("commands", vec![output_item("Command", target.clone())]),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(9, 17)));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(17, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 1);
+    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+}
+
+#[test]
+fn processor_runtime_evaluates_managed_action_sidecar() {
+    let (formula, mut instance) = action_formula_and_instance();
+    let source = endpoint_ref("module/trigger");
+    let target = command_target("target/action");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region("commands", vec![output_item("Command", target.clone())]),
+    );
+    let processor = Processor::new("Action", instance);
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    let mut runtime = ProcessorRuntime::new(processor.id);
+
+    assert!(runtime.compile(&processor, &formula, &compile_ctx));
+    runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::StateEnter(StateId::new()));
+
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(10, 18)));
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(18, &inputs, &registries);
+
+    let output = runtime.evaluate_processor(&processor, &ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 1);
+    assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+}
+
 fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     let formula = AlchemistFormula {
         id: FormulaId::new("test.mapping"),
@@ -317,6 +460,67 @@ fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
         version: formula.version,
     };
     (formula, instance)
+}
+
+fn action_formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
+    let formula = AlchemistFormula {
+        id: FormulaId::new("test.action"),
+        version: 1,
+        label: "Test Action".into(),
+        description: None,
+        tags: Vec::new(),
+        graph: AlchemistGraph::new(),
+        properties: FormulaPropertySchema::default(),
+        surface: FormulaSurface {
+            sections: Vec::new(),
+            managed_regions: vec![
+                ManagedRegionDefinition {
+                    id: ManagedRegionId::new("trigger"),
+                    kind: ManagedRegionKind::ActionTrigger,
+                    label: "Trigger".into(),
+                    input_socket: None,
+                    output_socket: None,
+                    accepted_roles: vec![SurfaceItemKind::Input],
+                },
+                ManagedRegionDefinition {
+                    id: ManagedRegionId::new("pipeline"),
+                    kind: ManagedRegionKind::FilterPipeline,
+                    label: "Pipeline".into(),
+                    input_socket: None,
+                    output_socket: None,
+                    accepted_roles: vec![SurfaceItemKind::Filter],
+                },
+                ManagedRegionDefinition {
+                    id: ManagedRegionId::new("commands"),
+                    kind: ManagedRegionKind::ActionCommands,
+                    label: "Commands".into(),
+                    input_socket: None,
+                    output_socket: None,
+                    accepted_roles: vec![SurfaceItemKind::Action],
+                },
+            ],
+        },
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    };
+    let mut instance = formula.instantiate();
+    instance.formula_ref = FormulaRef {
+        id: formula.id.clone(),
+        version: formula.version,
+    };
+    (formula, instance)
+}
+
+fn compile_managed_formula(formula: &AlchemistFormula, instance: &AlchemistFormulaInstance) -> ManagedFormulaRuntime {
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    ManagedFormulaRuntime::compile(formula, instance, &compile_ctx)
+        .unwrap()
+        .unwrap()
 }
 
 fn region(id: &str, items: Vec<ManagedItemInstance>) -> ManagedRegionInstance {
@@ -373,6 +577,17 @@ fn clamp_item(minimum: f64, maximum: f64) -> ManagedItemInstance {
     item.anode
         .input_defaults
         .insert(SocketId::new("maximum"), RuntimeValue::Float(maximum));
+    item
+}
+
+fn condition_gate_item(condition: bool) -> ManagedItemInstance {
+    let mut item = managed_item_for_primitive(PrimitiveNodeKind::ConditionGate);
+    item.anode
+        .config
+        .set("mode", RuntimeValue::String("block_trigger".into()));
+    item.anode
+        .input_defaults
+        .insert(SocketId::new("condition"), RuntimeValue::Bool(condition));
     item
 }
 

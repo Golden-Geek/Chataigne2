@@ -2,12 +2,12 @@
 
 ## Current Phase
 
-Phase 12 - built-in Mapping managed orchestration is complete. The
-Chataigne state-machine layer now composes typed InputSet, optional
-FilterPipeline, and OutputSet managed regions through a reusable managed
-formula runtime. Mapping still emits `RuntimeIntent`s only; module IO remains
-behind the existing command-intent arbitration and dispatcher boundary. The
-next phase is Phase 13 - built-in Action pipeline end-to-end.
+Phase 13 - built-in Action pipeline end-to-end is complete. The Chataigne
+state-machine layer now composes ActionTrigger, optional FilterPipeline, and
+ActionCommands managed regions through the same reusable managed formula runtime
+used by Mapping. Action emits `RuntimeIntent`s only; module IO remains behind the
+existing command-intent arbitration and dispatcher boundary. The next phase is
+Phase 14 - manager reference ANodes as bridges.
 
 ## Completed Tasks
 
@@ -447,10 +447,46 @@ next phase is Phase 13 - built-in Action pipeline end-to-end.
   The existing 2 ignored Alchemist tests remain ignored as stale pre-manager-ref
   behavior.
 
+## Phase 13 - Built-in Action Pipeline End-to-End - Complete
+
+- Extended the generic managed formula runtime to support the Action managed
+  region family without branching on the built-in Action formula id.
+- Added an app-owned `ActionTrigger` runtime boundary that validates
+  `ManagedRegionKind::ActionTrigger`, accepts authored input items, reads a
+  `source` StableRef config field, and materializes a single trigger payload from
+  `EvaluationCtx.inputs`.
+- Added an app-owned `ActionCommands` runtime boundary that validates
+  `ManagedRegionKind::ActionCommands`, accepts authored action items, reads a
+  `target` StableRef config field, and emits `chataigne.command` runtime intents
+  for enabled commands when the trigger is fired.
+- Reused the managed FilterPipeline runtime for Action by wrapping the trigger
+  as a one-lane ValueSet, so `ConditionGate` remains a normal filter-capable
+  ANode rather than a special condition region.
+- Covered trigger dispatch, ConditionGate blocking, ConditionGate passing, and
+  the `ProcessorRuntime` Action sidecar path with state-machine tests.
+- Ran targeted Phase 13 state-machine tests:
+  `cargo test -p chataigne_state_machine managed_formula -- --nocapture` passed
+  with 9 tests.
+- Ran full state-machine validation:
+  `cargo test -p chataigne_state_machine` passed with 64 tests and 2 ignored
+  stale pre-manager-ref tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 64 state-machine tests.
+  The existing 2 ignored Alchemist tests remain ignored as stale pre-manager-ref
+  behavior.
+
 ## Pending Tasks
 
-- Build the Phase 13 Action processor path from trigger, optional ConditionGate,
-  and command regions for the built-in `chataigne.action@1` formula.
+- Convert manager reference ANodes into Phase 14 bridge nodes so manager-backed
+  inputs, outputs, and commands can feed managed formulas without direct manager
+  runtime imports.
 - Project managed regions through the Rust protocol DTOs and generated
   TypeScript output for the Svelte editor phases.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
