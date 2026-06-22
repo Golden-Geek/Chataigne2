@@ -6,9 +6,9 @@ use golden_alchemist::{
     ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
     ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
     EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
-    FormulaSurface, LaneRuntimePool, OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput,
-    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, RuntimeValue, SocketId, ValueTypeId,
-    compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
+    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
+    RuntimeValue, SocketId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
@@ -241,9 +241,11 @@ impl Processor {
         ProcessorUiModel {
             id: self.id,
             label: self.label.clone(),
+            active: self.enabled,
             formula_id: formula.id.to_string(),
             formula_label: formula.label.clone(),
             surface: formula.surface.clone(),
+            managed_region_instances: self.formula_instance.managed_regions.clone(),
             diagnostics,
         }
     }
@@ -776,8 +778,10 @@ pub fn processor_output_preview_samples(
 pub struct ProcessorUiModel {
     pub id: ProcessorId,
     pub label: String,
+    pub active: bool,
     pub formula_id: String,
     pub formula_label: String,
     pub surface: FormulaSurface,
+    pub managed_region_instances: ManagedRegionInstances,
     pub diagnostics: Vec<Diagnostic>,
 }

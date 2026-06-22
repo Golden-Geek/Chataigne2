@@ -2,12 +2,11 @@
 
 ## Current Phase
 
-Phase 15 - remove duplicated manager-specific filter and condition logic is
-complete. The audit found no remaining active manager-owned filter or condition
-evaluators in the app layer; the old condition/filter nodes are now documented
-as tree/UI persistence wrappers only. New parity tests prove managed filter and
-condition paths produce the same values as direct Alchemist ANode graphs. The
-next phase is Phase 16 - Svelte UI integration for the managed formula surfaces.
+Phase 16 - Svelte UI integration is in progress. The first slice exposes
+backend-owned managed processor regions and item instances through the Rust
+protocol, generated TypeScript DTOs, the runtime preview bundle, and the
+Alchemist editor side panel. The next Phase 16 slice is adding mutation controls
+for managed region items instead of inventing a frontend-only graph model.
 
 ## Completed Tasks
 
@@ -1275,6 +1274,18 @@ next phase is Phase 16 - Svelte UI integration for the managed formula surfaces.
   wrappers. The risk is future confusion rather than current duplicate runtime
   behavior, so the code now documents wrappers as metadata-only and pins the
   managed-vs-direct ANode parity in tests.
+- Phase 16 now projects `ProcessorUiDto` from `ProcessorUiModel` instead of
+  leaving runtime preview bundles with an empty `processors` list.
+- Phase 16 added protocol DTOs for managed region definitions, socket refs,
+  managed region instances, managed items, and managed item UI state, with
+  generated TypeScript as the frontend source of truth.
+- The Alchemist editor side panel now renders selected processor regions from
+  `runtimePreviewBundle.processors`, showing Mapping regions as Inputs /
+  Filters / Outputs and Action regions as Trigger / Filters / Commands when the
+  backend formula declares those regions.
+- Managed region mutation remains intentionally out of this slice because no
+  app-layer edit API exists yet for inserting, deleting, reordering, or
+  configuring `ManagedItemInstance` values in a processor formula instance.
 
 ## Tests Added
 
@@ -1354,6 +1365,9 @@ next phase is Phase 16 - Svelte UI integration for the managed formula surfaces.
   to assert bridge diagnostics instead of unsupported-node diagnostics.
 - `manager_filter_chain_matches_direct_anode_result`
 - `manager_condition_gate_matches_direct_anode_result`
+- `managed_regions_are_present_in_ui_model`
+- `managed_region_definition_dto_preserves_role_and_socket_contract`
+- `managed_region_instance_dto_preserves_item_identity_and_ui_state`
 
 ## Supercommit History
 
@@ -1402,3 +1416,5 @@ next phase is Phase 16 - Svelte UI integration for the managed formula surfaces.
   `supercommit: chataigne alchemist integration phase 14 - manager bridges`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 15 - remove duplicate manager logic`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 16 - managed region ui projection`

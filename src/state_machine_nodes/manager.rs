@@ -5,7 +5,7 @@ use std::{
 
 use chataigne_state_machine::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, DefaultProcessorContextProvider,
-    Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto,
+    Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto, ProcessorUiDto,
     ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
     StateMachineProtocolBundle, processor_output_preview_samples,
     alchemist::{node_registry, value_type_registry},
@@ -400,14 +400,16 @@ impl StateMachineManager {
                 }
             }
         }
+        let processors = processor_ui_dtos(snapshot, &self.runtime_cache.processors, &formulas);
         if evaluated_any || cache_rebuilt {
-            self.publish_output_preview(ctx, output_preview, processor_lanes);
+            self.publish_output_preview(ctx, processors, output_preview, processor_lanes);
         }
     }
 
     fn publish_output_preview(
         &mut self,
         ctx: &mut ProcessCtx,
+        processors: Vec<ProcessorUiDto>,
         samples: Vec<chataigne_state_machine::ANodeOutputPreviewSample>,
         processor_lanes: Vec<ProcessorLaneSummaryDto>,
     ) {
@@ -431,7 +433,7 @@ impl StateMachineManager {
         }
         let bundle = StateMachineProtocolBundle {
             statechart_deltas: Vec::new(),
-            processors: Vec::new(),
+            processors,
             diagnostics: Vec::new(),
             runtime_debug: Vec::new(),
             processor_lanes,
@@ -779,6 +781,26 @@ fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
         .compiled
         .as_ref()
         .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
+}
+
+fn processor_ui_dtos(
+    snapshot: &ProcessTreeSnapshot,
+    processors: &HashMap<NodeId, RuntimeProcessor>,
+    formulas: &HashMap<NodeUuid, AlchemistFormula>,
+) -> Vec<ProcessorUiDto> {
+    let mut dtos: Vec<_> = processors
+        .values()
+        .filter_map(|runtime_processor| {
+            let formula_uuid = snapshot.node(runtime_processor.formula_node)?.uuid;
+            let formula = formulas.get(&formula_uuid)?;
+            Some(ProcessorUiDto::from(&runtime_processor.processor.ui_model(
+                formula,
+                runtime_processor.runtime.diagnostics.clone(),
+            )))
+        })
+        .collect();
+    dtos.sort_by(|left, right| left.label.cmp(&right.label).then_with(|| left.id.cmp(&right.id)));
+    dtos
 }
 
 fn processor_lane_summary(

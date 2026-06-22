@@ -60,7 +60,11 @@
 	} from '../alchemistGraph';
 	import type {
 		FormulaPreviewModeDto,
+		ManagedItemDto,
+		ManagedRegionDefinitionDto,
+		ManagedRegionInstanceDto,
 		ProcessorLaneSummaryDto,
+		ProcessorUiDto,
 		RuntimeValueDto,
 		StateMachineProtocolBundle
 	} from '../generated';
@@ -457,6 +461,18 @@
 			(lane) => lane.processor_id === processorNode.uuid
 		);
 	});
+	let processorUi = $derived.by((): ProcessorUiDto | null => {
+		if (!processorNode || !runtimePreviewBundle) return null;
+		return (
+			runtimePreviewBundle.processors.find((processor) => processor.id === processorNode.uuid) ??
+			null
+		);
+	});
+	let processorRegionInstances = $derived.by((): Map<string, ManagedRegionInstanceDto> => {
+		return new Map(
+			processorUi?.managed_region_instances.map((instance) => [instance.region_id, instance]) ?? []
+		);
+	});
 	let processorLaneSummaries = $derived(
 		requestedProcessor?.node_id === processorNode?.node_id &&
 			requestedProcessorLaneSummaries.length > 0
@@ -544,6 +560,22 @@
 	let formulaStatusTitle = $derived(
 		formulaValid ? 'Formula valid' : (primaryDiagnostic?.message ?? 'Formula invalid')
 	);
+	const managedRegionKindLabel = (region: ManagedRegionDefinitionDto): string => {
+		switch (region.kind) {
+			case 'input_set':
+				return 'Inputs';
+			case 'filter_pipeline':
+				return 'Filters';
+			case 'output_set':
+				return 'Outputs';
+			case 'action_trigger':
+				return 'Trigger';
+			case 'action_commands':
+				return 'Commands';
+		}
+	};
+	const managedRegionItemState = (item: ManagedItemDto): string =>
+		item.enabled && item.anode_enabled ? item.anode_type_id : `${item.anode_type_id} off`;
 	let anodeItems = $derived(
 		formula?.creatable_user_items
 			.filter(
@@ -1496,24 +1528,55 @@
 						title="Hide properties"
 						onclick={() => (propertiesVisible = false)}>
 						<span class="properties-toggle-chevron">‹</span>
-						<span class="properties-toggle-label">Properties</span>
+						<span class="properties-toggle-label">{processorUi ? 'Processor' : 'Properties'}</span>
 					</button>
 				</div>
-				<ManagerListPanel
-					managerNode={properties}
-					addTargetNode={activePropertyContainer}
-					addItems={activePropertyContainer?.creatable_user_items}
-					searchPlaceholder="Search properties..."
-					missingMessage="Formula properties are not available."
-					emptyMessage="Drag a property onto the graph to create a getter."
-					rootDropMessage="Drop here to move into Properties."
-					addButtonTitle="Add property item"
-					isTreeNode={isPropertyTreeNode}
-					canRenderNodeChildren={canRenderPropertyChildren}
-					nodeDraggable={canMovePropertyNode}
-					onNodeDragStartData={setPropertyGraphDragData}
-					onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
-					onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
+				<div class="properties-body">
+					{#if processorUi && processorUi.managed_regions.length > 0}
+						<div class="processor-surface" aria-label="Processor regions">
+							<header class="processor-surface-header">
+								<strong>{processorUi.label}</strong>
+								<span class:off={!processorUi.active}>{processorUi.active ? 'Active' : 'Off'}</span>
+							</header>
+							{#each processorUi.managed_regions as region (region.id)}
+								{@const instance = processorRegionInstances.get(region.id)}
+								<section class="processor-region">
+									<header class="processor-region-header">
+										<strong>{region.label || managedRegionKindLabel(region)}</strong>
+										<span>{managedRegionKindLabel(region)}</span>
+									</header>
+									{#if instance && instance.items.length > 0}
+										<ol class="processor-region-items">
+											{#each instance.items as item (item.id)}
+												<li class:off={!item.enabled || !item.anode_enabled}>
+													<span>{item.label}</span>
+													<small>{managedRegionItemState(item)}</small>
+												</li>
+											{/each}
+										</ol>
+									{:else}
+										<p class="processor-region-empty">Empty</p>
+									{/if}
+								</section>
+							{/each}
+						</div>
+					{/if}
+					<ManagerListPanel
+						managerNode={properties}
+						addTargetNode={activePropertyContainer}
+						addItems={activePropertyContainer?.creatable_user_items}
+						searchPlaceholder="Search properties..."
+						missingMessage="Formula properties are not available."
+						emptyMessage="Drag a property onto the graph to create a getter."
+						rootDropMessage="Drop here to move into Properties."
+						addButtonTitle="Add property item"
+						isTreeNode={isPropertyTreeNode}
+						canRenderNodeChildren={canRenderPropertyChildren}
+						nodeDraggable={canMovePropertyNode}
+						onNodeDragStartData={setPropertyGraphDragData}
+						onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
+						onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
+				</div>
 				<!-- Resize handle on right edge -->
 				<div
 					class="panel-resize-handle"
@@ -1747,6 +1810,92 @@
 		gap: 0.5rem;
 		padding: 0.28rem 0.5rem 0.28rem 0.35rem;
 		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+	}
+
+	.properties-body {
+		display: grid;
+		grid-template-rows: auto minmax(0, 1fr);
+		min-inline-size: 0;
+		min-block-size: 0;
+		overflow: hidden;
+	}
+
+	.processor-surface {
+		display: grid;
+		gap: 0.35rem;
+		max-block-size: 42vh;
+		padding: 0.45rem;
+		overflow: auto;
+		border-block-end: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		background: color-mix(in srgb, var(--gc-color-background) 72%, transparent);
+	}
+
+	.processor-surface-header,
+	.processor-region-header,
+	.processor-region-items li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		min-inline-size: 0;
+	}
+
+	.processor-surface-header {
+		font-size: 0.72rem;
+	}
+
+	.processor-surface-header strong,
+	.processor-region-header strong,
+	.processor-region-items span {
+		min-inline-size: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.processor-surface-header span,
+	.processor-region-header span,
+	.processor-region-items small {
+		flex: 0 0 auto;
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		font-size: 0.62rem;
+	}
+
+	.processor-surface-header span.off,
+	.processor-region-items li.off {
+		color: color-mix(in srgb, var(--gc-color-text) 42%, transparent);
+	}
+
+	.processor-region {
+		display: grid;
+		gap: 0.25rem;
+		padding: 0.4rem;
+		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 70%, transparent);
+		border-radius: 0.35rem;
+		background: color-mix(in srgb, var(--gc-color-background-soft, #1a1a1a) 68%, transparent);
+	}
+
+	.processor-region-header {
+		font-size: 0.68rem;
+	}
+
+	.processor-region-items {
+		display: grid;
+		gap: 0.18rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.processor-region-items li {
+		padding: 0.18rem 0;
+		font-size: 0.66rem;
+	}
+
+	.processor-region-empty {
+		margin: 0;
+		color: color-mix(in srgb, var(--gc-color-text) 48%, transparent);
+		font-size: 0.64rem;
 	}
 
 	.graph-drop-zone {
