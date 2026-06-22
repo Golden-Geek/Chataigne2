@@ -4,6 +4,7 @@ pub mod alchemist;
 mod arbitration;
 mod input_set;
 mod manager;
+mod output_set;
 mod processor;
 pub mod protocol;
 mod state_machine;
@@ -19,6 +20,9 @@ pub use input_set::{INPUT_SOURCE_FIELD, InputSetError, InputSetItem, InputSetMat
 pub use manager::{
     ProcessorExecutionPolicy, ProcessorGroup, ProcessorGroupId, ProcessorManager, ProcessorManagerError,
     ProcessorManagerId,
+};
+pub use output_set::{
+    COMMAND_INTENT_KIND, OUTPUT_TARGET_FIELD, OutputSetError, OutputSetItem, OutputSetMaterialization, OutputSetRuntime,
 };
 pub use processor::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,
@@ -43,6 +47,8 @@ mod arbitration_tests;
 mod input_set_tests;
 #[cfg(test)]
 mod manager_tests;
+#[cfg(test)]
+mod output_set_tests;
 #[cfg(test)]
 mod processor_tests;
 #[cfg(test)]

@@ -2,11 +2,12 @@
 
 ## Current Phase
 
-Phase 10 - InputSet region materialization is complete. The Chataigne
-state-machine layer now owns a typed InputSet runtime boundary that turns
-authored input-region items into `ValueSet` entries from `EvaluationCtx`
-runtime input snapshots. The next phase is OutputSet region intent
-materialization for built-in Mapping processors.
+Phase 11 - OutputSet region intent materialization is complete. The
+Chataigne state-machine layer now owns typed InputSet and OutputSet runtime
+boundaries around the Phase 9 `ValueSet` filter/projection runtimes.
+OutputSet produces `RuntimeIntent`s only; module IO remains behind the
+existing command-intent arbitration and dispatcher boundary. The next phase is
+built-in Mapping end-to-end orchestration.
 
 ## Completed Tasks
 
@@ -373,11 +374,45 @@ materialization for built-in Mapping processors.
   `cargo test --workspace` passed with 288 app tests and 49 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+- Added the Phase 11 app-owned OutputSet materialization boundary in
+  `src/state_machine/src/output_set.rs`.
+- Added `OutputSetRuntime`, `OutputSetItem`, and
+  `OutputSetMaterialization`.
+- OutputSet materialization reads enabled managed output items with a
+  `target` StableRef config field.
+- Single runtime values produce one `chataigne.command` `RuntimeIntent` only
+  when there is exactly one enabled output.
+- `ValueSet` runtime values produce per-entry command intents by zipping
+  ValueSet entries with enabled outputs in authored order.
+- Idle triggers produce no intents, which lets blocked trigger gates suppress
+  command output without fake fallback behavior.
+- Single values with multiple enabled outputs now report an explicit
+  diagnostic rather than silently broadcasting. Broadcast remains an explicit
+  future filter capability.
+- ValueSet/output count mismatches report an explicit diagnostic and dispatch
+  nothing partially.
+- Kept module transport and command dispatch outside OutputSet; the runtime
+  boundary emits `RuntimeIntent`, and the existing state-machine arbitration
+  path owns conversion to `CommandIntent` and dispatch.
+- Ran targeted Phase 11 state-machine tests:
+  `cargo test -p chataigne_state_machine output_set -- --nocapture` passed
+  with 6 tests.
+- Ran formatting:
+  `cargo fmt --all` from the repository root,
+  `cargo fmt --all` in `submodules/golden_alchemist_core`, and
+  `cargo fmt --all` in `submodules/golden_core`.
+- Ran full reusable Alchemist validation:
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- Ran full root workspace validation:
+  `cargo test --workspace` passed with 288 app tests and 55 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
 
 ## Pending Tasks
 
-- Implement the later OutputSet region and dispatch path before built-in
-  Mapping/Action processors can be end-to-end useful.
+- Orchestrate InputSet -> filter/projection runtime -> OutputSet for built-in
+  Mapping processors before Mapping can be end-to-end useful.
 - Project managed regions through the Rust protocol DTOs and generated
   TypeScript output for the Svelte editor phases.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
@@ -820,16 +855,66 @@ materialization for built-in Mapping processors.
 - `src/state_machine/src/input_set_tests.rs`
 - `docs/implementation/chataigne_alchemist_integration_progress.md`
 
+## Phase 11 OutputSet Intent Model
+
+- OutputSet is implemented in the app-owned state-machine crate because it
+  turns Chataigne-managed output targets into Chataigne command intents.
+- OutputSet does not perform module IO.
+- Each emitted intent uses kind `chataigne.command`, target from the authored
+  `StableRef`, the evaluated payload value, and the current logical tick.
+- The existing state-machine path already converts `RuntimeIntent` values into
+  `CommandIntent` values and arbitrates them before dispatch.
+- Managed output items use a `target` StableRef config field.
+
+## Phase 11 Output Semantics
+
+- No enabled outputs produces no intents and no diagnostics.
+- A single non-ValueSet value requires exactly one enabled output.
+- A single value with multiple enabled outputs is rejected with
+  `output_set_single_value_requires_single_output`; this avoids hidden
+  broadcasting.
+- A `ValueSet` value requires the same number of entries and enabled outputs.
+- ValueSet entries are zipped to enabled outputs in authored order and emit
+  one command intent per entry.
+- Idle trigger values emit no intent, allowing trigger gates to block command
+  output cleanly.
+- ValueSet/output count mismatch is rejected with
+  `output_set_valueset_output_mismatch` and emits no partial intents.
+
+## Phase 11 Dispatch Boundary
+
+- OutputSet stops at `RuntimeIntent`.
+- It does not access modules, transports, connection state, or reconnect
+  behavior.
+- Command dispatch remains in the existing Chataigne command dispatcher path
+  after arbitration.
+
+## Phase 11 Unsupported Cases
+
+- Output formatting/transforms belong in filter or output-specific nodes and
+  were not added in this phase.
+- Command draft expansion remains future work; current OutputSet treats the
+  evaluated payload as the command payload.
+- Dynamic output target discovery is not implemented.
+- Built-in Mapping orchestration is still pending.
+
+## Phase 11 Affected Files
+
+- `src/state_machine/src/lib.rs`
+- `src/state_machine/src/output_set.rs`
+- `src/state_machine/src/output_set_tests.rs`
+- `docs/implementation/chataigne_alchemist_integration_progress.md`
+
 ## Known Missing UI Integration
 
 - Managed regions are not yet exposed through the Rust protocol DTOs or
   generated TypeScript output.
 - Processor UI still uses the existing formula property surface; Phase 16 will
   project managed regions into the Svelte surfaces.
-- Phase 9 has reusable graph-materialization and app-owned lane/projection
-  runtime building blocks, but built-in Mapping/Action still need concrete
-  OutputSet boundaries and protocol/UI projection before they can execute end
-  to end.
+- Phase 11 has reusable graph-materialization plus app-owned InputSet,
+  filter/projection, and OutputSet runtime building blocks, but built-in
+  Mapping/Action still need orchestration and protocol/UI projection before
+  they can execute end to end.
 
 ## Processor Formula Reference Migration
 
@@ -988,8 +1073,9 @@ materialization for built-in Mapping processors.
   boundaries.
 - Protocol/UI projection of managed regions is deferred, so frontend surfaces
   cannot use the new metadata yet.
-- `ValueSet` has a typed payload model and Phase 10 InputSet materialization,
-  but no OutputSet materialization or dispatch path yet.
+- `ValueSet` has a typed payload model plus Phase 10 InputSet and Phase 11
+  OutputSet materialization, but built-in Mapping does not orchestrate them
+  end to end yet.
 - Capability metadata now feeds both the Phase 8 pipeline shape checker and
   the Phase 9 managed-region lowering path.
 - The primitive capability set remains intentionally conservative. Clamp and
@@ -1080,6 +1166,12 @@ materialization for built-in Mapping processors.
 - `input_reorder_preserves_lane_identity`
 - `disabled_input_is_excluded`
 - `missing_input_reports_diagnostic_without_fake_value`
+- `single_value_output_creates_expected_intent`
+- `valueset_output_creates_per_entry_intents`
+- `idle_trigger_output_creates_no_intent`
+- `single_value_with_multiple_outputs_reports_diagnostic_without_broadcast`
+- `valueset_output_count_mismatch_reports_diagnostic_without_partial_dispatch`
+- `disabled_output_is_excluded`
 
 ## Supercommit History
 
@@ -1116,3 +1208,5 @@ materialization for built-in Mapping processors.
   `5b1fca2 supercommit: chataigne alchemist integration phase 9 - filter pipeline lowering`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 10 - input set region`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 11 - output set region`
