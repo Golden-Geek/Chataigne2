@@ -119,6 +119,9 @@
 		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
 	]);
 	const PROCESSOR_ITEM_KIND = 'state_processor';
+	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
+	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
+	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
 	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
 	let props: PanelProps = $props();
@@ -473,6 +476,24 @@
 			processorUi?.managed_region_instances.map((instance) => [instance.region_id, instance]) ?? []
 		);
 	});
+	let processorManagedRegionsRoot = $derived.by((): UiNodeDto | null => {
+		if (!processorNode || !graphState) return null;
+		return directChild(
+			processorNode,
+			graphState.nodesById,
+			PROCESSOR_MANAGED_REGIONS_DECL_ID
+		);
+	});
+	let processorManagedRegionNodes = $derived.by((): Map<string, UiNodeDto> => {
+		const nodes = new Map<string, UiNodeDto>();
+		if (!processorManagedRegionsRoot || !graphState) return nodes;
+		for (const childId of processorManagedRegionsRoot.children) {
+			const child = graphState.nodesById.get(childId);
+			if (!child?.decl_id.startsWith(PROCESSOR_MANAGED_REGION_DECL_PREFIX)) continue;
+			nodes.set(child.decl_id.slice(PROCESSOR_MANAGED_REGION_DECL_PREFIX.length), child);
+		}
+		return nodes;
+	});
 	let processorLaneSummaries = $derived(
 		requestedProcessor?.node_id === processorNode?.node_id &&
 			requestedProcessorLaneSummaries.length > 0
@@ -740,6 +761,33 @@
 			}
 		});
 	};
+
+	const createManagedRegionItem = (regionNode: UiNodeDto, item: UiCreatableUserItem): void => {
+		void runMutation(async () => {
+			const result = await sendCreateUserItemByTypeIntent(
+				regionNode.node_id,
+				item.node_type,
+				item.label,
+				{
+					select_when_created: true,
+					created_node_type: ANODE_NODE_TYPE
+				}
+			);
+			if (!result.success) throw new Error(`failed to create ${item.label}`);
+			if (result.createdNodeId !== null) {
+				session?.selectNode(result.createdNodeId, 'REPLACE');
+			}
+		});
+	};
+
+	const managedRegionItems = (regionNode: UiNodeDto | null | undefined): UiCreatableUserItem[] =>
+		regionNode?.creatable_user_items ?? [];
+
+	const managedRegionConditionGate = (
+		regionNode: UiNodeDto | null | undefined
+	): UiCreatableUserItem | null =>
+		managedRegionItems(regionNode).find((item) => item.node_type === CONDITION_GATE_CREATE_TYPE) ??
+		null;
 
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
 		if (!formula || !graphState || property.node_type !== PROPERTY_NODE_TYPE) return;
@@ -1540,10 +1588,32 @@
 							</header>
 							{#each processorUi.managed_regions as region (region.id)}
 								{@const instance = processorRegionInstances.get(region.id)}
+								{@const regionNode = processorManagedRegionNodes.get(region.id) ?? null}
+								{@const regionItems = managedRegionItems(regionNode)}
+								{@const conditionGate = managedRegionConditionGate(regionNode)}
 								<section class="processor-region">
 									<header class="processor-region-header">
-										<strong>{region.label || managedRegionKindLabel(region)}</strong>
-										<span>{managedRegionKindLabel(region)}</span>
+										<div class="processor-region-title">
+											<strong>{region.label || managedRegionKindLabel(region)}</strong>
+											<span>{managedRegionKindLabel(region)}</span>
+										</div>
+										<div class="processor-region-actions">
+											{#if regionNode && conditionGate}
+												<button
+													type="button"
+													class="processor-region-condition-btn"
+													title="Add ConditionGate"
+													onclick={() => createManagedRegionItem(regionNode, conditionGate)}>
+													Condition
+												</button>
+											{/if}
+											{#if regionNode && regionItems.length > 0}
+												<NodeAddButton
+													node={regionNode}
+													items={regionItems}
+													onCreateItem={(item) => createManagedRegionItem(regionNode, item)} />
+											{/if}
+										</div>
 									</header>
 									{#if instance && instance.items.length > 0}
 										<ol class="processor-region-items">
@@ -1877,6 +1947,43 @@
 
 	.processor-region-header {
 		font-size: 0.68rem;
+	}
+
+	.processor-region-title {
+		display: grid;
+		min-inline-size: 0;
+	}
+
+	.processor-region-actions {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 0.28rem;
+	}
+
+	.processor-region-condition-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-block-size: 1.45rem;
+		max-inline-size: 7.5rem;
+		padding: 0 0.45rem;
+		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 78%, transparent);
+		border-radius: 0.25rem;
+		background: color-mix(in srgb, var(--gc-color-background) 82%, transparent);
+		color: var(--gc-color-text);
+		font: inherit;
+		font-size: 0.62rem;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	.processor-region-condition-btn:hover,
+	.processor-region-condition-btn:focus-visible {
+		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 20%, var(--gc-color-background));
+		border-color: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 58%, transparent);
+		outline: none;
 	}
 
 	.processor-region-items {

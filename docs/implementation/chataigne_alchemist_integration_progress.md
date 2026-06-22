@@ -5,10 +5,13 @@
 Phase 16 - Svelte UI integration is in progress. The first slice exposed
 backend-owned managed processor regions and item instances through the Rust
 protocol, generated TypeScript DTOs, the runtime preview bundle, and the
-Alchemist editor side panel. The current slice adds the backend app-layer edit
-boundary for managed-region items by materializing processor-owned managed
-region folders that host role-filtered ANode children. The remaining Phase 16
-work is Svelte controls and polish over those real backend nodes.
+Alchemist editor side panel. The backend edit-boundary slice materialized
+processor-owned managed region folders that host role-filtered ANode children.
+The current slice adds Svelte controls over those real backend nodes: each
+managed region resolves its folder, exposes the backend-filtered add menu, and
+offers a ConditionGate shortcut when that item is valid for the region. The
+remaining Phase 16 work is end-to-end product verification and any creation
+palette polish still needed.
 
 ## Completed Tasks
 
@@ -1294,8 +1297,13 @@ work is Svelte controls and polish over those real backend nodes.
   catalog without path-importing node state.
 - Runtime processor rebuild now carries the resolved formula alongside the
   processor instance, allowing built-in processors and project processors to
-  share the same managed-region item parsing path. Svelte controls still need
-  polish over the backend nodes.
+  share the same managed-region item parsing path.
+- The Alchemist editor side panel now resolves each visible managed region back
+  to its declared backend folder and drives creation through the folder's
+  `creatable_user_items`, keeping the Svelte controls as a projection over the
+  backend edit boundary instead of a parallel model.
+- The side panel exposes a ConditionGate shortcut only when the selected region
+  folder's backend-filtered palette includes `alchemist_anode:condition_gate`.
 
 ## Tests Added
 
@@ -1381,6 +1389,8 @@ work is Svelte controls and polish over those real backend nodes.
 - `builtin_mapping_processor_instantiates_managed_region_folders`
 - `managed_region_palette_accepts_only_matching_anode_roles`
 - `processor_formula_resolver_reads_builtin_source_key`
+- `npm run check` in `src-ui` passes with 0 Svelte/TypeScript diagnostics for
+  the managed-region controls.
 
 ## Supercommit History
 
@@ -1433,3 +1443,5 @@ work is Svelte controls and polish over those real backend nodes.
   `supercommit: chataigne alchemist integration phase 16 - managed region ui projection`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 16 - managed region backend edit boundary`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 16 - managed region ui controls`
