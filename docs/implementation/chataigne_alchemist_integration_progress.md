@@ -2,22 +2,15 @@
 
 ## Current Phase
 
-Phase 16 - Svelte UI integration is in progress. The first slice exposed
-backend-owned managed processor regions and item instances through the Rust
-protocol, generated TypeScript DTOs, the runtime preview bundle, and the
-Alchemist editor side panel. The backend edit-boundary slice materialized
-processor-owned managed region folders that host role-filtered ANode children.
-The current slice adds Svelte controls over those real backend nodes: each
-managed region resolves its folder, exposes the backend-filtered add menu, and
-offers a ConditionGate shortcut when that item is valid for the region. The
-current palette-polish slice categorizes processor creation items at the
-catalog boundary so the Add menu presents Action / Mapping under Built-ins and
-user formulas under Project Formulas. The current verification slice declares
-the app-owned Inputs and Output Commands manager-ref ANodes as managed-region
-source/sink capabilities, then pins Action/Mapping region materialization,
-Input/Filter/Output region creation, and sparse project save/reload in tests.
-Phase 16 is buildable; browser-level smoke remains useful when running the
-full desktop UI, but the core creation and persistence paths are automated.
+Phase 17 - Built-in formula inspection and duplicate-to-library is in progress.
+Phase 16 is buildable: backend-owned managed processor regions are projected
+through protocol DTOs and Svelte controls, processor-owned region folders host
+role-filtered ANode children, Action/Mapping creation is palette-grouped, and
+Input/Filter/Output region creation plus sparse project save/reload are covered
+by tests. The first Phase 17 slice exposes formula source/action hints through
+`ProcessorUiModel`, `ProcessorUiDto`, and generated TypeScript so the frontend
+can distinguish project formulas from built-ins before adding open/duplicate
+commands.
 
 ## Completed Tasks
 
@@ -1322,6 +1315,11 @@ full desktop UI, but the core creation and persistence paths are automated.
   items. A Mapping processor with authored Input, ConditionGate filter, and
   Output items round-trips through sparse project JSON without declared-default
   churn.
+- Phase 17 starts by exposing source/action hints instead of adding UI commands
+  blind. `ProcessorFormulaUiState` records whether a processor formula source
+  is project or built-in and whether built-in readonly open / duplicate actions
+  are allowed by catalog visibility. `ProcessorUiDto` and generated TypeScript
+  carry those fields as the frontend contract.
 
 ## Tests Added
 
@@ -1415,6 +1413,9 @@ full desktop UI, but the core creation and persistence paths are automated.
   menu paths for built-ins and project formulas.
 - Updated `managed_region_palette_accepts_only_matching_anode_roles` to assert
   Input, Filter, and Output region creation through backend role capabilities.
+- `processor_ui_dto_preserves_builtin_formula_actions`
+- Updated `processor_formula_resolver_reads_builtin_source_key` to assert
+  built-in formula source/action UI state.
 
 ## Supercommit History
 
@@ -1473,3 +1474,5 @@ full desktop UI, but the core creation and persistence paths are automated.
   `supercommit: chataigne alchemist integration phase 16 - processor palette polish`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 16 - managed region verification`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 17 - builtin formula source hints`

@@ -1,5 +1,6 @@
 use std::{collections::HashSet, error::Error, fmt, sync::Arc};
 
+use chataigne_state_machine::ProcessorFormulaUiState;
 use golden_alchemist::{
     AlchemistFormula, AlchemistGraph, FormulaContextContract, FormulaId,
     FormulaMigration, FormulaPropertySchema, FormulaSurface,
@@ -402,6 +403,21 @@ impl FormulaCatalog {
             .ok_or_else(|| FormulaCatalogError::BuiltinFormulaNotFound {
                 source: source.clone(),
             })
+    }
+
+    pub(crate) fn formula_ui_state(&self, source: &FormulaSourceRef) -> ProcessorFormulaUiState {
+        match source {
+            FormulaSourceRef::ProjectNode(_) => ProcessorFormulaUiState::project(),
+            FormulaSourceRef::Builtin { .. } => self
+                .builtin_entry(source)
+                .map(|entry| {
+                    ProcessorFormulaUiState::builtin(
+                        entry.visibility.open_readonly_from_processor,
+                        entry.visibility.can_duplicate_to_library,
+                    )
+                })
+                .unwrap_or_else(|| ProcessorFormulaUiState::builtin(false, false)),
+        }
     }
 
     fn builtin_entry(&self, source: &FormulaSourceRef) -> Option<&FormulaCatalogEntry> {

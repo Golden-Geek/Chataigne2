@@ -6,7 +6,7 @@ use std::{
 use chataigne_state_machine::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, DefaultProcessorContextProvider,
     Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto, ProcessorUiDto,
-    ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
+    ProcessorFormulaUiState, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
     StateMachineProtocolBundle, processor_output_preview_samples,
     alchemist::{node_registry, value_type_registry},
 };
@@ -56,6 +56,7 @@ struct RuntimeProcessor {
     runtime: ProcessorRuntime,
     formula: AlchemistFormula,
     formula_node: Option<NodeId>,
+    formula_ui: ProcessorFormulaUiState,
     evaluated_once: bool,
 }
 
@@ -470,7 +471,7 @@ impl StateMachineManager {
         };
         let active_processors = active_processor_nodes(snapshot, self.id());
         for processor_node in active_processors {
-            let Some((formula_node, formula)) =
+            let Some((formula_node, formula, formula_ui)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
                 continue;
@@ -517,6 +518,7 @@ impl StateMachineManager {
                     runtime,
                     formula,
                     formula_node,
+                    formula_ui,
                     evaluated_once: false,
                 },
             );
@@ -541,7 +543,7 @@ impl StateMachineManager {
             else {
                 continue;
             };
-            let Some((formula_node, formula)) =
+            let Some((formula_node, formula, formula_ui)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
                 self.runtime_cache.dirty = true;
@@ -554,6 +556,7 @@ impl StateMachineManager {
             runtime_processor.processor = processor;
             runtime_processor.formula = formula;
             runtime_processor.formula_node = formula_node;
+            runtime_processor.formula_ui = formula_ui;
             runtime_processor.evaluated_once = false;
         }
     }
@@ -793,10 +796,13 @@ fn processor_ui_dtos(processors: &HashMap<NodeId, RuntimeProcessor>) -> Vec<Proc
     let mut dtos: Vec<_> = processors
         .values()
         .filter_map(|runtime_processor| {
-            Some(ProcessorUiDto::from(&runtime_processor.processor.ui_model(
-                &runtime_processor.formula,
-                runtime_processor.runtime.diagnostics.clone(),
-            )))
+            Some(ProcessorUiDto::from(
+                &runtime_processor.processor.ui_model_with_formula_source(
+                    &runtime_processor.formula,
+                    runtime_processor.runtime.diagnostics.clone(),
+                    runtime_processor.formula_ui,
+                ),
+            ))
         })
         .collect();
     dtos.sort_by(|left, right| left.label.cmp(&right.label).then_with(|| left.id.cmp(&right.id)));
@@ -1074,18 +1080,23 @@ fn processor_formula_from_snapshot(
     processor_node: NodeId,
     formulas: &HashMap<NodeUuid, AlchemistFormula>,
     catalog: &FormulaCatalog,
-) -> Option<(Option<NodeId>, AlchemistFormula)> {
-    match processor_formula_source_ref(snapshot, processor_node)? {
+) -> Option<(Option<NodeId>, AlchemistFormula, ProcessorFormulaUiState)> {
+    let source = processor_formula_source_ref(snapshot, processor_node)?;
+    let formula_ui = catalog.formula_ui_state(&source);
+    match source {
         FormulaSourceRef::ProjectNode(reference) => {
             let uuid = reference.uuid();
             let formula_node = snapshot.node_id_by_uuid(uuid)?;
             formulas
                 .get(&uuid)
                 .cloned()
-                .map(|formula| (Some(formula_node), formula))
+                .map(|formula| (Some(formula_node), formula, formula_ui))
         }
         source @ FormulaSourceRef::Builtin { .. } => {
-            catalog.resolve_builtin(&source).ok().map(|formula| (None, formula))
+            catalog
+                .resolve_builtin(&source)
+                .ok()
+                .map(|formula| (None, formula, formula_ui))
         }
     }
 }

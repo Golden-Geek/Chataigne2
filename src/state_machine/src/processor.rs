@@ -238,6 +238,16 @@ impl Processor {
 
     #[must_use]
     pub fn ui_model(&self, formula: &AlchemistFormula, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
+        self.ui_model_with_formula_source(formula, diagnostics, ProcessorFormulaUiState::default())
+    }
+
+    #[must_use]
+    pub fn ui_model_with_formula_source(
+        &self,
+        formula: &AlchemistFormula,
+        diagnostics: Vec<Diagnostic>,
+        formula_source: ProcessorFormulaUiState,
+    ) -> ProcessorUiModel {
         ProcessorUiModel {
             id: self.id,
             label: self.label.clone(),
@@ -247,6 +257,7 @@ impl Processor {
             surface: formula.surface.clone(),
             managed_region_instances: self.formula_instance.managed_regions.clone(),
             diagnostics,
+            formula_source,
         }
     }
 }
@@ -784,4 +795,44 @@ pub struct ProcessorUiModel {
     pub surface: FormulaSurface,
     pub managed_region_instances: ManagedRegionInstances,
     pub diagnostics: Vec<Diagnostic>,
+    pub formula_source: ProcessorFormulaUiState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProcessorFormulaSourceKind {
+    Project,
+    Builtin,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessorFormulaUiState {
+    pub source_kind: ProcessorFormulaSourceKind,
+    pub open_readonly_from_processor: bool,
+    pub can_duplicate_to_library: bool,
+}
+
+impl ProcessorFormulaUiState {
+    #[must_use]
+    pub fn project() -> Self {
+        Self {
+            source_kind: ProcessorFormulaSourceKind::Project,
+            open_readonly_from_processor: false,
+            can_duplicate_to_library: false,
+        }
+    }
+
+    #[must_use]
+    pub fn builtin(open_readonly_from_processor: bool, can_duplicate_to_library: bool) -> Self {
+        Self {
+            source_kind: ProcessorFormulaSourceKind::Builtin,
+            open_readonly_from_processor,
+            can_duplicate_to_library,
+        }
+    }
+}
+
+impl Default for ProcessorFormulaUiState {
+    fn default() -> Self {
+        Self::project()
+    }
 }

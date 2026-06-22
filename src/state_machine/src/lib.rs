@@ -29,14 +29,14 @@ pub use output_set::{
 pub use processor::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,
     ProcessorCommandPolicy, ProcessorContextProvider, ProcessorDebugCapture, ProcessorDirtyFlags,
-    ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent,
-    ProcessorLifecyclePolicy, ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel,
-    processor_output_preview_samples,
+    ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorFormulaSourceKind, ProcessorFormulaUiState,
+    ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorMemoryPolicy,
+    ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
 };
 pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedItemDto, ManagedItemUiStateDto, ManagedRegionDefinitionDto,
-    ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto, ProcessorLaneSummaryDto, ProcessorUiDto,
-    StateMachineProtocolBundle, export_typescript,
+    ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto, ProcessorFormulaSourceKindDto,
+    ProcessorLaneSummaryDto, ProcessorUiDto, StateMachineProtocolBundle, export_typescript,
 };
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,

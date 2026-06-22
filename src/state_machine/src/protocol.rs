@@ -8,7 +8,7 @@ use golden_alchemist::{
     ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SurfaceItemKind, ValueTypeSpec,
 };
 
-use crate::{ANodeOutputPreviewSample, ProcessorUiModel};
+use crate::{ANodeOutputPreviewSample, ProcessorFormulaSourceKind, ProcessorUiModel};
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
@@ -206,12 +206,32 @@ impl From<&ManagedRegionInstance> for ManagedRegionInstanceDto {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ProcessorFormulaSourceKindDto {
+    Project,
+    Builtin,
+}
+
+impl From<ProcessorFormulaSourceKind> for ProcessorFormulaSourceKindDto {
+    fn from(value: ProcessorFormulaSourceKind) -> Self {
+        match value {
+            ProcessorFormulaSourceKind::Project => Self::Project,
+            ProcessorFormulaSourceKind::Builtin => Self::Builtin,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ProcessorUiDto {
     pub id: String,
     pub label: String,
     pub active: bool,
     pub formula_id: String,
     pub formula_label: String,
+    pub formula_source_kind: ProcessorFormulaSourceKindDto,
+    pub formula_open_readonly_from_processor: bool,
+    pub formula_can_duplicate_to_library: bool,
     pub surface: Vec<FormulaSurfaceSectionDto>,
     pub managed_regions: Vec<ManagedRegionDefinitionDto>,
     pub managed_region_instances: Vec<ManagedRegionInstanceDto>,
@@ -226,6 +246,9 @@ impl From<&ProcessorUiModel> for ProcessorUiDto {
             active: value.active,
             formula_id: value.formula_id.clone(),
             formula_label: value.formula_label.clone(),
+            formula_source_kind: value.formula_source.source_kind.into(),
+            formula_open_readonly_from_processor: value.formula_source.open_readonly_from_processor,
+            formula_can_duplicate_to_library: value.formula_source.can_duplicate_to_library,
             surface: value
                 .surface
                 .sections

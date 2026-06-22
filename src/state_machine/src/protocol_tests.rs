@@ -1,14 +1,15 @@
 use golden_alchemist::{
-    ANodeId, ANodeInstance, ANodeTypeId, ContextKey, ExecNodeId, FormulaId, ManagedItemId, ManagedItemInstance,
-    ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
-    ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SocketId, SurfaceItemKind, ValueTypeId,
+    ANodeId, ANodeInstance, ANodeTypeId, ContextKey, ExecNodeId, FormulaId, FormulaSurface, ManagedItemId,
+    ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance,
+    ManagedRegionInstances, ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SocketId,
+    SurfaceItemKind, ValueTypeId,
 };
 
 use crate::{
-    ANodeOutputPreviewSample, ProcessorId,
+    ANodeOutputPreviewSample, ProcessorFormulaUiState, ProcessorId, ProcessorUiModel,
     protocol::{
         ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedRegionDefinitionDto, ManagedRegionInstanceDto,
-        ManagedRegionKindDto, RuntimeValueDto,
+        ManagedRegionKindDto, ProcessorFormulaSourceKindDto, ProcessorUiDto, RuntimeValueDto,
     },
 };
 
@@ -74,6 +75,33 @@ fn output_preview_sample_dto_keeps_formula_processor_lane_and_exec_identity() {
     assert_eq!(dto.value_type, "float");
     assert_eq!(dto.logical_tick, 99);
     assert!(matches!(dto.value, RuntimeValueDto::Float { value } if value == 0.75));
+}
+
+#[test]
+fn processor_ui_dto_preserves_builtin_formula_actions() {
+    let model = ProcessorUiModel {
+        id: ProcessorId::new(),
+        label: "Mapping".into(),
+        active: true,
+        formula_id: "chataigne.mapping@1".into(),
+        formula_label: "Mapping".into(),
+        surface: FormulaSurface {
+            sections: Vec::new(),
+            managed_regions: Vec::new(),
+        },
+        managed_region_instances: ManagedRegionInstances::default(),
+        diagnostics: Vec::new(),
+        formula_source: ProcessorFormulaUiState::builtin(true, true),
+    };
+
+    let dto = ProcessorUiDto::from(&model);
+
+    assert!(matches!(
+        dto.formula_source_kind,
+        ProcessorFormulaSourceKindDto::Builtin
+    ));
+    assert!(dto.formula_open_readonly_from_processor);
+    assert!(dto.formula_can_duplicate_to_library);
 }
 
 #[test]
