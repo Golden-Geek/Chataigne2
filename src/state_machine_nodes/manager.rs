@@ -12,9 +12,10 @@ use chataigne_state_machine::{
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, CompiledAlchemistFormula, EvaluationCtx,
-    DebugValueSample, OutputPreviewStatus, RuntimeInputSnapshot, RuntimeIntent,
-    RuntimeRegistries, RuntimeValue, SocketId, TriggerValue,
-    SurfaceItemId,
+    DebugValueSample, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
+    ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
+    RuntimeIntent, RuntimeRegistries, RuntimeValue, SocketId, SurfaceItemId,
+    TriggerValue,
 };
 use golden_core::{
     engine::NodeExecutionRule,
@@ -28,11 +29,17 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
+use crate::app::state_machine_nodes_formula::{anode_from_snapshot, ANODE_NODE_TYPE};
+use crate::app::state_machine_nodes_processor::{
+    processor_managed_region_decl_id, FormulaCatalog, FormulaSourceRef,
+    PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
+    PROCESSOR_MANAGED_REGIONS_DECL_ID,
+};
+
 pub(crate) const STATE_ITEM_KIND: &str = "state";
 const STATE_NODE_TYPE: &str = "state";
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
-const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const PROCESSOR_MANAGER_DECL_ID: &str = "processors";
 const PROCESSOR_NODE_TYPE: &str = "state_processor";
 const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -47,7 +54,8 @@ const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
 struct RuntimeProcessor {
     processor: Processor,
     runtime: ProcessorRuntime,
-    formula_node: NodeId,
+    formula: AlchemistFormula,
+    formula_node: Option<NodeId>,
     evaluated_once: bool,
 }
 
@@ -233,11 +241,12 @@ impl StateMachineManager {
         apply_pending_trigger_inputs(&mut formulas, pending_trigger_inputs);
         let active_states = active_state_nodes(snapshot, self.id());
         let cache_rebuilt = self.runtime_cache.dirty;
+        let catalog = FormulaCatalog::from_snapshot(snapshot);
 
         if self.runtime_cache.dirty {
-            self.rebuild_runtime_cache(ctx, snapshot, &formulas);
+            self.rebuild_runtime_cache(ctx, snapshot, &formulas, &catalog);
         } else {
-            self.refresh_dirty_processor_overrides(snapshot, &formulas);
+            self.refresh_dirty_processor_overrides(snapshot, &formulas, &catalog);
         }
 
         let value_types = value_type_registry();
@@ -299,7 +308,11 @@ impl StateMachineManager {
                     );
                 evaluated_any = true;
                 runtime_processor.evaluated_once = true;
-                let anode_nodes = formula_anode_node_ids(snapshot, runtime_processor.formula_node);
+                let anode_nodes = processor_anode_node_ids(
+                    snapshot,
+                    runtime_processor.formula_node,
+                    processor_node,
+                );
                 for diagnostic in &runtime_processor.runtime.diagnostics {
                     if should_emit_runtime_log(
                         &mut self.runtime_cache.last_log_values,
@@ -320,18 +333,13 @@ impl StateMachineManager {
                         lanes.clone(),
                     ));
                     if previewed_formula_defaults.insert(formula_id.to_string()) {
-                        let formula_uuid = snapshot
-                            .node(runtime_processor.formula_node)
-                            .map(|node| node.uuid);
-                        if let (Some(compiled_formula), Some(formula)) = (
-                            compiled_formula.as_ref().map(Arc::clone),
-                            formula_uuid.and_then(|uuid| formulas.get(&uuid)),
-                        )
+                        if let Some(compiled_formula) =
+                            compiled_formula.as_ref().map(Arc::clone)
                         {
                             output_preview.extend(formula_default_output_preview_samples(
                                 &mut self.runtime_cache.formula_default_previews,
                                 compiled_formula,
-                                formula,
+                                &runtime_processor.formula,
                                 &eval_ctx,
                                 &provider,
                                 &capture,
@@ -365,7 +373,7 @@ impl StateMachineManager {
                         }
                         let (origin, message) = format_debug_log_intent(
                             snapshot,
-                            runtime_processor.formula_node,
+                            &runtime_processor.formula.label,
                             processor_node,
                             lane.context_key.as_ref(),
                             &anode_nodes,
@@ -386,7 +394,7 @@ impl StateMachineManager {
                         }
                         let message = format_debug_value_sample(
                             snapshot,
-                            runtime_processor.formula_node,
+                            &runtime_processor.formula.label,
                             processor_node,
                             lane.context_key.as_ref(),
                             anode_node,
@@ -400,7 +408,7 @@ impl StateMachineManager {
                 }
             }
         }
-        let processors = processor_ui_dtos(snapshot, &self.runtime_cache.processors, &formulas);
+        let processors = processor_ui_dtos(&self.runtime_cache.processors);
         if evaluated_any || cache_rebuilt {
             self.publish_output_preview(ctx, processors, output_preview, processor_lanes);
         }
@@ -450,6 +458,7 @@ impl StateMachineManager {
         ctx: &mut ProcessCtx,
         snapshot: &ProcessTreeSnapshot,
         formulas: &HashMap<NodeUuid, AlchemistFormula>,
+        catalog: &FormulaCatalog,
     ) {
         let mut next_processors = HashMap::new();
         let value_types = value_type_registry();
@@ -461,16 +470,13 @@ impl StateMachineManager {
         };
         let active_processors = active_processor_nodes(snapshot, self.id());
         for processor_node in active_processors {
-            let Some(formula_uuid) = child_reference_uuid(snapshot, processor_node, "formula") else {
+            let Some((formula_node, formula)) =
+                processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
+            else {
                 continue;
             };
-            let Some(formula_node) = snapshot.node_id_by_uuid(formula_uuid) else {
-                continue;
-            };
-            let Some(formula) = formulas.get(&formula_uuid) else {
-                continue;
-            };
-            let Some(processor) = processor_from_snapshot(snapshot, processor_node, formula) else {
+            let formula_uuid = formula_node.and_then(|node| snapshot.node(node).map(|node| node.uuid));
+            let Some(processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
                 continue;
             };
             let mut runtime = self
@@ -482,14 +488,12 @@ impl StateMachineManager {
             if runtime.id != processor.id {
                 runtime = ProcessorRuntime::new(processor.id);
             }
-            let compiled = if self
-                .runtime_cache
-                .dirty_formula_values
-                .contains(&formula_uuid)
+            let compiled = if formula_uuid
+                .is_some_and(|uuid| self.runtime_cache.dirty_formula_values.contains(&uuid))
             {
-                runtime.compile_preserving_compatible_lanes(&processor, formula, &compile_ctx)
+                runtime.compile_preserving_compatible_lanes(&processor, &formula, &compile_ctx)
             } else {
-                runtime.compile(&processor, formula, &compile_ctx)
+                runtime.compile(&processor, &formula, &compile_ctx)
             };
             if !compiled {
                 let message = runtime
@@ -511,6 +515,7 @@ impl StateMachineManager {
                 RuntimeProcessor {
                     processor,
                     runtime,
+                    formula,
                     formula_node,
                     evaluated_once: false,
                 },
@@ -528,6 +533,7 @@ impl StateMachineManager {
         &mut self,
         snapshot: &ProcessTreeSnapshot,
         formulas: &HashMap<NodeUuid, AlchemistFormula>,
+        catalog: &FormulaCatalog,
     ) {
         let dirty_processors = std::mem::take(&mut self.runtime_cache.dirty_processor_overrides);
         for processor_node in dirty_processors {
@@ -535,20 +541,19 @@ impl StateMachineManager {
             else {
                 continue;
             };
-            let Some(formula_uuid) = child_reference_uuid(snapshot, processor_node, "formula")
+            let Some((formula_node, formula)) =
+                processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
                 self.runtime_cache.dirty = true;
                 continue;
             };
-            let Some(formula) = formulas.get(&formula_uuid) else {
-                self.runtime_cache.dirty = true;
-                continue;
-            };
-            let Some(processor) = processor_from_snapshot(snapshot, processor_node, formula) else {
+            let Some(processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
                 self.runtime_cache.dirty = true;
                 continue;
             };
             runtime_processor.processor = processor;
+            runtime_processor.formula = formula;
+            runtime_processor.formula_node = formula_node;
             runtime_processor.evaluated_once = false;
         }
     }
@@ -727,6 +732,7 @@ fn processor_from_snapshot(
     processor.id = chataigne_state_machine::ProcessorId::from_uuid(node.uuid.0);
     processor.lifecycle = ProcessorLifecyclePolicy::AlwaysActive;
     apply_processor_overrides(snapshot, processor_node, &mut processor);
+    apply_processor_managed_regions(snapshot, processor_node, formula, &mut processor)?;
     Some(processor)
 }
 
@@ -783,18 +789,12 @@ fn processor_needs_continuous_evaluation(runtime: &ProcessorRuntime) -> bool {
         .is_some_and(|compiled| compiled.analysis.has_always_process_nodes)
 }
 
-fn processor_ui_dtos(
-    snapshot: &ProcessTreeSnapshot,
-    processors: &HashMap<NodeId, RuntimeProcessor>,
-    formulas: &HashMap<NodeUuid, AlchemistFormula>,
-) -> Vec<ProcessorUiDto> {
+fn processor_ui_dtos(processors: &HashMap<NodeId, RuntimeProcessor>) -> Vec<ProcessorUiDto> {
     let mut dtos: Vec<_> = processors
         .values()
         .filter_map(|runtime_processor| {
-            let formula_uuid = snapshot.node(runtime_processor.formula_node)?.uuid;
-            let formula = formulas.get(&formula_uuid)?;
             Some(ProcessorUiDto::from(&runtime_processor.processor.ui_model(
-                formula,
+                &runtime_processor.formula,
                 runtime_processor.runtime.diagnostics.clone(),
             )))
         })
@@ -889,18 +889,46 @@ fn should_emit_runtime_log(
     true
 }
 
-fn formula_anode_node_ids(
+fn processor_anode_node_ids(
     snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
+    formula_node: Option<NodeId>,
+    processor_node: NodeId,
 ) -> HashMap<ANodeId, NodeId> {
-    snapshot
-        .child_ids(formula_node)
-        .into_iter()
-        .filter_map(|child| {
-            let node = snapshot.node(child)?;
-            (node.node_type == "alchemist_anode").then(|| (ANodeId::from_uuid(node.uuid.0), child))
-        })
-        .collect()
+    let mut nodes = formula_node.map_or_else(HashMap::new, |formula_node| {
+        snapshot
+            .child_ids(formula_node)
+            .into_iter()
+            .filter_map(|child| {
+                let node = snapshot.node(child)?;
+                (node.node_type == ANODE_NODE_TYPE)
+                    .then(|| (ANodeId::from_uuid(node.uuid.0), child))
+            })
+            .collect()
+    });
+    if let Some(regions_root) =
+        snapshot.find_child_by_decl_id(processor_node, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+    {
+        for region in snapshot.child_ids(regions_root) {
+            let Some(region_node) = snapshot.node(region) else {
+                continue;
+            };
+            if !region_node
+                .decl_id
+                .starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+            {
+                continue;
+            }
+            for child in snapshot.child_ids(region) {
+                let Some(node) = snapshot.node(child) else {
+                    continue;
+                };
+                if node.node_type == ANODE_NODE_TYPE {
+                    nodes.insert(ANodeId::from_uuid(node.uuid.0), child);
+                }
+            }
+        }
+    }
+    nodes
 }
 
 fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) -> bool {
@@ -913,13 +941,14 @@ fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) 
 
 fn format_debug_log_intent(
     snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
+    formula_label: &str,
     processor_node: NodeId,
     context_key: Option<&golden_alchemist::ContextKey>,
     anode_nodes: &HashMap<ANodeId, NodeId>,
     intent: &RuntimeIntent,
 ) -> (NodeId, String) {
-    let context = runtime_processing_context_label(snapshot, formula_node, processor_node, context_key);
+    let context =
+        runtime_processing_context_label(snapshot, formula_label, processor_node, context_key);
     let value = runtime_value_label(&intent.payload);
     let Some(anode_node) = intent.source_node.and_then(|node| anode_nodes.get(&node).copied()) else {
         return (processor_node, format!("{context} | {value}"));
@@ -934,13 +963,14 @@ fn format_debug_log_intent(
 
 fn format_debug_value_sample(
     snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
+    formula_label: &str,
     processor_node: NodeId,
     context_key: Option<&golden_alchemist::ContextKey>,
     anode_node: NodeId,
     sample: &DebugValueSample,
 ) -> String {
-    let context = runtime_processing_context_label(snapshot, formula_node, processor_node, context_key);
+    let context =
+        runtime_processing_context_label(snapshot, formula_label, processor_node, context_key);
     let node_label = snapshot_node_label(snapshot, anode_node, "ANode");
     let output_label = anode_output_label(snapshot, anode_node, &sample.output_socket);
     let value = runtime_value_label(&sample.value);
@@ -949,13 +979,13 @@ fn format_debug_value_sample(
 
 fn runtime_processing_context_label(
     snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
+    formula_label: &str,
     processor_node: NodeId,
     context_key: Option<&golden_alchemist::ContextKey>,
 ) -> String {
     format!(
         "Formula: {} / Processor: {} / Lane: {}",
-        snapshot_node_label(snapshot, formula_node, "Formula"),
+        formula_label,
         snapshot_node_label(snapshot, processor_node, "Processor"),
         context_key_label(context_key)
     )
@@ -1021,6 +1051,89 @@ fn apply_processor_overrides(
         return;
     };
     collect_processor_property_overrides(snapshot, properties, processor);
+}
+
+fn processor_formula_source_ref(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+) -> Option<FormulaSourceRef> {
+    if let Some(ParamValue::Str(source)) =
+        child_param(snapshot, processor_node, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+            .filter(|value| matches!(value, ParamValue::Str(source) if !source.is_empty()))
+    {
+        if let Ok(source) = FormulaSourceRef::parse_processor_create_type(source) {
+            return Some(source);
+        }
+    }
+    child_reference_uuid(snapshot, processor_node, "formula")
+        .map(FormulaSourceRef::project_uuid)
+}
+
+fn processor_formula_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    formulas: &HashMap<NodeUuid, AlchemistFormula>,
+    catalog: &FormulaCatalog,
+) -> Option<(Option<NodeId>, AlchemistFormula)> {
+    match processor_formula_source_ref(snapshot, processor_node)? {
+        FormulaSourceRef::ProjectNode(reference) => {
+            let uuid = reference.uuid();
+            let formula_node = snapshot.node_id_by_uuid(uuid)?;
+            formulas
+                .get(&uuid)
+                .cloned()
+                .map(|formula| (Some(formula_node), formula))
+        }
+        source @ FormulaSourceRef::Builtin { .. } => {
+            catalog.resolve_builtin(&source).ok().map(|formula| (None, formula))
+        }
+    }
+}
+
+fn apply_processor_managed_regions(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    formula: &AlchemistFormula,
+    processor: &mut Processor,
+) -> Option<()> {
+    let Some(regions_root) =
+        snapshot.find_child_by_decl_id(processor_node, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+    else {
+        return Some(());
+    };
+    for definition in &formula.surface.managed_regions {
+        let decl_id = processor_managed_region_decl_id(definition.id.as_str());
+        let Some(region_node) =
+            snapshot.find_child_by_decl_id(regions_root, &decl_id)
+        else {
+            continue;
+        };
+        let mut region = ManagedRegionInstance {
+            region_id: definition.id.clone(),
+            items: Vec::new(),
+        };
+        for child in snapshot.child_ids(region_node) {
+            let child_node = snapshot.node(child)?;
+            if child_node.node_type != ANODE_NODE_TYPE {
+                continue;
+            }
+            let anode = anode_from_snapshot(snapshot, child).ok()?;
+            region.items.push(ManagedItemInstance {
+                id: ManagedItemId::from_uuid(child_node.uuid.0),
+                anode,
+                enabled: child_node.enabled,
+                ui_state: ManagedItemUiState {
+                    collapsed: child_node.presentation.collapsed,
+                },
+            });
+        }
+        processor
+            .formula_instance
+            .managed_regions
+            .regions
+            .insert(definition.id.clone(), region);
+    }
+    Some(())
 }
 
 fn collect_processor_property_overrides(

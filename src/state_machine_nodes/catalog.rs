@@ -19,9 +19,13 @@ const BUILTIN_FORMULA_PACKAGE_SOURCE: &str =
 pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const PROCESSOR_BUILTIN_CREATE_PREFIX: &str = "state_processor:builtin:";
+#[cfg(test)]
 pub(crate) const BUILTIN_FORMULA_PACKAGE: &str = "chataigne";
+#[cfg(test)]
 pub(crate) const BUILTIN_ACTION_FORMULA_ID: &str = "action";
+#[cfg(test)]
 pub(crate) const BUILTIN_MAPPING_FORMULA_ID: &str = "mapping";
+#[cfg(test)]
 pub(crate) const BUILTIN_FORMULA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug)]

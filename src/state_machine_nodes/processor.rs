@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use golden_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
 use golden_core::{
     edit::{Edit, NodeTree},
     events::Event,
@@ -14,8 +17,10 @@ use golden_core::{
 };
 
 use crate::app::state_machine_nodes_formula::{
-    node_has_warning, node_warning_detail, node_warning_matches, FORMULA_WARNING_ID,
-    PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
+    anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
+    node_has_warning, node_warning_detail, node_warning_matches, ANODE_ITEM_KIND,
+    FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
+    PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{ConditionManager, InputsManager, OutputsManager};
 
@@ -23,6 +28,9 @@ mod catalog;
 
 pub(crate) use self::catalog::{
     FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+};
+#[cfg(test)]
+pub(crate) use self::catalog::{
     BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
     BUILTIN_MAPPING_FORMULA_ID,
 };
@@ -31,6 +39,11 @@ const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
 const PROCESSOR_SURFACE_DECL_PREFIX: &str = "surface/";
 const PROCESSOR_FORMULA_WARNING_ID: &str = "state_processor_formula";
+pub(crate) const PROCESSOR_FORMULA_SOURCE_DECL_ID: &str = "formula_source_key";
+pub(crate) const PROCESSOR_MANAGED_REGIONS_DECL_ID: &str = "managed_regions";
+pub(crate) const PROCESSOR_MANAGED_REGION_DECL_PREFIX: &str = "managed_region/";
+const PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX: &str =
+    "state_processor.managed_region.role:";
 pub(crate) const PROCESSOR_ITEM_KIND: &str = "state_processor";
 pub(crate) const PROCESSOR_FOLDER_ITEM_KIND: &str = "state_processor_folder";
 pub(crate) const PROCESSOR_FOLDER_NODE_TYPE: &str = "state_processor_folder";
@@ -184,6 +197,64 @@ fn processor_properties_tree(
     tree
 }
 
+pub(crate) fn processor_managed_region_decl_id(region_id: &str) -> String {
+    format!("{PROCESSOR_MANAGED_REGION_DECL_PREFIX}{region_id}")
+}
+
+fn surface_item_kind_tag(role: SurfaceItemKind) -> &'static str {
+    match role {
+        SurfaceItemKind::Parameter => "parameter",
+        SurfaceItemKind::Condition => "condition",
+        SurfaceItemKind::Consequence => "consequence",
+        SurfaceItemKind::Input => "input",
+        SurfaceItemKind::Filter => "filter",
+        SurfaceItemKind::Output => "output",
+        SurfaceItemKind::Action => "action",
+    }
+}
+
+fn surface_item_kind_from_tag(value: &str) -> Option<SurfaceItemKind> {
+    match value {
+        "parameter" => Some(SurfaceItemKind::Parameter),
+        "condition" => Some(SurfaceItemKind::Condition),
+        "consequence" => Some(SurfaceItemKind::Consequence),
+        "input" => Some(SurfaceItemKind::Input),
+        "filter" => Some(SurfaceItemKind::Filter),
+        "output" => Some(SurfaceItemKind::Output),
+        "action" => Some(SurfaceItemKind::Action),
+        _ => None,
+    }
+}
+
+fn managed_region_tags(definition: &ManagedRegionDefinition) -> Vec<String> {
+    definition
+        .accepted_roles
+        .iter()
+        .map(|role| {
+            format!(
+                "{PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX}{}",
+                surface_item_kind_tag(*role)
+            )
+        })
+        .collect()
+}
+
+fn managed_region_roles_from_tags(tags: &[String]) -> Vec<SurfaceItemKind> {
+    tags.iter()
+        .filter_map(|tag| tag.strip_prefix(PROCESSOR_MANAGED_REGION_ROLE_TAG_PREFIX))
+        .filter_map(surface_item_kind_from_tag)
+        .collect()
+}
+
+fn processor_managed_region_tree(definition: &ManagedRegionDefinition) -> NodeTree {
+    let mut region = StateProcessorManagedRegion::new();
+    let meta = &mut region.node_data_mut().meta;
+    meta.label = definition.label.clone();
+    meta.decl_id = DeclId(processor_managed_region_decl_id(definition.id.as_str()));
+    meta.tags = managed_region_tags(definition);
+    NodeTree::new(region)
+}
+
 fn reconcile_properties_level(
     snapshot: &ProcessTreeSnapshot,
     source_container: NodeId,
@@ -270,6 +341,56 @@ fn reconcile_properties_level(
         {
             ctx.edits.push(Edit::RemoveNode { node: child });
         }
+    }
+}
+
+#[node("state_processor_managed_regions", label = "Managed Regions")]
+pub struct StateProcessorManagedRegions {}
+
+#[node("state_processor_managed_regions", from_struct)]
+impl Node for StateProcessorManagedRegions {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions =
+            locked_instance_permissions();
+        self.node_data_mut().meta.can_be_disabled = false;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
+    }
+}
+
+#[node("state_processor_managed_region", label = "Managed Region")]
+pub struct StateProcessorManagedRegion {}
+
+#[node("state_processor_managed_region", from_struct)]
+impl Node for StateProcessorManagedRegion {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[ANODE_ITEM_KIND]))
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
+        anode_container_accepts_for_roles(item_type, item_kind, &roles)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        let roles = managed_region_roles_from_tags(&self.node_data().meta.tags);
+        anode_creatable_items_for_roles(&roles)
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        create_anode_user_item(node_type)
+    }
+
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        let mut permissions = NodeUserPermissions::all();
+        permissions.can_edit_name = false;
+        self.node_data_mut().meta.user_permissions = permissions;
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
@@ -502,6 +623,15 @@ impl StateProcessorFolder {
         reference_allowed_node_types = vec![FORMULA_NODE_TYPE.to_owned()],
         reference_allow_projections = false
     );
+    formula_source_key: String = String::new() (
+        label = "Formula Source",
+        read_only = true,
+        show_in_inspector_content = false
+    );
+    node managed_regions: StateProcessorManagedRegions = StateProcessorManagedRegions::new() (
+        label = "Managed Regions",
+        show_in_inspector_content = false
+    );
 )]
 pub struct StateProcessor {
     #[state(default = ProcessorFormulaSourceState::default(), persist)]
@@ -514,6 +644,7 @@ pub struct StateProcessor {
 impl Node for StateProcessor {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         initialize_processor_item(self);
+        self.sync_formula_source_key();
         self.reconcile_formula(ctx);
     }
 
@@ -588,13 +719,16 @@ impl StateProcessor {
     fn set_formula_source(&mut self, source: FormulaSourceRef) {
         self.formula_source = ProcessorFormulaSourceState::from_source(&source);
         match source {
-            FormulaSourceRef::ProjectNode(reference) => self
-                .formula
-                .apply_runtime_value(&ParamValue::Reference(reference)),
-            FormulaSourceRef::Builtin { .. } => self
-                .formula
-                .apply_runtime_value(&ParamValue::Reference(NodeReference::default())),
+            FormulaSourceRef::ProjectNode(reference) => self.formula.apply_runtime_value(
+                &ParamValue::Reference(reference),
+            ),
+            FormulaSourceRef::Builtin { .. } => {
+                self.formula.apply_runtime_value(&ParamValue::Reference(
+                    NodeReference::default(),
+                ))
+            }
         };
+        self.sync_formula_source_key();
     }
 
     fn sync_formula_source_from_reference(&mut self) {
@@ -606,6 +740,17 @@ impl StateProcessor {
                 reference.clone(),
             ))
         };
+        self.sync_formula_source_key();
+    }
+
+    fn sync_formula_source_key(&mut self) {
+        let value = self
+            .formula_source_ref()
+            .ok()
+            .flatten()
+            .map(|source| source.processor_create_type())
+            .unwrap_or_default();
+        self.formula_source_key.apply_runtime_value(&ParamValue::Str(value));
     }
 
     fn formula_source_ref(
@@ -655,6 +800,7 @@ impl StateProcessor {
 
     fn reconcile_formula(&self, ctx: &mut ProcessCtx) {
         self.reconcile_formula_properties(ctx);
+        self.reconcile_formula_managed_regions(ctx);
         self.reconcile_formula_warning(ctx);
     }
 
@@ -764,6 +910,83 @@ impl StateProcessor {
         };
 
         reconcile_properties_level(&snapshot, source_properties, properties, ctx);
+    }
+
+    fn managed_region_definitions(
+        &self,
+        snapshot: &ProcessTreeSnapshot,
+    ) -> Vec<ManagedRegionDefinition> {
+        let Ok(Some(source @ FormulaSourceRef::Builtin { .. })) = self.formula_source_ref()
+        else {
+            return Vec::new();
+        };
+        FormulaCatalog::from_snapshot(snapshot)
+            .resolve_builtin(&source)
+            .map(|formula| formula.surface.managed_regions)
+            .unwrap_or_default()
+    }
+
+    fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(regions_root) =
+            snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        else {
+            return;
+        };
+        let mut desired = HashSet::new();
+        for definition in self.managed_region_definitions(&snapshot) {
+            let decl_id = processor_managed_region_decl_id(definition.id.as_str());
+            desired.insert(decl_id.clone());
+            let Some(existing) =
+                snapshot.find_child_by_decl_id(regions_root, &decl_id)
+            else {
+                let already_queued = ctx.edits.pending.iter().any(|req| {
+                    if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
+                        *p == regions_root
+                            && tree.node.node_data().meta.decl_id.0 == decl_id
+                    } else {
+                        false
+                    }
+                });
+                if !already_queued {
+                    ctx.add_child_tree(
+                        regions_root,
+                        processor_managed_region_tree(&definition),
+                        None,
+                    );
+                }
+                continue;
+            };
+            let Some(existing_node) = snapshot.node(existing) else {
+                continue;
+            };
+            let desired_tags = managed_region_tags(&definition);
+            if existing_node.label != definition.label
+                || existing_node.tags != desired_tags
+            {
+                ctx.patch_node_meta(
+                    existing,
+                    NodeMetaPatch {
+                        label: Some(definition.label.clone()),
+                        tags: Some(desired_tags),
+                        ..NodeMetaPatch::default()
+                    },
+                );
+            }
+        }
+
+        for child in snapshot.child_ids(regions_root) {
+            let Some(node) = snapshot.node(child) else {
+                continue;
+            };
+            if node.decl_id.starts_with(PROCESSOR_MANAGED_REGION_DECL_PREFIX)
+                && !desired.contains(&node.decl_id)
+            {
+                ctx.edits.push(Edit::RemoveNode { node: child });
+            }
+        }
     }
 }
 

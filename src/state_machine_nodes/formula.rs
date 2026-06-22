@@ -50,7 +50,7 @@ pub(crate) const PROPERTY_CREATE_PREFIX: &str = "alchemist_property:";
 pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str =
     "alchemist_property_manager:";
 
-const ANODE_NODE_TYPE: &str = "alchemist_anode";
+pub(crate) const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
 pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str =
     "alchemist_property_manager";
@@ -190,6 +190,66 @@ fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
         "Folder",
     ));
     items
+}
+
+pub(crate) fn anode_creatable_items_for_roles(
+    roles: &[SurfaceItemKind],
+) -> Vec<UserCreatableItem> {
+    registry()
+        .iter()
+        .filter(|declaration| {
+            roles.is_empty()
+                || roles
+                    .iter()
+                    .any(|role| declaration.supports_role(*role))
+        })
+        .map(|declaration| {
+            UserCreatableItem::new(
+                format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
+                ANODE_ITEM_KIND,
+                declaration.label(),
+            )
+            .with_menu_path([declaration.category()])
+        })
+        .collect()
+}
+
+pub(crate) fn anode_container_accepts_for_roles(
+    item_type: &str,
+    item_kind: &str,
+    roles: &[SurfaceItemKind],
+) -> bool {
+    if item_kind != ANODE_ITEM_KIND {
+        return false;
+    }
+    if item_type == ANODE_NODE_TYPE {
+        return true;
+    }
+    let Some(type_id) = item_type.strip_prefix(ANODE_CREATE_PREFIX) else {
+        return false;
+    };
+    registry()
+        .get(&ANodeTypeId::new(type_id))
+        .is_some_and(|declaration| {
+            roles.is_empty()
+                || roles
+                    .iter()
+                    .any(|role| declaration.supports_role(*role))
+        })
+}
+
+pub(crate) fn create_anode_user_item(node_type: &str) -> Option<Box<dyn Node>> {
+    if node_type == ANODE_NODE_TYPE {
+        return Some(Box::new(AlchemistANode::new()));
+    }
+    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let registry = registry();
+    let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+    Some(Box::new(AlchemistANode::for_type(
+        type_id,
+        declaration.label(),
+        declaration.category(),
+    )))
 }
 
 fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
@@ -907,7 +967,7 @@ fn sync_auto_input_count(
     });
 }
 
-fn anode_from_snapshot(
+pub(crate) fn anode_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
 ) -> Result<ANodeInstance, String> {
@@ -2712,17 +2772,7 @@ impl Node for AlchemistFormulaDefinition {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = registry()
-            .iter()
-            .map(|declaration| {
-                UserCreatableItem::new(
-                    format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
-                    ANODE_ITEM_KIND,
-                    declaration.label(),
-                )
-                .with_menu_path([declaration.category()])
-            })
-            .collect::<Vec<_>>();
+        let mut items = anode_creatable_items_for_roles(&[]);
         items.push(
             UserCreatableItem::new(
                 CONNECTION_NODE_TYPE,
@@ -2738,17 +2788,7 @@ impl Node for AlchemistFormulaDefinition {
         if node_type == CONNECTION_NODE_TYPE {
             return Some(Box::new(AlchemistConnection::new()));
         }
-        if node_type == ANODE_NODE_TYPE {
-            return Some(Box::new(AlchemistANode::new()));
-        }
-        let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
-        let registry = registry();
-        let declaration = registry.get(&ANodeTypeId::new(type_id))?;
-        Some(Box::new(AlchemistANode::for_type(
-            type_id,
-            declaration.label(),
-            declaration.category(),
-        )))
+        create_anode_user_item(node_type)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

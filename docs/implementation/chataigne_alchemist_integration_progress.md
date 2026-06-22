@@ -2,11 +2,13 @@
 
 ## Current Phase
 
-Phase 16 - Svelte UI integration is in progress. The first slice exposes
+Phase 16 - Svelte UI integration is in progress. The first slice exposed
 backend-owned managed processor regions and item instances through the Rust
 protocol, generated TypeScript DTOs, the runtime preview bundle, and the
-Alchemist editor side panel. The next Phase 16 slice is adding mutation controls
-for managed region items instead of inventing a frontend-only graph model.
+Alchemist editor side panel. The current slice adds the backend app-layer edit
+boundary for managed-region items by materializing processor-owned managed
+region folders that host role-filtered ANode children. The remaining Phase 16
+work is Svelte controls and polish over those real backend nodes.
 
 ## Completed Tasks
 
@@ -1283,9 +1285,17 @@ for managed region items instead of inventing a frontend-only graph model.
   `runtimePreviewBundle.processors`, showing Mapping regions as Inputs /
   Filters / Outputs and Action regions as Trigger / Filters / Commands when the
   backend formula declares those regions.
-- Managed region mutation remains intentionally out of this slice because no
-  app-layer edit API exists yet for inserting, deleting, reordering, or
-  configuring `ManagedItemInstance` values in a processor formula instance.
+- Processor nodes now own a declared `Managed Regions` child whose synchronized
+  region folders are real project nodes. Those folders expose role-filtered
+  ANode creation palettes and persist/reorder/remove/configure managed items
+  through ordinary graph edits instead of a frontend-only model.
+- Built-in processor source is mirrored into a hidden snapshot-visible source
+  key so the runtime manager can reconstruct built-in formulas from the
+  catalog without path-importing node state.
+- Runtime processor rebuild now carries the resolved formula alongside the
+  processor instance, allowing built-in processors and project processors to
+  share the same managed-region item parsing path. Svelte controls still need
+  polish over the backend nodes.
 
 ## Tests Added
 
@@ -1368,6 +1378,9 @@ for managed region items instead of inventing a frontend-only graph model.
 - `managed_regions_are_present_in_ui_model`
 - `managed_region_definition_dto_preserves_role_and_socket_contract`
 - `managed_region_instance_dto_preserves_item_identity_and_ui_state`
+- `builtin_mapping_processor_instantiates_managed_region_folders`
+- `managed_region_palette_accepts_only_matching_anode_roles`
+- `processor_formula_resolver_reads_builtin_source_key`
 
 ## Supercommit History
 
@@ -1418,3 +1431,5 @@ for managed region items instead of inventing a frontend-only graph model.
   `supercommit: chataigne alchemist integration phase 15 - remove duplicate manager logic`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 16 - managed region ui projection`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 16 - managed region backend edit boundary`

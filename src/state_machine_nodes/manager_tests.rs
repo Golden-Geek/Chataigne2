@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use golden_core::{
     engine::EngineTime,
     node::{DeclId, Folder, Node},
@@ -6,7 +8,14 @@ use golden_core::{
     ui_sync::UiEditIntent,
 };
 
-use super::{processor_override_value, STATE_ITEM_KIND, StateMachineManager};
+use super::{
+    processor_formula_from_snapshot, processor_formula_source_ref,
+    processor_override_value, STATE_ITEM_KIND, StateMachineManager,
+};
+use crate::app::state_machine_nodes_processor::{
+    FormulaCatalog, FormulaSourceRef, BUILTIN_FORMULA_PACKAGE,
+    BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
+};
 
 #[test]
 fn state_machine_manager_is_fixed_and_creates_states() {
@@ -93,4 +102,54 @@ fn processor_override_value_reads_direct_parameter_nodes() {
         processor_override_value(&snapshot, parameter_id),
         Some(&ParamValue::Float(7.5))
     );
+}
+
+#[test]
+fn processor_formula_resolver_reads_builtin_source_key() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(crate::app::StateProcessorManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("processor manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == crate::app::StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: manager_id,
+        node_type: "state_processor:builtin:chataigne.mapping@1".to_owned(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "builtin Mapping processor should attach: {ack:?}");
+    let processor_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == crate::app::StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor should exist");
+    let snapshot = engine.process_tree_snapshot();
+    let source = processor_formula_source_ref(&snapshot, processor_id)
+        .expect("processor source should resolve");
+
+    assert!(matches!(
+        &source,
+        FormulaSourceRef::Builtin {
+            package,
+            formula_id,
+            version,
+        } if package.as_ref() == BUILTIN_FORMULA_PACKAGE
+            && formula_id.as_ref() == BUILTIN_MAPPING_FORMULA_ID
+            && *version == BUILTIN_FORMULA_VERSION
+    ));
+
+    let catalog = FormulaCatalog::from_snapshot(&snapshot);
+    let (formula_node, formula) =
+        processor_formula_from_snapshot(&snapshot, processor_id, &HashMap::new(), &catalog)
+            .expect("builtin formula should resolve from catalog");
+    assert!(formula_node.is_none());
+    assert_eq!(formula.label, "Mapping");
 }

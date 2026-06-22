@@ -13,13 +13,16 @@ use crate::app::{
 
 use super::{
     FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
-    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_ITEM_KIND,
-    StateProcessor, StateProcessorFolder, StateProcessorManager,
-    StateProcessorProperties, BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE,
-    BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
+    PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
+    PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_ITEM_KIND,
+    PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
+    StateProcessorFolder, StateProcessorManagedRegion,
+    StateProcessorManagedRegions, StateProcessorManager, StateProcessorProperties,
+    BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
+    BUILTIN_MAPPING_FORMULA_ID, processor_managed_region_decl_id,
 };
 use crate::app::state_machine_nodes_formula::{
-    AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
+    AlchemistProperty, ANODE_CREATE_PREFIX, ANODE_NODE_TYPE, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
     PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
 };
 
@@ -406,6 +409,141 @@ fn builtin_mapping_processor_has_no_missing_formula_warning() {
         processor_id,
         "state_processor_formula"
     ));
+}
+
+#[test]
+fn builtin_mapping_processor_instantiates_managed_region_folders() {
+    let (mut engine, _, _) = engine_with_formula();
+    let processor_id = attach_builtin_mapping_processor(&mut engine);
+    let snapshot = engine.process_tree_snapshot();
+    let source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("Processor should expose its formula source key");
+
+    assert_eq!(
+        snapshot
+            .node(source_key)
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Str(
+            "state_processor:builtin:chataigne.mapping@1".to_owned()
+        ))
+    );
+
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own a Managed Regions root");
+    assert_eq!(
+        engine
+            .nodes
+            .get(regions_root)
+            .expect("Managed Regions root should exist")
+            .get_type(),
+        StateProcessorManagedRegions::NODE_TYPE
+    );
+
+    let actual = snapshot
+        .child_ids(regions_root)
+        .into_iter()
+        .map(|child| {
+            let node = engine.nodes.get(child).expect("region should exist");
+            (
+                node.get_type().to_owned(),
+                node.node_data().meta.decl_id.0.clone(),
+                node.node_data().meta.label.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual,
+        vec![
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("inputs"),
+                "Inputs".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("filters"),
+                "Filters".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("outputs"),
+                "Outputs".to_owned()
+            )
+        ]
+    );
+}
+
+#[test]
+fn managed_region_palette_accepts_only_matching_anode_roles() {
+    let (mut engine, _, _) = engine_with_formula();
+    let processor_id = attach_builtin_mapping_processor(&mut engine);
+    let snapshot = engine.process_tree_snapshot();
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own Managed Regions");
+    let filters = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("filters"),
+        )
+        .expect("Mapping should expose a Filters region");
+    let inputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("inputs"),
+        )
+        .expect("Mapping should expose an Inputs region");
+    let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate");
+
+    let filter_items = engine
+        .nodes
+        .get(filters)
+        .expect("Filters region should exist")
+        .user_creatable_items();
+    let input_items = engine
+        .nodes
+        .get(inputs)
+        .expect("Inputs region should exist")
+        .user_creatable_items();
+
+    assert!(filter_items
+        .iter()
+        .any(|item| item.node_type == condition_gate_type));
+    assert!(!input_items
+        .iter()
+        .any(|item| item.node_type == condition_gate_type));
+
+    let rejected = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: inputs,
+        node_type: condition_gate_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        !rejected.success,
+        "Inputs region should reject filter-only ANodes"
+    );
+
+    let accepted = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: filters,
+        node_type: condition_gate_type,
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        accepted.success,
+        "Filters region should accept ConditionGate: {accepted:?}"
+    );
+    let snapshot = engine.process_tree_snapshot();
+    assert!(snapshot.child_ids(filters).into_iter().any(|child| {
+        engine
+            .nodes
+            .get(child)
+            .is_some_and(|node| node.get_type() == ANODE_NODE_TYPE)
+    }));
 }
 
 #[test]
@@ -833,6 +971,31 @@ fn attach_processor_referencing(
     let mut processor = StateProcessor::new();
     processor.formula.apply_runtime_value(&ParamValue::Reference(
         NodeReference::new(formula_uuid),
+    ));
+    engine.add_user_item(processor.into(), Some(manager_id));
+    engine.apply_edits().expect("Processor should attach");
+    engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Processor should exist")
+}
+
+fn attach_builtin_mapping_processor(engine: &mut AppEngine) -> NodeId {
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+    let mut processor = StateProcessor::new();
+    processor.set_formula_source(FormulaSourceRef::builtin(
+        BUILTIN_FORMULA_PACKAGE,
+        BUILTIN_MAPPING_FORMULA_ID,
+        BUILTIN_FORMULA_VERSION,
     ));
     engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
