@@ -10,8 +10,10 @@ processor-owned managed region folders that host role-filtered ANode children.
 The current slice adds Svelte controls over those real backend nodes: each
 managed region resolves its folder, exposes the backend-filtered add menu, and
 offers a ConditionGate shortcut when that item is valid for the region. The
-remaining Phase 16 work is end-to-end product verification and any creation
-palette polish still needed.
+current palette-polish slice categorizes processor creation items at the
+catalog boundary so the Add menu presents Action / Mapping under Built-ins and
+user formulas under Project Formulas. The remaining Phase 16 work is end-to-end
+product verification and any save/reload polish still needed.
 
 ## Completed Tasks
 
@@ -1304,6 +1306,10 @@ palette polish still needed.
   backend edit boundary instead of a parallel model.
 - The side panel exposes a ConditionGate shortcut only when the selected region
   folder's backend-filtered palette includes `alchemist_anode:condition_gate`.
+- Processor creation palette grouping is now catalog-owned: built-in processor
+  templates use the `Built-ins` menu path and project formula templates use the
+  `Project Formulas` menu path. The Svelte manager keeps using the shared
+  `NodeAddButton` menu instead of duplicating palette logic.
 
 ## Tests Added
 
@@ -1391,6 +1397,8 @@ palette polish still needed.
 - `processor_formula_resolver_reads_builtin_source_key`
 - `npm run check` in `src-ui` passes with 0 Svelte/TypeScript diagnostics for
   the managed-region controls.
+- Updated `processor_manager_lists_custom_formulas` to assert processor palette
+  menu paths for built-ins and project formulas.
 
 ## Supercommit History
 
@@ -1445,3 +1453,5 @@ palette polish still needed.
   `supercommit: chataigne alchemist integration phase 16 - managed region backend edit boundary`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 16 - managed region ui controls`
+- In progress in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 16 - processor palette polish`

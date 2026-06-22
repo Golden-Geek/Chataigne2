@@ -432,11 +432,18 @@ impl FormulaCatalog {
         self.processor_palette_entries()
             .filter_map(|entry| {
                 let template = entry.processor_template.as_ref()?;
-                Some(UserCreatableItem::new(
-                    &template.create_type,
-                    PROCESSOR_ITEM_KIND,
-                    &entry.label,
-                ))
+                let menu_path = match &entry.source {
+                    FormulaSourceRef::ProjectNode(_) => "Project Formulas",
+                    FormulaSourceRef::Builtin { .. } => "Built-ins",
+                };
+                Some(
+                    UserCreatableItem::new(
+                        &template.create_type,
+                        PROCESSOR_ITEM_KIND,
+                        &entry.label,
+                    )
+                    .with_menu_path([menu_path]),
+                )
             })
             .collect()
     }

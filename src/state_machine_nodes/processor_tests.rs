@@ -85,13 +85,19 @@ fn processor_manager_lists_custom_formulas() {
         formula_items[0].node_type,
         "state_processor:builtin:chataigne.action@1"
     );
+    assert_eq!(formula_items[0].menu_path, vec!["Built-ins".to_string()]);
     assert_eq!(
         formula_items[1].node_type,
         "state_processor:builtin:chataigne.mapping@1"
     );
+    assert_eq!(formula_items[1].menu_path, vec!["Built-ins".to_string()]);
     assert_eq!(
         formula_items[2].node_type,
         format!("state_processor:project:{}", formula_uuid.0)
+    );
+    assert_eq!(
+        formula_items[2].menu_path,
+        vec!["Project Formulas".to_string()]
     );
 }
 
