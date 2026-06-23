@@ -31,6 +31,9 @@ filter-error prefixes for ValueSet/filter pipeline failures.
 The third Phase 18 slice hardens processor creation so syntactically valid but
 unknown built-in formula sources are rejected at the user-item creation
 boundary instead of creating a processor that only warns later.
+The fourth Phase 18 slice pins the reusable `ConditionGate` incompatible-mode
+runtime diagnostic with a focused Alchemist regression test for the declared
+but not yet supported `per_lane` gate application.
 
 ## Completed Tasks
 
@@ -589,8 +592,11 @@ boundary instead of creating a processor that only warns later.
 
 ## Pending Tasks
 
-- Project managed regions through the Rust protocol DTOs and generated
-  TypeScript output for the Svelte editor phases.
+- Keep Phase 18 diagnostics/migration hardening focused on explicit failures:
+  invalid formula sources, missing catalog entries, managed-region shape
+  errors, missing runtime endpoints, invalid output targets, and unsupported
+  ValueSet transitions must keep returning diagnosable failures instead of
+  fallback values.
 - Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
   target axis from future InputSet/OutputSet metadata before production
   lowering can safely materialize it.
@@ -1241,12 +1247,9 @@ boundary instead of creating a processor that only warns later.
 - Large graph performance tests already exist and pass. Later managed-region
   and pipeline-lowering work must preserve sparse lane memory and shared
   compiled formula behavior.
-- Unknown built-in source strings can still instantiate a processor if they
-  are manually passed through the creation boundary; the processor surfaces an
-  explicit missing-source warning. Package loading now owns the complete
-  shipped built-in list, but the creation boundary still accepts parsed
-  built-in source strings so diagnostics remain the guardrail until later
-  hardening.
+- Unknown built-in source strings are rejected at processor creation. Invalid
+  sources that already exist in older snapshots still surface explicit runtime
+  diagnostics instead of being silently rewritten.
 - Empty built-in graphs are valid for Phase 3 but not user-complete. Phase 4
   must add managed region definitions before the built-in surfaces become
   useful.
@@ -1368,6 +1371,55 @@ boundary instead of creating a processor that only warns later.
 - Unknown built-in processor creation IDs now fail at the processor creation
   boundary. Project formula processor IDs and catalog-known built-ins continue
   to create normally.
+- The reusable Alchemist `ConditionGate` runtime now has explicit regression
+  coverage for the declared-but-unsupported `per_lane` application mode,
+  preserving the diagnostic until lane-aware ValueSet lowering exists.
+
+## Phase 18 Diagnostics List
+
+- Invalid formula source strings are rejected by typed parsing and covered by
+  existing invalid built-in source tests.
+- Missing built-in formulas now fail at processor creation when possible, while
+  already-persisted invalid sources still resolve to explicit missing-source
+  warnings.
+- Unknown managed regions and stale managed item references compile through
+  typed `ManagedFormulaError` variants with stable diagnostic codes.
+- Invalid filter nodes in managed pipelines are rejected by role-capability
+  checks and by pipeline lowering diagnostics instead of being wired by name.
+- Shape mismatches and unsupported `ValueSet` transitions are reported by the
+  reusable pipeline shape checker and propagated through managed formula
+  diagnostics.
+- Missing input sources and invalid output targets are handled at the
+  InputSet/OutputSet materialization boundaries without fake values or partial
+  dispatch.
+- `ConditionGate` incompatible `per_lane` mode returns a reusable Alchemist
+  runtime diagnostic and is now covered by a regression test.
+
+## Phase 18 Migration List
+
+- Old `chataigne.param_array` runtime values remain a clean schema break; the
+  `ValueSet` boundary rejects them rather than registering a compatibility
+  alias.
+- Old processor formula references remain supported through the Phase 2 source
+  fallback: empty typed source state plus a legacy project formula reference
+  resolves as a project formula source.
+- Old manager filter/condition wrapper node IDs remain registered only for
+  tree/UI/persistence compatibility. Their duplicated runtime behavior stays
+  removed in favor of managed-region ANodes.
+- No automatic project rewrite is required for built-in processor creation
+  hardening; newly requested unknown built-ins are rejected, and stale saved
+  sources keep surfacing diagnostics.
+
+## Phase 18 Known Remaining Risks
+
+- `ConditionGate` `per_lane` mode is intentionally not lowered yet; the
+  explicit diagnostic is the production behavior until lane-aware ValueSet
+  lowering is designed.
+- Broadcast/expand production lowering still needs a declared target axis
+  before it can safely materialize real InputSet/OutputSet regions.
+- Legacy wrapper nodes are still present for persistence compatibility, so the
+  final migration policy must eventually decide whether to rewrite or reject
+  old condition/filter manager items.
 
 ## Tests Added
 
@@ -1470,6 +1522,7 @@ boundary instead of creating a processor that only warns later.
 - `managed_formula_missing_action_command_target_uses_specific_code`
 - `managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix`
 - `unknown_builtin_processor_source_is_not_creatable`
+- `condition_gate_per_lane_application_reports_incompatible_mode`
 - Updated `processor_ui_dto_preserves_builtin_formula_actions` to assert the
   exact built-in formula source key.
 - `cargo test app::state_machine_nodes_formula::formula_tests::duplicated_builtin_formula_copies_managed_region_surface_metadata -- --nocapture`
@@ -1508,6 +1561,16 @@ boundary instead of creating a processor that only warns later.
 - After the built-in source creation hardening slice, `cargo test --workspace`
   passed with 296 app tests and 79 state-machine tests. The existing 2 ignored
   Alchemist tests remain ignored as stale pre-manager-ref behavior.
+- After the ConditionGate incompatible-mode diagnostics slice,
+  `cargo test -p golden_alchemist condition_gate_per_lane_application_reports_incompatible_mode -- --nocapture`
+  passed in `submodules/golden_alchemist_core`.
+- After the ConditionGate incompatible-mode diagnostics slice,
+  `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  119 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- After the ConditionGate incompatible-mode diagnostics slice,
+  `cargo test --workspace` passed with 296 app tests and 79 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
 
 ## Supercommit History
 
@@ -1578,3 +1641,7 @@ boundary instead of creating a processor that only warns later.
   `supercommit: chataigne alchemist integration phase 18 - managed formula runtime diagnostics`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 18 - builtin source creation hardening`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 18 - condition gate diagnostics`
+- Reusable Alchemist submodule commit:
+  `80efe26 supercommit: chataigne alchemist integration phase 18 - condition gate diagnostics`
