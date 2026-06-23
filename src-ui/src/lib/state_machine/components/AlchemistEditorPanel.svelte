@@ -800,6 +800,8 @@
 			return;
 		}
 		const formulaLabel = processorUi.formula_label;
+		const sourceKey = processorUi.formula_source_key;
+		if (!sourceKey) return;
 		const libraryNodeId = formulaLibrary.node_id;
 		const label = duplicateFormulaLabel(formulaLabel);
 		void runMutation(async () => {
@@ -809,7 +811,10 @@
 				label,
 				{
 					select_when_created: true,
-					created_node_type: FORMULA_NODE_TYPE
+					created_node_type: FORMULA_NODE_TYPE,
+					initial_params: [
+						initialParam('duplicate_from_formula_source', { kind: 'str', value: sourceKey })
+					]
 				}
 			);
 			if (!result.success) throw new Error(`failed to duplicate ${formulaLabel}`);

@@ -2,18 +2,25 @@
 
 ## Current Phase
 
-Phase 17 - Built-in formula inspection and duplicate-to-library is in progress.
-Phase 16 is buildable: backend-owned managed processor regions are projected
-through protocol DTOs and Svelte controls, processor-owned region folders host
-role-filtered ANode children, Action/Mapping creation is palette-grouped, and
+Phase 18 - Diagnostics, migration, and hardening is next. Phase 17 is
+buildable: backend-owned managed processor regions are projected through
+protocol DTOs and Svelte controls, processor-owned region folders host
+role-filtered ANode children, Action/Mapping creation is palette-grouped,
 Input/Filter/Output region creation plus sparse project save/reload are covered
-by tests. The first Phase 17 slice exposes formula source/action hints through
-`ProcessorUiModel`, `ProcessorUiDto`, and generated TypeScript so the frontend
-can distinguish project formulas from built-ins before adding open/duplicate
-commands. The second Phase 17 slice adds a read-only built-in inspection state
-in the Alchemist editor and a Create Editable Copy UI action that creates an
+by tests, and built-in formula inspection plus duplicate-to-library metadata
+are wired through the backend catalog. The first Phase 17 slice exposes formula
+source/action hints through `ProcessorUiModel`, `ProcessorUiDto`, and generated
+TypeScript so the frontend can distinguish project formulas from built-ins
+before adding open/duplicate commands. The second Phase 17 slice adds a
+read-only built-in inspection state in the Alchemist editor and a Create
+Editable Copy UI action that creates an
 editable project formula shell through the existing Formula Library user-item
 boundary while the fuller formula-surface clone remains a backend follow-up.
+The third Phase 17 slice makes duplicate-to-library metadata-backed: processor
+DTOs carry the exact source key, and the formula creation path resolves that
+source through the backend catalog before storing managed-region definitions on
+the new project formula. Copied built-in Mapping/Action formulas keep their
+authored regions without the frontend shuttling a formula metadata JSON blob.
 
 ## Completed Tasks
 
@@ -1328,10 +1335,17 @@ boundary while the fuller formula-surface clone remains a backend follow-up.
   formula when the processor has no project formula reference.
 - Built-in processor surfaces now expose Built-in / Read-only state and a
   Create Editable Copy action when the catalog visibility permits duplication.
-- Create Editable Copy currently creates an editable project formula shell
-  through the public Formula Library creation path. The shipped built-in graphs
-  are still empty; preserving managed-region metadata on duplicated project
-  formulas remains a backend formula-surface storage follow-up.
+- Create Editable Copy now creates an editable project formula through the
+  public Formula Library creation path and seeds it with backend-serialized
+  managed-region definitions from the selected built-in processor formula.
+- Project formula snapshots can persist managed-region metadata on the formula
+  node and materialize it back into `FormulaSurface`, so duplicated Mapping and
+  Action formulas keep their Inputs / Filters / Outputs or Trigger / Pipeline /
+  Commands surfaces.
+- Processor UI DTOs now carry the exact formula source key used by
+  duplicate-to-library; the Svelte control passes that source through existing
+  initial-parameter creation plumbing, and the backend catalog resolves the
+  managed-region metadata.
 
 ## Tests Added
 
@@ -1428,9 +1442,23 @@ boundary while the fuller formula-surface clone remains a backend follow-up.
 - `processor_ui_dto_preserves_builtin_formula_actions`
 - Updated `processor_formula_resolver_reads_builtin_source_key` to assert
   built-in formula source/action UI state.
+- `duplicated_builtin_formula_copies_managed_region_surface_metadata`
+- `invalid_duplicate_builtin_formula_source_warns_without_fake_metadata`
+- Updated `processor_ui_dto_preserves_builtin_formula_actions` to assert the
+  exact built-in formula source key.
+- `cargo test app::state_machine_nodes_formula::formula_tests::duplicated_builtin_formula_copies_managed_region_surface_metadata -- --nocapture`
+  passed.
+- `cargo test app::state_machine_nodes_formula::formula_tests::invalid_duplicate_builtin_formula_source_warns_without_fake_metadata -- --nocapture`
+  passed.
+- `cargo test -p chataigne_state_machine processor_ui_dto_preserves_builtin_formula_actions -- --nocapture`
+  passed.
+- `cargo fmt --all` passed from the repository root,
+  `submodules/golden_alchemist_core`, and `submodules/golden_core`.
+- `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  118 `golden_alchemist` tests and 4 `golden_statechart` tests.
 - `npm run check` in `src-ui` passes with 0 Svelte/TypeScript diagnostics for
   the built-in read-only inspection and duplicate-to-library controls.
-- `cargo test --workspace` passed with 293 app tests and 76 state-machine
+- `cargo test --workspace` passed with 295 app tests and 76 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
 
@@ -1495,3 +1523,5 @@ boundary while the fuller formula-surface clone remains a backend follow-up.
   `supercommit: chataigne alchemist integration phase 17 - builtin formula source hints`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 17 - builtin formula inspection controls`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 17 - builtin formula duplicate metadata`

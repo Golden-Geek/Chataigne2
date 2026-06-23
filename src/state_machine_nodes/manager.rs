@@ -57,6 +57,7 @@ struct RuntimeProcessor {
     formula: AlchemistFormula,
     formula_node: Option<NodeId>,
     formula_ui: ProcessorFormulaUiState,
+    formula_source_key: String,
     evaluated_once: bool,
 }
 
@@ -471,7 +472,7 @@ impl StateMachineManager {
         };
         let active_processors = active_processor_nodes(snapshot, self.id());
         for processor_node in active_processors {
-            let Some((formula_node, formula, formula_ui)) =
+            let Some((formula_node, formula, formula_ui, formula_source_key)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
                 continue;
@@ -519,6 +520,7 @@ impl StateMachineManager {
                     formula,
                     formula_node,
                     formula_ui,
+                    formula_source_key,
                     evaluated_once: false,
                 },
             );
@@ -543,7 +545,7 @@ impl StateMachineManager {
             else {
                 continue;
             };
-            let Some((formula_node, formula, formula_ui)) =
+            let Some((formula_node, formula, formula_ui, formula_source_key)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
                 self.runtime_cache.dirty = true;
@@ -557,6 +559,7 @@ impl StateMachineManager {
             runtime_processor.formula = formula;
             runtime_processor.formula_node = formula_node;
             runtime_processor.formula_ui = formula_ui;
+            runtime_processor.formula_source_key = formula_source_key;
             runtime_processor.evaluated_once = false;
         }
     }
@@ -801,6 +804,7 @@ fn processor_ui_dtos(processors: &HashMap<NodeId, RuntimeProcessor>) -> Vec<Proc
                     &runtime_processor.formula,
                     runtime_processor.runtime.diagnostics.clone(),
                     runtime_processor.formula_ui,
+                    Some(runtime_processor.formula_source_key.clone()),
                 ),
             ))
         })
@@ -1080,8 +1084,9 @@ fn processor_formula_from_snapshot(
     processor_node: NodeId,
     formulas: &HashMap<NodeUuid, AlchemistFormula>,
     catalog: &FormulaCatalog,
-) -> Option<(Option<NodeId>, AlchemistFormula, ProcessorFormulaUiState)> {
+) -> Option<(Option<NodeId>, AlchemistFormula, ProcessorFormulaUiState, String)> {
     let source = processor_formula_source_ref(snapshot, processor_node)?;
+    let source_key = source.processor_create_type();
     let formula_ui = catalog.formula_ui_state(&source);
     match source {
         FormulaSourceRef::ProjectNode(reference) => {
@@ -1090,13 +1095,13 @@ fn processor_formula_from_snapshot(
             formulas
                 .get(&uuid)
                 .cloned()
-                .map(|formula| (Some(formula_node), formula, formula_ui))
+                .map(|formula| (Some(formula_node), formula, formula_ui, source_key))
         }
         source @ FormulaSourceRef::Builtin { .. } => {
             catalog
                 .resolve_builtin(&source)
                 .ok()
-                .map(|formula| (None, formula, formula_ui))
+                .map(|formula| (None, formula, formula_ui, source_key))
         }
     }
 }

@@ -148,11 +148,12 @@ fn processor_formula_resolver_reads_builtin_source_key() {
     ));
 
     let catalog = FormulaCatalog::from_snapshot(&snapshot);
-    let (formula_node, formula, formula_ui) =
+    let (formula_node, formula, formula_ui, formula_source_key) =
         processor_formula_from_snapshot(&snapshot, processor_id, &HashMap::new(), &catalog)
             .expect("builtin formula should resolve from catalog");
     assert!(formula_node.is_none());
     assert_eq!(formula.label, "Mapping");
+    assert_eq!(formula_source_key, "state_processor:builtin:chataigne.mapping@1");
     assert_eq!(formula_ui.source_kind, ProcessorFormulaSourceKind::Builtin);
     assert!(formula_ui.open_readonly_from_processor);
     assert!(formula_ui.can_duplicate_to_library);

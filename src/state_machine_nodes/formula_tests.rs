@@ -13,17 +13,20 @@ use golden_core::{
         UiDuplicateNodeSpec, UiEditIntent,
     },
 };
-use golden_alchemist::{RuntimeValue, TriggerValue, ValueTypeId};
+use golden_alchemist::{
+    ManagedRegionKind, RuntimeValue, TriggerValue, ValueTypeId,
+};
 
 use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
     AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
     AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
-    AlchemistPropertiesManager, FORMULA_FOLDER_ITEM_KIND,
-    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FormulaLibrary,
-    PROPERTIES_DECL_ID,
+    AlchemistPropertiesManager, FORMULA_DUPLICATE_SOURCE_DECL_ID,
+    FORMULA_DUPLICATE_SOURCE_WARNING_ID, FORMULA_FOLDER_ITEM_KIND,
+    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
-    formula_from_snapshot, param_to_runtime_value,
+    formula_from_snapshot, node_warning_detail, param_to_runtime_value,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -56,6 +59,150 @@ fn formula_library_accepts_real_formula_nodes() {
         AlchemistFormulaDefinition::NODE_TYPE,
         FORMULA_ITEM_KIND
     ));
+}
+
+#[test]
+fn duplicated_builtin_formula_copies_managed_region_surface_metadata() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("Formula Library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: library,
+        node_type: AlchemistFormulaDefinition::NODE_TYPE.to_owned(),
+        label: Some("Mapping Copy".into()),
+        initial_params: vec![UiCreateUserItemInitialParam {
+            decl_id: DeclId(FORMULA_DUPLICATE_SOURCE_DECL_ID.into()),
+            value: ParamValue::Str(
+                "state_processor:builtin:chataigne.mapping@1".into(),
+            ),
+        }],
+    });
+    assert!(ack.success, "Formula creation should succeed: {ack:?}");
+    let formula_node = direct_children(&engine, library)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+        })
+        .expect("duplicated formula should exist");
+
+    let materialized =
+        formula_from_snapshot(&engine.process_tree_snapshot(), formula_node)
+            .expect("duplicated built-in formula should materialize");
+    let regions = materialized
+        .surface
+        .managed_regions
+        .iter()
+        .map(|region| {
+            (
+                region.id.to_string(),
+                region.kind,
+                region.label.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        regions,
+        vec![
+            ("inputs".to_owned(), ManagedRegionKind::InputSet, "Inputs"),
+            (
+                "filters".to_owned(),
+                ManagedRegionKind::FilterPipeline,
+                "Filters",
+            ),
+            ("outputs".to_owned(), ManagedRegionKind::OutputSet, "Outputs"),
+        ]
+    );
+
+    let snapshot = engine.process_tree_snapshot();
+    let stored_regions = find_child_by_decl(
+        &engine,
+        formula_node,
+        FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
+    )
+    .and_then(|node| snapshot.node(node))
+    .and_then(|node| node.param_value.as_ref())
+    .and_then(ParamValue::as_str)
+    .expect("managed region metadata should be stored");
+    assert!(!stored_regions.is_empty());
+
+    let duplicate_seed = find_child_by_decl(
+        &engine,
+        formula_node,
+        FORMULA_DUPLICATE_SOURCE_DECL_ID,
+    )
+    .and_then(|node| snapshot.node(node))
+    .and_then(|node| node.param_value.as_ref())
+    .and_then(ParamValue::as_str)
+    .expect("duplicate source seed should exist");
+    assert_eq!(duplicate_seed, "");
+}
+
+#[test]
+fn invalid_duplicate_builtin_formula_source_warns_without_fake_metadata() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("Formula Library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let source_key = "state_processor:builtin:chataigne.missing@1";
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: library,
+        node_type: AlchemistFormulaDefinition::NODE_TYPE.to_owned(),
+        label: Some("Broken Built-in Copy".into()),
+        initial_params: vec![UiCreateUserItemInitialParam {
+            decl_id: DeclId(FORMULA_DUPLICATE_SOURCE_DECL_ID.into()),
+            value: ParamValue::Str(source_key.into()),
+        }],
+    });
+    assert!(ack.success, "Formula creation should succeed: {ack:?}");
+    let formula_node = direct_children(&engine, library)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+        })
+        .expect("duplicated formula should exist");
+    let snapshot = engine.process_tree_snapshot();
+
+    let materialized = formula_from_snapshot(&snapshot, formula_node)
+        .expect("formula should remain structurally materializable");
+    assert!(materialized.surface.managed_regions.is_empty());
+    let warning = node_warning_detail(
+        &snapshot,
+        formula_node,
+        FORMULA_DUPLICATE_SOURCE_WARNING_ID,
+    )
+    .expect("invalid duplicate source should warn");
+    assert!(warning.contains("chataigne.missing"));
+
+    let duplicate_seed = find_child_by_decl(
+        &engine,
+        formula_node,
+        FORMULA_DUPLICATE_SOURCE_DECL_ID,
+    )
+    .and_then(|node| snapshot.node(node))
+    .and_then(|node| node.param_value.as_ref())
+    .and_then(ParamValue::as_str)
+    .expect("duplicate source seed should exist");
+    assert_eq!(duplicate_seed, source_key);
 }
 
 #[test]

@@ -4,4 +4,4 @@ import type { ManagedRegionDefinitionDto } from "./ManagedRegionDefinitionDto";
 import type { ManagedRegionInstanceDto } from "./ManagedRegionInstanceDto";
 import type { ProcessorFormulaSourceKindDto } from "./ProcessorFormulaSourceKindDto";
 
-export type ProcessorUiDto = { id: string, label: string, active: boolean, formula_id: string, formula_label: string, formula_source_kind: ProcessorFormulaSourceKindDto, formula_open_readonly_from_processor: boolean, formula_can_duplicate_to_library: boolean, surface: Array<FormulaSurfaceSectionDto>, managed_regions: Array<ManagedRegionDefinitionDto>, managed_region_instances: Array<ManagedRegionInstanceDto>, diagnostic_ids: Array<string>, };
+export type ProcessorUiDto = { id: string, label: string, active: boolean, formula_id: string, formula_label: string, formula_source_key: string | null, formula_source_kind: ProcessorFormulaSourceKindDto, formula_open_readonly_from_processor: boolean, formula_can_duplicate_to_library: boolean, surface: Array<FormulaSurfaceSectionDto>, managed_regions: Array<ManagedRegionDefinitionDto>, managed_region_instances: Array<ManagedRegionInstanceDto>, diagnostic_ids: Array<string>, };

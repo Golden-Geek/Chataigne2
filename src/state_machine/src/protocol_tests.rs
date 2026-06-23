@@ -85,6 +85,7 @@ fn processor_ui_dto_preserves_builtin_formula_actions() {
         active: true,
         formula_id: "chataigne.mapping@1".into(),
         formula_label: "Mapping".into(),
+        formula_source_key: Some("state_processor:builtin:chataigne.mapping@1".into()),
         surface: FormulaSurface {
             sections: Vec::new(),
             managed_regions: Vec::new(),
@@ -100,6 +101,10 @@ fn processor_ui_dto_preserves_builtin_formula_actions() {
         dto.formula_source_kind,
         ProcessorFormulaSourceKindDto::Builtin
     ));
+    assert_eq!(
+        dto.formula_source_key.as_deref(),
+        Some("state_processor:builtin:chataigne.mapping@1")
+    );
     assert!(dto.formula_open_readonly_from_processor);
     assert!(dto.formula_can_duplicate_to_library);
 }

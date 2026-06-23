@@ -8,12 +8,12 @@ use golden_alchemist::{
     AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
     DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
-    OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
-    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
-    SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
-    TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeSpec,
-    PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG,
-    compile_graph, solve_types,
+    ManagedRegionDefinition, OutputSocketRef, ParamUiHints, RuntimeValue,
+    SignatureCtx, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
+    SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
+    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx,
+    ValueTypeId, ValueTypeSpec, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
+    SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_types,
 };
 use golden_core::{
     color::Color,
@@ -33,6 +33,8 @@ use golden_core::{
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+
+use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
@@ -60,9 +62,15 @@ pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
 const PROPERTY_ANODE_TYPE: &str = "property";
 
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
+pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
+    "managed_regions_json";
+pub(crate) const FORMULA_DUPLICATE_SOURCE_DECL_ID: &str =
+    "duplicate_from_formula_source";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
+const FORMULA_DUPLICATE_SOURCE_WARNING_ID: &str =
+    "alchemist_formula_duplicate_source";
 const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
     "alchemist_formula_diagnostic";
 
@@ -2561,7 +2569,41 @@ fn formula_surface_from_snapshot(
     sections.extend(manager_sections);
     Ok(FormulaSurface {
         sections,
-        managed_regions: Vec::new(),
+        managed_regions: formula_managed_regions_from_snapshot(snapshot, formula_node)?,
+    })
+}
+
+fn formula_managed_regions_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> Result<Vec<ManagedRegionDefinition>, String> {
+    let Some(ParamValue::Str(raw)) =
+        child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+    else {
+        return Ok(Vec::new());
+    };
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_str(raw).map_err(|error| {
+        format!("Formula managed region metadata is invalid: {error}")
+    })
+}
+
+fn managed_regions_json_from_builtin_source(source_key: &str) -> Result<String, String> {
+    let source = FormulaSourceRef::parse_processor_create_type(source_key)
+        .map_err(|error| error.to_string())?;
+    if !matches!(source, FormulaSourceRef::Builtin { .. }) {
+        return Err(format!(
+            "formula duplicate source `{source_key}` is not a built-in formula"
+        ));
+    }
+    let formula = FormulaCatalog::with_builtins()
+        .resolve_builtin(&source)
+        .map_err(|error| error.to_string())?;
+    serde_json::to_string(&formula.surface.managed_regions).map_err(|error| {
+        format!("failed to serialize built-in formula managed regions: {error}")
     })
 }
 
@@ -2662,6 +2704,16 @@ impl Node for AlchemistConnection {
         read_only = true,
         show_in_inspector_content = false
     );
+    managed_regions_json: String = String::new() (
+        label = "Managed Regions Metadata",
+        read_only = true,
+        show_in_inspector_content = false
+    );
+    duplicate_from_formula_source: String = String::new() (
+        label = "Duplicate Source",
+        read_only = true,
+        show_in_inspector_content = false
+    );
 )]
 pub struct AlchemistFormulaDefinition {}
 
@@ -2678,6 +2730,7 @@ impl Node for AlchemistFormulaDefinition {
         ctx: &mut ProcessCtx,
         _context: NodeCreationContext,
     ) {
+        self.seed_managed_regions_from_duplicate_source(ctx);
         self.reconcile_properties(ctx);
         self.sync_property_getters(ctx);
         self.sync_anode_sockets(ctx, None);
@@ -2690,6 +2743,9 @@ impl Node for AlchemistFormulaDefinition {
         param: NodeId,
         _old_value: ParamValue,
     ) {
+        if param == self.duplicate_from_formula_source.id() {
+            self.seed_managed_regions_from_duplicate_source(ctx);
+        }
         if param != self.is_valid.id() && param != self.diagnostics_json.id() {
             let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
                 let child = direct_child_under(snapshot, self.id(), param)?;
@@ -2797,6 +2853,50 @@ impl Node for AlchemistFormulaDefinition {
 }
 
 impl AlchemistFormulaDefinition {
+    fn seed_managed_regions_from_duplicate_source(&mut self, ctx: &mut ProcessCtx) {
+        let source_key = self
+            .duplicate_from_formula_source
+            .get_ref()
+            .as_str()
+            .trim()
+            .to_owned();
+        if source_key.is_empty() {
+            ctx.clear_node_warning(
+                self.id(),
+                Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
+            );
+            return;
+        }
+        if !self.managed_regions_json.get_ref().as_str().trim().is_empty() {
+            self.duplicate_from_formula_source.set(ctx, String::new());
+            ctx.clear_node_warning(
+                self.id(),
+                Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
+            );
+            return;
+        }
+
+        let managed_regions_json =
+            match managed_regions_json_from_builtin_source(&source_key) {
+                Ok(value) => value,
+                Err(error) => {
+                    ctx.set_node_warning_with(
+                        self.id(),
+                        Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
+                        "Formula duplicate source is invalid",
+                        Some(&error),
+                    );
+                    return;
+                }
+            };
+        self.managed_regions_json.set(ctx, managed_regions_json);
+        self.duplicate_from_formula_source.set(ctx, String::new());
+        ctx.clear_node_warning(
+            self.id(),
+            Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
+        );
+    }
+
     fn reconcile_properties(&self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
