@@ -53,7 +53,7 @@ pub enum FormulaSurfaceItemKindDto {
     Input,
     Filter,
     Output,
-    Action,
+    Command,
 }
 
 impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
@@ -65,7 +65,7 @@ impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
             SurfaceItemKind::Input => Self::Input,
             SurfaceItemKind::Filter => Self::Filter,
             SurfaceItemKind::Output => Self::Output,
-            SurfaceItemKind::Action => Self::Action,
+            SurfaceItemKind::Command => Self::Command,
         }
     }
 }
@@ -93,8 +93,8 @@ pub enum ManagedRegionKindDto {
     InputSet,
     FilterPipeline,
     OutputSet,
-    ActionTrigger,
-    ActionCommands,
+    TriggerInput,
+    CommandSet,
 }
 
 impl From<ManagedRegionKind> for ManagedRegionKindDto {
@@ -103,8 +103,8 @@ impl From<ManagedRegionKind> for ManagedRegionKindDto {
             ManagedRegionKind::InputSet => Self::InputSet,
             ManagedRegionKind::FilterPipeline => Self::FilterPipeline,
             ManagedRegionKind::OutputSet => Self::OutputSet,
-            ManagedRegionKind::ActionTrigger => Self::ActionTrigger,
-            ManagedRegionKind::ActionCommands => Self::ActionCommands,
+            ManagedRegionKind::TriggerInput => Self::TriggerInput,
+            ManagedRegionKind::CommandSet => Self::CommandSet,
         }
     }
 }

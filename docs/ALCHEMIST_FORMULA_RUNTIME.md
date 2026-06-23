@@ -17,33 +17,39 @@ runtime frames supplied by the processor lane currently being executed.
 ## Formula Catalog And Library
 
 The Formula Catalog resolves every formula source the processor runtime may use:
-editable project formulas, shipped built-ins, and future package formulas. The
-Formula Library remains the user-editable project tree. Built-ins are not
-ordinary Formula Library children and must not be path-imported from app code.
+editable project formulas, external built-in packages, and future package
+formulas. The Formula Library remains the user-editable project tree. Built-ins
+are not ordinary Formula Library children and must not be path-imported from app
+code.
 
-Processor creation flows through catalog entries. Built-in Action and Mapping
-entries are visible in the Processor palette under Built-ins, while project
-formulas marked processor-creatable appear under Project Formulas. Built-ins
-can be opened read-only from a processor and duplicated only through the public
-Formula Library creation boundary.
+Built-in formulas are data files, not Rust declarations. `FormulaCatalog` loads
+packages from `CHATAIGNE_BUILTIN_FORMULAS_DIR` when set, otherwise from a
+`builtin_formulas` directory. If no package directory exists, the built-in
+catalog is empty. Product-owned formulas can later appear under Built-ins by
+placing package files in that folder.
+
+Processor creation flows through catalog entries. Project formulas marked
+processor-creatable appear under Project Formulas. Built-ins can be opened
+read-only from a processor and duplicated only through the public Formula
+Library creation boundary.
 
 `StateProcessor` persists a typed formula source. Project sources keep stable
 node references. Built-in sources keep package, formula id, and version keys.
 Creation rejects syntactically valid but unknown built-in sources, and old saved
 invalid sources resolve to explicit diagnostics instead of being rewritten.
 
-## Built-in Processor Surfaces
+## Managed Processor Surfaces
 
-Action and Mapping are shipped built-in formulas, not hardcoded processor
-types. The app-owned catalog package declares their managed region surfaces:
+Formula packages may declare managed region surfaces. The runtime recognizes
+neutral region shapes rather than product formula names:
 
 ```text
-Mapping:
+Value pipeline:
   Inputs
   Filters
   Outputs
 
-Action:
+Trigger pipeline:
   Trigger
   Filters
   Commands
@@ -53,19 +59,17 @@ Managed regions are backend-owned processor child folders. The UI projects
 those folders, reads role-filtered creation palettes from the backend, and sends
 ordinary edit intents to add, reorder, remove, or configure managed items.
 
-Mapping materializes InputSet values, runs the managed filter pipeline, and
-dispatches through OutputSet. Action wraps its trigger as a one-lane `ValueSet`,
-runs the same filter pipeline, and emits command intents through Action
-Commands. Neither processor owns a special evaluator for filters or
-conditions.
+Value pipelines materialize InputSet values, run the managed filter pipeline,
+and dispatch through OutputSet. Trigger pipelines read one enabled trigger
+input, run the same filter pipeline, and emit command intents through CommandSet.
+Neither processor owns a special evaluator for filters or conditions.
 
 For users and module authors, this means:
 
 ```text
-Action is a built-in formula.
-Mapping is a built-in formula.
-Mapping is authored through Inputs / Filters / Outputs.
-Action is authored through Trigger / Filters / Commands.
+Product formula names live in package files.
+Value-pipeline packages are authored through Inputs / Filters / Outputs.
+Trigger-pipeline packages are authored through Trigger / Filters / Commands.
 Conditions are filters through ConditionGate.
 Complex branching belongs in custom formulas.
 ```
@@ -159,33 +163,16 @@ guards evaluate once in `GlobalStateMachineContext`, and transition effects run
 once after a transition fires. If a transition needs processor-derived data,
 that data must arrive through an explicit global aggregation or manager result.
 
-## Manager Reference Bridges
+## Manager Properties
 
-Chataigne manager reference ANodes for Conditions, Inputs, and Output Commands
-are app-owned product integrations, not reusable Alchemist primitives. They
-compile only when their config contains the expected `StableRef` type. Missing,
-invalid, or unbound references emit explicit diagnostics.
+Formula properties may expose manager-backed processor folders for Conditions,
+Filters, Inputs, and Outputs. These folders are processor child nodes managed by
+the backend; they are not graph ANodes and do not compile through StableRef
+bridge nodes.
 
-Input bridges expose selected runtime input sources as `ValueSet` payloads.
-Condition bridges expose boolean and trigger lanes from condition manager
-results. Output command bridges emit `chataigne.command` intents with optional
-trigger gating and processor context metadata.
-
-They must not return fake defaults such as `false`, an empty `ValueSet`, or a
-silently dropped command. Invalid graph state stays visible through compile or
-runtime diagnostics.
-
-The intended contracts remain:
-
-```text
-Inside processor formula:
-  context_key may exist.
-  output commands emit processor-origin intents with that optional context key.
-
-Inside transition graph:
-  no processor context key exists.
-  output commands emit transition-origin intents after the transition fires.
-```
+Conditions and filters expose reusable filter-capable items. Inputs expose
+declared processor input source items. Outputs expose command items, including
+module-provided commands and generic commands such as setting a parameter value.
 
 ## ValueSet And Managed Pipelines
 
@@ -216,10 +203,10 @@ ConditionGate items are compiled as scalar gates inside each stable value lane.
 
 ## Runtime Intents And Diagnostics
 
-OutputSet and Action Commands are the only managed boundaries that turn formula
-values into Chataigne side effects. They emit `chataigne.command` runtime
-intents; transport connection state, module reconnect behavior, and external IO
-remain outside pure formula evaluation.
+OutputSet and CommandSet are the managed boundaries that turn formula values
+into Chataigne side effects. They emit `chataigne.command` runtime intents;
+transport connection state, module reconnect behavior, and external IO remain
+outside pure formula evaluation.
 
 Diagnostics are part of the contract. Missing input sources, invalid output
 targets, unknown managed regions, invalid filter items, shape mismatches,

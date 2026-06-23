@@ -318,7 +318,7 @@ fn managed_formula_projects_three_lanes_to_vec3_output() {
 }
 
 #[test]
-fn processor_runtime_evaluates_managed_mapping_sidecar() {
+fn processor_runtime_evaluates_managed_value_pipeline_sidecar() {
     let (formula, mut instance) = formula_and_instance();
     let source = endpoint_ref("module/fader");
     let target = command_target("target/fader");
@@ -334,7 +334,7 @@ fn processor_runtime_evaluates_managed_mapping_sidecar() {
         ManagedRegionId::new("outputs"),
         region("outputs", vec![output_item("Fader", target.clone())]),
     );
-    let processor = Processor::new("Mapping", instance);
+    let processor = Processor::new("Value Pipeline", instance);
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
         value_types: &value_types,
@@ -362,10 +362,10 @@ fn processor_runtime_evaluates_managed_mapping_sidecar() {
 }
 
 #[test]
-fn action_trigger_produces_command_intent() {
-    let (formula, mut instance) = action_formula_and_instance();
+fn trigger_input_produces_command_intent() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");
-    let target = command_target("target/action");
+    let target = command_target("target/command");
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("trigger"),
         region("trigger", vec![input_item("Trigger", source.clone())]),
@@ -390,15 +390,15 @@ fn action_trigger_produces_command_intent() {
     assert_eq!(output.intents.len(), 1);
     assert_eq!(output.intents[0].target.as_ref(), Some(&target));
     let RuntimeValue::Trigger(trigger) = output.intents[0].payload else {
-        panic!("Action command should carry trigger payload");
+        panic!("Command should carry trigger payload");
     };
     assert!(trigger.fired);
     assert_eq!(trigger.edge_id, 7);
 }
 
 #[test]
-fn action_condition_gate_blocks_command() {
-    let (formula, mut instance) = action_formula_and_instance();
+fn trigger_condition_gate_blocks_command() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("trigger"),
@@ -412,7 +412,7 @@ fn action_condition_gate_blocks_command() {
         ManagedRegionId::new("commands"),
         region(
             "commands",
-            vec![output_item("Command", command_target("target/action"))],
+            vec![output_item("Command", command_target("target/command"))],
         ),
     );
 
@@ -432,10 +432,10 @@ fn action_condition_gate_blocks_command() {
 }
 
 #[test]
-fn action_condition_gate_passes_command() {
-    let (formula, mut instance) = action_formula_and_instance();
+fn trigger_condition_gate_passes_command() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");
-    let target = command_target("target/action");
+    let target = command_target("target/command");
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("trigger"),
         region("trigger", vec![input_item("Trigger", source.clone())]),
@@ -467,9 +467,9 @@ fn action_condition_gate_passes_command() {
 
 #[test]
 fn manager_condition_gate_matches_direct_anode_result() {
-    let (formula, mut instance) = action_formula_and_instance();
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");
-    let target = command_target("target/action");
+    let target = command_target("target/command");
     let trigger = TriggerValue::fired(10, 18);
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("trigger"),
@@ -481,7 +481,7 @@ fn manager_condition_gate_matches_direct_anode_result() {
     );
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("commands"),
-        region("commands", vec![output_item("Action", target.clone())]),
+        region("commands", vec![output_item("Command", target.clone())]),
     );
 
     let mut runtime = compile_managed_formula(&formula, &instance);
@@ -502,10 +502,10 @@ fn manager_condition_gate_matches_direct_anode_result() {
 }
 
 #[test]
-fn processor_runtime_evaluates_managed_action_sidecar() {
-    let (formula, mut instance) = action_formula_and_instance();
+fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     let source = endpoint_ref("module/trigger");
-    let target = command_target("target/action");
+    let target = command_target("target/command");
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("trigger"),
         region("trigger", vec![input_item("Trigger", source.clone())]),
@@ -514,7 +514,7 @@ fn processor_runtime_evaluates_managed_action_sidecar() {
         ManagedRegionId::new("commands"),
         region("commands", vec![output_item("Command", target.clone())]),
     );
-    let processor = Processor::new("Action", instance);
+    let processor = Processor::new("Trigger Pipeline", instance);
     let (value_types, nodes) = registries();
     let compile_ctx = CompileCtx {
         value_types: &value_types,
@@ -560,8 +560,8 @@ fn managed_formula_missing_region_diagnostic_uses_specific_code() {
 }
 
 #[test]
-fn managed_formula_missing_action_command_target_uses_specific_code() {
-    let (formula, mut instance) = action_formula_and_instance();
+fn managed_formula_missing_command_target_uses_specific_code() {
+    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
     instance.managed_regions.regions.insert(
         ManagedRegionId::new("commands"),
         region(
@@ -577,15 +577,15 @@ fn managed_formula_missing_action_command_target_uses_specific_code() {
 
     let diagnostic = compile_error_diagnostic(&formula, &instance);
 
-    assert_eq!(diagnostic.code, "managed_formula_missing_action_command_target");
+    assert_eq!(diagnostic.code, "managed_formula_missing_command_target");
     assert!(diagnostic.message.contains(OUTPUT_TARGET_FIELD));
 }
 
 fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     let formula = AlchemistFormula {
-        id: FormulaId::new("test.mapping"),
+        id: FormulaId::new("test.value_pipeline"),
         version: 1,
-        label: "Test Mapping".into(),
+        label: "Test Value Pipeline".into(),
         description: None,
         tags: Vec::new(),
         graph: AlchemistGraph::new(),
@@ -630,11 +630,11 @@ fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     (formula, instance)
 }
 
-fn action_formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
+fn trigger_pipeline_formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     let formula = AlchemistFormula {
-        id: FormulaId::new("test.action"),
+        id: FormulaId::new("test.trigger_pipeline"),
         version: 1,
-        label: "Test Action".into(),
+        label: "Test Trigger Pipeline".into(),
         description: None,
         tags: Vec::new(),
         graph: AlchemistGraph::new(),
@@ -644,7 +644,7 @@ fn action_formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance)
             managed_regions: vec![
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("trigger"),
-                    kind: ManagedRegionKind::ActionTrigger,
+                    kind: ManagedRegionKind::TriggerInput,
                     label: "Trigger".into(),
                     input_socket: None,
                     output_socket: None,
@@ -660,11 +660,11 @@ fn action_formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance)
                 },
                 ManagedRegionDefinition {
                     id: ManagedRegionId::new("commands"),
-                    kind: ManagedRegionKind::ActionCommands,
+                    kind: ManagedRegionKind::CommandSet,
                     label: "Commands".into(),
                     input_socket: None,
                     output_socket: None,
-                    accepted_roles: vec![SurfaceItemKind::Action],
+                    accepted_roles: vec![SurfaceItemKind::Command],
                 },
             ],
         },

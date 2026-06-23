@@ -27,6 +27,11 @@ macro_rules! leaf_condition_init {
 /// must not interpret this node directly.
 #[node("sm_input_value_condition", label = "Input Value")]
 #[children(
+    valid: bool = false (
+        label = "Valid",
+        read_only = true,
+        show_in_inspector_content = false
+    );
     toggle_mode: bool = false (
         label = "Toggle Mode"
     );

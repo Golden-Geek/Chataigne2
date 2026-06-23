@@ -18,21 +18,16 @@ use golden_core::{
 
 use crate::app::state_machine_nodes_formula::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
-    node_has_warning, node_warning_detail, node_warning_matches, ANODE_ITEM_KIND,
+    formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches, ANODE_ITEM_KIND,
     FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
     PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
-use crate::app::{ConditionManager, InputsManager, OutputsManager};
+use crate::app::{ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
 
 pub(crate) use self::catalog::{
     FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
-};
-#[cfg(test)]
-pub(crate) use self::catalog::{
-    BUILTIN_ACTION_FORMULA_ID, BUILTIN_FORMULA_PACKAGE, BUILTIN_FORMULA_VERSION,
-    BUILTIN_MAPPING_FORMULA_ID,
 };
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
@@ -123,6 +118,7 @@ fn processor_property_manager(
         .and_then(ParamValue::as_str)?;
     let mut manager: Box<dyn Node> = match role.as_str() {
         "condition" => Box::new(ConditionManager::new()),
+        "filter" => Box::new(FilterChainManager::new()),
         "input" => Box::new(InputsManager::new()),
         "output" => Box::new(OutputsManager::new()),
         _ => return None,
@@ -209,7 +205,7 @@ fn surface_item_kind_tag(role: SurfaceItemKind) -> &'static str {
         SurfaceItemKind::Input => "input",
         SurfaceItemKind::Filter => "filter",
         SurfaceItemKind::Output => "output",
-        SurfaceItemKind::Action => "action",
+        SurfaceItemKind::Command => "command",
     }
 }
 
@@ -221,7 +217,7 @@ fn surface_item_kind_from_tag(value: &str) -> Option<SurfaceItemKind> {
         "input" => Some(SurfaceItemKind::Input),
         "filter" => Some(SurfaceItemKind::Filter),
         "output" => Some(SurfaceItemKind::Output),
-        "action" => Some(SurfaceItemKind::Action),
+        "command" => Some(SurfaceItemKind::Command),
         _ => None,
     }
 }
@@ -255,13 +251,100 @@ fn processor_managed_region_tree(definition: &ManagedRegionDefinition) -> NodeTr
     NodeTree::new(region)
 }
 
+fn processor_surface_move_pending(
+    ctx: &ProcessCtx,
+    node: NodeId,
+    new_parent: NodeId,
+    new_prev_sibling: Option<NodeId>,
+) -> bool {
+    ctx.edits.pending.iter().any(|req| {
+        matches!(
+            &req.edit,
+            Edit::MoveNode {
+                node: pending,
+                new_parent: pending_parent,
+                new_prev_sibling: pending_prev_sibling,
+            } if *pending == node
+                && *pending_parent == new_parent
+                && *pending_prev_sibling == new_prev_sibling
+        )
+    })
+}
+
+fn sync_processor_surface_order(
+    snapshot: &ProcessTreeSnapshot,
+    dest_container: NodeId,
+    desired_children: &[NodeId],
+    ctx: &mut ProcessCtx,
+) {
+    if desired_children.len() < 2 {
+        return;
+    }
+
+    let desired_set = desired_children.iter().copied().collect::<HashSet<_>>();
+    let mut current_children = snapshot
+        .child_ids(dest_container)
+        .into_iter()
+        .filter(|child| desired_set.contains(child))
+        .collect::<Vec<_>>();
+
+    if current_children == desired_children {
+        return;
+    }
+
+    let mut previous = None;
+    for desired_child in desired_children {
+        let Some(current_index) = current_children
+            .iter()
+            .position(|child| child == desired_child)
+        else {
+            continue;
+        };
+        let target_index = previous
+            .and_then(|previous| {
+                current_children
+                    .iter()
+                    .position(|child| *child == previous)
+                    .map(|index| index + 1)
+            })
+            .unwrap_or(0);
+
+        if current_index != target_index {
+            let child = current_children.remove(current_index);
+            let insert_index = if current_index < target_index {
+                target_index - 1
+            } else {
+                target_index
+            };
+            current_children.insert(insert_index, child);
+
+            if !processor_surface_move_pending(
+                ctx,
+                *desired_child,
+                dest_container,
+                previous,
+            ) {
+                ctx.edits.push(Edit::MoveNode {
+                    node: *desired_child,
+                    new_parent: dest_container,
+                    new_prev_sibling: previous,
+                });
+            }
+        }
+
+        previous = Some(*desired_child);
+    }
+}
+
 fn reconcile_properties_level(
     snapshot: &ProcessTreeSnapshot,
     source_container: NodeId,
     dest_container: NodeId,
     ctx: &mut ProcessCtx,
 ) {
-    let mut desired = std::collections::HashSet::new();
+    let mut desired = HashSet::new();
+    let mut desired_children = Vec::new();
+    let mut previous_existing = None;
     for source in snapshot.child_ids(source_container) {
         let Some(source_node) = snapshot.node(source) else {
             continue;
@@ -283,13 +366,19 @@ fn reconcile_properties_level(
                 }
             });
             if !already_queued {
-                ctx.add_child_tree(dest_container, expected_tree, None);
+                ctx.add_child_tree(
+                    dest_container,
+                    expected_tree,
+                    previous_existing,
+                );
             }
             continue;
         };
         let Some(existing_node) = snapshot.node(existing) else {
             continue;
         };
+        desired_children.push(existing);
+        previous_existing = Some(existing);
         if existing_node.node_type != expected_tree.node_type() {
             ctx.edits.push(Edit::ReplaceNode {
                 node: existing,
@@ -331,6 +420,8 @@ fn reconcile_properties_level(
             reconcile_properties_level(snapshot, source, existing, ctx);
         }
     }
+
+    sync_processor_surface_order(snapshot, dest_container, &desired_children, ctx);
 
     for child in snapshot.child_ids(dest_container) {
         let Some(node) = snapshot.node(child) else {
@@ -923,14 +1014,20 @@ impl StateProcessor {
         &self,
         snapshot: &ProcessTreeSnapshot,
     ) -> Vec<ManagedRegionDefinition> {
-        let Ok(Some(source @ FormulaSourceRef::Builtin { .. })) = self.formula_source_ref()
-        else {
-            return Vec::new();
-        };
-        FormulaCatalog::from_snapshot(snapshot)
-            .resolve_builtin(&source)
-            .map(|formula| formula.surface.managed_regions)
-            .unwrap_or_default()
+        match self.formula_source_ref() {
+            Ok(Some(source @ FormulaSourceRef::Builtin { .. })) => {
+                FormulaCatalog::from_snapshot(snapshot)
+                    .resolve_builtin(&source)
+                    .map(|formula| formula.surface.managed_regions)
+                    .unwrap_or_default()
+            }
+            Ok(Some(FormulaSourceRef::ProjectNode(_))) => self
+                .formula_node(snapshot)
+                .and_then(|formula| formula_from_snapshot(snapshot, formula).ok())
+                .map(|formula| formula.surface.managed_regions)
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        }
     }
 
     fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {

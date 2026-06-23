@@ -15,6 +15,8 @@
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
 	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
+	import InputSourceInspector from '$lib/state_machine/components/InputSourceInspector.svelte';
+	import InputValueConditionInspector from '$lib/state_machine/components/InputValueConditionInspector.svelte';
 	import ProcessorFormulaInspector from '$lib/state_machine/components/ProcessorFormulaInspector.svelte';
 	import ProcessorFormulaInspectorPanelHeader from '$lib/state_machine/components/ProcessorFormulaInspectorPanelHeader.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
@@ -31,6 +33,14 @@
 	registerNodeInspector('state_processor', {
 		component: ProcessorFormulaInspector,
 		panelHeaderComponent: ProcessorFormulaInspectorPanelHeader
+	});
+
+	registerNodeInspector('sm_input_value_condition', {
+		component: InputValueConditionInspector
+	});
+
+	registerNodeInspector('sm_input_source', {
+		component: InputSourceInspector
 	});
 
 	registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);

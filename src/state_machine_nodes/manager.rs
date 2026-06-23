@@ -8,14 +8,15 @@ use chataigne_state_machine::{
     Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto, ProcessorUiDto,
     ProcessorFormulaUiState, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
     StateMachineProtocolBundle, processor_output_preview_samples,
-    alchemist::{node_registry, value_type_registry},
+    ValueLaneKey, ValueSet, ValueSetEntry,
+    alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, CompiledAlchemistFormula, EvaluationCtx,
     DebugValueSample, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
-    RuntimeIntent, RuntimeRegistries, RuntimeValue, SocketId, SurfaceItemId,
-    TriggerValue,
+    RuntimeIntent, RuntimeRegistries, RuntimeValue, SocketId, StableRef, SurfaceItemId,
+    TriggerValue, ValueTypeId,
 };
 use golden_core::{
     engine::NodeExecutionRule,
@@ -50,6 +51,11 @@ const STATE_MACHINE_PREVIEW_CHANGED_MIN_TICKS: u64 = 1;
 const STATE_MACHINE_PREVIEW_KEEPALIVE_TICKS: u64 = 60;
 const STATE_MACHINE_LOG_MIN_TICKS: u64 = 30;
 const STATE_MACHINE_RUNTIME_WARNING_ID: &str = "state_machine_runtime";
+const CONDITION_MANAGER_NODE_TYPE: &str = "sm_condition_manager";
+const INPUT_VALUE_CONDITION_NODE_TYPE: &str = "sm_input_value_condition";
+const CONDITION_GROUP_NODE_TYPE: &str = "sm_condition_group";
+const INPUTS_MANAGER_NODE_TYPE: &str = "sm_inputs_manager";
+const INPUT_SOURCE_NODE_TYPE: &str = "sm_input_source";
 
 struct RuntimeProcessor {
     processor: Processor,
@@ -90,6 +96,11 @@ struct StateMachineRuntimeCache {
     dirty: bool,
     dirty_formula_values: HashSet<NodeUuid>,
     dirty_processor_overrides: HashSet<NodeId>,
+    dirty_input_source_params: HashSet<NodeUuid>,
+    source_listener_params: HashSet<NodeId>,
+    input_manager_signal_ticks: HashMap<String, u64>,
+    condition_manager_values: HashMap<String, RuntimeValue>,
+    condition_manager_valid_states: HashMap<String, bool>,
     pending_trigger_inputs: Vec<PendingTriggerInput>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
@@ -178,10 +189,14 @@ impl Node for StateMachineManager {
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
+        let source_signal_dirty = self.mark_input_source_param_dirty(ctx, param);
         if self.mark_processor_override_dirty(ctx, param) {
             return;
         }
         if self.mark_formula_input_value_dirty(ctx, param) {
+            return;
+        }
+        if source_signal_dirty {
             return;
         }
         self.runtime_cache.dirty = true;
@@ -197,6 +212,16 @@ impl Node for StateMachineManager {
 }
 
 impl StateMachineManager {
+    fn mark_input_source_param_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return false;
+        };
+        if let Some(node) = snapshot.node(param) {
+            self.runtime_cache.dirty_input_source_params.insert(node.uuid);
+        }
+        self.runtime_cache.source_listener_params.contains(&param)
+    }
+
     fn mark_processor_override_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return false;
@@ -243,6 +268,7 @@ impl StateMachineManager {
         apply_pending_trigger_inputs(&mut formulas, pending_trigger_inputs);
         let active_states = active_state_nodes(snapshot, self.id());
         let cache_rebuilt = self.runtime_cache.dirty;
+        let overrides_dirty = !self.runtime_cache.dirty_processor_overrides.is_empty();
         let catalog = FormulaCatalog::from_snapshot(snapshot);
 
         if self.runtime_cache.dirty {
@@ -250,18 +276,13 @@ impl StateMachineManager {
         } else {
             self.refresh_dirty_processor_overrides(snapshot, &formulas, &catalog);
         }
+        if cache_rebuilt || overrides_dirty {
+            self.refresh_source_event_listeners(ctx, snapshot, &active_states);
+        }
 
         let value_types = value_type_registry();
         let registries = RuntimeRegistries {
             value_types: &value_types,
-        };
-        let inputs = RuntimeInputSnapshot::default();
-        let eval_ctx = EvaluationCtx {
-            logical_tick: ctx.time.tick,
-            delta_time: ctx.delta_time,
-            events: &[],
-            inputs: &inputs,
-            registries: &registries,
         };
         let provider = DefaultProcessorContextProvider;
         let capture = ProcessorDebugCapture::All {
@@ -271,6 +292,7 @@ impl StateMachineManager {
         let mut previewed_formula_defaults = HashSet::new();
         let mut processor_lanes = Vec::new();
         let mut evaluated_any = false;
+        let dirty_input_source_params = self.runtime_cache.dirty_input_source_params.clone();
 
         for state in active_states {
             let Some(processor_manager) =
@@ -279,15 +301,35 @@ impl StateMachineManager {
                 continue;
             };
             for processor_node in processor_nodes(snapshot, processor_manager) {
-                let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
-                else {
+                let input_signal_dirty =
+                    processor_has_dirty_input_source(snapshot, processor_node, &dirty_input_source_params);
+                let condition_signal_dirty =
+                    processor_has_dirty_condition_source(snapshot, processor_node, &dirty_input_source_params);
+                let Some(runtime_processor) = self.runtime_cache.processors.get(&processor_node) else {
                     continue;
                 };
                 if runtime_processor.evaluated_once
                     && !processor_needs_continuous_evaluation(&runtime_processor.runtime)
+                    && !input_signal_dirty
+                    && !condition_signal_dirty
                 {
                     continue;
                 }
+                let inputs = processor_runtime_inputs(
+                    snapshot,
+                    processor_node,
+                    ctx.time.tick,
+                    &dirty_input_source_params,
+                    &mut self.runtime_cache.input_manager_signal_ticks,
+                    &mut self.runtime_cache.condition_manager_values,
+                    &mut self.runtime_cache.condition_manager_valid_states,
+                    &mut self.runtime_cache.next_trigger_edge_id,
+                    ctx,
+                );
+                let Some(runtime_processor) = self.runtime_cache.processors.get_mut(&processor_node)
+                else {
+                    continue;
+                };
                 let compiled_formula = runtime_processor
                     .runtime
                     .compiled
@@ -300,6 +342,13 @@ impl StateMachineManager {
                     &runtime_processor.processor,
                     ProcessorLifecycleEvent::ProjectStart,
                 );
+                let eval_ctx = EvaluationCtx {
+                    logical_tick: ctx.time.tick,
+                    delta_time: ctx.delta_time,
+                    events: &[],
+                    inputs: &inputs,
+                    registries: &registries,
+                };
                 let lanes = runtime_processor
                     .runtime
                     .evaluate_processor_with_context_provider_and_send_capture(
@@ -410,6 +459,7 @@ impl StateMachineManager {
                 }
             }
         }
+        self.runtime_cache.dirty_input_source_params.clear();
         let processors = processor_ui_dtos(&self.runtime_cache.processors);
         if evaluated_any || cache_rebuilt {
             self.publish_output_preview(ctx, processors, output_preview, processor_lanes);
@@ -563,6 +613,25 @@ impl StateMachineManager {
             runtime_processor.evaluated_once = false;
         }
     }
+
+    fn refresh_source_event_listeners(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        active_states: &[NodeId],
+    ) {
+        let next_listeners = collect_source_listener_params(snapshot, active_states);
+        let current_listeners = self.runtime_cache.source_listener_params.clone();
+
+        for target in current_listeners.difference(&next_listeners).copied() {
+            ctx.remove_event_listener(self.id(), target);
+        }
+        for target in next_listeners.difference(&current_listeners).copied() {
+            ctx.add_event_listener(self.id(), target);
+        }
+
+        self.runtime_cache.source_listener_params = next_listeners;
+    }
 }
 
 #[cfg(test)]
@@ -676,7 +745,7 @@ fn active_state_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> Vec<No
         .filter(|state| {
             snapshot
                 .node(*state)
-                .is_some_and(|node| node.node_type == STATE_NODE_TYPE)
+                .is_some_and(|node| node.node_type == STATE_NODE_TYPE && node.enabled)
                 && child_param(snapshot, *state, "active")
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false)
@@ -698,6 +767,9 @@ fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId
         let Some(node) = snapshot.node(child) else {
             continue;
         };
+        if !node.enabled {
+            continue;
+        }
         match node.node_type.as_str() {
             PROCESSOR_NODE_TYPE => processors.push(child),
             PROCESSOR_FOLDER_NODE_TYPE => processors.extend(processor_nodes(snapshot, child)),
@@ -705,6 +777,60 @@ fn processor_nodes(snapshot: &ProcessTreeSnapshot, parent: NodeId) -> Vec<NodeId
         }
     }
     processors
+}
+
+fn collect_source_listener_params(
+    snapshot: &ProcessTreeSnapshot,
+    active_states: &[NodeId],
+) -> HashSet<NodeId> {
+    let mut listeners = HashSet::new();
+    for state in active_states {
+        let Some(processor_manager) =
+            snapshot.find_child_by_decl_id(*state, PROCESSOR_MANAGER_DECL_ID)
+        else {
+            continue;
+        };
+        for processor in processor_nodes(snapshot, processor_manager) {
+            let Some(properties) =
+                snapshot.find_child_by_decl_id(processor, PROCESSOR_PROPERTIES_DECL_ID)
+            else {
+                continue;
+            };
+            collect_property_source_listener_params(snapshot, properties, &mut listeners);
+        }
+    }
+    listeners
+}
+
+fn collect_property_source_listener_params(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    listeners: &mut HashSet<NodeId>,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if !node.enabled {
+            continue;
+        }
+        match node.node_type.as_str() {
+            PROCESSOR_FOLDER_NODE_TYPE
+            | INPUTS_MANAGER_NODE_TYPE
+            | CONDITION_MANAGER_NODE_TYPE
+            | CONDITION_GROUP_NODE_TYPE => {
+                collect_property_source_listener_params(snapshot, child, listeners);
+            }
+            INPUT_SOURCE_NODE_TYPE | INPUT_VALUE_CONDITION_NODE_TYPE => {
+                if let Some(source) = child_reference_uuid(snapshot, child, "source")
+                    .and_then(|uuid| snapshot.node_id_by_uuid(uuid))
+                {
+                    listeners.insert(source);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn processor_for_override_change(
@@ -1185,6 +1311,580 @@ fn collect_processor_property_overrides(
     }
 }
 
+fn processor_runtime_inputs(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    logical_tick: u64,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+    input_manager_signal_ticks: &mut HashMap<String, u64>,
+    condition_manager_values: &mut HashMap<String, RuntimeValue>,
+    condition_manager_valid_states: &mut HashMap<String, bool>,
+    next_trigger_edge_id: &mut u64,
+    ctx: &mut ProcessCtx,
+) -> RuntimeInputSnapshot {
+    let mut inputs = RuntimeInputSnapshot::default();
+    if let Some(properties) = snapshot.find_child_by_decl_id(processor_node, PROCESSOR_PROPERTIES_DECL_ID) {
+        let Some(processor_uuid) = snapshot.node(processor_node).map(|node| node.uuid) else {
+            return inputs;
+        };
+        collect_processor_runtime_inputs(
+            snapshot,
+            processor_uuid,
+            properties,
+            logical_tick,
+            dirty_input_source_params,
+            input_manager_signal_ticks,
+            condition_manager_values,
+            condition_manager_valid_states,
+            next_trigger_edge_id,
+            ctx,
+            &mut inputs,
+        );
+    }
+    inputs
+}
+
+fn processor_has_dirty_input_source(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    if dirty_input_source_params.is_empty() {
+        return false;
+    }
+    snapshot
+        .find_child_by_decl_id(processor_node, PROCESSOR_PROPERTIES_DECL_ID)
+        .is_some_and(|properties| {
+            property_tree_has_dirty_input_source(snapshot, properties, dirty_input_source_params)
+        })
+}
+
+fn processor_has_dirty_condition_source(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    if dirty_input_source_params.is_empty() {
+        return false;
+    }
+    snapshot
+        .find_child_by_decl_id(processor_node, PROCESSOR_PROPERTIES_DECL_ID)
+        .is_some_and(|properties| {
+            property_tree_has_dirty_condition_source(snapshot, properties, dirty_input_source_params)
+        })
+}
+
+fn property_tree_has_dirty_condition_source(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    snapshot.child_ids(parent).into_iter().any(|child| {
+        let Some(node) = snapshot.node(child) else {
+            return false;
+        };
+        if !node.enabled {
+            return false;
+        }
+        match node.node_type.as_str() {
+            PROCESSOR_FOLDER_NODE_TYPE => {
+                property_tree_has_dirty_condition_source(snapshot, child, dirty_input_source_params)
+            }
+            CONDITION_MANAGER_NODE_TYPE => {
+                condition_tree_has_dirty_source(snapshot, child, dirty_input_source_params)
+            }
+            _ => false,
+        }
+    })
+}
+
+fn property_tree_has_dirty_input_source(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    snapshot.child_ids(parent).into_iter().any(|child| {
+        let Some(node) = snapshot.node(child) else {
+            return false;
+        };
+        if !node.enabled {
+            return false;
+        }
+        match node.node_type.as_str() {
+            PROCESSOR_FOLDER_NODE_TYPE => {
+                property_tree_has_dirty_input_source(snapshot, child, dirty_input_source_params)
+            }
+            INPUTS_MANAGER_NODE_TYPE => {
+                input_manager_has_dirty_source(snapshot, child, dirty_input_source_params)
+            }
+            _ => false,
+        }
+    })
+}
+
+fn collect_processor_runtime_inputs(
+    snapshot: &ProcessTreeSnapshot,
+    processor_uuid: NodeUuid,
+    parent: NodeId,
+    logical_tick: u64,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+    input_manager_signal_ticks: &mut HashMap<String, u64>,
+    condition_manager_values: &mut HashMap<String, RuntimeValue>,
+    condition_manager_valid_states: &mut HashMap<String, bool>,
+    next_trigger_edge_id: &mut u64,
+    ctx: &mut ProcessCtx,
+    inputs: &mut RuntimeInputSnapshot,
+) {
+    for child in snapshot.child_ids(parent) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if !node.enabled {
+            continue;
+        }
+        if node.node_type == PROCESSOR_FOLDER_NODE_TYPE {
+            collect_processor_runtime_inputs(
+                snapshot,
+                processor_uuid,
+                child,
+                logical_tick,
+                dirty_input_source_params,
+                input_manager_signal_ticks,
+                condition_manager_values,
+                condition_manager_valid_states,
+                next_trigger_edge_id,
+                ctx,
+                inputs,
+            );
+            continue;
+        }
+        match node.node_type.as_str() {
+            INPUTS_MANAGER_NODE_TYPE => collect_input_manager_runtime_input(
+                snapshot,
+                processor_uuid,
+                child,
+                node.decl_id.as_str(),
+                logical_tick,
+                dirty_input_source_params,
+                input_manager_signal_ticks,
+                inputs,
+            ),
+            CONDITION_MANAGER_NODE_TYPE => collect_condition_manager_runtime_input(
+                snapshot,
+                processor_uuid,
+                child,
+                node.decl_id.as_str(),
+                logical_tick,
+                dirty_input_source_params,
+                condition_manager_values,
+                condition_manager_valid_states,
+                next_trigger_edge_id,
+                ctx,
+                inputs,
+            ),
+            _ => {}
+        }
+    }
+}
+
+fn collect_input_manager_runtime_input(
+    snapshot: &ProcessTreeSnapshot,
+    processor_uuid: NodeUuid,
+    manager: NodeId,
+    decl_id: &str,
+    logical_tick: u64,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+    input_manager_signal_ticks: &mut HashMap<String, u64>,
+    inputs: &mut RuntimeInputSnapshot,
+) {
+    let Some(manager_uuid) = decl_id
+        .strip_prefix("surface/")
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+    let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
+    if input_manager_has_dirty_source(snapshot, manager, dirty_input_source_params) {
+        input_manager_signal_ticks.insert(signal_key.clone(), logical_tick);
+    }
+    let Some(signal_tick) = input_manager_signal_ticks.get(&signal_key).copied() else {
+        return;
+    };
+    let value_set = processor_input_manager_value_set(snapshot, manager, signal_tick);
+    if value_set.entries.is_empty() {
+        input_manager_signal_ticks.remove(&signal_key);
+        return;
+    }
+    let Ok(value) = value_set.to_runtime_value() else {
+        return;
+    };
+    inputs.insert(
+        StableRef::new(ValueTypeId::new(INPUTS_MANAGER_TYPE), manager_uuid.to_owned()),
+        value,
+    );
+}
+
+fn collect_condition_manager_runtime_input(
+    snapshot: &ProcessTreeSnapshot,
+    processor_uuid: NodeUuid,
+    manager: NodeId,
+    decl_id: &str,
+    logical_tick: u64,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+    condition_manager_values: &mut HashMap<String, RuntimeValue>,
+    condition_manager_valid_states: &mut HashMap<String, bool>,
+    next_trigger_edge_id: &mut u64,
+    ctx: &mut ProcessCtx,
+    inputs: &mut RuntimeInputSnapshot,
+) {
+    let Some(manager_uuid) = decl_id
+        .strip_prefix("surface/")
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+    let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
+    if condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params) {
+        let valid = condition_group_valid(snapshot, manager, ctx).unwrap_or(false);
+        let previous = condition_manager_valid_states.insert(signal_key.clone(), valid);
+        if previous != Some(valid) {
+            let value_set = condition_manager_value_set(
+                logical_tick,
+                valid,
+                previous,
+                next_trigger_edge_id,
+            );
+            if let Ok(value) = value_set.to_runtime_value() {
+                condition_manager_values.insert(signal_key.clone(), value);
+            }
+        }
+    }
+    let Some(value) = condition_manager_values.get(&signal_key).cloned() else {
+        return;
+    };
+    inputs.insert(
+        StableRef::new(ValueTypeId::new(CONDITIONS_MANAGER_TYPE), manager_uuid.to_owned()),
+        value,
+    );
+}
+
+fn condition_manager_value_set(
+    logical_tick: u64,
+    valid: bool,
+    previous: Option<bool>,
+    next_trigger_edge_id: &mut u64,
+) -> ValueSet {
+    let mut value_set = ValueSet::new(logical_tick);
+    value_set.push(ValueSetEntry::new(
+        ValueLaneKey::new("valid").expect("static ValueSet key must be valid"),
+        "Valid",
+        RuntimeValue::Bool(valid),
+    ));
+    let on_true = if previous != Some(valid) && valid {
+        RuntimeValue::Trigger(next_trigger(next_trigger_edge_id, logical_tick))
+    } else {
+        RuntimeValue::Trigger(TriggerValue::default())
+    };
+    value_set.push(ValueSetEntry::new(
+        ValueLaneKey::new("on_true").expect("static ValueSet key must be valid"),
+        "On True",
+        on_true,
+    ));
+    let on_false = if previous != Some(valid) && !valid {
+        RuntimeValue::Trigger(next_trigger(next_trigger_edge_id, logical_tick))
+    } else {
+        RuntimeValue::Trigger(TriggerValue::default())
+    };
+    value_set.push(ValueSetEntry::new(
+        ValueLaneKey::new("on_false").expect("static ValueSet key must be valid"),
+        "On False",
+        on_false,
+    ));
+    value_set
+}
+
+fn next_trigger(next_trigger_edge_id: &mut u64, logical_tick: u64) -> TriggerValue {
+    let edge_id = *next_trigger_edge_id;
+    *next_trigger_edge_id = (*next_trigger_edge_id).wrapping_add(1);
+    TriggerValue::fired(edge_id, logical_tick)
+}
+
+fn condition_tree_has_dirty_source(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    snapshot.child_ids(parent).into_iter().any(|child| {
+        let Some(node) = snapshot.node(child) else {
+            return false;
+        };
+        if node.param_value.is_some() && node.decl_id != "valid" && dirty_input_source_params.contains(&node.uuid) {
+            return true;
+        }
+        if !node.enabled {
+            return false;
+        }
+        match node.node_type.as_str() {
+            INPUT_VALUE_CONDITION_NODE_TYPE => input_value_condition_has_dirty_source(
+                snapshot,
+                child,
+                dirty_input_source_params,
+            ),
+            CONDITION_GROUP_NODE_TYPE | CONDITION_MANAGER_NODE_TYPE => {
+                condition_tree_has_dirty_source(snapshot, child, dirty_input_source_params)
+            }
+            _ => false,
+        }
+    })
+}
+
+fn input_value_condition_has_dirty_source(
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    child_reference_uuid(snapshot, condition, "source")
+        .is_some_and(|source| dirty_input_source_params.contains(&source))
+        || snapshot.child_ids(condition).into_iter().any(|child| {
+            snapshot.node(child).is_some_and(|node| {
+                node.param_value.is_some()
+                    && node.decl_id != "valid"
+                    && dirty_input_source_params.contains(&node.uuid)
+            })
+        })
+}
+
+fn condition_group_valid(
+    snapshot: &ProcessTreeSnapshot,
+    group: NodeId,
+    ctx: &mut ProcessCtx,
+) -> Option<bool> {
+    let mut values = Vec::new();
+    for child in snapshot.child_ids(group) {
+        let node = snapshot.node(child)?;
+        if node.param_value.is_some() {
+            continue;
+        }
+        let valid = if node.enabled {
+            match node.node_type.as_str() {
+                INPUT_VALUE_CONDITION_NODE_TYPE => input_value_condition_valid(snapshot, child, ctx),
+                CONDITION_GROUP_NODE_TYPE => condition_group_valid(snapshot, child, ctx),
+                _ => None,
+            }
+        } else {
+            disabled_condition_policy(snapshot, group)
+        };
+        if let Some(valid) = valid {
+            values.push(valid);
+        }
+    }
+    Some(reduce_condition_values(snapshot, group, &values))
+}
+
+fn input_value_condition_valid(
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    ctx: &mut ProcessCtx,
+) -> Option<bool> {
+    let source_uuid = child_reference_uuid(snapshot, condition, "source")?;
+    let source_id = snapshot.node_id_by_uuid(source_uuid)?;
+    let source_value = snapshot.node(source_id)?.param_value.as_ref()?;
+    let comparator = child_string(snapshot, condition, "comparator").unwrap_or_else(|| "equal".to_owned());
+    let valid = compare_condition_value(snapshot, condition, source_value, comparator.as_str());
+    set_condition_valid_param(ctx, snapshot, condition, valid);
+    Some(valid)
+}
+
+fn set_condition_valid_param(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    valid: bool,
+) {
+    let Some(valid_param) = snapshot.find_child_by_decl_id(condition, "valid") else {
+        return;
+    };
+    let current = snapshot
+        .node(valid_param)
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(ParamValue::as_bool);
+    if current != Some(valid) {
+        ctx.set_param(valid_param, ParamValue::Bool(valid));
+    }
+}
+
+fn disabled_condition_policy(snapshot: &ProcessTreeSnapshot, group: NodeId) -> Option<bool> {
+    match child_string(snapshot, group, "disabled_policy")
+        .unwrap_or_else(|| "ignore".to_owned())
+        .as_str()
+    {
+        "treat_as_invalid" => Some(false),
+        "treat_as_valid" => Some(true),
+        _ => None,
+    }
+}
+
+fn reduce_condition_values(snapshot: &ProcessTreeSnapshot, group: NodeId, values: &[bool]) -> bool {
+    if values.is_empty() {
+        return child_string(snapshot, group, "empty_policy")
+            .unwrap_or_else(|| "invalid".to_owned())
+            == "valid";
+    }
+    let valid_count = values.iter().filter(|value| **value).count();
+    let required = child_param(snapshot, group, "operator_count")
+        .and_then(param_numeric)
+        .unwrap_or(1.0)
+        .round()
+        .max(0.0) as usize;
+    match child_string(snapshot, group, "operator")
+        .unwrap_or_else(|| "all".to_owned())
+        .as_str()
+    {
+        "any" => valid_count > 0,
+        "none" => valid_count == 0,
+        "at_least" => valid_count >= required,
+        "exactly" => valid_count == required,
+        _ => valid_count == values.len(),
+    }
+}
+
+fn compare_condition_value(
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    source_value: &ParamValue,
+    comparator: &str,
+) -> bool {
+    let reference = child_param(snapshot, condition, "reference")
+        .and_then(param_numeric)
+        .unwrap_or(0.0);
+    let reference_max = child_param(snapshot, condition, "reference_max")
+        .and_then(param_numeric)
+        .unwrap_or(1.0);
+    let reference_string = child_string(snapshot, condition, "reference_string").unwrap_or_default();
+    match comparator {
+        "not_equal" => !param_values_equal(source_value, reference, reference_string.as_str()),
+        "greater_than" => param_numeric(source_value).is_some_and(|value| value > reference),
+        "greater_than_or_equal" => param_numeric(source_value).is_some_and(|value| value >= reference),
+        "less_than" => param_numeric(source_value).is_some_and(|value| value < reference),
+        "less_than_or_equal" => param_numeric(source_value).is_some_and(|value| value <= reference),
+        "between" => param_numeric(source_value).is_some_and(|value| {
+            let min = reference.min(reference_max);
+            let max = reference.max(reference_max);
+            value >= min && value <= max
+        }),
+        "outside" => param_numeric(source_value).is_some_and(|value| {
+            let min = reference.min(reference_max);
+            let max = reference.max(reference_max);
+            value < min || value > max
+        }),
+        "is_true" => param_bool(source_value).unwrap_or(false),
+        "is_false" => !param_bool(source_value).unwrap_or(true),
+        "contains" => param_string(source_value).contains(reference_string.as_str()),
+        "starts_with" => param_string(source_value).starts_with(reference_string.as_str()),
+        "ends_with" => param_string(source_value).ends_with(reference_string.as_str()),
+        "value_changed" => true,
+        _ => param_values_equal(source_value, reference, reference_string.as_str()),
+    }
+}
+
+fn param_values_equal(value: &ParamValue, reference: f64, reference_string: &str) -> bool {
+    if let Some(number) = param_numeric(value) {
+        return (number - reference).abs() <= f64::EPSILON;
+    }
+    param_string(value) == reference_string
+}
+
+fn param_numeric(value: &ParamValue) -> Option<f64> {
+    match value {
+        ParamValue::Bool(value) => Some(if *value { 1.0 } else { 0.0 }),
+        ParamValue::Int(value) => Some(f64::from(*value)),
+        ParamValue::Float(value) => Some(*value),
+        ParamValue::CssValue(value) => Some(value.value),
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.parse().ok(),
+        _ => None,
+    }
+}
+
+fn param_bool(value: &ParamValue) -> Option<bool> {
+    match value {
+        ParamValue::Bool(value) => Some(*value),
+        ParamValue::Int(value) => Some(*value != 0),
+        ParamValue::Float(value) => Some(value.abs() > f64::EPSILON),
+        ParamValue::CssValue(value) => Some(value.value.abs() > f64::EPSILON),
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => match value.as_str() {
+            "true" | "on" | "1" => Some(true),
+            "false" | "off" | "0" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn param_string(value: &ParamValue) -> String {
+    match value {
+        ParamValue::Bool(value) => value.to_string(),
+        ParamValue::Int(value) => value.to_string(),
+        ParamValue::Float(value) => value.to_string(),
+        ParamValue::Str(value) | ParamValue::File(value) | ParamValue::Enum(value) => value.clone(),
+        ParamValue::CssValue(value) => value.value.to_string(),
+        ParamValue::Vec2(x, y) => format!("{x},{y}"),
+        ParamValue::Vec3(x, y, z) => format!("{x},{y},{z}"),
+        ParamValue::Color(r, g, b, a) => format!("{r},{g},{b},{a}"),
+        ParamValue::Reference(reference) => reference.uuid().0.to_string(),
+        ParamValue::Trigger() => String::new(),
+    }
+}
+
+fn input_manager_has_dirty_source(
+    snapshot: &ProcessTreeSnapshot,
+    manager: NodeId,
+    dirty_input_source_params: &HashSet<NodeUuid>,
+) -> bool {
+    snapshot.child_ids(manager).into_iter().any(|input| {
+        snapshot.node(input).is_some_and(|node| node.enabled)
+            && child_reference_uuid(snapshot, input, "source")
+                .is_some_and(|source| dirty_input_source_params.contains(&source))
+    })
+}
+
+fn processor_input_manager_value_set(
+    snapshot: &ProcessTreeSnapshot,
+    manager: NodeId,
+    logical_tick: u64,
+) -> ValueSet {
+    let mut value_set = ValueSet::new(logical_tick);
+    for input in snapshot.child_ids(manager) {
+        let Some(input_node) = snapshot.node(input) else {
+            continue;
+        };
+        if !input_node.enabled {
+            continue;
+        }
+        let Some(source_uuid) = child_reference_uuid(snapshot, input, "source") else {
+            continue;
+        };
+        let Some(source_id) = snapshot.node_id_by_uuid(source_uuid) else {
+            continue;
+        };
+        let Some(source_node) = snapshot.node(source_id) else {
+            continue;
+        };
+        let Some(value) = source_node.param_value.as_ref().and_then(param_to_runtime_value) else {
+            continue;
+        };
+        let Ok(key) = ValueLaneKey::new(input_node.uuid.0.to_string()) else {
+            continue;
+        };
+        value_set.push(
+            ValueSetEntry::new(key, source_node.label.clone(), value).with_source(StableRef::new(
+                ValueTypeId::new("parameter"),
+                source_uuid.0.to_string(),
+            )),
+        );
+    }
+    value_set
+}
+
 fn processor_override_value<'a>(
     snapshot: &'a ProcessTreeSnapshot,
     property: NodeId,
@@ -1204,6 +1904,13 @@ fn child_param<'a>(
         .find_child_by_decl_id(parent, decl_id)
         .and_then(|param| snapshot.node(param))
         .and_then(|node| node.param_value.as_ref())
+}
+
+fn child_string(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<String> {
+    match child_param(snapshot, parent, decl_id)? {
+        ParamValue::Str(value) | ParamValue::Enum(value) => Some(value.clone()),
+        _ => None,
+    }
 }
 
 fn node_matches_decl_id(actual: &str, expected: &str) -> bool {
@@ -1227,13 +1934,19 @@ fn param_to_runtime_value(value: &ParamValue) -> Option<RuntimeValue> {
         ParamValue::Int(value) => Some(RuntimeValue::Int(i64::from(*value))),
         ParamValue::Float(value) => Some(RuntimeValue::Float(*value)),
         ParamValue::Str(value) => Some(RuntimeValue::String(value.clone().into())),
+        ParamValue::File(value) => Some(RuntimeValue::String(value.clone().into())),
+        ParamValue::Enum(value) => Some(RuntimeValue::String(value.clone().into())),
+        ParamValue::CssValue(value) => Some(RuntimeValue::Float(value.value)),
+        ParamValue::Vec2(x, y) => Some(RuntimeValue::Vec2([*x, *y])),
+        ParamValue::Vec3(x, y, z) => Some(RuntimeValue::Vec3([*x, *y, *z])),
         ParamValue::Color(r, g, b, a) => Some(RuntimeValue::Color(golden_alchemist::ColorValue {
             red: *r as f32,
             green: *g as f32,
             blue: *b as f32,
             alpha: *a as f32,
         })),
-        _ => None,
+        ParamValue::Reference(reference) => Some(RuntimeValue::String(reference.uuid().0.to_string().into())),
+        ParamValue::Trigger() => Some(RuntimeValue::Trigger(TriggerValue::default())),
     }
 }
 

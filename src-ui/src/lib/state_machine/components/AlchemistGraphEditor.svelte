@@ -121,6 +121,8 @@
 		const preview = outputPreviews.get(key);
 		return preview ? { ...preview, active: activeSocketRefs.has(key) } : null;
 	};
+	const inputPreview = (graphNode: GraphNode, socket: GraphSocket): FormulaOutputPreviewChip | null =>
+		graphNode.outputs.some((output) => output.id === socket.id) ? null : outputPreview(graphNode, socket);
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
 		canConnectGraphConnection(nodes, connection);
 
@@ -133,11 +135,12 @@
 		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>
 
-{#snippet inputSocketContent(_graphNode: GraphNode, socket: GraphSocket)}
+{#snippet inputSocketContent(graphNode: GraphNode, socket: GraphSocket)}
 	{@const parameter = inputDefaultParameter(socket)}
 	{#if parameter}
 		<ANodeSocketDefaultEditor {parameter} />
 	{/if}
+	<ANodeOutputValueChip preview={inputPreview(graphNode, socket)} />
 {/snippet}
 
 {#snippet outputSocketContent(graphNode: GraphNode, socket: GraphSocket)}

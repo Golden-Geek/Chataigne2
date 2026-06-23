@@ -18,20 +18,20 @@ pub struct ManagedFormulaRuntime {
 }
 
 enum ManagedFormulaRuntimeKind {
-    Mapping(ManagedMappingRuntime),
-    Action(ManagedActionRuntime),
+    ValuePipeline(ValuePipelineRuntime),
+    TriggerPipeline(TriggerPipelineRuntime),
 }
 
-struct ManagedMappingRuntime {
+struct ValuePipelineRuntime {
     input_set: InputSetRuntime,
     filter_pipeline: ManagedFilterPipelineRuntime,
     output_set: OutputSetRuntime,
 }
 
-struct ManagedActionRuntime {
-    trigger: ActionTriggerRuntime,
+struct TriggerPipelineRuntime {
+    trigger: TriggerInputRuntime,
     filter_pipeline: ManagedFilterPipelineRuntime,
-    commands: ActionCommandsRuntime,
+    commands: CommandSetRuntime,
 }
 
 impl ManagedFormulaRuntime {
@@ -40,13 +40,13 @@ impl ManagedFormulaRuntime {
         instance: &AlchemistFormulaInstance,
         ctx: &CompileCtx<'_>,
     ) -> Result<Option<Self>, ManagedFormulaError> {
-        let has_mapping_regions = formula.surface.managed_regions.iter().any(is_mapping_region);
-        let has_action_regions = formula.surface.managed_regions.iter().any(is_action_region);
-        if !has_mapping_regions && !has_action_regions {
+        let has_value_pipeline_regions = formula.surface.managed_regions.iter().any(is_value_pipeline_region);
+        let has_trigger_pipeline_regions = formula.surface.managed_regions.iter().any(is_trigger_pipeline_region);
+        if !has_value_pipeline_regions && !has_trigger_pipeline_regions {
             return Ok(None);
         }
-        if has_mapping_regions && has_action_regions {
-            return Err(ManagedFormulaError::MixedManagedFormulaKinds);
+        if has_value_pipeline_regions && has_trigger_pipeline_regions {
+            return Err(ManagedFormulaError::MixedManagedFormulaPipelines);
         }
         instance
             .require_compatible(formula)
@@ -56,13 +56,13 @@ impl ManagedFormulaRuntime {
             .validate_against(&formula.surface)
             .map_err(ManagedFormulaError::ManagedRegionValidation)?;
 
-        if has_action_regions {
-            return Self::compile_action(formula, instance, ctx).map(Some);
+        if has_trigger_pipeline_regions {
+            return Self::compile_trigger_pipeline(formula, instance, ctx).map(Some);
         }
-        Self::compile_mapping(formula, instance, ctx).map(Some)
+        Self::compile_value_pipeline(formula, instance, ctx).map(Some)
     }
 
-    fn compile_mapping(
+    fn compile_value_pipeline(
         formula: &AlchemistFormula,
         instance: &AlchemistFormulaInstance,
         ctx: &CompileCtx<'_>,
@@ -78,7 +78,7 @@ impl ManagedFormulaRuntime {
             .transpose()?;
 
         Ok(Self {
-            kind: ManagedFormulaRuntimeKind::Mapping(ManagedMappingRuntime {
+            kind: ManagedFormulaRuntimeKind::ValuePipeline(ValuePipelineRuntime {
                 input_set: InputSetRuntime::from_managed_region(input, input_instance)?,
                 filter_pipeline: ManagedFilterPipelineRuntime::new(filter_instance, ctx)?,
                 output_set: OutputSetRuntime::from_managed_region(output, output_instance)?,
@@ -86,13 +86,13 @@ impl ManagedFormulaRuntime {
         })
     }
 
-    fn compile_action(
+    fn compile_trigger_pipeline(
         formula: &AlchemistFormula,
         instance: &AlchemistFormulaInstance,
         ctx: &CompileCtx<'_>,
     ) -> Result<Self, ManagedFormulaError> {
-        let trigger = required_region(&formula.surface.managed_regions, ManagedRegionKind::ActionTrigger)?;
-        let commands = required_region(&formula.surface.managed_regions, ManagedRegionKind::ActionCommands)?;
+        let trigger = required_region(&formula.surface.managed_regions, ManagedRegionKind::TriggerInput)?;
+        let commands = required_region(&formula.surface.managed_regions, ManagedRegionKind::CommandSet)?;
         let filter = optional_region(&formula.surface.managed_regions, ManagedRegionKind::FilterPipeline)?;
 
         let trigger_instance = required_region_instance(instance, &trigger.id)?;
@@ -102,23 +102,23 @@ impl ManagedFormulaRuntime {
             .transpose()?;
 
         Ok(Self {
-            kind: ManagedFormulaRuntimeKind::Action(ManagedActionRuntime {
-                trigger: ActionTriggerRuntime::from_managed_region(trigger, trigger_instance)?,
+            kind: ManagedFormulaRuntimeKind::TriggerPipeline(TriggerPipelineRuntime {
+                trigger: TriggerInputRuntime::from_managed_region(trigger, trigger_instance)?,
                 filter_pipeline: ManagedFilterPipelineRuntime::new(filter_instance, ctx)?,
-                commands: ActionCommandsRuntime::from_managed_region(commands, commands_instance)?,
+                commands: CommandSetRuntime::from_managed_region(commands, commands_instance)?,
             }),
         })
     }
 
     pub fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
         match &mut self.kind {
-            ManagedFormulaRuntimeKind::Mapping(runtime) => runtime.evaluate(ctx),
-            ManagedFormulaRuntimeKind::Action(runtime) => runtime.evaluate(ctx),
+            ManagedFormulaRuntimeKind::ValuePipeline(runtime) => runtime.evaluate(ctx),
+            ManagedFormulaRuntimeKind::TriggerPipeline(runtime) => runtime.evaluate(ctx),
         }
     }
 }
 
-impl ManagedMappingRuntime {
+impl ValuePipelineRuntime {
     fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
         let input = self.input_set.materialize(ctx);
         let mut output = RuntimeOutput::default();
@@ -149,7 +149,7 @@ impl ManagedMappingRuntime {
     }
 }
 
-impl ManagedActionRuntime {
+impl TriggerPipelineRuntime {
     fn evaluate(&mut self, ctx: &EvaluationCtx<'_>) -> RuntimeOutput {
         let trigger = self.trigger.materialize(ctx);
         let mut output = RuntimeOutput::default();
@@ -172,17 +172,17 @@ impl ManagedActionRuntime {
     }
 }
 
-fn is_mapping_region(definition: &ManagedRegionDefinition) -> bool {
+fn is_value_pipeline_region(definition: &ManagedRegionDefinition) -> bool {
     matches!(
         definition.kind,
         ManagedRegionKind::InputSet | ManagedRegionKind::OutputSet
     )
 }
 
-fn is_action_region(definition: &ManagedRegionDefinition) -> bool {
+fn is_trigger_pipeline_region(definition: &ManagedRegionDefinition) -> bool {
     matches!(
         definition.kind,
-        ManagedRegionKind::ActionTrigger | ManagedRegionKind::ActionCommands
+        ManagedRegionKind::TriggerInput | ManagedRegionKind::CommandSet
     )
 }
 
@@ -220,28 +220,28 @@ fn required_region_instance<'a>(
         })
 }
 
-struct ActionTriggerRuntime {
-    items: Vec<ActionTriggerItem>,
+struct TriggerInputRuntime {
+    items: Vec<TriggerInputItem>,
 }
 
-struct ActionTriggerItem {
+struct TriggerInputItem {
     label: String,
     source: StableRef,
     enabled: bool,
 }
 
-struct ActionTriggerMaterialization {
+struct TriggerInputMaterialization {
     value: Option<RuntimeValue>,
     diagnostics: Vec<Diagnostic>,
 }
 
-impl ActionTriggerRuntime {
+impl TriggerInputRuntime {
     fn from_managed_region(
         definition: &ManagedRegionDefinition,
         instance: &ManagedRegionInstance,
     ) -> Result<Self, ManagedFormulaError> {
-        if definition.kind != ManagedRegionKind::ActionTrigger {
-            return Err(ManagedFormulaError::WrongActionTriggerRegionKind {
+        if definition.kind != ManagedRegionKind::TriggerInput {
+            return Err(ManagedFormulaError::WrongTriggerInputRegionKind {
                 region_id: definition.id.clone(),
                 actual: definition.kind,
             });
@@ -253,7 +253,7 @@ impl ActionTriggerRuntime {
             });
         }
         if !definition.accepted_roles.contains(&SurfaceItemKind::Input) {
-            return Err(ManagedFormulaError::DoesNotAcceptActionTriggers {
+            return Err(ManagedFormulaError::DoesNotAcceptTriggerInputs {
                 region_id: definition.id.clone(),
             });
         }
@@ -265,18 +265,18 @@ impl ActionTriggerRuntime {
                 let source = match item.anode.config.get(INPUT_SOURCE_FIELD) {
                     Some(RuntimeValue::Ref(source)) => source.clone(),
                     Some(value) => {
-                        return Err(ManagedFormulaError::InvalidActionTriggerSourceConfig {
+                        return Err(ManagedFormulaError::InvalidTriggerInputSourceConfig {
                             label: item.anode.label.clone(),
                             actual: value.value_type().to_string(),
                         });
                     }
                     None => {
-                        return Err(ManagedFormulaError::MissingActionTriggerSourceConfig {
+                        return Err(ManagedFormulaError::MissingTriggerInputSourceConfig {
                             label: item.anode.label.clone(),
                         });
                     }
                 };
-                Ok(ActionTriggerItem {
+                Ok(TriggerInputItem {
                     label: item.anode.label.clone(),
                     source,
                     enabled: item.enabled && item.anode.enabled,
@@ -287,21 +287,21 @@ impl ActionTriggerRuntime {
         Ok(Self { items })
     }
 
-    fn materialize(&self, ctx: &EvaluationCtx<'_>) -> ActionTriggerMaterialization {
+    fn materialize(&self, ctx: &EvaluationCtx<'_>) -> TriggerInputMaterialization {
         let enabled = self.items.iter().filter(|item| item.enabled).collect::<Vec<_>>();
         if enabled.is_empty() {
-            return ActionTriggerMaterialization {
+            return TriggerInputMaterialization {
                 value: None,
                 diagnostics: Vec::new(),
             };
         }
         if enabled.len() != 1 {
-            return ActionTriggerMaterialization {
+            return TriggerInputMaterialization {
                 value: None,
                 diagnostics: vec![Diagnostic::error(
-                    "action_trigger_requires_single_enabled_trigger",
+                    "trigger_input_requires_single_enabled_source",
                     format!(
-                        "ActionTrigger expected one enabled trigger input, got {}.",
+                        "TriggerInput expected one enabled trigger source, got {}.",
                         enabled.len()
                     ),
                     DiagnosticOrigin::Runtime,
@@ -311,16 +311,16 @@ impl ActionTriggerRuntime {
 
         let item = enabled[0];
         match ctx.inputs.get(&item.source) {
-            Some(RuntimeValue::Trigger(trigger)) => ActionTriggerMaterialization {
+            Some(RuntimeValue::Trigger(trigger)) => TriggerInputMaterialization {
                 value: Some(RuntimeValue::Trigger(*trigger)),
                 diagnostics: Vec::new(),
             },
-            Some(value) => ActionTriggerMaterialization {
+            Some(value) => TriggerInputMaterialization {
                 value: None,
                 diagnostics: vec![Diagnostic::error(
-                    "action_trigger_expected_trigger",
+                    "trigger_input_expected_trigger",
                     format!(
-                        "Action trigger `{}` resolved `{}` from `{}`; expected `trigger`.",
+                        "Trigger input `{}` resolved `{}` from `{}`; expected `trigger`.",
                         item.label,
                         value.value_type(),
                         item.source.stable_id
@@ -328,12 +328,12 @@ impl ActionTriggerRuntime {
                     DiagnosticOrigin::Runtime,
                 )],
             },
-            None => ActionTriggerMaterialization {
+            None => TriggerInputMaterialization {
                 value: None,
                 diagnostics: vec![Diagnostic::error(
-                    "action_trigger_missing_source",
+                    "trigger_input_missing_source",
                     format!(
-                        "Action trigger `{}` could not resolve source `{}`.",
+                        "Trigger input `{}` could not resolve source `{}`.",
                         item.label, item.source.stable_id
                     ),
                     DiagnosticOrigin::Runtime,
@@ -343,23 +343,23 @@ impl ActionTriggerRuntime {
     }
 }
 
-struct ActionCommandsRuntime {
-    items: Vec<ActionCommandItem>,
+struct CommandSetRuntime {
+    items: Vec<CommandItem>,
 }
 
-struct ActionCommandItem {
+struct CommandItem {
     target: StableRef,
     enabled: bool,
     source_node: Option<ANodeId>,
 }
 
-impl ActionCommandsRuntime {
+impl CommandSetRuntime {
     fn from_managed_region(
         definition: &ManagedRegionDefinition,
         instance: &ManagedRegionInstance,
     ) -> Result<Self, ManagedFormulaError> {
-        if definition.kind != ManagedRegionKind::ActionCommands {
-            return Err(ManagedFormulaError::WrongActionCommandsRegionKind {
+        if definition.kind != ManagedRegionKind::CommandSet {
+            return Err(ManagedFormulaError::WrongCommandSetRegionKind {
                 region_id: definition.id.clone(),
                 actual: definition.kind,
             });
@@ -370,8 +370,8 @@ impl ActionCommandsRuntime {
                 instance_id: instance.region_id.clone(),
             });
         }
-        if !definition.accepted_roles.contains(&SurfaceItemKind::Action) {
-            return Err(ManagedFormulaError::DoesNotAcceptActionCommands {
+        if !definition.accepted_roles.contains(&SurfaceItemKind::Command) {
+            return Err(ManagedFormulaError::DoesNotAcceptCommands {
                 region_id: definition.id.clone(),
             });
         }
@@ -383,18 +383,18 @@ impl ActionCommandsRuntime {
                 let target = match item.anode.config.get(OUTPUT_TARGET_FIELD) {
                     Some(RuntimeValue::Ref(target)) => target.clone(),
                     Some(value) => {
-                        return Err(ManagedFormulaError::InvalidActionCommandTargetConfig {
+                        return Err(ManagedFormulaError::InvalidCommandTargetConfig {
                             label: item.anode.label.clone(),
                             actual: value.value_type().to_string(),
                         });
                     }
                     None => {
-                        return Err(ManagedFormulaError::MissingActionCommandTargetConfig {
+                        return Err(ManagedFormulaError::MissingCommandTargetConfig {
                             label: item.anode.label.clone(),
                         });
                     }
                 };
-                Ok(ActionCommandItem {
+                Ok(CommandItem {
                     target,
                     enabled: item.enabled && item.anode.enabled,
                     source_node: Some(item.anode.id),
@@ -503,10 +503,10 @@ impl ManagedFilterPipelineRuntime {
                 let actual = values.entries.len();
                 let mut entries = values.entries.into_iter();
                 let Some(entry) = entries.next() else {
-                    return Err(ManagedFormulaError::ActionFilterExpectedSingleValue { actual: 0 });
+                    return Err(ManagedFormulaError::TriggerFilterExpectedSingleValue { actual: 0 });
                 };
                 if entries.next().is_some() {
-                    return Err(ManagedFormulaError::ActionFilterExpectedSingleValue { actual });
+                    return Err(ManagedFormulaError::TriggerFilterExpectedSingleValue { actual });
                 }
                 Ok(entry.value)
             }
@@ -806,8 +806,8 @@ pub enum ManagedFormulaError {
     Formula(#[from] FormulaMaterializationError),
     #[error("{0}")]
     ManagedRegionValidation(#[from] ManagedRegionValidationError),
-    #[error("managed formula declares both Mapping and Action region families")]
-    MixedManagedFormulaKinds,
+    #[error("managed formula declares both value and trigger pipeline region families")]
+    MixedManagedFormulaPipelines,
     #[error("managed formula is missing a `{kind:?}` region")]
     MissingRegion { kind: ManagedRegionKind },
     #[error("managed formula declares more than one `{kind:?}` region")]
@@ -818,28 +818,28 @@ pub enum ManagedFormulaError {
     InputSet(#[from] InputSetError),
     #[error("{0}")]
     OutputSet(#[from] OutputSetError),
-    #[error("managed action trigger region `{region_id}` is `{actual:?}`, expected ActionTrigger")]
-    WrongActionTriggerRegionKind {
+    #[error("managed trigger input region `{region_id}` is `{actual:?}`, expected TriggerInput")]
+    WrongTriggerInputRegionKind {
         region_id: ManagedRegionId,
         actual: ManagedRegionKind,
     },
-    #[error("ActionTrigger region `{region_id}` must accept input items")]
-    DoesNotAcceptActionTriggers { region_id: ManagedRegionId },
-    #[error("ActionTrigger item `{label}` is missing a `{INPUT_SOURCE_FIELD}` StableRef config field")]
-    MissingActionTriggerSourceConfig { label: String },
-    #[error("ActionTrigger item `{label}` has non-reference `{INPUT_SOURCE_FIELD}` config value `{actual}`")]
-    InvalidActionTriggerSourceConfig { label: String, actual: String },
-    #[error("managed action commands region `{region_id}` is `{actual:?}`, expected ActionCommands")]
-    WrongActionCommandsRegionKind {
+    #[error("TriggerInput region `{region_id}` must accept input items")]
+    DoesNotAcceptTriggerInputs { region_id: ManagedRegionId },
+    #[error("TriggerInput item `{label}` is missing a `{INPUT_SOURCE_FIELD}` StableRef config field")]
+    MissingTriggerInputSourceConfig { label: String },
+    #[error("TriggerInput item `{label}` has non-reference `{INPUT_SOURCE_FIELD}` config value `{actual}`")]
+    InvalidTriggerInputSourceConfig { label: String, actual: String },
+    #[error("managed command set region `{region_id}` is `{actual:?}`, expected CommandSet")]
+    WrongCommandSetRegionKind {
         region_id: ManagedRegionId,
         actual: ManagedRegionKind,
     },
-    #[error("ActionCommands region `{region_id}` must accept action items")]
-    DoesNotAcceptActionCommands { region_id: ManagedRegionId },
-    #[error("ActionCommands item `{label}` is missing a `{OUTPUT_TARGET_FIELD}` StableRef config field")]
-    MissingActionCommandTargetConfig { label: String },
-    #[error("ActionCommands item `{label}` has non-reference `{OUTPUT_TARGET_FIELD}` config value `{actual}`")]
-    InvalidActionCommandTargetConfig { label: String, actual: String },
+    #[error("CommandSet region `{region_id}` must accept command items")]
+    DoesNotAcceptCommands { region_id: ManagedRegionId },
+    #[error("CommandSet item `{label}` is missing a `{OUTPUT_TARGET_FIELD}` StableRef config field")]
+    MissingCommandTargetConfig { label: String },
+    #[error("CommandSet item `{label}` has non-reference `{OUTPUT_TARGET_FIELD}` config value `{actual}`")]
+    InvalidCommandTargetConfig { label: String, actual: String },
     #[error("managed filter region `{region_id}` is `{actual:?}`, expected FilterPipeline")]
     WrongFilterRegionKind {
         region_id: ManagedRegionId,
@@ -862,8 +862,8 @@ pub enum ManagedFormulaError {
     EmptyFilteredValueSet,
     #[error("managed ValueSet contains mixed value types `{expected}` and `{actual}`")]
     MixedValueSetTypes { expected: ValueTypeId, actual: ValueTypeId },
-    #[error("Action filter expected one trigger value, got {actual}")]
-    ActionFilterExpectedSingleValue { actual: usize },
+    #[error("Trigger filter expected one trigger value, got {actual}")]
+    TriggerFilterExpectedSingleValue { actual: usize },
     #[error("managed filter produced diagnostics: {}", messages.join("; "))]
     FilterDiagnostics { messages: Vec<String> },
     #[error("{0}")]
@@ -881,20 +881,20 @@ impl ManagedFormulaError {
         match self {
             Self::Formula(_) => "managed_formula_materialization_error",
             Self::ManagedRegionValidation(_) => "managed_formula_region_validation_error",
-            Self::MixedManagedFormulaKinds => "managed_formula_mixed_region_kinds",
+            Self::MixedManagedFormulaPipelines => "managed_formula_mixed_region_kinds",
             Self::MissingRegion { .. } => "managed_formula_missing_region",
             Self::DuplicateRegion { .. } => "managed_formula_duplicate_region",
             Self::MissingRegionInstance { .. } => "managed_formula_missing_region_instance",
             Self::InputSet(_) => "managed_formula_input_set_error",
             Self::OutputSet(_) => "managed_formula_output_set_error",
-            Self::WrongActionTriggerRegionKind { .. } => "managed_formula_wrong_action_trigger_region_kind",
-            Self::DoesNotAcceptActionTriggers { .. } => "managed_formula_action_trigger_role_rejected",
-            Self::MissingActionTriggerSourceConfig { .. } => "managed_formula_missing_action_trigger_source",
-            Self::InvalidActionTriggerSourceConfig { .. } => "managed_formula_invalid_action_trigger_source",
-            Self::WrongActionCommandsRegionKind { .. } => "managed_formula_wrong_action_commands_region_kind",
-            Self::DoesNotAcceptActionCommands { .. } => "managed_formula_action_commands_role_rejected",
-            Self::MissingActionCommandTargetConfig { .. } => "managed_formula_missing_action_command_target",
-            Self::InvalidActionCommandTargetConfig { .. } => "managed_formula_invalid_action_command_target",
+            Self::WrongTriggerInputRegionKind { .. } => "managed_formula_wrong_trigger_input_region_kind",
+            Self::DoesNotAcceptTriggerInputs { .. } => "managed_formula_trigger_input_role_rejected",
+            Self::MissingTriggerInputSourceConfig { .. } => "managed_formula_missing_trigger_input_source",
+            Self::InvalidTriggerInputSourceConfig { .. } => "managed_formula_invalid_trigger_input_source",
+            Self::WrongCommandSetRegionKind { .. } => "managed_formula_wrong_command_set_region_kind",
+            Self::DoesNotAcceptCommands { .. } => "managed_formula_command_set_role_rejected",
+            Self::MissingCommandTargetConfig { .. } => "managed_formula_missing_command_target",
+            Self::InvalidCommandTargetConfig { .. } => "managed_formula_invalid_command_target",
             Self::WrongFilterRegionKind { .. } => "managed_formula_wrong_filter_region_kind",
             Self::RegionMismatch { .. } => "managed_formula_region_mismatch",
             Self::DoesNotAcceptFilters { .. } => "managed_formula_filter_role_rejected",
@@ -903,7 +903,7 @@ impl ManagedFormulaError {
             Self::UnsupportedFilterPipeline(_) => "managed_formula_unsupported_filter_pipeline",
             Self::EmptyFilteredValueSet => "managed_formula_empty_filtered_valueset",
             Self::MixedValueSetTypes { .. } => "managed_formula_mixed_valueset_types",
-            Self::ActionFilterExpectedSingleValue { .. } => "managed_formula_action_filter_expected_single_value",
+            Self::TriggerFilterExpectedSingleValue { .. } => "managed_formula_trigger_filter_expected_single_value",
             Self::FilterDiagnostics { .. } => "managed_formula_filter_diagnostics",
             Self::ValueSet(_) => "managed_formula_valueset_error",
             Self::ValueSetPipeline(_) => "managed_formula_valueset_pipeline_error",

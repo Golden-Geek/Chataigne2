@@ -14,7 +14,8 @@ use golden_core::{
     },
 };
 use golden_alchemist::{
-    ManagedRegionKind, RuntimeValue, TriggerValue, ValueTypeId,
+    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, RuntimeValue, StableRef, TriggerValue,
+    ValueTypeId, compile_graph,
 };
 
 use super::{
@@ -23,8 +24,7 @@ use super::{
     AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
     AlchemistPropertiesManager, FORMULA_DUPLICATE_SOURCE_DECL_ID,
     FORMULA_DUPLICATE_SOURCE_WARNING_ID, FORMULA_FOLDER_ITEM_KIND,
-    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
-    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
+    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FormulaLibrary, PROPERTIES_DECL_ID,
     PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
     formula_from_snapshot, node_warning_detail, param_to_runtime_value,
 };
@@ -62,93 +62,6 @@ fn formula_library_accepts_real_formula_nodes() {
 }
 
 #[test]
-fn duplicated_builtin_formula_copies_managed_region_surface_metadata() {
-    let root: AppNode = Folder::new("root").into();
-    let mut engine = AppEngine::new(root);
-    engine.add_node(FormulaLibrary::new().into(), None);
-    engine.apply_edits().expect("Formula Library should attach");
-    let library = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
-        .map(|(id, _)| id)
-        .expect("Formula Library should exist");
-
-    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
-        parent: library,
-        node_type: AlchemistFormulaDefinition::NODE_TYPE.to_owned(),
-        label: Some("Mapping Copy".into()),
-        initial_params: vec![UiCreateUserItemInitialParam {
-            decl_id: DeclId(FORMULA_DUPLICATE_SOURCE_DECL_ID.into()),
-            value: ParamValue::Str(
-                "state_processor:builtin:chataigne.mapping@1".into(),
-            ),
-        }],
-    });
-    assert!(ack.success, "Formula creation should succeed: {ack:?}");
-    let formula_node = direct_children(&engine, library)
-        .into_iter()
-        .find(|node| {
-            engine.nodes.get(*node).is_some_and(|node| {
-                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
-            })
-        })
-        .expect("duplicated formula should exist");
-
-    let materialized =
-        formula_from_snapshot(&engine.process_tree_snapshot(), formula_node)
-            .expect("duplicated built-in formula should materialize");
-    let regions = materialized
-        .surface
-        .managed_regions
-        .iter()
-        .map(|region| {
-            (
-                region.id.to_string(),
-                region.kind,
-                region.label.as_str(),
-            )
-        })
-        .collect::<Vec<_>>();
-
-    assert_eq!(
-        regions,
-        vec![
-            ("inputs".to_owned(), ManagedRegionKind::InputSet, "Inputs"),
-            (
-                "filters".to_owned(),
-                ManagedRegionKind::FilterPipeline,
-                "Filters",
-            ),
-            ("outputs".to_owned(), ManagedRegionKind::OutputSet, "Outputs"),
-        ]
-    );
-
-    let snapshot = engine.process_tree_snapshot();
-    let stored_regions = find_child_by_decl(
-        &engine,
-        formula_node,
-        FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
-    )
-    .and_then(|node| snapshot.node(node))
-    .and_then(|node| node.param_value.as_ref())
-    .and_then(ParamValue::as_str)
-    .expect("managed region metadata should be stored");
-    assert!(!stored_regions.is_empty());
-
-    let duplicate_seed = find_child_by_decl(
-        &engine,
-        formula_node,
-        FORMULA_DUPLICATE_SOURCE_DECL_ID,
-    )
-    .and_then(|node| snapshot.node(node))
-    .and_then(|node| node.param_value.as_ref())
-    .and_then(ParamValue::as_str)
-    .expect("duplicate source seed should exist");
-    assert_eq!(duplicate_seed, "");
-}
-
-#[test]
 fn invalid_duplicate_builtin_formula_source_warns_without_fake_metadata() {
     let root: AppNode = Folder::new("root").into();
     let mut engine = AppEngine::new(root);
@@ -161,7 +74,7 @@ fn invalid_duplicate_builtin_formula_source_warns_without_fake_metadata() {
         .map(|(id, _)| id)
         .expect("Formula Library should exist");
 
-    let source_key = "state_processor:builtin:chataigne.missing@1";
+    let source_key = "state_processor:builtin:example.missing@1";
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: library,
         node_type: AlchemistFormulaDefinition::NODE_TYPE.to_owned(),
@@ -191,7 +104,7 @@ fn invalid_duplicate_builtin_formula_source_warns_without_fake_metadata() {
         FORMULA_DUPLICATE_SOURCE_WARNING_ID,
     )
     .expect("invalid duplicate source should warn");
-    assert!(warning.contains("chataigne.missing"));
+    assert!(warning.contains("example.missing"));
 
     let duplicate_seed = find_child_by_decl(
         &engine,
@@ -246,57 +159,204 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
 }
 
 #[test]
-fn manager_reference_anodes_mark_formula_unavailable_in_editor_state() {
-    for (type_id, label) in [
-        (
-            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE,
-            "Conditions",
-        ),
-        (
-            chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
-            "Inputs",
-        ),
-        (
-            chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
-            "Output Commands",
-        ),
-    ] {
-        let (mut engine, formula) = engine_with_formula();
-        create_anode(&mut engine, formula, type_id, 0.0, 0.0);
-        let anode = find_anode_by_type(&engine, formula, type_id);
+fn formula_properties_offer_manager_roles_and_graph_getters() {
+    let properties = AlchemistPropertiesManager::new();
+    let creatable = properties.user_creatable_items();
 
-        assert_eq!(
-            parameter_value(&engine, formula, "is_valid"),
-            ParamValue::Bool(false),
-            "{label} manager ref should mark the formula invalid"
-        );
-        let diagnostics_json = match parameter_value(&engine, formula, "diagnostics_json") {
-            ParamValue::Str(value) => value,
-            other => panic!("diagnostics_json should be a string, got {other:?}"),
-        };
-        let diagnostics: Vec<serde_json::Value> =
-            serde_json::from_str(&diagnostics_json).expect("diagnostics_json should parse");
+    for role in ["condition", "filter", "input", "output"] {
+        let node_type = format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}");
         assert!(
-            diagnostics.iter().any(|diagnostic| {
-                diagnostic["code"]
-                    .as_str()
-                    .is_some_and(|code| code.starts_with("chataigne_manager_bridge_"))
-                    && diagnostic["message"]
-                        .as_str()
-                        .is_some_and(|message| message.contains(label))
-            }),
-            "{label} manager ref should expose the bridge diagnostic: {diagnostics_json}"
-        );
-
-        assert!(
-            node_has_warning_id(&engine, formula, "alchemist_formula"),
-            "{label} manager ref should set the formula warning"
-        );
-        assert!(
-            node_has_warning_id(&engine, anode, "alchemist_formula_diagnostic"),
-            "{label} manager ref should set an ANode warning"
+            creatable.iter().any(|item| item.node_type == node_type),
+            "{role} manager property should be creatable"
         );
     }
+
+    for node_type in [
+        chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
+    ] {
+        let mut graph = AlchemistGraph::new();
+        let mut node = ANodeInstance::new(ANodeTypeId::new(node_type), "Manager");
+        node.config.set(
+            chataigne_state_machine::alchemist::MANAGER_PROPERTY_FIELD,
+            RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "manager")),
+        );
+        graph.add_node(node).unwrap();
+        let value_types = chataigne_state_machine::alchemist::value_type_registry();
+        let nodes = chataigne_state_machine::alchemist::node_registry();
+        let result = compile_graph(
+            &graph,
+            &CompileCtx {
+                value_types: &value_types,
+                nodes: &nodes,
+                properties: None,
+            },
+        );
+        assert!(
+            !result.has_errors(),
+            "{node_type} should compile as a graph-usable manager getter: {:?}",
+            result.diagnostics
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.starts_with("chataigne_manager_bridge")),
+            "{node_type} should not use legacy manager bridge diagnostics"
+        );
+    }
+}
+
+#[test]
+fn formula_manager_property_roles_survive_project_reload() {
+    fn strip_manager_role_persistence(record: &mut serde_json::Value) {
+        let Some(object) = record.as_object_mut() else {
+            return;
+        };
+        let is_manager = object
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            == Some(AlchemistPropertyManager::NODE_TYPE);
+
+        if is_manager {
+            if let Some(tags) = object
+                .get_mut("meta")
+                .and_then(serde_json::Value::as_object_mut)
+                .and_then(|meta| meta.get_mut("tags"))
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                tags.retain(|tag| {
+                    !tag.as_str()
+                        .is_some_and(|tag| tag.starts_with("alchemist.manager.role:"))
+                });
+            }
+
+            if let Some(children) = object
+                .get_mut("children")
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                for child in children.iter_mut() {
+                    let is_role = child
+                        .get("meta")
+                        .and_then(|meta| meta.get("decl_id"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some("role");
+                    if is_role {
+                        if let Some(role) = child.as_object_mut() {
+                            role.remove("data");
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(children) = object
+            .get_mut("children")
+            .and_then(serde_json::Value::as_array_mut)
+        {
+            for child in children {
+                strip_manager_role_persistence(child);
+            }
+        }
+    }
+
+    fn loaded_formula_id(engine: &AppEngine) -> NodeId {
+        engine
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+            .map(|(id, _)| id)
+            .expect("Formula should reload")
+    }
+
+    fn assert_manager_roles(
+        engine: &AppEngine,
+        formula: NodeId,
+        specs: &[(&str, &str)],
+    ) {
+        let properties = find_child_by_decl(engine, formula, PROPERTIES_DECL_ID)
+            .expect("Properties manager should reload");
+
+        for (role, label) in specs {
+            let manager = direct_children(engine, properties)
+                .into_iter()
+                .find(|node| {
+                    engine.nodes.get(*node).is_some_and(|node| {
+                        node.get_type() == AlchemistPropertyManager::NODE_TYPE
+                            && node.node_data().meta.label == *label
+                    })
+                })
+                .unwrap_or_else(|| {
+                    panic!("{label} manager property should reload")
+                });
+            assert_eq!(
+                parameter_value(engine, manager, "role"),
+                ParamValue::Enum((*role).into()),
+                "{label} manager property role should survive reload"
+            );
+        }
+
+        let materialized =
+            formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+                .expect("reloaded Formula surface should materialize");
+        for (role, label) in specs {
+            assert!(
+                materialized
+                    .surface
+                    .sections
+                    .iter()
+                    .any(|section| section.id.as_str() == *role && section.label == *label),
+                "{label} manager surface section should keep id {role}"
+            );
+        }
+    }
+
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula should own a Properties manager");
+    let specs = [
+        ("condition", "Conditions"),
+        ("filter", "Filters"),
+        ("input", "Inputs"),
+        ("output", "Outputs"),
+    ];
+
+    for (role, _) in specs {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: properties,
+            node_type: format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}"),
+            label: None,
+            initial_params: Vec::new(),
+        });
+        assert!(
+            ack.success,
+            "{role} manager property creation should succeed: {ack:?}"
+        );
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("Project should encode");
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("Project should decode");
+    assert_manager_roles(&loaded, loaded_formula_id(&loaded), &specs);
+
+    let mut legacy_project: serde_json::Value =
+        serde_json::from_str(&json).expect("Project JSON should parse");
+    strip_manager_role_persistence(
+        legacy_project
+            .get_mut("root")
+            .expect("Project JSON should have a root record"),
+    );
+    let legacy_json = serde_json::to_string(&legacy_project)
+        .expect("legacy-shaped Project JSON should encode");
+    let recovered =
+        golden_core::app::from_sparse_project_json::<AppNode>(&legacy_json)
+            .expect("legacy-shaped Project should decode");
+    assert_manager_roles(&recovered, loaded_formula_id(&recovered), &specs);
 }
 
 #[test]

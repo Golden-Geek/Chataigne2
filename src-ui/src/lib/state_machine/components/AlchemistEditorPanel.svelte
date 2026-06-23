@@ -41,9 +41,6 @@
 		ANODE_NODE_TYPE,
 		CONNECTION_NODE_TYPE,
 		FORMULA_NODE_TYPE,
-		MANAGER_REF_TYPE_CONDITIONS,
-		MANAGER_REF_TYPE_INPUTS,
-		MANAGER_REF_TYPE_OUTPUTS,
 		PROPERTIES_DECL_ID,
 		PROPERTY_FOLDER_NODE_TYPE,
 		PROPERTY_MANAGER_NODE_TYPE,
@@ -53,7 +50,6 @@
 		directChild,
 		formulaANodes,
 		canConnectGraphConnection,
-		managerAnodeType,
 		parameterChild,
 		toGraphEdges,
 		toGraphNodes
@@ -106,18 +102,18 @@
 	}
 
 	const PROPERTY_DRAG_TYPE = 'application/x-chataigne-alchemist-property';
-	const MANAGER_DRAG_TYPE = 'application/x-chataigne-alchemist-manager';
 
 	const MIN_PANEL_WIDTH = 160;
 	const MAX_PANEL_WIDTH = 520;
 	const DEFAULT_PANEL_WIDTH = 240;
 	const FORMULA_CAMERA_STORAGE_PREFIX = 'chataigne.alchemist.formula_camera:';
-	const HIDDEN_ANODE_CREATE_TYPES = new Set([
-		`${ANODE_CREATE_PREFIX}property`,
-		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_CONDITIONS}`,
-		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_INPUTS}`,
-		`${ANODE_CREATE_PREFIX}${MANAGER_REF_TYPE_OUTPUTS}`
-	]);
+	const HIDDEN_ANODE_CREATE_TYPES = new Set([`${ANODE_CREATE_PREFIX}property`]);
+	const MANAGER_ANODE_BY_ROLE: Record<string, string> = {
+		condition: `${ANODE_CREATE_PREFIX}chataigne.conditions_manager`,
+		filter: `${ANODE_CREATE_PREFIX}chataigne.filters_manager`,
+		input: `${ANODE_CREATE_PREFIX}chataigne.inputs_manager`,
+		output: `${ANODE_CREATE_PREFIX}chataigne.outputs_manager`
+	};
 	const PROCESSOR_ITEM_KIND = 'state_processor';
 	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
 	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
@@ -598,9 +594,9 @@
 				return 'Filters';
 			case 'output_set':
 				return 'Outputs';
-			case 'action_trigger':
+			case 'trigger_input':
 				return 'Trigger';
-			case 'action_commands':
+			case 'command_set':
 				return 'Commands';
 		}
 	};
@@ -699,9 +695,7 @@
 	const setPropertyGraphDragData = (node: UiNodeDto, event: DragEvent): void => {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.effectAllowed = 'copyMove';
-		if (node.node_type === PROPERTY_MANAGER_NODE_TYPE) {
-			event.dataTransfer.setData(MANAGER_DRAG_TYPE, String(node.node_id));
-		} else if (node.node_type === PROPERTY_NODE_TYPE) {
+		if (node.node_type === PROPERTY_NODE_TYPE || node.node_type === PROPERTY_MANAGER_NODE_TYPE) {
 			event.dataTransfer.setData(PROPERTY_DRAG_TYPE, String(node.node_id));
 		}
 	};
@@ -886,35 +880,23 @@
 		});
 	};
 
-	const getManagerRole = (manager: UiNodeDto): string => {
-		if (!graphState) return '';
-		const roleParam = parameterChild(manager, graphState.nodesById, 'role');
-		if (roleParam?.data.kind === 'parameter' && roleParam.data.param.value.kind === 'enum') {
-			return roleParam.data.param.value.value;
-		}
-		return '';
+	const managerRole = (manager: UiNodeDto): string | null => {
+		if (!graphState) return null;
+		const role = parameterChild(manager, graphState.nodesById, 'role');
+		if (role?.data.kind !== 'parameter') return null;
+		const value = role.data.param.value;
+		return value.kind === 'enum' ? value.value : null;
 	};
 
-	const createManagerNode = (manager: UiNodeDto, position: GraphNodePosition): void => {
+	const createManagerGetter = (manager: UiNodeDto, position: GraphNodePosition): void => {
 		if (!formula || !graphState || manager.node_type !== PROPERTY_MANAGER_NODE_TYPE) return;
-		const role = getManagerRole(manager);
-		const typeId = managerAnodeType(role);
-		if (!typeId) return;
-		const managerNodeType = `${ANODE_CREATE_PREFIX}${typeId}`;
-		if (
-			!formula.creatable_user_items.some(
-				(item: UiCreatableUserItem) => item.node_type === managerNodeType
-			)
-		)
-			return;
-		const managerItem = {
-			node_type: managerNodeType,
-			label: manager.meta.label
-		};
+		const role = managerRole(manager);
+		const nodeType = role ? MANAGER_ANODE_BY_ROLE[role] : undefined;
+		if (!nodeType) return;
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				formula.node_id,
-				managerItem.node_type,
+				nodeType,
 				manager.meta.label,
 				{
 					select_when_created: true,
@@ -923,12 +905,20 @@
 						initialParam('position', {
 							kind: 'vec2',
 							value: [position.x, position.y]
+						}),
+						initialParam('config/manager_id', {
+							kind: 'reference',
+							uuid: manager.uuid,
+							cached_id: manager.node_id,
+							cached_name: manager.meta.label,
+							relative_path_from_root: []
 						})
 					]
 				}
 			);
-			if (!result.success)
+			if (!result.success) {
 				throw new Error(`failed to create manager node for ${manager.meta.label}`);
+			}
 			if (result.createdNodeId !== null) {
 				session?.selectNode(result.createdNodeId, 'REPLACE');
 			}
@@ -936,11 +926,7 @@
 	};
 
 	const allowPropertyDrop = (event: DragEvent): void => {
-		if (
-			!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE) &&
-			!event.dataTransfer?.types.includes(MANAGER_DRAG_TYPE)
-		)
-			return;
+		if (!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE)) return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = 'copy';
 	};
@@ -957,16 +943,13 @@
 				createPropertyGetter(property, position);
 				return;
 			}
-		}
-
-		const managerId = Number(event.dataTransfer?.getData(MANAGER_DRAG_TYPE));
-		if (Number.isSafeInteger(managerId) && managerId !== 0) {
-			const manager = graphState.nodesById.get(managerId);
-			if (manager?.node_type === PROPERTY_MANAGER_NODE_TYPE) {
+			if (property?.node_type === PROPERTY_MANAGER_NODE_TYPE) {
 				event.preventDefault();
-				createManagerNode(manager, position);
+				createManagerGetter(property, position);
+				return;
 			}
 		}
+
 	};
 
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
@@ -1660,7 +1643,7 @@
 									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_can_duplicate_to_library}
 										<button
 											type="button"
-											class="processor-formula-action-btn"
+											class="processor-formula-control-btn"
 											disabled={!formulaLibrary}
 											title="Create editable formula copy"
 											onclick={createEditableBuiltInFormulaCopy}>
@@ -1821,7 +1804,7 @@
 						{#if processorUi.formula_can_duplicate_to_library}
 							<button
 								type="button"
-								class="processor-formula-action-btn"
+								class="processor-formula-control-btn"
 								disabled={!formulaLibrary}
 								onclick={createEditableBuiltInFormulaCopy}>
 								Create Editable Copy
@@ -2105,7 +2088,7 @@
 		cursor: pointer;
 	}
 
-	.processor-formula-action-btn {
+	.processor-formula-control-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -2125,14 +2108,14 @@
 
 	.processor-region-condition-btn:hover,
 	.processor-region-condition-btn:focus-visible,
-	.processor-formula-action-btn:hover,
-	.processor-formula-action-btn:focus-visible {
+	.processor-formula-control-btn:hover,
+	.processor-formula-control-btn:focus-visible {
 		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 20%, var(--gc-color-background));
 		border-color: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 58%, transparent);
 		outline: none;
 	}
 
-	.processor-formula-action-btn:disabled {
+	.processor-formula-control-btn:disabled {
 		opacity: 0.45;
 		cursor: default;
 	}
@@ -2191,7 +2174,7 @@
 		font-size: 0.68rem;
 	}
 
-	.builtin-formula-panel .processor-formula-action-btn {
+	.builtin-formula-panel .processor-formula-control-btn {
 		justify-self: center;
 	}
 

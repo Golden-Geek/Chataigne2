@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use chataigne_state_machine::ProcessorFormulaSourceKind;
 use golden_core::{
     engine::EngineTime,
     node::{DeclId, Folder, Node},
@@ -13,10 +12,7 @@ use super::{
     processor_formula_from_snapshot, processor_formula_source_ref,
     processor_override_value, STATE_ITEM_KIND, StateMachineManager,
 };
-use crate::app::state_machine_nodes_processor::{
-    FormulaCatalog, FormulaSourceRef, BUILTIN_FORMULA_PACKAGE,
-    BUILTIN_FORMULA_VERSION, BUILTIN_MAPPING_FORMULA_ID,
-};
+use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
 
 #[test]
 fn state_machine_manager_is_fixed_and_creates_states() {
@@ -106,9 +102,27 @@ fn processor_override_value_reads_direct_parameter_nodes() {
 }
 
 #[test]
-fn processor_formula_resolver_reads_builtin_source_key() {
+fn processor_formula_resolver_reads_project_source_key() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(crate::app::FormulaLibrary::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("formula library should attach");
+    let library_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == crate::app::FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("formula library should exist");
+    let mut formula = crate::app::AlchemistFormulaDefinition::new();
+    formula.node_data_mut().meta.label = "Project Formula".to_owned();
+    let formula_uuid = formula.node_data().meta.uuid;
+    engine.add_user_item(formula.into(), Some(library_id));
+    engine
+        .apply_edits()
+        .expect("project formula should attach");
+
     engine.add_node(crate::app::StateProcessorManager::new().into(), None);
     engine
         .apply_edits()
@@ -121,11 +135,11 @@ fn processor_formula_resolver_reads_builtin_source_key() {
         .expect("processor manager should exist");
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: manager_id,
-        node_type: "state_processor:builtin:chataigne.mapping@1".to_owned(),
+        node_type: format!("state_processor:project:{}", formula_uuid.0),
         label: None,
         initial_params: Vec::new(),
     });
-    assert!(ack.success, "builtin Mapping processor should attach: {ack:?}");
+    assert!(ack.success, "project formula processor should attach: {ack:?}");
     let processor_id = engine
         .nodes
         .iter()
@@ -138,23 +152,31 @@ fn processor_formula_resolver_reads_builtin_source_key() {
 
     assert!(matches!(
         &source,
-        FormulaSourceRef::Builtin {
-            package,
-            formula_id,
-            version,
-        } if package.as_ref() == BUILTIN_FORMULA_PACKAGE
-            && formula_id.as_ref() == BUILTIN_MAPPING_FORMULA_ID
-            && *version == BUILTIN_FORMULA_VERSION
+        FormulaSourceRef::ProjectNode(reference) if reference.uuid() == formula_uuid
     ));
 
     let catalog = FormulaCatalog::from_snapshot(&snapshot);
+    let formula_id = snapshot
+        .node_id_by_uuid(formula_uuid)
+        .expect("project formula should exist");
+    let formula_map = HashMap::from([(
+        formula_uuid,
+        crate::app::state_machine_nodes_formula::formula_from_snapshot(&snapshot, formula_id)
+            .expect("project formula should materialize"),
+    )]);
     let (formula_node, formula, formula_ui, formula_source_key) =
-        processor_formula_from_snapshot(&snapshot, processor_id, &HashMap::new(), &catalog)
-            .expect("builtin formula should resolve from catalog");
-    assert!(formula_node.is_none());
-    assert_eq!(formula.label, "Mapping");
-    assert_eq!(formula_source_key, "state_processor:builtin:chataigne.mapping@1");
-    assert_eq!(formula_ui.source_kind, ProcessorFormulaSourceKind::Builtin);
-    assert!(formula_ui.open_readonly_from_processor);
-    assert!(formula_ui.can_duplicate_to_library);
+        processor_formula_from_snapshot(&snapshot, processor_id, &formula_map, &catalog)
+            .expect("project formula should resolve from catalog");
+    assert!(formula_node.is_some());
+    assert_eq!(formula.label, "Project Formula");
+    assert_eq!(
+        formula_source_key,
+        format!("state_processor:project:{}", formula_uuid.0)
+    );
+    assert_eq!(
+        formula_ui.source_kind,
+        chataigne_state_machine::ProcessorFormulaSourceKind::Project
+    );
+    assert!(!formula_ui.open_readonly_from_processor);
+    assert!(!formula_ui.can_duplicate_to_library);
 }

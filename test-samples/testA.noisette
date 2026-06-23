@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "root": {
-    "uuid": "a94797c2-09c3-49fd-b4be-888a75e9a7e6",
+    "uuid": "63051804-d890-452a-a984-3a3b4490ea8a",
     "type": "folder",
     "meta": {
       "decl_id": "root",
@@ -12,99 +12,99 @@
     },
     "children": [
       {
-        "uuid": "0b45cd1c-521e-43d6-995c-96c88c402ced",
+        "uuid": "cd554d11-74e3-42a4-bb87-65cd694addb8",
         "type": "dashboard"
       },
       {
-        "uuid": "8be56d50-31eb-4622-b3a0-59c4637eba01",
+        "uuid": "d08ebf1e-0337-4e06-90eb-ec2c363a5281",
         "type": "alchemist_formula_library",
         "children": [
           {
-            "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab",
+            "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb",
             "type": "alchemist_formula",
             "user_role": "itemRoot",
+            "meta": {
+              "label": "Action"
+            },
             "children": [
               {
-                "uuid": "e131bcad-57b7-4e55-9b50-1cc2846e0a25",
+                "uuid": "d3d338d0-acc6-48a4-86f2-9d3624e6c0ef",
                 "type": "alchemist_properties",
                 "meta": {
                   "decl_id": "properties"
                 },
                 "children": [
                   {
-                    "uuid": "a2ce9457-d058-46ac-8be5-858401790157",
-                    "type": "alchemist_property",
+                    "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                    "type": "alchemist_property_manager",
                     "user_role": "itemRoot",
                     "meta": {
-                      "label": "Float"
-                    },
-                    "children": [
-                      {
-                        "uuid": "9ca12827-9484-4e6d-a919-a4fcea9a235f",
-                        "type": "float",
-                        "meta": {
-                          "decl_id": "value"
-                        },
-                        "data": {
-                          "value": {
-                            "Float": 3.7000000000000535
-                          }
-                        }
-                      }
-                    ]
+                      "label": "Conditions"
+                    }
                   },
                   {
-                    "uuid": "209dc863-7624-43a5-bfad-87ec7bacc192",
-                    "type": "alchemist_property",
+                    "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873",
+                    "type": "alchemist_property_manager",
                     "user_role": "itemRoot",
                     "meta": {
-                      "decl_id": "floatCopy",
-                      "short_name": "floatCopy",
-                      "label": "Float Copy"
-                    },
-                    "children": [
-                      {
-                        "uuid": "5ec12e55-48b9-4fc1-8966-a4df745d0d6d",
-                        "type": "float",
-                        "meta": {
-                          "decl_id": "value"
-                        },
-                        "data": {
-                          "value": {
-                            "Float": 3.200000000000054
-                          }
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "uuid": "afc328a8-bda4-4aae-93ee-5c0287601f86",
-                    "type": "alchemist_property",
-                    "user_role": "itemRoot",
-                    "meta": {
-                      "label": "String",
+                      "label": "On True",
                       "tags": [
-                        "alchemist.property.type:str"
+                        "alchemist.manager.role:output"
                       ],
                       "presentation": {
                         "color": {
-                          "r": 0.92,
-                          "g": 0.68,
-                          "b": 0.26,
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
                           "a": 1.0
                         }
                       }
                     },
                     "children": [
                       {
-                        "uuid": "729fb9ab-1710-47fb-9ff6-6df47c5991c8",
-                        "type": "str",
+                        "uuid": "aafa64d4-eb4b-4a10-a8a2-8bc19bd35b49",
+                        "type": "enum",
                         "meta": {
-                          "decl_id": "property_type"
+                          "decl_id": "role"
                         },
                         "data": {
                           "default_value": {
-                            "Str": "str"
+                            "Enum": "output"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                    "type": "alchemist_property_manager",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "decl_id": "outputsCopy",
+                      "short_name": "outputsCopy",
+                      "label": "On False",
+                      "tags": [
+                        "alchemist.manager.role:output"
+                      ],
+                      "presentation": {
+                        "color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "64422cdc-bb1d-4dcc-baea-c6c2a6007d7b",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "output"
                           }
                         }
                       }
@@ -113,16 +113,16 @@
                 ]
               },
               {
-                "uuid": "ac11c0c1-db21-46a1-b3bc-452d31bace7f",
+                "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c",
                 "type": "alchemist_anode",
                 "user_role": "itemRoot",
                 "meta": {
                   "decl_id": "anode",
                   "short_name": "anode",
                   "can_be_disabled": true,
-                  "label": "Float",
+                  "label": "Conditions",
                   "tags": [
-                    "alchemist.anode.type:property"
+                    "alchemist.anode.type:chataigne.conditions_manager"
                   ],
                   "user_permissions": {
                     "can_edit_name": true,
@@ -133,16 +133,16 @@
                   },
                   "presentation": {
                     "color": {
-                      "r": 0.28,
-                      "g": 0.74,
-                      "b": 0.52,
+                      "r": 0.6051733333333333,
+                      "g": 0.8988,
+                      "b": 0.22120000000000006,
                       "a": 1.0
                     }
                   }
                 },
                 "children": [
                   {
-                    "uuid": "6a49e0ed-505d-4d55-b567-2808aaf5119d",
+                    "uuid": "6f4924e4-f874-4cc2-a5c5-68e85064ec25",
                     "type": "vec2",
                     "meta": {
                       "decl_id": "position"
@@ -150,119 +150,55 @@
                     "data": {
                       "value": {
                         "Vec2": [
-                          105.3556840483399,
-                          4.341502225891944
+                          6.066361940724925,
+                          6.610494243946256
                         ]
                       }
                     }
                   },
                   {
-                    "uuid": "f5f5c437-2b85-485f-9bb4-a61420bbca75",
+                    "uuid": "f8579517-0eb1-4f6d-8bea-3a544d37de2c",
                     "type": "folder",
                     "meta": {
                       "decl_id": "config"
                     },
                     "children": [
                       {
-                        "uuid": "5de1b84a-143b-4d30-a6f9-1a3fc8925e3c",
+                        "uuid": "3938501d-46c9-447d-9c3c-bc2721111cc7",
                         "type": "reference",
                         "meta": {
-                          "decl_id": "config/property_id"
+                          "decl_id": "config/manager_id"
                         },
                         "data": {
                           "value": {
                             "Reference": {
-                              "cached_name": "Float",
+                              "cached_name": "Conditions",
                               "relative_path_from_root": [
                                 "formulas",
                                 "formula",
                                 "properties",
-                                "property"
+                                "manager"
                               ],
-                              "uuid": "a2ce9457-d058-46ac-8be5-858401790157"
+                              "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf"
                             }
                           }
                         }
-                      }
-                    ]
-                  },
-                  {
-                    "uuid": "37aca193-c54f-4c83-9777-8dc4d946f25b",
-                    "type": "folder",
-                    "meta": {
-                      "decl_id": "outputs"
-                    },
-                    "children": [
-                      {
-                        "uuid": "68aa4022-9405-4d47-8f06-c21bbc4b00f8",
-                        "type": "alchemist_output_socket",
-                        "meta": {
-                          "decl_id": "outputs/value",
-                          "presentation": {
-                            "color": {
-                              "r": 0.28,
-                              "g": 0.74,
-                              "b": 0.52,
-                              "a": 1.0
-                            }
-                          }
-                        },
-                        "children": [
-                          {
-                            "uuid": "8df53c30-604b-4ff5-8eaf-808d569ed68b",
-                            "type": "str",
-                            "meta": {
-                              "decl_id": "outputs/value/socket_id",
-                              "short_name": "socketId",
-                              "label": "Socket ID",
-                              "presentation": {
-                                "show_in_inspector_content": false
-                              }
-                            },
-                            "data": {
-                              "control_modes_enabled": false,
-                              "default_value": {
-                                "Str": "value"
-                              },
-                              "read_only": true
-                            }
-                          },
-                          {
-                            "uuid": "eb6c7550-4b5b-4fa9-bae4-2e5a7c8397aa",
-                            "type": "str",
-                            "meta": {
-                              "decl_id": "outputs/value/value_type",
-                              "short_name": "valueType",
-                              "label": "Value Type",
-                              "presentation": {
-                                "show_in_inspector_content": false
-                              }
-                            },
-                            "data": {
-                              "control_modes_enabled": false,
-                              "default_value": {
-                                "Str": "float"
-                              },
-                              "read_only": true
-                            }
-                          }
-                        ]
                       }
                     ]
                   }
                 ]
               },
               {
-                "uuid": "a6f945d3-c0b3-4c24-b9d5-f91c612d9d3b",
+                "uuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1",
                 "type": "alchemist_anode",
                 "user_role": "itemRoot",
                 "meta": {
                   "decl_id": "anode",
                   "short_name": "anode",
                   "can_be_disabled": true,
-                  "label": "Math",
+                  "label": "On True",
                   "tags": [
-                    "alchemist.anode.type:math"
+                    "alchemist.anode.type:chataigne.outputs_manager"
                   ],
                   "user_permissions": {
                     "can_edit_name": true,
@@ -273,16 +209,16 @@
                   },
                   "presentation": {
                     "color": {
-                      "r": 0.2476000000000001,
-                      "g": 0.5183466666666666,
-                      "b": 0.8724000000000001,
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
                       "a": 1.0
                     }
                   }
                 },
                 "children": [
                   {
-                    "uuid": "1b43b68f-955b-4165-96fa-9c62e72f0e09",
+                    "uuid": "8889dc5d-ab5e-49b6-b1be-d62e9abb1ebc",
                     "type": "vec2",
                     "meta": {
                       "decl_id": "position"
@@ -290,16 +226,58 @@
                     "data": {
                       "value": {
                         "Vec2": [
-                          100.17819030989833,
-                          12.346770317717173
+                          22.150030814389,
+                          4.520897584385283
                         ]
                       }
                     }
+                  },
+                  {
+                    "uuid": "ea391a74-61f8-4a08-b862-9296380fc27a",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "f73be788-9cba-4cc8-89c8-43c5477bec94",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "On True",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "manager"
+                              ],
+                              "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "3c9c0d9c-aab5-4be3-9091-744e85bcd89c",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log"
+                        },
+                        "data": {
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      }
+                    ]
                   }
                 ]
               },
               {
-                "uuid": "8afee67c-c6a1-4e15-acfe-26efc5d27a0d",
+                "uuid": "5280aa0d-b268-43cf-8a7a-e33358b990ba",
                 "type": "alchemist_connection",
                 "user_role": "itemRoot",
                 "meta": {
@@ -316,7 +294,7 @@
                 },
                 "children": [
                   {
-                    "uuid": "8144c581-b727-4cdc-8b48-cb79cc7162b6",
+                    "uuid": "f3974004-dd2d-4da7-af5f-368861b75075",
                     "type": "reference",
                     "meta": {
                       "decl_id": "source_node"
@@ -324,31 +302,31 @@
                     "data": {
                       "value": {
                         "Reference": {
-                          "cached_name": "Float",
+                          "cached_name": "Conditions",
                           "relative_path_from_root": [
                             "formulas",
                             "formula",
                             "anode"
                           ],
-                          "uuid": "ac11c0c1-db21-46a1-b3bc-452d31bace7f"
+                          "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c"
                         }
                       }
                     }
                   },
                   {
-                    "uuid": "ec37d1e5-d448-43fc-b3ff-f71f54cf7713",
+                    "uuid": "92728f17-fa3a-4737-a47f-9906ca4cb528",
                     "type": "str",
                     "meta": {
                       "decl_id": "source_socket"
                     },
                     "data": {
                       "value": {
-                        "Str": "value"
+                        "Str": "on_true"
                       }
                     }
                   },
                   {
-                    "uuid": "5c704b69-2971-4409-8eb6-6eda5ca83206",
+                    "uuid": "b3c7c3b1-dddb-4596-9795-4e33fd0dfa3e",
                     "type": "reference",
                     "meta": {
                       "decl_id": "target_node"
@@ -356,26 +334,741 @@
                     "data": {
                       "value": {
                         "Reference": {
-                          "cached_name": "Math",
+                          "cached_name": "On True",
                           "relative_path_from_root": [
                             "formulas",
                             "formula",
                             "anode"
                           ],
-                          "uuid": "a6f945d3-c0b3-4c24-b9d5-f91c612d9d3b"
+                          "uuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1"
                         }
                       }
                     }
                   },
                   {
-                    "uuid": "7bb83810-64eb-4b20-a42d-0ea21e2f1289",
+                    "uuid": "acc67114-439e-48ad-a3a3-8a76ee90eb03",
                     "type": "str",
                     "meta": {
                       "decl_id": "target_socket"
                     },
                     "data": {
                       "value": {
-                        "Str": "value1"
+                        "Str": "trigger"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "On False",
+                  "tags": [
+                    "alchemist.anode.type:chataigne.outputs_manager"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "c9ef1f17-95cf-45f2-acf2-64aa5637ce85",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          21.948595196842792,
+                          13.091124567872464
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "1cfbd580-9658-4fe6-b2b5-b131369d1665",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "9833f8c8-02d5-48a9-9a54-9864b22fde12",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "On False",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "outputsCopy"
+                              ],
+                              "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "943f2149-5e89-429c-abb9-f08a2363cce3",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log"
+                        },
+                        "data": {
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "1eba2238-9bc3-48e5-8374-1e2f3c636583",
+                "type": "alchemist_connection",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "connection",
+                  "short_name": "connection",
+                  "label": "Connection",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "b4a9249d-8711-4e25-ad98-48ba256a6da6",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Conditions",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "d7776e36-6b68-4933-b91c-2f384247b4c2",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "on_false"
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "fd28ac0d-5f35-4cae-b185-b3b7a085be8b",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "On False",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "10df07b6-490a-4558-a577-cf98f7758386",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "trigger"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "uuid": "be770141-b139-4d59-8e62-749ff5531499",
+            "type": "alchemist_formula",
+            "user_role": "itemRoot",
+            "meta": {
+              "label": "Mapping"
+            },
+            "children": [
+              {
+                "uuid": "fdf3955b-6950-4e18-9db5-fc7e2508b758",
+                "type": "alchemist_properties",
+                "meta": {
+                  "decl_id": "properties"
+                },
+                "children": [
+                  {
+                    "uuid": "bd62e7ff-b5ca-413f-9fdf-8887b8d90847",
+                    "type": "alchemist_property_manager",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Inputs",
+                      "tags": [
+                        "alchemist.manager.role:input"
+                      ],
+                      "presentation": {
+                        "color": {
+                          "r": 0.38710000000000006,
+                          "g": 0.833,
+                          "b": 0.14700000000000002,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "c3fc7b15-3a7d-4852-ab4f-d1bd5ab48084",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "input"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "be75e7d3-d64e-44ff-9a3f-ec28b5ad8dce",
+                    "type": "alchemist_property_manager",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Filters",
+                      "tags": [
+                        "alchemist.manager.role:filter"
+                      ],
+                      "presentation": {
+                        "color": {
+                          "r": 0.57128,
+                          "g": 0.8528,
+                          "b": 0.2272,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "dcc626a4-0bf0-4b35-a3bb-0c46ecf15c55",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "filter"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "36605765-d71b-4644-99c1-bcdb8e632617",
+                    "type": "alchemist_property_manager",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Outputs",
+                      "tags": [
+                        "alchemist.manager.role:output"
+                      ],
+                      "presentation": {
+                        "color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3cd702dc-ca3c-4285-b25e-6b67d7a843cd",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "output"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "fd181507-c241-49a4-ac90-42265163e724",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "Inputs",
+                  "tags": [
+                    "alchemist.anode.type:chataigne.inputs_manager"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.38710000000000006,
+                      "g": 0.833,
+                      "b": 0.14700000000000002,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "43073a66-d299-48c5-a801-9b5e889a18ed",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          7.569212584148401,
+                          2.958666437005537
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "5d124b59-692e-4790-97fb-0f0db3058f4d",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          12.546935645414935,
+                          5.006937934233295
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "dddbbf4d-4b55-494f-a134-1ffd82079421",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "57ed240f-a9d6-4688-a1a2-35ef611f8f16",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Inputs",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "manager"
+                              ],
+                              "uuid": "bd62e7ff-b5ca-413f-9fdf-8887b8d90847"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "31a8a7de-9e20-416d-adb4-f6f07e033684",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "Filters",
+                  "tags": [
+                    "alchemist.anode.type:chataigne.filters_manager"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.57128,
+                      "g": 0.8528,
+                      "b": 0.2272,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "c035af24-ef36-47ae-90e0-1abeaf5034d0",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          11.253985810686236,
+                          10.513008139736314
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "8ac4a0c6-246c-473f-add7-fd235276adb7",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          16.10333305204963,
+                          4.109999999999999
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "931af112-a995-4491-add0-4b86bbc554b5",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "38abd2b8-7e2e-4876-9f5b-fc14498d901c",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Filters",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "manager"
+                              ],
+                              "uuid": "be75e7d3-d64e-44ff-9a3f-ec28b5ad8dce"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "81963590-2306-4880-8b75-fd23f4301206",
+                "type": "alchemist_connection",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "connection",
+                  "short_name": "connection",
+                  "label": "Connection",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "b7ba431a-14ad-4f0e-83a0-beea5e825e70",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Inputs",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "fd181507-c241-49a4-ac90-42265163e724"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "1f7c1630-74cb-48f5-ae22-5ce6a5583915",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "values"
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "bbd08798-7211-4f57-a4b3-66ee1b211552",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Filters",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "31a8a7de-9e20-416d-adb4-f6f07e033684"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "616e858e-1e06-41e8-a230-0d17cbdcd3c3",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "values"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "a83ffdc3-c9bc-47c6-9fd1-5e994ea216f6",
+                "type": "alchemist_anode",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "anode",
+                  "short_name": "anode",
+                  "can_be_disabled": true,
+                  "label": "Outputs",
+                  "tags": [
+                    "alchemist.anode.type:chataigne.outputs_manager"
+                  ],
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  },
+                  "presentation": {
+                    "color": {
+                      "r": 0.5138466666666668,
+                      "g": 0.8476999999999999,
+                      "b": 0.13230000000000003,
+                      "a": 1.0
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "284128cb-5cf8-4ff6-97fb-d892314dc077",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          32.7517038906632,
+                          7.789703502785773
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "e4ae306c-99f1-433c-93f2-7130736d9eb3",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config"
+                    },
+                    "children": [
+                      {
+                        "uuid": "42e01ba7-2e51-43d8-97c1-b22d20292ea3",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "config/manager_id"
+                        },
+                        "data": {
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Outputs",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula",
+                                "properties",
+                                "manager"
+                              ],
+                              "uuid": "36605765-d71b-4644-99c1-bcdb8e632617"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "685110cf-594f-4b5e-9c90-c23e33a11cc6",
+                "type": "alchemist_connection",
+                "user_role": "itemRoot",
+                "meta": {
+                  "decl_id": "connection",
+                  "short_name": "connection",
+                  "label": "Connection",
+                  "user_permissions": {
+                    "can_edit_name": true,
+                    "can_remove_and_duplicate": true,
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "d2b7dcbe-0784-4b3c-92c0-50226f8dc294",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Filters",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "31a8a7de-9e20-416d-adb4-f6f07e033684"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "faa31f84-f3f9-4dbf-8446-02d0fa9f5e75",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "values"
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "1048af7f-9be7-4cf0-b701-aaabfdf07569",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Outputs",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "a83ffdc3-c9bc-47c6-9fd1-5e994ea216f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "7d0e1897-d855-4162-bea5-ffb6f0e46f00",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "values"
                       }
                     }
                   }
@@ -386,20 +1079,67 @@
         ]
       },
       {
-        "uuid": "765323d3-8d56-4bf6-889e-94e6f151998a",
-        "type": "module_manager"
+        "uuid": "45ca9bee-38ec-4507-9498-6a10de15837f",
+        "type": "module_manager",
+        "children": [
+          {
+            "uuid": "2e2e90ee-8530-48f9-ade2-f42c3027cf62",
+            "type": "buttplug_module",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "5eec506a-012a-4372-a3d0-0e390f34d10f",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "connection"
+                },
+                "children": [
+                  {
+                    "uuid": "d35a7968-2beb-4509-8009-197fec2e2149",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "connection/remote_host",
+                      "presentation": {}
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "86a29c94-7fdf-4746-89b2-6a15f9907b23",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "parameters"
+                },
+                "children": [
+                  {
+                    "uuid": "849816d0-b2ab-4325-a28a-4c125845bef3",
+                    "type": "float",
+                    "meta": {
+                      "decl_id": "parameters/max_output"
+                    },
+                    "data": {
+                      "value": {
+                        "Float": 0.5423160331554915
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       {
-        "uuid": "ea58c5b8-9ccc-4908-8f7f-a66d1c355e06",
+        "uuid": "cb242474-2a5c-4225-946c-b7ecd068c7b5",
         "type": "state_machine_manager",
         "children": [
           {
-            "uuid": "7d9e94c1-d913-4cb7-af72-63f1789e99d9",
+            "uuid": "9e7b4fe5-7429-4419-9565-f0ee04cd70ce",
             "type": "state",
             "user_role": "itemRoot",
             "children": [
               {
-                "uuid": "54520638-ee24-4c9f-8f4d-bd7469049a80",
+                "uuid": "7918f39b-64fd-4fea-9e1b-647ba23b5106",
                 "type": "vec2",
                 "meta": {
                   "decl_id": "position"
@@ -407,30 +1147,14 @@
                 "data": {
                   "value": {
                     "Vec2": [
-                      93.0,
-                      16.5
+                      83.72772038731766,
+                      26.760549543575372
                     ]
                   }
                 }
               },
               {
-                "uuid": "486a5b04-3b18-4781-a55b-277d46c8fd48",
-                "type": "vec2",
-                "meta": {
-                  "decl_id": "size",
-                  "enabled": true
-                },
-                "data": {
-                  "value": {
-                    "Vec2": [
-                      18.09404775856326,
-                      13.09404902039818
-                    ]
-                  }
-                }
-              },
-              {
-                "uuid": "a0f941fd-7c7d-40e7-8ae6-b743fc4af975",
+                "uuid": "af281162-f216-4f6c-9620-ab0a5b858a43",
                 "type": "state_processor_manager",
                 "meta": {
                   "decl_id": "processors",
@@ -440,15 +1164,22 @@
                 },
                 "children": [
                   {
-                    "uuid": "59c382cc-b9e2-4064-a361-d4cf121133ae",
+                    "uuid": "ad66c22f-470f-4680-8013-974717007e86",
                     "type": "state_processor",
                     "user_role": "itemRoot",
                     "meta": {
                       "label": "Formula"
                     },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "be770141-b139-4d59-8e62-749ff5531499"
+                        }
+                      }
+                    },
                     "children": [
                       {
-                        "uuid": "dd6ad4b9-5159-4ca6-9d69-a4359775e0d3",
+                        "uuid": "26b683a3-c822-427c-9c09-31ebfca7ada1",
                         "type": "reference",
                         "meta": {
                           "decl_id": "formula"
@@ -456,53 +1187,537 @@
                         "data": {
                           "default_value": {
                             "Reference": {
-                              "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab"
+                              "uuid": "be770141-b139-4d59-8e62-749ff5531499"
                             }
                           },
                           "value": {
                             "Reference": {
-                              "cached_name": "Formula",
-                              "uuid": "1b2bd2f7-2a32-45b9-92c0-8103a3f53dab"
+                              "cached_name": "Mapping",
+                              "uuid": "be770141-b139-4d59-8e62-749ff5531499"
                             }
                           }
                         }
                       },
                       {
-                        "uuid": "386e5945-ffd1-4eaf-8182-5c4abaea9cc2",
+                        "uuid": "40fa67fd-e712-45c5-a767-a85477c9543c",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:be770141-b139-4d59-8e62-749ff5531499"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "11885dac-5fc6-4fd8-83e8-ee673a4a407c",
                         "type": "state_processor_properties",
                         "children": [
                           {
-                            "uuid": "b9a25719-2330-4781-9abb-1c67eebe28cc",
-                            "type": "float",
+                            "uuid": "b3814197-4b15-4f06-ae53-0f844ac237da",
+                            "type": "sm_inputs_manager",
                             "meta": {
-                              "decl_id": "surface/a2ce9457-d058-46ac-8be5-858401790157",
-                              "label": "Float"
-                            }
-                          },
-                          {
-                            "uuid": "cdd0a576-b635-427b-9896-5dc8d3414160",
-                            "type": "str",
-                            "meta": {
-                              "decl_id": "surface/afc328a8-bda4-4aae-93ee-5c0287601f86",
-                              "short_name": "string",
-                              "label": "String"
-                            }
-                          },
-                          {
-                            "uuid": "213dfe76-28b7-4dc1-b579-bbfd2f8ae8c4",
-                            "type": "float",
-                            "meta": {
-                              "decl_id": "surface/209dc863-7624-43a5-bfad-87ec7bacc192",
-                              "short_name": "floatCopy",
-                              "label": "Float Copy"
+                              "decl_id": "surface/bd62e7ff-b5ca-413f-9fdf-8887b8d90847"
                             },
-                            "data": {
-                              "default_value": {
-                                "Float": 3.7000000000000535
-                              },
-                              "value": {
-                                "Float": 3.7000000000000535
+                            "children": [
+                              {
+                                "uuid": "b698e7bd-d8ee-4896-8f65-14150dab7f9d",
+                                "type": "sm_input_source",
+                                "user_role": "itemRoot",
+                                "meta": {
+                                  "presentation": {
+                                    "collapsed": true
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "uuid": "a61e0eb1-d009-4f68-8c72-761919ea67ce",
+                                    "type": "reference",
+                                    "meta": {
+                                      "decl_id": "source"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Reference": {
+                                          "cached_name": "Max Output",
+                                          "relative_path_from_root": [
+                                            "moduleManager",
+                                            "module",
+                                            "parameters",
+                                            "parameters/max_output"
+                                          ],
+                                          "uuid": "849816d0-b2ab-4325-a28a-4c125845bef3"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
                               }
+                            ]
+                          },
+                          {
+                            "uuid": "8f69b77b-3d9d-4386-a6ee-2fdb22b8f034",
+                            "type": "sm_filter_chain_manager",
+                            "meta": {
+                              "decl_id": "surface/be75e7d3-d64e-44ff-9a3f-ec28b5ad8dce",
+                              "label": "Filters"
+                            }
+                          },
+                          {
+                            "uuid": "62188e8f-a21a-49c7-b794-56cd49f5c9f4",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/36605765-d71b-4644-99c1-bcdb8e632617"
+                            },
+                            "children": [
+                              {
+                                "uuid": "68e3bfc3-ef95-4de0-9dfd-2897896fcb3d",
+                                "type": "joycon_vibrate_command",
+                                "user_role": "itemRoot"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "b3696236-54b5-425f-8cfc-8394277a5014",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Action"
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "8df2479c-bc1a-465f-8afc-b601da194957",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "2a39967d-5f0e-4094-9cfe-3598937bc2a4",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "933dd097-3ed9-4350-9a74-46c7d8a805a7",
+                        "type": "state_processor_properties",
+                        "children": [
+                          {
+                            "uuid": "54e2fa6a-dff2-4910-a722-ed0ff93f3a52",
+                            "type": "sm_condition_manager",
+                            "meta": {
+                              "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf"
+                            },
+                            "children": [
+                              {
+                                "uuid": "e8936920-fb65-466a-8d2b-ad68747229e6",
+                                "type": "sm_input_value_condition",
+                                "user_role": "itemRoot",
+                                "meta": {
+                                  "decl_id": "inputValue",
+                                  "short_name": "inputValue",
+                                  "can_be_disabled": true,
+                                  "label": "Input Value",
+                                  "user_permissions": {
+                                    "can_edit_name": true,
+                                    "can_remove_and_duplicate": true,
+                                    "can_edit_constraints": true,
+                                    "can_edit_tags": true,
+                                    "can_edit_color": true
+                                  },
+                                  "presentation": {
+                                    "collapsed": true
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "uuid": "86107146-b97b-420e-ab6b-485449fb9cb2",
+                                    "type": "reference",
+                                    "meta": {
+                                      "decl_id": "source"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Reference": {
+                                          "cached_name": "Max Output",
+                                          "relative_path_from_root": [
+                                            "moduleManager",
+                                            "module",
+                                            "parameters",
+                                            "parameters/max_output"
+                                          ],
+                                          "uuid": "849816d0-b2ab-4325-a28a-4c125845bef3"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "fc895c54-096a-43bd-b3f2-4d340c06e5b6",
+                                    "type": "enum",
+                                    "meta": {
+                                      "decl_id": "comparator"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Enum": "greater_than"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "3ccf50be-fc9a-4f1a-b0bc-f6883d1bd58d",
+                                    "type": "float",
+                                    "meta": {
+                                      "decl_id": "reference"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Float": 0.7000000000000001
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "uuid": "0181c03d-0e70-4a56-852b-f65d95bef878",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                              "label": "On True"
+                            }
+                          },
+                          {
+                            "uuid": "5f701f47-a03f-4e21-942c-3327a1917ba7",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                              "label": "On False"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "cceeaca3-9bab-488d-a5c0-5837f449d841",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "decl_id": "actionCopy",
+                      "short_name": "actionCopy",
+                      "label": "Action Copy"
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "b4957b14-b6b3-4f4f-9b96-dc43d3670f6a",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "f4b04554-de31-4556-abdf-881806a09694",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "3d56b74b-6e6e-440f-9245-7c4d4f25fc31",
+                        "type": "state_processor_properties",
+                        "children": [
+                          {
+                            "uuid": "64e16a53-494a-415d-af16-6d54961ffe93",
+                            "type": "sm_condition_manager",
+                            "meta": {
+                              "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf"
+                            },
+                            "children": [
+                              {
+                                "uuid": "b9f3657a-288f-4b2f-886b-49470939b7d4",
+                                "type": "sm_input_value_condition",
+                                "user_role": "itemRoot",
+                                "meta": {
+                                  "decl_id": "inputValue",
+                                  "short_name": "inputValue",
+                                  "can_be_disabled": true,
+                                  "label": "Input Value",
+                                  "user_permissions": {
+                                    "can_edit_name": true,
+                                    "can_remove_and_duplicate": true,
+                                    "can_edit_constraints": true,
+                                    "can_edit_tags": true,
+                                    "can_edit_color": true
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "uuid": "f4254023-2f0a-4e93-b535-abb341400031",
+                                    "type": "reference",
+                                    "meta": {
+                                      "decl_id": "source"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Reference": {
+                                          "cached_name": "Max Output",
+                                          "relative_path_from_root": [
+                                            "moduleManager",
+                                            "module",
+                                            "parameters",
+                                            "parameters/max_output"
+                                          ],
+                                          "uuid": "849816d0-b2ab-4325-a28a-4c125845bef3"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "670a2348-0986-4324-8e45-7278eeeacb2c",
+                                    "type": "enum",
+                                    "meta": {
+                                      "decl_id": "comparator"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Enum": "less_than"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "5a7d183a-9998-4f6b-bda0-f5479914b3ee",
+                                    "type": "float",
+                                    "meta": {
+                                      "decl_id": "reference"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Float": 0.40000000000000013
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "uuid": "4a87ae21-4b4b-4642-9f54-9606dc1d4b4b",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                              "label": "On True"
+                            }
+                          },
+                          {
+                            "uuid": "8a87af12-d111-43dc-ae8a-682f691f5885",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                              "label": "On False"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "bb34d760-dc66-45fa-ac0e-0e95ba2d12a1",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "decl_id": "actionCopy2",
+                      "short_name": "actionCopy2",
+                      "label": "Action Copy 2"
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "c9f7fe5c-ee79-4fcd-8082-e8856a34cde2",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "cef6bf4f-c6c9-4123-a367-788b85a000d3",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "bd88baa1-7fb1-48a6-a579-43c36ec92055",
+                        "type": "state_processor_properties",
+                        "children": [
+                          {
+                            "uuid": "a8f3ebf6-3cf2-4b97-9337-fe6196f46926",
+                            "type": "sm_condition_manager",
+                            "meta": {
+                              "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf"
+                            },
+                            "children": [
+                              {
+                                "uuid": "a3aedb58-92f7-49b4-b3ff-6e5bfa1e6771",
+                                "type": "sm_input_value_condition",
+                                "user_role": "itemRoot",
+                                "meta": {
+                                  "decl_id": "inputValue",
+                                  "short_name": "inputValue",
+                                  "can_be_disabled": true,
+                                  "label": "Input Value",
+                                  "user_permissions": {
+                                    "can_edit_name": true,
+                                    "can_remove_and_duplicate": true,
+                                    "can_edit_constraints": true,
+                                    "can_edit_tags": true,
+                                    "can_edit_color": true
+                                  }
+                                },
+                                "children": [
+                                  {
+                                    "uuid": "62ed4590-c3ef-4460-afb0-f11ad814db09",
+                                    "type": "reference",
+                                    "meta": {
+                                      "decl_id": "source"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Reference": {
+                                          "cached_name": "Max Output",
+                                          "relative_path_from_root": [
+                                            "moduleManager",
+                                            "module",
+                                            "parameters",
+                                            "parameters/max_output"
+                                          ],
+                                          "uuid": "849816d0-b2ab-4325-a28a-4c125845bef3"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "8c083689-2fbf-4d0c-968c-cff4c658647c",
+                                    "type": "enum",
+                                    "meta": {
+                                      "decl_id": "comparator"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Enum": "greater_than"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "c20a0c3f-a7c3-4c4b-b44f-ac2cd9041b63",
+                                    "type": "float",
+                                    "meta": {
+                                      "decl_id": "reference"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Float": 0.40000000000000013
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "uuid": "fe3f76ec-743d-48dc-9a7c-41d7adfc4185",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                              "label": "On True"
+                            }
+                          },
+                          {
+                            "uuid": "cef8ea9f-ea0d-4110-b301-7854e98ce8ae",
+                            "type": "sm_outputs_manager",
+                            "meta": {
+                              "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                              "label": "On False"
                             }
                           }
                         ]

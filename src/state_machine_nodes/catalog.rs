@@ -1,4 +1,10 @@
-use std::{collections::HashSet, error::Error, fmt, sync::Arc};
+use std::{
+    collections::HashSet,
+    error::Error,
+    fmt, fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use chataigne_state_machine::ProcessorFormulaUiState;
 use golden_alchemist::{
@@ -15,19 +21,11 @@ use crate::app::state_machine_nodes_formula::formula_from_snapshot;
 
 use super::{find_formula_library, FORMULA_NODE_TYPE, PROCESSOR_ITEM_KIND};
 
-const BUILTIN_FORMULA_PACKAGE_SOURCE: &str =
-    include_str!("builtin_formulas/chataigne.formulas.json");
 pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const PROCESSOR_BUILTIN_CREATE_PREFIX: &str = "state_processor:builtin:";
-#[cfg(test)]
-pub(crate) const BUILTIN_FORMULA_PACKAGE: &str = "chataigne";
-#[cfg(test)]
-pub(crate) const BUILTIN_ACTION_FORMULA_ID: &str = "action";
-#[cfg(test)]
-pub(crate) const BUILTIN_MAPPING_FORMULA_ID: &str = "mapping";
-#[cfg(test)]
-pub(crate) const BUILTIN_FORMULA_VERSION: u32 = 1;
+const BUILTIN_FORMULA_DIR_ENV: &str = "CHATAIGNE_BUILTIN_FORMULAS_DIR";
+const BUILTIN_FORMULA_DIR: &str = "builtin_formulas";
 
 #[derive(Clone, Debug)]
 pub(crate) enum FormulaSourceRef {
@@ -326,8 +324,7 @@ impl FormulaCatalog {
     }
 
     pub(crate) fn with_builtins() -> Self {
-        Self::from_builtin_package_source(BUILTIN_FORMULA_PACKAGE_SOURCE)
-            .expect("embedded Chataigne built-in formula package should load")
+        Self::from_builtin_package_dir(builtin_formula_package_dir()).unwrap_or_default()
     }
 
     pub(crate) fn from_builtin_package_source(
@@ -337,6 +334,45 @@ impl FormulaCatalog {
         Ok(Self {
             entries: package.into_entries()?,
         })
+    }
+
+    fn from_builtin_package_dir(
+        path: impl AsRef<Path>,
+    ) -> Result<Self, BuiltinFormulaPackageError> {
+        let path = path.as_ref();
+        let entries = match fs::read_dir(path) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Self::default());
+            }
+            Err(error) => {
+                return Err(BuiltinFormulaPackageError::Io {
+                    path: path.to_path_buf(),
+                    source: error,
+                });
+            }
+        };
+
+        let mut catalog = Self::default();
+        for entry in entries {
+            let entry = entry.map_err(|error| BuiltinFormulaPackageError::Io {
+                path: path.to_path_buf(),
+                source: error,
+            })?;
+            let package_path = entry.path();
+            if package_path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                continue;
+            }
+            let source =
+                fs::read_to_string(&package_path).map_err(|error| BuiltinFormulaPackageError::Io {
+                    path: package_path.clone(),
+                    source: error,
+                })?;
+            catalog
+                .entries
+                .extend(Self::from_builtin_package_source(&source)?.entries);
+        }
+        Ok(catalog)
     }
 
     fn add_project_formulas(&mut self, snapshot: &ProcessTreeSnapshot, library: NodeId) {
@@ -463,6 +499,12 @@ impl FormulaCatalog {
             })
             .collect()
     }
+}
+
+fn builtin_formula_package_dir() -> PathBuf {
+    std::env::var_os(BUILTIN_FORMULA_DIR_ENV)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(BUILTIN_FORMULA_DIR))
 }
 
 #[derive(Debug, Deserialize)]
@@ -599,6 +641,10 @@ const fn default_builtin_processor_template() -> bool {
 #[derive(Debug)]
 pub(crate) enum BuiltinFormulaPackageError {
     Decode(serde_json::Error),
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     EmptyPackage,
     EmptyFormulaId { package: String },
     DuplicateFormula { source: String },
@@ -608,6 +654,11 @@ impl fmt::Display for BuiltinFormulaPackageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Decode(error) => write!(f, "failed to decode builtin formula package: {error}"),
+            Self::Io { path, source } => write!(
+                f,
+                "failed to read builtin formula package path '{}': {source}",
+                path.display()
+            ),
             Self::EmptyPackage => write!(f, "builtin formula package has an empty package id"),
             Self::EmptyFormulaId { package } => {
                 write!(f, "builtin formula package '{package}' contains an empty formula id")

@@ -1,8 +1,12 @@
 use golden_core::{
-    node,
-    node::{Node, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    item, node,
+    node::{Node, NodeReference, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    parameter::ReferenceTargetKind,
     process_ctx::ProcessCtx,
 };
+
+const INPUT_ITEM_KIND: &str = "sm_input";
+const OUTPUT_ITEM_KIND: &str = "sm_output";
 
 fn locked_manager_permissions() -> NodeUserPermissions {
     let mut p = NodeUserPermissions::all();
@@ -100,9 +104,49 @@ pub struct InputsManager {}
 
 #[node("sm_inputs_manager", from_struct)]
 impl Node for InputsManager {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[INPUT_ITEM_KIND]))
+    }
+
+    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
+        item_kind == INPUT_ITEM_KIND
+            && crate::app::declared_user_item_type_matches(item_type, INPUT_ITEM_KIND)
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        crate::app::declared_user_creatable_items(INPUT_ITEM_KIND)
+            .into_iter()
+            .map(|item| item.with_select_when_created(false))
+            .collect()
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        crate::app::create_declared_user_item(node_type, INPUT_ITEM_KIND)
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = locked_manager_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
+    }
+}
+
+#[node("sm_input_source", label = "Input Source")]
+#[children(
+    source: NodeReference (
+        label = "Source",
+        reference_target_kind = ReferenceTargetKind::ParameterOnly
+    );
+)]
+pub struct InputSource {}
+
+#[item("sm_input", node = "sm_input_source", from_struct)]
+impl Node for InputSource {
+    fn init(&mut self, _ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+    }
+
+    fn project_create(node_type: &str) -> Option<Self> {
+        (node_type == Self::NODE_TYPE).then(Self::new)
     }
 }
 
@@ -143,23 +187,43 @@ pub struct OutputsManager {}
 #[node("sm_outputs_manager", from_struct)]
 impl Node for OutputsManager {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&["sm_output"]))
+        Some(UserContainerRules::new(&[
+            OUTPUT_ITEM_KIND,
+            crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+        ]))
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == "sm_output"
-            && crate::app::declared_user_item_type_matches(item_type, "sm_output")
+        matches!(item_kind, OUTPUT_ITEM_KIND)
+            && crate::app::declared_user_item_type_matches(item_type, OUTPUT_ITEM_KIND)
+            || item_kind == crate::app::module_command::MODULE_COMMAND_ITEM_KIND
+                && crate::app::declared_user_item_type_matches(
+                    item_type,
+                    crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+                )
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        crate::app::declared_user_creatable_items("sm_output")
+        crate::app::declared_user_creatable_items(OUTPUT_ITEM_KIND)
             .into_iter()
             .map(|item| item.with_select_when_created(false))
+            .chain(
+                crate::app::declared_user_creatable_items(
+                    crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+                )
+                .into_iter()
+                .map(|item| item.with_select_when_created(false)),
+            )
             .collect()
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        crate::app::create_declared_user_item(node_type, "sm_output")
+        crate::app::create_declared_user_item(node_type, OUTPUT_ITEM_KIND).or_else(|| {
+            crate::app::create_declared_user_item(
+                node_type,
+                crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+            )
+        })
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

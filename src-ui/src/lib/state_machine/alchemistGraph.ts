@@ -27,16 +27,7 @@ export const isValueTypeConfigDecl = (declId: string | null | undefined): boolea
 	declId === VALUE_TYPE_CONFIG_DECL_ID ||
 	(typeof declId === 'string' && declId.startsWith('config/') && declId.endsWith('__type'));
 
-export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
-export const MANAGER_REF_TYPE_INPUTS = 'chataigne.inputs_manager';
-export const MANAGER_REF_TYPE_OUTPUTS = 'chataigne.outputs_manager';
 export const ROUTING_ANODE_TYPE = 'chataigne.routing';
-
-const MANAGER_REF_TYPES = new Set([
-	MANAGER_REF_TYPE_CONDITIONS,
-	MANAGER_REF_TYPE_INPUTS,
-	MANAGER_REF_TYPE_OUTPUTS
-]);
 
 const ROUTING_NODE_SIZE = { width: 5.5, height: 2.7 };
 
@@ -116,19 +107,6 @@ export const anodeDefaultColor = (family: string, typeId: string): string => {
 	const saturation = (62 + ((variation >>> 8) % 16)) / 100;
 	const lightness = (48 + ((variation >>> 16) % 12)) / 100;
 	return hslToCssRgb(hue, saturation, lightness);
-};
-
-export const managerAnodeType = (role: string): string => {
-	switch (role) {
-		case 'condition':
-			return MANAGER_REF_TYPE_CONDITIONS;
-		case 'input':
-			return MANAGER_REF_TYPE_INPUTS;
-		case 'output':
-			return MANAGER_REF_TYPE_OUTPUTS;
-		default:
-			return '';
-	}
 };
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
@@ -571,9 +549,8 @@ export const toGraphNodes = (
 				? sizeParameter.data.param.value
 				: null;
 		const typeId = anodeType(anode);
-		const managerRef = MANAGER_REF_TYPES.has(typeId);
 		const routingNode = typeId === ROUTING_ANODE_TYPE;
-		const compactNode = managerRef || routingNode;
+		const compactNode = routingNode;
 		const description = anode.meta.description?.trim();
 		const inputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
 		const outputs = graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket');

@@ -78,14 +78,14 @@ fn output_preview_sample_dto_keeps_formula_processor_lane_and_exec_identity() {
 }
 
 #[test]
-fn processor_ui_dto_preserves_builtin_formula_actions() {
+fn processor_ui_dto_preserves_builtin_formula_source_state() {
     let model = ProcessorUiModel {
         id: ProcessorId::new(),
-        label: "Mapping".into(),
+        label: "Formula".into(),
         active: true,
-        formula_id: "chataigne.mapping@1".into(),
-        formula_label: "Mapping".into(),
-        formula_source_key: Some("state_processor:builtin:chataigne.mapping@1".into()),
+        formula_id: "example.formula@1".into(),
+        formula_label: "Formula".into(),
+        formula_source_key: Some("state_processor:builtin:example.formula@1".into()),
         surface: FormulaSurface {
             sections: Vec::new(),
             managed_regions: Vec::new(),
@@ -103,7 +103,7 @@ fn processor_ui_dto_preserves_builtin_formula_actions() {
     ));
     assert_eq!(
         dto.formula_source_key.as_deref(),
-        Some("state_processor:builtin:chataigne.mapping@1")
+        Some("state_processor:builtin:example.formula@1")
     );
     assert!(dto.formula_open_readonly_from_processor);
     assert!(dto.formula_can_duplicate_to_library);

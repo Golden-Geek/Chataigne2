@@ -64,10 +64,12 @@ const PROPERTY_ANODE_TYPE: &str = "property";
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
 pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
     "managed_regions_json";
+#[cfg(test)]
 pub(crate) const FORMULA_DUPLICATE_SOURCE_DECL_ID: &str =
     "duplicate_from_formula_source";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
+const PROPERTY_MANAGER_ROLE_TAG_PREFIX: &str = "alchemist.manager.role:";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
 const FORMULA_DUPLICATE_SOURCE_WARNING_ID: &str =
     "alchemist_formula_duplicate_source";
@@ -142,6 +144,34 @@ fn anode_default_color(family: &str, type_id: &str) -> Color {
     hsl_color(f64::from(hue), saturation, lightness)
 }
 
+fn manager_role_anode_type(role: &str) -> Option<&'static str> {
+    match role {
+        "condition" => Some(chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE),
+        "filter" => Some(chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE),
+        "input" => Some(chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE),
+        "output" => Some(chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE),
+        _ => None,
+    }
+}
+
+fn property_manager_role_from_tags(tags: &[String]) -> Option<String> {
+    tagged_value(tags, PROPERTY_MANAGER_ROLE_TAG_PREFIX)
+        .map(str::trim)
+        .filter(|role| manager_role_anode_type(role).is_some())
+        .map(ToOwned::to_owned)
+}
+
+fn property_manager_role_from_label(label: &str) -> Option<&'static str> {
+    PROPERTY_MANAGER_ROLES
+        .iter()
+        .find(|(_, candidate)| *candidate == label)
+        .map(|(role, _)| *role)
+}
+
+fn manager_role_color(role: &str) -> Option<Color> {
+    manager_role_anode_type(role).map(|type_id| anode_default_color("Managers", type_id))
+}
+
 fn value_type_color(type_id: &str) -> Color {
     match type_id {
         "trigger" => Color::new(0.98, 0.42, 0.22, 1.0),
@@ -151,6 +181,9 @@ fn value_type_color(type_id: &str) -> Color {
         "vec2" => Color::new(0.32, 0.72, 0.92, 1.0),
         "vec3" => Color::new(0.48, 0.58, 0.94, 1.0),
         "color" => Color::new(0.98, 0.36, 0.32, 1.0),
+        chataigne_state_machine::alchemist::VALUE_SET_TYPE => {
+            Color::new(0.28, 0.68, 0.72, 1.0)
+        }
         "value_array" => Color::new(0.51, 0.57, 0.63, 1.0),
         "reference" | "chataigne.module_endpoint" => {
             Color::new(0.64, 0.52, 0.92, 1.0)
@@ -619,12 +652,41 @@ fn property_meta_by_uuid(
         let Some(node) = snapshot.node(candidate) else {
             continue;
         };
-        if node.node_type == PROPERTY_NODE_TYPE && node.uuid == property_uuid {
-            return Some((node.label.clone(), node.presentation.color));
+        if matches!(
+            node.node_type.as_str(),
+            PROPERTY_NODE_TYPE | PROPERTY_MANAGER_NODE_TYPE
+        ) && node.uuid == property_uuid
+        {
+            let color = if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
+                node.presentation.color.or_else(|| {
+                    child_string(snapshot, candidate, "role")
+                        .and_then(|role| manager_role_color(&role))
+                })
+            } else {
+                node.presentation.color
+            };
+            return Some((node.label.clone(), color));
         }
         pending.extend(snapshot.child_ids(candidate));
     }
     None
+}
+
+fn manager_anode_uses_property_ref(type_id: &str) -> bool {
+    matches!(
+        type_id,
+        chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
+    )
+}
+
+fn anode_property_ref_config_decl_id(type_id: &str) -> Option<&'static str> {
+    if type_id == PROPERTY_ANODE_TYPE {
+        return Some("config/property_id");
+    }
+    manager_anode_uses_property_ref(type_id).then_some("config/manager_id")
 }
 
 fn constraint_value_type(
@@ -1418,15 +1480,7 @@ impl AlchemistANode {
         {
             self.remove_child(ctx, legacy_type_child);
         }
-        let manager_ref = matches!(
-            type_id.as_str(),
-            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
-        );
-        let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = !manager_ref;
-        self.node_data_mut().meta.user_permissions = permissions;
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = true;
         let registry = registry();
         let Some(declaration) = registry.get(&ANodeTypeId::new(&type_id)) else {
@@ -1709,16 +1763,19 @@ impl AlchemistANode {
     }
 
     fn mirror_property_reference_presentation(&mut self, ctx: &mut ProcessCtx) {
-        if anode_type_from_tags(&self.node_data().meta.tags).as_deref() != Some(PROPERTY_ANODE_TYPE) {
+        let Some(type_id) = anode_type_from_tags(&self.node_data().meta.tags) else {
             return;
-        }
+        };
+        let Some(config_decl_id) = anode_property_ref_config_decl_id(type_id.as_str()) else {
+            return;
+        };
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
         let Some(config) = snapshot.find_child_by_decl_id(self.id(), "config") else {
             return;
         };
-        let Some(property_uuid) = child_reference_uuid(&snapshot, config, "config/property_id") else {
+        let Some(property_uuid) = child_reference_uuid(&snapshot, config, config_decl_id) else {
             return;
         };
         let Some(formula) = snapshot.node(self.id()).and_then(|node| node.parent) else {
@@ -2092,10 +2149,11 @@ fn output_socket_tree(
         .with_child(NodeTree::new(value_type_param))
 }
 
-pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 3] = [
+pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 4] = [
     ("condition", "Conditions"),
+    ("filter", "Filters"),
     ("input", "Inputs"),
-    ("output", "Output Commands"),
+    ("output", "Outputs"),
 ];
 
 const PROPERTY_TYPES: [(&str, &str); 12] = [
@@ -2327,6 +2385,7 @@ impl Node for AlchemistPropertyFolder {
         label = "Role",
         enum_options = [
             "condition",
+            "filter",
             "input",
             "output"
         ],
@@ -2342,11 +2401,29 @@ impl Node for AlchemistPropertyManager {
         PROPERTY_MANAGER_ITEM_KIND
     }
 
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = false;
-        self.node_data_mut().meta.user_permissions = permissions;
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = false;
+        self.reconcile_role(ctx);
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.reconcile_role(ctx);
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        if param == self.role.id() {
+            self.reconcile_role(ctx);
+        }
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -2360,7 +2437,80 @@ impl AlchemistPropertyManager {
         manager
             .role
             .apply_runtime_value(&ParamValue::Enum(role.to_owned()));
+        set_tag(
+            &mut manager.node_data_mut().meta.tags,
+            PROPERTY_MANAGER_ROLE_TAG_PREFIX,
+            role,
+        );
+        manager.node_data_mut().meta.presentation.color = manager_role_color(role);
         manager
+    }
+
+    fn reconcile_role(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+
+        let tagged_role = property_manager_role_from_tags(&self.node_data().meta.tags);
+        let child_role = child_string(&snapshot, self.id(), "role")
+            .filter(|role| manager_role_anode_type(role).is_some());
+        let label_role =
+            property_manager_role_from_label(&self.node_data().meta.label).map(ToOwned::to_owned);
+        let Some(role) = tagged_role
+            .clone()
+            .or_else(|| {
+                let child_role = child_role.clone()?;
+                if child_role == "condition" {
+                    label_role
+                        .clone()
+                        .filter(|role| role != "condition")
+                        .or(Some(child_role))
+                } else {
+                    Some(child_role)
+                }
+            })
+            .or_else(|| label_role.clone())
+            .or_else(|| {
+                let fallback = self.role.get_ref();
+                (fallback.as_str() != "condition").then(|| fallback.as_str().to_owned())
+            })
+        else {
+            return;
+        };
+
+        if tagged_role.as_deref() != Some(role.as_str()) {
+            set_tag(
+                &mut self.node_data_mut().meta.tags,
+                PROPERTY_MANAGER_ROLE_TAG_PREFIX,
+                &role,
+            );
+        }
+        if self.node_data().meta.presentation.color.is_none() {
+            self.node_data_mut().meta.presentation.color = manager_role_color(&role);
+        }
+
+        if let Some(role_param) = snapshot.find_child_by_decl_id(self.id(), "role") {
+            let desired = ParamValue::Enum(role);
+            ctx.call_node_mutation(role_param, |node, _ctx| {
+                let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>()
+                else {
+                    return Err("expected an Alchemist manager role parameter".into());
+                };
+                parameter.persist_read_only_value = true;
+                Ok(())
+            });
+            if snapshot
+                .node(role_param)
+                .and_then(|node| node.param_value.as_ref())
+                != Some(&desired)
+            {
+                ctx.edits.push(Edit::SetParam {
+                    node: role_param,
+                    value: desired,
+                    behaviour: ParameterEventBehaviour::Coalesce,
+                });
+            }
+        }
     }
 }
 
@@ -3125,19 +3275,22 @@ impl AlchemistFormulaDefinition {
             let Some(anode) = snapshot.node(child) else {
                 continue;
             };
-            if anode.node_type != ANODE_NODE_TYPE
-                || anode_type_from_tags(&anode.tags).as_deref()
-                    != Some(PROPERTY_ANODE_TYPE)
-            {
+            if anode.node_type != ANODE_NODE_TYPE {
                 continue;
-            }
+            };
+            let Some(type_id) = anode_type_from_tags(&anode.tags) else {
+                continue;
+            };
+            let Some(config_decl_id) = anode_property_ref_config_decl_id(type_id.as_str()) else {
+                continue;
+            };
             let Some(config) =
                 snapshot.find_child_by_decl_id(child, "config")
             else {
                 continue;
             };
             let Some(property_uuid) =
-                child_reference_uuid(&snapshot, config, "config/property_id")
+                child_reference_uuid(&snapshot, config, config_decl_id)
             else {
                 continue;
             };

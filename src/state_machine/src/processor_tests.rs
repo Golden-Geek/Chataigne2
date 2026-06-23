@@ -749,14 +749,14 @@ fn processor_preview_capture_off_when_editor_not_visible() {
 fn formula_surface_is_present_in_ui_model() {
     let mut formula = formula();
     formula.surface.sections.push(SurfaceSection {
-        id: SurfaceSectionId::new("actions"),
-        label: "Actions".into(),
+        id: SurfaceSectionId::new("commands"),
+        label: "Commands".into(),
         items: vec![SurfaceItem {
             id: SurfaceItemId::new("run"),
             label: "Run".into(),
             description: None,
             path: Vec::new(),
-            kind: SurfaceItemKind::Action,
+            kind: SurfaceItemKind::Command,
             value_type: None,
             ui: golden_alchemist::ParamUiHints::default(),
             bindings: Vec::new(),
