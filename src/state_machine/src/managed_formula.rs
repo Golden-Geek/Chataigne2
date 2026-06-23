@@ -131,7 +131,7 @@ impl ManagedMappingRuntime {
 
         let filtered = match self.filter_pipeline.evaluate(input.value_set, ctx) {
             Ok(filtered) => filtered,
-            Err(error) => return runtime_error_output("managed_formula_filter_error", error),
+            Err(error) => return runtime_error_output(error),
         };
 
         match filtered {
@@ -165,7 +165,7 @@ impl ManagedActionRuntime {
 
         let value = match self.filter_pipeline.evaluate_single(value, ctx) {
             Ok(value) => value,
-            Err(error) => return runtime_error_output("managed_formula_action_filter_error", error),
+            Err(error) => return runtime_error_output(error),
         };
         merge_runtime_output(&mut output, self.commands.materialize(&value, ctx));
         output
@@ -779,9 +779,9 @@ fn should_emit(value: &RuntimeValue) -> bool {
     !matches!(value, RuntimeValue::Trigger(trigger) if !trigger.fired)
 }
 
-fn runtime_error_output(code: &'static str, error: ManagedFormulaError) -> RuntimeOutput {
+fn runtime_error_output(error: ManagedFormulaError) -> RuntimeOutput {
     RuntimeOutput {
-        diagnostics: vec![runtime_error(code, error)],
+        diagnostics: vec![runtime_error(error.diagnostic_code(), error)],
         ..RuntimeOutput::default()
     }
 }

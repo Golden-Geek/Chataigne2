@@ -120,6 +120,54 @@ fn managed_formula_runs_elementwise_filter_pipeline_before_outputs() {
 }
 
 #[test]
+fn managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix() {
+    let (formula, mut instance) = formula_and_instance();
+    let left = endpoint_ref("module/left");
+    let right = endpoint_ref("module/right");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("inputs"),
+        region(
+            "inputs",
+            vec![input_item("Left", left.clone()), input_item("Right", right.clone())],
+        ),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("filters"),
+        region("filters", vec![remap_item(0.0, 1.0, 0.0, 1.0)]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("outputs"),
+        region(
+            "outputs",
+            vec![
+                output_item("Left", command_target("target/left")),
+                output_item("Right", command_target("target/right")),
+            ],
+        ),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(left, RuntimeValue::Float(0.25));
+    inputs.insert(right, RuntimeValue::Bool(true));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(19, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert_eq!(output.diagnostics.len(), 1);
+    assert!(
+        output.diagnostics[0]
+            .message
+            .starts_with("managed_formula_mixed_valueset_types:")
+    );
+    assert!(output.intents.is_empty());
+}
+
+#[test]
 fn manager_filter_chain_matches_direct_anode_result() {
     let (formula, mut instance) = formula_and_instance();
     let source = endpoint_ref("module/value");

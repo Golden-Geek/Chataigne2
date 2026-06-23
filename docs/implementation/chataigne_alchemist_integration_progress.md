@@ -25,6 +25,9 @@ The first Phase 18 slice gives managed formula compile failures stable
 diagnostic codes derived from typed `ManagedFormulaError` variants, so callers
 can branch on missing regions, invalid command targets, invalid filter shapes,
 and related hardening failures without parsing prose.
+The second Phase 18 slice routes managed formula runtime filter failures
+through the same typed diagnostic-code mapping, replacing the previous generic
+filter-error prefixes for ValueSet/filter pipeline failures.
 
 ## Completed Tasks
 
@@ -1355,6 +1358,10 @@ and related hardening failures without parsing prose.
   into `managed_formula_compile_error`.
 - Missing Mapping regions and missing Action command targets are covered by
   explicit diagnostic-code tests.
+- Runtime managed filter failures now use `ManagedFormulaError` diagnostic
+  codes in their `RuntimeDiagnostic` message prefix, so mixed `ValueSet` types
+  report `managed_formula_mixed_valueset_types` instead of a generic filter
+  failure.
 
 ## Tests Added
 
@@ -1455,6 +1462,7 @@ and related hardening failures without parsing prose.
 - `invalid_duplicate_builtin_formula_source_warns_without_fake_metadata`
 - `managed_formula_missing_region_diagnostic_uses_specific_code`
 - `managed_formula_missing_action_command_target_uses_specific_code`
+- `managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix`
 - Updated `processor_ui_dto_preserves_builtin_formula_actions` to assert the
   exact built-in formula source key.
 - `cargo test app::state_machine_nodes_formula::formula_tests::duplicated_builtin_formula_copies_managed_region_surface_metadata -- --nocapture`
@@ -1467,8 +1475,10 @@ and related hardening failures without parsing prose.
   passed.
 - `cargo test -p chataigne_state_machine managed_formula_missing_action_command_target_uses_specific_code -- --nocapture`
   passed.
+- `cargo test -p chataigne_state_machine managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix -- --nocapture`
+  passed.
 - `cargo test -p chataigne_state_machine managed_formula -- --nocapture`
-  passed with 13 managed formula tests.
+  passed with 14 managed formula tests.
 - `cargo fmt --all` passed from the repository root,
   `submodules/golden_alchemist_core`, and `submodules/golden_core`.
 - `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
@@ -1480,6 +1490,9 @@ and related hardening failures without parsing prose.
   pre-manager-ref behavior.
 - After the first Phase 18 diagnostics slice, `cargo test --workspace` passed
   with 295 app tests and 78 state-machine tests. The existing 2 ignored
+  Alchemist tests remain ignored as stale pre-manager-ref behavior.
+- After the second Phase 18 diagnostics slice, `cargo test --workspace` passed
+  with 295 app tests and 79 state-machine tests. The existing 2 ignored
   Alchemist tests remain ignored as stale pre-manager-ref behavior.
 
 ## Supercommit History
@@ -1547,3 +1560,5 @@ and related hardening failures without parsing prose.
   `supercommit: chataigne alchemist integration phase 17 - builtin formula duplicate metadata`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 18 - managed formula diagnostic codes`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 18 - managed formula runtime diagnostics`
