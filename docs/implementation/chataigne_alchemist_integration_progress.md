@@ -2,8 +2,11 @@
 
 ## Current Phase
 
-Phase 18 - Diagnostics, migration, and hardening is in progress. Phase 17 is
-buildable: backend-owned managed processor regions are projected through
+Phase 19 - Final QA and architecture documentation is complete. All phases are
+completed or explicitly deferred. Phase 18 is buildable: diagnostics, migration
+choices, and hardening are documented and covered by targeted tests where
+practical. Phase 17 is buildable: backend-owned managed processor regions are
+projected through
 protocol DTOs and Svelte controls, processor-owned region folders host
 role-filtered ANode children, Action/Mapping creation is palette-grouped,
 Input/Filter/Output region creation plus sparse project save/reload are covered
@@ -592,14 +595,11 @@ but not yet supported `per_lane` gate application.
 
 ## Pending Tasks
 
-- Keep Phase 18 diagnostics/migration hardening focused on explicit failures:
-  invalid formula sources, missing catalog entries, managed-region shape
-  errors, missing runtime endpoints, invalid output targets, and unsupported
-  ValueSet transitions must keep returning diagnosable failures instead of
-  fallback values.
-- Keep broadcast/expand behavior explicit; `Expand` still needs a concrete
-  target axis from future InputSet/OutputSet metadata before production
-  lowering can safely materialize it.
+- No active implementation tasks remain in this plan.
+- Deferred items are listed in the Phase 19 deferred-items section: lane-aware
+  `ConditionGate` `per_lane` lowering, production `Expand` / broadcast target
+  axis selection, legacy wrapper migration policy, and broader manual UI
+  undo/redo hardening.
 
 ## Baseline Architecture Summary
 
@@ -1374,6 +1374,10 @@ but not yet supported `per_lane` gate application.
 - The reusable Alchemist `ConditionGate` runtime now has explicit regression
   coverage for the declared-but-unsupported `per_lane` application mode,
   preserving the diagnostic until lane-aware ValueSet lowering exists.
+- Updated `docs/architecture.md`, `docs/repo-map.md`, and
+  `docs/ALCHEMIST_FORMULA_RUNTIME.md` with the final managed processor
+  architecture, user/developer model, ValueSet/pipeline behavior, manager
+  bridges, diagnostics, and runtime intent boundaries.
 
 ## Phase 18 Diagnostics List
 
@@ -1420,6 +1424,113 @@ but not yet supported `per_lane` gate application.
 - Legacy wrapper nodes are still present for persistence compatibility, so the
   final migration policy must eventually decide whether to rewrite or reject
   old condition/filter manager items.
+
+## Phase 19 Final Architecture Summary
+
+- The Formula Catalog is the complete source resolver. The Formula Library is
+  only the editable project formula tree.
+- Built-in Action and Mapping are shipped formula catalog entries, hidden from
+  the Formula Library and visible in the Processor palette.
+- Processors persist typed formula sources. Project formulas resolve through
+  node references; built-ins resolve through package/formula/version keys.
+- Built-in Mapping owns Inputs / Filters / Outputs managed regions. Built-in
+  Action owns Trigger / Filters / Commands managed regions.
+- Managed regions are backend-owned processor folders projected by the Svelte
+  UI through protocol DTOs and normal node edit intents.
+- Conditions are filters through the reusable `ConditionGate` ANode.
+- `ValueSet` is the Chataigne collection boundary for multi-lane values; the
+  old parameter-array runtime type remains a documented clean schema break.
+- Pipeline shape checking and filter capabilities are reusable
+  `golden_alchemist_core` infrastructure.
+- Lane-aware MapEach execution is app-owned, uses stable `ContextKey` lanes,
+  and preserves independent stateful filter memory through `LaneRuntimePool`.
+- OutputSet and Action Commands emit `chataigne.command` runtime intents; module
+  transport, reconnect, and external IO remain outside pure formula evaluation.
+
+## Phase 19 QA Matrix
+
+- Action creation: covered by built-in Action processor creation and managed
+  region instantiation tests.
+- Mapping creation: covered by built-in Mapping processor creation and managed
+  region instantiation tests.
+- Project formula processor creation: covered by typed project item creation
+  and legacy project reference fallback tests.
+- Built-ins hidden from library: covered by formula catalog visibility tests.
+- Built-ins visible in processor palette: covered by processor manager palette
+  grouping tests.
+- Mapping single input: covered by managed formula input-to-output tests.
+- Mapping multiple inputs parallel: covered by multiple InputSet materialization
+  and ValueSet output tests.
+- Mapping multiple inputs aggregate: covered by aggregate reduction tests.
+- Mapping Pack Vec3: covered by fixed-slot projection tests.
+- Mapping ConditionGate: covered by manager/direct ConditionGate parity tests.
+- Action ConditionGate: covered by action pass/block tests.
+- Serialization roundtrip and save/reload: covered by sparse project reload and
+  managed-region item persistence tests.
+- Undo/redo: covered for Formula graph edits; processor managed-region undo
+  remains an explicit deferred UX-hardening item.
+- No duplicate evaluator paths: covered by manager bridge parity and managed
+  formula tests using normal ANode execution.
+- No fallback fake values: covered by missing input, invalid output, missing
+  region, unsupported transition, and ConditionGate diagnostic tests.
+
+## Phase 19 Deferred Items
+
+- Lane-aware lowering for `ConditionGate` `per_lane` mode remains deferred; the
+  supported behavior is an explicit runtime diagnostic.
+- Production `Expand` / broadcast lowering remains deferred until the target
+  axis is declared by a real InputSet/OutputSet boundary.
+- Legacy condition/filter manager wrapper migration remains deferred. The
+  wrappers are retained for tree/UI/persistence compatibility while runtime
+  behavior lives in managed-region ANodes.
+- A broader manual UI QA pass for managed-region undo/redo remains deferred to
+  the editor polish track.
+
+## Phase 19 Final Test Status
+
+- `cargo fmt --all` passed from the repository root.
+- `cargo fmt --all` passed in `submodules/golden_core`.
+- `cargo fmt --all` passed in `submodules/golden_alchemist_core`.
+- `npm run check` in `src-ui` passed with 0 Svelte/TypeScript diagnostics.
+- `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
+  119 `golden_alchemist` tests and 4 `golden_statechart` tests.
+- `cargo test --workspace` passed with 296 app tests and 79 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
+
+## Phase 19 Final Supercommit Hash List
+
+- `f4b9888` phase 0 - baseline audit
+- `a6086e0` phase 1 - formula catalog
+- `4fff469` phase 2 - processor formula sources
+- `1ecd2c7` phase 3 - builtin formulas
+- `0be77ab` phase 4 - managed regions
+- `6c96f81` phase 5 - value set
+- `939e125` phase 6 - anode capabilities
+- `d4eacc5` phase 7 - condition gate anode
+- `0f5a3a9` phase 8 - pipeline shape checker
+- `ad832fe` phase 9 - filter pipeline lowering
+- `4a679a5` phase 10 - input set region
+- `469dd0c` phase 11 - output set region
+- `49751b1` phase 12 - builtin mapping
+- `099715a` phase 13 - builtin action
+- `3c21354` phase 14 - manager bridges
+- `45fde11` phase 15 - remove duplicate manager logic
+- `63f34f2` phase 16 - managed region ui projection
+- `2b20bc4` phase 16 - managed region backend edit boundary
+- `a49fa1e` phase 16 - managed region ui controls
+- `0a0128b` phase 16 - processor palette polish
+- `8c79d02` phase 16 - managed region verification
+- `fe7a6d1` phase 17 - builtin formula source hints
+- `808f9bf` phase 17 - builtin formula inspection controls
+- `23cec05` phase 17 - builtin formula duplicate metadata
+- `040a9e2` phase 18 - managed formula diagnostic codes
+- `739d3ec` phase 18 - managed formula runtime diagnostics
+- `bdb25b2` phase 18 - builtin source creation hardening
+- `e81398a` phase 18 - condition gate diagnostics
+- Phase 19 final QA and docs: current supercommit; use
+  `git log -1 --oneline` for the final hash because a commit cannot contain
+  its own stable hash.
 
 ## Tests Added
 
@@ -1571,6 +1682,11 @@ but not yet supported `per_lane` gate application.
   `cargo test --workspace` passed with 296 app tests and 79 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+- Phase 19 final validation passed:
+  `cargo fmt --all` from the root, `submodules/golden_core`, and
+  `submodules/golden_alchemist_core`; `npm run check` in `src-ui`;
+  `cargo test --workspace` in `submodules/golden_alchemist_core`; and root
+  `cargo test --workspace`.
 
 ## Supercommit History
 
@@ -1619,17 +1735,17 @@ but not yet supported `per_lane` gate application.
   `supercommit: chataigne alchemist integration phase 14 - manager bridges`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 15 - remove duplicate manager logic`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 16 - managed region ui projection`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 16 - managed region backend edit boundary`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 16 - managed region ui controls`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 16 - processor palette polish`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 16 - managed region verification`
-- In progress in the current supercommit:
+- Completed:
   `supercommit: chataigne alchemist integration phase 17 - builtin formula source hints`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 17 - builtin formula inspection controls`
@@ -1645,3 +1761,21 @@ but not yet supported `per_lane` gate application.
   `supercommit: chataigne alchemist integration phase 18 - condition gate diagnostics`
 - Reusable Alchemist submodule commit:
   `80efe26 supercommit: chataigne alchemist integration phase 18 - condition gate diagnostics`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 19 - final qa and docs`
+
+## Final Plan State
+
+- All phases in `docs/ALCHEMIST_NEXT_MOVES.md` are completed or explicitly
+  deferred.
+- Deferred items: lane-aware `ConditionGate` `per_lane` lowering, production
+  `Expand` / broadcast target-axis selection, legacy condition/filter wrapper
+  migration policy, and broader manual managed-region undo/redo UI hardening.
+- Final architecture summary: see `docs/architecture.md`,
+  `docs/ALCHEMIST_FORMULA_RUNTIME.md`, and the Phase 19 final architecture
+  summary above.
+- Final test status: root, `golden_core`, and `golden_alchemist_core`
+  formatting passed; `npm run check` passed; reusable Alchemist and root Rust
+  workspaces passed.
+- Final supercommit hash list: see `Phase 19 Final Supercommit Hash List`
+  above, ending with the current Phase 19 supercommit.

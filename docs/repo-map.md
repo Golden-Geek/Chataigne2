@@ -23,6 +23,23 @@
 - `src/module/modules/`: concrete module families grouped by domain (`generic/`, `hardware/`, `protocol/`, `software/`).
 - `src/module/modules/protocol/osc/`: OSC module stack, including `OscModuleBase`, parameter-hosted receive/output nodes, auto-added OSC value trees, and its async `rosc` transport helpers.
 
+## State Machine And Alchemist
+
+- `src/state_machine/`: reusable Chataigne state-machine crate, including
+  processor runtime, formula source DTOs, `ValueSet`, managed formula
+  orchestration, InputSet/OutputSet materialization, command intents, and
+  protocol generation.
+- `src/state_machine_nodes/`: app-owned state-machine tree nodes, including the
+  Formula Library, Processor Manager, built-in formula catalog/package loader,
+  processor managed-region folders, and app-owned manager bridge ANodes.
+- `src/state_machine_nodes/builtin_formulas/`: shipped Action and Mapping
+  formula package definitions.
+- `submodules/golden_alchemist_core/`: reusable Alchemist graph typing,
+  compilation, runtime evaluation, primitive ANodes, ConditionGate,
+  filter-pipeline capabilities, shape checking, and managed-region metadata.
+- `docs/ALCHEMIST_FORMULA_RUNTIME.md`: architecture contract for processor
+  formulas, managed regions, lane evaluation, diagnostics, and runtime intents.
+
 ## golden_core Workspace
 
 - `crates/core_facade/`: stable `golden_core` facade crate used by apps.

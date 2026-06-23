@@ -14,6 +14,62 @@ The app must not clone or patch a Formula graph for each processor instance.
 The graph is authored once, compiled into a reusable plan, and evaluated with
 runtime frames supplied by the processor lane currently being executed.
 
+## Formula Catalog And Library
+
+The Formula Catalog resolves every formula source the processor runtime may use:
+editable project formulas, shipped built-ins, and future package formulas. The
+Formula Library remains the user-editable project tree. Built-ins are not
+ordinary Formula Library children and must not be path-imported from app code.
+
+Processor creation flows through catalog entries. Built-in Action and Mapping
+entries are visible in the Processor palette under Built-ins, while project
+formulas marked processor-creatable appear under Project Formulas. Built-ins
+can be opened read-only from a processor and duplicated only through the public
+Formula Library creation boundary.
+
+`StateProcessor` persists a typed formula source. Project sources keep stable
+node references. Built-in sources keep package, formula id, and version keys.
+Creation rejects syntactically valid but unknown built-in sources, and old saved
+invalid sources resolve to explicit diagnostics instead of being rewritten.
+
+## Built-in Processor Surfaces
+
+Action and Mapping are shipped built-in formulas, not hardcoded processor
+types. The app-owned catalog package declares their managed region surfaces:
+
+```text
+Mapping:
+  Inputs
+  Filters
+  Outputs
+
+Action:
+  Trigger
+  Filters
+  Commands
+```
+
+Managed regions are backend-owned processor child folders. The UI projects
+those folders, reads role-filtered creation palettes from the backend, and sends
+ordinary edit intents to add, reorder, remove, or configure managed items.
+
+Mapping materializes InputSet values, runs the managed filter pipeline, and
+dispatches through OutputSet. Action wraps its trigger as a one-lane `ValueSet`,
+runs the same filter pipeline, and emits command intents through Action
+Commands. Neither processor owns a special evaluator for filters or
+conditions.
+
+For users and module authors, this means:
+
+```text
+Action is a built-in formula.
+Mapping is a built-in formula.
+Mapping is authored through Inputs / Filters / Outputs.
+Action is authored through Trigger / Filters / Commands.
+Conditions are filters through ConditionGate.
+Complex branching belongs in custom formulas.
+```
+
 ## Core Model
 
 `Formula` is the authored recipe. It owns the graph, typed property
@@ -103,17 +159,21 @@ guards evaluate once in `GlobalStateMachineContext`, and transition effects run
 once after a transition fires. If a transition needs processor-derived data,
 that data must arrive through an explicit global aggregation or manager result.
 
-## Manager Reference Nodes
+## Manager Reference Bridges
 
 Chataigne manager reference ANodes for Conditions, Inputs, and Output Commands
-are app-owned product integrations, not reusable Alchemist primitives. Until
-their real runtime contracts are implemented, these nodes compile to explicit
-`chataigne_manager_node_unsupported` diagnostics.
+are app-owned product integrations, not reusable Alchemist primitives. They
+compile only when their config contains the expected `StableRef` type. Missing,
+invalid, or unbound references emit explicit diagnostics.
+
+Input bridges expose selected runtime input sources as `ValueSet` payloads.
+Condition bridges expose boolean and trigger lanes from condition manager
+results. Output command bridges emit `chataigne.command` intents with optional
+trigger gating and processor context metadata.
 
 They must not return fake defaults such as `false`, an empty `ValueSet`, or a
-silently dropped command. The Formula editor surfaces the compile diagnostic
-through the formula validity flag, formula diagnostics JSON, and authored ANode
-warnings so unsupported manager behavior is visible before runtime.
+silently dropped command. Invalid graph state stays visible through compile or
+runtime diagnostics.
 
 The intended contracts remain:
 
@@ -126,6 +186,44 @@ Inside transition graph:
   no processor context key exists.
   output commands emit transition-origin intents after the transition fires.
 ```
+
+## ValueSet And Managed Pipelines
+
+`ValueSet` is the Chataigne collection boundary for multi-lane values. It keeps
+stable lane keys, labels, sources, and runtime values together. The old
+`chataigne.param_array` type is a clean schema break and is rejected rather than
+registered as an alias.
+
+The reusable pipeline shape checker lives in `golden_alchemist_core`. It uses
+ANode role capability metadata to classify filter transitions as elementwise,
+aggregate, reshape, expand, or whole-set. Unsupported transitions produce typed
+diagnostics instead of silently broadcasting, merging, or wiring scalar sockets
+to opaque extension payloads.
+
+Chataigne owns the lane-aware managed pipeline runtime. Elementwise filters
+compile once and run per `ValueSet` lane through stable `ContextKey` values.
+Stateful filters use `LaneRuntimePool`, so each lane keeps independent memory.
+Aggregate/projection pipelines, including Pack Vec3, use explicit fixed-slot
+projection instead of implicit lane collapse.
+
+`ConditionGate` is a reusable filter-capable ANode. Whole-value gating works for
+single values, triggers, command-intent-like extension values, and complete
+`ValueSet` payloads. The declared `per_lane` gate application is intentionally
+diagnostic-only until lane-aware ValueSet lowering is designed.
+
+## Runtime Intents And Diagnostics
+
+OutputSet and Action Commands are the only managed boundaries that turn formula
+values into Chataigne side effects. They emit `chataigne.command` runtime
+intents; transport connection state, module reconnect behavior, and external IO
+remain outside pure formula evaluation.
+
+Diagnostics are part of the contract. Missing input sources, invalid output
+targets, unknown managed regions, invalid filter items, shape mismatches,
+unsupported `ValueSet` transitions, and incompatible ConditionGate modes must
+fail explicitly. The runtime does not insert fallback values to hide invalid
+graphs and does not dispatch partial output sets when counts or targets do not
+match.
 
 ## Property Runtime
 
