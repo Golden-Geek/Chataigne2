@@ -28,6 +28,9 @@ and related hardening failures without parsing prose.
 The second Phase 18 slice routes managed formula runtime filter failures
 through the same typed diagnostic-code mapping, replacing the previous generic
 filter-error prefixes for ValueSet/filter pipeline failures.
+The third Phase 18 slice hardens processor creation so syntactically valid but
+unknown built-in formula sources are rejected at the user-item creation
+boundary instead of creating a processor that only warns later.
 
 ## Completed Tasks
 
@@ -1362,6 +1365,9 @@ filter-error prefixes for ValueSet/filter pipeline failures.
   codes in their `RuntimeDiagnostic` message prefix, so mixed `ValueSet` types
   report `managed_formula_mixed_valueset_types` instead of a generic filter
   failure.
+- Unknown built-in processor creation IDs now fail at the processor creation
+  boundary. Project formula processor IDs and catalog-known built-ins continue
+  to create normally.
 
 ## Tests Added
 
@@ -1463,6 +1469,7 @@ filter-error prefixes for ValueSet/filter pipeline failures.
 - `managed_formula_missing_region_diagnostic_uses_specific_code`
 - `managed_formula_missing_action_command_target_uses_specific_code`
 - `managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix`
+- `unknown_builtin_processor_source_is_not_creatable`
 - Updated `processor_ui_dto_preserves_builtin_formula_actions` to assert the
   exact built-in formula source key.
 - `cargo test app::state_machine_nodes_formula::formula_tests::duplicated_builtin_formula_copies_managed_region_surface_metadata -- --nocapture`
@@ -1476,6 +1483,10 @@ filter-error prefixes for ValueSet/filter pipeline failures.
 - `cargo test -p chataigne_state_machine managed_formula_missing_action_command_target_uses_specific_code -- --nocapture`
   passed.
 - `cargo test -p chataigne_state_machine managed_formula_runtime_filter_errors_use_specific_diagnostic_prefix -- --nocapture`
+  passed.
+- `cargo test app::state_machine_nodes_processor::processor_tests::unknown_builtin_processor_source_is_not_creatable -- --nocapture`
+  passed.
+- `cargo test app::state_machine_nodes_processor::processor_tests::processor_created_from_builtin_mapping_item_keeps_source_without_project_reference -- --nocapture`
   passed.
 - `cargo test -p chataigne_state_machine managed_formula -- --nocapture`
   passed with 14 managed formula tests.
@@ -1493,6 +1504,9 @@ filter-error prefixes for ValueSet/filter pipeline failures.
   Alchemist tests remain ignored as stale pre-manager-ref behavior.
 - After the second Phase 18 diagnostics slice, `cargo test --workspace` passed
   with 295 app tests and 79 state-machine tests. The existing 2 ignored
+  Alchemist tests remain ignored as stale pre-manager-ref behavior.
+- After the built-in source creation hardening slice, `cargo test --workspace`
+  passed with 296 app tests and 79 state-machine tests. The existing 2 ignored
   Alchemist tests remain ignored as stale pre-manager-ref behavior.
 
 ## Supercommit History
@@ -1562,3 +1576,5 @@ filter-error prefixes for ValueSet/filter pipeline failures.
   `supercommit: chataigne alchemist integration phase 18 - managed formula diagnostic codes`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 18 - managed formula runtime diagnostics`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 18 - builtin source creation hardening`

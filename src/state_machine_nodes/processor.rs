@@ -518,6 +518,13 @@ impl StateProcessorManager {
 
 fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
     let source = FormulaSourceRef::parse_processor_create_type(node_type).ok()?;
+    if matches!(source, FormulaSourceRef::Builtin { .. })
+        && FormulaCatalog::with_builtins()
+            .resolve_builtin(&source)
+            .is_err()
+    {
+        return None;
+    }
     let mut processor = StateProcessor::new();
     processor.set_formula_source(source);
     Some(Box::new(processor))

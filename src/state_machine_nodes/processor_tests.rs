@@ -293,6 +293,18 @@ fn invalid_builtin_formula_source_fails_cleanly() {
         .contains("invalid builtin formula version"));
 }
 
+#[test]
+fn unknown_builtin_processor_source_is_not_creatable() {
+    let manager = StateProcessorManager::new();
+
+    let processor = manager.create_user_item("state_processor:builtin:chataigne.missing@1");
+
+    assert!(
+        processor.is_none(),
+        "unknown built-in processor sources must fail at the creation boundary"
+    );
+}
+
 fn assert_region_kinds(
     formula: &golden_alchemist::AlchemistFormula,
     expected: &[(&str, ManagedRegionKind, SurfaceItemKind)],
