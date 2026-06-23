@@ -121,6 +121,7 @@
 	const PROCESSOR_ITEM_KIND = 'state_processor';
 	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
 	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
+	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
 	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
@@ -348,6 +349,14 @@
 			.filter(isFormula)
 			.sort((left, right) => left.meta.label.localeCompare(right.meta.label));
 	});
+	let formulaLibrary = $derived.by((): UiNodeDto | null => {
+		if (!graphState) return null;
+		return (
+			[...graphState.nodesById.values()].find(
+				(node) => node.node_type === FORMULA_LIBRARY_NODE_TYPE
+			) ?? null
+		);
+	});
 
 	let selectedFormula = $derived.by((): UiNodeDto | null => {
 		if (!session || !graphState) return null;
@@ -443,7 +452,7 @@
 	let formula = $derived.by((): UiNodeDto | null => {
 		if (!graphState) return null;
 		const processorFormula = formulaForProcessor(processorNode);
-		if (processorFormula) return processorFormula;
+		if (processorNode) return processorFormula;
 		if (previewTarget?.kind === 'formula') return previewTargetNode(previewTarget);
 		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
@@ -664,7 +673,13 @@
 	);
 
 	$effect(() => {
-		props.panelApi.setTitle(formula ? `Alchemist: ${formula.meta.label}` : 'Alchemist Editor');
+		props.panelApi.setTitle(
+			formula
+				? `Alchemist: ${formula.meta.label}`
+				: processorUi
+					? `Alchemist: ${processorUi.formula_label}`
+					: 'Alchemist Editor'
+		);
 	});
 
 	const isPropertyTreeNode = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
@@ -695,6 +710,18 @@
 		decl_id: string,
 		value: UiCreateUserItemInitialParam['value']
 	): UiCreateUserItemInitialParam => ({ decl_id, value });
+
+	const duplicateFormulaLabel = (label: string): string => {
+		const base = label.trim().length > 0 ? label.trim() : 'Formula';
+		const used = new Set(formulaNodes.map((node) => node.meta.label));
+		const firstCopy = `${base} Copy`;
+		if (!used.has(firstCopy)) return firstCopy;
+		for (let index = 2; index < 1000; index += 1) {
+			const candidate = `${firstCopy} ${index}`;
+			if (!used.has(candidate)) return candidate;
+		}
+		return `${firstCopy} ${Date.now()}`;
+	};
 
 	const runMutation = (operation: () => Promise<void>): Promise<void> => {
 		saveStatus = 'saving';
@@ -758,6 +785,37 @@
 			if (!result.success) throw new Error(`failed to create ${item.label}`);
 			if (result.createdNodeId !== null) {
 				session?.selectNode(result.createdNodeId, 'REPLACE');
+			}
+		});
+	};
+
+	const createEditableBuiltInFormulaCopy = (): void => {
+		if (
+			!processorUi ||
+			processorUi.formula_source_kind !== 'builtin' ||
+			!processorUi.formula_can_duplicate_to_library ||
+			!formulaLibrary ||
+			!formulaLibrary.creatable_user_items.some((item) => item.node_type === FORMULA_NODE_TYPE)
+		) {
+			return;
+		}
+		const formulaLabel = processorUi.formula_label;
+		const libraryNodeId = formulaLibrary.node_id;
+		const label = duplicateFormulaLabel(formulaLabel);
+		void runMutation(async () => {
+			const result = await sendCreateUserItemByTypeIntent(
+				libraryNodeId,
+				FORMULA_NODE_TYPE,
+				label,
+				{
+					select_when_created: true,
+					created_node_type: FORMULA_NODE_TYPE
+				}
+			);
+			if (!result.success) throw new Error(`failed to duplicate ${formulaLabel}`);
+			if (result.createdNodeId !== null) {
+				session?.selectNode(result.createdNodeId, 'REPLACE');
+				setPreviewTarget({ kind: 'formula', nodeId: result.createdNodeId });
 			}
 		});
 	};
@@ -1561,7 +1619,7 @@
 
 <section bind:this={panelRoot} class="alchemist-editor-panel" aria-label={panelState.title}>
 	<div class="editor-content">
-		{#if formula && graphState}
+		{#if graphState && (formula || processorUi)}
 			<!-- Slide-in properties panel -->
 			<aside
 				class="properties-panel"
@@ -1583,8 +1641,28 @@
 					{#if processorUi && processorUi.managed_regions.length > 0}
 						<div class="processor-surface" aria-label="Processor regions">
 							<header class="processor-surface-header">
-								<strong>{processorUi.label}</strong>
-								<span class:off={!processorUi.active}>{processorUi.active ? 'Active' : 'Off'}</span>
+								<div class="processor-surface-title">
+									<strong>{processorUi.label}</strong>
+									{#if processorUi.formula_source_kind === 'builtin'}
+										<span class="processor-source-pill">Built-in</span>
+									{/if}
+								</div>
+								<div class="processor-surface-actions">
+									<span class:off={!processorUi.active}>{processorUi.active ? 'Active' : 'Off'}</span>
+									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_open_readonly_from_processor}
+										<span>Read-only</span>
+									{/if}
+									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_can_duplicate_to_library}
+										<button
+											type="button"
+											class="processor-formula-action-btn"
+											disabled={!formulaLibrary}
+											title="Create editable formula copy"
+											onclick={createEditableBuiltInFormulaCopy}>
+											Create Copy
+										</button>
+									{/if}
+								</div>
 							</header>
 							{#each processorUi.managed_regions as region (region.id)}
 								{@const instance = processorRegionInstances.get(region.id)}
@@ -1631,21 +1709,23 @@
 							{/each}
 						</div>
 					{/if}
-					<ManagerListPanel
-						managerNode={properties}
-						addTargetNode={activePropertyContainer}
-						addItems={activePropertyContainer?.creatable_user_items}
-						searchPlaceholder="Search properties..."
-						missingMessage="Formula properties are not available."
-						emptyMessage="Drag a property onto the graph to create a getter."
-						rootDropMessage="Drop here to move into Properties."
-						addButtonTitle="Add property item"
-						isTreeNode={isPropertyTreeNode}
-						canRenderNodeChildren={canRenderPropertyChildren}
-						nodeDraggable={canMovePropertyNode}
-						onNodeDragStartData={setPropertyGraphDragData}
-						onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
-						onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
+					{#if formula}
+						<ManagerListPanel
+							managerNode={properties}
+							addTargetNode={activePropertyContainer}
+							addItems={activePropertyContainer?.creatable_user_items}
+							searchPlaceholder="Search properties..."
+							missingMessage="Formula properties are not available."
+							emptyMessage="Drag a property onto the graph to create a getter."
+							rootDropMessage="Drop here to move into Properties."
+							addButtonTitle="Add property item"
+							isTreeNode={isPropertyTreeNode}
+							canRenderNodeChildren={canRenderPropertyChildren}
+							nodeDraggable={canMovePropertyNode}
+							onNodeDragStartData={setPropertyGraphDragData}
+							onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
+							onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
+					{/if}
 				</div>
 				<!-- Resize handle on right edge -->
 				<div
@@ -1687,46 +1767,64 @@
 				<span class="properties-toggle-label">Properties</span>
 			</button>
 
-			<div
-				class="graph-drop-zone"
-				role="application"
-				aria-label="Alchemist graph drop target"
-				ondragover={allowPropertyDrop}
-				ondrop={dropProperty}>
-				<AlchemistGraphEditor
-					bind:this={graphEditor}
-					{formula}
-					nodesById={graphState.nodesById}
-					{selectedNodeIds}
-					{selectedEdgeIds}
-					{outputPreviews}
-					{activeSocketRefs}
-					catalogItems={anodeItems}
-					onGraphSelectionChange={selectGraphItems}
-					onNodesMove={moveNodes}
-					onNodeResize={resizeNode}
-					onNodeRename={renameNode}
-					onNodeCollapsedChange={setNodeCollapsed}
-					onNodeEnabledChange={setNodeEnabled}
-					onConnect={connectNodes}
-					onBackgroundContextMenu={openContextMenu}
-					onCreateRequest={openCreateRequest}
-					initialCamera={formulaCamera}
-					onCameraChange={setFormulaCamera}
-					viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
-					{autoWire}
-					toolbarEnd={toolbarEndContent} />
-				{#if diagnostics.length > 0}
-					<aside class="diagnostics" aria-label="Formula diagnostics">
-						{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
-							<div class:error={diagnostic.severity === 'error'} class="diagnostic">
-								<strong>{diagnostic.code}</strong>
-								<span>{diagnostic.message}</span>
-							</div>
-						{/each}
-					</aside>
-				{/if}
-			</div>
+			{#if formula}
+				<div
+					class="graph-drop-zone"
+					role="application"
+					aria-label="Alchemist graph drop target"
+					ondragover={allowPropertyDrop}
+					ondrop={dropProperty}>
+					<AlchemistGraphEditor
+						bind:this={graphEditor}
+						{formula}
+						nodesById={graphState.nodesById}
+						{selectedNodeIds}
+						{selectedEdgeIds}
+						{outputPreviews}
+						{activeSocketRefs}
+						catalogItems={anodeItems}
+						onGraphSelectionChange={selectGraphItems}
+						onNodesMove={moveNodes}
+						onNodeResize={resizeNode}
+						onNodeRename={renameNode}
+						onNodeCollapsedChange={setNodeCollapsed}
+						onNodeEnabledChange={setNodeEnabled}
+						onConnect={connectNodes}
+						onBackgroundContextMenu={openContextMenu}
+						onCreateRequest={openCreateRequest}
+						initialCamera={formulaCamera}
+						onCameraChange={setFormulaCamera}
+						viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
+						{autoWire}
+						toolbarEnd={toolbarEndContent} />
+					{#if diagnostics.length > 0}
+						<aside class="diagnostics" aria-label="Formula diagnostics">
+							{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
+								<div class:error={diagnostic.severity === 'error'} class="diagnostic">
+									<strong>{diagnostic.code}</strong>
+									<span>{diagnostic.message}</span>
+								</div>
+							{/each}
+						</aside>
+					{/if}
+				</div>
+			{:else if processorUi && processorUi.formula_source_kind === 'builtin'}
+				<div class="builtin-formula-view" style:padding-left={propertiesVisible ? `${propertiesWidth}px` : '0'}>
+					<div class="builtin-formula-panel">
+						<strong>{processorUi.formula_label}</strong>
+						<span>Built-in, read-only</span>
+						{#if processorUi.formula_can_duplicate_to_library}
+							<button
+								type="button"
+								class="processor-formula-action-btn"
+								disabled={!formulaLibrary}
+								onclick={createEditableBuiltInFormulaCopy}>
+								Create Editable Copy
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/if}
 		{:else}
 			<div class="empty-state">
 				<strong>No Alchemist Formula</strong>
@@ -1914,6 +2012,29 @@
 		font-size: 0.72rem;
 	}
 
+	.processor-surface-title,
+	.processor-surface-actions {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-inline-size: 0;
+	}
+
+	.processor-surface-title {
+		flex: 1 1 auto;
+	}
+
+	.processor-surface-actions {
+		flex: 0 0 auto;
+	}
+
+	.processor-source-pill {
+		padding: 0.08rem 0.28rem;
+		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 75%, transparent);
+		border-radius: 999rem;
+		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 12%, transparent);
+	}
+
 	.processor-surface-header strong,
 	.processor-region-header strong,
 	.processor-region-items span {
@@ -1979,11 +2100,36 @@
 		cursor: pointer;
 	}
 
+	.processor-formula-action-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-block-size: 1.45rem;
+		max-inline-size: 11rem;
+		padding: 0 0.5rem;
+		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 78%, transparent);
+		border-radius: 0.25rem;
+		background: color-mix(in srgb, var(--gc-color-background) 82%, transparent);
+		color: var(--gc-color-text);
+		font: inherit;
+		font-size: 0.62rem;
+		line-height: 1;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
 	.processor-region-condition-btn:hover,
-	.processor-region-condition-btn:focus-visible {
+	.processor-region-condition-btn:focus-visible,
+	.processor-formula-action-btn:hover,
+	.processor-formula-action-btn:focus-visible {
 		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 20%, var(--gc-color-background));
 		border-color: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 58%, transparent);
 		outline: none;
+	}
+
+	.processor-formula-action-btn:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 
 	.processor-region-items {
@@ -2011,6 +2157,37 @@
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: hidden;
+	}
+
+	.builtin-formula-view {
+		display: grid;
+		place-items: center;
+		inline-size: 100%;
+		block-size: 100%;
+		min-inline-size: 0;
+		min-block-size: 0;
+		transition: padding-left 0.22s cubic-bezier(0.2, 0, 0.13, 1);
+	}
+
+	.builtin-formula-panel {
+		display: grid;
+		gap: 0.45rem;
+		max-inline-size: 28rem;
+		padding: 1rem;
+		text-align: center;
+	}
+
+	.builtin-formula-panel strong {
+		font-size: 1rem;
+	}
+
+	.builtin-formula-panel span {
+		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
+		font-size: 0.68rem;
+	}
+
+	.builtin-formula-panel .processor-formula-action-btn {
+		justify-self: center;
 	}
 
 	.formula-status,

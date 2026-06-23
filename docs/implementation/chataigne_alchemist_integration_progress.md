@@ -10,7 +10,10 @@ Input/Filter/Output region creation plus sparse project save/reload are covered
 by tests. The first Phase 17 slice exposes formula source/action hints through
 `ProcessorUiModel`, `ProcessorUiDto`, and generated TypeScript so the frontend
 can distinguish project formulas from built-ins before adding open/duplicate
-commands.
+commands. The second Phase 17 slice adds a read-only built-in inspection state
+in the Alchemist editor and a Create Editable Copy UI action that creates an
+editable project formula shell through the existing Formula Library user-item
+boundary while the fuller formula-surface clone remains a backend follow-up.
 
 ## Completed Tasks
 
@@ -1320,6 +1323,15 @@ commands.
   is project or built-in and whether built-in readonly open / duplicate actions
   are allowed by catalog visibility. `ProcessorUiDto` and generated TypeScript
   carry those fields as the frontend contract.
+- The Alchemist editor now treats selected built-in processors as their own
+  read-only inspection target instead of falling back to the first project
+  formula when the processor has no project formula reference.
+- Built-in processor surfaces now expose Built-in / Read-only state and a
+  Create Editable Copy action when the catalog visibility permits duplication.
+- Create Editable Copy currently creates an editable project formula shell
+  through the public Formula Library creation path. The shipped built-in graphs
+  are still empty; preserving managed-region metadata on duplicated project
+  formulas remains a backend formula-surface storage follow-up.
 
 ## Tests Added
 
@@ -1416,6 +1428,11 @@ commands.
 - `processor_ui_dto_preserves_builtin_formula_actions`
 - Updated `processor_formula_resolver_reads_builtin_source_key` to assert
   built-in formula source/action UI state.
+- `npm run check` in `src-ui` passes with 0 Svelte/TypeScript diagnostics for
+  the built-in read-only inspection and duplicate-to-library controls.
+- `cargo test --workspace` passed with 293 app tests and 76 state-machine
+  tests. The existing 2 ignored Alchemist tests remain ignored as stale
+  pre-manager-ref behavior.
 
 ## Supercommit History
 
@@ -1476,3 +1493,5 @@ commands.
   `supercommit: chataigne alchemist integration phase 16 - managed region verification`
 - In progress in the current supercommit:
   `supercommit: chataigne alchemist integration phase 17 - builtin formula source hints`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 17 - builtin formula inspection controls`
