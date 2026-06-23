@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Phase 18 - Diagnostics, migration, and hardening is next. Phase 17 is
+Phase 18 - Diagnostics, migration, and hardening is in progress. Phase 17 is
 buildable: backend-owned managed processor regions are projected through
 protocol DTOs and Svelte controls, processor-owned region folders host
 role-filtered ANode children, Action/Mapping creation is palette-grouped,
@@ -21,6 +21,10 @@ DTOs carry the exact source key, and the formula creation path resolves that
 source through the backend catalog before storing managed-region definitions on
 the new project formula. Copied built-in Mapping/Action formulas keep their
 authored regions without the frontend shuttling a formula metadata JSON blob.
+The first Phase 18 slice gives managed formula compile failures stable
+diagnostic codes derived from typed `ManagedFormulaError` variants, so callers
+can branch on missing regions, invalid command targets, invalid filter shapes,
+and related hardening failures without parsing prose.
 
 ## Completed Tasks
 
@@ -1346,6 +1350,11 @@ authored regions without the frontend shuttling a formula metadata JSON blob.
   duplicate-to-library; the Svelte control passes that source through existing
   initial-parameter creation plumbing, and the backend catalog resolves the
   managed-region metadata.
+- Managed formula compile diagnostics now use stable codes per
+  `ManagedFormulaError` variant instead of collapsing every hardening failure
+  into `managed_formula_compile_error`.
+- Missing Mapping regions and missing Action command targets are covered by
+  explicit diagnostic-code tests.
 
 ## Tests Added
 
@@ -1444,6 +1453,8 @@ authored regions without the frontend shuttling a formula metadata JSON blob.
   built-in formula source/action UI state.
 - `duplicated_builtin_formula_copies_managed_region_surface_metadata`
 - `invalid_duplicate_builtin_formula_source_warns_without_fake_metadata`
+- `managed_formula_missing_region_diagnostic_uses_specific_code`
+- `managed_formula_missing_action_command_target_uses_specific_code`
 - Updated `processor_ui_dto_preserves_builtin_formula_actions` to assert the
   exact built-in formula source key.
 - `cargo test app::state_machine_nodes_formula::formula_tests::duplicated_builtin_formula_copies_managed_region_surface_metadata -- --nocapture`
@@ -1452,6 +1463,12 @@ authored regions without the frontend shuttling a formula metadata JSON blob.
   passed.
 - `cargo test -p chataigne_state_machine processor_ui_dto_preserves_builtin_formula_actions -- --nocapture`
   passed.
+- `cargo test -p chataigne_state_machine managed_formula_missing_region_diagnostic_uses_specific_code -- --nocapture`
+  passed.
+- `cargo test -p chataigne_state_machine managed_formula_missing_action_command_target_uses_specific_code -- --nocapture`
+  passed.
+- `cargo test -p chataigne_state_machine managed_formula -- --nocapture`
+  passed with 13 managed formula tests.
 - `cargo fmt --all` passed from the repository root,
   `submodules/golden_alchemist_core`, and `submodules/golden_core`.
 - `cargo test --workspace` in `submodules/golden_alchemist_core` passed with
@@ -1461,6 +1478,9 @@ authored regions without the frontend shuttling a formula metadata JSON blob.
 - `cargo test --workspace` passed with 295 app tests and 76 state-machine
   tests. The existing 2 ignored Alchemist tests remain ignored as stale
   pre-manager-ref behavior.
+- After the first Phase 18 diagnostics slice, `cargo test --workspace` passed
+  with 295 app tests and 78 state-machine tests. The existing 2 ignored
+  Alchemist tests remain ignored as stale pre-manager-ref behavior.
 
 ## Supercommit History
 
@@ -1525,3 +1545,5 @@ authored regions without the frontend shuttling a formula metadata JSON blob.
   `supercommit: chataigne alchemist integration phase 17 - builtin formula inspection controls`
 - Completed in the current supercommit:
   `supercommit: chataigne alchemist integration phase 17 - builtin formula duplicate metadata`
+- Completed in the current supercommit:
+  `supercommit: chataigne alchemist integration phase 18 - managed formula diagnostic codes`

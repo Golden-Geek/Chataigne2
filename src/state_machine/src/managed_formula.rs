@@ -874,10 +874,39 @@ pub enum ManagedFormulaError {
 
 impl ManagedFormulaError {
     pub fn into_diagnostic(self) -> Diagnostic {
-        Diagnostic::error(
-            "managed_formula_compile_error",
-            self.to_string(),
-            DiagnosticOrigin::Graph,
-        )
+        Diagnostic::error(self.diagnostic_code(), self.to_string(), DiagnosticOrigin::Graph)
+    }
+
+    fn diagnostic_code(&self) -> &'static str {
+        match self {
+            Self::Formula(_) => "managed_formula_materialization_error",
+            Self::ManagedRegionValidation(_) => "managed_formula_region_validation_error",
+            Self::MixedManagedFormulaKinds => "managed_formula_mixed_region_kinds",
+            Self::MissingRegion { .. } => "managed_formula_missing_region",
+            Self::DuplicateRegion { .. } => "managed_formula_duplicate_region",
+            Self::MissingRegionInstance { .. } => "managed_formula_missing_region_instance",
+            Self::InputSet(_) => "managed_formula_input_set_error",
+            Self::OutputSet(_) => "managed_formula_output_set_error",
+            Self::WrongActionTriggerRegionKind { .. } => "managed_formula_wrong_action_trigger_region_kind",
+            Self::DoesNotAcceptActionTriggers { .. } => "managed_formula_action_trigger_role_rejected",
+            Self::MissingActionTriggerSourceConfig { .. } => "managed_formula_missing_action_trigger_source",
+            Self::InvalidActionTriggerSourceConfig { .. } => "managed_formula_invalid_action_trigger_source",
+            Self::WrongActionCommandsRegionKind { .. } => "managed_formula_wrong_action_commands_region_kind",
+            Self::DoesNotAcceptActionCommands { .. } => "managed_formula_action_commands_role_rejected",
+            Self::MissingActionCommandTargetConfig { .. } => "managed_formula_missing_action_command_target",
+            Self::InvalidActionCommandTargetConfig { .. } => "managed_formula_invalid_action_command_target",
+            Self::WrongFilterRegionKind { .. } => "managed_formula_wrong_filter_region_kind",
+            Self::RegionMismatch { .. } => "managed_formula_region_mismatch",
+            Self::DoesNotAcceptFilters { .. } => "managed_formula_filter_role_rejected",
+            Self::MissingFilterDeclaration { .. } => "managed_formula_missing_filter_declaration",
+            Self::InvalidFilterShape { .. } => "managed_formula_invalid_filter_shape",
+            Self::UnsupportedFilterPipeline(_) => "managed_formula_unsupported_filter_pipeline",
+            Self::EmptyFilteredValueSet => "managed_formula_empty_filtered_valueset",
+            Self::MixedValueSetTypes { .. } => "managed_formula_mixed_valueset_types",
+            Self::ActionFilterExpectedSingleValue { .. } => "managed_formula_action_filter_expected_single_value",
+            Self::FilterDiagnostics { .. } => "managed_formula_filter_diagnostics",
+            Self::ValueSet(_) => "managed_formula_valueset_error",
+            Self::ValueSetPipeline(_) => "managed_formula_valueset_pipeline_error",
+        }
     }
 }

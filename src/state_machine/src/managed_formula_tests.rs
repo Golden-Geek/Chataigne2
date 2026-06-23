@@ -492,6 +492,47 @@ fn processor_runtime_evaluates_managed_action_sidecar() {
     assert_eq!(output.intents[0].target.as_ref(), Some(&target));
 }
 
+#[test]
+fn managed_formula_missing_region_diagnostic_uses_specific_code() {
+    let (mut formula, _) = formula_and_instance();
+    formula
+        .surface
+        .managed_regions
+        .retain(|region| region.kind != ManagedRegionKind::OutputSet);
+    let mut instance = formula.instantiate();
+    instance.formula_ref = FormulaRef {
+        id: formula.id.clone(),
+        version: formula.version,
+    };
+
+    let diagnostic = compile_error_diagnostic(&formula, &instance);
+
+    assert_eq!(diagnostic.code, "managed_formula_missing_region");
+    assert!(diagnostic.message.contains("OutputSet"));
+}
+
+#[test]
+fn managed_formula_missing_action_command_target_uses_specific_code() {
+    let (formula, mut instance) = action_formula_and_instance();
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region(
+            "commands",
+            vec![ManagedItemInstance {
+                id: ManagedItemId::new(),
+                anode: ANodeInstance::new(golden_alchemist::ANodeTypeId::new("managed_output"), "Command"),
+                enabled: true,
+                ui_state: ManagedItemUiState::default(),
+            }],
+        ),
+    );
+
+    let diagnostic = compile_error_diagnostic(&formula, &instance);
+
+    assert_eq!(diagnostic.code, "managed_formula_missing_action_command_target");
+    assert!(diagnostic.message.contains(OUTPUT_TARGET_FIELD));
+}
+
 fn formula_and_instance() -> (AlchemistFormula, AlchemistFormulaInstance) {
     let formula = AlchemistFormula {
         id: FormulaId::new("test.mapping"),
@@ -600,6 +641,22 @@ fn compile_managed_formula(formula: &AlchemistFormula, instance: &AlchemistFormu
     ManagedFormulaRuntime::compile(formula, instance, &compile_ctx)
         .unwrap()
         .unwrap()
+}
+
+fn compile_error_diagnostic(
+    formula: &AlchemistFormula,
+    instance: &AlchemistFormulaInstance,
+) -> golden_alchemist::Diagnostic {
+    let (value_types, nodes) = registries();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    match ManagedFormulaRuntime::compile(formula, instance, &compile_ctx) {
+        Ok(_) => panic!("managed formula should fail"),
+        Err(error) => error.into_diagnostic(),
+    }
 }
 
 fn region(id: &str, items: Vec<ManagedItemInstance>) -> ManagedRegionInstance {
