@@ -37,6 +37,7 @@ impl ValueSetPipelineRuntime {
         item_type: ValueTypeId,
         ctx: &PipelineLoweringCtx<'_>,
     ) -> Result<Self, ValueSetPipelineError> {
+        let items = normalize_elementwise_items(items);
         let mut graph = AlchemistGraph::new();
         let mut input = ANodeInstance::new(ANodeTypeId::new("property"), "Pipeline Input");
         input.config.set(
@@ -338,6 +339,18 @@ fn property_frame(
 
 fn lane_context_key(key: &str) -> ContextKey {
     ContextKey::single(ContextAxisId::new(VALUE_LANE_AXIS), ContextItemId::new(key))
+}
+
+fn normalize_elementwise_items(mut items: Vec<ManagedItemInstance>) -> Vec<ManagedItemInstance> {
+    for item in &mut items {
+        if item.anode.type_id == ANodeTypeId::new("condition_gate") {
+            // This runtime already lowers one scalar graph per ValueSet lane.
+            item.anode
+                .config
+                .set("gate_application", RuntimeValue::String("whole".into()));
+        }
+    }
+    items
 }
 
 #[derive(Debug, thiserror::Error)]

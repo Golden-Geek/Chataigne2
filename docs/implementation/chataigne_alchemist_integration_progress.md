@@ -2,11 +2,15 @@
 
 ## Current Phase
 
-Phase 19 - Final QA and architecture documentation is complete. All phases are
-completed or explicitly deferred. Phase 18 is buildable: diagnostics, migration
-choices, and hardening are documented and covered by targeted tests where
-practical. Phase 17 is buildable: backend-owned managed processor regions are
-projected through
+Post Phase 19 deferred-item hardening is in progress. The first continuation
+slice implements Chataigne-owned lane-aware lowering for `ConditionGate`
+`per_lane` inside `ValueSetPipelineRuntime` while preserving the reusable
+Alchemist raw-runtime diagnostic for graphs that try to evaluate `per_lane`
+without a `ValueSet` lane boundary. Phase 19 - Final QA and architecture
+documentation is complete. All phases are completed or explicitly deferred.
+Phase 18 is buildable: diagnostics, migration choices, and hardening are
+documented and covered by targeted tests where practical. Phase 17 is buildable:
+backend-owned managed processor regions are projected through
 protocol DTOs and Svelte controls, processor-owned region folders host
 role-filtered ANode children, Action/Mapping creation is palette-grouped,
 Input/Filter/Output region creation plus sparse project save/reload are covered
@@ -595,11 +599,10 @@ but not yet supported `per_lane` gate application.
 
 ## Pending Tasks
 
-- No active implementation tasks remain in this plan.
-- Deferred items are listed in the Phase 19 deferred-items section: lane-aware
-  `ConditionGate` `per_lane` lowering, production `Expand` / broadcast target
-  axis selection, legacy wrapper migration policy, and broader manual UI
-  undo/redo hardening.
+- Continue paying down explicit deferred items after Phase 19.
+- Remaining deferred items: production `Expand` / broadcast target-axis
+  selection, legacy wrapper migration policy, and broader manual UI undo/redo
+  hardening.
 
 ## Baseline Architecture Summary
 
@@ -1398,6 +1401,10 @@ but not yet supported `per_lane` gate application.
   dispatch.
 - `ConditionGate` incompatible `per_lane` mode returns a reusable Alchemist
   runtime diagnostic and is now covered by a regression test.
+- Chataigne managed `ValueSetPipelineRuntime` now lowers `ConditionGate`
+  `per_lane` items at the app-owned lane boundary by compiling scalar gates per
+  stable `ValueSet` lane. Raw reusable Alchemist graphs still keep the explicit
+  incompatible-mode diagnostic.
 
 ## Phase 18 Migration List
 
@@ -1416,9 +1423,9 @@ but not yet supported `per_lane` gate application.
 
 ## Phase 18 Known Remaining Risks
 
-- `ConditionGate` `per_lane` mode is intentionally not lowered yet; the
-  explicit diagnostic is the production behavior until lane-aware ValueSet
-  lowering is designed.
+- Raw reusable Alchemist graphs still diagnose `ConditionGate` `per_lane`
+  evaluation. Chataigne managed `ValueSetPipelineRuntime` is the lane-aware
+  lowering boundary for that mode.
 - Broadcast/expand production lowering still needs a declared target axis
   before it can safely materialize real InputSet/OutputSet regions.
 - Legacy wrapper nodes are still present for persistence compatibility, so the
@@ -1476,8 +1483,10 @@ but not yet supported `per_lane` gate application.
 
 ## Phase 19 Deferred Items
 
-- Lane-aware lowering for `ConditionGate` `per_lane` mode remains deferred; the
-  supported behavior is an explicit runtime diagnostic.
+- Lane-aware lowering for `ConditionGate` `per_lane` mode is implemented for
+  Chataigne managed `ValueSetPipelineRuntime`. Raw reusable Alchemist graphs
+  still report the incompatible-mode diagnostic when no app-owned lane boundary
+  exists.
 - Production `Expand` / broadcast lowering remains deferred until the target
   axis is declared by a real InputSet/OutputSet boundary.
 - Legacy condition/filter manager wrapper migration remains deferred. The
@@ -1587,7 +1596,7 @@ but not yet supported `per_lane` gate application.
 - `aggregate_reduces_multiple_lanes_to_one_value`
 - `pack_vec3_projects_three_lanes_to_vector`
 - `elementwise_remap_preserves_lanes_and_values`
-- `whole_set_condition_gate_can_run_per_lane_with_defaults`
+- `condition_gate_per_lane_application_lowers_to_scalar_lanes_with_defaults`
 - `single_input_materializes_valueset_entry`
 - `multiple_inputs_materialize_in_authored_order`
 - `input_reorder_preserves_lane_identity`
@@ -1687,6 +1696,14 @@ but not yet supported `per_lane` gate application.
   `submodules/golden_alchemist_core`; `npm run check` in `src-ui`;
   `cargo test --workspace` in `submodules/golden_alchemist_core`; and root
   `cargo test --workspace`.
+- Post Phase 19 ConditionGate per-lane continuation:
+  `cargo test -p chataigne_state_machine condition_gate_per_lane_application_lowers_to_scalar_lanes_with_defaults -- --nocapture`
+  passed.
+- Post Phase 19 ConditionGate per-lane continuation validation passed:
+  `cargo fmt --all` from the root, `submodules/golden_core`, and
+  `submodules/golden_alchemist_core`;
+  `cargo test -p chataigne_state_machine value_set_pipeline -- --nocapture`;
+  and root `cargo test --workspace`.
 
 ## Supercommit History
 
@@ -1768,9 +1785,9 @@ but not yet supported `per_lane` gate application.
 
 - All phases in `docs/ALCHEMIST_NEXT_MOVES.md` are completed or explicitly
   deferred.
-- Deferred items: lane-aware `ConditionGate` `per_lane` lowering, production
-  `Expand` / broadcast target-axis selection, legacy condition/filter wrapper
-  migration policy, and broader manual managed-region undo/redo UI hardening.
+- Deferred items: production `Expand` / broadcast target-axis selection, legacy
+  condition/filter wrapper migration policy, and broader manual managed-region
+  undo/redo UI hardening.
 - Final architecture summary: see `docs/architecture.md`,
   `docs/ALCHEMIST_FORMULA_RUNTIME.md`, and the Phase 19 final architecture
   summary above.

@@ -208,8 +208,11 @@ projection instead of implicit lane collapse.
 
 `ConditionGate` is a reusable filter-capable ANode. Whole-value gating works for
 single values, triggers, command-intent-like extension values, and complete
-`ValueSet` payloads. The declared `per_lane` gate application is intentionally
-diagnostic-only until lane-aware ValueSet lowering is designed.
+`ValueSet` payloads. The raw reusable Alchemist runtime still reports a
+diagnostic for `gate_application = per_lane` because it has no Chataigne
+`ValueSet` lane context. Chataigne's managed `ValueSetPipelineRuntime` owns that
+lane boundary: when it lowers an elementwise filter pipeline, `per_lane`
+ConditionGate items are compiled as scalar gates inside each stable value lane.
 
 ## Runtime Intents And Diagnostics
 

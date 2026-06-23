@@ -153,7 +153,7 @@ fn pack_vec3_projects_three_lanes_to_vector() {
 }
 
 #[test]
-fn whole_set_condition_gate_can_run_per_lane_with_defaults() {
+fn condition_gate_per_lane_application_lowers_to_scalar_lanes_with_defaults() {
     let value_types = value_type_registry();
     let nodes = node_registry();
     let lowering_ctx = PipelineLoweringCtx {
@@ -163,23 +163,20 @@ fn whole_set_condition_gate_can_run_per_lane_with_defaults() {
     };
     let mut item = managed_item_for_primitive(PrimitiveNodeKind::ConditionGate);
     item.anode
+        .config
+        .set("gate_application", RuntimeValue::String("per_lane".into()));
+    item.anode
         .input_defaults
-        .insert(SocketId::new("condition"), RuntimeValue::Bool(true));
+        .insert(SocketId::new("condition"), RuntimeValue::Bool(false));
     let mut runtime =
         ValueSetPipelineRuntime::compile_elementwise(vec![item], ValueTypeId::new("float"), &lowering_ctx).unwrap();
-    let values = ValueSet::with_entries(
-        1,
-        vec![ValueSetEntry::new(
-            ValueLaneKey::new("a").unwrap(),
-            "A",
-            RuntimeValue::Float(0.5),
-        )],
-    );
+    let values = float_value_set(1, [("a", "A", 0.5), ("b", "B", 1.5)]);
 
     let (mapped, output) = runtime.evaluate(&values, &eval_ctx(&value_types, 3)).unwrap();
 
     assert_clean(&output);
-    assert_eq!(mapped.entries[0].value, RuntimeValue::Float(0.5));
+    assert_eq!(mapped.entries[0].value, RuntimeValue::Float(0.0));
+    assert_eq!(mapped.entries[1].value, RuntimeValue::Float(0.0));
 }
 
 fn assert_clean(output: &golden_alchemist::RuntimeOutput) {
