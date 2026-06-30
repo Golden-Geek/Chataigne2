@@ -39,8 +39,13 @@ impl<T: Node> Engine<T> {
             return Vec::new();
         };
 
+        let snapshot = self.build_process_tree_snapshot();
+        let child_catalog = |child_parent: NodeId| self.catalog_creatable_items(child_parent);
         let mut items = Vec::<UserCreatableItem>::new();
-        for item in factory_node.user_creatable_items().into_iter() {
+        for item in factory_node
+            .user_creatable_items_with_context(&snapshot, parent, &child_catalog)
+            .into_iter()
+        {
             if factory_node.user_container_accepts_item(&item.node_type, &item.item_kind) {
                 if parent != factory_node_id && self.item_requires_direct_catalog_host(&item) {
                     continue;

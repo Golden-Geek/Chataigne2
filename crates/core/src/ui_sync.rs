@@ -10,7 +10,8 @@ use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
     CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch,
-    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserNodeRole,
+    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem,
+    UserCreatableItemInitialParam, UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
@@ -469,7 +470,7 @@ pub struct UiNodeDto {
 }
 
 /// UI-facing descriptor of a user-creatable item type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiCreatableUserItemDto {
     /// Runtime node type identifier.
     pub node_type: String,
@@ -480,6 +481,9 @@ pub struct UiCreatableUserItemDto {
     /// Optional Add menu submenu path, excluding the item label.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub menu_path: Vec<String>,
+    /// Optional direct parameter values applied immediately after creation.
+    #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
+    pub initial_params: Vec<UiCreateUserItemInitialParam>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
 }
@@ -491,6 +495,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
             item_kind: item.item_kind,
             label: item.label,
             menu_path: item.menu_path,
+            initial_params: item.initial_params.into_iter().map(Into::into).collect(),
             select_when_created: item.select_when_created,
         }
     }
@@ -618,6 +623,15 @@ pub struct UiCreateUserItemInitialParam {
     pub decl_id: DeclId,
     /// Initial value to assign.
     pub value: ParamValue,
+}
+
+impl From<UserCreatableItemInitialParam> for UiCreateUserItemInitialParam {
+    fn from(initial_param: UserCreatableItemInitialParam) -> Self {
+        Self {
+            decl_id: initial_param.decl_id,
+            value: initial_param.value,
+        }
+    }
 }
 
 /// One existing subtree root to clone as part of a copy batch.

@@ -17,7 +17,10 @@ pub use metadata::{
     NodeData, NodeMeta, NodeMetaPatch, NodeScriptDescriptor, NodeWarning, PresentationHint, SemanticsHint,
 };
 pub use policies::{IntoScriptHostPolicyOption, IntoUserContextHostPolicyOption, UserContextHostPolicy};
-pub use user_items::{DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserNodeRole};
+pub use user_items::{
+    DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem,
+    UserCreatableItemInitialParam, UserNodeRole,
+};
 
 pub(crate) use builtins::parameter_child_exists;
 pub(crate) use script_support::{

@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::Node;
+use crate::parameter::ParamValue;
+
+use super::{DeclId, Node};
 
 fn is_false(value: &bool) -> bool {
     !*value
@@ -86,7 +88,25 @@ impl UserContainerRules {
 }
 
 /// UI-facing descriptor for a user-creatable item node type.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UserCreatableItemInitialParam {
+    /// Direct child decl id on the newly-created root node.
+    pub decl_id: DeclId,
+    /// Initial value to assign.
+    pub value: ParamValue,
+}
+
+impl UserCreatableItemInitialParam {
+    pub fn new(decl_id: impl Into<String>, value: ParamValue) -> Self {
+        Self {
+            decl_id: DeclId(decl_id.into()),
+            value,
+        }
+    }
+}
+
+/// UI-facing descriptor for a user-creatable item node type.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UserCreatableItem {
     /// Runtime node type identifier.
     pub node_type: String,
@@ -97,6 +117,9 @@ pub struct UserCreatableItem {
     /// Optional Add menu submenu path, excluding the item label.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub menu_path: Vec<String>,
+    /// Optional direct parameter values applied immediately after creation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub initial_params: Vec<UserCreatableItemInitialParam>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
 }
@@ -109,6 +132,7 @@ impl UserCreatableItem {
             item_kind: item_kind.into(),
             label: label.into(),
             menu_path: Vec::new(),
+            initial_params: Vec::new(),
             select_when_created: true,
         }
     }
@@ -124,6 +148,22 @@ impl UserCreatableItem {
             .map(|segment| segment.as_ref().trim().to_string())
             .filter(|segment| !segment.is_empty())
             .collect();
+        self
+    }
+
+    /// Adds one direct parameter initializer applied after the item is created.
+    pub fn with_initial_param(mut self, decl_id: impl Into<String>, value: ParamValue) -> Self {
+        self.initial_params
+            .push(UserCreatableItemInitialParam::new(decl_id, value));
+        self
+    }
+
+    /// Replaces direct parameter initializers applied after the item is created.
+    pub fn with_initial_params<I>(mut self, initial_params: I) -> Self
+    where
+        I: IntoIterator<Item = UserCreatableItemInitialParam>,
+    {
+        self.initial_params = initial_params.into_iter().collect();
         self
     }
 

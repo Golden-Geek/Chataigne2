@@ -1031,7 +1031,7 @@ fn dispatch_ws_batches(
     }
 
     let total_ms = total_started.elapsed().as_millis();
-    if events_count > 0 || total_ms >= 5 {
+    if total_ms >= 5 {
         eprintln!(
             "[ui-ws] dispatch clients={} subscriptions={} lock_wait_ms={} collect_ms={} serialize_ms=0 send_ms={} events={} total_ms={}",
             clients.len(),

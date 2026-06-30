@@ -8,7 +8,7 @@ use crate::{
     parameter::{
         ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterSnapshot,
     },
-    process_ctx::ProcessCtx,
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
     script::{ScriptHostPolicy, ScriptNodeConfig, ScriptUiState},
 };
 
@@ -131,6 +131,15 @@ pub trait Node: Send + Any {
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         Vec::new()
+    }
+
+    fn user_creatable_items_with_context(
+        &self,
+        _snapshot: &ProcessTreeSnapshot,
+        _parent: NodeId,
+        _child_catalog: &dyn Fn(NodeId) -> Vec<UserCreatableItem>,
+    ) -> Vec<UserCreatableItem> {
+        self.user_creatable_items()
     }
 
     fn create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {

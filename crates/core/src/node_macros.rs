@@ -809,6 +809,23 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn user_creatable_items_with_context(
+                &self,
+                snapshot: &$crate::process_ctx::ProcessTreeSnapshot,
+                parent: $crate::node::NodeId,
+                child_catalog: &dyn Fn($crate::node::NodeId) -> Vec<$crate::node::UserCreatableItem>,
+            ) -> Vec<$crate::node::UserCreatableItem> {
+                $crate::__dispatch_node_enum!(
+                    self,
+                    user_creatable_items_with_context,
+                    snapshot,
+                    parent,
+                    child_catalog;
+                    $($variant),*
+                )
+            }
+
+            #[inline(always)]
             fn create_user_item(&self, node_type: &str) -> Option<Box<dyn $crate::node::Node>> {
                 $crate::__dispatch_node_enum!(self, create_user_item, node_type; $($variant),*)
             }
