@@ -4,15 +4,16 @@ use std::{
 };
 
 use chataigne_state_machine::{
-    ANodeOutputPreviewSampleDto, ContextKeyDto, DefaultProcessorContextProvider,
-    Processor, ProcessorDebugCapture, ProcessorLaneSummaryDto, ProcessorUiDto,
-    ProcessorFormulaUiState, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
+    ANodeOutputPreviewSample, ANodeOutputPreviewSampleDto, ContextKeyDto,
+    DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
+    ProcessorFormulaUiState, ProcessorId, ProcessorLaneSummaryDto, ProcessorUiDto,
+    ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime,
     StateMachineProtocolBundle, processor_output_preview_samples,
     ValueLaneKey, ValueSet, ValueSetEntry,
     alchemist::{CONDITIONS_MANAGER_TYPE, INPUTS_MANAGER_TYPE, node_registry, value_type_registry},
 };
 use golden_alchemist::{
-    ANodeId, AlchemistFormula, CompiledAlchemistFormula, EvaluationCtx,
+    ANodeId, AlchemistFormula, CompiledAlchemistFormula, ContextKey, EvaluationCtx,
     DebugValueSample, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
     ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
     RuntimeIntent, RuntimeRegistries, RuntimeValue, SocketId, StableRef, SurfaceItemId,
@@ -91,6 +92,27 @@ struct FormulaInputValueParam {
     is_trigger: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct OutputPreviewSampleKey {
+    formula_id: golden_alchemist::FormulaId,
+    processor_id: Option<ProcessorId>,
+    context_key: Option<ContextKey>,
+    author_node_id: ANodeId,
+    output_socket: SocketId,
+}
+
+impl OutputPreviewSampleKey {
+    fn from_sample(sample: &ANodeOutputPreviewSample) -> Self {
+        Self {
+            formula_id: sample.formula_id.clone(),
+            processor_id: sample.processor_id,
+            context_key: sample.context_key.clone(),
+            author_node_id: sample.author_node_id,
+            output_socket: sample.output_socket.clone(),
+        }
+    }
+}
+
 #[derive(Default)]
 struct StateMachineRuntimeCache {
     dirty: bool,
@@ -101,10 +123,12 @@ struct StateMachineRuntimeCache {
     input_manager_signal_ticks: HashMap<String, u64>,
     condition_manager_values: HashMap<String, RuntimeValue>,
     condition_manager_valid_states: HashMap<String, bool>,
+    input_value_condition_inner_valid_states: HashMap<NodeUuid, bool>,
     pending_trigger_inputs: Vec<PendingTriggerInput>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
     formula_default_previews: HashMap<String, RuntimeFormulaDefaultPreview>,
+    output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
     last_preview_signature: Option<String>,
     last_preview_tick: Option<u64>,
     last_log_values: HashMap<String, RuntimeLogRecord>,
@@ -323,6 +347,7 @@ impl StateMachineManager {
                     &mut self.runtime_cache.input_manager_signal_ticks,
                     &mut self.runtime_cache.condition_manager_values,
                     &mut self.runtime_cache.condition_manager_valid_states,
+                    &mut self.runtime_cache.input_value_condition_inner_valid_states,
                     &mut self.runtime_cache.next_trigger_edge_id,
                     ctx,
                 );
@@ -462,6 +487,10 @@ impl StateMachineManager {
         self.runtime_cache.dirty_input_source_params.clear();
         let processors = processor_ui_dtos(&self.runtime_cache.processors);
         if evaluated_any || cache_rebuilt {
+            let output_preview = merge_output_preview_snapshot(
+                &mut self.runtime_cache.output_preview_snapshot,
+                output_preview,
+            );
             self.publish_output_preview(ctx, processors, output_preview, processor_lanes);
         }
     }
@@ -579,6 +608,7 @@ impl StateMachineManager {
         self.runtime_cache.dirty_processor_overrides.clear();
         self.runtime_cache.dirty_formula_values.clear();
         self.runtime_cache.formula_default_previews.clear();
+        self.runtime_cache.output_preview_snapshot.clear();
         self.runtime_cache.last_preview_signature = None;
         self.runtime_cache.dirty = false;
     }
@@ -636,6 +666,29 @@ impl StateMachineManager {
 
 #[cfg(test)]
 mod manager_tests;
+
+fn merge_output_preview_snapshot(
+    snapshot: &mut HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
+    samples: Vec<ANodeOutputPreviewSample>,
+) -> Vec<ANodeOutputPreviewSample> {
+    for sample in samples {
+        let key = OutputPreviewSampleKey::from_sample(&sample);
+        if snapshot
+            .get(&key)
+            .is_some_and(|current| sample.logical_tick < current.logical_tick)
+        {
+            continue;
+        }
+        snapshot.insert(key, sample);
+    }
+
+    let mut entries = snapshot.iter().collect::<Vec<_>>();
+    entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    entries
+        .into_iter()
+        .map(|(_, sample)| sample.clone())
+        .collect()
+}
 
 fn collect_formulas(snapshot: &ProcessTreeSnapshot) -> HashMap<NodeUuid, AlchemistFormula> {
     let mut formulas = HashMap::new();
@@ -974,7 +1027,7 @@ fn output_preview_signature(samples: &[chataigne_state_machine::ANodeOutputPrevi
         .iter()
         .map(|sample| {
             format!(
-                "{}:{}:{:?}:{}:{}:{}",
+                "{}:{}:{:?}:{}:{}:{:?}:{}",
                 sample.formula_id,
                 sample
                     .processor_id
@@ -983,6 +1036,7 @@ fn output_preview_signature(samples: &[chataigne_state_machine::ANodeOutputPrevi
                 sample.context_key,
                 sample.author_node_id,
                 sample.output_socket,
+                sample.status,
                 preview_value_signature(&sample.value)
             )
         })
@@ -1319,6 +1373,7 @@ fn processor_runtime_inputs(
     input_manager_signal_ticks: &mut HashMap<String, u64>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
+    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
 ) -> RuntimeInputSnapshot {
@@ -1336,6 +1391,7 @@ fn processor_runtime_inputs(
             input_manager_signal_ticks,
             condition_manager_values,
             condition_manager_valid_states,
+            input_value_condition_inner_valid_states,
             next_trigger_edge_id,
             ctx,
             &mut inputs,
@@ -1431,6 +1487,7 @@ fn collect_processor_runtime_inputs(
     input_manager_signal_ticks: &mut HashMap<String, u64>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
+    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
     inputs: &mut RuntimeInputSnapshot,
@@ -1452,6 +1509,7 @@ fn collect_processor_runtime_inputs(
                 input_manager_signal_ticks,
                 condition_manager_values,
                 condition_manager_valid_states,
+                input_value_condition_inner_valid_states,
                 next_trigger_edge_id,
                 ctx,
                 inputs,
@@ -1478,6 +1536,7 @@ fn collect_processor_runtime_inputs(
                 dirty_input_source_params,
                 condition_manager_values,
                 condition_manager_valid_states,
+                input_value_condition_inner_valid_states,
                 next_trigger_edge_id,
                 ctx,
                 inputs,
@@ -1533,6 +1592,7 @@ fn collect_condition_manager_runtime_input(
     dirty_input_source_params: &HashSet<NodeUuid>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
+    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
     inputs: &mut RuntimeInputSnapshot,
@@ -1544,8 +1604,14 @@ fn collect_condition_manager_runtime_input(
         return;
     };
     let signal_key = format!("{}:{manager_uuid}", processor_uuid.0);
-    if condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params) {
-        let valid = condition_group_valid(snapshot, manager, ctx).unwrap_or(false);
+    let previous = condition_manager_valid_states.get(&signal_key).copied();
+    if previous.is_none()
+        || condition_tree_has_dirty_source(snapshot, manager, dirty_input_source_params)
+    {
+        let valid =
+            condition_group_valid(snapshot, manager, ctx, input_value_condition_inner_valid_states)
+                .unwrap_or(false);
+        set_condition_valid_param(ctx, snapshot, manager, valid);
         let previous = condition_manager_valid_states.insert(signal_key.clone(), valid);
         if previous != Some(valid) {
             let value_set = condition_manager_value_set(
@@ -1658,6 +1724,7 @@ fn condition_group_valid(
     snapshot: &ProcessTreeSnapshot,
     group: NodeId,
     ctx: &mut ProcessCtx,
+    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
 ) -> Option<bool> {
     let mut values = Vec::new();
     for child in snapshot.child_ids(group) {
@@ -1667,12 +1734,22 @@ fn condition_group_valid(
         }
         let valid = if node.enabled {
             match node.node_type.as_str() {
-                INPUT_VALUE_CONDITION_NODE_TYPE => input_value_condition_valid(snapshot, child, ctx),
-                CONDITION_GROUP_NODE_TYPE => condition_group_valid(snapshot, child, ctx),
+                INPUT_VALUE_CONDITION_NODE_TYPE => input_value_condition_valid(
+                    snapshot,
+                    child,
+                    ctx,
+                    input_value_condition_inner_valid_states,
+                ),
+                CONDITION_GROUP_NODE_TYPE => condition_group_valid(
+                    snapshot,
+                    child,
+                    ctx,
+                    input_value_condition_inner_valid_states,
+                ),
                 _ => None,
             }
         } else {
-            disabled_condition_policy(snapshot, group)
+            None
         };
         if let Some(valid) = valid {
             values.push(valid);
@@ -1685,14 +1762,43 @@ fn input_value_condition_valid(
     snapshot: &ProcessTreeSnapshot,
     condition: NodeId,
     ctx: &mut ProcessCtx,
+    input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
 ) -> Option<bool> {
+    let condition_uuid = snapshot.node(condition)?.uuid;
     let source_uuid = child_reference_uuid(snapshot, condition, "source")?;
     let source_id = snapshot.node_id_by_uuid(source_uuid)?;
     let source_value = snapshot.node(source_id)?.param_value.as_ref()?;
     let comparator = child_string(snapshot, condition, "comparator").unwrap_or_else(|| "equal".to_owned());
-    let valid = compare_condition_value(snapshot, condition, source_value, comparator.as_str());
+    let comparator_valid = compare_condition_value(snapshot, condition, source_value, comparator.as_str());
+    let previous_inner_valid = input_value_condition_inner_valid_states
+        .insert(condition_uuid, comparator_valid)
+        .unwrap_or(false);
+    let toggle_mode = child_bool(snapshot, condition, "toggle_mode").unwrap_or(false);
+    let current_valid = child_bool(snapshot, condition, "valid").unwrap_or(false);
+    let valid = next_input_value_condition_valid_state(
+        toggle_mode,
+        current_valid,
+        previous_inner_valid,
+        comparator_valid,
+    );
     set_condition_valid_param(ctx, snapshot, condition, valid);
     Some(valid)
+}
+
+fn next_input_value_condition_valid_state(
+    toggle_mode: bool,
+    current_valid: bool,
+    previous_inner_valid: bool,
+    comparator_valid: bool,
+) -> bool {
+    if !toggle_mode {
+        return comparator_valid;
+    }
+    if !previous_inner_valid && comparator_valid {
+        !current_valid
+    } else {
+        current_valid
+    }
 }
 
 fn set_condition_valid_param(
@@ -1713,22 +1819,9 @@ fn set_condition_valid_param(
     }
 }
 
-fn disabled_condition_policy(snapshot: &ProcessTreeSnapshot, group: NodeId) -> Option<bool> {
-    match child_string(snapshot, group, "disabled_policy")
-        .unwrap_or_else(|| "ignore".to_owned())
-        .as_str()
-    {
-        "treat_as_invalid" => Some(false),
-        "treat_as_valid" => Some(true),
-        _ => None,
-    }
-}
-
 fn reduce_condition_values(snapshot: &ProcessTreeSnapshot, group: NodeId, values: &[bool]) -> bool {
     if values.is_empty() {
-        return child_string(snapshot, group, "empty_policy")
-            .unwrap_or_else(|| "invalid".to_owned())
-            == "valid";
+        return false;
     }
     let valid_count = values.iter().filter(|value| **value).count();
     let required = child_param(snapshot, group, "operator_count")
@@ -1780,8 +1873,11 @@ fn compare_condition_value(
         "is_true" => param_bool(source_value).unwrap_or(false),
         "is_false" => !param_bool(source_value).unwrap_or(true),
         "contains" => param_string(source_value).contains(reference_string.as_str()),
+        "does_not_contain" => !param_string(source_value).contains(reference_string.as_str()),
         "starts_with" => param_string(source_value).starts_with(reference_string.as_str()),
         "ends_with" => param_string(source_value).ends_with(reference_string.as_str()),
+        "regex_match" => regex::Regex::new(reference_string.as_str())
+            .is_ok_and(|regex| regex.is_match(param_string(source_value).as_str())),
         "value_changed" => true,
         _ => param_values_equal(source_value, reference, reference_string.as_str()),
     }
@@ -1911,6 +2007,10 @@ fn child_string(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -
         ParamValue::Str(value) | ParamValue::Enum(value) => Some(value.clone()),
         _ => None,
     }
+}
+
+fn child_bool(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<bool> {
+    child_param(snapshot, parent, decl_id).and_then(param_bool)
 }
 
 fn node_matches_decl_id(actual: &str, expected: &str) -> bool {

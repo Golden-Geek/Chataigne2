@@ -483,11 +483,7 @@
 	});
 	let processorManagedRegionsRoot = $derived.by((): UiNodeDto | null => {
 		if (!processorNode || !graphState) return null;
-		return directChild(
-			processorNode,
-			graphState.nodesById,
-			PROCESSOR_MANAGED_REGIONS_DECL_ID
-		);
+		return directChild(processorNode, graphState.nodesById, PROCESSOR_MANAGED_REGIONS_DECL_ID);
 	});
 	let processorManagedRegionNodes = $derived.by((): Map<string, UiNodeDto> => {
 		const nodes = new Map<string, UiNodeDto>();
@@ -531,16 +527,14 @@
 		const sequence = runtimePreviewSequence;
 		if (lastMergedPreviewSequence === sequence) return;
 		lastMergedPreviewSequence = sequence;
-		if (incomingOutputPreviews.size === 0) return;
 
-		const next = new Map(outputPreviews);
+		const previous = outputPreviews;
+		const next = new Map(incomingOutputPreviews);
 		const updatedRefs: string[] = [];
-		for (const [ref, preview] of incomingOutputPreviews) {
-			const current = next.get(ref);
-			if (current && preview.logicalTick < current.logicalTick) continue;
+		for (const [ref, preview] of next) {
+			const current = previous.get(ref);
 			const previewChanged =
 				!current || previewActivitySignature(current) !== previewActivitySignature(preview);
-			next.set(ref, preview);
 			if (!previewChanged) continue;
 			if (preview.value.kind === 'trigger' && !preview.value.fired) continue;
 			updatedRefs.push(ref);
@@ -754,6 +748,7 @@
 					select_when_created: true,
 					created_node_type: ANODE_NODE_TYPE,
 					initial_params: [
+						...item.initial_params,
 						initialParam('position', {
 							kind: 'vec2',
 							value: [position.x, position.y]
@@ -774,7 +769,10 @@
 				parent.node_id,
 				item.node_type,
 				item.label,
-				{ select_when_created: true }
+				{
+					select_when_created: true,
+					initial_params: item.initial_params
+				}
 			);
 			if (!result.success) throw new Error(`failed to create ${item.label}`);
 			if (result.createdNodeId !== null) {
@@ -799,18 +797,13 @@
 		const libraryNodeId = formulaLibrary.node_id;
 		const label = duplicateFormulaLabel(formulaLabel);
 		void runMutation(async () => {
-			const result = await sendCreateUserItemByTypeIntent(
-				libraryNodeId,
-				FORMULA_NODE_TYPE,
-				label,
-				{
-					select_when_created: true,
-					created_node_type: FORMULA_NODE_TYPE,
-					initial_params: [
-						initialParam('duplicate_from_formula_source', { kind: 'str', value: sourceKey })
-					]
-				}
-			);
+			const result = await sendCreateUserItemByTypeIntent(libraryNodeId, FORMULA_NODE_TYPE, label, {
+				select_when_created: true,
+				created_node_type: FORMULA_NODE_TYPE,
+				initial_params: [
+					initialParam('duplicate_from_formula_source', { kind: 'str', value: sourceKey })
+				]
+			});
 			if (!result.success) throw new Error(`failed to duplicate ${formulaLabel}`);
 			if (result.createdNodeId !== null) {
 				session?.selectNode(result.createdNodeId, 'REPLACE');
@@ -827,7 +820,8 @@
 				item.label,
 				{
 					select_when_created: true,
-					created_node_type: ANODE_NODE_TYPE
+					created_node_type: ANODE_NODE_TYPE,
+					initial_params: item.initial_params
 				}
 			);
 			if (!result.success) throw new Error(`failed to create ${item.label}`);
@@ -949,7 +943,6 @@
 				return;
 			}
 		}
-
 	};
 
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
@@ -1636,7 +1629,8 @@
 									{/if}
 								</div>
 								<div class="processor-surface-actions">
-									<span class:off={!processorUi.active}>{processorUi.active ? 'Active' : 'Off'}</span>
+									<span class:off={!processorUi.active}
+										>{processorUi.active ? 'Active' : 'Off'}</span>
 									{#if processorUi.formula_source_kind === 'builtin' && processorUi.formula_open_readonly_from_processor}
 										<span>Read-only</span>
 									{/if}
@@ -1797,7 +1791,9 @@
 					{/if}
 				</div>
 			{:else if processorUi && processorUi.formula_source_kind === 'builtin'}
-				<div class="builtin-formula-view" style:padding-left={propertiesVisible ? `${propertiesWidth}px` : '0'}>
+				<div
+					class="builtin-formula-view"
+					style:padding-left={propertiesVisible ? `${propertiesWidth}px` : '0'}>
 					<div class="builtin-formula-panel">
 						<strong>{processorUi.formula_label}</strong>
 						<span>Built-in, read-only</span>

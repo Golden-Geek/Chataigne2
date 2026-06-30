@@ -3,7 +3,8 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import formulaIconUrl from '../../golden_alchemist_ui/icons/formula.svg';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
+		$props();
 
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
@@ -67,11 +68,11 @@
 
 {@render defaultHeader?.(formulaHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content processor-formula-content">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
+{#snippet formulaContent()}
+	{@render defaultChildren?.()}
+{/snippet}
+
+{@render defaultContent?.(formulaContent, 'processor-formula-content')}
 
 <style>
 	.processor-formula-header-extra {
@@ -135,7 +136,7 @@
 		opacity: 1;
 	}
 
-	.processor-formula-content {
+	:global(.processor-formula-content) {
 		min-inline-size: 0;
 	}
 </style>

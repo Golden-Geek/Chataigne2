@@ -12,6 +12,7 @@ use rosc::{decoder, OscPacket, OscType};
 
 use crate::app::{
     AppNode, GenericOscModule, ModuleManager, OscDecodedMessage, OscSendCustomMessageCommand, OscValuePayload,
+    OutputsManager,
 };
 
 #[test]
@@ -781,6 +782,152 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
                     OscType::String("hello".to_string()),
                 ]
             );
+        }
+        other => panic!("expected OSC message packet, got {other:?}"),
+    }
+}
+
+#[test]
+fn output_manager_creates_module_linked_osc_command() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    receiver
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("test receiver should accept a read timeout");
+    let receiver_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
+    engine.add_node(OutputsManager::new().into(), None);
+    engine.apply_edits().expect("outputs manager should attach");
+
+    let output_manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == OutputsManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("outputs manager should exist");
+    let module_label = engine
+        .nodes
+        .get(module_id)
+        .expect("OSC module should exist")
+        .node_data()
+        .meta
+        .label
+        .clone();
+    let catalog = engine.catalog_creatable_items(output_manager_id);
+    assert!(
+        catalog.iter().any(|item| {
+            item.node_type == crate::app::ParameterSetOutput::NODE_TYPE
+                && item.menu_path == vec!["Generic".to_string()]
+        }),
+        "generic output commands should be grouped under Generic; catalog was {catalog:?}"
+    );
+    let command_item = catalog
+        .into_iter()
+        .find(|item| {
+            item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE
+                && item.menu_path.first() == Some(&module_label)
+        })
+        .expect("outputs manager should expose an OSC command under the OSC module");
+    assert_eq!(
+        command_item.item_kind,
+        crate::app::module_command::MODULE_COMMAND_ITEM_KIND
+    );
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: output_manager_id,
+        node_type: command_item.node_type.clone(),
+        label: Some(command_item.label.clone()),
+        initial_params: command_item
+            .initial_params
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    });
+    assert!(
+        create_ack.success,
+        "module-linked output command should be creatable: {create_ack:?}"
+    );
+
+    let command_id = engine
+        .nodes
+        .get(output_manager_id)
+        .and_then(|node| node.node_data().first_child)
+        .expect("outputs manager should contain the created command");
+    let target_module = find_path(
+        &engine,
+        command_id,
+        crate::app::module_command::MODULE_COMMAND_TARGET_MODULE_PATH,
+    )
+    .expect("output-created command should include a target module reference");
+    let module_uuid = engine
+        .nodes
+        .get(module_id)
+        .expect("OSC module should exist")
+        .node_data()
+        .meta
+        .uuid;
+    assert_eq!(
+        engine
+            .nodes
+            .get(target_module)
+            .and_then(|node| node.engine_param_snapshot())
+            .and_then(|snapshot| match snapshot.value {
+                ParamValue::Reference(reference) => Some(reference.uuid()),
+                _ => None,
+            }),
+        Some(module_uuid)
+    );
+
+    let address_param =
+        find_path(&engine, command_id, "address").expect("command address param should exist");
+    let trigger_param =
+        find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/output-manager".to_string()),
+    );
+    engine
+        .apply_edits()
+        .expect("command setup edits should apply");
+
+    engine.edits.push(Edit::SetParam {
+        node: trigger_param,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("command trigger edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("command trigger should dispatch");
+    engine
+        .apply_edits()
+        .expect("queued command request should apply through the engine");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued command request should dispatch to the linked module");
+    engine
+        .apply_edits()
+        .expect("queued command side effects should apply through the engine");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should let the transport process the queued command");
+
+    let mut buffer = [0u8; 2048];
+    let (length, _) = receiver
+        .recv_from(&mut buffer)
+        .expect("linked OSC command should send a UDP packet");
+    let (_, packet) = decoder::decode_udp(&buffer[..length]).expect("udp payload should decode as osc");
+
+    match packet {
+        OscPacket::Message(message) => {
+            assert_eq!(message.addr, "/test/output-manager");
+            assert!(message.args.is_empty());
         }
         other => panic!("expected OSC message packet, got {other:?}"),
     }

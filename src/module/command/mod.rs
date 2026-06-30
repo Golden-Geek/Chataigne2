@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{DeclId, Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    node::{
+        DeclId, Node, NodeData, NodeId, NodeReference, NodeUserPermissions, UserContainerRules,
+        UserCreatableItem,
+    },
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -13,6 +16,7 @@ pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
 pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
 pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
+pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
 
@@ -158,6 +162,31 @@ fn find_descendant_by_decl_id(
     None
 }
 
+fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Option<NodeId> {
+    let target_module_param =
+        resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TARGET_MODULE_PATH)?;
+    let reference = snapshot
+        .node(target_module_param)
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(|value| match value {
+            ParamValue::Reference(reference) => Some(reference),
+            _ => None,
+        })?;
+    let module_id = reference
+        .cached_id()
+        .filter(|node_id| snapshot.node(*node_id).is_some())
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))?;
+    snapshot
+        .node(module_id)
+        .filter(|node| {
+            crate::app::declared_user_item_type_matches(
+                &node.node_type,
+                crate::app::module::MODULE_ITEM_KIND,
+            )
+        })
+        .map(|_| module_id)
+}
+
 pub(crate) fn emit_module_command_request<T: Serialize>(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
@@ -165,7 +194,8 @@ pub(crate) fn emit_module_command_request<T: Serialize>(
     command_type: &str,
     payload: &T,
 ) -> Result<(), String> {
-    let module_id = crate::app::module::resolve_enclosing_module_root(snapshot, command_id)
+    let module_id = resolve_linked_module_root(snapshot, command_id)
+        .or_else(|| crate::app::module::resolve_enclosing_module_root(snapshot, command_id))
         .ok_or_else(|| "command is not attached under a module root".to_string())?;
     let module_snapshot = snapshot
         .node(module_id)
@@ -327,6 +357,12 @@ fn command_type_names(available_command_types: &[&str]) -> Vec<String> {
 
 #[node("module_command_base", label = "Command")]
 #[children(
+    target_module: NodeReference = NodeReference::default() (
+        label = "Module",
+        description = "Module instance that will execute this command when it is used outside the module tree.",
+        reference_target_kind = golden_core::parameter::ReferenceTargetKind::AnyNode,
+        show_in_inspector_content = false
+    );
     trigger: ParamValue = ParamValue::Trigger() (
         label = "Trigger",
         description = "Fire this trigger to run the command.",

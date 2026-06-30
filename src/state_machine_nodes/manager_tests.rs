@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use chataigne_state_machine::{ANodeOutputPreviewSample, ProcessorId};
+use golden_alchemist::{
+    ANodeId, ExecNodeId, FormulaId, OutputPreviewStatus, RuntimeValue, SocketId,
+};
 use golden_core::{
     engine::EngineTime,
     node::{DeclId, Folder, Node},
@@ -9,6 +13,8 @@ use golden_core::{
 };
 
 use super::{
+    merge_output_preview_snapshot,
+    next_input_value_condition_valid_state,
     processor_formula_from_snapshot, processor_formula_source_ref,
     processor_override_value, STATE_ITEM_KIND, StateMachineManager,
 };
@@ -71,6 +77,73 @@ fn states_do_not_accept_user_items() {
         new_prev_sibling: None,
     });
     assert!(!ack.success, "states must not accept nested user items");
+}
+
+#[test]
+fn input_value_condition_toggle_uses_inner_invalid_to_valid_edge() {
+    assert!(next_input_value_condition_valid_state(false, false, false, true));
+    assert!(!next_input_value_condition_valid_state(false, true, true, false));
+
+    assert!(next_input_value_condition_valid_state(true, false, false, true));
+    assert!(next_input_value_condition_valid_state(true, true, true, true));
+    assert!(next_input_value_condition_valid_state(true, true, true, false));
+    assert!(!next_input_value_condition_valid_state(true, true, false, true));
+}
+
+fn preview_sample(
+    formula_id: FormulaId,
+    processor_id: ProcessorId,
+    author_node_id: ANodeId,
+    socket: &str,
+    value: RuntimeValue,
+    logical_tick: u64,
+) -> ANodeOutputPreviewSample {
+    ANodeOutputPreviewSample {
+        formula_id,
+        processor_id: Some(processor_id),
+        context_key: None,
+        author_node_id,
+        exec_node: ExecNodeId::new(0),
+        output_socket: SocketId::new(socket),
+        value_type: value.value_type(),
+        value,
+        logical_tick,
+        status: OutputPreviewStatus::Live,
+    }
+}
+
+#[test]
+fn output_preview_snapshot_retains_latest_values_absent_from_next_delta() {
+    let formula_id = FormulaId::new("formula");
+    let processor_id = ProcessorId::new();
+    let condition_node = ANodeId::new();
+    let value_node = ANodeId::new();
+    let mut snapshot = HashMap::new();
+
+    let condition_valid = preview_sample(
+        formula_id.clone(),
+        processor_id,
+        condition_node,
+        "valid",
+        RuntimeValue::Bool(true),
+        10,
+    );
+    let first_frame = merge_output_preview_snapshot(&mut snapshot, vec![condition_valid.clone()]);
+    assert_eq!(first_frame, vec![condition_valid.clone()]);
+
+    let value_update = preview_sample(
+        formula_id,
+        processor_id,
+        value_node,
+        "value",
+        RuntimeValue::Float(0.75),
+        11,
+    );
+    let second_frame = merge_output_preview_snapshot(&mut snapshot, vec![value_update.clone()]);
+
+    assert_eq!(second_frame.len(), 2);
+    assert!(second_frame.contains(&condition_valid));
+    assert!(second_frame.contains(&value_update));
 }
 
 #[test]

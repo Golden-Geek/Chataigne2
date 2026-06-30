@@ -1,7 +1,11 @@
 use golden_core::{
+    events::{Event, EventKind},
     item, node,
-    node::{Node, NodeReference, NodeUserPermissions, UserContainerRules, UserCreatableItem},
-    process_ctx::ProcessCtx,
+    node::{
+        Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions,
+        UserContainerRules, UserCreatableItem,
+    },
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 // ─── Shared init for all leaf conditions ─────────────────────────────────────
@@ -33,14 +37,19 @@ macro_rules! leaf_condition_init {
         show_in_inspector_content = false
     );
     toggle_mode: bool = false (
-        label = "Toggle Mode"
+        label = "Toggle Mode",
+        show_in_inspector_content = false
     );
-    validation_delay_s: f64 = 0.0 (
-        label = "Validation Delay (s)"
-    );
-    invalidation_delay_s: f64 = 0.0 (
-        label = "Invalidation Delay (s)"
-    );
+    folder(advanced, label = "Advanced", collapsed = false) {
+        validation_delay_s: f64 = 0.0 [0.0..] (
+            label = "Validation Delay",
+            widget = "time_slider"
+        );
+        invalidation_delay_s: f64 = 0.0 [0.0..] (
+            label = "Invalidation Delay",
+            widget = "time_slider"
+        );
+    }
     source: NodeReference (
         label = "Source",
         reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
@@ -52,6 +61,7 @@ macro_rules! leaf_condition_init {
     );
     comparator: golden_core::parameter::Enum = "equal" (
         label = "Comparator",
+        show_in_inspector_content = false,
         enum_options = [
             "equal",
             "not_equal",
@@ -64,16 +74,20 @@ macro_rules! leaf_condition_init {
             "is_true",
             "is_false",
             "contains",
+            "does_not_contain",
             "starts_with",
             "ends_with",
+            "regex_match",
             "value_changed"
         ]
     );
     reference: f64 = 0.0 (
-        label = "Reference"
+        label = "Reference",
+        show_in_inspector_content = false
     );
     reference_max: f64 = 1.0 (
-        label = "Reference Max"
+        label = "Reference Max",
+        show_in_inspector_content = false
     );
     reference_string: String = String::new() (
         label = "Reference (String)",
@@ -190,23 +204,12 @@ impl Node for ScriptCondition {
     );
     operator: golden_core::parameter::Enum = "all" (
         label = "Operator",
+        show_in_inspector_content = false,
         enum_options = ["all", "any", "none", "at_least", "exactly"]
     );
     operator_count: f64 = 1.0 (
         label = "Count",
         show_in_inspector_content = false
-    );
-    empty_policy: golden_core::parameter::Enum = "invalid" (
-        label = "Empty Policy",
-        enum_options = ["invalid", "valid"]
-    );
-    disabled_policy: golden_core::parameter::Enum = "ignore" (
-        label = "Disabled Child Policy",
-        enum_options = ["ignore", "treat_as_invalid", "treat_as_valid"]
-    );
-    error_policy: golden_core::parameter::Enum = "treat_as_invalid" (
-        label = "Error Policy",
-        enum_options = ["treat_as_invalid", "block_and_report"]
     );
     validation_delay_s: f64 = 0.0 (
         label = "Validation Delay (s)"
@@ -219,6 +222,29 @@ pub struct ConditionGroup {}
 
 #[item("sm_condition", node = "sm_condition_group", from_struct)]
 impl Node for ConditionGroup {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        sync_condition_operator_visibility(ctx, self.id());
+    }
+
+    fn child_event_interest_depth(&self, event: &Event) -> u32 {
+        match event.kind {
+            EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => u32::MAX,
+            _ => 0,
+        }
+    }
+
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, _child: NodeId) {
+        if parent == self.id() {
+            sync_condition_operator_visibility_after_child_added(ctx, self.id(), _child);
+        }
+    }
+
+    fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, _child: NodeId) {
+        if parent == self.id() {
+            sync_condition_operator_visibility_after_child_removed(ctx, self.id(), _child);
+        }
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&["sm_condition"]))
     }
@@ -242,6 +268,94 @@ impl Node for ConditionGroup {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
     }
+}
+
+pub(crate) fn sync_condition_operator_visibility(ctx: &mut ProcessCtx, group: NodeId) {
+    sync_condition_operator_visibility_with_change(ctx, group, ConditionChildChange::None);
+}
+
+pub(crate) fn sync_condition_operator_visibility_after_child_added(
+    ctx: &mut ProcessCtx,
+    group: NodeId,
+    child: NodeId,
+) {
+    sync_condition_operator_visibility_with_change(ctx, group, ConditionChildChange::Added(child));
+}
+
+pub(crate) fn sync_condition_operator_visibility_after_child_removed(
+    ctx: &mut ProcessCtx,
+    group: NodeId,
+    child: NodeId,
+) {
+    sync_condition_operator_visibility_with_change(ctx, group, ConditionChildChange::Removed(child));
+}
+
+fn sync_condition_operator_visibility_with_change(
+    ctx: &mut ProcessCtx,
+    group: NodeId,
+    change: ConditionChildChange,
+) {
+    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    let snapshot = snapshot_arc.as_ref();
+    let visible = condition_item_count_after_change(snapshot, group, change) >= 2;
+    let Some(operator_id) = snapshot.find_child_by_decl_id(group, "operator") else {
+        return;
+    };
+    let Some(operator) = snapshot.node(operator_id) else {
+        return;
+    };
+    if operator.presentation.show_in_inspector_content == visible {
+        return;
+    }
+
+    let mut presentation = operator.presentation.clone();
+    presentation.show_in_inspector_content = visible;
+    ctx.patch_node_meta(
+        operator_id,
+        NodeMetaPatch {
+            presentation: Some(presentation),
+            ..NodeMetaPatch::default()
+        },
+    );
+}
+
+#[derive(Clone, Copy)]
+enum ConditionChildChange {
+    None,
+    Added(NodeId),
+    Removed(NodeId),
+}
+
+fn condition_item_count_after_change(
+    snapshot: &ProcessTreeSnapshot,
+    group: NodeId,
+    change: ConditionChildChange,
+) -> usize {
+    let child_ids = snapshot.child_ids(group);
+    let count = child_ids
+        .iter()
+        .filter(|child| condition_item_in_snapshot(snapshot, **child))
+        .count()
+        as isize;
+    let adjusted = match change {
+        ConditionChildChange::None => count,
+        ConditionChildChange::Added(child) if !child_ids.contains(&child) => count + 1,
+        ConditionChildChange::Removed(child)
+            if child_ids.contains(&child) && condition_item_in_snapshot(snapshot, child) =>
+        {
+            count - 1
+        }
+        _ => count,
+    };
+    adjusted.max(0) as usize
+}
+
+fn condition_item_in_snapshot(snapshot: &ProcessTreeSnapshot, child: NodeId) -> bool {
+    snapshot
+        .node(child)
+        .is_some_and(|node| node.param_value.is_none())
 }
 
 #[cfg(test)]

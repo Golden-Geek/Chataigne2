@@ -2,7 +2,8 @@
 	import type { NodeInspectorComponentProps } from 'golden_ui';
 	import ReferencedParameterHeaderControl from './ReferencedParameterHeaderControl.svelte';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
+		$props();
 </script>
 
 {#snippet inputSourceHeaderExtra()}
@@ -17,11 +18,11 @@
 
 {@render defaultHeader?.(inputSourceHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content input-source-inspector">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
+{#snippet inputSourceContent()}
+	{@render defaultChildren?.()}
+{/snippet}
+
+{@render defaultContent?.(inputSourceContent, 'input-source-inspector')}
 
 <style>
 	.input-source-header-extra {
@@ -31,7 +32,7 @@
 		margin-left: 0.2rem;
 	}
 
-	.input-source-inspector {
+	:global(.input-source-inspector) {
 		min-inline-size: 0;
 	}
 </style>

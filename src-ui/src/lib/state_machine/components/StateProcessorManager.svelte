@@ -11,6 +11,7 @@
 	} from 'golden_ui';
 	import { sendMoveNodeIntent } from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
+	import ProcessorItem from './ProcessorItem.svelte';
 
 	const PROCESSOR_ITEM_KIND = 'state_processor';
 	const PROCESSOR_FOLDER_NODE_TYPE = 'state_processor_folder';
@@ -179,6 +180,7 @@
 					node={processorNode}
 					mode="tree"
 					initiallyExpandedDepth={3}
+					rowSupplementComponent={ProcessorItem}
 					canRenderNodeChildren={canRenderChildren}
 					nodeDraggable={canDragNode}
 					{activeDragNodeId}

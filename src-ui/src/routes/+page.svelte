@@ -14,6 +14,7 @@
 	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
+	import ConditionManagerInspector from '$lib/state_machine/components/ConditionManagerInspector.svelte';
 	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
 	import InputSourceInspector from '$lib/state_machine/components/InputSourceInspector.svelte';
 	import InputValueConditionInspector from '$lib/state_machine/components/InputValueConditionInspector.svelte';
@@ -37,6 +38,10 @@
 
 	registerNodeInspector('sm_input_value_condition', {
 		component: InputValueConditionInspector
+	});
+
+	registerNodeInspector('sm_condition_manager', {
+		component: ConditionManagerInspector
 	});
 
 	registerNodeInspector('sm_input_source', {

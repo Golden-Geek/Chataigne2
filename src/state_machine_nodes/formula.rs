@@ -2392,6 +2392,9 @@ impl Node for AlchemistPropertyFolder {
         read_only = true,
         show_in_inspector_content = false
     );
+    exposed: bool = true (
+        label = "Exposed"
+    );
 )]
 pub struct AlchemistPropertyManager {}
 

@@ -4,7 +4,8 @@
 	import CheckboxEditor from '$lib/golden_ui/components/panels/inspector/parameters/CheckboxEditor.svelte';
 	import TriggerEditor from '$lib/golden_ui/components/panels/inspector/parameters/TriggerEditor.svelte';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
+		$props();
 
 	let session = $derived(appState.session);
 	let liveNode: UiNodeDto = $derived(session?.graph.state.nodesById.get(node.node_id) ?? node);
@@ -85,11 +86,11 @@
 
 {@render defaultHeader?.(commandHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content module-command-inspector">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
+{#snippet commandContent()}
+	{@render defaultChildren?.()}
+{/snippet}
+
+{@render defaultContent?.(commandContent, 'module-command-inspector')}
 
 <style>
 	.command-header-controls {
@@ -144,7 +145,7 @@
 		font-size: 0.68rem;
 	}
 
-	.module-command-inspector {
+	:global(.module-command-inspector) {
 		min-inline-size: 0;
 	}
 </style>

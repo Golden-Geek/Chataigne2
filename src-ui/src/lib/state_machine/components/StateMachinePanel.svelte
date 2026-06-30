@@ -596,6 +596,7 @@
 			{
 				select_when_created: item.select_when_created,
 				initial_params: [
+					...item.initial_params,
 					initialParam(POSITION_DECL_ID, {
 						kind: 'vec2',
 						value: [position.x, position.y]

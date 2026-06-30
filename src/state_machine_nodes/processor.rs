@@ -150,6 +150,9 @@ fn processor_surface_child_tree(
             processor_property_parameter(snapshot, source).map(NodeTree::new)
         }
         PROPERTY_MANAGER_NODE_TYPE => {
+            if !is_property_exposed(snapshot, source) {
+                return None;
+            }
             processor_property_manager(snapshot, source).map(NodeTree::boxed)
         }
         PROPERTY_FOLDER_NODE_TYPE => {

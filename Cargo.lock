@@ -27,6 +27,7 @@ dependencies = [
  "open_dmx",
  "rand 0.10.0",
  "rdev",
+ "regex",
  "reqwest",
  "rosc",
  "rumqttc",
