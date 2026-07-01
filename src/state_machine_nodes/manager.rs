@@ -31,7 +31,7 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::state_machine_nodes_formula::{anode_from_snapshot, ANODE_NODE_TYPE};
+use crate::app::state_machine_nodes_formula::{anode_from_snapshot, runtime_value_to_param, ANODE_NODE_TYPE};
 use crate::app::state_machine_nodes_processor::{
     processor_managed_region_decl_id, FormulaCatalog, FormulaSourceRef,
     PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
@@ -444,21 +444,23 @@ impl StateMachineManager {
                         }
                     }
                     for intent in &lane.output.intents {
-                        if intent.kind.as_ref() != "debug.log" {
-                            continue;
+                        let kind = intent.kind.as_ref();
+                        if kind == "debug.log" {
+                            let (origin, message) = format_debug_log_intent(
+                                snapshot,
+                                &runtime_processor.formula.label,
+                                processor_node,
+                                lane.context_key.as_ref(),
+                                &anode_nodes,
+                                intent,
+                            );
+                            log!(
+                                origin = origin;
+                                format!("{}", message)
+                            );
+                        } else if kind == chataigne_state_machine::COMMAND_INTENT_KIND {
+                            dispatch_command_intent(ctx, snapshot, processor_node, intent);
                         }
-                        let (origin, message) = format_debug_log_intent(
-                            snapshot,
-                            &runtime_processor.formula.label,
-                            processor_node,
-                            lane.context_key.as_ref(),
-                            &anode_nodes,
-                            intent,
-                        );
-                        log!(
-                            origin = origin;
-                            format!("{}", message)
-                        );
                     }
                     for sample in &lane.output.debug_samples {
                         let Some(anode_node) = anode_nodes.get(&sample.author_node_id).copied()
@@ -1127,6 +1129,136 @@ fn anode_logs_runtime_value(snapshot: &ProcessTreeSnapshot, anode_node: NodeId) 
         .and_then(|node| tagged_value(&node.tags, "alchemist.anode.type:"))
         .unwrap_or_default();
     matches!(anode_type, "debug_value")
+}
+
+/// Dispatches a `chataigne.command` runtime intent emitted by a triggered
+/// output. The intent loop runs once per lane, so this is invoked once per lane
+/// — each call emits its own execute event(s), which is what keeps multiplexed
+/// outputs firing one command per lane instead of coalescing into one.
+///
+/// The intent's `target` points at the Outputs manager (via its `manager_id`
+/// reference). We resolve that to the live manager — both directly by uuid and
+/// through the processor surface (`surface/<uuid>`) that mirrors a formula
+/// manager property — then fire each enabled command it contains. A target that
+/// is itself a command is fired directly, and a plain-parameter target is set
+/// (the legacy value-output path).
+fn dispatch_command_intent(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    intent: &RuntimeIntent,
+) {
+    let Some(target) = intent.target.as_ref() else {
+        return;
+    };
+
+    let mut targets: Vec<NodeId> = Vec::new();
+    if let Some(direct) = resolve_stable_ref_node(snapshot, target) {
+        targets.push(direct);
+    }
+    if let Some(surface) =
+        find_descendant_by_decl_id(snapshot, processor_node, &format!("surface/{}", target.stable_id))
+    {
+        targets.push(surface);
+    }
+
+    let mut fired: HashSet<NodeId> = HashSet::new();
+    let mut command_count = 0usize;
+    let mut manager_with_children = false;
+    for node in &targets {
+        if snapshot
+            .node(*node)
+            .is_some_and(|node| node.node_type == crate::app::OutputsManager::NODE_TYPE)
+            && !snapshot.child_ids(*node).is_empty()
+        {
+            manager_with_children = true;
+        }
+        command_count += execute_output_target(ctx, snapshot, *node, &intent.payload, &mut fired);
+    }
+
+    // Only warn when an Outputs manager actually holds items but none fired — an
+    // empty branch (e.g. an unused "On False") is a normal, silent no-op.
+    if command_count == 0 && manager_with_children {
+        log!(
+            origin = processor_node;
+            format!("Output dispatch: no command fired for target '{}'", target.stable_id)
+        );
+    }
+}
+
+/// Fires a single output target: a command node directly, every enabled command
+/// under an Outputs manager, or a plain parameter (legacy value output). Returns
+/// the number of commands fired.
+fn execute_output_target(
+    ctx: &mut ProcessCtx,
+    snapshot: &ProcessTreeSnapshot,
+    node: NodeId,
+    payload: &RuntimeValue,
+    fired: &mut HashSet<NodeId>,
+) -> usize {
+    if !fired.insert(node) {
+        return 0;
+    }
+    if node_is_command(snapshot, node) {
+        let _ = crate::app::module_command::emit_command_execute(ctx, node);
+        return 1;
+    }
+
+    let mut command_count = 0usize;
+    for child in snapshot.child_ids(node) {
+        if snapshot.node(child).is_some_and(|child| child.enabled) && node_is_command(snapshot, child) {
+            if fired.insert(child) {
+                let _ = crate::app::module_command::emit_command_execute(ctx, child);
+            }
+            command_count += 1;
+        }
+    }
+    if command_count > 0 {
+        return command_count;
+    }
+
+    if snapshot.node(node).is_some_and(|node| node.param_value.is_some()) {
+        if let Ok(value) = runtime_value_to_param(payload) {
+            ctx.set_param(node, value);
+        }
+    }
+    0
+}
+
+/// A command is a node whose type is a declared module- or generic-command item.
+/// (Detecting by a `trigger` child is unreliable — triggers aren't persisted, so
+/// a freshly-loaded command may not expose one until re-materialized.)
+fn node_is_command(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bool {
+    snapshot.node(node).is_some_and(|node| {
+        crate::app::declared_user_item_type_matches(
+            &node.node_type,
+            crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
+        ) || crate::app::declared_user_item_type_matches(
+            &node.node_type,
+            crate::app::state_machine_nodes_generic_commands::GENERIC_COMMAND_ITEM_KIND,
+        )
+    })
+}
+
+fn resolve_stable_ref_node(snapshot: &ProcessTreeSnapshot, target: &StableRef) -> Option<NodeId> {
+    let uuid = target.stable_id.parse::<uuid::Uuid>().map(NodeUuid).ok()?;
+    snapshot.node_id_by_uuid(uuid)
+}
+
+fn find_descendant_by_decl_id(
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    decl_id: &str,
+) -> Option<NodeId> {
+    for child in snapshot.child_ids(parent) {
+        if snapshot.node(child).is_some_and(|child| child.decl_id == decl_id) {
+            return Some(child);
+        }
+        if let Some(found) = find_descendant_by_decl_id(snapshot, child, decl_id) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 fn format_debug_log_intent(

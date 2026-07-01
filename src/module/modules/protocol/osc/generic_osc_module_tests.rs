@@ -788,6 +788,70 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
 }
 
 #[test]
+fn execute_event_runs_osc_command_through_module_output() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    receiver
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("test receiver should accept a read timeout");
+    let receiver_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
+
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/execute-event".to_string()),
+    );
+    engine.apply_edits().expect("command setup edits should apply");
+
+    // Fire the command the way the state-machine output dispatch does: a single
+    // execute event targeting the command (not a trigger-param edit), so the path
+    // works per-lane under multiplex.
+    let execute_event = golden_core::events::CustomEvent::new(
+        crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC,
+        Some(command_id),
+        serde_json::to_value(crate::app::module_command::ModuleCommandExecuteEvent { command_id })
+            .expect("execute event payload should serialize"),
+    );
+    engine.edits.push(Edit::EmitCustomEvent { event: execute_event });
+    engine.apply_edits().expect("execute event edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("execute event should dispatch to the command");
+    engine
+        .apply_edits()
+        .expect("queued command request should apply through the engine");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued command request should dispatch to the module");
+    engine
+        .apply_edits()
+        .expect("queued command request side effects should apply through the engine");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should let the transport process the queued command");
+
+    let mut buffer = [0u8; 2048];
+    let (length, _) = receiver
+        .recv_from(&mut buffer)
+        .expect("execute event should cause the command to send a UDP packet");
+    let (_, packet) = decoder::decode_udp(&buffer[..length]).expect("udp payload should decode as osc");
+
+    match packet {
+        OscPacket::Message(message) => {
+            assert_eq!(message.addr, "/test/execute-event");
+        }
+        other => panic!("expected OSC message packet, got {other:?}"),
+    }
+}
+
+#[test]
 fn output_manager_creates_module_linked_osc_command() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver
@@ -819,7 +883,8 @@ fn output_manager_creates_module_linked_osc_command() {
     let catalog = engine.catalog_creatable_items(output_manager_id);
     assert!(
         catalog.iter().any(|item| {
-            item.node_type == crate::app::ParameterSetOutput::NODE_TYPE
+            item.node_type
+                == crate::app::state_machine_nodes_generic_commands::GenericLogCommand::NODE_TYPE
                 && item.menu_path == vec!["Generic".to_string()]
         }),
         "generic output commands should be grouped under Generic; catalog was {catalog:?}"

@@ -11,9 +11,10 @@
 </script>
 
 <span class="validation-chip" class:valid class:icon-only={!showLabel} {title} aria-label={title}>
-	<span class="validation-chip-dot" aria-hidden="true"></span>
 	{#if showLabel}
 		<span class="validation-chip-label">{valid ? 'Valid' : 'Invalid'}</span>
+	{:else}
+		<!-- <span class="validation-chip-dot" aria-hidden="true"></span> -->
 	{/if}
 </span>
 
@@ -43,19 +44,25 @@
 	}
 
 	.validation-chip.icon-only {
-		height: .6rem;
+		height: 0.6rem;
 		inline-size: 1.85rem;
 		min-inline-size: 1.85rem;
 		padding-inline: 0;
 	}
 
-	.validation-chip-dot {
+	.validation-chip.icon-only.valid {
+		background: color-mix(in srgb, var(--gc-success, #47a66a) 80%, transparent);
+		box-shadow: inset 0 0 .5rem color-mix(in srgb, var(--gc-success, #47a66a) 30%, rgba(100,255,0,.8));
+
+	}
+
+	/* .validation-chip-dot {
 		flex: 0 0 auto;
-		inline-size: 0.42rem;
-		block-size: 0.42rem;
+		inline-size: 80%;
+		block-size: 60%;
 		border-radius: 999rem;
 		background: currentColor;
-	}
+	} */
 
 	.validation-chip-label {
 		min-inline-size: 0;

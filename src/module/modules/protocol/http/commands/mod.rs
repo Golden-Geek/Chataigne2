@@ -47,6 +47,27 @@ macro_rules! command_node_impl {
                 golden_core::logerror!(format!("Failed to trigger {}: {error}", $context));
             }
         }
+
+        fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+            if !crate::app::module_command::is_command_execute_request(&event, self.id()) {
+                return;
+            }
+            let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+                return;
+            };
+            let snapshot = snapshot_arc.as_ref();
+            if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
+                crate::app::module_command::emit_module_command_request(
+                    ctx,
+                    snapshot,
+                    self.id(),
+                    self.get_type(),
+                    &payload,
+                )
+            }) {
+                golden_core::logerror!(format!("Failed to execute {}: {error}", $context));
+            }
+        }
     };
 }
 

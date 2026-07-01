@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cargo check *)"
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "mcp__jcodemunch__*",
+      "mcp__context7__*",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }

@@ -337,7 +337,7 @@ fn parameter_node_type(value: &ParamValue) -> &'static str {
     }
 }
 
-fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
+pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
     Ok(match value {
         RuntimeValue::Unit => ParamValue::Str(String::new()),
         RuntimeValue::Bool(value) => ParamValue::Bool(*value),

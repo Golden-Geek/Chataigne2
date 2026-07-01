@@ -10,7 +10,7 @@ use golden_core::{
 };
 
 const INPUT_ITEM_KIND: &str = "sm_input";
-const OUTPUT_ITEM_KIND: &str = "sm_output";
+use crate::app::state_machine_nodes_generic_commands::GENERIC_COMMAND_ITEM_KIND;
 const GENERIC_OUTPUT_MENU_PATH: &str = "Generic";
 
 fn locked_manager_permissions() -> NodeUserPermissions {
@@ -215,7 +215,7 @@ impl Node for FilterChainManager {
 pub struct OutputsManager {}
 
 fn output_generic_items() -> Vec<UserCreatableItem> {
-    crate::app::declared_user_creatable_items(OUTPUT_ITEM_KIND)
+    crate::app::declared_user_creatable_items(GENERIC_COMMAND_ITEM_KIND)
         .into_iter()
         .map(|item| {
             item.with_menu_path([GENERIC_OUTPUT_MENU_PATH])
@@ -279,14 +279,14 @@ fn output_module_command_items(
 impl Node for OutputsManager {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            OUTPUT_ITEM_KIND,
+            GENERIC_COMMAND_ITEM_KIND,
             crate::app::module_command::MODULE_COMMAND_ITEM_KIND,
         ]))
     }
 
     fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        matches!(item_kind, OUTPUT_ITEM_KIND)
-            && crate::app::declared_user_item_type_matches(item_type, OUTPUT_ITEM_KIND)
+        matches!(item_kind, GENERIC_COMMAND_ITEM_KIND)
+            && crate::app::declared_user_item_type_matches(item_type, GENERIC_COMMAND_ITEM_KIND)
             || item_kind == crate::app::module_command::MODULE_COMMAND_ITEM_KIND
                 && crate::app::declared_user_item_type_matches(
                     item_type,
@@ -311,7 +311,7 @@ impl Node for OutputsManager {
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        crate::app::create_declared_user_item(node_type, OUTPUT_ITEM_KIND).or_else(|| {
+        crate::app::create_declared_user_item(node_type, GENERIC_COMMAND_ITEM_KIND).or_else(|| {
             crate::app::create_declared_user_item(
                 node_type,
                 crate::app::module_command::MODULE_COMMAND_ITEM_KIND,

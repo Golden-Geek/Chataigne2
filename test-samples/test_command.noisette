@@ -62,9 +62,9 @@
                       ],
                       "presentation": {
                         "color": {
-                          "r": 0.5138466666666668,
-                          "g": 0.8476999999999999,
-                          "b": 0.13230000000000003,
+                          "r": 0.3785,
+                          "g": 0.8584,
+                          "b": 0.2502,
                           "a": 1.0
                         },
                         "collapsed": true
@@ -98,9 +98,9 @@
                       ],
                       "presentation": {
                         "color": {
-                          "r": 0.5138466666666668,
-                          "g": 0.8476999999999999,
-                          "b": 0.13230000000000003,
+                          "r": 0.8471,
+                          "g": 0.427,
+                          "b": 0.0987,
                           "a": 1.0
                         },
                         "collapsed": true
@@ -161,8 +161,8 @@
                     "data": {
                       "value": {
                         "Vec2": [
-                          6.066361940724925,
-                          6.610494243946256
+                          -1.3509353685519307,
+                          4.594138483566221
                         ]
                       }
                     }
@@ -237,8 +237,8 @@
                     "data": {
                       "value": {
                         "Vec2": [
-                          22.150030814389,
-                          4.520897584385283
+                          17.829267685842147,
+                          4.304857505013334
                         ]
                       }
                     }
@@ -268,18 +268,6 @@
                               ],
                               "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873"
                             }
-                          }
-                        }
-                      },
-                      {
-                        "uuid": "3c9c0d9c-aab5-4be3-9091-744e85bcd89c",
-                        "type": "bool",
-                        "meta": {
-                          "decl_id": "config/log"
-                        },
-                        "data": {
-                          "value": {
-                            "Bool": true
                           }
                         }
                       }
@@ -408,8 +396,8 @@
                     "data": {
                       "value": {
                         "Vec2": [
-                          21.948595196842792,
-                          13.091124567872464
+                          18.92406155627274,
+                          12.15495821609728
                         ]
                       }
                     }
@@ -439,18 +427,6 @@
                               ],
                               "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153"
                             }
-                          }
-                        }
-                      },
-                      {
-                        "uuid": "943f2149-5e89-429c-abb9-f08a2363cce3",
-                        "type": "bool",
-                        "meta": {
-                          "decl_id": "config/log"
-                        },
-                        "data": {
-                          "value": {
-                            "Bool": true
                           }
                         }
                       }
@@ -1161,7 +1137,7 @@
                             }
                           },
                           {
-                            "uuid": "0368dcf9-5855-48f4-b339-642e1729c75f",
+                            "uuid": "b43fe222-3f8e-4c8a-992a-7500f6b4cdd6",
                             "type": "int",
                             "meta": {
                               "decl_id": "seed",
@@ -2118,7 +2094,7 @@
                             }
                           },
                           {
-                            "uuid": "4efc6a9f-96c0-473c-bcf4-671877d67170",
+                            "uuid": "d4de4d42-4867-476e-9e2e-04417a2eb01f",
                             "type": "int",
                             "meta": {
                               "decl_id": "seed",
@@ -2501,6 +2477,60 @@
                     ]
                   }
                 ]
+              },
+              {
+                "uuid": "8e37be55-883c-4ded-8d51-977cb0eaa0a3",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "values"
+                },
+                "children": [
+                  {
+                    "uuid": "b9ca8466-8dd5-4ef9-b5c1-41a35ee5635d",
+                    "type": "trigger",
+                    "meta": {
+                      "decl_id": "custom",
+                      "short_name": "custom",
+                      "label": "custom",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "uuid": "6ae6bf58-1a6f-4b97-9595-a6259cdd3de7",
+                "type": "module_command_tester",
+                "meta": {
+                  "decl_id": "command_tester"
+                },
+                "children": [
+                  {
+                    "uuid": "258863f3-00b5-4e61-865e-b5f9a40e9862",
+                    "type": "osc_send_custom_message_command",
+                    "user_role": "itemRoot",
+                    "children": [
+                      {
+                        "uuid": "8d6c0828-466c-43a7-b79e-7580005d2dca",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "auto_trigger",
+                          "short_name": "auto_trigger",
+                          "label": "Auto Trigger",
+                          "description": "Run this command automatically when one of its command parameters changes.",
+                          "presentation": {
+                            "show_in_inspector_content": false
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
               }
             ]
           }
@@ -2641,14 +2671,14 @@
                                     "data": {
                                       "value": {
                                         "Reference": {
-                                          "cached_name": "Signal 4",
+                                          "cached_name": "Signal 2",
                                           "relative_path_from_root": [
                                             "moduleManager",
                                             "module",
                                             "values",
-                                            "signal_5ddaba9e7708475ab416d286ffd21200"
+                                            "signal_a586d7aab2914ebebe95b285dcee121e"
                                           ],
-                                          "uuid": "c4162bc7-0a17-416b-8ade-e6c2ff6038cf"
+                                          "uuid": "5e7dce75-a0c4-441a-a607-5d016bb1ca15"
                                         }
                                       }
                                     }
@@ -2661,7 +2691,7 @@
                                     },
                                     "data": {
                                       "value": {
-                                        "Enum": "greater_than"
+                                        "Enum": "outside"
                                       }
                                     }
                                   },
@@ -2673,7 +2703,19 @@
                                     },
                                     "data": {
                                       "value": {
-                                        "Float": 0.6999999999999905
+                                        "Float": 0.23999999999999053
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "uuid": "ab14dc24-2341-4ad4-9c7a-7a21e734891b",
+                                    "type": "float",
+                                    "meta": {
+                                      "decl_id": "reference_max"
+                                    },
+                                    "data": {
+                                      "value": {
+                                        "Float": 0.4
                                       }
                                     }
                                   }
@@ -2690,12 +2732,12 @@
                             },
                             "children": [
                               {
-                                "uuid": "2b6d024d-afca-4f1f-8562-722dde846214",
+                                "uuid": "58d5662c-5853-4217-b9d5-8e0b981297bd",
                                 "type": "osc_send_custom_message_command",
                                 "user_role": "itemRoot",
                                 "children": [
                                   {
-                                    "uuid": "ebc0d957-832f-47cc-96c1-d1004aeff8e4",
+                                    "uuid": "3923b2a2-5f8d-483a-b642-a6f667bb38ee",
                                     "type": "reference",
                                     "meta": {
                                       "decl_id": "target_module"
@@ -2712,20 +2754,25 @@
                                         }
                                       }
                                     }
-                                  },
+                                  }
+                                ]
+                              },
+                              {
+                                "uuid": "0608b302-c005-49cd-9f03-df0b6a492128",
+                                "type": "generic_log_command",
+                                "user_role": "itemRoot",
+                                "children": [
                                   {
-                                    "uuid": "4b556f9e-382f-49b0-9314-1d23447ac6a8",
-                                    "type": "osc_command_arguments",
+                                    "uuid": "9282f41d-1afd-4adb-97e0-ee5af8f3bcab",
+                                    "type": "str",
                                     "meta": {
-                                      "decl_id": "arguments"
+                                      "decl_id": "message"
                                     },
-                                    "children": [
-                                      {
-                                        "uuid": "3161c66a-a434-4490-8ab2-5f507a3022d8",
-                                        "type": "float",
-                                        "user_role": "itemRoot"
+                                    "data": {
+                                      "value": {
+                                        "Str": ";dsfkjsdf"
                                       }
-                                    ]
+                                    }
                                   }
                                 ]
                               }
@@ -2733,196 +2780,6 @@
                           },
                           {
                             "uuid": "5f701f47-a03f-4e21-942c-3327a1917ba7",
-                            "type": "sm_outputs_manager",
-                            "meta": {
-                              "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
-                              "label": "On False",
-                              "presentation": {
-                                "collapsed": true
-                              }
-                            },
-                            "children": [
-                              {
-                                "uuid": "9d773741-4304-4eb0-8ea6-e420e2da9fcf",
-                                "type": "buttplug_set_output_command",
-                                "user_role": "itemRoot",
-                                "children": [
-                                  {
-                                    "uuid": "a6fd9c15-666c-4eaf-a376-708bc989ceec",
-                                    "type": "reference",
-                                    "meta": {
-                                      "decl_id": "target_module"
-                                    },
-                                    "data": {
-                                      "value": {
-                                        "Reference": {
-                                          "cached_name": "Buttplug",
-                                          "relative_path_from_root": [
-                                            "moduleManager",
-                                            "module"
-                                          ],
-                                          "uuid": "2e2e90ee-8530-48f9-ade2-f42c3027cf62"
-                                        }
-                                      }
-                                    }
-                                  },
-                                  {
-                                    "uuid": "7f4d81d5-7a15-45bc-8207-de298c3d70fd",
-                                    "type": "float",
-                                    "meta": {
-                                      "decl_id": "value"
-                                    },
-                                    "data": {
-                                      "value": {
-                                        "Float": 0.07752772591107637
-                                      }
-                                    }
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "uuid": "40770111-52d7-46b2-9c1e-565e88a86f03",
-                    "type": "state_processor",
-                    "user_role": "itemRoot",
-                    "meta": {
-                      "decl_id": "action2",
-                      "short_name": "action2",
-                      "label": "Action 2"
-                    },
-                    "data": {
-                      "formula_source": {
-                        "Project": {
-                          "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
-                        }
-                      }
-                    },
-                    "children": [
-                      {
-                        "uuid": "32aa85ea-f444-490e-b175-3536e5809181",
-                        "type": "reference",
-                        "meta": {
-                          "decl_id": "formula"
-                        },
-                        "data": {
-                          "default_value": {
-                            "Reference": {
-                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
-                            }
-                          },
-                          "value": {
-                            "Reference": {
-                              "cached_name": "Action",
-                              "uuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
-                            }
-                          }
-                        }
-                      },
-                      {
-                        "uuid": "a4d7fdf6-a479-4f98-83e4-ab495ae84e7c",
-                        "type": "str",
-                        "meta": {
-                          "decl_id": "formula_source_key"
-                        },
-                        "data": {
-                          "default_value": {
-                            "Str": "state_processor:project:7c3dcd13-d180-431a-aa1e-bcdbfb1801fb"
-                          }
-                        }
-                      },
-                      {
-                        "uuid": "62d5ee1e-1e44-4afc-86fb-8baf2d647d38",
-                        "type": "state_processor_properties",
-                        "children": [
-                          {
-                            "uuid": "30d11a66-dc4c-4d46-be29-a76e3fef5499",
-                            "type": "sm_condition_manager",
-                            "meta": {
-                              "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf"
-                            },
-                            "children": [
-                              {
-                                "uuid": "5d41fc8a-6d0a-490f-bd96-a1a4eecd08ba",
-                                "type": "sm_input_value_condition",
-                                "user_role": "itemRoot",
-                                "meta": {
-                                  "decl_id": "inputValue",
-                                  "short_name": "inputValue",
-                                  "can_be_disabled": true,
-                                  "label": "Input Value",
-                                  "user_permissions": {
-                                    "can_edit_name": true,
-                                    "can_remove_and_duplicate": true,
-                                    "can_edit_constraints": true,
-                                    "can_edit_tags": true,
-                                    "can_edit_color": true
-                                  }
-                                },
-                                "children": [
-                                  {
-                                    "uuid": "ec13b297-ae71-4f19-8a3d-13ef19c85680",
-                                    "type": "reference",
-                                    "meta": {
-                                      "decl_id": "source"
-                                    },
-                                    "data": {
-                                      "value": {
-                                        "Reference": {
-                                          "cached_name": "Signal 2",
-                                          "relative_path_from_root": [
-                                            "moduleManager",
-                                            "module",
-                                            "values",
-                                            "signal_a586d7aab2914ebebe95b285dcee121e"
-                                          ],
-                                          "uuid": "5e7dce75-a0c4-441a-a607-5d016bb1ca15"
-                                        }
-                                      }
-                                    }
-                                  },
-                                  {
-                                    "uuid": "fc0c39fa-9ef6-4102-ab74-01200ba4484c",
-                                    "type": "enum",
-                                    "meta": {
-                                      "decl_id": "comparator"
-                                    },
-                                    "data": {
-                                      "value": {
-                                        "Enum": "greater_than"
-                                      }
-                                    }
-                                  },
-                                  {
-                                    "uuid": "6c80d6b7-22a1-4b58-bf7d-e220599d86b5",
-                                    "type": "float",
-                                    "meta": {
-                                      "decl_id": "reference"
-                                    },
-                                    "data": {
-                                      "value": {
-                                        "Float": 0.8999999999999905
-                                      }
-                                    }
-                                  }
-                                ]
-                              }
-                            ]
-                          },
-                          {
-                            "uuid": "300f496f-21d1-4032-9659-4d1d135e60ed",
-                            "type": "sm_outputs_manager",
-                            "meta": {
-                              "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
-                              "label": "On True"
-                            }
-                          },
-                          {
-                            "uuid": "8e80beed-c329-48f1-a042-f1049b29b9ca",
                             "type": "sm_outputs_manager",
                             "meta": {
                               "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",

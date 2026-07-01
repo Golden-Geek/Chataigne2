@@ -37,7 +37,7 @@ fn note_command_dependencies_follow_note_mode() {
 
     assert_eq!(
         direct_child_decl_ids(&engine, command_id),
-        ["trigger", "channel", "note_mode", "pitch", "velocity"]
+        ["target_module", "trigger", "channel", "note_mode", "pitch", "velocity"]
             .into_iter()
             .map(str::to_string)
             .collect::<Vec<_>>(),
@@ -51,7 +51,7 @@ fn note_command_dependencies_follow_note_mode() {
 
     assert_eq!(
         direct_child_decl_ids(&engine, command_id),
-        ["trigger", "channel", "note_mode", "octave", "note", "velocity"]
+        ["target_module", "trigger", "channel", "note_mode", "octave", "note", "velocity"]
             .into_iter()
             .map(str::to_string)
             .collect::<Vec<_>>(),
@@ -63,7 +63,7 @@ fn note_command_dependencies_follow_note_mode() {
 
     assert_eq!(
         direct_child_decl_ids(&engine, command_id),
-        ["trigger", "channel", "note_mode", "pitch", "velocity"]
+        ["target_module", "trigger", "channel", "note_mode", "pitch", "velocity"]
             .into_iter()
             .map(str::to_string)
             .collect::<Vec<_>>(),

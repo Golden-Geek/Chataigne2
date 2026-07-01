@@ -84,7 +84,22 @@ impl Node for OscSendCustomMessageCommand {
         if !crate::app::module_command::module_command_triggered(snapshot, self.id(), param) {
             return;
         }
+        self.run(ctx);
+    }
 
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
+            self.run(ctx);
+        }
+    }
+}
+
+impl OscSendCustomMessageCommand {
+    fn run(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let snapshot = snapshot_arc.as_ref();
         if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
             crate::app::module_command::emit_module_command_request(ctx, snapshot, self.id(), self.get_type(), &payload)
         }) {

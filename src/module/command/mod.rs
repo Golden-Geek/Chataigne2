@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
+/// Topic for asking a specific command node to run once (state-machine outputs
+/// fire one event per lane, which the command turns into a module request).
+pub const MODULE_COMMAND_EXECUTE_TOPIC: &str = "chataigne.module.command.execute";
 pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
 pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
 pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
@@ -215,7 +218,7 @@ pub(crate) fn emit_module_command_request<T: Serialize>(
             .map_err(|error| format!("failed to serialize module command payload: {error}"))?,
     };
 
-    ctx.emit_custom_payload(MODULE_COMMAND_REQUEST_TOPIC, Some(command_id), &event)
+    ctx.emit_custom_payload(MODULE_COMMAND_REQUEST_TOPIC, Some(module_id), &event)
         .map_err(|error| format!("failed to emit module command request: {error}"))
 }
 
@@ -223,6 +226,29 @@ pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<Modul
     (event.topic == MODULE_COMMAND_REQUEST_TOPIC)
         .then(|| event.payload_as::<ModuleCommandRequestEvent>().ok())
         .flatten()
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandExecuteEvent {
+    pub command_id: NodeId,
+}
+
+/// Asks a single command node to run once. Emitted with the command as the
+/// event origin so the command itself receives it (depth-0 recipient), which is
+/// what makes per-lane / multiplexed firing possible without coalescing.
+pub(crate) fn emit_command_execute(ctx: &mut ProcessCtx, command_id: NodeId) -> Result<(), String> {
+    let event = ModuleCommandExecuteEvent { command_id };
+    ctx.emit_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
+        .map_err(|error| format!("failed to emit module command execute: {error}"))
+}
+
+/// Returns `true` when `event` asks `command_id` to run.
+pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId) -> bool {
+    event.topic == MODULE_COMMAND_EXECUTE_TOPIC
+        && event
+            .payload_as::<ModuleCommandExecuteEvent>()
+            .map(|decoded| decoded.command_id == command_id)
+            .unwrap_or(false)
 }
 
 #[node("module_command_manager_base", label = "Commands")]

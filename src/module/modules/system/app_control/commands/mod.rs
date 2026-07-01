@@ -71,6 +71,37 @@ fn handle_command_param_change<TCommand, TPayload, F>(
     }
 }
 
+fn handle_command_execute_event<TCommand, TPayload, F>(
+    command: &TCommand,
+    ctx: &mut ProcessCtx,
+    event: &golden_core::events::CustomEvent,
+    context: &str,
+    request_payload: F,
+) where
+    TCommand: Node,
+    TPayload: serde::Serialize,
+    F: FnOnce(&TCommand, &ProcessTreeSnapshot) -> Result<TPayload, String>,
+{
+    if !crate::app::module_command::is_command_execute_request(event, command.id()) {
+        return;
+    }
+    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    let snapshot = snapshot_arc.as_ref();
+    if let Err(error) = request_payload(command, snapshot).and_then(|payload| {
+        crate::app::module_command::emit_module_command_request(
+            ctx,
+            snapshot,
+            command.id(),
+            command.get_type(),
+            &payload,
+        )
+    }) {
+        golden_core::logerror!(format!("Failed to execute {context}: {error}"));
+    }
+}
+
 #[node("app_control_launch_process_command", label = "Launch")]
 #[children(
     mode: Enum = APP_CONTROL_LAUNCH_MODE_WATCHED_APP (
@@ -169,6 +200,12 @@ impl Node for AppControlLaunchProcessCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_command_param_change(self, ctx, param, "App Control launch command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_command_execute_event(self, ctx, &event, "App Control launch command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -275,6 +312,12 @@ impl Node for AppControlKillProcessCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_command_param_change(self, ctx, param, "App Control kill command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_command_execute_event(self, ctx, &event, "App Control kill command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -422,6 +465,16 @@ impl Node for AppControlWindowControlCommand {
             self,
             ctx,
             param,
+            "App Control window command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_command_execute_event(
+            self,
+            ctx,
+            &event,
             "App Control window command",
             |command, snapshot| command.request_payload(snapshot),
         );

@@ -131,6 +131,37 @@ fn handle_midi_command_param_change<TCommand, TPayload, TRequest>(
     }
 }
 
+fn handle_midi_command_execute_event<TCommand, TPayload, TRequest>(
+    command: &TCommand,
+    ctx: &mut ProcessCtx,
+    event: &golden_core::events::CustomEvent,
+    context: &str,
+    request_payload: TRequest,
+) where
+    TCommand: Node,
+    TPayload: Serialize,
+    TRequest: FnOnce(&TCommand, &ProcessTreeSnapshot) -> Result<TPayload, String>,
+{
+    if !crate::app::module_command::is_command_execute_request(event, command.id()) {
+        return;
+    }
+    let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
+        return;
+    };
+    let snapshot = snapshot_arc.as_ref();
+    if let Err(error) = request_payload(command, snapshot).and_then(|payload| {
+        crate::app::module_command::emit_module_command_request(
+            ctx,
+            snapshot,
+            command.id(),
+            command.get_type(),
+            &payload,
+        )
+    }) {
+        golden_core::logerror!(format!("Failed to execute {context}: {error}"));
+    }
+}
+
 #[node("midi_note_command_base", label = "Note Command")]
 #[children(
     [base_children];
@@ -221,6 +252,12 @@ impl Node for MidiSendNoteOnCommand {
             command.request_payload(snapshot)
         });
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI note-on command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
 }
 
 #[node("midi_send_note_off_command", label = "Send Note Off")]
@@ -262,6 +299,12 @@ impl Node for MidiSendNoteOffCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI note-off command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI note-off command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -328,6 +371,12 @@ impl Node for MidiSendFullNoteCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI full-note command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI full-note command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -404,6 +453,16 @@ impl Node for MidiSendControlChangeCommand {
             |command, snapshot| command.request_payload(snapshot),
         );
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(
+            self,
+            ctx,
+            &event,
+            "MIDI control-change command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
 }
 
 #[node("midi_send_program_change_command", label = "Send Program Change")]
@@ -453,6 +512,16 @@ impl Node for MidiSendProgramChangeCommand {
             |command, snapshot| command.request_payload(snapshot),
         );
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(
+            self,
+            ctx,
+            &event,
+            "MIDI program-change command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
 }
 
 #[node("midi_send_pitch_bend_command", label = "Send Pitch Bend")]
@@ -495,6 +564,12 @@ impl Node for MidiSendPitchBendCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI pitch-bend command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI pitch-bend command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -547,6 +622,16 @@ impl Node for MidiSendChannelPressureCommand {
             |command, snapshot| command.request_payload(snapshot),
         );
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(
+            self,
+            ctx,
+            &event,
+            "MIDI channel-pressure command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
 }
 
 #[node("midi_send_poly_pressure_command", label = "Send Poly Pressure")]
@@ -588,6 +673,12 @@ impl Node for MidiSendPolyPressureCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI poly-pressure command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI poly-pressure command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -657,6 +748,12 @@ impl Node for MidiSendSystemCommonCommand {
             command.request_payload(snapshot)
         });
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI system-common command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
 }
 
 #[node("midi_send_system_realtime_command", label = "Send System Realtime")]
@@ -711,6 +808,16 @@ impl Node for MidiSendSystemRealtimeCommand {
             |command, snapshot| command.request_payload(snapshot),
         );
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(
+            self,
+            ctx,
+            &event,
+            "MIDI system-realtime command",
+            |command, snapshot| command.request_payload(snapshot),
+        );
+    }
 }
 
 #[node("midi_send_sysex_bytes_command", label = "Send Sysex Bytes")]
@@ -753,6 +860,12 @@ impl Node for MidiSendSysexBytesCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI sysex-bytes command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI sysex-bytes command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
@@ -801,6 +914,12 @@ impl Node for MidiSendSysexStringCommand {
             command.request_payload(snapshot)
         });
     }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI sysex-string command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
 }
 
 #[node("midi_send_raw_bytes_command", label = "Send Raw MIDI Bytes")]
@@ -843,6 +962,12 @@ impl Node for MidiSendRawBytesCommand {
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         handle_midi_command_param_change(self, ctx, param, "MIDI raw-bytes command", |command, snapshot| {
+            command.request_payload(snapshot)
+        });
+    }
+
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        handle_midi_command_execute_event(self, ctx, &event, "MIDI raw-bytes command", |command, snapshot| {
             command.request_payload(snapshot)
         });
     }
