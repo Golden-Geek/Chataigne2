@@ -97,6 +97,7 @@ pub struct UserCreatableItemInitialParam {
 }
 
 impl UserCreatableItemInitialParam {
+    /// Creates a direct parameter initializer for a newly-created catalog item.
     pub fn new(decl_id: impl Into<String>, value: ParamValue) -> Self {
         Self {
             decl_id: DeclId(decl_id.into()),

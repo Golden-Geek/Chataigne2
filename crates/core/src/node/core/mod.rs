@@ -18,8 +18,8 @@ pub use metadata::{
 };
 pub use policies::{IntoScriptHostPolicyOption, IntoUserContextHostPolicyOption, UserContextHostPolicy};
 pub use user_items::{
-    DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem,
-    UserCreatableItemInitialParam, UserNodeRole,
+    DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserCreatableItemInitialParam,
+    UserNodeRole,
 };
 
 pub(crate) use builtins::parameter_child_exists;

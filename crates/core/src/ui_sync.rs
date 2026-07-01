@@ -10,8 +10,8 @@ use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
     CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch,
-    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem,
-    UserCreatableItemInitialParam, UserNodeRole,
+    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserCreatableItemInitialParam,
+    UserNodeRole,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,

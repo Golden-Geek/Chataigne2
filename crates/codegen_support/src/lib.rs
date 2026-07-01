@@ -110,6 +110,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiProjectPathRequest>(&config, "UiProjectPathRequest");
     export_binding::<UiProjectUploadRequest>(&config, "UiProjectUploadRequest");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
+    normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
 }
 
 /// Small command-line wrapper around the codegen helpers.
@@ -147,6 +148,19 @@ pub fn run_cli() -> Result<(), String> {
 
 fn export_binding<T: TS + 'static>(config: &Config, name: &str) {
     T::export_all(config).unwrap_or_else(|err| panic!("failed to export {name}: {err}"));
+}
+
+fn normalize_generated_typescript_binding(out_dir: &Path, name: &str) {
+    let path = out_dir.join(format!("{name}.ts"));
+    let source = fs::read_to_string(&path).unwrap_or_else(|err| panic!("failed to read {}: {}", path.display(), err));
+    let mut normalized = source.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
+    if source.ends_with('\n') {
+        normalized.push('\n');
+    }
+
+    if normalized != source {
+        fs::write(&path, normalized).unwrap_or_else(|err| panic!("failed to write {}: {}", path.display(), err));
+    }
 }
 
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
