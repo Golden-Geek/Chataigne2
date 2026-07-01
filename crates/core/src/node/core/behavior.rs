@@ -733,6 +733,12 @@ pub trait Node: Send + Any {
         false
     }
 
+    /// Returns `true` when this node's inbox callbacks require a tree snapshot
+    /// for the current event batch.
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        self.engine_param_snapshot().is_none()
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::default()
     }

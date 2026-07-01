@@ -1180,7 +1180,7 @@ impl QuickJsRuntime {
                 }
 
                 if let Some(value) = node.script_property(trimmed_key) {
-                    return Ok(Some(serde_json::json!({ "kind": "value", "value": QuickJsRuntime::param_value_to_tree_json(value) }).to_string()));
+                    return Ok(Some(serde_json::json!({ "kind": "value", "value": QuickJsRuntime::param_value_to_tree_json(value.as_ref()) }).to_string()));
                 }
 
                 if node.has_script_method(trimmed_key) {

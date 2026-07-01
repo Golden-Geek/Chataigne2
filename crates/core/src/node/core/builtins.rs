@@ -151,6 +151,10 @@ impl Node for UserContextNode {
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::PassOn
     }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
+    }
 }
 
 /// Folder node used inside a user-context scope.
@@ -222,6 +226,10 @@ impl Node for UserContextFolder {
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::PassOn
     }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
+    }
 }
 
 pub(crate) fn parameter_child_exists(ctx: &ProcessCtx, parent: NodeId, decl_id: &str) -> bool {
@@ -277,6 +285,10 @@ impl Node for Folder {
 
     fn event_propagation(&self, _: &Event, _: u32) -> EventPropagation {
         EventPropagation::PassOn
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
     }
 }
 

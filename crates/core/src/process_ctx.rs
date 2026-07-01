@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
@@ -73,15 +74,42 @@ impl ProcessTreeNodeSnapshot {
     }
 
     /// Returns one script-facing property value by key.
-    pub fn script_property(&self, key: &str) -> Option<&ParamValue> {
-        self.script_properties.get(key)
+    pub fn script_property(&self, key: &str) -> Option<Cow<'_, ParamValue>> {
+        match key {
+            "name" => Some(Cow::Owned(ParamValue::Str(self.label.clone()))),
+            "enabled" => Some(Cow::Owned(ParamValue::Bool(self.enabled))),
+            "type" => Some(Cow::Owned(ParamValue::Str(self.node_type.clone()))),
+            "declId" => Some(Cow::Owned(ParamValue::Str(self.decl_id.clone()))),
+            "value" => self.param_value.as_ref().map(Cow::Borrowed),
+            _ => self.script_properties.get(key).map(Cow::Borrowed),
+        }
     }
 
     /// Returns `true` when this node exposes `method` as a script-callable entrypoint.
     pub fn has_script_method(&self, method: &str) -> bool {
         self.script_methods.iter().any(|candidate| candidate == method)
+            || CORE_SCRIPT_METHODS.contains(&method)
     }
 }
+
+const CORE_SCRIPT_METHODS: &[&str] = &[
+    "setName",
+    "setEnabled",
+    "setDescription",
+    "setReadOnly",
+    "addNode",
+    "removeNode",
+    "addParameter",
+    "removeParameter",
+    "addFolder",
+    "setParam",
+    "listen",
+    "unlisten",
+    "getProperties",
+    "getChildren",
+    "getChild",
+    "toString",
+];
 
 impl fmt::Display for ProcessTreeNodeSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

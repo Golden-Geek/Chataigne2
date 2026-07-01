@@ -484,39 +484,8 @@ pub struct NodeScriptDescriptor {
 impl NodeScriptDescriptor {
     /// Creates the standard script descriptor shared by all node proxies.
     pub fn for_node(node_data: &NodeData, node_type: &str) -> Self {
-        let mut descriptor = Self::default();
-        descriptor
-            .properties
-            .insert("name".to_string(), ParamValue::Str(node_data.meta.label.clone()));
-        descriptor
-            .properties
-            .insert("enabled".to_string(), ParamValue::Bool(node_data.meta.enabled));
-        descriptor
-            .properties
-            .insert("type".to_string(), ParamValue::Str(node_type.to_string()));
-        descriptor
-            .properties
-            .insert("declId".to_string(), ParamValue::Str(node_data.meta.decl_id.0.clone()));
-
-        descriptor.add_methods([
-            "setName",
-            "setEnabled",
-            "setDescription",
-            "setReadOnly",
-            "addNode",
-            "removeNode",
-            "addParameter",
-            "removeParameter",
-            "addFolder",
-            "setParam",
-            "listen",
-            "unlisten",
-            "getProperties",
-            "getChildren",
-            "getChild",
-            "toString",
-        ]);
-        descriptor
+        let _ = (node_data, node_type);
+        Self::default()
     }
 
     /// Adds one script-callable method if it is not already present.

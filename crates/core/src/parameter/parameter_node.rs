@@ -1,6 +1,7 @@
 use serde_json::Value as JsonValue;
 
 use crate::{
+    events::Event,
     node::{
         DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData,
         NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, UserContainerRules,
@@ -563,6 +564,10 @@ impl Node for Parameter {
         Some(self.snapshot())
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
+    }
+
     fn engine_dashboard_widget_target_descriptor(&self) -> DashboardWidgetTargetDescriptor {
         let mut widget_types = vec![
             DashboardWidgetTypeSpec::new("inspector", "Inspector")
@@ -653,9 +658,7 @@ impl Node for Parameter {
     }
 
     fn engine_script_descriptor(&self) -> crate::node::NodeScriptDescriptor {
-        let mut descriptor = crate::node::core_node_script_descriptor(&self.node_data, self.get_type());
-        descriptor.properties.insert("value".to_string(), self.value.clone());
-        descriptor
+        crate::node::core_node_script_descriptor(&self.node_data, self.get_type())
     }
 
     fn engine_set_script_property(

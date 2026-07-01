@@ -1,11 +1,22 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::time::Instant;
 
 use crate::events::{Event, EventKind};
 use crate::node::{EventPropagation, EventSubscription, Node, NodeId};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 use super::{Engine, EngineEditError};
+
+static DISPATCH_PERF_TRACE_ENABLED: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var_os("CHATAIGNE_PERF_TRACE").is_some_and(|value| {
+        let value = value.to_string_lossy();
+        !matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "" | "0" | "false" | "off"
+        )
+    })
+});
 
 impl<T: Node> Engine<T> {
     pub(crate) fn apply_add_event_listener(
@@ -120,14 +131,69 @@ impl<T: Node> Engine<T> {
         per_node_events: Vec<(NodeId, Vec<Event>)>,
         run_app_callbacks: bool,
     ) -> Result<(), EngineEditError> {
+        let trace = *DISPATCH_PERF_TRACE_ENABLED;
+        let dispatch_start = trace.then(Instant::now);
+        let mut trace_by_type: Option<HashMap<String, (usize, usize, u128)>> =
+            trace.then(HashMap::new);
+
         // Take ownership to avoid borrow conflicts with the &mut self calls below.
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
-        let tree_snapshot = (!per_node_events.is_empty()).then(|| self.build_process_tree_snapshot());
+        let mut snapshot_requesters: Option<HashMap<String, usize>> = trace.then(HashMap::new);
+        let needs_tree_snapshot = per_node_events.iter().any(|(node_id, events)| {
+            let requires = self
+                .nodes
+                .get(*node_id)
+                .is_some_and(|node| node.inbox_requires_tree_snapshot(events));
+            if requires {
+                if let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
+                    let node_type = self
+                        .nodes
+                        .get(*node_id)
+                        .map(|node| node.get_type().to_owned())
+                        .unwrap_or_else(|| "<missing>".to_owned());
+                    let event_kinds = events
+                        .iter()
+                        .take(4)
+                        .map(|event| match &event.kind {
+                            EventKind::ParamChanged { .. } => "ParamChanged",
+                            EventKind::ParamControlChanged { .. } => "ParamControlChanged",
+                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
+                            EventKind::ChildAdded { .. } => "ChildAdded",
+                            EventKind::ChildRemoved { .. } => "ChildRemoved",
+                            EventKind::ChildReplaced { .. } => "ChildReplaced",
+                            EventKind::ChildMoved { .. } => "ChildMoved",
+                            EventKind::ChildReordered { .. } => "ChildReordered",
+                            EventKind::NodeCreated { .. } => "NodeCreated",
+                            EventKind::NodeDeleted { .. } => "NodeDeleted",
+                            EventKind::MetaChanged { .. } => "MetaChanged",
+                            EventKind::GraphTransaction { .. } => "GraphTransaction",
+                            EventKind::Custom(_) => "Custom",
+                        })
+                        .collect::<Vec<_>>()
+                        .join("+");
+                    *snapshot_requesters
+                        .entry(format!("{node_type}[{event_kinds}]"))
+                        .or_default() += 1;
+                }
+            }
+            requires
+        });
+        let snapshot_start = trace.then(Instant::now);
+        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let snapshot_us = snapshot_start.map(|start| start.elapsed().as_micros());
 
         for (node_id, events) in per_node_events {
             if events.is_empty() {
                 continue;
             }
+
+            let trace_node_type = trace.then(|| {
+                self.nodes
+                    .get(node_id)
+                    .map(|node| node.get_type().to_owned())
+                    .unwrap_or_else(|| "<missing>".to_owned())
+            });
+            let trace_event_count = events.len();
 
             let mut ctx = ProcessCtx::new(phase, self.time);
             ctx.events = events;
@@ -138,6 +204,7 @@ impl<T: Node> Engine<T> {
 
             let events_before = self.inbox.events.len();
             if let Some(node) = self.nodes.get_mut(node_id) {
+                let node_start = trace.then(Instant::now);
                 crate::logger::with_node_origin(node_id, || {
                     node.engine_preprocess_inbox(&mut ctx);
                     let mut resolve = |param_id: NodeId| parameter_values.get(&param_id).cloned();
@@ -146,6 +213,14 @@ impl<T: Node> Engine<T> {
                         node.on_inbox(&mut ctx);
                     }
                 });
+                if let (Some(node_type), Some(start), Some(trace_by_type)) =
+                    (trace_node_type, node_start, trace_by_type.as_mut())
+                {
+                    let entry = trace_by_type.entry(node_type).or_insert((0, 0, 0));
+                    entry.0 += 1;
+                    entry.1 += trace_event_count;
+                    entry.2 += start.elapsed().as_micros();
+                }
                 self.absorb_edits(&mut ctx)?;
             }
             for event in self.inbox.events.iter().skip(events_before) {
@@ -170,6 +245,40 @@ impl<T: Node> Engine<T> {
 
         // Return the cache so it can be reused next call (same as run_scheduled_updates).
         self.parameter_values_cache = parameter_values;
+
+        if let (Some(start), Some(trace_by_type), Some(snapshot_requesters)) =
+            (dispatch_start, trace_by_type, snapshot_requesters)
+        {
+            let elapsed_ms = start.elapsed().as_millis();
+            if elapsed_ms > 0 {
+                let mut entries: Vec<_> = trace_by_type.into_iter().collect();
+                entries.sort_by(|left, right| right.1.2.cmp(&left.1.2));
+                let summary = entries
+                    .into_iter()
+                    .take(8)
+                    .map(|(node_type, (nodes, events, micros))| {
+                        format!("{node_type}:nodes={nodes},events={events},us={micros}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                let mut snapshot_requesters: Vec<_> = snapshot_requesters.into_iter().collect();
+                snapshot_requesters.sort_by(|left, right| right.1.cmp(&left.1));
+                let snapshot_requesters = snapshot_requesters
+                    .into_iter()
+                    .take(8)
+                    .map(|(node_type, count)| format!("{node_type}:{count}"))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                eprintln!(
+                    "[engine] dispatch_profile total_ms={} snapshot={} snapshot_us={} snapshot_requesters={} recipients={}",
+                    elapsed_ms,
+                    needs_tree_snapshot,
+                    snapshot_us.unwrap_or(0),
+                    snapshot_requesters,
+                    summary
+                );
+            }
+        }
 
         Ok(())
     }

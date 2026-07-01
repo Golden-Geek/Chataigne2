@@ -969,6 +969,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn inbox_requires_tree_snapshot(&self, events: &[$crate::events::Event]) -> bool {
+                $crate::__dispatch_node_enum!(self, inbox_requires_tree_snapshot, events; $($variant),*)
+            }
+
+            #[inline(always)]
             fn child_event_interest_depth(&self, event: &$crate::events::Event) -> u32 {
                 $crate::__dispatch_node_enum!(self, child_event_interest_depth, event; $($variant),*)
             }
