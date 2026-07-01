@@ -123,6 +123,9 @@ pub struct UserCreatableItem {
     pub initial_params: Vec<UserCreatableItemInitialParam>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
+    /// Whether the Add menu should render a divider immediately above this item.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub separator_before: bool,
 }
 
 impl UserCreatableItem {
@@ -135,6 +138,7 @@ impl UserCreatableItem {
             menu_path: Vec::new(),
             initial_params: Vec::new(),
             select_when_created: true,
+            separator_before: false,
         }
     }
 
@@ -171,6 +175,12 @@ impl UserCreatableItem {
     /// Overrides whether UI creation flows should auto-select the created item.
     pub fn with_select_when_created(mut self, select_when_created: bool) -> Self {
         self.select_when_created = select_when_created;
+        self
+    }
+
+    /// Requests a divider be rendered immediately above this item in the Add menu.
+    pub fn with_separator_before(mut self, separator_before: bool) -> Self {
+        self.separator_before = separator_before;
         self
     }
 }

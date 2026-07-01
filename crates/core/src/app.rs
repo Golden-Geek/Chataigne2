@@ -1,6 +1,6 @@
 //! App lifecycle hooks and host-independent runtime preparation.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Error;
 use std::path::Path;
@@ -269,17 +269,25 @@ where
     T: ProjectNode + From<Folder>,
 {
     let referenced_uuids = collect_referenced_uuids(engine);
-    let structural_root = build_structural_baseline_record_for_node(engine, engine.root)?;
-    let root = encode_sparse_node_record(engine, engine.root, Some(&structural_root), false, &referenced_uuids)?
-        .ok_or_else(|| ProjectPersistenceError::Codec {
-            node_type: engine
-                .nodes
-                .get(engine.root)
-                .map(Node::get_type)
-                .unwrap_or("unknown")
-                .to_string(),
-            message: "root node cannot be omitted from sparse project output".to_string(),
-        })?;
+    let mut cache = SparseEncodeCache::default();
+    let structural_root = cache.structural_baseline_for_node(engine, engine.root)?;
+    let root = encode_sparse_node_record(
+        engine,
+        engine.root,
+        Some(&structural_root),
+        false,
+        &referenced_uuids,
+        &mut cache,
+    )?
+    .ok_or_else(|| ProjectPersistenceError::Codec {
+        node_type: engine
+            .nodes
+            .get(engine.root)
+            .map(Node::get_type)
+            .unwrap_or("unknown")
+            .to_string(),
+        message: "root node cannot be omitted from sparse project output".to_string(),
+    })?;
 
     Ok(ProjectFile {
         version: PROJECT_FILE_VERSION.to_string(),
@@ -292,17 +300,25 @@ where
     T: ProjectNode + From<Folder>,
 {
     let referenced_uuids = collect_referenced_uuids(engine);
-    let structural_root = build_structural_baseline_record_for_node(engine, root_id)?;
-    let root = encode_sparse_node_record(engine, root_id, Some(&structural_root), false, &referenced_uuids)?
-        .ok_or_else(|| ProjectPersistenceError::Codec {
-            node_type: engine
-                .nodes
-                .get(root_id)
-                .map(Node::get_type)
-                .unwrap_or("unknown")
-                .to_string(),
-            message: "subtree root cannot be omitted from sparse output".to_string(),
-        })?;
+    let mut cache = SparseEncodeCache::default();
+    let structural_root = cache.structural_baseline_for_node(engine, root_id)?;
+    let root = encode_sparse_node_record(
+        engine,
+        root_id,
+        Some(&structural_root),
+        false,
+        &referenced_uuids,
+        &mut cache,
+    )?
+    .ok_or_else(|| ProjectPersistenceError::Codec {
+        node_type: engine
+            .nodes
+            .get(root_id)
+            .map(Node::get_type)
+            .unwrap_or("unknown")
+            .to_string(),
+        message: "subtree root cannot be omitted from sparse output".to_string(),
+    })?;
 
     Ok(ProjectFile {
         version: PROJECT_FILE_VERSION.to_string(),
@@ -314,10 +330,141 @@ fn expand_sparse_project_file<T>(project: ProjectFile) -> Result<ProjectFile, Pr
 where
     T: ProjectNode + From<Folder>,
 {
+    let mut cache = SparseExpansionCache::default();
     Ok(ProjectFile {
         version: project.version,
-        root: expand_sparse_node_record::<T>(&project.root, None, None, None)?,
+        root: expand_sparse_node_record::<T>(&project.root, None, None, None, &mut cache)?,
     })
+}
+
+#[derive(Default)]
+struct SparseExpansionCache;
+
+impl SparseExpansionCache {
+    fn structural_baseline_from_expanded_record<T>(
+        &mut self,
+        record: &ProjectNodeRecord,
+        parent_node: Option<&T>,
+        parent_record: Option<&ProjectNodeRecord>,
+    ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
+    where
+        T: ProjectNode + From<Folder>,
+    {
+        build_structural_baseline_record_from_expanded_record::<T>(record, parent_node, parent_record)
+    }
+}
+
+#[derive(Default)]
+struct SparseEncodeCache {
+    structural_baselines: HashMap<String, ProjectNodeRecord>,
+    default_baselines: HashMap<String, Option<ProjectNodeRecord>>,
+}
+
+impl SparseEncodeCache {
+    fn structural_baseline_for_node<T>(
+        &mut self,
+        engine: &Engine<T>,
+        node_id: NodeId,
+    ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
+    where
+        T: ProjectNode + From<Folder>,
+    {
+        let key = sparse_encode_baseline_cache_key(engine, node_id, true)?;
+        if let Some(baseline) = self.structural_baselines.get(&key) {
+            let mut baseline = baseline.clone();
+            let node = engine
+                .nodes
+                .get(node_id)
+                .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+            baseline.uuid = node.node_data().meta.uuid;
+            baseline.meta = project_meta_from_runtime(&node.node_data().meta);
+            return Ok(baseline);
+        }
+
+        let baseline = build_structural_baseline_record_for_node(engine, node_id)?;
+        self.structural_baselines.insert(key, baseline.clone());
+        Ok(baseline)
+    }
+
+    fn default_baseline_for_node<T>(
+        &mut self,
+        engine: &Engine<T>,
+        node_id: NodeId,
+    ) -> Result<Option<ProjectNodeRecord>, ProjectPersistenceError>
+    where
+        T: ProjectNode + From<Folder>,
+    {
+        let key = sparse_encode_baseline_cache_key(engine, node_id, false)?;
+        if let Some(baseline) = self.default_baselines.get(&key) {
+            return Ok(baseline.clone());
+        }
+
+        let baseline = build_default_baseline_record_for_node(engine, node_id)?;
+        self.default_baselines.insert(key, baseline.clone());
+        Ok(baseline)
+    }
+}
+
+fn sparse_encode_baseline_cache_key<T>(
+    engine: &Engine<T>,
+    node_id: NodeId,
+    include_node_data: bool,
+) -> Result<String, ProjectPersistenceError>
+where
+    T: Node,
+{
+    let node = engine
+        .nodes
+        .get(node_id)
+        .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+    let parent = node
+        .node_data()
+        .parent
+        .map(|parent_id| sparse_runtime_node_cache_fragment(engine, parent_id, true))
+        .transpose()?
+        .unwrap_or_else(|| "root".to_string());
+    let node_fragment = sparse_runtime_node_cache_fragment(engine, node_id, include_node_data)?;
+    if include_node_data {
+        let node = engine
+            .nodes
+            .get(node_id)
+            .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+        let meta = serde_json::to_string(&project_meta_from_runtime(&node.node_data().meta))?;
+        return Ok(format!("parent:{parent}\nnode:{node_fragment}\nmeta:{meta}"));
+    }
+    Ok(format!("parent:{parent}\nnode:{node_fragment}"))
+}
+
+fn sparse_runtime_node_cache_fragment<T>(
+    engine: &Engine<T>,
+    node_id: NodeId,
+    include_data: bool,
+) -> Result<String, ProjectPersistenceError>
+where
+    T: Node,
+{
+    let node = engine
+        .nodes
+        .get(node_id)
+        .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+    let data = if include_data {
+        raw_project_data_from_runtime(node)?
+    } else {
+        None
+    };
+    Ok(format!(
+        "{}|{:?}|{}",
+        node.get_type(),
+        node.node_data().user_role,
+        sparse_json_cache_key(data.as_ref())?
+    ))
+}
+
+fn sparse_json_cache_key(value: Option<&serde_json::Value>) -> Result<String, ProjectPersistenceError> {
+    match value {
+        Some(value) => Ok(serde_json::to_string(value)?),
+        None => Ok("null".to_string()),
+    }
 }
 
 fn expand_sparse_node_record<T>(
@@ -325,6 +472,7 @@ fn expand_sparse_node_record<T>(
     parent_node: Option<&T>,
     parent_record: Option<&ProjectNodeRecord>,
     matched_baseline: Option<&ProjectNodeRecord>,
+    cache: &mut SparseExpansionCache,
 ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
@@ -337,7 +485,7 @@ where
         ),
         None => {
             baseline_storage =
-                build_structural_baseline_record_from_expanded_record::<T>(record, parent_node, parent_record)?;
+                cache.structural_baseline_from_expanded_record::<T>(record, parent_node, parent_record)?;
             (
                 merge_sparse_record_with_baseline(&baseline_storage, record),
                 baseline_storage.children.as_slice(),
@@ -346,7 +494,7 @@ where
     };
     let current_node = decode_sparse_baseline_node(parent_node, &expanded)?;
 
-    expanded.children = expand_sparse_child_records(record, &current_node, &expanded, baseline_children)?;
+    expanded.children = expand_sparse_child_records(record, &current_node, &expanded, baseline_children, cache)?;
 
     Ok(expanded)
 }
@@ -532,6 +680,7 @@ fn expand_sparse_child_records<T>(
     current_node: &T,
     expanded_parent_record: &ProjectNodeRecord,
     baseline_children: &[ProjectNodeRecord],
+    cache: &mut SparseExpansionCache,
 ) -> Result<Vec<ProjectNodeRecord>, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
@@ -552,12 +701,26 @@ where
 
         if let Some(index) = matched_index {
             consumed_overlay_children[index] = true;
-            expanded_children.push(expand_sparse_node_record(
+            match expand_sparse_node_record(
                 &record.children[index],
                 Some(current_node),
                 Some(expanded_parent_record),
                 Some(baseline_child),
-            )?);
+                cache,
+            ) {
+                Ok(expanded) => expanded_children.push(expanded),
+                Err(err) => {
+                    // A saved overlay could not be restored onto its declared baseline
+                    // (e.g. stale/renamed node type or corrupt data). Keep the declared
+                    // default so the rest of the project still loads, and warn the user.
+                    let overlay_child = &record.children[index];
+                    crate::logwarning!(format!(
+                        "Project load: could not restore saved node '{}' (uuid {}): {}. Falling back to declared defaults; edits under it were skipped.",
+                        overlay_child.node_type, overlay_child.uuid.0, err
+                    ));
+                    expanded_children.push(baseline_child.clone());
+                }
+            }
         } else {
             expanded_children.push(baseline_child.clone());
         }
@@ -568,12 +731,18 @@ where
             continue;
         }
 
-        expanded_children.push(expand_sparse_node_record(
-            child,
-            Some(current_node),
-            Some(expanded_parent_record),
-            None,
-        )?);
+        match expand_sparse_node_record(child, Some(current_node), Some(expanded_parent_record), None, cache) {
+            Ok(expanded) => expanded_children.push(expanded),
+            Err(err) => {
+                // A saved node has no matching declared baseline and could not be decoded
+                // (typically an unknown/removed node type from an older or newer project).
+                // Skip it and its subtree rather than failing the whole load.
+                crate::logwarning!(format!(
+                    "Project load: skipping unknown or unreadable node '{}' (uuid {}) and its children: {}. The rest of the project was loaded.",
+                    child.node_type, child.uuid.0, err
+                ));
+            }
+        }
     }
 
     Ok(expanded_children)
@@ -595,6 +764,7 @@ fn encode_sparse_node_record<T>(
     matched_parent_baseline: Option<&ProjectNodeRecord>,
     allow_omission: bool,
     referenced_uuids: &HashSet<NodeUuid>,
+    cache: &mut SparseEncodeCache,
 ) -> Result<Option<ProjectNodeRecord>, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
@@ -622,7 +792,7 @@ where
             .map(|baseline| baseline.children.as_slice())
             .unwrap_or(&[])
     } else {
-        structural_baseline_storage = Some(build_structural_baseline_record_for_node(engine, node_id)?);
+        structural_baseline_storage = Some(cache.structural_baseline_for_node(engine, node_id)?);
         structural_baseline_storage
             .as_ref()
             .map(|baseline| baseline.children.as_slice())
@@ -633,7 +803,7 @@ where
     let self_baseline = if let Some(baseline) = matched_parent_baseline {
         Some(baseline)
     } else {
-        default_baseline_storage = build_default_baseline_record_for_node(engine, node_id)?;
+        default_baseline_storage = cache.default_baseline_for_node(engine, node_id)?;
         default_baseline_storage.as_ref()
     };
 
@@ -662,6 +832,7 @@ where
             matched_child_baseline,
             matched_child_baseline.is_some(),
             referenced_uuids,
+            cache,
         )? {
             children.push(record);
         }

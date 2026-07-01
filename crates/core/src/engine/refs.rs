@@ -32,15 +32,47 @@ impl<T: Node> Engine<T> {
     ///
     /// Returns how many cached entries were updated.
     pub fn resolve_reference_caches(&mut self) -> usize {
+        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        self.resolve_reference_caches_for_nodes(node_ids.as_slice())
+    }
+
+    pub(crate) fn resolve_reference_caches_for_nodes(&mut self, node_ids: &[NodeId]) -> usize {
         let uuid_map: HashMap<NodeUuid, (NodeId, String)> = self
             .nodes
             .iter()
             .map(|(id, node)| (node.node_data().meta.uuid, (id, node.node_data().meta.label.clone())))
             .collect();
-        let node_ids: Vec<NodeId> = self.nodes.keys().collect();
         let mut updated = 0usize;
 
-        for node_id in node_ids {
+        for node_id in node_ids.iter().copied() {
+            let normalized_reference = self
+                .nodes
+                .get(node_id)
+                .and_then(|node| node.engine_param_snapshot())
+                .and_then(|snapshot| match snapshot.value {
+                    ParamValue::Reference(reference) => {
+                        self.normalize_reference_value_for_param(node_id, reference).ok()
+                    }
+                    _ => None,
+                });
+
+            if let Some(normalized_reference) = normalized_reference {
+                if let Some(node) = self.nodes.get_mut(node_id) {
+                    node.engine_visit_references_mut(&mut |reference| {
+                        if reference.uuid() != normalized_reference.uuid()
+                            || reference.projection() != normalized_reference.projection()
+                            || reference.cached_id() != normalized_reference.cached_id()
+                            || reference.cached_name() != normalized_reference.cached_name()
+                            || reference.relative_path_from_root() != normalized_reference.relative_path_from_root()
+                        {
+                            updated += 1;
+                            *reference = normalized_reference.clone();
+                        }
+                    });
+                }
+                continue;
+            }
+
             if let Some(node) = self.nodes.get_mut(node_id) {
                 node.engine_visit_references_mut(&mut |reference| {
                     let resolved = uuid_map.get(&reference.uuid()).map(|(id, _)| *id);
@@ -91,12 +123,20 @@ impl<T: Node> Engine<T> {
     }
 
     fn sync_missing_reference_warnings_impl(&mut self, emit_events: bool) -> usize {
-        self.resolve_reference_caches();
-        let uuid_map = self.uuid_to_node_id_map();
         let node_ids: Vec<NodeId> = self.nodes.keys().collect();
+        self.sync_missing_reference_warnings_for_nodes_impl(node_ids.as_slice(), emit_events)
+    }
+
+    pub(crate) fn sync_missing_reference_warnings_for_nodes_silent(&mut self, node_ids: &[NodeId]) -> usize {
+        self.sync_missing_reference_warnings_for_nodes_impl(node_ids, false)
+    }
+
+    fn sync_missing_reference_warnings_for_nodes_impl(&mut self, node_ids: &[NodeId], emit_events: bool) -> usize {
+        self.resolve_reference_caches_for_nodes(node_ids);
+        let uuid_map = self.uuid_to_node_id_map();
         let mut pending: Vec<(NodeId, crate::node::PresentationHint)> = Vec::new();
 
-        for node_id in node_ids {
+        for node_id in node_ids.iter().copied() {
             let Some(node) = self.nodes.get(node_id) else {
                 continue;
             };
@@ -189,7 +229,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        if resolved.is_none() && !reference.relative_path_from_root().is_empty() {
+        if resolved.is_none() && reference.uuid().is_nil() && !reference.relative_path_from_root().is_empty() {
             if let Some(candidate) = self.resolve_relative_decl_path(root, reference.relative_path_from_root()) {
                 if self.reference_candidate_allowed(param_node, root, candidate, &constraints)? {
                     resolved = Some(candidate);

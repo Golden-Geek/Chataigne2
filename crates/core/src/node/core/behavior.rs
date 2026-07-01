@@ -37,6 +37,59 @@ impl NodeCreationContext {
     }
 }
 
+enum InboxDispatchEvent {
+    ParamChanged {
+        param: NodeId,
+        old_value: ParamValue,
+    },
+    ParamControlChanged {
+        param: NodeId,
+        old_state: ParameterControlState,
+        new_state: ParameterControlState,
+    },
+    ParamConstraintsChanged {
+        param: NodeId,
+        old_constraints: ParameterConstraints,
+        new_constraints: ParameterConstraints,
+    },
+    ChildAdded {
+        parent: NodeId,
+        child: NodeId,
+        decl_id: DeclId,
+    },
+    ChildRemoved {
+        parent: NodeId,
+        child: NodeId,
+    },
+    ChildReplaced {
+        parent: NodeId,
+        old: NodeId,
+        new: NodeId,
+        decl_id: DeclId,
+    },
+    ChildMoved {
+        child: NodeId,
+        old_parent: NodeId,
+        new_parent: NodeId,
+    },
+    ChildReordered {
+        parent: NodeId,
+        child: NodeId,
+    },
+    NodeCreated {
+        node: NodeId,
+    },
+    NodeDeleted {
+        node: NodeId,
+    },
+    MetaChanged {
+        node: NodeId,
+        patch: NodeMetaPatch,
+    },
+    GraphTransaction,
+    Custom(CustomEvent),
+}
+
 #[allow(missing_docs)]
 /// Behavior contract implemented by all node types.
 pub trait Node: Send + Any {
@@ -616,9 +669,9 @@ pub trait Node: Send + Any {
 
     #[doc(hidden)]
     fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
-        for event in ctx.events.clone() {
-            if let EventKind::ParamChanged { param, new_value, .. } = event.kind {
-                self.engine_sync_param_handle_cache(param, &new_value);
+        for event in &ctx.events {
+            if let EventKind::ParamChanged { param, new_value, .. } = &event.kind {
+                self.engine_sync_param_handle_cache(*param, new_value);
             }
         }
     }
@@ -825,32 +878,100 @@ pub trait Node: Send + Any {
             self.on_structure_changed(ctx);
         }
 
-        for event in ctx.events.clone() {
-            match event.kind {
-                EventKind::ParamChanged { param, old_value, .. } => {
+        for index in 0..ctx.events.len() {
+            let event = match &ctx.events[index].kind {
+                EventKind::ParamChanged { param, old_value, .. } => InboxDispatchEvent::ParamChanged {
+                    param: *param,
+                    old_value: old_value.clone(),
+                },
+                EventKind::ParamControlChanged {
+                    param,
+                    old_state,
+                    new_state,
+                } => InboxDispatchEvent::ParamControlChanged {
+                    param: *param,
+                    old_state: old_state.clone(),
+                    new_state: new_state.clone(),
+                },
+                EventKind::ParamConstraintsChanged {
+                    param,
+                    old_constraints,
+                    new_constraints,
+                } => InboxDispatchEvent::ParamConstraintsChanged {
+                    param: *param,
+                    old_constraints: old_constraints.clone(),
+                    new_constraints: new_constraints.clone(),
+                },
+                EventKind::ChildAdded { parent, child, decl_id } => InboxDispatchEvent::ChildAdded {
+                    parent: *parent,
+                    child: *child,
+                    decl_id: decl_id.clone(),
+                },
+                EventKind::ChildRemoved { parent, child } => InboxDispatchEvent::ChildRemoved {
+                    parent: *parent,
+                    child: *child,
+                },
+                EventKind::ChildReplaced {
+                    parent,
+                    old,
+                    new,
+                    decl_id,
+                } => InboxDispatchEvent::ChildReplaced {
+                    parent: *parent,
+                    old: *old,
+                    new: *new,
+                    decl_id: decl_id.clone(),
+                },
+                EventKind::ChildMoved {
+                    child,
+                    old_parent,
+                    new_parent,
+                } => InboxDispatchEvent::ChildMoved {
+                    child: *child,
+                    old_parent: *old_parent,
+                    new_parent: *new_parent,
+                },
+                EventKind::ChildReordered { parent, child } => InboxDispatchEvent::ChildReordered {
+                    parent: *parent,
+                    child: *child,
+                },
+                EventKind::NodeCreated { node } => InboxDispatchEvent::NodeCreated { node: *node },
+                EventKind::NodeDeleted { node } => InboxDispatchEvent::NodeDeleted { node: *node },
+                EventKind::MetaChanged { node, patch } => InboxDispatchEvent::MetaChanged {
+                    node: *node,
+                    patch: patch.clone(),
+                },
+                EventKind::GraphTransaction { .. } => {
+                    // Handled implicitly by on_structure_changed or individual ops if destructured later.
+                    InboxDispatchEvent::GraphTransaction
+                }
+                EventKind::Custom(event) => InboxDispatchEvent::Custom(event.clone()),
+            };
+            match event {
+                InboxDispatchEvent::ParamChanged { param, old_value } => {
                     self.on_param_change(ctx, param, old_value);
                 }
-                EventKind::ParamControlChanged {
+                InboxDispatchEvent::ParamControlChanged {
                     param,
                     old_state,
                     new_state,
                 } => {
                     self.on_param_control_changed(ctx, param, old_state, new_state);
                 }
-                EventKind::ParamConstraintsChanged {
+                InboxDispatchEvent::ParamConstraintsChanged {
                     param,
                     old_constraints,
                     new_constraints,
                 } => {
                     self.on_param_constraints_changed(ctx, param, old_constraints, new_constraints);
                 }
-                EventKind::ChildAdded { parent, child, decl_id } => {
+                InboxDispatchEvent::ChildAdded { parent, child, decl_id } => {
                     self.on_child_added_decl(ctx, parent, child, &decl_id);
                 }
-                EventKind::ChildRemoved { parent, child } => {
+                InboxDispatchEvent::ChildRemoved { parent, child } => {
                     self.on_child_removed(ctx, parent, child);
                 }
-                EventKind::ChildReplaced {
+                InboxDispatchEvent::ChildReplaced {
                     parent,
                     old,
                     new,
@@ -858,29 +979,27 @@ pub trait Node: Send + Any {
                 } => {
                     self.on_child_replaced_decl(ctx, parent, old, new, &decl_id);
                 }
-                EventKind::ChildMoved {
+                InboxDispatchEvent::ChildMoved {
                     child,
                     old_parent,
                     new_parent,
                 } => {
                     self.on_child_moved(ctx, child, old_parent, new_parent);
                 }
-                EventKind::ChildReordered { parent, child } => {
+                InboxDispatchEvent::ChildReordered { parent, child } => {
                     self.on_child_reordered(ctx, parent, child);
                 }
-                EventKind::NodeCreated { node } => {
+                InboxDispatchEvent::NodeCreated { node } => {
                     self.on_node_created(ctx, node);
                 }
-                EventKind::NodeDeleted { node } => {
+                InboxDispatchEvent::NodeDeleted { node } => {
                     self.on_node_deleted(ctx, node);
                 }
-                EventKind::MetaChanged { node, patch } => {
+                InboxDispatchEvent::MetaChanged { node, patch } => {
                     self.on_meta_changed(ctx, node, patch);
                 }
-                EventKind::GraphTransaction { .. } => {
-                    // Handled implicitly by on_structure_changed or individual ops if destructured later.
-                }
-                EventKind::Custom(event) => {
+                InboxDispatchEvent::GraphTransaction => {}
+                InboxDispatchEvent::Custom(event) => {
                     self.on_custom_event(ctx, event);
                 }
             }

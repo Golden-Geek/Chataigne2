@@ -1,9 +1,10 @@
-use std::any::type_name;
+use std::{any::type_name, collections::BTreeMap};
 
 use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::{Node, NodeCreationContext};
+use crate::parameter::ParamValue;
 
 use super::history::{HistoryStep, HistoryTransaction};
 use super::{Engine, EngineEditError};
@@ -29,6 +30,13 @@ impl<T: Node> Engine<T> {
     /// Runtime-driven edit flushes use this so periodic/internal graph activity
     /// does not pollute user-facing undo history.
     pub(crate) fn apply_edits_without_history(&mut self) -> Result<(), EngineEditError> {
+        if *super::runtime::PERF_TRACE_ENABLED && !self.edits.pending.is_empty() {
+            eprintln!(
+                "[engine] runtime_edit_flush count={} kinds={}",
+                self.edits.pending.len(),
+                pending_edit_kind_summary(&self.edits.pending)
+            );
+        }
         self.tick_scratch.stats.edits_applied += self.edits.pending.len();
         self.apply_edits_internal(false, Some(NodeCreationContext::Fresh))
     }
@@ -110,7 +118,11 @@ impl<T: Node> Engine<T> {
                 }
                 Edit::SetParam { node, value, behaviour } => match self.apply_set_param(edit_index, node, value)? {
                     Some(mut effect) => {
-                        missing_reference_warning_dirty = true;
+                        if matches!(effect.old_value, ParamValue::Reference(_))
+                            || matches!(effect.new_value, ParamValue::Reference(_))
+                        {
+                            missing_reference_warning_dirty = true;
+                        }
                         if UserContextValueType::from_param_value(&effect.old_value)
                             != UserContextValueType::from_param_value(&effect.new_value)
                             && self.node_within_user_context_scope(effect.node)
@@ -357,5 +369,45 @@ impl<T: Node> Engine<T> {
         self.inbox.push(Event { time, kind });
         self.tick_scratch.stats.events_emitted += 1;
         self.time.seq = self.time.seq.saturating_add(1);
+    }
+}
+
+fn pending_edit_kind_summary(pending: &[crate::edit::EditRequest]) -> String {
+    let mut counts = BTreeMap::<&'static str, usize>::new();
+    for request in pending {
+        *counts.entry(edit_kind_name(&request.edit)).or_insert(0) += 1;
+    }
+    counts
+        .into_iter()
+        .map(|(kind, count)| format!("{kind}:{count}"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn edit_kind_name(edit: &Edit) -> &'static str {
+    match edit {
+        Edit::BeginEditSession { .. } => "BeginEditSession",
+        Edit::EndEditSession { .. } => "EndEditSession",
+        Edit::SetParam { .. } => "SetParam",
+        Edit::SetParamConstraints { .. } => "SetParamConstraints",
+        Edit::SetNodeScriptProperty { .. } => "SetNodeScriptProperty",
+        Edit::CallNodeScriptMethod { .. } => "CallNodeScriptMethod",
+        Edit::CallNodeMutation { .. } => "CallNodeMutation",
+        Edit::AddNode { .. } => "AddNode",
+        Edit::AddNodeTree { .. } => "AddNodeTree",
+        Edit::AddUserItem { .. } => "AddUserItem",
+        Edit::CreateBlueprintInstance { .. } => "CreateBlueprintInstance",
+        Edit::ReplaceNode { .. } => "ReplaceNode",
+        Edit::RemoveNode { .. } => "RemoveNode",
+        Edit::MoveNode { .. } => "MoveNode",
+        Edit::PatchMeta { .. } => "PatchMeta",
+        Edit::SetScriptConfig { .. } => "SetScriptConfig",
+        Edit::SetNodeWarning { .. } => "SetNodeWarning",
+        Edit::ClearNodeWarning { .. } => "ClearNodeWarning",
+        Edit::SetNodeChildWarningDepth { .. } => "SetNodeChildWarningDepth",
+        Edit::EmitCustomEvent { .. } => "EmitCustomEvent",
+        Edit::ReevaluateGraph => "ReevaluateGraph",
+        Edit::AddEventListener { .. } => "AddEventListener",
+        Edit::RemoveEventListener { .. } => "RemoveEventListener",
     }
 }

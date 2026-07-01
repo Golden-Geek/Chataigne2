@@ -406,9 +406,9 @@ impl<T: Node> Engine<T> {
         let root_id = engine.root;
         engine.load_children_records(root_id, &project.root.children, &mut decode_node)?;
 
-        // Rebuild runtime caches for UUID-based references after full tree reconstruction.
+        // Rebuild runtime caches for UUID-based references before lifecycle hooks run.
+        // Presentation warnings are synced once after lifecycle has restored declared structure.
         engine.resolve_reference_caches();
-        engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
 
         // Freshly loaded projects should start with clean runtime-only state before re-running node lifecycle hooks.
@@ -424,7 +424,6 @@ impl<T: Node> Engine<T> {
         };
 
         engine.replay_loaded_subtree_lifecycle(root_id, NodeCreationContext::ProjectLoad, LoadedReadyMode::Deferred)?;
-        engine.resolve_reference_caches();
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
 
@@ -493,8 +492,7 @@ impl<T: Node> Engine<T> {
             LoadedReadyMode::Immediate,
         )?;
         let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
-        self.resolve_reference_caches();
-        self.sync_missing_reference_warnings_silent();
+        self.sync_missing_reference_warnings_for_nodes_silent(duplicated_node_ids.as_slice());
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
         self.push_loaded_subtree_ui_events(duplicated_node_ids.as_slice())?;
@@ -552,8 +550,7 @@ impl<T: Node> Engine<T> {
             LoadedReadyMode::Immediate,
         )?;
         let imported_node_ids = self.collect_loaded_subtree_node_ids(imported_root)?;
-        self.resolve_reference_caches();
-        self.sync_missing_reference_warnings_silent();
+        self.sync_missing_reference_warnings_for_nodes_silent(imported_node_ids.as_slice());
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
         self.push_loaded_subtree_ui_events(imported_node_ids.as_slice())?;
@@ -579,6 +576,39 @@ impl<T: Node> Engine<T> {
     fn push_loaded_subtree_ui_events(&mut self, node_ids: &[NodeId]) -> Result<(), ProjectPersistenceError> {
         let mut ops = Vec::<UiGraphOp>::with_capacity(node_ids.len().saturating_add(1));
         let mut root_parent = None;
+        let catalog_snapshot = self.build_process_tree_snapshot();
+
+        // Match the normal add-node path: large loaded/duplicated subtrees should
+        // reach the UI as one transaction instead of many indexed inserts.
+        const SUBTREE_COMPACT_THRESHOLD: usize = 8;
+        if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
+            let Some(root) = node_ids.first().copied() else {
+                return Ok(());
+            };
+            let parent = self
+                .nodes
+                .get(root)
+                .ok_or(ProjectPersistenceError::MissingNode(root))?
+                .node_data()
+                .parent;
+            if let Some(parent) = parent {
+                let mut nodes = Vec::with_capacity(node_ids.len());
+                for node in node_ids {
+                    let snapshot = self
+                        .ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot.as_ref())
+                        .ok_or(ProjectPersistenceError::MissingNode(*node))?;
+                    nodes.push(snapshot);
+                }
+                let parent_children_after = self.ui_direct_children(parent).unwrap_or_default();
+                self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeInserted {
+                    root,
+                    parent,
+                    nodes,
+                    parent_children_after,
+                }]);
+                return Ok(());
+            }
+        }
 
         for node in node_ids {
             let parent = {
@@ -594,7 +624,7 @@ impl<T: Node> Engine<T> {
             }
 
             let snapshot = self
-                .ui_node_dto_for_event(*node)
+                .ui_node_dto_for_event_with_catalog_snapshot(*node, catalog_snapshot.as_ref())
                 .ok_or(ProjectPersistenceError::MissingNode(*node))?;
             let index = parent.and_then(|parent| self.ui_child_index(parent, *node));
             ops.push(UiGraphOp::NodeCreated {

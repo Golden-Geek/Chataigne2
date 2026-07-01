@@ -284,6 +284,7 @@ impl<T: Node> Engine<T> {
     fn push_added_subtree_ui_events(&mut self, root: NodeId, root_parent: NodeId) {
         let node_ids = self.collect_subtree_node_ids(root);
         let parent_children_after = self.ui_direct_children(root_parent).unwrap_or_default();
+        let catalog_snapshot = self.build_process_tree_snapshot();
 
         // Above this threshold, a single SubtreeInserted op replaces N NodeCreated + ChildrenReordered.
         // This avoids the O(N²) ui_child_index scan that the NodeCreated path needs for `index`.
@@ -292,7 +293,9 @@ impl<T: Node> Engine<T> {
         if node_ids.len() > SUBTREE_COMPACT_THRESHOLD {
             let mut nodes = Vec::with_capacity(node_ids.len());
             for node_id in &node_ids {
-                if let Some(snapshot) = self.ui_node_dto_for_event(*node_id) {
+                if let Some(snapshot) =
+                    self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot.as_ref())
+                {
                     nodes.push(snapshot);
                 }
             }
@@ -307,7 +310,9 @@ impl<T: Node> Engine<T> {
             let mut ops = Vec::with_capacity(node_ids.len() + 1);
             for node_id in &node_ids {
                 let parent = self.nodes.get(*node_id).and_then(|n| n.node_data().parent);
-                let Some(snapshot) = self.ui_node_dto_for_event(*node_id) else {
+                let Some(snapshot) =
+                    self.ui_node_dto_for_event_with_catalog_snapshot(*node_id, catalog_snapshot.as_ref())
+                else {
                     continue;
                 };
                 let index = parent.and_then(|p| self.ui_child_index(p, *node_id));

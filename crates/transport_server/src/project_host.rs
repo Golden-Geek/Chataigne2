@@ -9,6 +9,7 @@ use golden_engine::app::{
     prepare_engine_for_runtime, shutdown_engine_for_runtime, to_sparse_project_json_pretty,
 };
 use golden_engine::engine::Engine;
+use golden_engine::logger::{self, LogLevel};
 
 const BROWSER_PROJECT_DIRECTORY_SEGMENTS: &[&str] = &["Documents", "Chataigne"];
 
@@ -168,6 +169,19 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
         write_elapsed.as_millis(),
         started.elapsed().as_millis()
     );
+    let _ = logger::log_message(
+        LogLevel::Success,
+        "project".to_string(),
+        None,
+        format!(
+            "Saved project: {path} (nodes={node_count} bytes={} lock_wait_ms={} serialize_ms={} write_ms={} total_ms={})",
+            json.len(),
+            lock_wait_elapsed.as_millis(),
+            serialize_elapsed.as_millis(),
+            write_elapsed.as_millis(),
+            started.elapsed().as_millis()
+        ),
+    );
     Ok(path)
 }
 
@@ -199,6 +213,18 @@ pub(crate) fn load_project<T: ProjectLifecycle>(
         configure_elapsed.as_millis(),
         replace_elapsed.as_millis(),
         started.elapsed().as_millis()
+    );
+    let _ = logger::log_message(
+        LogLevel::Success,
+        "project".to_string(),
+        None,
+        format!(
+            "Loaded project: {path} (nodes={node_count} rebuild_ms={} configure_ms={} replace_ms={} total_ms={})",
+            load_elapsed.as_millis(),
+            configure_elapsed.as_millis(),
+            replace_elapsed.as_millis(),
+            started.elapsed().as_millis()
+        ),
     );
     Ok(path)
 }

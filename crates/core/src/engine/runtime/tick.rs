@@ -112,7 +112,7 @@ impl<T: Node> Engine<T> {
         let logger_sync_ms = sync_started.elapsed().as_millis();
 
         let total_ms = tick_started.elapsed().as_millis();
-        if total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
+        if *PERF_TRACE_ENABLED && total_ms >= PERF_LOG_TICK_THRESHOLD_MS {
             eprintln!(
                 "[engine] tick total_ms={} resolve1_ms={} absorb_external_edits_ms={} apply_external_edits_ms={} inbox_precompute_ms={} inbox_preprocess_ms={} control_ms={} scheduled_ms={} stabilization_ms={} logger_sync_ms={} pending_edits={} inbox_events={}",
                 total_ms,
@@ -128,6 +128,22 @@ impl<T: Node> Engine<T> {
                 pending_edits,
                 inbox_events
             );
+            if self
+                .last_performance_log_tick
+                .is_none_or(|last_tick| self.time.tick.saturating_sub(last_tick) >= PERF_LOG_MIN_TICK_INTERVAL)
+            {
+                self.last_performance_log_tick = Some(self.time.tick);
+                let stats = self.tick_stats();
+                eprintln!(
+                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={}",
+                    stats.nodes_due,
+                    stats.callbacks_fired,
+                    stats.events_emitted,
+                    stats.edits_applied,
+                    stats.stabilization_passes,
+                    stats.snapshot_rebuilds
+                );
+            }
         }
         Ok(())
     }

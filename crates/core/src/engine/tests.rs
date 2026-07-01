@@ -2230,6 +2230,56 @@ fn project_load_refreshes_declared_param_handles_before_init() {
 }
 
 #[test]
+fn sparse_load_skips_unknown_node_type_and_keeps_the_rest() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(Folder::new("keeper".to_string()).into(), None);
+    engine.apply_edits().expect("known child should materialize");
+
+    let json = crate::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+
+    // Inject a saved child whose node type is unknown to this build, as a stale or
+    // renamed project would produce. The loader must skip it instead of aborting.
+    let mut project: serde_json::Value = serde_json::from_str(&json).expect("sparse json should parse");
+    let root_obj = project["root"]
+        .as_object_mut()
+        .expect("root record should be an object");
+    let children = root_obj
+        .entry("children")
+        .or_insert_with(|| serde_json::json!([]))
+        .as_array_mut()
+        .expect("children should be an array");
+    children.push(serde_json::json!({
+        "uuid": "11111111-1111-1111-1111-111111111111",
+        "type": "totally_unknown_removed_node_type",
+    }));
+    let mutated = serde_json::to_string(&project).expect("mutated json should encode");
+
+    let loaded = crate::app::from_sparse_project_json::<MacroTestNode>(&mutated)
+        .expect("project containing an unknown node type should still load");
+
+    let mut child_types = Vec::new();
+    let mut cursor = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|node| node.node_data().first_child);
+    while let Some(id) = cursor {
+        let node = loaded.nodes.get(id).expect("child node should exist");
+        child_types.push(node.get_type().to_string());
+        cursor = node.node_data().next_sibling;
+    }
+
+    assert!(
+        child_types.iter().any(|ty| ty == crate::node::FOLDER_NODE_TYPE),
+        "the known child should survive the load, got: {child_types:?}"
+    );
+    assert!(
+        !child_types.iter().any(|ty| ty == "totally_unknown_removed_node_type"),
+        "the unknown node type should have been skipped, got: {child_types:?}"
+    );
+}
+
+#[test]
 fn nested_declared_params_are_bound_during_init() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -5116,6 +5166,104 @@ fn set_param_reference_recovers_target_from_relative_path_and_updates_hints() {
     assert_eq!(
         reference.relative_path_from_root(),
         &["container".to_string(), "target".to_string()]
+    );
+}
+
+#[test]
+fn set_param_reference_preserves_missing_uuid_over_relative_path_hint() {
+    let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        Parameter::new("container", ParamValue::Int(1), ParameterChangeCheck::None),
+        Some(engine.root),
+    );
+    engine.apply_edits().expect("container add should succeed");
+    let container = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("container should exist");
+
+    engine.add_node(
+        Parameter::new("target", ParamValue::Float(0.5), ParameterChangeCheck::None),
+        Some(container),
+    );
+    engine.add_node(
+        Parameter::new("target", ParamValue::Float(1.5), ParameterChangeCheck::None),
+        Some(container),
+    );
+    engine.add_node(
+        Parameter::new(
+            "target_ref",
+            ParamValue::Reference(NodeReference::default()),
+            ParameterChangeCheck::None,
+        ),
+        Some(engine.root),
+    );
+    engine.apply_edits().expect("targets and reference add should succeed");
+
+    let first_target = engine
+        .nodes
+        .get(container)
+        .and_then(|container| container.node_data().first_child)
+        .expect("first target should exist");
+    let second_target = engine
+        .nodes
+        .get(first_target)
+        .and_then(|first| first.node_data().next_sibling)
+        .expect("second target should exist");
+    let target_ref =
+        find_child_by_label_parameter(&engine, engine.root, "target_ref").expect("target_ref should exist");
+    let first_target_uuid = engine
+        .nodes
+        .get(first_target)
+        .expect("first target should exist")
+        .node_data()
+        .meta
+        .uuid;
+    let second_target_uuid = engine
+        .nodes
+        .get(second_target)
+        .expect("second target should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    engine.edits.push(Edit::SetParam {
+        node: target_ref,
+        value: ParamValue::Reference(NodeReference::new(first_target_uuid)),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("reference set should succeed");
+
+    engine.edits.push(Edit::RemoveNode { node: first_target });
+    engine.apply_edits().expect("target removal should succeed");
+
+    let Some(reference) = engine.nodes.get(target_ref).and_then(|node| match &node.value {
+        ParamValue::Reference(reference) => Some(reference),
+        _ => None,
+    }) else {
+        panic!("target_ref value should be a reference");
+    };
+    assert_eq!(
+        reference.uuid(),
+        first_target_uuid,
+        "missing persistent UUID must not be replaced by a relative-path match"
+    );
+    assert_ne!(reference.uuid(), second_target_uuid);
+    assert_eq!(reference.cached_id(), None);
+    assert!(
+        engine
+            .nodes
+            .get(target_ref)
+            .expect("target_ref should exist")
+            .node_data()
+            .meta
+            .presentation
+            .warning(Some("missing-reference"))
+            .is_some(),
+        "dangling reference should report a missing-reference warning"
     );
 }
 

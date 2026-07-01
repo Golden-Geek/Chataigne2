@@ -1,7 +1,7 @@
 pub(super) use std::collections::{BTreeMap, HashMap, HashSet};
 pub(super) use std::error::Error;
 pub(super) use std::fmt;
-pub(super) use std::sync::Arc;
+pub(super) use std::sync::{Arc, LazyLock};
 pub(super) use std::thread;
 pub(super) use std::time::{Duration, Instant};
 
@@ -18,7 +18,14 @@ pub(super) use super::{Engine, EngineEditError};
 
 pub(super) const RUNTIME_LOOP_CAP_INTERVAL: Duration = Duration::from_micros(1_000);
 pub(super) const PERF_LOG_TICK_THRESHOLD_MS: u128 = 8;
+pub(super) const PERF_LOG_MIN_TICK_INTERVAL: u64 = 60;
 pub(super) const STABILIZATION_WARN_PASSES: usize = 4;
+pub(super) static PERF_TRACE_ENABLED: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var_os("CHATAIGNE_PERF_TRACE").is_some_and(|value| {
+        let value = value.to_string_lossy();
+        !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
+    })
+});
 #[cfg(debug_assertions)]
 pub(super) const DEBUG_VERBOSE_STABILIZATION_THRESHOLD: usize = 100;
 #[cfg(debug_assertions)]

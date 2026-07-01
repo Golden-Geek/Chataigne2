@@ -5,6 +5,7 @@ use crate::edit::Edit;
 use crate::node::{
     DeclId, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeId, USER_CONTEXT_NODE_TYPE, UserCreatableItem,
 };
+use crate::process_ctx::ProcessTreeSnapshot;
 
 use super::history::AddNodeEffect;
 use super::{Engine, EngineEditError};
@@ -32,6 +33,15 @@ impl<T: Node> Engine<T> {
 
     /// Returns all catalog-creatable items for `parent` (built-ins + blueprints).
     pub fn catalog_creatable_items(&self, parent: NodeId) -> Vec<UserCreatableItem> {
+        let snapshot = self.build_process_tree_snapshot();
+        self.catalog_creatable_items_with_snapshot(parent, snapshot.as_ref())
+    }
+
+    pub(crate) fn catalog_creatable_items_with_snapshot(
+        &self,
+        parent: NodeId,
+        snapshot: &ProcessTreeSnapshot,
+    ) -> Vec<UserCreatableItem> {
         let Some(factory_node_id) = self.catalog_factory_node(parent) else {
             return Vec::new();
         };
@@ -39,11 +49,10 @@ impl<T: Node> Engine<T> {
             return Vec::new();
         };
 
-        let snapshot = self.build_process_tree_snapshot();
-        let child_catalog = |child_parent: NodeId| self.catalog_creatable_items(child_parent);
+        let child_catalog = |child_parent: NodeId| self.catalog_creatable_items_with_snapshot(child_parent, snapshot);
         let mut items = Vec::<UserCreatableItem>::new();
         for item in factory_node
-            .user_creatable_items_with_context(&snapshot, parent, &child_catalog)
+            .user_creatable_items_with_context(snapshot, parent, &child_catalog)
             .into_iter()
         {
             if factory_node.user_container_accepts_item(&item.node_type, &item.item_kind) {

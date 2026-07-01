@@ -581,7 +581,7 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
             // ring buffer concurrently with intent events from the WS hub or HTTP threads.
             // Out-of-order ring entries would cause the frontend to receive paramChanged for
             // newly-created nodes before the graphTransaction that creates them.
-            {
+            let capture = {
                 let mut guard = match engine.lock() {
                     Ok(guard) => guard,
                     Err(poisoned) => poisoned.into_inner(),
@@ -589,9 +589,13 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
                 let before_event_time = guard.ui_event_log().last().map(|event| event.time);
                 if let Err(err) = guard.run_tick(elapsed) {
                     report_runtime_tick_failure(&err);
+                    None
                 } else {
-                    read_model.publish_engine_events_since(&*guard, before_event_time);
+                    Some(read_model.collect_event_batch(&*guard, before_event_time))
                 }
+            };
+            if let Some(capture) = capture {
+                read_model.apply_event_capture(capture);
             }
 
             let spent = tick_start.elapsed();

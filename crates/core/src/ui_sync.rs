@@ -18,6 +18,7 @@ use crate::parameter::{
     ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
     available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
 };
+use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
 
 /// Current UI protocol version.
@@ -486,6 +487,9 @@ pub struct UiCreatableUserItemDto {
     pub initial_params: Vec<UiCreateUserItemInitialParam>,
     /// Whether UI creation flows should auto-select the created item.
     pub select_when_created: bool,
+    /// Whether the Add menu should render a divider immediately above this item.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub separator_before: bool,
 }
 
 impl From<UserCreatableItem> for UiCreatableUserItemDto {
@@ -497,6 +501,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
             menu_path: item.menu_path,
             initial_params: item.initial_params.into_iter().map(Into::into).collect(),
             select_when_created: item.select_when_created,
+            separator_before: item.separator_before,
         }
     }
 }
@@ -1339,6 +1344,7 @@ impl<T: Node> Engine<T> {
     pub fn ui_snapshot(&self, scope: UiSubscriptionScope) -> UiSnapshot {
         let node_ids = self.collect_scope_nodes(scope.clone());
         let visible: HashSet<NodeId> = node_ids.iter().copied().collect();
+        let catalog_snapshot = self.build_process_tree_snapshot();
         let mut nodes = Vec::with_capacity(node_ids.len());
         let mut known_node_types = HashMap::<String, Option<String>>::new();
         let mut known_declared_descriptions = HashMap::<String, String>::new();
@@ -1401,7 +1407,10 @@ impl<T: Node> Engine<T> {
 
             let mut creatable_user_items = Vec::new();
             if can_query_creatable_items {
-                for item in self.catalog_creatable_items(node_id).into_iter() {
+                for item in self
+                    .catalog_creatable_items_with_snapshot(node_id, catalog_snapshot.as_ref())
+                    .into_iter()
+                {
                     creatable_user_items.push(UiCreatableUserItemDto::from(item));
                 }
             }
@@ -2469,6 +2478,15 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
+        let catalog_snapshot = self.build_process_tree_snapshot();
+        self.ui_node_dto_for_event_with_catalog_snapshot(node_id, catalog_snapshot.as_ref())
+    }
+
+    pub(crate) fn ui_node_dto_for_event_with_catalog_snapshot(
+        &self,
+        node_id: NodeId,
+        catalog_snapshot: &ProcessTreeSnapshot,
+    ) -> Option<UiNodeDto> {
         let node = self.nodes.get(node_id)?;
         let node_data = node.node_data();
         let node_type = node.get_type().to_string();
@@ -2491,7 +2509,10 @@ impl<T: Node> Engine<T> {
 
         let mut creatable_user_items = Vec::new();
         if can_query_creatable_items {
-            for item in self.catalog_creatable_items(node_id).into_iter() {
+            for item in self
+                .catalog_creatable_items_with_snapshot(node_id, catalog_snapshot)
+                .into_iter()
+            {
                 creatable_user_items.push(UiCreatableUserItemDto::from(item));
             }
         }

@@ -217,6 +217,8 @@ pub struct Engine<T: Node> {
     ///
     /// INVALIDATED BY: drained into `edits.pending` at the start of each `run_tick`.
     pub(crate) deferred_structural_edits: Vec<crate::edit::Edit>,
+    /// Last logical tick that emitted a user-visible performance warning.
+    last_performance_log_tick: Option<u64>,
 }
 
 impl<T: Node> Engine<T> {
@@ -278,6 +280,7 @@ impl<T: Node> Engine<T> {
             tick_accumulator: Duration::ZERO,
             late_ticks: 0,
             deferred_structural_edits: Vec::new(),
+            last_performance_log_tick: None,
         };
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
