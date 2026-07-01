@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use golden_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
 use golden_core::{
     edit::{Edit, NodeTree},
-    events::Event,
+    events::{Event, EventKind},
     node,
     node::{
         DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
@@ -804,6 +804,12 @@ impl Node for StateProcessor {
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
         3
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        events
+            .iter()
+            .any(|event| !matches!(event.kind, EventKind::Custom(_)))
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

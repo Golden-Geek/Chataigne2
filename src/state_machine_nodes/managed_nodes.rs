@@ -42,47 +42,52 @@ struct PendingOutput {
     remaining: f64,
 }
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+struct OutputRuntimeCache {
+    dirty: bool,
+    trigger_param: Option<NodeId>,
+    delay_param: Option<NodeId>,
+    stagger_param: Option<NodeId>,
+    cancel_param: Option<NodeId>,
+    delay: f64,
+    stagger: f64,
+    cancel_on_trigger: bool,
+    outputs: Vec<NodeId>,
+}
+
+impl Default for OutputRuntimeCache {
+    fn default() -> Self {
+        Self {
+            dirty: true,
+            trigger_param: None,
+            delay_param: None,
+            stagger_param: None,
+            cancel_param: None,
+            delay: 0.0,
+            stagger: 0.0,
+            cancel_on_trigger: false,
+            outputs: Vec::new(),
+        }
+    }
+}
+
 impl OutputSchedule {
     fn is_empty(&self) -> bool {
         self.pending.is_empty()
     }
 
-    /// Handles a trigger of `container`: reads delay/stagger/cancel, then fires
-    /// each enabled output immediately (both zero) or queues it. Honors
-    /// `cancel_on_trigger` by clearing anything pending first.
-    fn on_trigger(&mut self, ctx: &mut ProcessCtx, container: NodeId) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-
-        let delay = output_float_child(snapshot, container, OUTPUT_DELAY_DECL)
-            .unwrap_or(0.0)
-            .max(0.0);
-        let stagger = output_float_child(snapshot, container, OUTPUT_STAGGER_DECL)
-            .unwrap_or(0.0)
-            .max(0.0);
-        let cancel = output_bool_child(snapshot, container, OUTPUT_CANCEL_DECL).unwrap_or(false);
-
-        if cancel {
+    fn on_trigger_cached(&mut self, ctx: &mut ProcessCtx, cache: &OutputRuntimeCache) {
+        if cache.cancel_on_trigger {
             self.pending.clear();
         }
 
-        let mut index = 0usize;
-        for child in snapshot.child_ids(container) {
-            if !is_output_node(snapshot, child) {
-                continue;
-            }
-            if !snapshot.node(child).is_some_and(|node| node.enabled) {
-                continue;
-            }
-            let remaining = delay + (index as f64) * stagger;
+        for (index, child) in cache.outputs.iter().copied().enumerate() {
+            let remaining = cache.delay + (index as f64) * cache.stagger;
             if remaining <= f64::EPSILON {
                 let _ = crate::app::module_command::emit_command_execute(ctx, child);
             } else {
                 self.pending.push(PendingOutput { target: child, remaining });
             }
-            index += 1;
         }
     }
 
@@ -107,6 +112,52 @@ impl OutputSchedule {
     }
 }
 
+fn refresh_output_runtime_cache(
+    cache: &mut OutputRuntimeCache,
+    snapshot: &ProcessTreeSnapshot,
+    container: NodeId,
+) {
+    cache.trigger_param = snapshot.find_child_by_decl_id(container, OUTPUT_TRIGGER_DECL);
+    cache.delay_param = output_advanced_child(snapshot, container, OUTPUT_DELAY_DECL);
+    cache.stagger_param = output_advanced_child(snapshot, container, OUTPUT_STAGGER_DECL);
+    cache.cancel_param = output_advanced_child(snapshot, container, OUTPUT_CANCEL_DECL);
+    cache.delay = output_float_child(snapshot, container, OUTPUT_DELAY_DECL)
+        .unwrap_or(0.0)
+        .max(0.0);
+    cache.stagger = output_float_child(snapshot, container, OUTPUT_STAGGER_DECL)
+        .unwrap_or(0.0)
+        .max(0.0);
+    cache.cancel_on_trigger =
+        output_bool_child(snapshot, container, OUTPUT_CANCEL_DECL).unwrap_or(false);
+    cache.outputs = snapshot
+        .child_ids(container)
+        .into_iter()
+        .filter(|child| is_output_node(snapshot, *child))
+        .filter(|child| snapshot.node(*child).is_some_and(|node| node.enabled))
+        .collect();
+    cache.dirty = false;
+}
+
+fn output_cache_requires_snapshot(
+    cache: &OutputRuntimeCache,
+    container: NodeId,
+    events: &[Event],
+) -> bool {
+    events.iter().any(|event| match &event.kind {
+        EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => true,
+        EventKind::ParamChanged { param, .. } => {
+            cache.dirty
+                || Some(*param) == cache.delay_param
+                || Some(*param) == cache.stagger_param
+                || Some(*param) == cache.cancel_param
+        }
+        EventKind::Custom(custom) => {
+            cache.dirty && crate::app::module_command::is_command_execute_request(custom, container)
+        }
+        _ => true,
+    })
+}
+
 /// `true` for nodes that behave as outputs: module commands, generic commands,
 /// and nested output groups.
 pub(crate) fn is_output_node(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bool {
@@ -124,20 +175,6 @@ pub(crate) fn is_output_node(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bo
 pub(crate) fn is_output_container(snapshot: &ProcessTreeSnapshot, node: NodeId) -> bool {
     snapshot.node(node).is_some_and(|node| {
         node.node_type == OutputsManager::NODE_TYPE || node.node_type == OUTPUT_GROUP_NODE_TYPE
-    })
-}
-
-/// `true` when `param` is the `trigger` parameter of `container`.
-fn trigger_param_fired(ctx: &ProcessCtx, container: NodeId, param: NodeId) -> bool {
-    ctx.tree_snapshot().is_some_and(|snapshot| {
-        snapshot.find_child_by_decl_id(container, OUTPUT_TRIGGER_DECL) == Some(param)
-    })
-}
-
-fn output_timing_param_changed(ctx: &ProcessCtx, container: NodeId, param: NodeId) -> bool {
-    ctx.tree_snapshot().is_some_and(|snapshot| {
-        output_advanced_child(snapshot, container, OUTPUT_DELAY_DECL) == Some(param)
-            || output_advanced_child(snapshot, container, OUTPUT_STAGGER_DECL) == Some(param)
     })
 }
 
@@ -512,6 +549,8 @@ impl Node for FilterChainManager {
 pub struct OutputsManager {
     #[state(default = OutputSchedule::default())]
     schedule: OutputSchedule,
+    #[state(default = OutputRuntimeCache::default())]
+    output_cache: OutputRuntimeCache,
 }
 
 fn output_generic_items() -> Vec<UserCreatableItem> {
@@ -605,7 +644,13 @@ fn output_module_command_items(
 #[node("sm_outputs_manager", from_struct)]
 impl Node for OutputsManager {
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        sync_output_control_visibility(ctx, self.id());
+        let id = self.id();
+        sync_output_control_visibility(ctx, id);
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+        } else {
+            self.output_cache.dirty = true;
+        }
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -654,30 +699,66 @@ impl Node for OutputsManager {
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            sync_output_control_visibility_after_child_added(ctx, self.id(), child);
+        let id = self.id();
+        if parent == id {
+            sync_output_control_visibility_after_child_added(ctx, id, child);
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
         }
     }
 
     fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            sync_output_control_visibility_after_child_removed(ctx, self.id(), child);
+        let id = self.id();
+        if parent == id {
+            sync_output_control_visibility_after_child_removed(ctx, id, child);
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
         }
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        if trigger_param_fired(ctx, self.id(), param) {
-            self.schedule.on_trigger(ctx, self.id());
+        let id = self.id();
+        if self.output_cache.dirty {
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            }
         }
-        if output_timing_param_changed(ctx, self.id(), param) {
-            sync_output_control_visibility(ctx, self.id());
+        if Some(param) == self.output_cache.trigger_param {
+            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+        }
+        if Some(param) == self.output_cache.delay_param
+            || Some(param) == self.output_cache.stagger_param
+            || Some(param) == self.output_cache.cancel_param
+        {
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
+            sync_output_control_visibility(ctx, id);
         }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            self.schedule.on_trigger(ctx, self.id());
+        let id = self.id();
+        if crate::app::module_command::is_command_execute_request(&event, id) {
+            if self.output_cache.dirty {
+                if let Some(snapshot) = ctx.tree_snapshot() {
+                    refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+                }
+            }
+            self.schedule.on_trigger_cached(ctx, &self.output_cache);
         }
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        output_cache_requires_snapshot(&self.output_cache, self.id(), events)
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -697,6 +778,7 @@ impl Node for OutputsManager {
         self.node_data_mut().meta.user_permissions = locked_manager_permissions();
         self.node_data_mut().meta.can_be_disabled = false;
     }
+
 }
 
 // ─── OutputGroup ─────────────────────────────────────────────────────────────
@@ -733,6 +815,8 @@ impl Node for OutputsManager {
 pub struct OutputGroup {
     #[state(default = OutputSchedule::default())]
     schedule: OutputSchedule,
+    #[state(default = OutputRuntimeCache::default())]
+    output_cache: OutputRuntimeCache,
 }
 
 #[item("sm_output_group", node = "sm_output_group", from_struct)]
@@ -742,7 +826,13 @@ impl Node for OutputGroup {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        sync_output_control_visibility(ctx, self.id());
+        let id = self.id();
+        sync_output_control_visibility(ctx, id);
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+        } else {
+            self.output_cache.dirty = true;
+        }
     }
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -791,30 +881,66 @@ impl Node for OutputGroup {
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            sync_output_control_visibility_after_child_added(ctx, self.id(), child);
+        let id = self.id();
+        if parent == id {
+            sync_output_control_visibility_after_child_added(ctx, id, child);
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
         }
     }
 
     fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
-        if parent == self.id() {
-            sync_output_control_visibility_after_child_removed(ctx, self.id(), child);
+        let id = self.id();
+        if parent == id {
+            sync_output_control_visibility_after_child_removed(ctx, id, child);
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
         }
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
-        if trigger_param_fired(ctx, self.id(), param) {
-            self.schedule.on_trigger(ctx, self.id());
+        let id = self.id();
+        if self.output_cache.dirty {
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            }
         }
-        if output_timing_param_changed(ctx, self.id(), param) {
-            sync_output_control_visibility(ctx, self.id());
+        if Some(param) == self.output_cache.trigger_param {
+            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+        }
+        if Some(param) == self.output_cache.delay_param
+            || Some(param) == self.output_cache.stagger_param
+            || Some(param) == self.output_cache.cancel_param
+        {
+            if let Some(snapshot) = ctx.tree_snapshot() {
+                refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+            } else {
+                self.output_cache.dirty = true;
+            }
+            sync_output_control_visibility(ctx, id);
         }
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        if crate::app::module_command::is_command_execute_request(&event, self.id()) {
-            self.schedule.on_trigger(ctx, self.id());
+        let id = self.id();
+        if crate::app::module_command::is_command_execute_request(&event, id) {
+            if self.output_cache.dirty {
+                if let Some(snapshot) = ctx.tree_snapshot() {
+                    refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
+                }
+            }
+            self.schedule.on_trigger_cached(ctx, &self.output_cache);
         }
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        output_cache_requires_snapshot(&self.output_cache, self.id(), events)
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -833,6 +959,7 @@ impl Node for OutputGroup {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
     }
+
 }
 
 #[cfg(test)]

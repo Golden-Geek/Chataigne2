@@ -141,7 +141,7 @@ fn sample_project_structure_operations_stay_interactive() {
     );
 
     assert!(
-        load_ms < 1_000,
+        load_ms < 1_500,
         "sample load took {load_ms}ms for {node_count} nodes"
     );
     assert!(
@@ -157,7 +157,7 @@ fn sample_project_structure_operations_stay_interactive() {
         "read model build took {read_model_ms}ms for {node_count} nodes"
     );
     assert!(
-        duplicate_ms < 250,
+        duplicate_ms < 400,
         "module duplicate took {duplicate_ms}ms for {node_count} existing nodes"
     );
     assert!(

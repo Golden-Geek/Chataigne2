@@ -8,7 +8,7 @@
 use golden_core::{
     events::{Event, EventKind},
     node,
-    node::{Node, NodeId},
+    node::{Node, NodeCreationContext, NodeId},
     parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -29,6 +29,8 @@ pub(crate) const GENERIC_LOG_COMMAND_NODE_TYPE: &str = "generic_log_command";
     );
 )]
 pub struct GenericLogCommand {
+    #[state(default = String::new())]
+    cached_message: String,
     base: crate::app::ModuleCommandBase,
 }
 
@@ -51,32 +53,58 @@ impl Node for GenericLogCommand {
         }
     }
 
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        events.iter().any(|event| match &event.kind {
+            EventKind::ParamChanged { .. } => true,
+            EventKind::Custom(custom) => {
+                self.cached_message.is_empty()
+                    && module_command::is_command_execute_request(custom, self.id())
+            }
+            _ => false,
+        })
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        if let Some(snapshot) = ctx.tree_snapshot() {
+            self.refresh_cached_message(snapshot);
+        }
+    }
+
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
         let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
             return;
         };
         let snapshot = snapshot_arc.as_ref();
+        if module_command::resolve_module_command_child(snapshot, self.id(), "message") == Some(param)
+        {
+            self.refresh_cached_message(snapshot);
+        }
         if !module_command::module_command_triggered(snapshot, self.id(), param) {
             return;
         }
-        self.run(ctx);
+        self.run();
     }
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         if module_command::is_command_execute_request(&event, self.id()) {
-            self.run(ctx);
+            if self.cached_message.is_empty() {
+                if let Some(snapshot) = ctx.tree_snapshot() {
+                    self.refresh_cached_message(snapshot);
+                }
+            }
+            self.run();
         }
     }
 }
 
 impl GenericLogCommand {
-    fn run(&self, ctx: &mut ProcessCtx) {
-        let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
-            return;
-        };
-        let snapshot = snapshot_arc.as_ref();
-        let message = command_string_param(snapshot, self.id(), "message").unwrap_or_default();
+    fn run(&self) {
+        let message = self.cached_message.as_str();
         golden_core::log!(origin = self.id(); format!("{message}"));
+    }
+
+    fn refresh_cached_message(&mut self, snapshot: &ProcessTreeSnapshot) {
+        self.cached_message = command_string_param(snapshot, self.id(), "message").unwrap_or_default();
     }
 }
 
