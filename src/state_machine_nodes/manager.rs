@@ -21,6 +21,7 @@ use golden_alchemist::{
 };
 use golden_core::{
     engine::NodeExecutionRule,
+    events::{Event, EventKind},
     log,
     node,
     node::{
@@ -211,6 +212,16 @@ impl Node for StateMachineManager {
         true
     }
 
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        events.iter().any(|event| match &event.kind {
+            EventKind::ParamChanged { param, .. } => {
+                !self.runtime_cache.source_listener_param_uuids.contains_key(param)
+            }
+            EventKind::Custom(_) => false,
+            _ => true,
+        })
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(STATE_MACHINE_RUNTIME_HZ)
     }
@@ -256,7 +267,7 @@ impl Node for StateMachineManager {
         self.runtime_cache.dirty = true;
     }
 
-    fn child_event_interest_depth(&self, _event: &golden_core::events::Event) -> u32 {
+    fn child_event_interest_depth(&self, _event: &Event) -> u32 {
         u32::MAX
     }
 }

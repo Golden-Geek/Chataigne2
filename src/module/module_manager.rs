@@ -1,4 +1,5 @@
 use golden_core::{
+    events::Event,
     node,
     node::{Node, UserContainerRules, UserCreatableItem},
     process_ctx::ProcessCtx,
@@ -64,6 +65,10 @@ impl Node for ModuleManager {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         crate::app::module::enable_module_manager_authoring(self.node_data_mut());
     }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
+    }
 }
 
 #[node("module_folder", label = "Folder")]
@@ -89,6 +94,10 @@ impl Node for ModuleFolder {
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         crate::app::module::enable_module_authoring(self.node_data_mut());
+    }
+
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
     }
 }
 

@@ -129,6 +129,7 @@ impl SignalConfig {
 pub struct SignalsModule {
     base: crate::app::ModuleBase,
     value_nodes_by_item: HashMap<NodeId, NodeId>,
+    value_output_nodes: HashSet<NodeId>,
     pending_value_items: HashSet<NodeId>,
     runtime: Option<runtime::SignalRuntimeHandle>,
     config_dirty: bool,
@@ -139,6 +140,7 @@ impl SignalsModule {
         Self::new(
             crate::app::ModuleBase::new(),
             HashMap::new(),
+            HashSet::new(),
             HashSet::new(),
             None,
             true,
@@ -159,6 +161,7 @@ impl SignalsModule {
             values_root,
             configs.iter(),
             &mut self.value_nodes_by_item,
+            &mut self.value_output_nodes,
             &mut self.pending_value_items,
         );
         self.config_dirty = waiting_for_values;
@@ -219,6 +222,7 @@ impl SignalsModule {
             let Some(value_param) = self.value_nodes_by_item.get(&sample.item_id).copied() else {
                 continue;
             };
+            self.value_output_nodes.insert(value_param);
             received_update = true;
             ctx.set_param(value_param, ParamValue::Float(sample.value));
             if self.base.log_incoming_enabled() {
@@ -330,9 +334,7 @@ impl SignalsModule {
     }
 
     fn is_value_output(&self, node_id: NodeId) -> bool {
-        self.value_nodes_by_item
-            .values()
-            .any(|value_id| *value_id == node_id)
+        self.value_output_nodes.contains(&node_id)
     }
 
     fn handle_signal_enablement_event(&mut self, ctx: &mut ProcessCtx, event: &CustomEvent) {
@@ -407,6 +409,10 @@ impl Node for SignalsModule {
         self.config_dirty
     }
 
+    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+        false
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::periodic(runtime_update_rate_hz(self.update_rate_hz.get()))
     }
@@ -441,6 +447,8 @@ impl Node for SignalsModule {
             return;
         }
 
+        self.config_dirty = true;
+
         if self.update_rate_hz.is_bound() && self.update_rate_hz.id() == param {
             ctx.reevaluate_graph();
         }
@@ -457,6 +465,7 @@ impl Node for SignalsModule {
     }
 
     fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        self.config_dirty = true;
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
             let snapshot = snapshot_arc.as_ref();
             if self.is_signal_configuration_event(snapshot, parent)
@@ -469,12 +478,14 @@ impl Node for SignalsModule {
     }
 
     fn on_child_removed(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        self.config_dirty = true;
+        self.value_nodes_by_item.retain(|_, value| *value != child);
+        self.value_output_nodes.remove(&child);
+        self.pending_value_items.remove(&child);
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
             let snapshot = snapshot_arc.as_ref();
             if self.is_signal_configuration_event(snapshot, parent) {
                 self.config_dirty = true;
-                self.value_nodes_by_item.remove(&child);
-                self.pending_value_items.remove(&child);
                 self.sync_configuration(ctx, snapshot);
             }
         }
@@ -588,6 +599,13 @@ impl Node for SignalItem {
             Some(self.id()),
             serde_json::Value::Null,
         ));
+    }
+
+    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+        events.iter().any(|event| match &event.kind {
+            EventKind::ParamChanged { param, .. } => self.shape.is_bound() && self.shape.id() == *param,
+            _ => true,
+        })
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -801,6 +819,7 @@ fn sync_value_nodes<'a, I>(
     root_id: NodeId,
     configs: I,
     value_nodes_by_item: &mut HashMap<NodeId, NodeId>,
+    value_output_nodes: &mut HashSet<NodeId>,
     pending_value_items: &mut HashSet<NodeId>,
 ) -> bool
 where
@@ -874,6 +893,7 @@ where
 
     pending_value_items.retain(|item_id| active_item_ids.contains(item_id));
     *value_nodes_by_item = next_value_nodes_by_item;
+    *value_output_nodes = value_nodes_by_item.values().copied().collect();
     waiting_for_values
 }
 

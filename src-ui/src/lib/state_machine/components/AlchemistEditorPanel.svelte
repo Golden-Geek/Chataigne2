@@ -14,6 +14,7 @@
 		NodeId,
 		PanelProps,
 		PanelState,
+		ParamValue,
 		UiCreateUserItemInitialParam,
 		UiCreatableUserItem,
 		UiDuplicateCreateUserItemSpec,
@@ -66,11 +67,15 @@
 		StateMachineProtocolBundle
 	} from '../generated';
 	import {
+		alchemistClipboardFromJson,
+		alchemistClipboardJson,
 		buildAlchemistClipboard,
 		findEmptyAlchemistDuplicateOffset,
 		formulaChildLabels,
 		nextAlchemistCopyLabel,
-		type AlchemistClipboard
+		type AlchemistClipboard,
+		type AlchemistClipboardNode,
+		type AlchemistClipboardTreeNode
 	} from '../alchemistClipboard';
 	import {
 		STATE_MACHINE_RUNTIME_PREVIEW_TOPIC,
@@ -93,16 +98,31 @@
 		origin: string;
 	}
 
-	interface AlchemistClipboardPayload {
-		kind: 'chataigne.alchemist.nodes';
-		version: 1;
-		clipboard: AlchemistClipboard;
-	}
-
 	interface PreviewTarget {
 		kind: 'formula' | 'processor';
 		nodeId: number;
 	}
+
+	interface SaveFilePickerOptions {
+		suggestedName?: string;
+		types?: Array<{
+			description: string;
+			accept: Record<string, string[]>;
+		}>;
+	}
+
+	interface FileSystemWritableFileStream {
+		write: (data: BlobPart) => Promise<void>;
+		close: () => Promise<void>;
+	}
+
+	interface FileSystemFileHandle {
+		createWritable: () => Promise<FileSystemWritableFileStream>;
+	}
+
+	type SaveFilePickerWindow = Window & {
+		showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+	};
 
 	interface AlchemistEditorPanelPersistedState {
 		autoWire?: boolean;
@@ -957,29 +977,38 @@
 			createNode(item, contextMenuWorldPosition ?? graphEditor?.viewportCenter() ?? { x: 0, y: 0 })
 		);
 		const clipboard = selectedAlchemistClipboard();
-		if (!clipboard) {
-			return createItems;
+		const editItems: ContextMenuItem[] = [];
+		if (clipboard) {
+			editItems.push(
+				{
+					id: 'copy-selection',
+					label: 'Copy',
+					commandId: 'edit.copy',
+					action: () => {
+						copySelectedGraphItems();
+						contextMenuOpen = false;
+					}
+				},
+				{
+					id: 'export-selection-json',
+					label: 'Export JSON',
+					action: () => {
+						void exportAlchemistClipboardJson(clipboard);
+						contextMenuOpen = false;
+					}
+				}
+			);
 		}
-		const copyItems: ContextMenuItem[] = [
-			{
-				id: 'copy-selection',
-				label: 'Copy',
-				commandId: 'edit.copy',
-				action: () => {
-					copySelectedGraphItems();
-					contextMenuOpen = false;
-				}
-			},
-			{
-				id: 'copy-selection-json',
-				label: 'Copy as JSON',
-				action: () => {
-					void copyTextToClipboard(alchemistClipboardJson(clipboard));
-					contextMenuOpen = false;
-				}
+		editItems.push({
+			id: 'paste-alchemist-clipboard',
+			label: 'Paste',
+			commandId: 'edit.paste',
+			action: () => {
+				void pasteGraphItems();
+				contextMenuOpen = false;
 			}
-		];
-		return createItems.length > 0 ? [...copyItems, { separator: true }, ...createItems] : copyItems;
+		});
+		return createItems.length > 0 ? [...editItems, { separator: true }, ...createItems] : editItems;
 	});
 
 	const delay = (durationMs: number): Promise<void> =>
@@ -1060,13 +1089,73 @@
 		});
 	};
 
-	const alchemistClipboardJson = (clipboard: AlchemistClipboard): string => {
-		const payload: AlchemistClipboardPayload = {
-			kind: 'chataigne.alchemist.nodes',
-			version: 1,
-			clipboard
-		};
-		return JSON.stringify(payload, null, 2);
+	const readAlchemistClipboardFromSystem = async (): Promise<AlchemistClipboard | null> => {
+		if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return null;
+		try {
+			const text = await navigator.clipboard.readText();
+			const clipboard = alchemistClipboardFromJson(text);
+			if (!clipboard) return null;
+			alchemistClipboard = clipboard;
+			return clipboard;
+		} catch (error) {
+			console.warn('failed to read Alchemist clipboard text', error);
+			return null;
+		}
+	};
+
+	const alchemistClipboardFileName = (clipboard: AlchemistClipboard): string => {
+		const label =
+			clipboard.nodes.length === 1 ? clipboard.nodes[0].label.trim() : 'alchemist-nodes';
+		const stem = (label || 'alchemist-node')
+			.replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-')
+			.replace(/\s+/g, '-')
+			.replace(/^-+|-+$/g, '')
+			.slice(0, 80);
+		return `${stem || 'alchemist-node'}.json`;
+	};
+
+	const downloadTextFile = (fileName: string, text: string): void => {
+		const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = fileName;
+		link.rel = 'noopener';
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		URL.revokeObjectURL(url);
+	};
+
+	const saveTextFile = async (fileName: string, text: string): Promise<void> => {
+		const picker = (window as SaveFilePickerWindow).showSaveFilePicker;
+		if (!picker) {
+			downloadTextFile(fileName, text);
+			return;
+		}
+		const handle = await picker({
+			suggestedName: fileName,
+			types: [
+				{
+					description: 'JSON',
+					accept: { 'application/json': ['.json'] }
+				}
+			]
+		});
+		const writable = await handle.createWritable();
+		await writable.write(text);
+		await writable.close();
+	};
+
+	const exportAlchemistClipboardJson = async (clipboard: AlchemistClipboard): Promise<boolean> => {
+		try {
+			await saveTextFile(alchemistClipboardFileName(clipboard), alchemistClipboardJson(clipboard));
+			return true;
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') return false;
+			console.error('failed to export Alchemist clipboard JSON', error);
+			return false;
+		}
 	};
 
 	const waitForCreatedAnodeLabel = async (
@@ -1092,6 +1181,86 @@
 		return null;
 	};
 
+	const importedParamValue = (value: ParamValue): ParamValue | null => {
+		if (!graphState || value.kind !== 'reference') return value;
+		for (const candidate of graphState.nodesById.values()) {
+			if (candidate.uuid !== value.uuid) continue;
+			return {
+				...value,
+				cached_id: candidate.node_id,
+				cached_name: candidate.meta.label
+			};
+		}
+		return null;
+	};
+
+	const appendClipboardTreeRestoreIntents = (
+		sourceTree: AlchemistClipboardTreeNode,
+		targetNode: UiNodeDto,
+		intents: UiEditIntent[],
+		path: readonly string[] = []
+	): void => {
+		if (!graphState) return;
+		if (targetNode.meta.can_be_disabled && targetNode.meta.enabled !== sourceTree.meta.enabled) {
+			intents.push({
+				kind: 'patchMeta',
+				node: targetNode.node_id,
+				patch: { enabled: sourceTree.meta.enabled }
+			});
+		}
+		const collapsed = sourceTree.meta.presentation?.collapsed;
+		if (typeof collapsed === 'boolean' && targetNode.meta.presentation?.collapsed !== collapsed) {
+			intents.push({
+				kind: 'patchMeta',
+				node: targetNode.node_id,
+				patch: {
+					presentation: {
+						...(targetNode.meta.presentation ?? {}),
+						collapsed
+					}
+				}
+			});
+		}
+		for (const sourceChild of sourceTree.children) {
+			const targetChild = directChild(targetNode, graphState.nodesById, sourceChild.decl_id);
+			if (!targetChild) continue;
+			const nextPath = [...path, sourceChild.decl_id];
+			const isPlacementParam = nextPath.length === 1 && sourceChild.decl_id === 'position';
+			if (
+				!isPlacementParam &&
+				sourceChild.data.kind === 'parameter' &&
+				targetChild.data.kind === 'parameter' &&
+				!targetChild.data.param.read_only
+			) {
+				const value = importedParamValue(sourceChild.data.param.value);
+				if (value && JSON.stringify(value) !== JSON.stringify(targetChild.data.param.value)) {
+					intents.push({
+						kind: 'setParam',
+						node: targetChild.node_id,
+						value,
+						behaviour: targetChild.data.param.event_behaviour
+					});
+				}
+			}
+			appendClipboardTreeRestoreIntents(sourceChild, targetChild, intents, nextPath);
+		}
+	};
+
+	const restoreCreatedClipboardTrees = async (
+		created: Array<{ nodeId: NodeId; entry: AlchemistClipboardNode }>
+	): Promise<void> => {
+		if (!graphState || created.length === 0) return;
+		const intents: UiEditIntent[] = [];
+		for (const { nodeId, entry } of created) {
+			if (!entry.tree) continue;
+			const target = graphState.nodesById.get(nodeId);
+			if (!target) continue;
+			appendClipboardTreeRestoreIntents(entry.tree, target, intents);
+		}
+		if (intents.length === 0) return;
+		await editParameters('Restore Pasted ANode Data', intents);
+	};
+
 	const duplicateClipboardIntoFormula = async (
 		clipboard: AlchemistClipboard,
 		label: string
@@ -1108,7 +1277,7 @@
 		});
 		const usedLabels = formulaChildLabels(formula, graphState.nodesById);
 
-		const createdLabels: string[] = [];
+		const createdEntries: Array<{ label: string; entry: AlchemistClipboardNode }> = [];
 		const duplicateNodes: UiDuplicateNodeSpec[] = [];
 		const createdItems: UiDuplicateCreateUserItemSpec[] = [];
 		let insertAfterNodeId: NodeId | undefined =
@@ -1123,8 +1292,13 @@
 			};
 			const nextLabel = nextAlchemistCopyLabel(entry, usedLabels);
 			const source = graphState.nodesById.get(entry.sourceId);
+			const sourceMatchesClipboard =
+				source !== undefined &&
+				(entry.sourceUuid === undefined || source.uuid === entry.sourceUuid);
 			if (
-				source?.node_type === ANODE_NODE_TYPE &&
+				source &&
+				sourceMatchesClipboard &&
+				source.node_type === ANODE_NODE_TYPE &&
 				source.meta.user_permissions.can_remove_and_duplicate
 			) {
 				duplicateNodes.push({
@@ -1157,7 +1331,7 @@
 			} else {
 				continue;
 			}
-			createdLabels.push(nextLabel);
+			createdEntries.push({ label: nextLabel, entry });
 			insertAfterNodeId = undefined;
 		}
 
@@ -1210,12 +1384,26 @@
 		);
 
 		const createdNodeIds: NodeId[] = [];
-		for (const createdLabel of createdLabels) {
-			const created = await waitForCreatedAnodeLabel(formula.node_id, knownChildren, createdLabel);
+		const importedCreatedEntries: Array<{ nodeId: NodeId; entry: AlchemistClipboardNode }> = [];
+		for (const createdEntry of createdEntries) {
+			const created = await waitForCreatedAnodeLabel(
+				formula.node_id,
+				knownChildren,
+				createdEntry.label
+			);
 			if (!created) continue;
 			knownChildren.add(created.node_id);
 			createdNodeIds.push(created.node_id);
+			const source = graphState.nodesById.get(createdEntry.entry.sourceId);
+			if (
+				!source ||
+				(createdEntry.entry.sourceUuid !== undefined &&
+					source.uuid !== createdEntry.entry.sourceUuid)
+			) {
+				importedCreatedEntries.push({ nodeId: created.node_id, entry: createdEntry.entry });
+			}
 		}
+		await restoreCreatedClipboardTrees(importedCreatedEntries);
 
 		if (createdNodeIds.length > 0) {
 			session.selectNodes(createdNodeIds, 'REPLACE');
@@ -1254,7 +1442,7 @@
 
 	const pasteGraphItems = async (): Promise<boolean> => {
 		if (alchemistDuplicateInProgress) return true;
-		const clipboard = alchemistClipboard;
+		const clipboard = (await readAlchemistClipboardFromSystem()) ?? alchemistClipboard;
 		if (!clipboard) return false;
 		let pasted = false;
 		alchemistDuplicateInProgress = true;
@@ -1533,6 +1721,7 @@
 		event.preventDefault();
 		event.stopPropagation();
 		showCreateMenu(event.clientX, event.clientY, position);
+		graphEditor?.focus();
 	};
 
 	const openCreateRequest = (request: GraphNodeCreationRequest): void => {
