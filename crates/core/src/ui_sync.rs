@@ -1124,8 +1124,18 @@ pub struct UiEventBatch {
     /// Last event timestamp included in this batch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to: Option<EngineTime>,
+    /// Latest runtime timing metrics sampled by the host loop.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<UiRuntimeStatsDto>,
     /// Delivered events.
     pub events: Vec<UiEventDto>,
+}
+
+/// Runtime timing metrics exposed to the UI.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiRuntimeStatsDto {
+    /// Engine ticks completed per second over the latest sampling window.
+    pub engine_hz: f64,
 }
 
 /// UI-originated edit intent.
@@ -1544,7 +1554,12 @@ impl<T: Node> Engine<T> {
 
         let to = events.last().map(|event| event.time);
 
-        UiEventBatch { from, to, events }
+        UiEventBatch {
+            from,
+            to,
+            runtime: None,
+            events,
+        }
     }
 
     /// Resolves custom-filter reference picker targets for one parameter node.

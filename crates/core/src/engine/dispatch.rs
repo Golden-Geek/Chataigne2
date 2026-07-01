@@ -11,10 +11,7 @@ use super::{Engine, EngineEditError};
 static DISPATCH_PERF_TRACE_ENABLED: LazyLock<bool> = LazyLock::new(|| {
     std::env::var_os("CHATAIGNE_PERF_TRACE").is_some_and(|value| {
         let value = value.to_string_lossy();
-        !matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "" | "0" | "false" | "off"
-        )
+        !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
     })
 });
 
@@ -133,8 +130,7 @@ impl<T: Node> Engine<T> {
     ) -> Result<(), EngineEditError> {
         let trace = *DISPATCH_PERF_TRACE_ENABLED;
         let dispatch_start = trace.then(Instant::now);
-        let mut trace_by_type: Option<HashMap<String, (usize, usize, u128)>> =
-            trace.then(HashMap::new);
+        let mut trace_by_type: Option<HashMap<String, (usize, usize, u128)>> = trace.then(HashMap::new);
 
         // Take ownership to avoid borrow conflicts with the &mut self calls below.
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);

@@ -87,8 +87,7 @@ impl ProcessTreeNodeSnapshot {
 
     /// Returns `true` when this node exposes `method` as a script-callable entrypoint.
     pub fn has_script_method(&self, method: &str) -> bool {
-        self.script_methods.iter().any(|candidate| candidate == method)
-            || CORE_SCRIPT_METHODS.contains(&method)
+        self.script_methods.iter().any(|candidate| candidate == method) || CORE_SCRIPT_METHODS.contains(&method)
     }
 }
 

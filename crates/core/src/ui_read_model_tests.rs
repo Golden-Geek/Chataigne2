@@ -27,6 +27,19 @@ fn batch_param_values(batch: &UiEventBatch) -> Vec<i32> {
         .collect()
 }
 
+fn event_param_values(events: &[crate::ui_sync::UiEventDto]) -> Vec<i32> {
+    events
+        .iter()
+        .filter_map(|event| match &event.kind {
+            UiEventKind::ParamChanged {
+                new_value: ParamValue::Int(value),
+                ..
+            } => Some(*value),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
 fn publish_engine_events_since_survives_event_log_compaction() {
     let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
@@ -54,6 +67,61 @@ fn publish_engine_events_since_survives_event_log_compaction() {
 
     let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time);
     assert_eq!(batch_param_values(&compacted_batch), vec![4, 5, 6, 7]);
+}
+
+#[test]
+fn ui_feedback_coalescing_keeps_latest_only_for_coalescable_value_params() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+
+    for value in 1..=3 {
+        apply_param_change(&mut engine, value);
+    }
+
+    let batch = read_model.publish_engine_events_since(&engine, None);
+    let coalesced = read_model.coalesce_ui_feedback_events(batch.events.clone());
+    assert_eq!(event_param_values(&coalesced), vec![3]);
+
+    let mut append_param = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    append_param.event_behaviour = ParameterEventBehaviour::Append;
+    let mut append_engine = Engine::new(append_param);
+    let append_read_model = UiReadModel::from_engine(&append_engine, UiProjectFileSpec::default());
+    for value in 1..=3 {
+        apply_param_change(&mut append_engine, value);
+    }
+    let append_batch = append_read_model.publish_engine_events_since(&append_engine, None);
+    let append_coalesced = append_read_model.coalesce_ui_feedback_events(append_batch.events.clone());
+    assert_eq!(event_param_values(&append_coalesced), vec![1, 2, 3]);
+
+    let mut trigger_engine = Engine::new(Parameter::new(
+        "root",
+        ParamValue::Trigger(),
+        ParameterChangeCheck::None,
+    ));
+    let trigger_read_model = UiReadModel::from_engine(&trigger_engine, UiProjectFileSpec::default());
+    for _ in 0..2 {
+        let ack = trigger_engine.apply_ui_intent(UiEditIntent::SetParam {
+            node: trigger_engine.root,
+            value: ParamValue::Trigger(),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        assert!(ack.success, "trigger should apply: {:?}", ack.error_message);
+    }
+    let trigger_batch = trigger_read_model.publish_engine_events_since(&trigger_engine, None);
+    let trigger_coalesced = trigger_read_model.coalesce_ui_feedback_events(trigger_batch.events.clone());
+    let trigger_count = trigger_coalesced
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.kind,
+                UiEventKind::ParamChanged {
+                    new_value: ParamValue::Trigger(),
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(trigger_count, 2);
 }
 
 #[test]

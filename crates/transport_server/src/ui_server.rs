@@ -17,7 +17,7 @@ use golden_protocol::{
     UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
     UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
     UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
-    UiReplayRequest as ReplayRequest, UiScriptConfigRequest as ScriptConfigRequest,
+    UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
     UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
     UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
@@ -41,6 +41,7 @@ const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
 const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WS_PING_INTERVAL: Duration = Duration::from_secs(10);
 const WS_PONG_TIMEOUT: Duration = Duration::from_secs(30);
+const ENGINE_STATS_INTERVAL: Duration = Duration::from_millis(250);
 
 static NEXT_WS_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -385,6 +386,7 @@ struct WsClientState {
 struct WsSubscriptionState {
     scope: UiSubscriptionScope,
     cursor: Option<EngineTime>,
+    last_runtime_stats: Option<UiRuntimeStatsDto>,
 }
 
 struct WsEventOrigin {
@@ -571,6 +573,8 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
 ) {
     thread::spawn(move || {
         let mut last_tick_start = Instant::now();
+        let mut stats_window_start = last_tick_start;
+        let mut stats_window_ticks = 0u64;
 
         loop {
             let tick_start = Instant::now();
@@ -596,6 +600,19 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
             };
             if let Some(capture) = capture {
                 read_model.apply_event_capture(capture);
+            }
+
+            stats_window_ticks = stats_window_ticks.saturating_add(1);
+            let stats_elapsed = stats_window_start.elapsed();
+            if stats_elapsed >= ENGINE_STATS_INTERVAL {
+                let elapsed_secs = stats_elapsed.as_secs_f64();
+                if elapsed_secs > 0.0 {
+                    read_model.set_runtime_stats(UiRuntimeStatsDto {
+                        engine_hz: stats_window_ticks as f64 / elapsed_secs,
+                    });
+                }
+                stats_window_start = Instant::now();
+                stats_window_ticks = 0;
             }
 
             let spent = tick_start.elapsed();
@@ -776,7 +793,14 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
             if let Some(client) = clients.get_mut(&client_id) {
                 let _replaced = client
                     .subscriptions
-                    .insert(subscription_id, WsSubscriptionState { scope, cursor: from })
+                    .insert(
+                        subscription_id,
+                        WsSubscriptionState {
+                            scope,
+                            cursor: from,
+                            last_runtime_stats: None,
+                        },
+                    )
                     .is_some();
             }
         }
@@ -976,10 +1000,12 @@ fn dispatch_ws_batches(
             }
 
             let batch = read_model.replay(subscription.cursor, subscription.scope.clone());
+            let runtime_changed = batch.runtime != subscription.last_runtime_stats;
+            subscription.last_runtime_stats = batch.runtime;
             if let Some(to) = batch.to {
                 subscription.cursor = Some(to);
             }
-            if batch.events.is_empty() {
+            if batch.events.is_empty() && !runtime_changed {
                 continue;
             }
 
@@ -992,8 +1018,9 @@ fn dispatch_ws_batches(
                     visible_events.push(event);
                 }
             }
+            visible_events = read_model.coalesce_ui_feedback_events(visible_events);
 
-            if !visible_events.is_empty() {
+            if !visible_events.is_empty() || runtime_changed {
                 events_count += visible_events.len();
                 pending.push((
                     *client_id,
@@ -1002,6 +1029,7 @@ fn dispatch_ws_batches(
                         batch: UiEventBatch {
                             from: batch.from,
                             to: batch.to,
+                            runtime: batch.runtime,
                             events: visible_events,
                         },
                     },

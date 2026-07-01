@@ -16,10 +16,11 @@ use std::sync::{Arc, Mutex, RwLock};
 use crate::contexts::UiUserContextsDto;
 use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use crate::ui_sync::{
     UI_PROTOCOL_VERSION, UiChildrenOrderPatch, UiEventBatch, UiEventDto, UiEventKind, UiGraphOp, UiHistoryState,
-    UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec, UiSchemaView, UiSnapshot,
-    UiSubscriptionScope,
+    UiLoggerState, UiNodeDataDto, UiNodeDto, UiNodeMetaPatch, UiProjectFileSpec, UiRuntimeStatsDto, UiSchemaView,
+    UiSnapshot, UiSubscriptionScope,
 };
 
 const DEFAULT_UI_READ_MODEL_EVENT_CAPACITY: usize = 8192;
@@ -74,6 +75,8 @@ pub struct UiReadModel {
     event_capacity: usize,
     /// Head of the event log, always advances even when snapshot rebuild is skipped.
     latest_event_time: Mutex<Option<EngineTime>>,
+    /// Latest runtime timing metrics sampled by the host loop.
+    runtime_stats: Mutex<Option<UiRuntimeStatsDto>>,
     /// Incrementally maintained node state — patched from `GraphTransaction` ops.
     node_store: RwLock<HashMap<NodeId, UiNodeDto>>,
     /// Cheap non-node snapshot metadata.
@@ -105,6 +108,7 @@ impl UiReadModel {
             events: Mutex::new(VecDeque::new()),
             event_capacity: DEFAULT_UI_READ_MODEL_EVENT_CAPACITY,
             latest_event_time: Mutex::new(latest_event_time),
+            runtime_stats: Mutex::new(None),
             node_store: RwLock::new(node_store),
             snapshot_header: Mutex::new(header),
             snapshot_schema: Mutex::new(schema),
@@ -119,6 +123,16 @@ impl UiReadModel {
     /// Returns the latest known event time without acquiring the snapshot lock.
     pub fn current_event_time(&self) -> Option<EngineTime> {
         *self.latest_event_time.lock().expect("ui read model poisoned")
+    }
+
+    /// Stores the latest runtime timing metrics sampled by the host loop.
+    pub fn set_runtime_stats(&self, stats: UiRuntimeStatsDto) {
+        *self.runtime_stats.lock().expect("ui read model poisoned") = Some(stats);
+    }
+
+    /// Returns the latest runtime timing metrics sampled by the host loop.
+    pub fn runtime_stats(&self) -> Option<UiRuntimeStatsDto> {
+        *self.runtime_stats.lock().expect("ui read model poisoned")
     }
 
     /// Rebuilds the entire model from the live engine (project load/replace or initial build).
@@ -203,10 +217,11 @@ impl UiReadModel {
     /// that O(N) rebuild until the next structural batch.
     pub fn apply_event_capture(&self, capture: UiEventCapture) -> UiEventBatch {
         let UiEventCapture {
-            batch,
+            mut batch,
             history,
             user_contexts,
         } = capture;
+        batch.runtime = self.runtime_stats();
         {
             let mut header = self.snapshot_header.lock().expect("ui read model poisoned");
             header.history = history;
@@ -320,7 +335,31 @@ impl UiReadModel {
         }
 
         let to = events.last().map(|event| event.time);
-        UiEventBatch { from, to, events }
+        UiEventBatch {
+            from,
+            to,
+            runtime: self.runtime_stats(),
+            events,
+        }
+    }
+
+    /// Conflates normal UI-feedback parameter value events to the latest value per parameter.
+    ///
+    /// This only affects UI replay payloads. The engine event log and script/watch-style event
+    /// delivery remain lossless.
+    pub fn coalesce_ui_feedback_events(&self, events: Vec<UiEventDto>) -> Vec<UiEventDto> {
+        let store = self.node_store.read().expect("ui read model poisoned");
+        let mut coalescer = UiFeedbackCoalescer::default();
+
+        for event in events {
+            if param_changed_event_is_ui_coalescable(&store, &event) {
+                coalescer.push_coalescable(event);
+            } else {
+                coalescer.push_barrier(event);
+            }
+        }
+
+        coalescer.finish()
     }
 
     /// First retained event time, if any.
@@ -590,6 +629,7 @@ fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &
     UiEventBatch {
         from,
         to: Some(time),
+        runtime: None,
         events: vec![UiEventDto {
             time,
             kind: UiEventKind::Custom {
@@ -599,6 +639,79 @@ fn make_resync_event_batch(from: Option<EngineTime>, time: EngineTime, reason: &
             },
         }],
     }
+}
+
+#[derive(Default)]
+struct UiFeedbackCoalescer {
+    out: Vec<UiEventDto>,
+    pending: Vec<UiEventDto>,
+    pending_param_indices: HashMap<NodeId, usize>,
+}
+
+impl UiFeedbackCoalescer {
+    fn push_coalescable(&mut self, event: UiEventDto) {
+        let UiEventKind::ParamChanged {
+            param,
+            old_value: _,
+            new_value,
+        } = &event.kind
+        else {
+            return;
+        };
+
+        if let Some(index) = self.pending_param_indices.get(param).copied() {
+            if let Some(existing) = self.pending.get_mut(index) {
+                if let UiEventKind::ParamChanged {
+                    new_value: existing_new,
+                    ..
+                } = &mut existing.kind
+                {
+                    existing.time = event.time;
+                    *existing_new = new_value.clone();
+                }
+            }
+        } else {
+            self.pending_param_indices.insert(*param, self.pending.len());
+            self.pending.push(event);
+        }
+    }
+
+    fn push_barrier(&mut self, event: UiEventDto) {
+        self.flush_pending();
+        self.out.push(event);
+    }
+
+    fn finish(mut self) -> Vec<UiEventDto> {
+        self.flush_pending();
+        self.out
+    }
+
+    fn flush_pending(&mut self) {
+        if self.pending.is_empty() {
+            return;
+        }
+        self.out.append(&mut self.pending);
+        self.pending_param_indices.clear();
+    }
+}
+
+fn param_changed_event_is_ui_coalescable(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> bool {
+    let UiEventKind::ParamChanged { param, new_value, .. } = &event.kind else {
+        return false;
+    };
+
+    if matches!(new_value, ParamValue::Trigger()) {
+        return false;
+    }
+
+    let Some(node) = store.get(param) else {
+        return false;
+    };
+    let UiNodeDataDto::Parameter { param } = &node.data else {
+        return false;
+    };
+
+    param.event_behaviour == ParameterEventBehaviour::Coalesce
 }
 
 fn event_matches_scope(snapshot: &UiSnapshot, scope: &UiSubscriptionScope, event: &UiEventDto) -> bool {
