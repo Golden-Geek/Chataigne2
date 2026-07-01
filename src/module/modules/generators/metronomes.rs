@@ -11,14 +11,14 @@ use golden_core::{
     events::{CustomEvent, Event, EventKind},
     node,
     node::{
-        DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, UserContainerRules,
-        UserCreatableItem,
+        DeclId, Node, NodeHandle, NodeId, NodeMetaPatch, NodeScriptDescriptor, NodeUuid,
+        UserContainerRules, UserCreatableItem,
     },
     parameter::{
         Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption,
         ParameterEventBehaviour, Vec2,
     },
-    process_ctx::{ProcessCtx, ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
+    process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
 const METRONOMES_UPDATE_RATE_DEFAULT_HZ: i32 = 60;
@@ -69,6 +69,7 @@ impl Default for MetronomeRuntimeState {
 #[derive(Clone, Debug)]
 struct MetronomeConfig {
     item_id: NodeId,
+    item_uuid: NodeUuid,
     value_decl_id: String,
     label: String,
     enabled: bool,
@@ -680,7 +681,8 @@ fn metronome_config(
 
     Some(MetronomeConfig {
         item_id,
-        value_decl_id: value_folder_decl_id("metronome", item),
+        item_uuid: item.uuid,
+        value_decl_id: value_folder_decl_id("metronome", item.uuid),
         label: item.label.clone(),
         enabled: item.enabled,
         interval_seconds,
@@ -698,12 +700,13 @@ fn sync_value_folders<'a, I>(
     configs: I,
     value_nodes_by_item: &mut HashMap<NodeId, NodeId>,
     pending_value_items: &mut HashSet<NodeId>,
-    build_tree: fn(&str, &str) -> NodeTree,
+    build_tree: fn(&MetronomeConfig) -> NodeTree,
 ) -> bool
 where
     I: IntoIterator<Item = &'a MetronomeConfig>,
 {
     let existing_by_decl = child_ids_by_decl(snapshot, root_id);
+    let existing_by_label = metronome_value_child_ids_by_label(snapshot, root_id);
     let mut used_node_ids = HashSet::new();
     let mut next_value_nodes_by_item = HashMap::new();
     let mut active_item_ids = HashSet::new();
@@ -715,7 +718,17 @@ where
             .get(&config.item_id)
             .copied()
             .filter(|node_id| snapshot.node(*node_id).is_some())
-            .or_else(|| existing_by_decl.get(config.value_decl_id.as_str()).copied());
+            .or_else(|| existing_by_decl.get(config.value_decl_id.as_str()).copied())
+            .or_else(|| {
+                existing_by_label
+                    .get(config.label.as_str())
+                    .and_then(|nodes| {
+                        nodes
+                            .iter()
+                            .copied()
+                            .find(|node_id| !used_node_ids.contains(node_id))
+                    })
+            });
 
         match existing_node_id {
             Some(node_id) => {
@@ -738,11 +751,7 @@ where
             None => {
                 waiting_for_values = true;
                 if pending_value_items.insert(config.item_id) {
-                    ctx.add_child_tree(
-                        root_id,
-                        build_tree(config.label.as_str(), config.value_decl_id.as_str()),
-                        None,
-                    );
+                    ctx.add_child_tree(root_id, build_tree(config), None);
                 }
             }
         }
@@ -766,15 +775,21 @@ where
     waiting_for_values
 }
 
-fn metronome_values_tree(label: &str, decl_id: &str) -> NodeTree {
-    NodeTree::new(read_only_param(label, decl_id, ParamValue::Trigger()))
+fn metronome_values_tree(config: &MetronomeConfig) -> NodeTree {
+    NodeTree::new(read_only_param(
+        config.label.as_str(),
+        config.value_decl_id.as_str(),
+        metronome_value_uuid(config.item_uuid),
+        ParamValue::Trigger(),
+    ))
 }
 
-fn read_only_param(label: &str, decl_id: &str, value: ParamValue) -> Parameter {
+fn read_only_param(label: &str, decl_id: &str, uuid: NodeUuid, value: ParamValue) -> Parameter {
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
     parameter.read_only = true;
     crate::app::module::enable_module_authoring(parameter.node_data_mut());
     let meta = &mut parameter.node_data_mut().meta;
+    meta.uuid = uuid;
     meta.decl_id = DeclId(decl_id.to_string());
     meta.short_name = decl_id.to_string();
     parameter
@@ -794,8 +809,34 @@ fn child_ids_by_decl(snapshot: &ProcessTreeSnapshot, root_id: NodeId) -> HashMap
     by_decl
 }
 
-fn value_folder_decl_id(prefix: &str, node: &ProcessTreeNodeSnapshot) -> String {
-    format!("{}_{}", prefix, node.uuid.0.simple())
+fn metronome_value_child_ids_by_label(
+    snapshot: &ProcessTreeSnapshot,
+    root_id: NodeId,
+) -> HashMap<String, Vec<NodeId>> {
+    let mut by_label = HashMap::<String, Vec<NodeId>>::new();
+    for child_id in snapshot.child_ids(root_id) {
+        let Some(child) = snapshot.node(child_id) else {
+            continue;
+        };
+        if child.decl_id.starts_with("metronome_") {
+            by_label
+                .entry(child.label.clone())
+                .or_default()
+                .push(child_id);
+        }
+    }
+    by_label
+}
+
+fn metronome_value_uuid(item_uuid: NodeUuid) -> NodeUuid {
+    const METRONOME_VALUE_UUID_MASK: u128 = 0x6d657472_6f6e_6f6d_655f_76616c756500;
+    NodeUuid(uuid::Uuid::from_u128(
+        item_uuid.0.as_u128() ^ METRONOME_VALUE_UUID_MASK,
+    ))
+}
+
+fn value_folder_decl_id(prefix: &str, item_uuid: NodeUuid) -> String {
+    format!("{}_{}", prefix, item_uuid.0.simple())
 }
 
 fn selector_matches(

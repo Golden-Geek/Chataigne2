@@ -170,6 +170,27 @@ fn condition_group_creatable_items_include_all_types() {
 }
 
 #[test]
+fn condition_group_creatable_items_are_authored_order_with_group_separated() {
+    let g = ConditionGroup::new();
+    let items = g.user_creatable_items();
+    let node_types: Vec<&str> = items.iter().map(|i| i.node_type.as_str()).collect();
+    assert_eq!(
+        node_types,
+        vec![
+            InputValueCondition::NODE_TYPE,
+            InputNodeCondition::NODE_TYPE,
+            ScriptCondition::NODE_TYPE,
+            ConditionGroup::NODE_TYPE,
+        ]
+    );
+    // Only the Condition Group wrapper is rendered below a divider.
+    for item in &items {
+        let expects_separator = item.node_type == ConditionGroup::NODE_TYPE;
+        assert_eq!(item.separator_before, expects_separator, "{}", item.node_type);
+    }
+}
+
+#[test]
 fn condition_group_is_sm_condition_item() {
     use crate::app::{ConditionManager, declared_user_item_type_matches};
     let cm = ConditionManager::new();

@@ -4,7 +4,7 @@
 	import ValidationChip from './ValidationChip.svelte';
 
 	const PROCESSOR_ITEM_KIND = 'state_processor';
-	const PROCESSOR_PROPERTIES_DECL_ID = 'properties';
+	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
 	const CONDITION_MANAGER_NODE_TYPE = 'sm_condition_manager';
 	const CONDITION_MANAGER_VALID_DECL_ID = 'valid';
 
@@ -30,13 +30,16 @@
 
 	const processorConditionManagers = (processor: UiNodeDto): UiNodeDto[] => {
 		if (!graph) return [];
-		const properties = directChild(processor, PROCESSOR_PROPERTIES_DECL_ID);
 		const managers: UiNodeDto[] = [];
 		const visit = (current: UiNodeDto | null): void => {
 			if (!current) return;
 			for (const childId of current.children) {
 				const child = graph.nodesById.get(childId);
 				if (!child) continue;
+				// Property surfaces are mirrored flat at the processor's top level;
+				// skip the managed-regions subtree so only property condition
+				// managers surface a validation chip.
+				if (child.decl_id === PROCESSOR_MANAGED_REGIONS_DECL_ID) continue;
 				if (child.node_type === CONDITION_MANAGER_NODE_TYPE) {
 					managers.push(child);
 					continue;
@@ -44,7 +47,7 @@
 				if (child.children.length > 0) visit(child);
 			}
 		};
-		visit(properties);
+		visit(processor);
 		return managers;
 	};
 

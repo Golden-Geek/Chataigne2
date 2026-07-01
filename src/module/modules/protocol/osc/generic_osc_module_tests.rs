@@ -916,11 +916,12 @@ fn output_manager_creates_module_linked_osc_command() {
         "module-linked output command should be creatable: {create_ack:?}"
     );
 
-    let command_id = engine
-        .nodes
-        .get(output_manager_id)
-        .and_then(|node| node.node_data().first_child)
-        .expect("outputs manager should contain the created command");
+    let command_id = find_direct_child_by_type(
+        &engine,
+        output_manager_id,
+        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+    )
+    .expect("outputs manager should contain the created OSC command");
     let target_module = find_path(
         &engine,
         command_id,
@@ -1142,6 +1143,23 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
             || meta.short_name == key
             || meta.label == key
         {
+            return Some(child_id);
+        }
+        child = node.node_data().next_sibling;
+    }
+
+    None
+}
+
+fn find_direct_child_by_type(
+    engine: &crate::app::AppEngine,
+    parent: NodeId,
+    node_type: &str,
+) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    while let Some(child_id) = child {
+        let node = engine.nodes.get(child_id)?;
+        if node.get_type() == node_type {
             return Some(child_id);
         }
         child = node.node_data().next_sibling;

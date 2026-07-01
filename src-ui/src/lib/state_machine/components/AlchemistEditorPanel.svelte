@@ -33,6 +33,7 @@
 		readPanelPersistedState,
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
+	import { copyTextToClipboard } from 'golden_ui/utils/clipboard';
 	import { sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
 	import { appState } from 'golden_ui/store/workbench.svelte';
@@ -90,6 +91,12 @@
 		message: string;
 		severity: 'info' | 'warning' | 'error';
 		origin: string;
+	}
+
+	interface AlchemistClipboardPayload {
+		kind: 'chataigne.alchemist.nodes';
+		version: 1;
+		clipboard: AlchemistClipboard;
 	}
 
 	interface PreviewTarget {
@@ -946,9 +953,33 @@
 	};
 
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
-		return buildCreatableItemMenu(anodeItems, (item) =>
+		const createItems = buildCreatableItemMenu(anodeItems, (item) =>
 			createNode(item, contextMenuWorldPosition ?? graphEditor?.viewportCenter() ?? { x: 0, y: 0 })
 		);
+		const clipboard = selectedAlchemistClipboard();
+		if (!clipboard) {
+			return createItems;
+		}
+		const copyItems: ContextMenuItem[] = [
+			{
+				id: 'copy-selection',
+				label: 'Copy',
+				commandId: 'edit.copy',
+				action: () => {
+					copySelectedGraphItems();
+					contextMenuOpen = false;
+				}
+			},
+			{
+				id: 'copy-selection-json',
+				label: 'Copy as JSON',
+				action: () => {
+					void copyTextToClipboard(alchemistClipboardJson(clipboard));
+					contextMenuOpen = false;
+				}
+			}
+		];
+		return createItems.length > 0 ? [...copyItems, { separator: true }, ...createItems] : copyItems;
 	});
 
 	const delay = (durationMs: number): Promise<void> =>
@@ -1027,6 +1058,15 @@
 			anodeNodeIds,
 			anodeItems
 		});
+	};
+
+	const alchemistClipboardJson = (clipboard: AlchemistClipboard): string => {
+		const payload: AlchemistClipboardPayload = {
+			kind: 'chataigne.alchemist.nodes',
+			version: 1,
+			clipboard
+		};
+		return JSON.stringify(payload, null, 2);
 	};
 
 	const waitForCreatedAnodeLabel = async (
@@ -1187,6 +1227,7 @@
 		const clipboard = selectedAlchemistClipboard();
 		if (!clipboard) return false;
 		alchemistClipboard = clipboard;
+		void copyTextToClipboard(alchemistClipboardJson(clipboard));
 		return true;
 	};
 

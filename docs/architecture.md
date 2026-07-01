@@ -34,12 +34,11 @@ schema.
 ## Alchemist Managed Processors
 
 The Formula Catalog is the complete resolver for project and shipped formulas.
-The Formula Library is only the editable project tree. Built-in Action and
-Mapping formulas are catalog entries that appear in the Processor palette, stay
-hidden from the Formula Library, and can be inspected read-only from a
-processor. When duplication is allowed, the app creates a new project formula
-through the public Formula Library creation path and seeds it from backend-owned
-catalog metadata.
+The Formula Library is only the editable project tree. Built-in formulas are
+catalog entries loaded from package files, not product-name branches in runtime
+code. When duplication is allowed, the app creates a new project formula through
+the public Formula Library creation path and seeds it from backend-owned catalog
+metadata.
 
 Processors persist a typed formula source rather than assuming every processor
 points at a project formula node. Project formulas still resolve through node
@@ -47,18 +46,18 @@ references, while built-ins resolve through stable package/formula/version
 keys. Unknown built-in sources are rejected at creation and reported as
 diagnostics if they appear in older saved data.
 
-Built-in Mapping is a managed surface over normal Alchemist execution. Its
-regions are Inputs, Filters, and Outputs. Built-in Action is the same model with
-Trigger, Filters, and Commands. Managed regions are real backend-owned child
-folders on the processor node; the UI projects those folders and sends normal
-node edit intents instead of owning a parallel frontend graph model.
+Managed processor templates are surfaces over normal Alchemist execution. Value
+pipelines use Inputs, Filters, and Outputs. Trigger pipelines use Trigger,
+Filters, and Commands. Managed regions are real backend-owned child folders on
+the processor node; the UI projects those folders and sends normal node edit
+intents instead of owning a parallel frontend graph model.
 
-Mapping and Action share the same filter-capable ANode pipeline. Conditions are
+Managed surfaces share the same filter-capable ANode pipeline. Conditions are
 ordinary filters through the reusable `ConditionGate` ANode, not a separate
 condition subsystem. `ValueSet` is the Chataigne collection boundary for
 multi-lane values. Elementwise filters run per stable lane, aggregate and
 projection filters are explicit, and runtime outputs become `chataigne.command`
-intents at the OutputSet or Action Commands boundary.
+intents at the managed command/output boundary.
 
 See [ALCHEMIST_FORMULA_RUNTIME.md](ALCHEMIST_FORMULA_RUNTIME.md) for the
 runtime contract, diagnostics, lane-memory strategy, and final managed

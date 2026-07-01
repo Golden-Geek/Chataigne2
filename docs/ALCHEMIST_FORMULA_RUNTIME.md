@@ -28,6 +28,11 @@ packages from `CHATAIGNE_BUILTIN_FORMULAS_DIR` when set, otherwise from a
 catalog is empty. Product-owned formulas can later appear under Built-ins by
 placing package files in that folder.
 
+Chataigne ships an app-provided package file at
+`builtin_formulas/chataigne.formulas.json`. The package is data-only and may be
+empty; product-owned templates should appear there as authored formula
+definitions, not as hardcoded runtime concepts.
+
 Processor creation flows through catalog entries. Project formulas marked
 processor-creatable appear under Project Formulas. Built-ins can be opened
 read-only from a processor and duplicated only through the public Formula
@@ -62,7 +67,7 @@ ordinary edit intents to add, reorder, remove, or configure managed items.
 Value pipelines materialize InputSet values, run the managed filter pipeline,
 and dispatch through OutputSet. Trigger pipelines read one enabled trigger
 input, run the same filter pipeline, and emit command intents through CommandSet.
-Neither processor owns a special evaluator for filters or conditions.
+No product-named processor owns a special evaluator for filters or conditions.
 
 For users and module authors, this means:
 

@@ -16,7 +16,7 @@ use super::{
     PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_ITEM_KIND,
     PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
     StateProcessorFolder, StateProcessorManagedRegion,
-    StateProcessorManagedRegions, StateProcessorManager, StateProcessorProperties,
+    StateProcessorManagedRegions, StateProcessorManager,
     processor_managed_region_decl_id,
 };
 use crate::app::state_machine_nodes_formula::{
@@ -554,18 +554,8 @@ fn processor_materializes_formula_properties_as_real_children() {
         .map(|(id, _)| id)
         .expect("Processor should exist");
     let snapshot = engine.process_tree_snapshot();
-    let instance_properties = snapshot
-        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
-        .expect("Processor should instantiate Formula Properties");
-    assert_eq!(
-        engine
-            .nodes
-            .get(instance_properties)
-            .expect("Processor Properties should exist")
-            .get_type(),
-        StateProcessorProperties::NODE_TYPE
-    );
-    let instance_children = snapshot.child_ids(instance_properties);
+    // Properties are mirrored flat at the processor's top level (no Properties folder).
+    let instance_children = snapshot.child_ids(processor_id);
     let parameter = instance_children
         .iter()
         .copied()
@@ -633,7 +623,7 @@ fn processor_materializes_formula_properties_as_real_children() {
         .expect("Processor property reconciliation should stabilize");
     let snapshot = engine.process_tree_snapshot();
     assert!(
-        snapshot.child_ids(instance_properties).into_iter().any(|child| {
+        snapshot.child_ids(processor_id).into_iter().any(|child| {
             engine.nodes.get(child).is_some_and(|node| {
                 node.engine_param_snapshot().is_some()
                     && node.node_data().meta.label == "Enabled"
@@ -706,19 +696,19 @@ fn processor_mirrors_formula_property_order() {
         .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
         .map(|(id, _)| id)
         .expect("Processor should exist");
-    let snapshot = engine.process_tree_snapshot();
-    let instance_properties = snapshot
-        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
-        .expect("Processor should instantiate Formula Properties");
+    // Properties are mirrored flat at the processor's top level, so only the
+    // `surface/`-prefixed property mirrors count (not the formula reference etc.).
     let processor_property_labels = |engine: &AppEngine| {
         engine
             .process_tree_snapshot()
-            .child_ids(instance_properties)
+            .child_ids(processor_id)
             .into_iter()
             .filter_map(|child| {
                 engine.nodes.get(child).and_then(|node| {
-                    node.engine_param_snapshot()
-                        .map(|_| node.node_data().meta.label.clone())
+                    let data = node.node_data();
+                    (node.engine_param_snapshot().is_some()
+                        && data.meta.decl_id.0.starts_with("surface/"))
+                    .then(|| data.meta.label.clone())
                 })
             })
             .collect::<Vec<_>>()
@@ -822,12 +812,9 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
         .expect("Processor should exist");
 
     let snapshot = engine.process_tree_snapshot();
-    let instance_properties = snapshot
-        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
-        .expect("Processor should instantiate Formula Properties");
-
+    // Property surfaces (including mirrored folders) sit flat under the processor.
     let instance_folder = snapshot
-        .child_ids(instance_properties)
+        .child_ids(processor_id)
         .into_iter()
         .find(|child| {
             engine
@@ -883,7 +870,7 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
 
     let snapshot = engine.process_tree_snapshot();
     let instance_folder = snapshot
-        .child_ids(instance_properties)
+        .child_ids(processor_id)
         .into_iter()
         .find(|child| {
             engine

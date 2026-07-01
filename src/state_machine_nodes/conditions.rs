@@ -40,7 +40,7 @@ macro_rules! leaf_condition_init {
         label = "Toggle Mode",
         show_in_inspector_content = false
     );
-    folder(advanced, label = "Advanced", collapsed = false) {
+    folder(advanced, label = "Advanced", collapsed = true) {
         validation_delay_s: f64 = 0.0 [0.0..] (
             label = "Validation Delay",
             widget = "time_slider"
@@ -255,10 +255,7 @@ impl Node for ConditionGroup {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        crate::app::declared_user_creatable_items("sm_condition")
-            .into_iter()
-            .map(|item| item.with_select_when_created(false))
-            .collect()
+        ordered_condition_creatable_items()
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
@@ -268,6 +265,39 @@ impl Node for ConditionGroup {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
     }
+}
+
+/// Authored Add-menu order for `sm_condition` items. The leaf conditions come
+/// first; the Condition Group wrapper is rendered last, below a divider.
+const CONDITION_ITEM_ORDER: &[&str] = &[
+    "sm_input_value_condition",
+    "sm_input_node_condition",
+    "sm_script_condition",
+    "sm_condition_group",
+];
+
+/// Returns the declared `sm_condition` creatable items in authored Add-menu
+/// order, with a separator rendered above the Condition Group wrapper.
+///
+/// The codegen catalog emits items sorted alphabetically by Rust type name;
+/// this reorders them to the product-authored sequence in the app layer so the
+/// shared codegen stays policy-free.
+pub(crate) fn ordered_condition_creatable_items() -> Vec<UserCreatableItem> {
+    let mut items = crate::app::declared_user_creatable_items("sm_condition");
+    items.sort_by_key(|item| {
+        CONDITION_ITEM_ORDER
+            .iter()
+            .position(|node_type| *node_type == item.node_type)
+            .unwrap_or(usize::MAX)
+    });
+    items
+        .into_iter()
+        .map(|item| {
+            let separator_before = item.node_type == "sm_condition_group";
+            item.with_select_when_created(false)
+                .with_separator_before(separator_before)
+        })
+        .collect()
 }
 
 pub(crate) fn sync_condition_operator_visibility(ctx: &mut ProcessCtx, group: NodeId) {

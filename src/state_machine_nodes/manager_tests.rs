@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 
-use chataigne_state_machine::{ANodeOutputPreviewSample, ProcessorId};
+use chataigne_state_machine::{
+    ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
+    ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime, ValueSet,
+};
 use golden_alchemist::{
-    ANodeId, ExecNodeId, FormulaId, OutputPreviewStatus, RuntimeValue, SocketId,
+    ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
+    EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId, FormulaPropertySchema,
+    FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
+    RuntimeOutput, RuntimeRegistries, RuntimeValue, SocketId, ValueTypeRegistry,
+    primitive_node_registry,
 };
 use golden_core::{
     engine::EngineTime,
@@ -13,10 +20,11 @@ use golden_core::{
 };
 
 use super::{
-    merge_output_preview_snapshot,
-    next_input_value_condition_valid_state,
-    processor_formula_from_snapshot, processor_formula_source_ref,
-    processor_override_value, STATE_ITEM_KIND, StateMachineManager,
+    compile_processor_runtime_for_cache_rebuild, condition_manager_edge_previous,
+    condition_manager_value_set, merge_output_preview_snapshot,
+    next_input_value_condition_validity, next_input_value_condition_valid_state,
+    processor_formula_from_snapshot, processor_formula_source_ref, processor_override_value,
+    processor_should_evaluate, set_output_target_param, STATE_ITEM_KIND, StateMachineManager,
 };
 use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
 
@@ -80,6 +88,55 @@ fn states_do_not_accept_user_items() {
 }
 
 #[test]
+fn output_target_param_write_skips_unchanged_non_trigger_values() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(
+        Parameter::new(
+            "Target",
+            ParamValue::Float(1.0),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        None,
+    );
+    engine
+        .apply_edits()
+        .expect("target parameter should attach");
+    let target = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Target")
+        .map(|(id, _)| id)
+        .expect("target parameter should exist");
+    let snapshot = engine.process_tree_snapshot();
+    let mut ctx = ProcessCtx::new(
+        ExecutionPhase::EngineTick,
+        EngineTime {
+            tick: 1,
+            micro: 0,
+            seq: 0,
+        },
+    );
+    ctx.set_tree_snapshot(snapshot.clone());
+
+    assert!(!set_output_target_param(
+        &mut ctx,
+        snapshot.as_ref(),
+        target,
+        ParamValue::Float(1.0)
+    ));
+    assert!(ctx.edits.pending.is_empty());
+    assert!(set_output_target_param(
+        &mut ctx,
+        snapshot.as_ref(),
+        target,
+        ParamValue::Trigger()
+    ));
+    assert_eq!(ctx.edits.pending.len(), 1);
+}
+
+#[test]
 fn input_value_condition_toggle_uses_inner_invalid_to_valid_edge() {
     assert!(next_input_value_condition_valid_state(false, false, false, true));
     assert!(!next_input_value_condition_valid_state(false, true, true, false));
@@ -88,6 +145,158 @@ fn input_value_condition_toggle_uses_inner_invalid_to_valid_edge() {
     assert!(next_input_value_condition_valid_state(true, true, true, true));
     assert!(next_input_value_condition_valid_state(true, true, true, false));
     assert!(!next_input_value_condition_valid_state(true, true, false, true));
+}
+
+#[test]
+fn transient_input_value_condition_pulses_then_settles_invalid() {
+    let fired = next_input_value_condition_validity(false, false, false, true, true);
+    assert!(fired.current);
+    assert!(!fired.settled);
+
+    let idle = next_input_value_condition_validity(false, false, false, false, true);
+    assert!(!idle.current);
+    assert!(!idle.settled);
+}
+
+#[test]
+fn condition_manager_value_set_only_fires_transition_edges() {
+    let mut next_trigger_edge_id = 0;
+    let transition = condition_manager_value_set(7, true, Some(false), &mut next_trigger_edge_id);
+    assert!(value_set_trigger_fired(&transition, "on_true"));
+    assert!(!value_set_trigger_fired(&transition, "on_false"));
+
+    let steady = condition_manager_value_set(7, true, Some(true), &mut next_trigger_edge_id);
+    assert!(!value_set_trigger_fired(&steady, "on_true"));
+    assert!(!value_set_trigger_fired(&steady, "on_false"));
+}
+
+#[test]
+fn initial_condition_observation_without_dirty_source_is_not_an_edge() {
+    assert_eq!(condition_manager_edge_previous(None, true, false), Some(true));
+    assert_eq!(condition_manager_edge_previous(None, false, false), Some(false));
+    assert_eq!(condition_manager_edge_previous(None, true, true), None);
+}
+
+#[test]
+fn processor_evaluation_requires_runtime_or_signal_reason() {
+    assert!(!processor_should_evaluate(false, false, false, false));
+    assert!(processor_should_evaluate(true, false, false, false));
+    assert!(processor_should_evaluate(false, true, false, false));
+    assert!(processor_should_evaluate(false, false, true, false));
+    assert!(processor_should_evaluate(false, false, false, true));
+}
+
+#[test]
+fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
+    let formula = stateful_trigger_formula();
+    let mut processor = Processor::from_formula("Processor", &formula);
+    processor.lifecycle = ProcessorLifecyclePolicy::AlwaysActive;
+    let mut runtime = ProcessorRuntime::new(processor.id);
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+    assert!(compile_processor_runtime_for_cache_rebuild(
+        &mut runtime,
+        &processor,
+        &formula,
+        &compile_ctx,
+    ));
+    runtime.apply_lifecycle(&processor, ProcessorLifecycleEvent::ProjectStart);
+
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let inputs = RuntimeInputSnapshot::default();
+    let provider = DefaultProcessorContextProvider;
+    let capture = ProcessorDebugCapture::All { history_len: 64 };
+    let first_ctx = EvaluationCtx {
+        logical_tick: 1,
+        delta_time: std::time::Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    };
+    let first = runtime.evaluate_processor_with_context_provider_and_send_capture(
+        &processor,
+        &first_ctx,
+        &provider,
+        &capture,
+    );
+    assert_eq!(first.len(), 1);
+    assert!(runtime_output_trigger_fired(&first[0].output));
+
+    assert!(compile_processor_runtime_for_cache_rebuild(
+        &mut runtime,
+        &processor,
+        &formula,
+        &compile_ctx,
+    ));
+    let second_ctx = EvaluationCtx {
+        logical_tick: 2,
+        delta_time: std::time::Duration::ZERO,
+        events: &[],
+        inputs: &inputs,
+        registries: &registries,
+    };
+    let second = runtime.evaluate_processor_with_context_provider_and_send_capture(
+        &processor,
+        &second_ctx,
+        &provider,
+        &capture,
+    );
+
+    assert_eq!(second.len(), 1);
+    assert!(!runtime_output_trigger_fired(&second[0].output));
+    assert_eq!(runtime.lanes.memory_count(), 1);
+}
+
+fn value_set_trigger_fired(value_set: &ValueSet, key: &str) -> bool {
+    value_set.entries.iter().any(|entry| {
+        entry.key.as_str() == key
+            && matches!(&entry.value, RuntimeValue::Trigger(trigger) if trigger.fired)
+    })
+}
+
+fn runtime_output_trigger_fired(output: &RuntimeOutput) -> bool {
+    output
+        .debug_samples
+        .iter()
+        .any(|sample| matches!(&sample.value, RuntimeValue::Trigger(trigger) if trigger.fired))
+}
+
+fn stateful_trigger_formula() -> AlchemistFormula {
+    let mut graph = AlchemistGraph::new();
+    let mut constant = ANodeInstance::new(ANodeTypeId::new("constant"), "Constant");
+    constant.config.set("value", RuntimeValue::Bool(true));
+    let source = graph.add_node(constant).unwrap();
+    let edge = graph
+        .add_node(ANodeInstance::new(
+            ANodeTypeId::new("trigger_on_off"),
+            "Trigger On/Off",
+        ))
+        .unwrap();
+    graph
+        .connect(
+            OutputSocketRef::new(source, "value"),
+            InputSocketRef::new(edge, "value"),
+        )
+        .unwrap();
+    AlchemistFormula {
+        id: FormulaId::new("test"),
+        version: 1,
+        label: "Test".into(),
+        description: None,
+        tags: Vec::new(),
+        graph,
+        properties: FormulaPropertySchema::default(),
+        surface: FormulaSurface::default(),
+        context_contract: FormulaContextContract::default(),
+        migrations: Vec::new(),
+    }
 }
 
 fn preview_sample(

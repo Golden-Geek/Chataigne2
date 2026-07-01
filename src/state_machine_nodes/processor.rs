@@ -97,6 +97,7 @@ fn processor_property_parameter(
     );
     parameter.node_data_mut().meta.decl_id =
         DeclId(processor_surface_decl_id(source_node.uuid));
+    parameter.node_data_mut().meta.presentation.color = source_node.presentation.color;
     if let Some(constraints) = snapshot
         .node(value_id)
         .and_then(|value| value.param_constraints.clone())
@@ -126,6 +127,7 @@ fn processor_property_manager(
     manager.node_data_mut().meta.label = source_node.label.clone();
     manager.node_data_mut().meta.decl_id =
         DeclId(processor_surface_decl_id(source_node.uuid));
+    manager.node_data_mut().meta.presentation.color = source_node.presentation.color;
     Some(manager)
 }
 
@@ -161,6 +163,7 @@ fn processor_surface_child_tree(
             folder.node_data_mut().meta.label = source_node.label.clone();
             folder.node_data_mut().meta.decl_id =
                 DeclId(processor_surface_decl_id(source_node.uuid));
+            folder.node_data_mut().meta.presentation.color = source_node.presentation.color;
             folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
             let mut tree = NodeTree::new(folder);
             for child in snapshot.child_ids(source) {
@@ -174,26 +177,24 @@ fn processor_surface_child_tree(
     }
 }
 
-fn processor_properties_tree(
+/// Removes every mirrored property surface node directly under `processor`.
+///
+/// Property surfaces are flattened to the processor's top level and carry a
+/// `surface/` decl-id prefix, so this leaves the processor's own declared
+/// children (formula reference, formula source key, managed regions) untouched.
+fn remove_processor_surface_children(
     snapshot: &ProcessTreeSnapshot,
-    formula: NodeId,
-) -> NodeTree {
-    let mut properties = StateProcessorProperties::new();
-    properties.node_data_mut().meta.decl_id =
-        DeclId(PROPERTIES_DECL_ID.to_owned());
-    let mut tree = NodeTree::new(properties);
-    if let Some(source_properties) =
-        snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
-    {
-        for source in snapshot.child_ids(source_properties) {
-            if let Some(child) =
-                processor_surface_child_tree(snapshot, source)
-            {
-                tree.push_child(child);
-            }
+    processor: NodeId,
+    ctx: &mut ProcessCtx,
+) {
+    for child in snapshot.child_ids(processor) {
+        let Some(node) = snapshot.node(child) else {
+            continue;
+        };
+        if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX) {
+            ctx.edits.push(Edit::RemoveNode { node: child });
         }
     }
-    tree
 }
 
 pub(crate) fn processor_managed_region_decl_id(region_id: &str) -> String {
@@ -389,11 +390,20 @@ fn reconcile_properties_level(
             });
             continue;
         }
-        if existing_node.label != source_node.label {
+        let label_changed = existing_node.label != source_node.label;
+        let color_changed =
+            existing_node.presentation.color != source_node.presentation.color;
+        if label_changed || color_changed {
+            let presentation = color_changed.then(|| {
+                let mut presentation = existing_node.presentation.clone();
+                presentation.color = source_node.presentation.color;
+                presentation
+            });
             ctx.patch_node_meta(
                 existing,
                 NodeMetaPatch {
-                    label: Some(source_node.label.clone()),
+                    label: label_changed.then(|| source_node.label.clone()),
+                    presentation,
                     ..NodeMetaPatch::default()
                 },
             );
@@ -481,22 +491,6 @@ impl Node for StateProcessorManagedRegion {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_edit_name = false;
         self.node_data_mut().meta.user_permissions = permissions;
-    }
-
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == Self::NODE_TYPE).then(Self::new)
-    }
-}
-
-#[node("state_processor_properties", label = "Properties")]
-pub struct StateProcessorProperties {}
-
-#[node("state_processor_properties", from_struct)]
-impl Node for StateProcessorProperties {
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions =
-            locked_instance_permissions();
-        self.node_data_mut().meta.can_be_disabled = false;
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -722,7 +716,8 @@ impl StateProcessorFolder {
         label = "Formula",
         reference_target_kind = ReferenceTargetKind::AnyNode,
         reference_allowed_node_types = vec![FORMULA_NODE_TYPE.to_owned()],
-        reference_allow_projections = false
+        reference_allow_projections = false,
+        show_in_inspector_content = false
     );
     formula_source_key: String = String::new() (
         label = "Formula Source",
@@ -972,45 +967,22 @@ impl StateProcessor {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let formula = self.formula_node(&snapshot);
-        let existing_properties =
-            snapshot.find_child_by_decl_id(self.id(), PROPERTIES_DECL_ID);
 
-        let Some(formula) = formula else {
-            if let Some(properties) = existing_properties {
-                ctx.edits.push(Edit::RemoveNode { node: properties });
-            }
-            return;
-        };
-
-        let Some(properties) = existing_properties else {
-            let already_queued = ctx.edits.pending.iter().any(|req| {
-                if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
-                    *p == self.id()
-                        && tree.node.node_data().meta.decl_id.0 == PROPERTIES_DECL_ID
-                } else {
-                    false
-                }
-            });
-            if !already_queued {
-                ctx.add_child_tree(
-                    self.id(),
-                    processor_properties_tree(&snapshot, formula),
-                    None,
-                );
-            }
+        // Properties are mirrored flat at the processor's top level (no
+        // intermediate "Properties" folder), so the processor node itself is
+        // the destination container for the formula's property surfaces.
+        let Some(formula) = self.formula_node(&snapshot) else {
+            remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
         };
         let Some(source_properties) =
             snapshot.find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
         else {
-            for child in snapshot.child_ids(properties) {
-                ctx.edits.push(Edit::RemoveNode { node: child });
-            }
+            remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
         };
 
-        reconcile_properties_level(&snapshot, source_properties, properties, ctx);
+        reconcile_properties_level(&snapshot, source_properties, self.id(), ctx);
     }
 
     fn managed_region_definitions(
@@ -1097,5 +1069,7 @@ impl StateProcessor {
     }
 }
 
+#[cfg(test)]
+mod catalog_tests;
 #[cfg(test)]
 mod processor_tests;

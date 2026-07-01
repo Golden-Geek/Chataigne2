@@ -26,6 +26,21 @@
 		component: ModuleCommandInspector
 	});
 
+	// Generic (module-independent) output commands share the command inspector so
+	// their Trigger button renders in the header, exactly like module commands.
+	registerNodeInspector('generic_command', {
+		component: ModuleCommandInspector
+	});
+
+	// The Outputs manager and Output groups expose a Trigger button (fire all
+	// contained outputs) in their header via the same inspector.
+	registerNodeInspector('sm_outputs_manager', {
+		component: ModuleCommandInspector
+	});
+	registerNodeInspector('sm_output_group', {
+		component: ModuleCommandInspector
+	});
+
 	registerNodeInspector('module', {
 		component: ModuleNodeInspector,
 		panelHeaderComponent: ModuleInspectorPanelHeader

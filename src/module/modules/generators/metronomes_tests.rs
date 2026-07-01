@@ -1,6 +1,6 @@
 use golden_core::{
     edit::Edit,
-    node::{Folder, Node, NodeId, NodeMetaPatch},
+    node::{Folder, Node, NodeId, NodeMetaPatch, NodeUuid},
     parameter::{ParamValue, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
     script::ScriptSource,
@@ -65,6 +65,66 @@ fn metronomes_create_default_item_and_direct_value_trigger() {
         1,
         "creating a Metronomes module should materialize exactly one default trigger value"
     );
+}
+
+#[test]
+fn metronome_value_trigger_uuid_is_derived_from_item_uuid() {
+    let (engine, module_id) = create_metronomes_module();
+    let metronomes = find_path(&engine, module_id, "parameters/metronomes").expect("metronomes list");
+    let metronome = nth_child(&engine, metronomes, 0).expect("default metronome");
+    let item_uuid = engine
+        .nodes
+        .get(metronome)
+        .expect("default metronome node")
+        .node_data()
+        .meta
+        .uuid;
+
+    let values = find_path(&engine, module_id, "values").expect("values folder");
+    let value = find_child_by_key(&engine, values, "Metronome").expect("metronome value trigger");
+    let value_uuid = engine
+        .nodes
+        .get(value)
+        .expect("metronome value node")
+        .node_data()
+        .meta
+        .uuid;
+
+    assert_eq!(value_uuid, super::metronome_value_uuid(item_uuid));
+}
+
+#[test]
+fn sample_project_metronome_condition_reference_recovers_after_load() {
+    let json = include_str!("../../../../test-samples/test_command.noisette");
+    let mut engine = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(json)
+        .expect("test_command sample should load");
+    stabilize(&mut engine);
+
+    let metronome_source_refs = engine
+        .nodes
+        .iter()
+        .filter_map(|(_, node)| {
+            let snapshot = node.engine_param_snapshot()?;
+            if node.node_data().meta.decl_id.0 != "source" {
+                return None;
+            }
+            let ParamValue::Reference(reference) = snapshot.value else {
+                return None;
+            };
+            (reference.cached_name() == Some("Metronome")).then_some(reference)
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        !metronome_source_refs.is_empty(),
+        "sample should contain a Metronome condition source reference"
+    );
+    for reference in metronome_source_refs {
+        assert!(
+            engine.node_id_by_uuid(reference.uuid()).is_some(),
+            "Metronome source reference should resolve after project load"
+        );
+    }
 }
 
 #[test]
@@ -163,6 +223,7 @@ fn test_config(
 ) -> super::MetronomeConfig {
     super::MetronomeConfig {
         item_id: NodeId(1),
+        item_uuid: NodeUuid(uuid::Uuid::from_u128(1)),
         value_decl_id: "metronome_test".to_string(),
         label: "Metronome".to_string(),
         enabled: true,
