@@ -1284,6 +1284,18 @@ fn find_child_by_decl_any<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: 
     None
 }
 
+fn find_child_by_label_any<T: Node>(engine: &Engine<T>, parent: NodeId, label: &str) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    while let Some(id) = child {
+        let node = engine.nodes.get(id)?;
+        if node.node_data().meta.label == label {
+            return Some(id);
+        }
+        child = node.node_data().next_sibling;
+    }
+    None
+}
+
 fn switch_animation_to_curve_waveform<T: Node>(engine: &mut Engine<T>, animation_node: NodeId) -> NodeId {
     let waveform_param = find_child_by_decl_any(engine, animation_node, PARAMETER_ANIMATION_WAVEFORM_DECL_ID)
         .expect("waveform parameter should exist");
@@ -6516,6 +6528,112 @@ fn control_mode_context_link_updates_value_from_user_context() {
         .expect("gain parameter snapshot should exist");
     assert_eq!(gain_snapshot.value, ParamValue::Float(120.0));
     assert!(gain_snapshot.control.diagnostics.is_empty());
+}
+
+#[test]
+fn control_pass_uses_source_index_for_context_link_dependents() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(UserContextNode::new("Owner").into(), None);
+    engine.apply_edits().expect("owner context add should succeed");
+    let owner = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("owner should exist");
+
+    for (name, value) in [
+        ("source_a", 1.0),
+        ("source_b", 10.0),
+        ("target_a", 0.0),
+        ("target_b", 0.0),
+    ] {
+        let mut parameter = Parameter::new(name, ParamValue::Float(value), ParameterChangeCheck::ValueChange);
+        parameter.node_data_mut().meta.decl_id = DeclId(name.to_string());
+        engine.add_node(parameter.into(), Some(owner));
+    }
+    engine.apply_edits().expect("parameters should be added");
+
+    let source_a = find_child_by_label_any(&engine, owner, "source_a").expect("source_a should exist");
+    let target_a = find_child_by_label_any(&engine, owner, "target_a").expect("target_a should exist");
+    let target_b = find_child_by_label_any(&engine, owner, "target_b").expect("target_b should exist");
+
+    for (target, symbol) in [(target_a, "source_a"), (target_b, "source_b")] {
+        engine
+            .set_param_control_state(
+                target,
+                ParameterControlState::new(
+                    ParameterControlMode::ContextLink,
+                    ParameterControlSpec::ContextLink {
+                        symbol: symbol.to_string(),
+                        projection: None,
+                    },
+                ),
+            )
+            .expect("context-link state should be accepted");
+    }
+
+    engine.inbox.clear();
+    engine.tick_scratch.clear_stats();
+    assert!(
+        engine.evaluate_parameter_controls(),
+        "initial dirty index pass should evaluate controls"
+    );
+    assert_eq!(
+        engine.tick_stats().controls_params_scanned,
+        2,
+        "initial dirty index pass should visit both active controls"
+    );
+    assert!(
+        engine
+            .control_source_dependents
+            .get(&source_a)
+            .is_some_and(|dependents| dependents.contains(&target_a)),
+        "control index should route source_a changes to target_a"
+    );
+    engine.apply_edits().expect("initial control writes should apply");
+    engine.inbox.clear();
+
+    engine.tick_scratch.clear_stats();
+    assert!(
+        !engine.evaluate_parameter_controls(),
+        "steady state should not scan active controls without source changes"
+    );
+    assert_eq!(engine.tick_stats().controls_params_scanned, 0);
+    engine.inbox.clear();
+
+    engine.edits.push(Edit::SetParam {
+        node: source_a,
+        value: ParamValue::Float(2.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("source_a write should apply");
+
+    engine.tick_scratch.clear_stats();
+    assert!(
+        engine.evaluate_parameter_controls(),
+        "changed source should evaluate its dependent control"
+    );
+    assert_eq!(
+        engine.tick_stats().controls_params_scanned,
+        1,
+        "only controls depending on source_a should be evaluated"
+    );
+    engine.apply_edits().expect("indexed control write should apply");
+
+    let target_a_snapshot = engine
+        .nodes
+        .get(target_a)
+        .and_then(|node| node.engine_param_snapshot())
+        .expect("target_a snapshot should exist");
+    let target_b_snapshot = engine
+        .nodes
+        .get(target_b)
+        .and_then(|node| node.engine_param_snapshot())
+        .expect("target_b snapshot should exist");
+    assert_eq!(target_a_snapshot.value, ParamValue::Float(2.0));
+    assert_eq!(target_b_snapshot.value, ParamValue::Float(10.0));
 }
 
 #[test]

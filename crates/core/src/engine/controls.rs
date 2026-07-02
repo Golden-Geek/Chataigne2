@@ -109,6 +109,10 @@ fn control_mode_label(mode: ParameterControlMode) -> &'static str {
     }
 }
 
+fn parameter_control_is_active(state: &ParameterControlState) -> bool {
+    state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()
+}
+
 fn reference_target_is_unset(reference: &NodeReference) -> bool {
     reference.uuid().is_nil() && reference.relative_path_from_root().is_empty()
 }
@@ -355,23 +359,238 @@ struct BindingWriteScore {
 }
 
 impl<T: Node> Engine<T> {
+    pub(crate) fn mark_param_control_index_dirty(&mut self) {
+        self.control_index_dirty = true;
+    }
+
+    fn control_param_snapshot(&self, param: NodeId) -> Option<ParameterSnapshot> {
+        self.nodes.get(param).and_then(|node| node.engine_param_snapshot())
+    }
+
+    fn rebuild_param_control_index_if_dirty(&mut self) -> bool {
+        if !self.control_index_dirty {
+            return false;
+        }
+
+        self.active_control_params.clear();
+        self.active_control_param_set.clear();
+        self.control_source_dependents.clear();
+
+        for (node_id, node) in self.nodes.iter() {
+            let Some(snapshot) = node.engine_param_snapshot() else {
+                continue;
+            };
+            if parameter_control_is_active(&snapshot.control) {
+                self.active_control_params.push(node_id);
+                self.active_control_param_set.insert(node_id);
+            }
+        }
+        self.active_control_params.sort_by_key(|node| node.0);
+
+        let active_params = self.active_control_params.clone();
+        for param in active_params {
+            let Some(snapshot) = self.control_param_snapshot(param) else {
+                continue;
+            };
+            let mut sources = HashSet::<NodeId>::new();
+            self.collect_control_sources(param, &snapshot, &mut sources);
+            for source in sources {
+                self.record_control_source_dependency(source, param);
+            }
+        }
+
+        for dependents in self.control_source_dependents.values_mut() {
+            dependents.sort_by_key(|node| node.0);
+            dependents.dedup();
+        }
+
+        self.control_index_dirty = false;
+        true
+    }
+
+    fn record_control_source_dependency(&mut self, source: NodeId, dependent: NodeId) {
+        self.control_source_dependents
+            .entry(source)
+            .or_default()
+            .push(dependent);
+    }
+
+    fn collect_control_sources(&mut self, param: NodeId, snapshot: &ParameterSnapshot, sources: &mut HashSet<NodeId>) {
+        match snapshot.control.mode {
+            ParameterControlMode::ContextLink => {
+                if let ParameterControlSpec::ContextLink { symbol, .. } = &snapshot.control.spec {
+                    self.insert_context_symbol_source(param, symbol, sources);
+                }
+            }
+            ParameterControlMode::TemplateText => {
+                if let ParameterControlSpec::TemplateText { template } = &snapshot.control.spec {
+                    for segment in parse_template_segments(template) {
+                        let TemplateSegment::Token(token) = segment else {
+                            continue;
+                        };
+                        self.insert_template_token_source(param, token.as_str(), sources);
+                    }
+                }
+            }
+            ParameterControlMode::Expression => {
+                let mut diagnostics = Vec::new();
+                if let Some(config) = self.read_expression_control_config(param, &mut diagnostics) {
+                    sources.insert(config.source_param);
+                    if let Some(runtime) = self.expression_runtime.get(&param) {
+                        sources.extend(runtime.subscriptions.iter().copied());
+                    } else {
+                        self.insert_expression_context_sources(param, config.expression.as_str(), sources);
+                    }
+                }
+            }
+            ParameterControlMode::Proxy | ParameterControlMode::Binding => {
+                let mode_code = match snapshot.control.mode {
+                    ParameterControlMode::Proxy => "proxy",
+                    ParameterControlMode::Binding => "binding",
+                    _ => unreachable!(),
+                };
+                if let Some(reference_param) =
+                    self.find_direct_child_by_decl_id(param, PARAMETER_CONTROL_REFERENCE_DECL_ID)
+                {
+                    sources.insert(reference_param);
+                }
+                let mut diagnostics = Vec::new();
+                if let Some(config) = self.read_reference_control_config(param, mode_code, &mut diagnostics)
+                    && !reference_target_is_unset(&config.target)
+                    && let Some(target_param) = self.resolve_reference_target_node(&config.target)
+                    && self.control_param_snapshot(target_param).is_some()
+                {
+                    sources.insert(target_param);
+                }
+            }
+            ParameterControlMode::Manual | ParameterControlMode::Animation => {}
+        }
+    }
+
+    fn insert_context_symbol_source(&self, consumer: NodeId, symbol: &str, sources: &mut HashSet<NodeId>) {
+        let symbol = symbol.trim();
+        if symbol.is_empty() {
+            return;
+        }
+        let candidates = self.user_contexts.collect_candidates(consumer, None, |node| {
+            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
+        });
+        for candidate in candidates {
+            if candidate.shadowed || candidate.symbol != symbol {
+                continue;
+            }
+            sources.insert(candidate.entry_param);
+            break;
+        }
+    }
+
+    fn insert_template_token_source(&self, consumer: NodeId, token: &str, sources: &mut HashSet<NodeId>) {
+        let token = token.trim();
+        if token.is_empty() || token.starts_with('$') {
+            return;
+        }
+        let symbol = token.split_once(".$").map(|(symbol, _)| symbol).unwrap_or(token);
+        self.insert_context_symbol_source(consumer, symbol, sources);
+    }
+
+    fn insert_expression_context_sources(&self, consumer: NodeId, expression: &str, sources: &mut HashSet<NodeId>) {
+        let mut symbols = HashSet::<String>::new();
+        let candidates = self.user_contexts.collect_candidates(consumer, None, |node| {
+            self.nodes.get(node).and_then(|entry| entry.node_data().parent)
+        });
+        for candidate in candidates {
+            if candidate.shadowed || !symbols.insert(candidate.symbol.clone()) {
+                continue;
+            }
+            if expression_mentions_symbol(expression, candidate.symbol.as_str()) {
+                sources.insert(candidate.entry_param);
+            }
+        }
+    }
+
+    fn prune_expression_runtimes_to_active_controls(&mut self) {
+        let stale_consumers = self
+            .expression_runtime
+            .keys()
+            .copied()
+            .filter(|consumer| !self.active_control_param_set.contains(consumer))
+            .collect::<Vec<_>>();
+        for consumer in stale_consumers {
+            self.clear_expression_runtime(consumer);
+        }
+    }
+
+    fn select_control_evaluation_candidates(&self, change_set: &ControlChangeSet, full_pass: bool) -> Vec<NodeId> {
+        if full_pass {
+            return self.active_control_params.clone();
+        }
+
+        let mut candidates = Vec::<NodeId>::new();
+        for param in &change_set.changed_controls {
+            if self.active_control_param_set.contains(param) {
+                candidates.push(*param);
+            }
+        }
+        for param in &change_set.changed_params {
+            if self.active_control_param_set.contains(param) {
+                candidates.push(*param);
+            }
+            if let Some(dependents) = self.control_source_dependents.get(param) {
+                candidates.extend(dependents.iter().copied());
+            }
+        }
+        for (consumer, runtime) in &self.expression_runtime {
+            if runtime.continuous
+                && self.active_control_param_set.contains(consumer)
+                && self.runtime_elapsed > runtime.last_eval_elapsed
+            {
+                candidates.push(*consumer);
+            }
+        }
+
+        candidates.sort_by_key(|node| node.0);
+        candidates.dedup();
+        candidates
+    }
+
+    fn collect_control_param_snapshots(&mut self, candidates: &[NodeId]) -> HashMap<NodeId, ParameterSnapshot> {
+        let mut wanted = HashSet::<NodeId>::new();
+        for candidate in candidates {
+            wanted.insert(*candidate);
+            let Some(snapshot) = self.control_param_snapshot(*candidate) else {
+                continue;
+            };
+            self.collect_control_sources(*candidate, &snapshot, &mut wanted);
+        }
+
+        let mut params = wanted.into_iter().collect::<Vec<_>>();
+        params.sort_by_key(|node| node.0);
+        params
+            .into_iter()
+            .filter_map(|param| self.control_param_snapshot(param).map(|snapshot| (param, snapshot)))
+            .collect()
+    }
+
+    fn control_dependency_sources_changed(&self, change_set: &ControlChangeSet) -> bool {
+        change_set.changed_params.iter().any(|param| {
+            self.control_source_dependents.contains_key(param)
+                && self.nodes.get(*param).is_some_and(|node| {
+                    let decl_id = node.node_data().meta.decl_id.0.as_str();
+                    decl_id == PARAMETER_CONTROL_REFERENCE_DECL_ID || decl_id == PARAMETER_EXPRESSION_SOURCE_DECL_ID
+                })
+        })
+    }
+
     /// Evaluates all parameter-control states and queues resulting parameter writes.
     ///
     /// Returns `true` when it changed queued edits or updated control diagnostics.
     pub(crate) fn evaluate_parameter_controls(&mut self) -> bool {
-        let has_active_controls = match self.has_active_controls_cache {
-            Some(cached) => cached,
-            None => {
-                let result = self.nodes.values().any(|node| {
-                    node.engine_param_control_state().is_some_and(|state| {
-                        state.mode != ParameterControlMode::Manual || !state.diagnostics.is_empty()
-                    })
-                });
-                self.has_active_controls_cache = Some(result);
-                result
-            }
-        };
-        if !has_active_controls {
+        let change_set = self.collect_control_change_set();
+        if change_set.structural || !change_set.changed_controls.is_empty() {
+            self.mark_param_control_index_dirty();
+        }
+        let index_rebuilt = self.rebuild_param_control_index_if_dirty();
+        if self.active_control_params.is_empty() {
             if !self.expression_runtime.is_empty() {
                 let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
                 for consumer in consumers {
@@ -380,13 +599,19 @@ impl<T: Node> Engine<T> {
             }
             return false;
         }
+        self.prune_expression_runtimes_to_active_controls();
 
-        let param_snapshots = self
-            .nodes
-            .iter()
-            .filter_map(|(node_id, node)| node.engine_param_snapshot().map(|snapshot| (node_id, snapshot)))
-            .collect::<HashMap<_, _>>();
+        let candidates = self.select_control_evaluation_candidates(
+            &change_set,
+            index_rebuilt || change_set.structural || !change_set.changed_controls.is_empty(),
+        );
+        if candidates.is_empty() {
+            return false;
+        }
+        let dependency_sources_changed = self.control_dependency_sources_changed(&change_set);
+        self.tick_scratch.stats.controls_params_scanned += candidates.len();
 
+        let param_snapshots = self.collect_control_param_snapshots(candidates.as_slice());
         if param_snapshots.is_empty() {
             if !self.expression_runtime.is_empty() {
                 let consumers = self.expression_runtime.keys().copied().collect::<Vec<_>>();
@@ -397,15 +622,15 @@ impl<T: Node> Engine<T> {
             return false;
         }
 
-        self.prune_expression_runtimes(&param_snapshots);
-        let change_set = self.collect_control_change_set();
-        let expression_tree_snapshot = param_snapshots
-            .values()
-            .any(|snapshot| {
-                matches!(
-                    (&snapshot.control.mode, &snapshot.control.spec),
-                    (ParameterControlMode::Expression, ParameterControlSpec::Expression)
-                )
+        let expression_tree_snapshot = candidates
+            .iter()
+            .any(|param| {
+                param_snapshots.get(param).is_some_and(|snapshot| {
+                    matches!(
+                        (&snapshot.control.mode, &snapshot.control.spec),
+                        (ParameterControlMode::Expression, ParameterControlSpec::Expression)
+                    )
+                })
             })
             .then(|| self.build_process_tree_snapshot());
 
@@ -413,7 +638,10 @@ impl<T: Node> Engine<T> {
         let mut binding_targets = HashMap::<NodeId, BindingTargetConfig>::new();
         let mut queued_writes = Vec::<(NodeId, ParamValue)>::new();
 
-        for (param, snapshot) in &param_snapshots {
+        for param in &candidates {
+            let Some(snapshot) = param_snapshots.get(param) else {
+                continue;
+            };
             let control = &snapshot.control;
             let mut diagnostics = Vec::<ParameterControlDiagnostic>::new();
 
@@ -584,6 +812,9 @@ impl<T: Node> Engine<T> {
         }
 
         let diagnostics_changed = self.apply_parameter_control_diagnostics(&param_snapshots, diagnostics_by_param);
+        if diagnostics_changed || dependency_sources_changed || change_set.structural {
+            self.mark_param_control_index_dirty();
+        }
         let warning_sync_changed = self.sync_parameter_control_warnings(&param_snapshots);
         queued_any || diagnostics_changed || warning_sync_changed
     }
@@ -631,7 +862,7 @@ impl<T: Node> Engine<T> {
             return Err(format!("parameter node {} was not found", param.0));
         };
         node.engine_set_param_control_state(state)?;
-        self.has_active_controls_cache = None;
+        self.mark_param_control_index_dirty();
         self.emit_event(EventKind::ParamControlChanged {
             param,
             old_state: current_state,
@@ -1703,30 +1934,6 @@ impl<T: Node> Engine<T> {
                 subscriber: consumer,
                 subscription: EventSubscription::node(target),
             });
-        }
-    }
-
-    fn prune_expression_runtimes(&mut self, param_snapshots: &HashMap<NodeId, ParameterSnapshot>) {
-        let active = param_snapshots
-            .iter()
-            .filter_map(|(param, snapshot)| {
-                matches!(
-                    (&snapshot.control.mode, &snapshot.control.spec),
-                    (ParameterControlMode::Expression, ParameterControlSpec::Expression)
-                )
-                .then_some(*param)
-            })
-            .collect::<HashSet<_>>();
-
-        let stale = self
-            .expression_runtime
-            .keys()
-            .copied()
-            .filter(|consumer| !active.contains(consumer) || !self.nodes.contains(*consumer))
-            .collect::<Vec<_>>();
-
-        for consumer in stale {
-            self.clear_expression_runtime(consumer);
         }
     }
 

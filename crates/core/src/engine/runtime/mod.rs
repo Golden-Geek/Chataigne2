@@ -46,7 +46,7 @@ pub(crate) use scheduler::ScheduleMgr;
 impl<T: Node> Engine<T> {
     pub(crate) fn mark_schedule_dirty(&mut self) {
         self.runtime_resolve_pending = true;
-        self.has_active_controls_cache = None;
+        self.mark_param_control_index_dirty();
         self.tick_tree_snapshot = None;
     }
 
@@ -56,6 +56,7 @@ impl<T: Node> Engine<T> {
         if let Some(node) = self.nodes.get(node_id) {
             if let Some(snapshot) = node.engine_param_snapshot() {
                 self.parameter_values_cache.insert(node_id, snapshot.value);
+                self.mark_param_control_index_dirty();
             }
         }
     }
@@ -63,6 +64,7 @@ impl<T: Node> Engine<T> {
     /// Removes the param cache entry for `node_id` (idempotent).
     pub(crate) fn purge_param_cache_entry(&mut self, node_id: NodeId) {
         self.parameter_values_cache.remove(&node_id);
+        self.mark_param_control_index_dirty();
     }
 
     /// Returns whether runtime schedule recomputation is pending.

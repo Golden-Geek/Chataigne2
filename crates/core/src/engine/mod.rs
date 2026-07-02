@@ -177,10 +177,14 @@ pub struct Engine<T: Node> {
     /// When non-zero, add-node inline stabilization is deferred to the outer pass
     /// to avoid deep recursive `apply_edits` chains.
     pub(crate) stabilization_scope_depth: usize,
-    /// Cached answer to "does any parameter have a non-Manual control or diagnostics?"
-    /// Set to `None` whenever the tree structure or a control state changes, triggering
-    /// a full rescan on the next `evaluate_parameter_controls` call.
-    pub(crate) has_active_controls_cache: Option<bool>,
+    /// Stable iteration list of parameter nodes with an active control or pending diagnostics.
+    pub(crate) active_control_params: Vec<NodeId>,
+    /// Membership companion for `active_control_params`.
+    pub(crate) active_control_param_set: HashSet<NodeId>,
+    /// Source parameter -> controlled parameter dependents, rebuilt with the active-control index.
+    pub(crate) control_source_dependents: HashMap<NodeId, Vec<NodeId>>,
+    /// Marks the active-control index stale after structure or control configuration changes.
+    pub(crate) control_index_dirty: bool,
     /// Tree snapshot built at most once per tick and reused across all `CallNodeMutation`
     /// edits in that tick. Cleared at tick start and on any structural change.
     pub(crate) tick_tree_snapshot: Option<Arc<ProcessTreeSnapshot>>,
@@ -273,7 +277,10 @@ impl<T: Node> Engine<T> {
             expression_runtime: HashMap::new(),
             pending_node_ready: Vec::new(),
             stabilization_scope_depth: 0,
-            has_active_controls_cache: None,
+            active_control_params: Vec::new(),
+            active_control_param_set: HashSet::new(),
+            control_source_dependents: HashMap::new(),
+            control_index_dirty: true,
             tick_tree_snapshot: None,
             parameter_values_cache,
             tick_scratch: tick_scratch::TickScratch::default(),

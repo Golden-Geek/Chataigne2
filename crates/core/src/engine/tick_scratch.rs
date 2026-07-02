@@ -32,6 +32,8 @@ pub struct TickStats {
     pub dispatch_recipient_deliveries: usize,
     /// Largest recipient fanout observed for a single routed event this tick.
     pub dispatch_max_fanout: usize,
+    /// Number of active control parameters evaluated by the control pass this tick.
+    pub controls_params_scanned: usize,
 }
 
 /// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.
