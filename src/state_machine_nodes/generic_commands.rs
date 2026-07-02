@@ -6,7 +6,7 @@
 //! request.
 
 use golden_core::{
-    events::{Event, EventKind},
+    events::{Event, EventFrame, EventKind},
     node,
     node::{Node, NodeCreationContext, NodeId},
     parameter::ParamValue,
@@ -53,7 +53,7 @@ impl Node for GenericLogCommand {
         }
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { .. } => true,
             EventKind::Custom(custom) => {

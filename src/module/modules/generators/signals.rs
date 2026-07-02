@@ -9,7 +9,7 @@ use std::f64::consts::PI;
 use golden_core::{
     edit::NodeTree,
     engine::NodeExecutionRule,
-    events::{CustomEvent, Event, EventKind},
+    events::{CustomEvent, Event, EventFrame, EventKind},
     node,
     node::{
         curve_from_snapshot, Curve, CurveNode, DeclId, Node, NodeHandle, NodeId, NodeMetaPatch,
@@ -409,7 +409,7 @@ impl Node for SignalsModule {
         self.config_dirty
     }
 
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
 
@@ -601,7 +601,7 @@ impl Node for SignalItem {
         ));
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { param, .. } => self.shape.is_bound() && self.shape.id() == *param,
             _ => true,

@@ -21,7 +21,7 @@ use golden_alchemist::{
 };
 use golden_core::{
     engine::NodeExecutionRule,
-    events::{Event, EventKind},
+    events::{Event, EventFrame, EventKind},
     log,
     node,
     node::{
@@ -353,7 +353,7 @@ impl Node for StateMachineManager {
                 .any(|processor| processor_needs_continuous_evaluation(&processor.runtime))
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { param, .. } => {
                 !self.runtime_cache.source_listener_param_uuids.contains_key(param)

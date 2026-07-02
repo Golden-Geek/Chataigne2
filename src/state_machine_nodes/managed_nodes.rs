@@ -1,6 +1,6 @@
 use golden_core::{
     engine::NodeExecutionRule,
-    events::{Event, EventKind},
+    events::{Event, EventFrame, EventKind},
     item, node,
     node::{
         Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions,
@@ -141,7 +141,7 @@ fn refresh_output_runtime_cache(
 fn output_cache_requires_snapshot(
     cache: &OutputRuntimeCache,
     container: NodeId,
-    events: &[Event],
+    events: &EventFrame,
 ) -> bool {
     events.iter().any(|event| match &event.kind {
         EventKind::ChildAdded { .. } | EventKind::ChildRemoved { .. } => true,
@@ -757,7 +757,7 @@ impl Node for OutputsManager {
         }
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         output_cache_requires_snapshot(&self.output_cache, self.id(), events)
     }
 
@@ -939,7 +939,7 @@ impl Node for OutputGroup {
         }
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         output_cache_requires_snapshot(&self.output_cache, self.id(), events)
     }
 

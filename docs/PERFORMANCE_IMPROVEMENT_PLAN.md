@@ -113,6 +113,8 @@ Current implementation notes verified on 2026-07-02:
   invalidating compiled entries when a formula subtree is structurally dirty.
 - Runtime preview/log dedupe in `StateMachineManager` now uses typed keys and
   value signatures instead of per-sample formatted string keys.
+- `golden_core` precomputed inbox dispatch now routes shared `EventFrame`
+  handles instead of storing per-recipient `Event` clones.
 
 Engine substrate (from the second audit; verify in Phase 0):
 

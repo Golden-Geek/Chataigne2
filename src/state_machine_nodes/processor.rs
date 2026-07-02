@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use golden_alchemist::{ManagedRegionDefinition, SurfaceItemKind};
 use golden_core::{
     edit::{Edit, NodeTree},
-    events::{Event, EventKind},
+    events::{Event, EventFrame, EventKind},
     node,
     node::{
         DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
@@ -806,7 +806,7 @@ impl Node for StateProcessor {
         3
     }
 
-    fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, events: &EventFrame) -> bool {
         events
             .iter()
             .any(|event| !matches!(event.kind, EventKind::Custom(_)))
