@@ -532,6 +532,11 @@ Structural edit recomputes missing-reference warnings only for impacted
   params.
 ```
 
+Implemented slice: `golden_engine::Engine` now maintains a persistent
+`NodeUuid -> NodeId` index through insert, remove, replace, project load, and
+undo/redo reattachment paths. UUID lookup and missing-reference warning sync
+read the maintained index instead of rebuilding a UUID map on demand.
+
 ---
 
 # Perf Test Matrix (merged, final gate)
