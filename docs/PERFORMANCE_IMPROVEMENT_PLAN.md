@@ -494,6 +494,10 @@ Implemented slice: the built-in WebSocket hub now has a configurable
 immediately, while value-only `ParamChanged` batches queue per subscription and
 flush latest-wins at the configured frame cadence.
 
+Implemented slice: read-model replay now scopes graph transactions for subtree
+subscriptions. Unrelated graph ops are dropped before replay, while global
+history/logger patches remain reliable.
+
 ## Acceptance
 
 ```text
