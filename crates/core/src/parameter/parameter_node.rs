@@ -1,7 +1,7 @@
 use serde_json::Value as JsonValue;
 
 use crate::{
-    events::Event,
+    events::EventFrame,
     node::{
         DashboardWidgetOptionsNodeKind, DashboardWidgetTargetDescriptor, DashboardWidgetTypeSpec, Node, NodeData,
         NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_ITEM_KIND, UserContainerRules,
@@ -564,7 +564,7 @@ impl Node for Parameter {
         Some(self.snapshot())
     }
 
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
 

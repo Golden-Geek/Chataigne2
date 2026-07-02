@@ -10098,14 +10098,36 @@ fn precompute_inbox_dispatch_builds_per_node_event_batches() {
 
     engine.add_node(RoutingNode::with_policy("child", 0, 0, EventPropagation::Notify), None);
     engine.apply_edits().expect("add should succeed");
+    let child = engine
+        .nodes
+        .iter()
+        .find_map(|(node, routing)| (routing.node_data.meta.label == "child").then_some(node))
+        .expect("child should exist after add");
 
     let per_node_events = engine.precompute_inbox_dispatch();
-    let root_events = per_node_events
+    let root_frame = per_node_events
         .iter()
         .find(|(node, _)| *node == engine.root)
-        .map(|(_, events)| events.len())
         .expect("root should receive precomputed inbox events");
-    assert_eq!(root_events, 2, "root should get node-created and child-added");
+    assert_eq!(root_frame.1.len(), 2, "root should get node-created and child-added");
+    let child_frame = per_node_events
+        .iter()
+        .find(|(node, _)| *node == child)
+        .expect("child should receive its node-created event");
+    let root_node_created = root_frame
+        .1
+        .iter()
+        .find(|event| matches!(&event.kind, EventKind::NodeCreated { node } if *node == child))
+        .expect("root should receive the child node-created event");
+    let child_node_created = child_frame
+        .1
+        .iter()
+        .find(|event| matches!(&event.kind, EventKind::NodeCreated { node } if *node == child))
+        .expect("child should receive the same node-created event");
+    assert!(
+        std::sync::Arc::ptr_eq(root_node_created, child_node_created),
+        "precomputed dispatch should share one event handle across recipients"
+    );
     let stats = engine.tick_stats();
     assert_eq!(stats.dispatch_events_routed, 2);
     assert_eq!(stats.dispatch_max_fanout, 2);

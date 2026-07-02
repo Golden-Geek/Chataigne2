@@ -3,7 +3,7 @@ use std::any::Any;
 use crate::{
     edit::Edit,
     engine::NodeExecutionRule,
-    events::{CustomEvent, Event, EventKind},
+    events::{CustomEvent, Event, EventFrame, EventKind},
     node::DashboardWidgetTargetDescriptor,
     parameter::{
         ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterControlState, ParameterSnapshot,
@@ -735,7 +735,7 @@ pub trait Node: Send + Any {
 
     /// Returns `true` when this node's inbox callbacks require a tree snapshot
     /// for the current event batch.
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         self.engine_param_snapshot().is_none()
     }
 

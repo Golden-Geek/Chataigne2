@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::events::{Event, EventKind};
+use crate::events::{Event, EventFrame, EventKind};
 use crate::node::{
     DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
     PresentationHint, SemanticsHint, UserNodeRole,
@@ -677,7 +678,7 @@ impl<T: Node> Engine<T> {
         creation_context: NodeCreationContext,
     ) -> Result<(), ProjectPersistenceError> {
         let mut index_by_node = HashMap::<NodeId, usize>::new();
-        let mut per_node_events = Vec::<(NodeId, Vec<Event>)>::new();
+        let mut per_node_events = Vec::<(NodeId, EventFrame)>::new();
 
         for parent_id in node_ids {
             let mut child = self
@@ -701,17 +702,18 @@ impl<T: Node> Engine<T> {
                     },
                 };
 
-                for recipient in self.route_event_recipients(&event) {
+                let event = Arc::new(event);
+                for recipient in self.route_event_recipients(event.as_ref()) {
                     let slot = match index_by_node.get(&recipient).copied() {
                         Some(index) => index,
                         None => {
                             let index = per_node_events.len();
-                            per_node_events.push((recipient, Vec::new()));
+                            per_node_events.push((recipient, EventFrame::new()));
                             index_by_node.insert(recipient, index);
                             index
                         }
                     };
-                    per_node_events[slot].1.push(event.clone());
+                    per_node_events[slot].1.push_shared(Arc::clone(&event));
                 }
 
                 child = child_node.node_data().next_sibling;

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
-use crate::events::{Event, EventKind};
+use crate::events::{Event, EventFrame, EventKind};
 use crate::node::{EventPropagation, EventSubscription, Node, NodeId};
 use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
@@ -55,7 +55,7 @@ impl<T: Node> Engine<T> {
     ///
     /// The returned vector preserves first-seen node order while events remain in
     /// engine emission order for each node.
-    pub fn precompute_inbox_dispatch(&mut self) -> Vec<(NodeId, Vec<Event>)> {
+    pub fn precompute_inbox_dispatch(&mut self) -> Vec<(NodeId, EventFrame)> {
         self.precompute_inbox_dispatch_since(0)
     }
 
@@ -63,9 +63,9 @@ impl<T: Node> Engine<T> {
     ///
     /// `start` is clamped to the current inbox length. Uses `tick_scratch` routing buffers
     /// to avoid per-event heap allocations on the tick path.
-    pub(crate) fn precompute_inbox_dispatch_since(&mut self, start: usize) -> Vec<(NodeId, Vec<Event>)> {
+    pub(crate) fn precompute_inbox_dispatch_since(&mut self, start: usize) -> Vec<(NodeId, EventFrame)> {
         let mut index_by_node: HashMap<NodeId, usize> = HashMap::new();
-        let mut per_node_events: Vec<(NodeId, Vec<Event>)> = Vec::new();
+        let mut per_node_events: Vec<(NodeId, EventFrame)> = Vec::new();
 
         // Take routing scratch buffers out so &self is freely available inside the loop.
         let mut recipients = std::mem::take(&mut self.tick_scratch.recipients);
@@ -77,6 +77,7 @@ impl<T: Node> Engine<T> {
         for i in start..event_count {
             let event = &self.inbox.events[i];
             self.route_event_recipients_into(event, &mut recipients, &mut dedupe, &mut ancestry_depths);
+            let event = Arc::new(event.clone());
             self.tick_scratch.stats.dispatch_events_routed += 1;
             self.tick_scratch.stats.dispatch_recipient_deliveries += recipients.len();
             self.tick_scratch.stats.dispatch_max_fanout =
@@ -86,12 +87,12 @@ impl<T: Node> Engine<T> {
                     Some(index) => index,
                     None => {
                         let index = per_node_events.len();
-                        per_node_events.push((recipient, Vec::new()));
+                        per_node_events.push((recipient, EventFrame::new()));
                         index_by_node.insert(recipient, index);
                         index
                     }
                 };
-                per_node_events[index].1.push(self.inbox.events[i].clone());
+                per_node_events[index].1.push_shared(Arc::clone(&event));
             }
         }
 
@@ -110,7 +111,7 @@ impl<T: Node> Engine<T> {
     pub(crate) fn preprocess_precomputed_inbox(
         &mut self,
         phase: ExecutionPhase,
-        per_node_events: Vec<(NodeId, Vec<Event>)>,
+        per_node_events: Vec<(NodeId, EventFrame)>,
     ) -> Result<(), EngineEditError> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, false)
     }
@@ -121,7 +122,7 @@ impl<T: Node> Engine<T> {
     pub fn dispatch_precomputed_inbox(
         &mut self,
         phase: ExecutionPhase,
-        per_node_events: Vec<(NodeId, Vec<Event>)>,
+        per_node_events: Vec<(NodeId, EventFrame)>,
     ) -> Result<(), EngineEditError> {
         self.dispatch_precomputed_inbox_internal(phase, per_node_events, true)
     }
@@ -129,7 +130,7 @@ impl<T: Node> Engine<T> {
     fn dispatch_precomputed_inbox_internal(
         &mut self,
         phase: ExecutionPhase,
-        per_node_events: Vec<(NodeId, Vec<Event>)>,
+        per_node_events: Vec<(NodeId, EventFrame)>,
         run_app_callbacks: bool,
     ) -> Result<(), EngineEditError> {
         let trace = *DISPATCH_PERF_TRACE_ENABLED;

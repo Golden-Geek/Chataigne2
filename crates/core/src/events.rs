@@ -1,6 +1,9 @@
 use crate::engine::EngineTime;
 use crate::node::{DeclId, NodeId, NodeMetaPatch};
 use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState};
+use std::ops::Index;
+use std::sync::Arc;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -190,6 +193,74 @@ impl EventKind {
 pub struct Inbox {
     /// Stored events in emission order.
     pub events: Vec<Event>,
+}
+
+/// Shared event bundle visible to one callback frame.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct EventFrame {
+    events: Vec<Arc<Event>>,
+}
+
+impl EventFrame {
+    /// Creates an empty event frame.
+    #[must_use]
+    pub fn new() -> Self {
+        Self { events: Vec::new() }
+    }
+
+    /// Creates a frame from shared event handles.
+    #[must_use]
+    pub fn from_shared(events: Vec<Arc<Event>>) -> Self {
+        Self { events }
+    }
+
+    /// Appends a shared event handle.
+    pub fn push_shared(&mut self, event: Arc<Event>) {
+        self.events.push(event);
+    }
+
+    /// Returns true when the frame contains no events.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+
+    /// Returns the number of visible events.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    /// Iterates visible events as shared handles.
+    pub fn iter(&self) -> std::slice::Iter<'_, Arc<Event>> {
+        self.events.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a EventFrame {
+    type Item = &'a Arc<Event>;
+    type IntoIter = std::slice::Iter<'a, Arc<Event>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.events.iter()
+    }
+}
+
+impl IntoIterator for EventFrame {
+    type Item = Arc<Event>;
+    type IntoIter = std::vec::IntoIter<Arc<Event>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.events.into_iter()
+    }
+}
+
+impl Index<usize> for EventFrame {
+    type Output = Arc<Event>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.events[index]
+    }
 }
 
 impl Inbox {

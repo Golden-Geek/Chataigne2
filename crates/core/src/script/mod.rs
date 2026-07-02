@@ -3919,7 +3919,7 @@ impl Node for ScriptNode {
         };
 
         for event in &events {
-            let script_event = ScriptEvent::from(event);
+            let script_event = ScriptEvent::from(event.as_ref());
             let mut host = NodeScriptHostBridge::new(
                 script_node,
                 host_node,

@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use crate::{
-    events::Event,
+    events::{Event, EventFrame},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::ProcessCtx,
 };
@@ -152,7 +152,7 @@ impl Node for UserContextNode {
         EventPropagation::PassOn
     }
 
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
 }
@@ -227,7 +227,7 @@ impl Node for UserContextFolder {
         EventPropagation::PassOn
     }
 
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
 }
@@ -287,7 +287,7 @@ impl Node for Folder {
         EventPropagation::PassOn
     }
 
-    fn inbox_requires_tree_snapshot(&self, _events: &[Event]) -> bool {
+    fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
 }

@@ -969,7 +969,7 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
-            fn inbox_requires_tree_snapshot(&self, events: &[$crate::events::Event]) -> bool {
+            fn inbox_requires_tree_snapshot(&self, events: &$crate::events::EventFrame) -> bool {
                 $crate::__dispatch_node_enum!(self, inbox_requires_tree_snapshot, events; $($variant),*)
             }
 

@@ -3353,20 +3353,33 @@ fn expand_struct(
             {
                 let __golden_node_owner_id = owner_id;
                 let mut __golden_base_children_inserted = false;
-                for event in ctx.events.clone() {
-                    match event.kind {
+                let __golden_events = ctx.events.clone();
+                for event in &__golden_events {
+                    match &event.kind {
                         golden_core::events::EventKind::ParamChanged { param, old_value, new_value } => {
+                            let param = *param;
+                            let old_value = old_value.clone();
+                            let new_value = new_value.clone();
                             self.__golden_node_engine_sync_param_handle_cache(param, &new_value);
                             #(#param_change_callback_statements)*
                             let _ = &old_value;
                         }
                         golden_core::events::EventKind::ChildAdded { parent, child, decl_id } => {
+                            let parent = *parent;
+                            let child = *child;
+                            let decl_id = decl_id.clone();
                             #(#child_added_decl_statements)*
                         }
                         golden_core::events::EventKind::ChildReplaced { parent, old, new, decl_id } => {
+                            let parent = *parent;
+                            let old = *old;
+                            let new = *new;
+                            let decl_id = decl_id.clone();
                             #(#child_replaced_decl_statements)*
                         }
                         golden_core::events::EventKind::ChildRemoved { parent, child } => {
+                            let parent = *parent;
+                            let child = *child;
                             #(#child_removed_statements)*
                         }
                         _ => {}

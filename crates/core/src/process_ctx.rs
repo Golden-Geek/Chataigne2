@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::edit::{Edit, EditOrigin, EditQueue, NodeTree};
 use crate::engine::EngineTime;
-use crate::events::{CustomEvent, Event};
+use crate::events::{CustomEvent, EventFrame};
 use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
     PresentationHint,
@@ -291,7 +291,7 @@ pub struct ProcessCtx {
     /// Phase currently being processed.
     pub phase: ExecutionPhase,
     /// Events visible to nodes for the current callback.
-    pub events: Vec<Event>,
+    pub events: EventFrame,
     /// Edits requested by nodes during callbacks.
     pub edits: EditQueue,
     /// Current engine timestamp for emitted operations.
@@ -311,7 +311,7 @@ impl ProcessCtx {
     pub fn new(phase: ExecutionPhase, time: EngineTime) -> Self {
         Self {
             phase,
-            events: Vec::new(),
+            events: EventFrame::new(),
             edits: EditQueue::new(),
             time,
             delta_time: Duration::ZERO,
