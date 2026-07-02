@@ -1,5 +1,6 @@
 use crate::events::{CustomEvent, Event, EventKind};
 use crate::node::{Node, NodeId};
+use crate::parameter::{ParamValue, ParameterEventBehaviour};
 use crate::ui_sync::{UiChildrenOrderPatch, UiGraphOp, UiGraphTransaction};
 
 use super::{Engine, EngineTime};
@@ -120,8 +121,42 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn push_ui_event_log(&mut self, event: Event) {
+        if let Some(param) = self.ui_coalescable_param_value_event(&event) {
+            let mut previous_index = None;
+            for index in (self.ui_event_log_start..self.ui_event_log.len()).rev() {
+                let Some(existing_param) = self.ui_coalescable_param_value_event(&self.ui_event_log[index]) else {
+                    break;
+                };
+                if existing_param == param {
+                    previous_index = Some(index);
+                    break;
+                }
+            }
+
+            let mut event = event;
+            if let Some(index) = previous_index {
+                let previous = self.ui_event_log.remove(index);
+                preserve_param_changed_old_value(&mut event.kind, previous.kind);
+            }
+            self.ui_event_log.push(event);
+            self.trim_ui_event_log();
+            return;
+        }
+
         self.ui_event_log.push(event);
         self.trim_ui_event_log();
+    }
+
+    fn ui_coalescable_param_value_event(&self, event: &Event) -> Option<NodeId> {
+        let EventKind::ParamChanged { param, new_value, .. } = &event.kind else {
+            return None;
+        };
+        if matches!(new_value, ParamValue::Trigger()) {
+            return None;
+        }
+
+        let snapshot = self.nodes.get(*param)?.engine_param_snapshot()?;
+        (snapshot.event_behaviour == ParameterEventBehaviour::Coalesce).then_some(*param)
     }
 
     fn trim_ui_event_log(&mut self) {
@@ -142,4 +177,22 @@ impl<T: Node> Engine<T> {
             self.ui_event_log_start = 0;
         }
     }
+}
+
+fn preserve_param_changed_old_value(new_kind: &mut EventKind, previous_kind: EventKind) {
+    let (
+        EventKind::ParamChanged {
+            old_value: new_old_value,
+            ..
+        },
+        EventKind::ParamChanged {
+            old_value: previous_old_value,
+            ..
+        },
+    ) = (new_kind, previous_kind)
+    else {
+        return;
+    };
+
+    *new_old_value = previous_old_value;
 }

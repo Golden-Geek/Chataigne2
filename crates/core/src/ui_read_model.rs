@@ -376,10 +376,13 @@ impl UiReadModel {
     // -----------------------------------------------------------------------
 
     fn append_events(&self, events: impl IntoIterator<Item = UiEventDto>) {
+        let store = self.node_store.read().expect("ui read model poisoned");
         let mut guard = self.events.lock().expect("ui read model event log poisoned");
-        guard.extend(events);
-        while guard.len() > self.event_capacity {
-            guard.pop_front();
+        for event in events {
+            append_retained_ui_event(&mut guard, &store, event);
+            while guard.len() > self.event_capacity {
+                guard.pop_front();
+            }
         }
     }
 
@@ -653,27 +656,26 @@ impl UiFeedbackCoalescer {
         let UiEventKind::ParamChanged {
             param,
             old_value: _,
-            new_value,
+            new_value: _,
         } = &event.kind
         else {
             return;
         };
 
-        if let Some(index) = self.pending_param_indices.get(param).copied() {
-            if let Some(existing) = self.pending.get_mut(index) {
-                if let UiEventKind::ParamChanged {
-                    new_value: existing_new,
-                    ..
-                } = &mut existing.kind
-                {
-                    existing.time = event.time;
-                    *existing_new = new_value.clone();
+        let param = *param;
+        let mut event = event;
+        if let Some(index) = self.pending_param_indices.get(&param).copied() {
+            let previous = self.pending.remove(index);
+            preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
+            for value in self.pending_param_indices.values_mut() {
+                if *value > index {
+                    *value -= 1;
                 }
             }
-        } else {
-            self.pending_param_indices.insert(*param, self.pending.len());
-            self.pending.push(event);
+            self.pending_param_indices.remove(&param);
         }
+        self.pending_param_indices.insert(param, self.pending.len());
+        self.pending.push(event);
     }
 
     fn push_barrier(&mut self, event: UiEventDto) {
@@ -695,23 +697,71 @@ impl UiFeedbackCoalescer {
     }
 }
 
-fn param_changed_event_is_ui_coalescable(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> bool {
+fn append_retained_ui_event(events: &mut VecDeque<UiEventDto>, store: &HashMap<NodeId, UiNodeDto>, event: UiEventDto) {
+    let Some(param) = coalescable_param_changed_event_param(store, &event) else {
+        events.push_back(event);
+        return;
+    };
+
+    let mut previous_index = None;
+    for index in (0..events.len()).rev() {
+        let Some(existing_param) = coalescable_param_changed_event_param(store, &events[index]) else {
+            break;
+        };
+        if existing_param == param {
+            previous_index = Some(index);
+            break;
+        }
+    }
+
+    let mut event = event;
+    if let Some(index) = previous_index {
+        if let Some(previous) = events.remove(index) {
+            preserve_ui_param_changed_old_value(&mut event.kind, previous.kind);
+        }
+    }
+    events.push_back(event);
+}
+
+fn coalescable_param_changed_event_param(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> Option<NodeId> {
     let UiEventKind::ParamChanged { param, new_value, .. } = &event.kind else {
-        return false;
+        return None;
     };
 
     if matches!(new_value, ParamValue::Trigger()) {
-        return false;
+        return None;
     }
 
     let Some(node) = store.get(param) else {
-        return false;
+        return None;
     };
-    let UiNodeDataDto::Parameter { param } = &node.data else {
-        return false;
+    let UiNodeDataDto::Parameter { param: param_dto } = &node.data else {
+        return None;
     };
 
-    param.event_behaviour == ParameterEventBehaviour::Coalesce
+    (param_dto.event_behaviour == ParameterEventBehaviour::Coalesce).then_some(*param)
+}
+
+fn preserve_ui_param_changed_old_value(new_kind: &mut UiEventKind, previous_kind: UiEventKind) {
+    let (
+        UiEventKind::ParamChanged {
+            old_value: new_old_value,
+            ..
+        },
+        UiEventKind::ParamChanged {
+            old_value: previous_old_value,
+            ..
+        },
+    ) = (new_kind, previous_kind)
+    else {
+        return;
+    };
+
+    *new_old_value = previous_old_value;
+}
+
+fn param_changed_event_is_ui_coalescable(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> bool {
+    coalescable_param_changed_event_param(store, event).is_some()
 }
 
 fn event_matches_scope(snapshot: &UiSnapshot, scope: &UiSubscriptionScope, event: &UiEventDto) -> bool {

@@ -42,7 +42,9 @@ fn event_param_values(events: &[crate::ui_sync::UiEventDto]) -> Vec<i32> {
 
 #[test]
 fn publish_engine_events_since_survives_event_log_compaction() {
-    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let mut root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
+    root.event_behaviour = ParameterEventBehaviour::Append;
+    let mut engine = Engine::new(root);
     engine.set_ui_event_log_capacity(4);
 
     let read_model = UiReadModel::from_engine(&engine, crate::ui_sync::UiProjectFileSpec::default());
@@ -67,6 +69,28 @@ fn publish_engine_events_since_survives_event_log_compaction() {
 
     let compacted_batch = read_model.publish_engine_events_since(&engine, before_event_time);
     assert_eq!(batch_param_values(&compacted_batch), vec![4, 5, 6, 7]);
+}
+
+#[test]
+fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+
+    for value in 1..=200 {
+        apply_param_change(&mut engine, value);
+    }
+
+    assert_eq!(
+        engine.ui_event_log().len(),
+        1,
+        "engine replay log should retain only the latest coalescable value per parameter"
+    );
+
+    let batch = read_model.publish_engine_events_since(&engine, None);
+    assert_eq!(batch_param_values(&batch), vec![200]);
+
+    let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
+    assert_eq!(batch_param_values(&replay), vec![200]);
 }
 
 #[test]
