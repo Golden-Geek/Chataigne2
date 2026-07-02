@@ -190,10 +190,7 @@ fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
 
     engine
         .run_tick(Duration::from_millis(20))
-        .expect("first runtime tick should materialize missing parent path");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("second runtime tick should materialize multi-value leaf subtree");
+        .expect("runtime tick should materialize missing parent path and multi-value leaf subtree");
 
     let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
     else {
@@ -214,6 +211,54 @@ fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
     assert_eq!(param_value(&engine, first_value), ParamValue::Float(1.0));
     assert_eq!(param_value(&engine, second_value), ParamValue::Float(2.0));
     assert_eq!(param_value(&engine, third_value), ParamValue::Float(3.0));
+}
+
+#[test]
+fn incoming_messages_auto_add_shared_missing_path_in_one_tick() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(GenericOscModule::create().into(), None);
+    engine.apply_edits().expect("osc module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    module.disable_transport_for_test();
+    module.enqueue_incoming_message_for_test(OscDecodedMessage {
+        address: "/rig/arm/x".to_string(),
+        payload: OscValuePayload::Single(ParamValue::Float(1.25)),
+    });
+    module.enqueue_incoming_message_for_test(OscDecodedMessage {
+        address: "/rig/arm/y".to_string(),
+        payload: OscValuePayload::Single(ParamValue::Float(2.5)),
+    });
+
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should materialize queued shared OSC path values");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    assert!(
+        !module.has_pending_incoming_messages_for_test(),
+        "batched shared missing path creation should drain the incoming queue"
+    );
+
+    let x_value = find_path(&engine, module_id, "values/rig/arm/x").expect("x parameter should exist");
+    let y_value = find_path(&engine, module_id, "values/rig/arm/y").expect("y parameter should exist");
+
+    assert_eq!(param_value(&engine, x_value), ParamValue::Float(1.25));
+    assert_eq!(param_value(&engine, y_value), ParamValue::Float(2.5));
 }
 
 #[test]

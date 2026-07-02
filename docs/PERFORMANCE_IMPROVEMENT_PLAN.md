@@ -377,6 +377,12 @@ auto-add and Formula ANode generation) and route any per-node creation
 loops through `AddNodeTree` with prebuilt subtrees (sockets/config children
 included), one lifecycle batch, one `SubtreeInserted` UI transaction.
 
+Implemented for OSC auto-add: generic OSC received values now use the shared
+received-values batch planner, so queued OSC addresses build missing parent
+paths and value leaves as prebuilt `NodeTree`s in one runtime tick instead of
+retrying one structural edit at a time. Existing value writes are reported back
+to the OSC base so incoming updates still bypass auto-feedback echo.
+
 ## Acceptance
 
 ```text

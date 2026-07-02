@@ -36,12 +36,6 @@ pub(crate) struct OscTransportBinding {
     pub receive_enabled: bool,
 }
 
-pub(crate) enum OscIncomingApplyResult {
-    Applied,
-    Retry,
-    Ignored,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OscOutputTarget {
     remote_host: String,
@@ -120,43 +114,20 @@ impl OscModuleBase {
         )
     }
 
-    pub(crate) fn process_pending_incoming<F>(
-        &mut self,
-        ctx: &mut ProcessCtx,
-        snapshot: &ProcessTreeSnapshot,
-        mut apply_message: F,
-    ) -> bool
-    where
-        F: FnMut(&mut Self, &mut ProcessCtx, &ProcessTreeSnapshot, &OscDecodedMessage) -> OscIncomingApplyResult,
-    {
-        if self.pending_incoming_messages.is_empty() {
-            return false;
-        }
-
-        let mut remaining = Vec::new();
-        let mut messages = std::mem::take(&mut self.pending_incoming_messages).into_iter();
-
-        while let Some(message) = messages.next() {
-            match apply_message(self, ctx, snapshot, &message) {
-                OscIncomingApplyResult::Applied | OscIncomingApplyResult::Ignored => {
-                    self.emit_osc_message_received_callback(ctx, &message);
-                }
-                OscIncomingApplyResult::Retry => {
-                    remaining.push(message);
-                    remaining.extend(messages);
-                    self.pending_incoming_messages = remaining;
-                    return true;
-                }
-            }
-        }
-
-        self.pending_incoming_messages = remaining;
-        false
-    }
-
     pub(crate) fn enqueue_incoming_message(&mut self, message: OscDecodedMessage) {
         self.log_incoming_message(&message);
         self.pending_incoming_messages.push(message);
+    }
+
+    pub(crate) fn take_pending_incoming_messages(&mut self) -> Vec<OscDecodedMessage> {
+        std::mem::take(&mut self.pending_incoming_messages)
+    }
+
+    pub(crate) fn mark_internal_param_changes<I>(&mut self, params: I)
+    where
+        I: IntoIterator<Item = NodeId>,
+    {
+        self.ignored_param_changes.extend(params);
     }
 
     pub(crate) fn has_pending_incoming_messages(&self) -> bool {
@@ -169,11 +140,6 @@ impl OscModuleBase {
 
     pub(crate) fn values_id(&self) -> Option<NodeId> {
         self.base.values_id()
-    }
-
-    pub(crate) fn set_internal_param(&mut self, ctx: &mut ProcessCtx, param_id: NodeId, value: ParamValue) {
-        self.ignored_param_changes.insert(param_id);
-        ctx.set_param(param_id, value);
     }
 
     pub(crate) fn stop_transport(&mut self) {
@@ -583,7 +549,11 @@ impl OscModuleBase {
         Ok(format!("Queued OSC {} for {} output(s)", request.address, queued))
     }
 
-    fn emit_osc_message_received_callback(&self, ctx: &mut ProcessCtx, message: &OscDecodedMessage) {
+    pub(crate) fn emit_osc_message_received_callback(
+        &self,
+        ctx: &mut ProcessCtx,
+        message: &OscDecodedMessage,
+    ) {
         crate::app::module::script_api::emit_script_callback(
             ctx,
             self.id(),
