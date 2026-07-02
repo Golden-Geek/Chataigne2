@@ -129,7 +129,11 @@ impl<T: Node> Engine<T> {
         node_id: NodeId,
         creation_context: Option<NodeCreationContext>,
     ) -> Result<(), EngineEditError> {
-        let init_tree_snapshot = Some(self.build_process_tree_snapshot());
+        let needs_tree_snapshot = self
+            .nodes
+            .get(node_id)
+            .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
+        let init_tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         let mut init_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         init_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(init_tree_snapshot) = &init_tree_snapshot {
@@ -153,7 +157,11 @@ impl<T: Node> Engine<T> {
         node_id: NodeId,
         creation_context: NodeCreationContext,
     ) -> Result<(), EngineEditError> {
-        let created_tree_snapshot = Some(self.build_process_tree_snapshot());
+        let needs_tree_snapshot = self
+            .nodes
+            .get(node_id)
+            .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
+        let created_tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         let mut created_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         created_ctx.runtime_elapsed = self.runtime_elapsed;
         if let Some(created_tree_snapshot) = &created_tree_snapshot {

@@ -83,6 +83,12 @@ impl Node for GradientStopNode {
         GRADIENT_STOP_ITEM_KIND
     }
 
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        // `engine_on_attached` consults the tree snapshot via `parameter_child_exists`
+        // to avoid recreating declared child parameters.
+        true
+    }
+
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
         if !parameter_child_exists(ctx, self.id(), GRADIENT_STOP_POSITION_DECL_ID) {
             ctx.add_child_boxed(

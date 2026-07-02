@@ -743,6 +743,19 @@ pub trait Node: Send + Any {
         self.engine_param_snapshot().is_none()
     }
 
+    /// Returns `true` when this node's structural lifecycle callbacks
+    /// ([`Self::on_attached`], [`Self::init`], [`Self::on_node_ready`]) require a
+    /// tree snapshot in `ProcessCtx`.
+    ///
+    /// Building a whole-tree snapshot is `O(total nodes)`, so eagerly building one
+    /// before every single node insertion makes bulk operations (project load,
+    /// subtree paste) `O(n^2)`. Leaf parameters never traverse the tree in their
+    /// lifecycle hooks, so they opt out by default; container/module nodes that do
+    /// walk the tree keep the snapshot. Mirrors [`Self::inbox_requires_tree_snapshot`].
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        self.engine_param_snapshot().is_none()
+    }
+
     fn execution_rule(&self) -> NodeExecutionRule {
         NodeExecutionRule::default()
     }

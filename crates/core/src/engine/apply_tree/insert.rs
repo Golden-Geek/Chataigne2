@@ -123,7 +123,15 @@ impl<T: Node> Engine<T> {
             child: child_id,
             decl_id,
         });
-        let child_tree_snapshot = Some(self.build_process_tree_snapshot());
+        // Only pay for a whole-tree snapshot when the attached node actually walks
+        // the tree in its lifecycle hooks. Leaf parameters opt out, which keeps bulk
+        // inserts (project load, subtree paste) from being O(n^2). See
+        // `Node::lifecycle_requires_tree_snapshot`.
+        let needs_tree_snapshot = self
+            .nodes
+            .get(child_id)
+            .is_some_and(|node| node.lifecycle_requires_tree_snapshot());
+        let child_tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
 
         // Allow newly attached nodes to request deterministic follow-up structure before app init.
         let mut attach_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);

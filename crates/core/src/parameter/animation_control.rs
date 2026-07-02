@@ -366,6 +366,12 @@ impl Node for ParameterAnimationControlNode {
         NodeExecutionRule::periodic(self.update_rate_hz.max(1))
     }
 
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        // `engine_on_attached` consults the tree snapshot via `parameter_child_exists`
+        // to avoid recreating declared child parameters.
+        true
+    }
+
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_waveform_parameter()), None);

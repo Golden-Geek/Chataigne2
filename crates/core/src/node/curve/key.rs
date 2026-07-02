@@ -114,6 +114,12 @@ impl Node for CurveKeyNode {
         PARAMETER_ANIMATION_KEY_ITEM_KIND
     }
 
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        // `engine_on_attached` consults the tree snapshot via `parameter_child_exists`
+        // to avoid recreating declared child parameters.
+        true
+    }
+
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_KEY_POSITION_DECL_ID) {
             let mut position_param = make_float_parameter(
