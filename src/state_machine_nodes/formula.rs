@@ -21,7 +21,7 @@ use golden_core::{
     events::Event,
     item, node,
     node::{
-        DeclId, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
+        DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
         NodeCreationContext, NodeId, NodeMetaPatch, NodeReference,
         NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
         gradient_from_snapshot,
@@ -293,6 +293,21 @@ pub(crate) fn create_anode_user_item(node_type: &str) -> Option<Box<dyn Node>> {
     )))
 }
 
+pub(crate) fn create_anode_user_item_tree(node_type: &str) -> Option<NodeTree> {
+    if node_type == ANODE_NODE_TYPE {
+        return Some(NodeTree::new(AlchemistANode::new()));
+    }
+    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let registry = registry();
+    let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+    Some(anode_tree_for_declaration(
+        type_id,
+        declaration.label(),
+        declaration.category(),
+        declaration.as_ref(),
+    ))
+}
+
 fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
     crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
         .or_else(|| {
@@ -314,6 +329,229 @@ fn parameter(
     parameter.control_modes_enabled = !read_only;
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.into());
     parameter
+}
+
+fn declared_folder(label: &str, decl_id: &str) -> Folder {
+    let mut folder = Folder::new(label);
+    folder.node_data_mut().meta.decl_id = DeclId(decl_id.to_owned());
+    folder
+}
+
+fn anode_position_parameter() -> Parameter {
+    let mut position = parameter(
+        "Position",
+        "position",
+        ParamValue::Vec2(0.0, 0.0),
+        false,
+    );
+    position
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
+    position
+}
+
+fn anode_size_parameter() -> Parameter {
+    let mut size = parameter("Size", "size", ParamValue::Vec2(13.0, 8.0), false);
+    let meta = &mut size.node_data_mut().meta;
+    meta.enabled = false;
+    meta.can_be_disabled = true;
+    meta.presentation.show_in_inspector_content = false;
+    size
+}
+
+fn default_config_for_declaration(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> golden_alchemist::ANodeConfig {
+    let mut config = golden_alchemist::ANodeConfig::default();
+    for field in declaration.config_fields() {
+        config.set(field.id, field.default_value);
+    }
+
+    let mut instance = ANodeInstance::new(declaration.type_id(), declaration.label());
+    instance.config = config.clone();
+    for field in config_fields_for_instance(declaration, &instance) {
+        config.set(field.id, field.default_value);
+    }
+    config
+}
+
+fn config_value_parameter_for_field(
+    field: &golden_alchemist::ANodeConfigFieldDecl,
+    value_type: &ValueTypeId,
+    default: RuntimeValue,
+) -> Option<Parameter> {
+    let value = runtime_value_to_param(&default).ok()?;
+    let value_decl = config_decl_id(field.id.as_str());
+    let mut config_parameter = parameter(&field.label, &value_decl, value, false);
+    if !field.enum_options.is_empty() {
+        let selected = match &field.default_value {
+            RuntimeValue::String(value) => value.to_string(),
+            _ => String::new(),
+        };
+        config_parameter.value = ParamValue::Enum(selected);
+        config_parameter.default_value = ParamValue::Enum(match &field.default_value {
+            RuntimeValue::String(value) => value.to_string(),
+            _ => String::new(),
+        });
+        config_parameter.constraints.enum_options = field
+            .enum_options
+            .iter()
+            .map(|(variant_id, label)| ParameterEnumOption {
+                variant_id: variant_id.to_string(),
+                value: ParamValue::Enum(variant_id.to_string()),
+                label: label.clone(),
+                tags: Vec::new(),
+                ordering: None,
+            })
+            .collect();
+        config_parameter.constraints.policy = ParameterConstraintPolicy::Reject;
+    }
+    if field.editor.as_deref() == Some("optional_count") {
+        config_parameter.node_data_mut().meta.can_be_disabled = true;
+        config_parameter.node_data_mut().meta.enabled = false;
+    }
+    config_parameter.node_data_mut().meta.presentation.color =
+        Some(value_type_color(value_type.as_str()));
+    Some(config_parameter)
+}
+
+fn config_field_trees_for_instance(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    instance: &ANodeInstance,
+) -> Vec<NodeTree> {
+    let value_types = value_types();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let config_signature = declaration.signature(
+        &signature_ctx,
+        instance,
+        &instance.type_bindings,
+    );
+    let mut trees = Vec::new();
+
+    for field in config_fields_for_instance(declaration, instance) {
+        let value_decl = config_decl_id(field.id.as_str());
+        if field.editor.as_deref() == Some("gradient") {
+            let mut gradient = GradientNode::new_with_label(&field.label);
+            gradient.node_data_mut().meta.decl_id = DeclId(value_decl);
+            trees.push(NodeTree::new(gradient));
+            continue;
+        }
+
+        if field.type_variable.is_some() {
+            let type_options =
+                field.resolved_type_options(&config_signature, &value_types);
+            let selected_type = match &field.default_value {
+                RuntimeValue::String(value) => value.to_string(),
+                value => runtime_value_type_id(value),
+            };
+            trees.push(NodeTree::new(value_type_parameter(
+                &field.label,
+                &value_decl,
+                &selected_type,
+                false,
+                &type_options,
+            )));
+            continue;
+        }
+
+        let value_type = if field.editor.as_deref() == Some("runtime_value") {
+            let type_decl = config_type_decl_id(field.id.as_str());
+            let type_options =
+                field.resolved_type_options(&config_signature, &value_types);
+            let selected_type = runtime_value_type_id(&field.default_value);
+            let mut type_parameter = value_type_parameter(
+                &format!("{} Type", field.label),
+                &type_decl,
+                &selected_type,
+                false,
+                &type_options,
+            );
+            let meta = &mut type_parameter.node_data_mut().meta;
+            meta.can_be_disabled = false;
+            meta.enabled = true;
+            trees.push(NodeTree::new(type_parameter));
+            ValueTypeId::new(selected_type)
+        } else {
+            field.default_value.value_type()
+        };
+
+        let default = if value_type == field.default_value.value_type() {
+            field.default_value.clone()
+        } else {
+            default_runtime_value(&value_type)
+                .unwrap_or_else(|_| field.default_value.clone())
+        };
+        if let Some(parameter) =
+            config_value_parameter_for_field(&field, &value_type, default)
+        {
+            trees.push(NodeTree::new(parameter));
+        }
+    }
+
+    trees
+}
+
+fn anode_tree_for_declaration(
+    type_id: &str,
+    label: &str,
+    category: &str,
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> NodeTree {
+    let mut instance = ANodeInstance::new(declaration.type_id(), label);
+    instance.config = default_config_for_declaration(declaration);
+
+    let value_types = value_types();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let signature =
+        declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
+    let signature_bindings = local_signature_bindings(&signature, &instance);
+
+    let mut config_tree = NodeTree::new(declared_folder("Config", "config"));
+    for child in config_field_trees_for_instance(declaration, &instance) {
+        config_tree.push_child(child);
+    }
+
+    let mut inputs_tree = NodeTree::new(declared_folder("Inputs", "inputs"));
+    for input in signature.inputs {
+        let value_type = constraint_value_type(&input.constraint, &signature_bindings);
+        let default = input
+            .default_value
+            .or_else(|| default_runtime_value(&value_type).ok())
+            .unwrap_or(RuntimeValue::Float(0.0));
+        inputs_tree.push_child(input_socket_tree(
+            input.id.as_str(),
+            &input.label,
+            &value_type,
+            &default,
+        ));
+    }
+
+    let mut outputs_tree = NodeTree::new(declared_folder("Outputs", "outputs"));
+    for output in signature.outputs {
+        let value_type =
+            constraint_value_type(&output.constraint, &signature_bindings);
+        outputs_tree.push_child(output_socket_tree(
+            output.id.as_str(),
+            &output.label,
+            &value_type,
+        ));
+    }
+
+    let anode = AlchemistANode::for_type(type_id, label, category);
+    NodeTree::new(anode)
+        .with_child(NodeTree::new(anode_position_parameter()))
+        .with_child(NodeTree::new(anode_size_parameter()))
+        .with_child(config_tree)
+        .with_child(inputs_tree)
+        .with_child(outputs_tree)
 }
 
 fn runtime_value_type_id(value: &RuntimeValue) -> String {
@@ -2998,6 +3236,13 @@ impl Node for AlchemistFormulaDefinition {
             return Some(Box::new(AlchemistConnection::new()));
         }
         create_anode_user_item(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        if node_type == CONNECTION_NODE_TYPE {
+            return Some(NodeTree::new(AlchemistConnection::new()));
+        }
+        create_anode_user_item_tree(node_type)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

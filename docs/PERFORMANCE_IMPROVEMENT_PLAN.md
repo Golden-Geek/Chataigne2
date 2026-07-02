@@ -383,6 +383,13 @@ paths and value leaves as prebuilt `NodeTree`s in one runtime tick instead of
 retrying one structural edit at a time. Existing value writes are reported back
 to the OSC base so incoming updates still bypass auto-feedback echo.
 
+Implemented for Formula ANode creation: `golden_core` now supports
+`AddUserItemTree`, letting catalog-created item roots keep item-root semantics
+while inserting their full subtree in one lifecycle batch. Formula and managed
+processor ANode creation use this path to prebuild position/size/config/input
+and output socket children instead of materializing them through follow-up child
+edits.
+
 ## Acceptance
 
 ```text

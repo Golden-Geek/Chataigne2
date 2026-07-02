@@ -18,8 +18,8 @@ use golden_core::{
 
 use crate::app::state_machine_nodes_formula::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
-    formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches, ANODE_ITEM_KIND,
-    FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
+    create_anode_user_item_tree, formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches,
+    ANODE_ITEM_KIND, FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
     PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{ConditionManager, FilterChainManager, InputsManager, OutputsManager};
@@ -485,6 +485,10 @@ impl Node for StateProcessorManagedRegion {
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         create_anode_user_item(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        create_anode_user_item_tree(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {
