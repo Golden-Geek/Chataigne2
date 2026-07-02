@@ -364,6 +364,12 @@ Expression controls: evaluate on source change (or explicit rate), never as
 an unconditional every-tick pass; keep QuickJS work off the steady-state
 tick.
 
+Implemented in `golden_core`: the engine keeps an active-control index plus
+source-param dependents, counts `controls_params_scanned`, and the steady-state
+control pass exits without scanning active controls when no indexed source
+changed. Reference/expression config child params are indexed as dependency
+sources so retargeting controls rebuilds the map before later source updates.
+
 ## 4d. Bulk creation is the only structural path
 
 Audit paste/import/duplicate/template/auto-add flows (including OSC
