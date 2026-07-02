@@ -1,5 +1,6 @@
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::Engine;
+use crate::node::NodeMetaPatch;
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
 use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
@@ -146,6 +147,66 @@ fn ui_feedback_coalescing_keeps_latest_only_for_coalescable_value_params() {
         })
         .count();
     assert_eq!(trigger_count, 2);
+}
+
+#[test]
+fn scoped_replay_filters_unrelated_graph_transactions() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    let root = engine.root;
+    engine.add_node(
+        Parameter::new("left", ParamValue::Int(0), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.add_node(
+        Parameter::new("right", ParamValue::Int(0), ParameterChangeCheck::None),
+        Some(root),
+    );
+    engine.apply_edits().expect("children should attach");
+
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let snapshot = read_model.current_snapshot();
+    let root_snapshot = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.node_id == root)
+        .expect("root should exist");
+    let left = root_snapshot.children[0];
+    let right = root_snapshot.children[1];
+
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: right,
+        patch: NodeMetaPatch {
+            label: Some("right renamed".to_string()),
+            ..Default::default()
+        },
+    });
+    assert!(ack.success, "rename should apply: {:?}", ack.error_message);
+    read_model.publish_engine_events_since(&engine, Some(snapshot.at));
+
+    let left_replay = read_model.replay(
+        None,
+        UiSubscriptionScope::Subtree {
+            root: left,
+            max_depth: u32::MAX,
+        },
+    );
+    assert!(
+        left_replay.events.is_empty(),
+        "unrelated sibling transaction should not fan out to left subtree"
+    );
+
+    let right_replay = read_model.replay(
+        None,
+        UiSubscriptionScope::Subtree {
+            root: right,
+            max_depth: u32::MAX,
+        },
+    );
+    assert_eq!(right_replay.events.len(), 1);
+    let UiEventKind::GraphTransaction { transaction } = &right_replay.events[0].kind else {
+        panic!("right subtree should receive a graph transaction");
+    };
+    assert_eq!(transaction.ops.len(), 1);
 }
 
 #[test]

@@ -329,8 +329,8 @@ impl UiReadModel {
             if from.is_some_and(|cursor| event.time <= cursor) {
                 continue;
             }
-            if event_matches_scope(&snapshot, &scope, event) {
-                events.push(event.clone());
+            if let Some(scoped_event) = event_for_scope(&snapshot, &scope, event) {
+                events.push(scoped_event);
             }
         }
 
@@ -768,6 +768,89 @@ fn preserve_ui_param_changed_old_value(new_kind: &mut UiEventKind, previous_kind
 
 fn param_changed_event_is_ui_coalescable(store: &HashMap<NodeId, UiNodeDto>, event: &UiEventDto) -> bool {
     coalescable_param_changed_event_param(store, event).is_some()
+}
+
+fn event_for_scope(snapshot: &UiSnapshot, scope: &UiSubscriptionScope, event: &UiEventDto) -> Option<UiEventDto> {
+    match (&event.kind, scope) {
+        (_, UiSubscriptionScope::WholeGraph) => Some(event.clone()),
+        (UiEventKind::GraphTransaction { transaction }, UiSubscriptionScope::Subtree { root, max_depth }) => {
+            let ops: Vec<UiGraphOp> = transaction
+                .ops
+                .iter()
+                .filter(|op| graph_op_matches_subtree(snapshot, op, *root, *max_depth))
+                .cloned()
+                .collect();
+            if ops.is_empty() {
+                return None;
+            }
+
+            let mut transaction = transaction.clone();
+            transaction.ops = ops;
+            Some(UiEventDto {
+                time: event.time,
+                kind: UiEventKind::GraphTransaction { transaction },
+            })
+        }
+        _ => event_matches_scope(snapshot, scope, event).then(|| event.clone()),
+    }
+}
+
+fn graph_op_matches_subtree(snapshot: &UiSnapshot, op: &UiGraphOp, root: NodeId, max_depth: u32) -> bool {
+    match op {
+        UiGraphOp::NodeCreated {
+            snapshot: node, parent, ..
+        } => {
+            snapshot_node_within_subtree(snapshot, node.node_id, root, max_depth)
+                || parent.is_some_and(|parent| snapshot_node_within_subtree(snapshot, parent, root, max_depth))
+        }
+        UiGraphOp::SubtreeInserted {
+            root: inserted_root,
+            parent,
+            nodes,
+            ..
+        } => {
+            snapshot_node_within_subtree(snapshot, *parent, root, max_depth)
+                || snapshot_node_within_subtree(snapshot, *inserted_root, root, max_depth)
+                || nodes
+                    .iter()
+                    .any(|node| snapshot_node_within_subtree(snapshot, node.node_id, root, max_depth))
+        }
+        UiGraphOp::SubtreeRemoved {
+            root: removed_root,
+            removed_ids,
+            parent_after,
+        } => {
+            *removed_root == root
+                || removed_ids.contains(&root)
+                || parent_after
+                    .as_ref()
+                    .is_some_and(|patch| snapshot_node_within_subtree(snapshot, patch.parent, root, max_depth))
+        }
+        UiGraphOp::NodeMoved {
+            node,
+            old_parent,
+            new_parent,
+            old_parent_after,
+            new_parent_after,
+        } => {
+            snapshot_node_within_subtree(snapshot, *node, root, max_depth)
+                || old_parent.is_some_and(|parent| snapshot_node_within_subtree(snapshot, parent, root, max_depth))
+                || new_parent.is_some_and(|parent| snapshot_node_within_subtree(snapshot, parent, root, max_depth))
+                || old_parent_after
+                    .as_ref()
+                    .is_some_and(|patch| snapshot_node_within_subtree(snapshot, patch.parent, root, max_depth))
+                || new_parent_after
+                    .as_ref()
+                    .is_some_and(|patch| snapshot_node_within_subtree(snapshot, patch.parent, root, max_depth))
+        }
+        UiGraphOp::ChildrenReordered { parent, .. } => snapshot_node_within_subtree(snapshot, *parent, root, max_depth),
+        UiGraphOp::NodeMetaPatched { node, .. } => snapshot_node_within_subtree(snapshot, *node, root, max_depth),
+        UiGraphOp::ParamPatched { node, param, .. } => {
+            snapshot_node_within_subtree(snapshot, *node, root, max_depth)
+                || snapshot_node_within_subtree(snapshot, *param, root, max_depth)
+        }
+        UiGraphOp::HistoryPatched { .. } | UiGraphOp::LoggerPatched { .. } => true,
+    }
 }
 
 fn event_matches_scope(snapshot: &UiSnapshot, scope: &UiSubscriptionScope, event: &UiEventDto) -> bool {
