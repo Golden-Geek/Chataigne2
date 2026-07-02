@@ -481,7 +481,13 @@ Targets: `crates/core/src/ui_sync.rs`, `crates/transport_server/src/ui_server.rs
    fan out to every client. Keep logger records out of graph snapshots —
    separate channel.
 5. Optional (measure first): compact/binary encoding for the value channel
-   if JSON serialization shows up in Phase 0 counters after 1–4.
+   if JSON serialization shows up in Phase 0 counters after 1-4.
+
+Implemented slice: normal `ParamChanged` UI value events now coalesce at both
+retention boundaries. The engine replay log and the transport read-model ring
+retain only the latest coalescable value per parameter inside the current
+value-plane run, preserve append/trigger events, and keep structure/custom
+barriers ordered and lossless.
 
 ## Acceptance
 
