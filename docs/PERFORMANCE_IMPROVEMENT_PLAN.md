@@ -489,6 +489,11 @@ retain only the latest coalescable value per parameter inside the current
 value-plane run, preserve append/trigger events, and keep structure/custom
 barriers ordered and lossless.
 
+Implemented slice: the built-in WebSocket hub now has a configurable
+`value_flush_interval` (default 16 ms). Structure/runtime batches still flush
+immediately, while value-only `ParamChanged` batches queue per subscription and
+flush latest-wins at the configured frame cadence.
+
 ## Acceptance
 
 ```text
