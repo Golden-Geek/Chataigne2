@@ -81,6 +81,10 @@ impl GradientNode {
                     &request.edit,
                     Edit::AddNode { parent, node, .. } | Edit::AddUserItem { parent, node, .. }
                         if *parent == self.id() && node.get_type() == GRADIENT_STOP_NODE_TYPE
+                ) || matches!(
+                    &request.edit,
+                    Edit::AddNodeTree { parent, tree, .. } | Edit::AddUserItemTree { parent, tree, .. }
+                        if *parent == self.id() && tree.node_type() == GRADIENT_STOP_NODE_TYPE
                 )
             })
             .count()

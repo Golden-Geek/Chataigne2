@@ -139,6 +139,15 @@ pub enum Edit {
         /// Optional sibling after which insertion occurs.
         prev_sibling: Option<NodeId>,
     },
+    /// Insert a detached user-curated item subtree under `parent`, optionally after a sibling.
+    AddUserItemTree {
+        /// Detached subtree to insert.
+        tree: NodeTree,
+        /// Parent receiving the subtree root.
+        parent: NodeId,
+        /// Optional sibling after which insertion occurs.
+        prev_sibling: Option<NodeId>,
+    },
     /// Insert a user-curated item node under `parent`, optionally after a sibling.
     AddUserItem {
         /// Node instance to insert.

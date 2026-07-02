@@ -173,6 +173,17 @@ impl<T: Node> Engine<T> {
                     let effect = self.apply_add_node_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
                     (Ok(Some(effect.into())), true)
                 }
+                Edit::AddUserItemTree {
+                    tree,
+                    parent,
+                    prev_sibling,
+                } => {
+                    missing_reference_warning_dirty = true;
+                    user_context_graph_dirty = true;
+                    let effect =
+                        self.apply_add_user_item_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
+                    (Ok(Some(effect.into())), true)
+                }
                 Edit::AddUserItem {
                     node,
                     parent,
@@ -395,6 +406,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::CallNodeMutation { .. } => "CallNodeMutation",
         Edit::AddNode { .. } => "AddNode",
         Edit::AddNodeTree { .. } => "AddNodeTree",
+        Edit::AddUserItemTree { .. } => "AddUserItemTree",
         Edit::AddUserItem { .. } => "AddUserItem",
         Edit::CreateBlueprintInstance { .. } => "CreateBlueprintInstance",
         Edit::ReplaceNode { .. } => "ReplaceNode",

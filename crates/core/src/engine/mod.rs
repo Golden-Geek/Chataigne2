@@ -312,6 +312,15 @@ impl<T: Node> Engine<T> {
         });
     }
 
+    /// Queues insertion of a user-curated item subtree under `parent` (or root when `None`).
+    pub fn add_user_item_tree(&mut self, tree: NodeTree, parent: Option<NodeId>) {
+        self.edits.push(Edit::AddUserItemTree {
+            parent: parent.unwrap_or(self.root),
+            tree,
+            prev_sibling: None,
+        });
+    }
+
     /// Queues insertion of a node after an existing sibling.
     pub fn add_node_after(&mut self, node: T, sibling: NodeId) {
         let parent = self
@@ -337,6 +346,20 @@ impl<T: Node> Engine<T> {
             parent,
             prev_sibling: Some(sibling),
             node: Box::new(node),
+        });
+    }
+
+    /// Queues insertion of a user-curated item subtree after an existing sibling.
+    pub fn add_user_item_tree_after(&mut self, tree: NodeTree, sibling: NodeId) {
+        let parent = self
+            .nodes
+            .get(sibling)
+            .and_then(|n| n.node_data().parent)
+            .unwrap_or(self.root);
+        self.edits.push(Edit::AddUserItemTree {
+            parent,
+            prev_sibling: Some(sibling),
+            tree,
         });
     }
 
@@ -497,6 +520,18 @@ impl<T: Node> Engine<T> {
                 } => {
                     let tree = self.coerce_node_tree_for_engine(edit_index, "AddNodeTree", tree)?;
                     validated_edits.push(Edit::AddNodeTree {
+                        tree,
+                        parent,
+                        prev_sibling,
+                    });
+                }
+                Edit::AddUserItemTree {
+                    tree,
+                    parent,
+                    prev_sibling,
+                } => {
+                    let tree = self.coerce_node_tree_for_engine(edit_index, "AddUserItemTree", tree)?;
+                    validated_edits.push(Edit::AddUserItemTree {
                         tree,
                         parent,
                         prev_sibling,

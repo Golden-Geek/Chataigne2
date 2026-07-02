@@ -12,6 +12,7 @@ fn is_structural_edit(edit: &Edit) -> bool {
         edit,
         Edit::AddNode { .. }
             | Edit::AddNodeTree { .. }
+            | Edit::AddUserItemTree { .. }
             | Edit::AddUserItem { .. }
             | Edit::CreateBlueprintInstance { .. }
             | Edit::ReplaceNode { .. }

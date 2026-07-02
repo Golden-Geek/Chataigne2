@@ -255,6 +255,85 @@ impl<T: Node> Engine<T> {
         })
     }
 
+    /// Applies an add-user-item-tree edit and returns history data for the inserted root.
+    pub(crate) fn apply_add_user_item_tree(
+        &mut self,
+        edit_index: usize,
+        tree: NodeTree,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        creation_context: Option<NodeCreationContext>,
+    ) -> Result<AddNodeEffect, EngineEditError> {
+        const OP: &str = "AddUserItemTree";
+
+        if !self.nodes.contains(parent) {
+            return Err(EngineEditError::ParentNotFound {
+                edit_index,
+                operation: OP,
+                parent,
+            });
+        }
+
+        let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
+        self.ensure_item_kind_allowed(edit_index, OP, parent, tree.node.get_type(), tree.node.user_item_kind())?;
+        let mut inserted = Vec::new();
+        let root_id = self.insert_pending_node_tree(
+            edit_index,
+            OP,
+            tree,
+            parent,
+            prev_sibling,
+            UserNodeRole::ItemRoot,
+            &mut inserted,
+        )?;
+
+        let (attached_prev_sibling, attached_next_sibling) = {
+            let attached_data = self
+                .nodes
+                .get(root_id)
+                .ok_or(EngineEditError::NodeNotFound {
+                    edit_index,
+                    operation: OP,
+                    node: root_id,
+                })?
+                .node_data();
+            (attached_data.prev_sibling, attached_data.next_sibling)
+        };
+
+        for inserted_node in &inserted {
+            self.emit_inbox_event(EventKind::NodeCreated { node: inserted_node.id });
+            self.emit_inbox_event(EventKind::ChildAdded {
+                parent: inserted_node.parent,
+                child: inserted_node.id,
+                decl_id: inserted_node.decl_id.clone(),
+            });
+        }
+
+        let inserted_ids = inserted.iter().map(|node| node.id).collect::<Vec<_>>();
+
+        for node_id in &inserted_ids {
+            let enabled = self.is_effectively_enabled(*node_id);
+            if let Some(node) = self.nodes.get_mut(*node_id) {
+                node.node_data_mut().effective_enabled = enabled;
+            }
+        }
+
+        self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
+        self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
+        if let Some(context) = creation_context {
+            self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
+        }
+
+        self.push_added_subtree_ui_events(root_id, parent);
+
+        Ok(AddNodeEffect {
+            node: root_id,
+            parent,
+            prev_sibling: attached_prev_sibling,
+            next_sibling: attached_next_sibling,
+        })
+    }
+
     /// Applies an add-user-item edit and returns history data required for undo/redo.
     pub(crate) fn apply_add_user_item(
         &mut self,

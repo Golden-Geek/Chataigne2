@@ -485,6 +485,15 @@ impl ProcessCtx {
         });
     }
 
+    /// Queues insertion of a detached user-curated item subtree.
+    pub fn add_user_item_tree(&mut self, parent: NodeId, tree: NodeTree, after: Option<NodeId>) {
+        self.edits.push(Edit::AddUserItemTree {
+            parent,
+            prev_sibling: after,
+            tree,
+        });
+    }
+
     /// Queues insertion of a blueprint-backed user-curated item.
     pub fn add_blueprint_item(
         &mut self,

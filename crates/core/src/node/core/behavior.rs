@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use crate::{
-    edit::Edit,
+    edit::{Edit, NodeTree},
     engine::NodeExecutionRule,
     events::{CustomEvent, Event, EventFrame, EventKind},
     node::DashboardWidgetTargetDescriptor,
@@ -197,6 +197,10 @@ pub trait Node: Send + Any {
 
     fn create_user_item(&self, _node_type: &str) -> Option<Box<dyn Node>> {
         None
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        self.create_user_item(node_type).map(NodeTree::boxed)
     }
 
     fn create_user_item_for_host(&self, host_node_type: &str, node_type: &str) -> Option<Box<dyn Node>> {
