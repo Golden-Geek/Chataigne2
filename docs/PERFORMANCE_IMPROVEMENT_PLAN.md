@@ -111,6 +111,8 @@ Current implementation notes verified on 2026-07-02:
 - The shipping manager host now caches project formula materialization and
   shares one compiled formula `Arc` per `FormulaCompileKey` across processors,
   invalidating compiled entries when a formula subtree is structurally dirty.
+- Runtime preview/log dedupe in `StateMachineManager` now uses typed keys and
+  value signatures instead of per-sample formatted string keys.
 
 Engine substrate (from the second audit; verify in Phase 0):
 

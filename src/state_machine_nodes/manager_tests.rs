@@ -8,7 +8,7 @@ use golden_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
     EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId, FormulaPropertySchema,
     FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeOutput, RuntimeRegistries, RuntimeValue, SocketId, ValueTypeRegistry,
+    RuntimeOutput, RuntimeRegistries, RuntimeValue, SocketId, TriggerValue, ValueTypeRegistry,
     primitive_node_registry,
 };
 use golden_core::{
@@ -23,8 +23,9 @@ use super::{
     compile_processor_runtime_for_cache_rebuild, condition_manager_edge_previous,
     condition_manager_value_set, merge_output_preview_snapshot,
     next_input_value_condition_validity, next_input_value_condition_valid_state,
-    processor_formula_from_snapshot, processor_formula_source_ref, processor_override_value,
-    processor_should_evaluate, set_output_target_param, STATE_ITEM_KIND, StateMachineManager,
+    output_preview_signature, processor_formula_from_snapshot, processor_formula_source_ref,
+    processor_override_value, processor_should_evaluate, set_output_target_param,
+    should_emit_runtime_log, RuntimeLogKey, STATE_ITEM_KIND, StateMachineManager,
 };
 use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
 
@@ -376,6 +377,74 @@ fn output_preview_snapshot_retains_latest_values_absent_from_next_delta() {
     assert_eq!(second_frame.len(), 2);
     assert!(second_frame.contains(&condition_valid));
     assert!(second_frame.contains(&value_update));
+}
+
+#[test]
+fn output_preview_signature_is_order_independent_and_trigger_sensitive() {
+    let formula_id = FormulaId::new("formula");
+    let processor_id = ProcessorId::new();
+    let value_node = ANodeId::new();
+    let trigger_node = ANodeId::new();
+    let value = preview_sample(
+        formula_id.clone(),
+        processor_id,
+        value_node,
+        "value",
+        RuntimeValue::Float(0.75),
+        10,
+    );
+    let trigger = preview_sample(
+        formula_id.clone(),
+        processor_id,
+        trigger_node,
+        "trigger",
+        RuntimeValue::Trigger(TriggerValue::fired(7, 10)),
+        10,
+    );
+    let changed_trigger = preview_sample(
+        formula_id,
+        processor_id,
+        trigger_node,
+        "trigger",
+        RuntimeValue::Trigger(TriggerValue::fired(8, 10)),
+        10,
+    );
+
+    let signature = output_preview_signature(&[value.clone(), trigger.clone()]);
+    assert_eq!(
+        signature,
+        output_preview_signature(&[trigger, value.clone()])
+    );
+    assert_ne!(
+        signature,
+        output_preview_signature(&[value, changed_trigger])
+    );
+}
+
+#[test]
+fn runtime_log_dedupe_uses_typed_processor_and_kind_key() {
+    let manager = StateMachineManager::new();
+    let processor_node = manager.id();
+    let mut last_values = HashMap::new();
+
+    assert!(should_emit_runtime_log(
+        &mut last_values,
+        10,
+        RuntimeLogKey::processor_compile(processor_node),
+        "same diagnostic",
+    ));
+    assert!(!should_emit_runtime_log(
+        &mut last_values,
+        40,
+        RuntimeLogKey::processor_compile(processor_node),
+        "same diagnostic",
+    ));
+    assert!(should_emit_runtime_log(
+        &mut last_values,
+        40,
+        RuntimeLogKey::processor_runtime(processor_node),
+        "same diagnostic",
+    ));
 }
 
 #[test]

@@ -82,6 +82,34 @@ struct RuntimeFormulaDefaultPreview {
     runtime: ProcessorRuntime,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum RuntimeLogKind {
+    Compile,
+    Runtime,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct RuntimeLogKey {
+    processor_node: NodeId,
+    kind: RuntimeLogKind,
+}
+
+impl RuntimeLogKey {
+    fn processor_compile(processor_node: NodeId) -> Self {
+        Self {
+            processor_node,
+            kind: RuntimeLogKind::Compile,
+        }
+    }
+
+    fn processor_runtime(processor_node: NodeId) -> Self {
+        Self {
+            processor_node,
+            kind: RuntimeLogKind::Runtime,
+        }
+    }
+}
+
 #[derive(Clone)]
 struct FormulaInputValueParam {
     formula: NodeUuid,
@@ -134,6 +162,103 @@ impl OutputPreviewSampleKey {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OutputPreviewSignature(Vec<OutputPreviewSignaturePart>);
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct OutputPreviewSignaturePart {
+    key: OutputPreviewSampleKey,
+    status: OutputPreviewStatusKey,
+    value: RuntimeValueSignature,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum OutputPreviewStatusKey {
+    Live,
+    DefaultPreview,
+    Stale,
+    Error,
+    Suppressed,
+    Unavailable,
+}
+
+impl From<OutputPreviewStatus> for OutputPreviewStatusKey {
+    fn from(value: OutputPreviewStatus) -> Self {
+        match value {
+            OutputPreviewStatus::Live => Self::Live,
+            OutputPreviewStatus::DefaultPreview => Self::DefaultPreview,
+            OutputPreviewStatus::Stale => Self::Stale,
+            OutputPreviewStatus::Error => Self::Error,
+            OutputPreviewStatus::Suppressed => Self::Suppressed,
+            OutputPreviewStatus::Unavailable => Self::Unavailable,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum RuntimeValueSignature {
+    Unit,
+    Bool(bool),
+    Trigger {
+        fired: bool,
+        edge_id: u64,
+        logical_tick: u64,
+    },
+    Int(i64),
+    Float(u64),
+    String(Arc<str>),
+    Vec2([u64; 2]),
+    Vec3([u64; 3]),
+    Color([u32; 4]),
+    Duration(std::time::Duration),
+    Array(Vec<RuntimeValueSignature>),
+    Ref {
+        value_type: ValueTypeId,
+        stable_id: Arc<str>,
+    },
+    Extension {
+        value_type: ValueTypeId,
+        payload: Vec<u8>,
+    },
+}
+
+impl RuntimeValueSignature {
+    fn from_value(value: &RuntimeValue) -> Self {
+        match value {
+            RuntimeValue::Unit => Self::Unit,
+            RuntimeValue::Bool(value) => Self::Bool(*value),
+            RuntimeValue::Trigger(trigger) => Self::Trigger {
+                fired: trigger.fired,
+                edge_id: trigger.edge_id,
+                logical_tick: trigger.logical_tick,
+            },
+            RuntimeValue::Int(value) => Self::Int(*value),
+            RuntimeValue::Float(value) => Self::Float(value.to_bits()),
+            RuntimeValue::String(value) => Self::String(Arc::clone(value)),
+            RuntimeValue::Vec2(value) => Self::Vec2(value.map(f64::to_bits)),
+            RuntimeValue::Vec3(value) => Self::Vec3(value.map(f64::to_bits)),
+            RuntimeValue::Color(value) => Self::Color([
+                value.red.to_bits(),
+                value.green.to_bits(),
+                value.blue.to_bits(),
+                value.alpha.to_bits(),
+            ]),
+            RuntimeValue::Duration(value) => Self::Duration(*value),
+            RuntimeValue::Array(values) => {
+                Self::Array(values.iter().map(Self::from_value).collect())
+            }
+            RuntimeValue::Ref(value) => Self::Ref {
+                value_type: value.value_type.clone(),
+                stable_id: Arc::clone(&value.stable_id),
+            },
+            RuntimeValue::Extension(value) => Self::Extension {
+                value_type: value.value_type.clone(),
+                payload: value.payload.to_vec(),
+            },
+        }
+    }
+}
+
 #[derive(Default)]
 struct StateMachineRuntimeCache {
     topology_dirty: bool,
@@ -153,11 +278,11 @@ struct StateMachineRuntimeCache {
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
-    formula_default_previews: HashMap<String, RuntimeFormulaDefaultPreview>,
+    formula_default_previews: HashMap<golden_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
-    last_preview_signature: Option<String>,
+    last_preview_signature: Option<OutputPreviewSignature>,
     last_preview_tick: Option<u64>,
-    last_log_values: HashMap<String, RuntimeLogRecord>,
+    last_log_values: HashMap<RuntimeLogKey, RuntimeLogRecord>,
     perf_stats: StateMachineRuntimePerfStats,
 }
 
@@ -550,7 +675,7 @@ impl StateMachineManager {
                     if should_emit_runtime_log(
                         &mut self.runtime_cache.last_log_values,
                         ctx.time.tick,
-                        format!("processor:{processor_node:?}:compile"),
+                        RuntimeLogKey::processor_compile(processor_node),
                         diagnostic.message.as_str(),
                     ) {
                         log!(
@@ -565,7 +690,7 @@ impl StateMachineManager {
                         formula_id,
                         lanes.clone(),
                     ));
-                    if previewed_formula_defaults.insert(formula_id.to_string()) {
+                    if previewed_formula_defaults.insert(formula_id.clone()) {
                         if let Some(compiled_formula) =
                             compiled_formula.as_ref().map(Arc::clone)
                         {
@@ -591,7 +716,7 @@ impl StateMachineManager {
                         if should_emit_runtime_log(
                             &mut self.runtime_cache.last_log_values,
                             ctx.time.tick,
-                            format!("processor:{processor_node:?}:runtime"),
+                            RuntimeLogKey::processor_runtime(processor_node),
                             diagnostic.message.as_str(),
                         ) {
                             log!(
@@ -1187,14 +1312,14 @@ fn compile_processor_runtime_for_cache_rebuild(
 }
 
 fn formula_default_output_preview_samples(
-    cache: &mut HashMap<String, RuntimeFormulaDefaultPreview>,
+    cache: &mut HashMap<golden_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     compiled: Arc<CompiledAlchemistFormula>,
     formula: &AlchemistFormula,
     ctx: &EvaluationCtx<'_>,
     provider: &DefaultProcessorContextProvider,
     capture: &ProcessorDebugCapture,
 ) -> Vec<chataigne_state_machine::ANodeOutputPreviewSample> {
-    let key = formula.id.to_string();
+    let key = formula.id.clone();
     let entry = cache.entry(key).or_insert_with(|| {
         let mut processor =
             Processor::from_formula(format!("{} defaults", formula.label), formula);
@@ -1291,43 +1416,25 @@ fn context_key_label(context_key: Option<&golden_alchemist::ContextKey>) -> Stri
         .join(" / ")
 }
 
-fn output_preview_signature(samples: &[chataigne_state_machine::ANodeOutputPreviewSample]) -> String {
+fn output_preview_signature(
+    samples: &[chataigne_state_machine::ANodeOutputPreviewSample],
+) -> OutputPreviewSignature {
     let mut parts = samples
         .iter()
-        .map(|sample| {
-            format!(
-                "{}:{}:{:?}:{}:{}:{:?}:{}",
-                sample.formula_id,
-                sample
-                    .processor_id
-                    .map(|processor_id| processor_id.to_string())
-                    .unwrap_or_default(),
-                sample.context_key,
-                sample.author_node_id,
-                sample.output_socket,
-                sample.status,
-                preview_value_signature(&sample.value)
-            )
+        .map(|sample| OutputPreviewSignaturePart {
+            key: OutputPreviewSampleKey::from_sample(sample),
+            status: OutputPreviewStatusKey::from(sample.status),
+            value: RuntimeValueSignature::from_value(&sample.value),
         })
         .collect::<Vec<_>>();
     parts.sort();
-    parts.join("|")
-}
-
-fn preview_value_signature(value: &RuntimeValue) -> String {
-    match value {
-        RuntimeValue::Trigger(trigger) => format!(
-            "trigger:{}:{}:{}",
-            trigger.fired, trigger.edge_id, trigger.logical_tick
-        ),
-        other => format!("{other:?}"),
-    }
+    OutputPreviewSignature(parts)
 }
 
 fn should_emit_runtime_log(
-    last_values: &mut HashMap<String, RuntimeLogRecord>,
+    last_values: &mut HashMap<RuntimeLogKey, RuntimeLogRecord>,
     tick: u64,
-    key: String,
+    key: RuntimeLogKey,
     value: &str,
 ) -> bool {
     if let Some(previous) = last_values.get(&key) {
