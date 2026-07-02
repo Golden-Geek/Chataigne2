@@ -13,6 +13,7 @@ impl<T: Node> Engine<T> {
     ) -> Result<NodeId, EngineEditError> {
         self.prepare_node_for_insert(&mut tree.node, parent, user_role);
         let node_id = self.nodes.insert(tree.node);
+        self.register_node_uuid(node_id);
         self.attach_node(edit_index, operation, node_id, parent, prev_sibling)?;
         self.populate_param_cache_entry(node_id);
         let decl_id = self
@@ -77,6 +78,7 @@ impl<T: Node> Engine<T> {
 
         self.prepare_node_for_insert(&mut node, parent, user_role);
         let child_id = self.nodes.insert(node);
+        self.register_node_uuid(child_id);
         self.attach_node(edit_index, operation, child_id, parent, prev_sibling)?;
 
         // Initialize effective_enabled now that the parent link is established.

@@ -128,6 +128,8 @@ pub struct Engine<T: Node> {
     blueprints: crate::blueprints::BlueprintRegistry<T>,
     /// User-defined lexical context scopes and resolver cache.
     user_contexts: crate::contexts::UserContextRegistry,
+    /// Persistent node UUID -> runtime node id lookup maintained with node-store mutations.
+    uuid_index: HashMap<NodeUuid, NodeId>,
     /// UI-facing append-only event log used for replay/subscription.
     ui_event_log: Vec<crate::events::Event>,
     /// Start index of retained events inside `ui_event_log`.
@@ -230,6 +232,10 @@ impl<T: Node> Engine<T> {
     pub fn new(root: T) -> Self {
         let mut nodes: NodeStore<T> = NodeStore::new();
         let root = nodes.insert(root);
+        let mut uuid_index = HashMap::new();
+        if let Some(node) = nodes.get(root) {
+            uuid_index.insert(node.node_data().meta.uuid, root);
+        }
         let mut parameter_values_cache = HashMap::new();
         if let Some(snapshot) = nodes.get(root).and_then(Node::engine_param_snapshot) {
             parameter_values_cache.insert(root, snapshot.value);
@@ -254,6 +260,7 @@ impl<T: Node> Engine<T> {
             reference_filters: HashMap::new(),
             blueprints: crate::blueprints::BlueprintRegistry::new(),
             user_contexts: crate::contexts::UserContextRegistry::new(),
+            uuid_index,
             ui_event_log: Vec::new(),
             ui_event_log_start: 0,
             ui_event_log_capacity: ui::DEFAULT_UI_EVENT_LOG_CAPACITY,

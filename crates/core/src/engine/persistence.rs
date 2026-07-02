@@ -922,6 +922,7 @@ impl<T: Node> Engine<T> {
                 Self::decode_node_record_with(Some(parent_node), child_record, decode_node)?
             };
             let child_id = self.nodes.insert(child);
+            self.register_node_uuid(child_id);
             self.attach_node(0, "LoadProject", child_id, parent, prev_sibling)?;
             self.populate_param_cache_entry(child_id);
             self.load_children_records(child_id, &child_record.children, decode_node)?;
@@ -952,6 +953,7 @@ impl<T: Node> Engine<T> {
         remap_node_references(&mut node, uuid_map);
 
         let node_id = self.nodes.insert(node);
+        self.register_node_uuid(node_id);
         self.attach_node(0, "DuplicateNode", node_id, parent, prev_sibling)?;
         self.populate_param_cache_entry(node_id);
 

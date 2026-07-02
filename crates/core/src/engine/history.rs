@@ -252,6 +252,7 @@ impl<T: Node> HistoryStep<T> {
 
                 let mut detached_nodes = Vec::with_capacity(subtree.len());
                 for removed in subtree.into_iter().rev() {
+                    engine.unregister_node_uuid(removed);
                     let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
                         edit_index: 0,
                         operation: OP,
@@ -282,6 +283,7 @@ impl<T: Node> HistoryStep<T> {
                 let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
                 for (id, node) in detached_nodes {
                     engine.nodes.reattach(id, node);
+                    engine.register_node_uuid(id);
                     engine.populate_param_cache_entry(id);
                 }
 
@@ -363,6 +365,7 @@ impl<T: Node> HistoryStep<T> {
                         old_data.next_sibling = live_node_data.next_sibling;
                     }
 
+                    engine.unregister_node_uuid(step.new_id);
                     let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
                         edit_index: 0,
                         operation: OP,
@@ -370,6 +373,7 @@ impl<T: Node> HistoryStep<T> {
                     })?;
                     engine.purge_param_cache_entry(step.new_id);
                     engine.nodes.reattach(step.old_id, old_node);
+                    engine.register_node_uuid(step.old_id);
                     engine.populate_param_cache_entry(step.old_id);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.old_id)?;
@@ -385,6 +389,7 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 engine.detach_node(0, OP, step.new_id)?;
+                engine.unregister_node_uuid(step.new_id);
                 let detached_new_node = engine.nodes.detach(step.new_id).ok_or(EngineEditError::NodeNotFound {
                     edit_index: 0,
                     operation: OP,
@@ -393,6 +398,7 @@ impl<T: Node> HistoryStep<T> {
                 engine.purge_param_cache_entry(step.new_id);
 
                 engine.nodes.reattach(step.old_id, old_node);
+                engine.register_node_uuid(step.old_id);
                 engine.populate_param_cache_entry(step.old_id);
                 attach_node_for_history(
                     engine,
@@ -496,6 +502,7 @@ impl<T: Node> HistoryStep<T> {
                 let created_ids: Vec<NodeId> = detached_nodes.iter().map(|(id, _)| *id).collect();
                 for (id, node) in detached_nodes {
                     engine.nodes.reattach(id, node);
+                    engine.register_node_uuid(id);
                     engine.populate_param_cache_entry(id);
                 }
                 attach_node_for_history(engine, OP, step.node, step.parent, step.prev_sibling, step.next_sibling)?;
@@ -528,6 +535,7 @@ impl<T: Node> HistoryStep<T> {
 
                 let mut detached_nodes = Vec::with_capacity(subtree.len());
                 for removed in subtree.into_iter().rev() {
+                    engine.unregister_node_uuid(removed);
                     let detached = engine.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
                         edit_index: 0,
                         operation: OP,
@@ -610,6 +618,7 @@ impl<T: Node> HistoryStep<T> {
                         new_data.next_sibling = live_node_data.next_sibling;
                     }
 
+                    engine.unregister_node_uuid(step.old_id);
                     let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
                         edit_index: 0,
                         operation: OP,
@@ -617,6 +626,7 @@ impl<T: Node> HistoryStep<T> {
                     })?;
                     engine.purge_param_cache_entry(step.old_id);
                     engine.nodes.reattach(step.new_id, new_node);
+                    engine.register_node_uuid(step.new_id);
                     engine.populate_param_cache_entry(step.new_id);
                     engine.mark_schedule_dirty();
                     let decl_id = child_decl_id(engine, 0, OP, step.new_id)?;
@@ -632,6 +642,7 @@ impl<T: Node> HistoryStep<T> {
                 }
 
                 engine.detach_node(0, OP, step.old_id)?;
+                engine.unregister_node_uuid(step.old_id);
                 let detached_old_node = engine.nodes.detach(step.old_id).ok_or(EngineEditError::NodeNotFound {
                     edit_index: 0,
                     operation: OP,
@@ -640,6 +651,7 @@ impl<T: Node> HistoryStep<T> {
                 engine.purge_param_cache_entry(step.old_id);
 
                 engine.nodes.reattach(step.new_id, new_node);
+                engine.register_node_uuid(step.new_id);
                 engine.populate_param_cache_entry(step.new_id);
                 attach_node_for_history(
                     engine,

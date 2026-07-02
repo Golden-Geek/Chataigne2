@@ -5351,6 +5351,36 @@ fn set_param_reference_to_nil_uuid_clears_cached_hints() {
 }
 
 #[test]
+fn uuid_index_updates_on_remove_undo_redo() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    engine.add_node(Folder::new("target".to_string()), Some(engine.root));
+    engine.apply_edits().expect("target add should succeed");
+
+    let target = direct_children(&engine, engine.root)
+        .first()
+        .copied()
+        .expect("target should exist");
+    let target_uuid = engine
+        .nodes
+        .get(target)
+        .expect("target should exist")
+        .node_data()
+        .meta
+        .uuid;
+    assert_eq!(engine.node_id_by_uuid(target_uuid), Some(target));
+
+    engine.edits.push(Edit::RemoveNode { node: target });
+    engine.apply_edits().expect("target remove should succeed");
+    assert_eq!(engine.node_id_by_uuid(target_uuid), None);
+
+    engine.undo().expect("undo should restore target");
+    assert_eq!(engine.node_id_by_uuid(target_uuid), Some(target));
+
+    engine.redo().expect("redo should remove target again");
+    assert_eq!(engine.node_id_by_uuid(target_uuid), None);
+}
+
+#[test]
 fn missing_reference_warning_tracks_reference_resolution_state() {
     let root = Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None);
     let mut engine = Engine::new(root);

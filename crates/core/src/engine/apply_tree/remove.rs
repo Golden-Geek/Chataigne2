@@ -25,6 +25,7 @@ impl<T: Node> Engine<T> {
 
         let mut detached_nodes = Vec::with_capacity(subtree.len());
         for removed in subtree.into_iter().rev() {
+            self.unregister_node_uuid(removed);
             let detached_node = self.nodes.detach(removed).ok_or(EngineEditError::NodeNotFound {
                 edit_index,
                 operation: OP,

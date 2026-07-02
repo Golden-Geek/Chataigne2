@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque};
 
 use crate::events::EventKind;
 use crate::node::{Node, NodeId, NodeUuid, PARAMETER_CONTROL_REFERENCE_DECL_ID};
@@ -15,17 +15,30 @@ pub(crate) const MISSING_REFERENCE_WARNING_ID: &str = "missing-reference";
 impl<T: Node> Engine<T> {
     /// Builds a runtime lookup map from persistent UUID to current node id.
     pub fn uuid_to_node_id_map(&self) -> HashMap<NodeUuid, NodeId> {
-        self.nodes
-            .iter()
-            .map(|(id, node)| (node.node_data().meta.uuid, id))
-            .collect()
+        self.uuid_index.clone()
     }
 
     /// Returns the current runtime node id for a persistent UUID, when present.
     pub fn node_id_by_uuid(&self, uuid: NodeUuid) -> Option<NodeId> {
-        self.nodes
-            .iter()
-            .find_map(|(id, node)| (node.node_data().meta.uuid == uuid).then_some(id))
+        self.uuid_index.get(&uuid).copied()
+    }
+
+    pub(crate) fn register_node_uuid(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get(node_id) {
+            self.uuid_index.insert(node.node_data().meta.uuid, node_id);
+        }
+    }
+
+    pub(crate) fn unregister_node_uuid(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get(node_id) {
+            self.unregister_node_uuid_value(node_id, node.node_data().meta.uuid);
+        }
+    }
+
+    pub(crate) fn unregister_node_uuid_value(&mut self, node_id: NodeId, uuid: NodeUuid) {
+        if self.uuid_index.get(&uuid).copied() == Some(node_id) {
+            self.uuid_index.remove(&uuid);
+        }
     }
 
     /// Rebuilds cached runtime ids inside all reference parameter values.
@@ -37,11 +50,6 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn resolve_reference_caches_for_nodes(&mut self, node_ids: &[NodeId]) -> usize {
-        let uuid_map: HashMap<NodeUuid, (NodeId, String)> = self
-            .nodes
-            .iter()
-            .map(|(id, node)| (node.node_data().meta.uuid, (id, node.node_data().meta.label.clone())))
-            .collect();
         let mut updated = 0usize;
 
         for node_id in node_ids.iter().copied() {
@@ -73,18 +81,31 @@ impl<T: Node> Engine<T> {
                 continue;
             }
 
+            let mut resolutions = VecDeque::new();
+            if let Some(node) = self.nodes.get(node_id) {
+                node.engine_visit_references(&mut |reference| {
+                    let resolved = self.uuid_index.get(&reference.uuid()).copied();
+                    let cached_name = resolved
+                        .and_then(|id| self.nodes.get(id))
+                        .map(|node| node.node_data().meta.label.clone());
+                    resolutions.push_back((resolved, cached_name));
+                });
+            }
+
             if let Some(node) = self.nodes.get_mut(node_id) {
                 node.engine_visit_references_mut(&mut |reference| {
-                    let resolved = uuid_map.get(&reference.uuid()).map(|(id, _)| *id);
+                    let Some((resolved, cached_name)) = resolutions.pop_front() else {
+                        return;
+                    };
                     if reference.cached_id() != resolved {
                         updated += 1;
                         reference.set_cached_id(resolved);
                     }
-                    if let Some((_, cached_name)) = uuid_map.get(&reference.uuid()) {
-                        if reference.cached_name() != Some(cached_name.as_str()) {
-                            updated += 1;
-                            reference.set_cached_name(Some(cached_name.clone()));
-                        }
+                    if let Some(cached_name) = cached_name
+                        && reference.cached_name() != Some(cached_name.as_str())
+                    {
+                        updated += 1;
+                        reference.set_cached_name(Some(cached_name));
                     }
                 });
             }
@@ -133,7 +154,6 @@ impl<T: Node> Engine<T> {
 
     fn sync_missing_reference_warnings_for_nodes_impl(&mut self, node_ids: &[NodeId], emit_events: bool) -> usize {
         self.resolve_reference_caches_for_nodes(node_ids);
-        let uuid_map = self.uuid_to_node_id_map();
         let mut pending: Vec<(NodeId, crate::node::PresentationHint)> = Vec::new();
 
         for node_id in node_ids.iter().copied() {
@@ -147,7 +167,7 @@ impl<T: Node> Engine<T> {
             let mut next_presentation = node.node_data().meta.presentation.clone();
             match snapshot.value {
                 ParamValue::Reference(reference)
-                    if !reference.uuid().is_nil() && !uuid_map.contains_key(&reference.uuid()) =>
+                    if !reference.uuid().is_nil() && !self.uuid_index.contains_key(&reference.uuid()) =>
                 {
                     let detail = reference
                         .cached_name()

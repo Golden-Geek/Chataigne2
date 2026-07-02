@@ -41,6 +41,7 @@ impl<T: Node> Engine<T> {
             replacement_data.meta.decl_id = old_data.meta.decl_id.clone();
         }
 
+        self.unregister_node_uuid(node);
         let old_node = self.nodes.detach(node).ok_or(EngineEditError::NodeNotFound {
             edit_index,
             operation: OP,
@@ -48,6 +49,7 @@ impl<T: Node> Engine<T> {
         })?;
         self.purge_param_cache_entry(node);
         self.nodes.reattach(node, replacement);
+        self.register_node_uuid(node);
         self.populate_param_cache_entry(node);
         self.mark_schedule_dirty();
         self.blueprints.unregister_instance(node);
