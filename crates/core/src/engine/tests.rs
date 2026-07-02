@@ -10106,6 +10106,10 @@ fn precompute_inbox_dispatch_builds_per_node_event_batches() {
         .map(|(_, events)| events.len())
         .expect("root should receive precomputed inbox events");
     assert_eq!(root_events, 2, "root should get node-created and child-added");
+    let stats = engine.tick_stats();
+    assert_eq!(stats.dispatch_events_routed, 2);
+    assert_eq!(stats.dispatch_max_fanout, 2);
+    assert_eq!(stats.dispatch_recipient_deliveries, 4);
 
     engine
         .dispatch_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)
@@ -10122,6 +10126,27 @@ fn precompute_inbox_dispatch_builds_per_node_event_batches() {
         engine.inbox.events.len(),
         2,
         "dispatch_precomputed_inbox should not clear engine inbox",
+    );
+}
+
+#[test]
+fn preprocess_precomputed_inbox_is_snapshot_free() {
+    let root = RoutingNode::with_policy("root", 1, 0, EventPropagation::Notify);
+    let mut engine = Engine::new(root);
+
+    engine.add_node(RoutingNode::with_policy("child", 0, 0, EventPropagation::Notify), None);
+    engine.apply_edits().expect("add should succeed");
+
+    let before = engine.tick_stats().snapshot_builds;
+    let per_node_events = engine.precompute_inbox_dispatch();
+    engine
+        .preprocess_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)
+        .expect("preprocessing should succeed without app inbox callbacks");
+    let after = engine.tick_stats().snapshot_builds;
+
+    assert_eq!(
+        after, before,
+        "preprocessing-only inbox dispatch must not build a full tree snapshot"
     );
 }
 

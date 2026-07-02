@@ -135,13 +135,19 @@ impl<T: Node> Engine<T> {
                 self.last_performance_log_tick = Some(self.time.tick);
                 let stats = self.tick_stats();
                 eprintln!(
-                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={}",
+                    "[engine] slow_tick total_ms={total_ms} resolve_ms={resolve1_ms} external_edits_ms={apply_external_edits_ms} inbox_precompute_ms={inbox_precompute_ms} inbox_preprocess_ms={inbox_preprocess_ms} control_ms={control_ms} scheduled_ms={scheduled_ms} stabilization_ms={stabilization_ms} logger_sync_ms={logger_sync_ms} pending_edits={pending_edits} inbox_events={inbox_events} nodes_due={} callbacks={} events_emitted={} edits_applied={} stabilization_passes={} snapshot_rebuilds={} snapshot_builds={} snapshot_build_us={} snapshot_nodes_cloned={} dispatch_events_routed={} dispatch_recipient_deliveries={} dispatch_max_fanout={}",
                     stats.nodes_due,
                     stats.callbacks_fired,
                     stats.events_emitted,
                     stats.edits_applied,
                     stats.stabilization_passes,
-                    stats.snapshot_rebuilds
+                    stats.snapshot_rebuilds,
+                    stats.snapshot_builds,
+                    stats.snapshot_build_ns / 1_000,
+                    stats.snapshot_nodes_cloned,
+                    stats.dispatch_events_routed,
+                    stats.dispatch_recipient_deliveries,
+                    stats.dispatch_max_fanout
                 );
             }
         }

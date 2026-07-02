@@ -2,7 +2,7 @@ use std::any::type_name;
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::edit::{Edit, EditQueue, EditRequest, NodeTree};
 use crate::events::Inbox;
@@ -639,7 +639,11 @@ impl<T: Node> Engine<T> {
             return Arc::clone(snapshot);
         }
         self.tick_scratch.stats.snapshot_rebuilds += 1;
+        self.tick_scratch.stats.snapshot_builds += 1;
+        self.tick_scratch.stats.snapshot_nodes_cloned += self.nodes.len();
+        let started = Instant::now();
         let snapshot = self.build_process_tree_snapshot();
+        self.tick_scratch.stats.snapshot_build_ns += started.elapsed().as_nanos();
         self.tick_tree_snapshot = Some(Arc::clone(&snapshot));
         snapshot
     }

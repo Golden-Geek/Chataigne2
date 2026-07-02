@@ -77,6 +77,10 @@ impl<T: Node> Engine<T> {
         for i in start..event_count {
             let event = &self.inbox.events[i];
             self.route_event_recipients_into(event, &mut recipients, &mut dedupe, &mut ancestry_depths);
+            self.tick_scratch.stats.dispatch_events_routed += 1;
+            self.tick_scratch.stats.dispatch_recipient_deliveries += recipients.len();
+            self.tick_scratch.stats.dispatch_max_fanout =
+                self.tick_scratch.stats.dispatch_max_fanout.max(recipients.len());
             for &recipient in &recipients {
                 let index = match index_by_node.get(&recipient).copied() {
                     Some(index) => index,
@@ -135,47 +139,55 @@ impl<T: Node> Engine<T> {
         // Take ownership to avoid borrow conflicts with the &mut self calls below.
         let mut parameter_values = std::mem::take(&mut self.parameter_values_cache);
         let mut snapshot_requesters: Option<HashMap<String, usize>> = trace.then(HashMap::new);
-        let needs_tree_snapshot = per_node_events.iter().any(|(node_id, events)| {
-            let requires = self
-                .nodes
-                .get(*node_id)
-                .is_some_and(|node| node.inbox_requires_tree_snapshot(events));
-            if requires {
-                if let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
-                    let node_type = self
-                        .nodes
-                        .get(*node_id)
-                        .map(|node| node.get_type().to_owned())
-                        .unwrap_or_else(|| "<missing>".to_owned());
-                    let event_kinds = events
-                        .iter()
-                        .take(4)
-                        .map(|event| match &event.kind {
-                            EventKind::ParamChanged { .. } => "ParamChanged",
-                            EventKind::ParamControlChanged { .. } => "ParamControlChanged",
-                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
-                            EventKind::ChildAdded { .. } => "ChildAdded",
-                            EventKind::ChildRemoved { .. } => "ChildRemoved",
-                            EventKind::ChildReplaced { .. } => "ChildReplaced",
-                            EventKind::ChildMoved { .. } => "ChildMoved",
-                            EventKind::ChildReordered { .. } => "ChildReordered",
-                            EventKind::NodeCreated { .. } => "NodeCreated",
-                            EventKind::NodeDeleted { .. } => "NodeDeleted",
-                            EventKind::MetaChanged { .. } => "MetaChanged",
-                            EventKind::GraphTransaction { .. } => "GraphTransaction",
-                            EventKind::Custom(_) => "Custom",
-                        })
-                        .collect::<Vec<_>>()
-                        .join("+");
-                    *snapshot_requesters
-                        .entry(format!("{node_type}[{event_kinds}]"))
-                        .or_default() += 1;
+        let needs_tree_snapshot = run_app_callbacks
+            && per_node_events.iter().any(|(node_id, events)| {
+                let requires = self
+                    .nodes
+                    .get(*node_id)
+                    .is_some_and(|node| node.inbox_requires_tree_snapshot(events));
+                if requires {
+                    if let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
+                        let node_type = self
+                            .nodes
+                            .get(*node_id)
+                            .map(|node| node.get_type().to_owned())
+                            .unwrap_or_else(|| "<missing>".to_owned());
+                        let event_kinds = events
+                            .iter()
+                            .take(4)
+                            .map(|event| match &event.kind {
+                                EventKind::ParamChanged { .. } => "ParamChanged",
+                                EventKind::ParamControlChanged { .. } => "ParamControlChanged",
+                                EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged",
+                                EventKind::ChildAdded { .. } => "ChildAdded",
+                                EventKind::ChildRemoved { .. } => "ChildRemoved",
+                                EventKind::ChildReplaced { .. } => "ChildReplaced",
+                                EventKind::ChildMoved { .. } => "ChildMoved",
+                                EventKind::ChildReordered { .. } => "ChildReordered",
+                                EventKind::NodeCreated { .. } => "NodeCreated",
+                                EventKind::NodeDeleted { .. } => "NodeDeleted",
+                                EventKind::MetaChanged { .. } => "MetaChanged",
+                                EventKind::GraphTransaction { .. } => "GraphTransaction",
+                                EventKind::Custom(_) => "Custom",
+                            })
+                            .collect::<Vec<_>>()
+                            .join("+");
+                        *snapshot_requesters
+                            .entry(format!("{node_type}[{event_kinds}]"))
+                            .or_default() += 1;
+                    }
                 }
-            }
-            requires
-        });
+                requires
+            });
         let snapshot_start = trace.then(Instant::now);
-        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
+        let tree_snapshot = needs_tree_snapshot.then(|| {
+            self.tick_scratch.stats.snapshot_builds += 1;
+            self.tick_scratch.stats.snapshot_nodes_cloned += self.nodes.len();
+            let started = Instant::now();
+            let snapshot = self.build_process_tree_snapshot();
+            self.tick_scratch.stats.snapshot_build_ns += started.elapsed().as_nanos();
+            snapshot
+        });
         let snapshot_us = snapshot_start.map(|start| start.elapsed().as_micros());
 
         for (node_id, events) in per_node_events {

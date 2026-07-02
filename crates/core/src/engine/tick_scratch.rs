@@ -20,6 +20,18 @@ pub struct TickStats {
     pub stabilization_passes: usize,
     /// Number of times `get_or_build_tick_snapshot` constructed a new snapshot this tick.
     pub snapshot_rebuilds: usize,
+    /// Number of full process-tree snapshots constructed this tick.
+    pub snapshot_builds: usize,
+    /// Time spent building full process-tree snapshots this tick.
+    pub snapshot_build_ns: u128,
+    /// Number of node records cloned into full process-tree snapshots this tick.
+    pub snapshot_nodes_cloned: usize,
+    /// Number of inbox events routed through listener/bubbling dispatch this tick.
+    pub dispatch_events_routed: usize,
+    /// Number of recipient deliveries produced by inbox routing this tick.
+    pub dispatch_recipient_deliveries: usize,
+    /// Largest recipient fanout observed for a single routed event this tick.
+    pub dispatch_max_fanout: usize,
 }
 
 /// Pre-allocated scratch buffers reused across tick phases to avoid per-tick heap allocations.
