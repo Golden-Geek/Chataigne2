@@ -10,11 +10,11 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use futures_util::{SinkExt, StreamExt};
 use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::engine::{Engine, EngineTime};
-use golden_engine::node::Node;
+use golden_engine::node::{Node, NodeId};
 use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
-    UiEventBatch, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
+    UiEventBatch, UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
     UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
     UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
     UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
@@ -38,6 +38,7 @@ use crate::project_host;
 const HTTP_MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 const WS_MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 const WS_RETRY_INTERVAL: Duration = Duration::from_millis(16);
+const DEFAULT_WS_VALUE_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 const WS_IO_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const WS_PING_INTERVAL: Duration = Duration::from_secs(10);
 const WS_PONG_TIMEOUT: Duration = Duration::from_secs(30);
@@ -65,6 +66,8 @@ pub struct UiServerConfig {
     pub bind_addr: String,
     /// Runtime tick interval used by the engine loop hosted by the UI server.
     pub tick_interval: Duration,
+    /// Minimum interval between value-only WebSocket batches.
+    pub value_flush_interval: Duration,
     /// Optional bundled frontend assets served from non-API routes.
     pub frontend_assets: &'static [UiAsset],
 }
@@ -74,6 +77,7 @@ impl Default for UiServerConfig {
         Self {
             bind_addr: "localhost:7010".to_string(),
             tick_interval: Duration::from_millis(16),
+            value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
         }
     }
@@ -387,6 +391,59 @@ struct WsSubscriptionState {
     scope: UiSubscriptionScope,
     cursor: Option<EngineTime>,
     last_runtime_stats: Option<UiRuntimeStatsDto>,
+    pending_value_from: Option<EngineTime>,
+    pending_value_to: Option<EngineTime>,
+    pending_value_events: Vec<UiEventDto>,
+}
+
+impl WsSubscriptionState {
+    fn queue_value_events(&mut self, from: Option<EngineTime>, events: Vec<UiEventDto>) {
+        if events.is_empty() {
+            return;
+        }
+
+        if self.pending_value_events.is_empty() {
+            self.pending_value_from = from;
+        }
+
+        for event in events {
+            if let Some(param) = value_plane_param(&event) {
+                if let Some(index) = self
+                    .pending_value_events
+                    .iter()
+                    .position(|pending| value_plane_param(pending) == Some(param))
+                {
+                    self.pending_value_events.remove(index);
+                }
+            }
+            self.pending_value_to = Some(event.time);
+            self.pending_value_events.push(event);
+        }
+    }
+
+    fn take_value_batch(&mut self) -> Option<UiEventBatch> {
+        if self.pending_value_events.is_empty() {
+            return None;
+        }
+
+        let events = std::mem::take(&mut self.pending_value_events);
+        let to = self
+            .pending_value_to
+            .take()
+            .or_else(|| events.last().map(|event| event.time));
+        Some(UiEventBatch {
+            from: self.pending_value_from.take(),
+            to,
+            runtime: None,
+            events,
+        })
+    }
+
+    fn clear_pending_value_events(&mut self) {
+        self.pending_value_from = None;
+        self.pending_value_to = None;
+        self.pending_value_events.clear();
+    }
 }
 
 struct WsEventOrigin {
@@ -529,6 +586,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         engine.clone(),
         read_model.clone(),
         config.tick_interval.max(WS_RETRY_INTERVAL),
+        config.value_flush_interval.max(Duration::from_millis(1)),
         make_server_session_id(),
     );
 
@@ -640,10 +698,20 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     engine: Arc<Mutex<Engine<T>>>,
     read_model: Arc<UiReadModel>,
     dispatch_interval: Duration,
+    value_flush_interval: Duration,
     session_id: String,
 ) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
-    thread::spawn(move || ws_hub_loop(engine, read_model, cmd_rx, dispatch_interval, session_id));
+    thread::spawn(move || {
+        ws_hub_loop(
+            engine,
+            read_model,
+            cmd_rx,
+            dispatch_interval,
+            value_flush_interval,
+            session_id,
+        )
+    });
     WsHubHandle { cmd_tx }
 }
 
@@ -652,11 +720,13 @@ fn ws_hub_loop<T: ProjectLifecycle>(
     read_model: Arc<UiReadModel>,
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
+    value_flush_interval: Duration,
     session_id: String,
 ) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut client_instances = HashMap::<String, u64>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
+    let mut last_value_flush_at = Instant::now();
 
     loop {
         match cmd_rx.recv_timeout(dispatch_interval) {
@@ -686,7 +756,10 @@ fn ws_hub_loop<T: ProjectLifecycle>(
             Err(RecvTimeoutError::Disconnected) => break,
         }
 
-        dispatch_ws_batches(&read_model, &mut clients, &mut origins);
+        let value_flush_due = last_value_flush_at.elapsed() >= value_flush_interval;
+        if dispatch_ws_batches(&read_model, &mut clients, &mut origins, value_flush_due) {
+            last_value_flush_at = Instant::now();
+        }
     }
 }
 
@@ -799,6 +872,9 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                             scope,
                             cursor: from,
                             last_runtime_stats: None,
+                            pending_value_from: None,
+                            pending_value_to: None,
+                            pending_value_events: Vec::new(),
                         },
                     )
                     .is_some();
@@ -950,13 +1026,22 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     }
 }
 
+fn value_plane_param(event: &UiEventDto) -> Option<NodeId> {
+    let UiEventKind::ParamChanged { param, .. } = &event.kind else {
+        return None;
+    };
+    Some(*param)
+}
+
 fn dispatch_ws_batches(
     read_model: &Arc<UiReadModel>,
     clients: &mut HashMap<u64, WsClientState>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
-) {
+    value_flush_due: bool,
+) -> bool {
     let total_started = Instant::now();
     let mut pending = Vec::<(u64, WsServerMessage)>::new();
+    let mut flushed_value_plane = false;
 
     let mut events_count = 0;
     let mut subscriptions_count = 0;
@@ -974,6 +1059,7 @@ fn dispatch_ws_batches(
             if let Some(cursor) = subscription.cursor {
                 if cursor > server_time {
                     subscription.cursor = None;
+                    subscription.clear_pending_value_events();
                     pending.push((
                         *client_id,
                         WsServerMessage::ResyncRequired {
@@ -987,6 +1073,7 @@ fn dispatch_ws_batches(
                 if let Some(first_time) = first_retained {
                     if cursor < first_time {
                         subscription.cursor = Some(first_time);
+                        subscription.clear_pending_value_events();
                         pending.push((
                             *client_id,
                             WsServerMessage::ResyncRequired {
@@ -1020,7 +1107,21 @@ fn dispatch_ws_batches(
             }
             visible_events = read_model.coalesce_ui_feedback_events(visible_events);
 
-            if !visible_events.is_empty() || runtime_changed {
+            let contains_structure = visible_events
+                .iter()
+                .any(|event| !read_model.event_is_coalescable_value(event));
+            if contains_structure {
+                if let Some(value_batch) = subscription.take_value_batch() {
+                    events_count += value_batch.events.len();
+                    flushed_value_plane = true;
+                    pending.push((
+                        *client_id,
+                        WsServerMessage::Batch {
+                            subscription_id: subscription_id.clone(),
+                            batch: value_batch,
+                        },
+                    ));
+                }
                 events_count += visible_events.len();
                 pending.push((
                     *client_id,
@@ -1032,6 +1133,44 @@ fn dispatch_ws_batches(
                             runtime: batch.runtime,
                             events: visible_events,
                         },
+                    },
+                ));
+            } else {
+                if !visible_events.is_empty() {
+                    subscription.queue_value_events(batch.from, visible_events);
+                }
+
+                if runtime_changed {
+                    pending.push((
+                        *client_id,
+                        WsServerMessage::Batch {
+                            subscription_id: subscription_id.clone(),
+                            batch: UiEventBatch {
+                                from: batch.from,
+                                to: None,
+                                runtime: batch.runtime,
+                                events: Vec::new(),
+                            },
+                        },
+                    ));
+                }
+            }
+        }
+    }
+
+    if value_flush_due {
+        for (client_id, client) in clients.iter_mut() {
+            for (subscription_id, subscription) in client.subscriptions.iter_mut() {
+                let Some(batch) = subscription.take_value_batch() else {
+                    continue;
+                };
+                events_count += batch.events.len();
+                flushed_value_plane = true;
+                pending.push((
+                    *client_id,
+                    WsServerMessage::Batch {
+                        subscription_id: subscription_id.clone(),
+                        batch,
                     },
                 ));
             }
@@ -1075,6 +1214,8 @@ fn dispatch_ws_batches(
             total_ms
         );
     }
+
+    flushed_value_plane
 }
 
 fn send_to_client(clients: &mut HashMap<u64, WsClientState>, client_id: u64, message: WsServerMessage) {

@@ -362,6 +362,12 @@ impl UiReadModel {
         coalescer.finish()
     }
 
+    /// Returns true when an event belongs to the coalescable UI value plane.
+    pub fn event_is_coalescable_value(&self, event: &UiEventDto) -> bool {
+        let store = self.node_store.read().expect("ui read model poisoned");
+        param_changed_event_is_ui_coalescable(&store, event)
+    }
+
     /// First retained event time, if any.
     pub fn first_retained_event_time(&self) -> Option<EngineTime> {
         self.events
