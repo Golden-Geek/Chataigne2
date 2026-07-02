@@ -448,6 +448,15 @@ Microbench: eval loop shows no per-node heap allocation under a steady
   workload (assert via counter or allocator hook in the perf harness).
 ```
 
+Implemented in `golden_alchemist_core`: compiled graphs now carry runtime
+dependency metadata (`slot_dependents`, external-input seeds, always-process
+seeds). `AlchemistMemory` tracks value revisions, initialized nodes, a reusable
+dirty bitmap, and the last executed nodes. Evaluation seeds uninitialized,
+external/property/custom, and always-process nodes, walks topo order once, and
+propagates only from changed output slots. Runtime execution counters now count
+actual executed nodes, and idle pure graphs execute zero nodes after initial
+evaluation.
+
 ---
 
 # Phase 6 — UI sync channels and scoped subscriptions (D6)
