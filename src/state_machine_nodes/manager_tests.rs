@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use chataigne_state_machine::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
@@ -252,6 +252,29 @@ fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
     assert_eq!(second.len(), 1);
     assert!(!runtime_output_trigger_fired(&second[0].output));
     assert_eq!(runtime.lanes.memory_count(), 1);
+}
+
+#[test]
+fn manager_shared_compile_cache_compiles_formula_once() {
+    let formula = stateful_trigger_formula();
+    let mut manager = StateMachineManager::new();
+    let value_types = ValueTypeRegistry::with_primitives();
+    let nodes = primitive_node_registry();
+    let compile_ctx = CompileCtx {
+        value_types: &value_types,
+        nodes: &nodes,
+        properties: Some(&formula.properties),
+    };
+
+    let first = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should compile");
+    let second = manager
+        .shared_compiled_formula(&formula, &compile_ctx)
+        .expect("formula should come from cache");
+
+    assert!(Arc::ptr_eq(&first, &second));
+    assert_eq!(manager.runtime_perf_stats().formula_compiles, 1);
 }
 
 fn value_set_trigger_fired(value_set: &ValueSet, key: &str) -> bool {

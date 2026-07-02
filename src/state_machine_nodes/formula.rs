@@ -399,7 +399,7 @@ fn default_runtime_value(
         .ok_or_else(|| format!("unknown Alchemist value type `{value_type}`"))
 }
 
-fn param_to_runtime_value(
+pub(crate) fn param_to_runtime_value(
     value: &ParamValue,
     value_type: &ValueTypeId,
 ) -> Result<RuntimeValue, String> {
@@ -689,7 +689,7 @@ fn anode_property_ref_config_decl_id(type_id: &str) -> Option<&'static str> {
     manager_anode_uses_property_ref(type_id).then_some("config/manager_id")
 }
 
-fn constraint_value_type(
+pub(crate) fn constraint_value_type(
     constraint: &TypeConstraint,
     bindings: &TypeBindings,
 ) -> ValueTypeId {
@@ -898,7 +898,7 @@ fn apply_forced_type_bindings_from_config(
     }
 }
 
-fn local_signature_bindings(
+pub(crate) fn local_signature_bindings(
     signature: &golden_alchemist::ANodeSignature,
     instance: &ANodeInstance,
 ) -> TypeBindings {

@@ -14,10 +14,10 @@ use chataigne_state_machine::{
 };
 use golden_alchemist::{
     ANodeId, AlchemistFormula, CompiledAlchemistFormula, ContextKey, EvaluationCtx,
-    DebugValueSample, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
-    ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
-    RuntimeIntent, RuntimeRegistries, RuntimeValue, SocketId, StableRef, SurfaceItemId,
-    TriggerValue, ValueTypeId,
+    DebugValueSample, FormulaCompileKey, FormulaRef, ManagedItemId, ManagedItemInstance,
+    ManagedItemUiState, ManagedRegionInstance, OutputPreviewStatus, RuntimeInputSnapshot,
+    RuntimeIntent, RuntimeRegistries, RuntimeValue, SignatureCtx, SocketId, StableRef,
+    SurfaceItemId, TriggerValue, ValueTypeId, compile_graph, formula_input_value_ref,
 };
 use golden_core::{
     engine::NodeExecutionRule,
@@ -32,7 +32,10 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::state_machine_nodes_formula::{anode_from_snapshot, runtime_value_to_param, ANODE_NODE_TYPE};
+use crate::app::state_machine_nodes_formula::{
+    anode_from_snapshot, constraint_value_type, formula_from_snapshot, local_signature_bindings,
+    param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param, ANODE_NODE_TYPE,
+};
 use crate::app::state_machine_nodes_processor::{
     processor_managed_region_decl_id, FormulaCatalog, FormulaSourceRef,
     PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_MANAGED_REGION_DECL_PREFIX,
@@ -80,14 +83,6 @@ struct RuntimeFormulaDefaultPreview {
 }
 
 #[derive(Clone)]
-struct PendingTriggerInput {
-    formula: NodeUuid,
-    anode: NodeUuid,
-    socket: SocketId,
-    value: TriggerValue,
-}
-
-#[derive(Clone)]
 struct FormulaInputValueParam {
     formula: NodeUuid,
     anode: NodeUuid,
@@ -108,6 +103,14 @@ impl ConditionValidity {
             settled: valid,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct StateMachineRuntimePerfStats {
+    pub runtime_cache_rebuilds: u64,
+    pub formula_materializations: u64,
+    pub formula_compiles: u64,
+    pub debug_samples_captured: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -133,10 +136,14 @@ impl OutputPreviewSampleKey {
 
 #[derive(Default)]
 struct StateMachineRuntimeCache {
-    dirty: bool,
+    topology_dirty: bool,
+    structure_dirty: HashSet<NodeUuid>,
     dirty_formula_values: HashSet<NodeUuid>,
     dirty_processor_overrides: HashSet<NodeId>,
     dirty_input_source_params: HashSet<NodeUuid>,
+    formulas: HashMap<NodeUuid, AlchemistFormula>,
+    formula_input_values: HashMap<StableRef, RuntimeValue>,
+    compiled_formulas: HashMap<FormulaCompileKey, Arc<CompiledAlchemistFormula>>,
     source_listener_params: HashSet<NodeId>,
     source_listener_param_uuids: HashMap<NodeId, NodeUuid>,
     input_manager_signal_ticks: HashMap<String, u64>,
@@ -144,7 +151,6 @@ struct StateMachineRuntimeCache {
     condition_manager_valid_states: HashMap<String, bool>,
     input_value_condition_inner_valid_states: HashMap<NodeUuid, bool>,
     transient_condition_valid_resets: HashMap<NodeId, u64>,
-    pending_trigger_inputs: Vec<PendingTriggerInput>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
     formula_default_previews: HashMap<String, RuntimeFormulaDefaultPreview>,
@@ -152,6 +158,7 @@ struct StateMachineRuntimeCache {
     last_preview_signature: Option<String>,
     last_preview_tick: Option<u64>,
     last_log_values: HashMap<String, RuntimeLogRecord>,
+    perf_stats: StateMachineRuntimePerfStats,
 }
 
 static RUNTIME_OUTPUT_PREVIEWS_ENABLED: LazyLock<bool> = LazyLock::new(|| {
@@ -189,19 +196,19 @@ impl Node for StateMachineManager {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
-        self.runtime_cache.dirty = true;
+        self.runtime_cache.topology_dirty = true;
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
-            self.runtime_cache.dirty = true;
+            self.runtime_cache.topology_dirty = true;
             return;
         };
         ctx.add_event_listener_subtree(self.id(), snapshot.root(), 1);
         for library in formula_libraries(&snapshot) {
             ctx.add_event_listener_subtree(self.id(), library, u32::MAX);
         }
-        self.runtime_cache.dirty = true;
+        self.runtime_cache.topology_dirty = true;
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -209,7 +216,16 @@ impl Node for StateMachineManager {
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        true
+        self.runtime_cache.topology_dirty
+            || !self.runtime_cache.structure_dirty.is_empty()
+            || !self.runtime_cache.dirty_processor_overrides.is_empty()
+            || !self.runtime_cache.dirty_input_source_params.is_empty()
+            || !self.runtime_cache.dirty_formula_values.is_empty()
+            || self
+                .runtime_cache
+                .processors
+                .values()
+                .any(|processor| processor_needs_continuous_evaluation(&processor.runtime))
     }
 
     fn inbox_requires_tree_snapshot(&self, events: &[Event]) -> bool {
@@ -226,27 +242,29 @@ impl Node for StateMachineManager {
         NodeExecutionRule::periodic(STATE_MACHINE_RUNTIME_HZ)
     }
 
-    fn on_child_added(&mut self, ctx: &mut ProcessCtx, _parent: golden_core::node::NodeId, _child: golden_core::node::NodeId) {
-        self.runtime_cache.dirty = true;
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: golden_core::node::NodeId, child: golden_core::node::NodeId) {
+        self.mark_runtime_structure_dirty(ctx, child);
+        self.mark_runtime_structure_dirty(ctx, parent);
         crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
     }
 
     fn on_child_removed(
         &mut self,
         ctx: &mut ProcessCtx,
-        _parent: golden_core::node::NodeId,
-        _child: golden_core::node::NodeId,
+        parent: golden_core::node::NodeId,
+        child: golden_core::node::NodeId,
     ) {
-        self.runtime_cache.dirty = true;
+        self.mark_runtime_structure_dirty(ctx, child);
+        self.mark_runtime_structure_dirty(ctx, parent);
         crate::app::state_machine_nodes_transition::reconcile_state_networks(ctx, None, None, None);
     }
 
-    fn on_node_created(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {
-        self.runtime_cache.dirty = true;
+    fn on_node_created(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        self.mark_runtime_structure_dirty(ctx, node);
     }
 
-    fn on_node_deleted(&mut self, _ctx: &mut ProcessCtx, _node: NodeId) {
-        self.runtime_cache.dirty = true;
+    fn on_node_deleted(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        self.mark_runtime_structure_dirty(ctx, node);
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, param: NodeId, _old_value: ParamValue) {
@@ -260,11 +278,10 @@ impl Node for StateMachineManager {
         if self.mark_formula_input_value_dirty(ctx, param) {
             return;
         }
-        self.runtime_cache.dirty = true;
     }
 
-    fn on_meta_changed(&mut self, _ctx: &mut ProcessCtx, _node: NodeId, _patch: NodeMetaPatch) {
-        self.runtime_cache.dirty = true;
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, _patch: NodeMetaPatch) {
+        self.mark_runtime_structure_dirty(ctx, node);
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -273,6 +290,31 @@ impl Node for StateMachineManager {
 }
 
 impl StateMachineManager {
+    #[cfg(test)]
+    pub(crate) fn runtime_perf_stats(&self) -> StateMachineRuntimePerfStats {
+        self.runtime_cache.perf_stats
+    }
+
+    fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            self.runtime_cache.topology_dirty = true;
+            return;
+        };
+        match runtime_invalidation_for_node(snapshot.as_ref(), self.id(), node) {
+            RuntimeInvalidation::Formula(formula) => {
+                self.runtime_cache.structure_dirty.insert(formula);
+                self.runtime_cache.dirty_formula_values.remove(&formula);
+            }
+            RuntimeInvalidation::Processor(processor) => {
+                self.runtime_cache.dirty_processor_overrides.insert(processor);
+            }
+            RuntimeInvalidation::Topology => {
+                self.runtime_cache.topology_dirty = true;
+            }
+            RuntimeInvalidation::Ignore => {}
+        }
+    }
+
     fn mark_input_source_param_dirty(&mut self, ctx: &mut ProcessCtx, param: NodeId) -> bool {
         if let Some(uuid) = self.runtime_cache.source_listener_param_uuids.get(&param).copied() {
             self.runtime_cache.dirty_input_source_params.insert(uuid);
@@ -310,20 +352,70 @@ impl StateMachineManager {
         let Some(input) = formula_input_value_param(snapshot.as_ref(), param) else {
             return false;
         };
-        self.runtime_cache.dirty = true;
         self.runtime_cache.dirty_formula_values.insert(input.formula);
+        let reference = formula_input_value_ref(
+            golden_alchemist::AlchemistGraphId::from_uuid(input.formula.0),
+            ANodeId::from_uuid(input.anode.0),
+            &input.socket,
+        );
         if input.is_trigger {
             let edge_id = self.runtime_cache.next_trigger_edge_id;
             self.runtime_cache.next_trigger_edge_id =
                 self.runtime_cache.next_trigger_edge_id.wrapping_add(1);
-            self.runtime_cache.pending_trigger_inputs.push(PendingTriggerInput {
-                formula: input.formula,
-                anode: input.anode,
-                socket: input.socket,
-                value: TriggerValue::fired(edge_id, ctx.time.tick),
-            });
+            self.runtime_cache.formula_input_values.insert(
+                reference,
+                RuntimeValue::Trigger(TriggerValue::fired(edge_id, ctx.time.tick)),
+            );
+            return true;
         }
+        let Some(value) = formula_input_runtime_value(
+            snapshot.as_ref(),
+            param,
+            &input,
+            &self.runtime_cache.formulas,
+        ) else {
+            self.runtime_cache.structure_dirty.insert(input.formula);
+            return true;
+        };
+        self.runtime_cache.formula_input_values.insert(reference, value);
         true
+    }
+
+    fn refresh_formula_cache(&mut self, snapshot: &ProcessTreeSnapshot) {
+        if self.runtime_cache.topology_dirty || self.runtime_cache.formulas.is_empty() {
+            self.runtime_cache.formulas.clear();
+            self.runtime_cache.compiled_formulas.clear();
+            for library in formula_libraries(snapshot) {
+                collect_formulas_in_subtree(
+                    snapshot,
+                    library,
+                    &mut self.runtime_cache.formulas,
+                    &mut self.runtime_cache.perf_stats,
+                );
+            }
+            self.runtime_cache.structure_dirty.clear();
+            return;
+        }
+
+        let dirty = std::mem::take(&mut self.runtime_cache.structure_dirty);
+        for formula_uuid in dirty {
+            if let Some(previous) = self.runtime_cache.formulas.remove(&formula_uuid) {
+                self.runtime_cache
+                    .compiled_formulas
+                    .retain(|key, _| key.formula_id != previous.id);
+            }
+            let Some(formula_node) = snapshot.node_id_by_uuid(formula_uuid) else {
+                continue;
+            };
+            let Ok(formula) = formula_from_snapshot(snapshot, formula_node) else {
+                continue;
+            };
+            self.runtime_cache.perf_stats.formula_materializations += 1;
+            self.runtime_cache
+                .compiled_formulas
+                .retain(|key, _| key.formula_id != formula.id);
+            self.runtime_cache.formulas.insert(formula_uuid, formula);
+        }
     }
 
     fn run_processors(&mut self, ctx: &mut ProcessCtx) {
@@ -331,19 +423,21 @@ impl StateMachineManager {
             return;
         };
         let snapshot = snapshot.as_ref();
-        let mut formulas = collect_formulas(snapshot);
-        let pending_trigger_inputs = std::mem::take(&mut self.runtime_cache.pending_trigger_inputs);
-        apply_pending_trigger_inputs(&mut formulas, pending_trigger_inputs);
         let active_states = active_state_nodes(snapshot, self.id());
-        let cache_rebuilt = self.runtime_cache.dirty;
+        let cache_rebuilt =
+            self.runtime_cache.topology_dirty || !self.runtime_cache.structure_dirty.is_empty();
         let overrides_dirty = !self.runtime_cache.dirty_processor_overrides.is_empty();
-        let catalog = FormulaCatalog::from_snapshot(snapshot);
         let dirty_input_source_params = self.runtime_cache.dirty_input_source_params.clone();
         let dirty_formula_values = self.runtime_cache.dirty_formula_values.clone();
 
-        if self.runtime_cache.dirty {
+        if cache_rebuilt {
+            self.refresh_formula_cache(snapshot);
+            let formulas = self.runtime_cache.formulas.clone();
+            let catalog = FormulaCatalog::from_snapshot(snapshot);
             self.rebuild_runtime_cache(ctx, snapshot, &formulas, &catalog);
-        } else {
+        } else if overrides_dirty {
+            let formulas = self.runtime_cache.formulas.clone();
+            let catalog = FormulaCatalog::from_snapshot(snapshot);
             self.refresh_dirty_processor_overrides(snapshot, &formulas, &catalog);
         }
         if cache_rebuilt || overrides_dirty {
@@ -404,6 +498,7 @@ impl StateMachineManager {
                     processor_node,
                     ctx.time.tick,
                     &dirty_input_source_params,
+                    &self.runtime_cache.formula_input_values,
                     &mut self.runtime_cache.input_manager_signal_ticks,
                     &mut self.runtime_cache.condition_manager_values,
                     &mut self.runtime_cache.condition_manager_valid_states,
@@ -440,7 +535,11 @@ impl StateMachineManager {
                         &eval_ctx,
                         &provider,
                         &capture,
-                );
+                    );
+                self.runtime_cache.perf_stats.debug_samples_captured += lanes
+                    .iter()
+                    .map(|lane| lane.output.debug_samples.len() as u64)
+                    .sum::<u64>();
                 evaluated_any = true;
                 let anode_nodes = processor_anode_node_ids(
                     snapshot,
@@ -545,6 +644,7 @@ impl StateMachineManager {
             }
         }
         self.runtime_cache.dirty_input_source_params.clear();
+        self.runtime_cache.dirty_formula_values.clear();
         let processors = processor_ui_dtos(&self.runtime_cache.processors);
         if evaluated_any || cache_rebuilt {
             let output_preview = if capture_output_previews {
@@ -633,12 +733,21 @@ impl StateMachineManager {
             if runtime.id != processor.id {
                 runtime = ProcessorRuntime::new(processor.id);
             }
-            let compiled = compile_processor_runtime_for_cache_rebuild(
-                &mut runtime,
-                &processor,
-                &formula,
-                &compile_ctx,
-            );
+            let compiled = match self.shared_compiled_formula(&formula, &compile_ctx) {
+                Ok(compiled_formula) => runtime
+                    .compile_from_shared_formula_with_compile_ctx_preserving_compatible_lanes(
+                        &processor,
+                        &formula,
+                        compiled_formula,
+                        &compile_ctx,
+                    ),
+                Err(_) => compile_processor_runtime_for_cache_rebuild(
+                    &mut runtime,
+                    &processor,
+                    &formula,
+                    &compile_ctx,
+                ),
+            };
             if !compiled {
                 let message = runtime
                     .diagnostics
@@ -672,7 +781,43 @@ impl StateMachineManager {
         self.runtime_cache.formula_default_previews.clear();
         self.runtime_cache.output_preview_snapshot.clear();
         self.runtime_cache.last_preview_signature = None;
-        self.runtime_cache.dirty = false;
+        self.runtime_cache.topology_dirty = false;
+        self.runtime_cache.structure_dirty.clear();
+        self.runtime_cache.perf_stats.runtime_cache_rebuilds += 1;
+    }
+
+    fn shared_compiled_formula(
+        &mut self,
+        formula: &AlchemistFormula,
+        ctx: &golden_alchemist::CompileCtx<'_>,
+    ) -> Result<Arc<CompiledAlchemistFormula>, Vec<golden_alchemist::Diagnostic>> {
+        let key = FormulaCompileKey::from_formula(formula, u64::from(formula.version), 0, 0);
+        if let Some(compiled) = self.runtime_cache.compiled_formulas.get(&key) {
+            return Ok(Arc::clone(compiled));
+        }
+        self.runtime_cache.perf_stats.formula_compiles += 1;
+        let formula_ctx = golden_alchemist::CompileCtx {
+            value_types: ctx.value_types,
+            nodes: ctx.nodes,
+            properties: Some(&formula.properties),
+        };
+        let result = compile_graph(&formula.graph, &formula_ctx);
+        let diagnostics = result.diagnostics;
+        let Some(compiled_graph) = result.compiled else {
+            return Err(diagnostics);
+        };
+        let compiled = Arc::new(CompiledAlchemistFormula::new(
+            FormulaRef {
+                id: formula.id.clone(),
+                version: formula.version,
+            },
+            compiled_graph,
+            diagnostics,
+        ));
+        self.runtime_cache
+            .compiled_formulas
+            .insert(key, Arc::clone(&compiled));
+        Ok(compiled)
     }
 
     fn refresh_dirty_processor_overrides(
@@ -690,11 +835,11 @@ impl StateMachineManager {
             let Some((formula_node, formula, formula_ui, formula_source_key)) =
                 processor_formula_from_snapshot(snapshot, processor_node, formulas, catalog)
             else {
-                self.runtime_cache.dirty = true;
+                self.runtime_cache.topology_dirty = true;
                 continue;
             };
             let Some(processor) = processor_from_snapshot(snapshot, processor_node, &formula) else {
-                self.runtime_cache.dirty = true;
+                self.runtime_cache.topology_dirty = true;
                 continue;
             };
             runtime_processor.processor = processor;
@@ -755,32 +900,6 @@ fn merge_output_preview_snapshot(
         .collect()
 }
 
-fn collect_formulas(snapshot: &ProcessTreeSnapshot) -> HashMap<NodeUuid, AlchemistFormula> {
-    let mut formulas = HashMap::new();
-    for library in formula_libraries(snapshot) {
-        collect_formulas_in_subtree(snapshot, library, &mut formulas);
-    }
-    formulas
-}
-
-fn apply_pending_trigger_inputs(
-    formulas: &mut HashMap<NodeUuid, AlchemistFormula>,
-    pending: Vec<PendingTriggerInput>,
-) {
-    for input in pending {
-        let Some(formula) = formulas.get_mut(&input.formula) else {
-            continue;
-        };
-        let anode_id = ANodeId::from_uuid(input.anode.0);
-        let Some(anode) = formula.graph.nodes.get_mut(&anode_id) else {
-            continue;
-        };
-        anode
-            .input_defaults
-            .insert(input.socket, RuntimeValue::Trigger(input.value));
-    }
-}
-
 fn formula_input_value_param(
     snapshot: &ProcessTreeSnapshot,
     param: NodeId,
@@ -816,6 +935,42 @@ fn formula_input_value_param(
     })
 }
 
+fn formula_input_runtime_value(
+    snapshot: &ProcessTreeSnapshot,
+    param: NodeId,
+    input: &FormulaInputValueParam,
+    formulas: &HashMap<NodeUuid, AlchemistFormula>,
+) -> Option<RuntimeValue> {
+    let param_value = snapshot.node(param)?.param_value.as_ref()?;
+    let value_type = formula_input_socket_value_type(formulas.get(&input.formula)?, input)?;
+    formula_param_to_runtime_value(param_value, &value_type).ok()
+}
+
+fn formula_input_socket_value_type(
+    formula: &AlchemistFormula,
+    input: &FormulaInputValueParam,
+) -> Option<ValueTypeId> {
+    let anode_id = ANodeId::from_uuid(input.anode.0);
+    let instance = formula.graph.nodes.get(&anode_id)?;
+    let value_types = value_type_registry();
+    let nodes = node_registry();
+    let declaration = nodes.get(&instance.type_id)?;
+    let signature = declaration.signature(
+        &SignatureCtx {
+            value_types: &value_types,
+            properties: Some(&formula.properties),
+        },
+        instance,
+        &instance.type_bindings,
+    );
+    let bindings = local_signature_bindings(&signature, instance);
+    let socket = signature
+        .inputs
+        .into_iter()
+        .find(|candidate| candidate.id == input.socket)?;
+    Some(constraint_value_type(&socket.constraint, &bindings))
+}
+
 fn input_value_socket_id(decl_id: &str) -> Option<&str> {
     decl_id
         .strip_prefix("inputs/")?
@@ -835,10 +990,43 @@ fn formula_libraries(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
         .collect()
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RuntimeInvalidation {
+    Formula(NodeUuid),
+    Processor(NodeId),
+    Topology,
+    Ignore,
+}
+
+fn runtime_invalidation_for_node(
+    snapshot: &ProcessTreeSnapshot,
+    manager: NodeId,
+    node_id: NodeId,
+) -> RuntimeInvalidation {
+    let mut current = Some(node_id);
+    while let Some(candidate) = current {
+        let Some(node) = snapshot.node(candidate) else {
+            return RuntimeInvalidation::Topology;
+        };
+        if node.node_type == FORMULA_NODE_TYPE {
+            return RuntimeInvalidation::Formula(node.uuid);
+        }
+        if node.node_type == PROCESSOR_NODE_TYPE {
+            return RuntimeInvalidation::Processor(candidate);
+        }
+        if candidate == manager || node.node_type == STATE_NODE_TYPE {
+            return RuntimeInvalidation::Topology;
+        }
+        current = node.parent;
+    }
+    RuntimeInvalidation::Ignore
+}
+
 fn collect_formulas_in_subtree(
     snapshot: &ProcessTreeSnapshot,
     parent: NodeId,
     formulas: &mut HashMap<NodeUuid, AlchemistFormula>,
+    stats: &mut StateMachineRuntimePerfStats,
 ) {
     for child in snapshot.child_ids(parent) {
         let Some(node) = snapshot.node(child) else {
@@ -848,10 +1036,11 @@ fn collect_formulas_in_subtree(
             if let Ok(formula) =
                 crate::app::state_machine_nodes_formula::formula_from_snapshot(snapshot, child)
             {
+                stats.formula_materializations += 1;
                 formulas.insert(node.uuid, formula);
             }
         } else {
-            collect_formulas_in_subtree(snapshot, child, formulas);
+            collect_formulas_in_subtree(snapshot, child, formulas, stats);
         }
     }
 }
@@ -1597,6 +1786,7 @@ fn processor_runtime_inputs(
     processor_node: NodeId,
     logical_tick: u64,
     dirty_input_source_params: &HashSet<NodeUuid>,
+    formula_input_values: &HashMap<StableRef, RuntimeValue>,
     input_manager_signal_ticks: &mut HashMap<String, u64>,
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
@@ -1606,6 +1796,9 @@ fn processor_runtime_inputs(
     ctx: &mut ProcessCtx,
 ) -> RuntimeInputSnapshot {
     let mut inputs = RuntimeInputSnapshot::default();
+    for (reference, value) in formula_input_values {
+        inputs.insert(reference.clone(), value.clone());
+    }
     if let Some(processor_uuid) = snapshot.node(processor_node).map(|node| node.uuid) {
         collect_processor_runtime_inputs(
             snapshot,

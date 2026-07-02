@@ -453,6 +453,24 @@ impl ProcessorRuntime {
         self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, managed_formula, false)
     }
 
+    pub fn compile_from_shared_formula_with_compile_ctx_preserving_compatible_lanes(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+        ctx: &CompileCtx<'_>,
+    ) -> bool {
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, managed_formula, true)
+    }
+
     pub fn compile_from_shared_formula_preserving_compatible_lanes(
         &mut self,
         processor: &Processor,
