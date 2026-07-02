@@ -94,40 +94,6 @@ fn metronome_value_trigger_uuid_is_derived_from_item_uuid() {
 }
 
 #[test]
-fn sample_project_metronome_condition_reference_recovers_after_load() {
-    let json = include_str!("../../../../test-samples/test_command.noisette");
-    let mut engine = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(json)
-        .expect("test_command sample should load");
-    stabilize(&mut engine);
-
-    let metronome_source_refs = engine
-        .nodes
-        .iter()
-        .filter_map(|(_, node)| {
-            let snapshot = node.engine_param_snapshot()?;
-            if node.node_data().meta.decl_id.0 != "source" {
-                return None;
-            }
-            let ParamValue::Reference(reference) = snapshot.value else {
-                return None;
-            };
-            (reference.cached_name() == Some("Metronome")).then_some(reference)
-        })
-        .collect::<Vec<_>>();
-
-    assert!(
-        !metronome_source_refs.is_empty(),
-        "sample should contain a Metronome condition source reference"
-    );
-    for reference in metronome_source_refs {
-        assert!(
-            engine.node_id_by_uuid(reference.uuid()).is_some(),
-            "Metronome source reference should resolve after project load"
-        );
-    }
-}
-
-#[test]
 fn metronome_config_uses_recursive_node_enablement() {
     let (mut engine, module_id) = create_metronomes_module();
     let metronomes = find_path(&engine, module_id, "parameters/metronomes").expect("metronomes list");

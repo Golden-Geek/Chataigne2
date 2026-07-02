@@ -96,7 +96,7 @@ fn duplicate_node(
 
 #[test]
 fn sample_project_structure_operations_stay_interactive() {
-    const SAMPLE: &str = "test_command.noisette";
+    const SAMPLE: &str = "test_perf.noisette";
 
     let path = sample_project_path(SAMPLE);
     let (loaded, load_ms) =
@@ -172,7 +172,7 @@ fn sample_project_structure_operations_stay_interactive() {
 
 #[test]
 fn sample_project_active_runtime_stays_responsive() {
-    const SAMPLE: &str = "test_command.noisette";
+    const SAMPLE: &str = "test_perf.noisette";
     const WARMUP: usize = 20;
     const MEASURED: usize = 80;
     let path = sample_project_path(SAMPLE);
