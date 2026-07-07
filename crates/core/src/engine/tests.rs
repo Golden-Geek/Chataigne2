@@ -6830,6 +6830,98 @@ fn control_mode_template_text_resolves_context_tokens_and_node_metadata() {
 }
 
 #[test]
+fn ui_intent_set_text_param_smart_owns_template_mode_switching() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(Folder::new("Track A".to_string()).into(), None);
+    engine.add_node(UserContextNode::new("Owner").into(), None);
+    engine.apply_edits().expect("initial add should succeed");
+
+    let track = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("track should exist");
+    let owner = engine
+        .nodes
+        .get(track)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("owner should exist");
+    let track_uuid = engine
+        .nodes
+        .get(track)
+        .expect("track node should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    engine.add_node(
+        Parameter::new(
+            "sequence",
+            ParamValue::Reference(NodeReference::new(track_uuid)),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        Some(owner),
+    );
+    engine.add_node(
+        Parameter::new(
+            "title",
+            ParamValue::Str(String::new()),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        Some(owner),
+    );
+    engine.apply_edits().expect("context parameters should be added");
+
+    let sequence = engine
+        .nodes
+        .get(owner)
+        .and_then(|node| node.node_data().first_child)
+        .expect("sequence should exist");
+    let title = engine
+        .nodes
+        .get(sequence)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("title should exist");
+
+    let template_ack = engine.apply_ui_intent(UiEditIntent::SetTextParamSmart {
+        node: title,
+        value: "Seq {sequence.$name}".to_string(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(template_ack.success, "smart template text should be accepted");
+    let title_snapshot = engine
+        .nodes
+        .get(title)
+        .and_then(|node| node.engine_param_snapshot())
+        .expect("title snapshot should exist");
+    assert_eq!(title_snapshot.control.mode, ParameterControlMode::TemplateText);
+    assert_eq!(
+        title_snapshot.control.spec,
+        ParameterControlSpec::TemplateText {
+            template: "Seq {sequence.$name}".to_string()
+        }
+    );
+
+    let manual_ack = engine.apply_ui_intent(UiEditIntent::SetTextParamSmart {
+        node: title,
+        value: "Manual title".to_string(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(manual_ack.success, "plain smart text should switch back to manual");
+    let title_snapshot = engine
+        .nodes
+        .get(title)
+        .and_then(|node| node.engine_param_snapshot())
+        .expect("title snapshot should exist");
+    assert_eq!(title_snapshot.control.mode, ParameterControlMode::Manual);
+    assert_eq!(title_snapshot.value, ParamValue::Str("Manual title".to_string()));
+}
+
+#[test]
 fn control_mode_template_text_is_rejected_for_non_string_parameter() {
     let root = Parameter::new("gain", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
     let mut engine = Engine::new(root);
@@ -9728,6 +9820,54 @@ fn ui_intent_set_param_control_state_applies_and_evaluates() {
         gain_after_redo.control.mode,
         ParameterControlMode::ContextLink,
         "redo should restore context-link mode"
+    );
+}
+
+#[test]
+fn ui_create_user_item_allocates_unique_labels_in_backend() {
+    let root: MacroTestNode = UiContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+
+    for _ in 0..2 {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: engine.root,
+            node_type: USER_CONTEXT_NODE_TYPE.to_string(),
+            label: Some("Signals".to_string()),
+            initial_params: Vec::new(),
+        });
+        assert!(ack.success, "context creation should succeed");
+    }
+
+    let first = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("first child should exist");
+    let second = engine
+        .nodes
+        .get(first)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("second child should exist");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(first)
+            .expect("first should exist")
+            .node_data()
+            .meta
+            .label,
+        "Signals"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .get(second)
+            .expect("second should exist")
+            .node_data()
+            .meta
+            .label,
+        "Signals 2"
     );
 }
 

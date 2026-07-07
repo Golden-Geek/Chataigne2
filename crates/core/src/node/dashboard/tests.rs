@@ -8,7 +8,9 @@ use crate::parameter::{
     CssUnit, CssValue, ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, ParameterSnapshot,
     RangeConstraint, ReferenceTargetKind,
 };
-use crate::ui_sync::{UiCreateUserItemInitialParam, UiEditIntent};
+use crate::ui_sync::{
+    UiCreateUserItemInitialParam, UiDashboardWidgetPlacement, UiDashboardWidgetSizeEnabled, UiEditIntent,
+};
 
 use super::{
     DASHBOARD_GENERIC_WIDGET_NODE_TYPE, DASHBOARD_NODE_TYPE, DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE,
@@ -1687,6 +1689,82 @@ fn ui_create_user_item_initial_params_materialize_dashboard_widget_without_follo
     assert_eq!(
         param_snapshot(&engine, height).value,
         ParamValue::CssValue(CssValue::new(6.0, CssUnit::Rem))
+    );
+}
+
+#[test]
+fn ui_intent_create_dashboard_generic_widget_applies_backend_defaults() {
+    let root: DashboardTestNode = Folder::new("Root").into();
+    let mut engine = Engine::new(root);
+
+    engine.add_node(
+        Parameter::new("Tempo", ParamValue::Float(120.0), ParameterChangeCheck::ValueChange).into(),
+        None,
+    );
+    engine.add_node(DashboardNode::new().into(), None);
+    engine.apply_edits().expect("initial nodes should apply");
+
+    let target_param = direct_child_by_type(&engine, engine.root, "float").expect("target parameter should exist");
+    let dashboard = direct_child_by_type(&engine, engine.root, DASHBOARD_NODE_TYPE).expect("dashboard should exist");
+    engine
+        .queue_catalog_create(dashboard, DASHBOARD_PAGE_NODE_TYPE, Some("Main".to_string()), None)
+        .expect("page creation should queue");
+    engine.apply_edits().expect("page creation should apply");
+    let page = first_child(&engine, dashboard);
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateDashboardGenericWidget {
+        parent: page,
+        target: target_param,
+        placement: Some(UiDashboardWidgetPlacement {
+            anchor: "center".to_string(),
+            position: (240.0, 160.0),
+            width: CssValue::new(18.0, CssUnit::Rem),
+            height: CssValue::new(6.0, CssUnit::Rem),
+            size_enabled: Some(UiDashboardWidgetSizeEnabled {
+                width: true,
+                height: true,
+            }),
+        }),
+        prev_sibling: None,
+    });
+    assert!(create_ack.success, "dashboard generic widget creation should succeed");
+
+    let widget = direct_child_by_type(&engine, page, DASHBOARD_GENERIC_WIDGET_NODE_TYPE)
+        .expect("page should contain the created generic widget");
+    let target_param_ref =
+        find_descendant_by_decl(&engine, widget, "target_param").expect("target param reference should exist");
+    let widget_kind =
+        find_descendant_by_decl(&engine, widget, "widget_kind").expect("widget kind parameter should exist");
+    let value_range =
+        find_descendant_by_decl(&engine, widget, "value_range").expect("value range parameter should exist");
+    let step = find_descendant_by_decl(&engine, widget, "step").expect("step parameter should exist");
+    let anchor = find_descendant_by_decl(&engine, widget, "anchor").expect("anchor parameter should exist");
+    let position = find_descendant_by_decl(&engine, widget, "position").expect("position parameter should exist");
+    let width = find_descendant_by_decl(&engine, widget, "width").expect("width parameter should exist");
+    let height = find_descendant_by_decl(&engine, widget, "height").expect("height parameter should exist");
+
+    assert_eq!(
+        param_snapshot(&engine, widget_kind).value,
+        ParamValue::Enum("slider".to_string())
+    );
+    assert_eq!(param_snapshot(&engine, value_range).value, ParamValue::Vec2(0.0, 120.0));
+    assert_eq!(param_snapshot(&engine, step).value, ParamValue::Float(0.01));
+    assert_eq!(
+        param_snapshot(&engine, anchor).value,
+        ParamValue::Enum("center".to_string())
+    );
+    assert_eq!(param_snapshot(&engine, position).value, ParamValue::Vec2(240.0, 160.0));
+    assert_eq!(
+        param_snapshot(&engine, width).value,
+        ParamValue::CssValue(CssValue::new(18.0, CssUnit::Rem))
+    );
+    assert_eq!(
+        param_snapshot(&engine, height).value,
+        ParamValue::CssValue(CssValue::new(6.0, CssUnit::Rem))
+    );
+    assert!(
+        matches!(param_snapshot(&engine, target_param_ref).value, ParamValue::Reference(reference) if reference.cached_id() == Some(target_param)),
+        "target reference should point at the requested parameter"
     );
 }
 

@@ -359,6 +359,10 @@ struct BindingWriteScore {
 }
 
 impl<T: Node> Engine<T> {
+    pub(crate) fn text_param_input_uses_template_mode(&self, value: &str) -> bool {
+        text_has_template_token(value)
+    }
+
     pub(crate) fn mark_param_control_index_dirty(&mut self) {
         self.control_index_dirty = true;
     }
@@ -2241,6 +2245,12 @@ fn parse_template_segments(template: &str) -> Vec<TemplateSegment> {
     }
 
     out
+}
+
+pub(crate) fn text_has_template_token(template: &str) -> bool {
+    parse_template_segments(template)
+        .into_iter()
+        .any(|segment| matches!(segment, TemplateSegment::Token(token) if !token.is_empty()))
 }
 
 fn control_spec_matches_mode(mode: ParameterControlMode, spec: &ParameterControlSpec) -> bool {

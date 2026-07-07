@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -509,7 +509,19 @@ impl<T: Node> Engine<T> {
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
         let mut record = self.encode_node_record_with(source, &mut encode_data)?;
-        let label = label_override.unwrap_or_else(|| self.next_duplicate_label(new_parent, &record));
+        let source_label = record
+            .meta
+            .label
+            .as_deref()
+            .map(str::trim)
+            .filter(|label| !label.is_empty())
+            .unwrap_or(record.node_type.as_str());
+        let preferred_label = label_override
+            .as_deref()
+            .map(str::trim)
+            .filter(|label| !label.is_empty())
+            .unwrap_or(source_label);
+        let label = self.next_unique_child_label(new_parent, preferred_label);
         let short_name = generate_short_name(&label);
         record.meta.label = Some(label);
         record.meta.short_name = Some(short_name.clone());
@@ -555,47 +567,6 @@ impl<T: Node> Engine<T> {
         );
 
         Ok(duplicated_root)
-    }
-
-    fn next_duplicate_label(&self, parent: NodeId, record: &ProjectNodeRecord) -> String {
-        let source_label = record
-            .meta
-            .label
-            .as_deref()
-            .map(str::trim)
-            .filter(|label| !label.is_empty())
-            .unwrap_or(record.node_type.as_str());
-        let Some(parent_node) = self.nodes.get(parent) else {
-            return source_label.to_string();
-        };
-
-        let mut used_labels = HashSet::<String>::new();
-        let mut child = parent_node.node_data().first_child;
-        while let Some(child_id) = child {
-            let Some(child_node) = self.nodes.get(child_id) else {
-                break;
-            };
-            let child_data = child_node.node_data();
-            let label = child_data.meta.label.trim();
-            if !label.is_empty() {
-                used_labels.insert(label.to_string());
-            }
-            child = child_data.next_sibling;
-        }
-
-        if !used_labels.contains(source_label) {
-            return source_label.to_string();
-        }
-
-        let (base_label, first_suffix) = duplicate_label_base(source_label);
-        let mut suffix = first_suffix;
-        loop {
-            let candidate = format!("{base_label} {suffix}");
-            if !used_labels.contains(&candidate) {
-                return candidate;
-            }
-            suffix += 1;
-        }
     }
 
     /// Inserts one persisted node hierarchy beneath an existing parent.
@@ -1123,20 +1094,6 @@ fn generate_short_name(label: &str) -> String {
     }
 
     short_name
-}
-
-fn duplicate_label_base(label: &str) -> (&str, u64) {
-    let Some((base, suffix)) = label.rsplit_once(' ') else {
-        return (label, 2);
-    };
-    if base.trim().is_empty() {
-        return (label, 2);
-    }
-    suffix
-        .parse::<u64>()
-        .ok()
-        .filter(|suffix| *suffix >= 2)
-        .map_or((label, 2), |suffix| (base, suffix + 1))
 }
 
 #[cfg(test)]

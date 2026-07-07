@@ -9,14 +9,15 @@ use crate::engine::{Engine, EngineTime, ProjectPersistenceError};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
-    CurveBezierFitOptions, CurveFitPoint, CurveNode, DeclId, FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch,
-    NodeReference, NodeUserPermissions, NodeUuid, PresentationHint, UserCreatableItem, UserCreatableItemInitialParam,
-    UserNodeRole,
+    CurveBezierFitOptions, CurveFitPoint, CurveNode, DASHBOARD_GENERIC_WIDGET_NODE_TYPE,
+    DASHBOARD_NODE_WIDGET_NODE_TYPE, DASHBOARD_PAGE_NODE_TYPE, DASHBOARD_WIDGET_CONTAINER_NODE_TYPE, DeclId,
+    FOLDER_NODE_TYPE, Node, NodeId, NodeMeta, NodeMetaPatch, NodeReference, NodeUserPermissions, NodeUuid,
+    PresentationHint, UserCreatableItem, UserCreatableItemInitialParam, UserNodeRole,
 };
 use crate::parameter::{
-    ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
+    CssValue, ParamValue, ParamValueProjection, ParameterConstraints, ParameterControlMode, ParameterControlSpec,
     ParameterControlState, ParameterEnumOption, ParameterEventBehaviour, ParameterSnapshot, ParameterUiHints,
-    available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
+    RangeConstraint, available_control_modes_for_parameter, compatibility_for_binding_values, compatibility_for_values,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{ScriptNodeConfig, ScriptUiConfig, ScriptUiState};
@@ -639,6 +640,33 @@ impl From<UserCreatableItemInitialParam> for UiCreateUserItemInitialParam {
     }
 }
 
+/// Optional size-enabled hints for dashboard widget creation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDashboardWidgetSizeEnabled {
+    /// Whether width should be enabled when the parent layout uses horizontal sizing.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub width: bool,
+    /// Whether height should be enabled when the parent layout uses vertical sizing.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub height: bool,
+}
+
+/// UI-provided placement hint for dashboard widget creation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiDashboardWidgetPlacement {
+    /// Anchor used by free-layout parents.
+    pub anchor: String,
+    /// Position used by free-layout parents.
+    pub position: (f64, f64),
+    /// Preferred widget width.
+    pub width: CssValue,
+    /// Preferred widget height.
+    pub height: CssValue,
+    /// Optional size enablement hints for non-free layouts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_enabled: Option<UiDashboardWidgetSizeEnabled>,
+}
+
 /// One existing subtree root to clone as part of a copy batch.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UiDuplicateNodeSpec {
@@ -1161,6 +1189,16 @@ pub enum UiEditIntent {
         /// Requested coalescing behavior.
         behaviour: ParameterEventBehaviour,
     },
+    /// Apply inspector text-entry semantics to a string parameter.
+    SetTextParamSmart {
+        /// Target parameter node id.
+        node: NodeId,
+        /// Text entered by the client.
+        value: String,
+        /// Requested coalescing behavior.
+        #[serde(default, skip_serializing_if = "is_default_event_behaviour")]
+        behaviour: ParameterEventBehaviour,
+    },
     /// Set a parameter control state.
     SetParamControlState {
         /// Target parameter node id.
@@ -1207,6 +1245,74 @@ pub enum UiEditIntent {
         /// Optional direct parameter values applied before the intent completes.
         #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
         initial_params: Vec<UiCreateUserItemInitialParam>,
+    },
+    /// Creates a dashboard container widget from backend-owned defaults.
+    CreateDashboardContainerWidget {
+        /// Dashboard page or container receiving the widget.
+        parent: NodeId,
+        /// Optional explicit label.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        label: Option<String>,
+        /// Optional placement hint.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        placement: Option<UiDashboardWidgetPlacement>,
+        /// Optional child layout kind for the new container.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        layout_kind: Option<String>,
+        /// Optional sibling after which insertion occurs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        prev_sibling: Option<NodeId>,
+    },
+    /// Creates a dashboard node widget for one target node.
+    CreateDashboardNodeWidget {
+        /// Dashboard page or container receiving the widget.
+        parent: NodeId,
+        /// Target node rendered by the widget.
+        target: NodeId,
+        /// Optional placement hint.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        placement: Option<UiDashboardWidgetPlacement>,
+        /// Optional sibling after which insertion occurs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        prev_sibling: Option<NodeId>,
+    },
+    /// Creates a generic dashboard widget for one target parameter.
+    CreateDashboardGenericWidget {
+        /// Dashboard page or container receiving the widget.
+        parent: NodeId,
+        /// Target parameter bound by the widget.
+        target: NodeId,
+        /// Optional placement hint.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        placement: Option<UiDashboardWidgetPlacement>,
+        /// Optional sibling after which insertion occurs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        prev_sibling: Option<NodeId>,
+    },
+    /// Rebinds a dashboard node widget to one target node.
+    BindDashboardNodeWidgetTarget {
+        /// Existing dashboard node widget.
+        widget: NodeId,
+        /// Target node rendered by the widget.
+        target: NodeId,
+    },
+    /// Rebinds a generic dashboard widget to one target parameter.
+    BindDashboardGenericWidgetTarget {
+        /// Existing generic dashboard widget.
+        widget: NodeId,
+        /// Target parameter bound by the widget.
+        target: NodeId,
+    },
+    /// Wraps one dashboard widget in a newly-created container.
+    WrapDashboardWidgetInContainer {
+        /// Existing widget to wrap.
+        widget: NodeId,
+        /// Optional placement hint for the new container.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        placement: Option<UiDashboardWidgetPlacement>,
+        /// Optional child layout kind for the new container.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        layout_kind: Option<String>,
     },
     /// Duplicates an existing node subtree under `new_parent`.
     DuplicateNode {
@@ -1799,6 +1905,506 @@ impl<T: Node> Engine<T> {
         None
     }
 
+    fn ui_apply_set_text_param_smart(
+        &mut self,
+        node: NodeId,
+        value: String,
+        behaviour: ParameterEventBehaviour,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        const OPERATION: &str = "SetTextParamSmart";
+
+        let (node_type, snapshot) = {
+            let Some(target) = self.nodes.get(node) else {
+                return Err(crate::engine::EngineEditError::NodeNotFound {
+                    edit_index: 0,
+                    operation: OPERATION,
+                    node,
+                });
+            };
+            let node_type = target.get_type().to_string();
+            let Some(snapshot) = target.engine_param_snapshot() else {
+                return Err(crate::engine::EngineEditError::ParamEditTargetMismatch {
+                    edit_index: 0,
+                    node,
+                    node_type,
+                });
+            };
+            (node_type, snapshot)
+        };
+
+        if !matches!(snapshot.value, ParamValue::Str(_)) {
+            return Err(crate::engine::EngineEditError::ParamConstraintViolation {
+                edit_index: 0,
+                node,
+                node_type,
+                message: "smart text entry requires a string parameter".to_string(),
+            });
+        }
+
+        if self.text_param_input_uses_template_mode(value.as_str()) {
+            let state = ParameterControlState::new(
+                ParameterControlMode::TemplateText,
+                ParameterControlSpec::TemplateText { template: value },
+            );
+            if let Some(effect) = self.apply_set_param_control_state(0, node, state)? {
+                self.record_set_param_control_state_history(effect);
+            }
+            return Ok(());
+        }
+
+        if snapshot.control.mode != ParameterControlMode::Manual {
+            let state = ParameterControlState::new(ParameterControlMode::Manual, ParameterControlSpec::Manual);
+            if let Some(effect) = self.apply_set_param_control_state(0, node, state)? {
+                self.record_set_param_control_state_history(effect);
+            }
+        }
+
+        self.edits.push(Edit::SetParam {
+            node,
+            value: ParamValue::Str(value),
+            behaviour,
+        });
+        self.apply_ui_stabilization_to_fixed_point(16)
+    }
+
+    fn ui_dashboard_initial_param(decl_id: &str, value: ParamValue) -> UiCreateUserItemInitialParam {
+        UiCreateUserItemInitialParam {
+            decl_id: DeclId(decl_id.to_string()),
+            value,
+        }
+    }
+
+    fn ui_dashboard_rejection(
+        &self,
+        operation: &'static str,
+        node: NodeId,
+        message: impl Into<String>,
+    ) -> crate::engine::EngineEditError {
+        crate::engine::EngineEditError::NodeMutationRejected {
+            edit_index: 0,
+            operation,
+            node,
+            node_type: self
+                .nodes
+                .get(node)
+                .map(|node| node.get_type().to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            message: message.into(),
+        }
+    }
+
+    fn ui_node_reference_for(&self, node: NodeId) -> Result<NodeReference, crate::engine::EngineEditError> {
+        const OPERATION: &str = "DashboardWidgetReference";
+        let Some(target) = self.nodes.get(node) else {
+            return Err(crate::engine::EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation: OPERATION,
+                node,
+            });
+        };
+        let node_data = target.node_data();
+        let mut reference = NodeReference::with_cached_id(node_data.meta.uuid, Some(node));
+        reference.cached_name = Some(node_data.meta.label.clone());
+        Ok(reference)
+    }
+
+    fn ui_dashboard_parent_layout_kind(&self, parent: NodeId) -> String {
+        let snapshot = self.build_process_tree_snapshot();
+        let Some(parent_node) = snapshot.node(parent) else {
+            return "free".to_string();
+        };
+        if !matches!(
+            parent_node.node_type.as_str(),
+            DASHBOARD_PAGE_NODE_TYPE | DASHBOARD_WIDGET_CONTAINER_NODE_TYPE
+        ) {
+            return "free".to_string();
+        }
+        snapshot
+            .resolve_path_from(parent, "layout/layout_kind")
+            .or_else(|| snapshot.resolve_path_from(parent, "layout_kind"))
+            .and_then(|layout_kind| snapshot.node(layout_kind))
+            .and_then(|layout_kind| layout_kind.param_value.as_ref())
+            .and_then(|value| value.as_enum().or_else(|| value.as_str()))
+            .unwrap_or_else(|| "free".to_string())
+    }
+
+    fn ui_dashboard_placement_initial_params(
+        &self,
+        parent: NodeId,
+        placement: Option<&UiDashboardWidgetPlacement>,
+    ) -> Vec<UiCreateUserItemInitialParam> {
+        let Some(placement) = placement else {
+            return Vec::new();
+        };
+        let parent_layout_kind = self.ui_dashboard_parent_layout_kind(parent);
+        let mut params = Vec::new();
+
+        if parent_layout_kind == "free" || parent_layout_kind == "horizontal" {
+            params.push(Self::ui_dashboard_initial_param(
+                "layout/width",
+                ParamValue::CssValue(placement.width),
+            ));
+        }
+
+        if parent_layout_kind == "free" || parent_layout_kind == "vertical" {
+            params.push(Self::ui_dashboard_initial_param(
+                "layout/height",
+                ParamValue::CssValue(placement.height),
+            ));
+        }
+
+        if parent_layout_kind == "free" {
+            params.push(Self::ui_dashboard_initial_param(
+                "layout/anchor",
+                ParamValue::Enum(placement.anchor.clone()),
+            ));
+            params.push(Self::ui_dashboard_initial_param(
+                "layout/position",
+                ParamValue::Vec2(placement.position.0, placement.position.1),
+            ));
+        }
+
+        params
+    }
+
+    fn ui_dashboard_apply_widget_sizing_mode(
+        &mut self,
+        widget: NodeId,
+        parent: NodeId,
+        placement: Option<&UiDashboardWidgetPlacement>,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        let parent_layout_kind = self.ui_dashboard_parent_layout_kind(parent);
+        let size_enabled = placement.and_then(|placement| placement.size_enabled);
+        let patch_enabled =
+            |engine: &mut Self, decl_id: &str, enabled: bool| -> Result<(), crate::engine::EngineEditError> {
+                let Some(param) = engine.ui_find_created_item_param_node(widget, decl_id) else {
+                    return Ok(());
+                };
+                engine.edits.push(Edit::PatchMeta {
+                    node: param,
+                    patch: NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                });
+                engine.apply_ui_initialization_to_fixed_point(16)
+            };
+
+        match parent_layout_kind.as_str() {
+            "free" => {
+                patch_enabled(self, "width", true)?;
+                patch_enabled(self, "height", true)?;
+            }
+            "horizontal" => {
+                patch_enabled(self, "width", size_enabled.map(|value| value.width).unwrap_or(false))?;
+            }
+            "vertical" => {
+                patch_enabled(self, "height", size_enabled.map(|value| value.height).unwrap_or(false))?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn ui_dashboard_slider_range(value: &ParamValue, constraints: &ParameterConstraints) -> (f64, f64) {
+        let current = match value {
+            ParamValue::Int(value) => f64::from(*value),
+            ParamValue::Float(value) => *value,
+            _ => 0.0,
+        };
+        if let Some(RangeConstraint::Uniform { min, max }) = &constraints.range {
+            return (
+                min.unwrap_or_else(|| current.min(0.0)),
+                max.unwrap_or_else(|| current.max(1.0)),
+            );
+        }
+        if (0.0..=1.0).contains(&current) {
+            return (0.0, 1.0);
+        }
+        (current.min(0.0), current.max(1.0))
+    }
+
+    fn ui_dashboard_generic_widget_initial_params(
+        &self,
+        target: NodeId,
+        placement_parent: NodeId,
+        placement: Option<&UiDashboardWidgetPlacement>,
+    ) -> Result<Vec<UiCreateUserItemInitialParam>, crate::engine::EngineEditError> {
+        const OPERATION: &str = "CreateDashboardGenericWidget";
+        let Some(target_node) = self.nodes.get(target) else {
+            return Err(crate::engine::EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation: OPERATION,
+                node: target,
+            });
+        };
+        let label = target_node.node_data().meta.label.clone();
+        let Some(snapshot) = target_node.engine_param_snapshot() else {
+            return Err(self.ui_dashboard_rejection(
+                OPERATION,
+                target,
+                "generic dashboard widgets require a parameter target",
+            ));
+        };
+
+        let mut params = vec![Self::ui_dashboard_initial_param(
+            "binding/target_param",
+            ParamValue::Reference(self.ui_node_reference_for(target)?),
+        )];
+
+        match &snapshot.value {
+            ParamValue::Trigger() => {
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("button".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param("content/text", ParamValue::Str(label)));
+            }
+            ParamValue::Bool(value) => {
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("checkbox".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param("content/text", ParamValue::Str(label)));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/default_checked",
+                    ParamValue::Bool(*value),
+                ));
+            }
+            ParamValue::Int(_) | ParamValue::Float(_) => {
+                let (min, max) = Self::ui_dashboard_slider_range(&snapshot.value, &snapshot.constraints);
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("slider".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/value_range",
+                    ParamValue::Vec2(min, max),
+                ));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/step",
+                    ParamValue::Float(if matches!(snapshot.value, ParamValue::Int(_)) {
+                        1.0
+                    } else {
+                        0.01
+                    }),
+                ));
+            }
+            ParamValue::Str(value) => {
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("textInput".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/placeholder",
+                    ParamValue::Str(label),
+                ));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/multiline",
+                    ParamValue::Bool(value.contains('\n') || value.trim().len() > 48),
+                ));
+            }
+            ParamValue::File(_) | ParamValue::Enum(_) | ParamValue::CssValue(_) => {
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("textInput".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/placeholder",
+                    ParamValue::Str(label),
+                ));
+            }
+            _ => {
+                params.push(Self::ui_dashboard_initial_param(
+                    "content/widget_kind",
+                    ParamValue::Enum("text".to_string()),
+                ));
+                params.push(Self::ui_dashboard_initial_param("content/text", ParamValue::Str(label)));
+            }
+        }
+
+        params.extend(self.ui_dashboard_placement_initial_params(placement_parent, placement));
+        Ok(params)
+    }
+
+    fn ui_apply_create_dashboard_container_widget(
+        &mut self,
+        parent: NodeId,
+        label: Option<String>,
+        placement: Option<UiDashboardWidgetPlacement>,
+        layout_kind: Option<String>,
+        prev_sibling: Option<NodeId>,
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
+        let mut initial_params = self.ui_dashboard_placement_initial_params(parent, placement.as_ref());
+        if let Some(layout_kind) = layout_kind {
+            initial_params.push(Self::ui_dashboard_initial_param(
+                "layout/layout_kind",
+                ParamValue::Enum(layout_kind),
+            ));
+        }
+        let created = self.ui_apply_create_user_item_returning_node(
+            parent,
+            DASHBOARD_WIDGET_CONTAINER_NODE_TYPE.to_string(),
+            Some(
+                label
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "Container".to_string()),
+            ),
+            initial_params,
+        )?;
+        if prev_sibling.is_some() {
+            self.edits.push(Edit::MoveNode {
+                node: created,
+                new_parent: parent,
+                new_prev_sibling: prev_sibling,
+            });
+            self.apply_ui_initialization_to_fixed_point(16)?;
+        }
+        self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
+        Ok(created)
+    }
+
+    fn ui_apply_create_dashboard_node_widget(
+        &mut self,
+        parent: NodeId,
+        target: NodeId,
+        placement: Option<UiDashboardWidgetPlacement>,
+        prev_sibling: Option<NodeId>,
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
+        const OPERATION: &str = "CreateDashboardNodeWidget";
+        let Some(target_node) = self.nodes.get(target) else {
+            return Err(crate::engine::EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation: OPERATION,
+                node: target,
+            });
+        };
+        let label = target_node.node_data().meta.label.clone();
+        let mut initial_params = vec![Self::ui_dashboard_initial_param(
+            "widget/target_node",
+            ParamValue::Reference(self.ui_node_reference_for(target)?),
+        )];
+        initial_params.extend(self.ui_dashboard_placement_initial_params(parent, placement.as_ref()));
+        let created = self.ui_apply_create_user_item_returning_node(
+            parent,
+            DASHBOARD_NODE_WIDGET_NODE_TYPE.to_string(),
+            Some(label),
+            initial_params,
+        )?;
+        if prev_sibling.is_some() {
+            self.edits.push(Edit::MoveNode {
+                node: created,
+                new_parent: parent,
+                new_prev_sibling: prev_sibling,
+            });
+            self.apply_ui_initialization_to_fixed_point(16)?;
+        }
+        self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
+        Ok(created)
+    }
+
+    fn ui_apply_create_dashboard_generic_widget(
+        &mut self,
+        parent: NodeId,
+        target: NodeId,
+        placement: Option<UiDashboardWidgetPlacement>,
+        prev_sibling: Option<NodeId>,
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
+        const OPERATION: &str = "CreateDashboardGenericWidget";
+        let Some(target_node) = self.nodes.get(target) else {
+            return Err(crate::engine::EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation: OPERATION,
+                node: target,
+            });
+        };
+        let label = target_node.node_data().meta.label.clone();
+        let initial_params = self.ui_dashboard_generic_widget_initial_params(target, parent, placement.as_ref())?;
+        let created = self.ui_apply_create_user_item_returning_node(
+            parent,
+            DASHBOARD_GENERIC_WIDGET_NODE_TYPE.to_string(),
+            Some(label),
+            initial_params,
+        )?;
+        if prev_sibling.is_some() {
+            self.edits.push(Edit::MoveNode {
+                node: created,
+                new_parent: parent,
+                new_prev_sibling: prev_sibling,
+            });
+            self.apply_ui_initialization_to_fixed_point(16)?;
+        }
+        self.ui_dashboard_apply_widget_sizing_mode(created, parent, placement.as_ref())?;
+        Ok(created)
+    }
+
+    fn ui_apply_bind_dashboard_node_widget_target(
+        &mut self,
+        widget: NodeId,
+        target: NodeId,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        let initial_params = vec![Self::ui_dashboard_initial_param(
+            "widget/target_node",
+            ParamValue::Reference(self.ui_node_reference_for(target)?),
+        )];
+        self.ui_apply_initial_params_to_node(widget, initial_params, "BindDashboardNodeWidgetTarget")
+    }
+
+    fn ui_apply_bind_dashboard_generic_widget_target(
+        &mut self,
+        widget: NodeId,
+        target: NodeId,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        let parent = self
+            .nodes
+            .get(widget)
+            .and_then(|node| node.node_data().parent)
+            .unwrap_or(widget);
+        let initial_params = self.ui_dashboard_generic_widget_initial_params(target, parent, None)?;
+        self.ui_apply_initial_params_to_node(widget, initial_params, "BindDashboardGenericWidgetTarget")
+    }
+
+    fn ui_apply_wrap_dashboard_widget_in_container(
+        &mut self,
+        widget: NodeId,
+        placement: Option<UiDashboardWidgetPlacement>,
+        layout_kind: Option<String>,
+    ) -> Result<(), crate::engine::EngineEditError> {
+        const OPERATION: &str = "WrapDashboardWidgetInContainer";
+        let Some(widget_node) = self.nodes.get(widget) else {
+            return Err(crate::engine::EngineEditError::NodeNotFound {
+                edit_index: 0,
+                operation: OPERATION,
+                node: widget,
+            });
+        };
+        let widget_data = widget_node.node_data();
+        let Some(parent) = widget_data.parent else {
+            return Err(self.ui_dashboard_rejection(OPERATION, widget, "widget has no parent"));
+        };
+        let label = widget_data.meta.label.trim().to_string();
+        let container_label = if label.is_empty() {
+            "Container".to_string()
+        } else {
+            format!("{label} Container")
+        };
+        let prev_sibling = widget_data.prev_sibling;
+        let container = self.ui_apply_create_dashboard_container_widget(
+            parent,
+            Some(container_label),
+            placement,
+            layout_kind.or_else(|| Some("vertical".to_string())),
+            prev_sibling,
+        )?;
+        self.edits.push(Edit::MoveNode {
+            node: widget,
+            new_parent: container,
+            new_prev_sibling: None,
+        });
+        self.apply_ui_initialization_to_fixed_point(16)
+    }
+
     fn ui_apply_create_user_item(
         &mut self,
         parent: NodeId,
@@ -2000,6 +2606,15 @@ impl<T: Node> Engine<T> {
                 let result = self.apply_ui_stabilization_to_fixed_point(16);
                 self.finish_ui_apply_now(before_len, result)
             }
+            UiEditIntent::SetTextParamSmart { node, value, behaviour } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Set text parameter",
+                    "__ui-set-text-param-smart",
+                    ui_client_instance_id,
+                    |engine| engine.ui_apply_set_text_param_smart(node, value, behaviour),
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
             UiEditIntent::SetParamControlState { node, state } => {
                 match self.apply_set_param_control_state(0, node, state.into()) {
                     Ok(Some(effect)) => {
@@ -2074,6 +2689,98 @@ impl<T: Node> Engine<T> {
                     "__ui-create-user-item",
                     ui_client_instance_id,
                     |engine| engine.ui_apply_create_user_item(parent, node_type, label, initial_params),
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::CreateDashboardContainerWidget {
+                parent,
+                label,
+                placement,
+                layout_kind,
+                prev_sibling,
+            } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Create dashboard container",
+                    "__ui-create-dashboard-container-widget",
+                    ui_client_instance_id,
+                    |engine| {
+                        engine
+                            .ui_apply_create_dashboard_container_widget(
+                                parent,
+                                label,
+                                placement,
+                                layout_kind,
+                                prev_sibling,
+                            )
+                            .map(|_| ())
+                    },
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::CreateDashboardNodeWidget {
+                parent,
+                target,
+                placement,
+                prev_sibling,
+            } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Create dashboard node widget",
+                    "__ui-create-dashboard-node-widget",
+                    ui_client_instance_id,
+                    |engine| {
+                        engine
+                            .ui_apply_create_dashboard_node_widget(parent, target, placement, prev_sibling)
+                            .map(|_| ())
+                    },
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::CreateDashboardGenericWidget {
+                parent,
+                target,
+                placement,
+                prev_sibling,
+            } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Create dashboard generic widget",
+                    "__ui-create-dashboard-generic-widget",
+                    ui_client_instance_id,
+                    |engine| {
+                        engine
+                            .ui_apply_create_dashboard_generic_widget(parent, target, placement, prev_sibling)
+                            .map(|_| ())
+                    },
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::BindDashboardNodeWidgetTarget { widget, target } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Bind dashboard node widget",
+                    "__ui-bind-dashboard-node-widget-target",
+                    ui_client_instance_id,
+                    |engine| engine.ui_apply_bind_dashboard_node_widget_target(widget, target),
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::BindDashboardGenericWidgetTarget { widget, target } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Bind dashboard generic widget",
+                    "__ui-bind-dashboard-generic-widget-target",
+                    ui_client_instance_id,
+                    |engine| engine.ui_apply_bind_dashboard_generic_widget_target(widget, target),
+                );
+                self.finish_ui_apply_now(before_len, result)
+            }
+            UiEditIntent::WrapDashboardWidgetInContainer {
+                widget,
+                placement,
+                layout_kind,
+            } => {
+                let result = self.apply_implicit_ui_edit_session(
+                    "Wrap dashboard widget in container",
+                    "__ui-wrap-dashboard-widget-in-container",
+                    ui_client_instance_id,
+                    |engine| engine.ui_apply_wrap_dashboard_widget_in_container(widget, placement, layout_kind),
                 );
                 self.finish_ui_apply_now(before_len, result)
             }

@@ -296,8 +296,10 @@ impl<T: Node> Engine<T> {
             });
         }
 
-        let tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
+        let mut tree = self.coerce_pending_node_tree(edit_index, OP, tree)?;
         self.ensure_item_kind_allowed(edit_index, OP, parent, tree.node.get_type(), tree.node.user_item_kind())?;
+        let label = self.next_unique_child_label(parent, tree.node.node_data().meta.label.as_str());
+        tree.node.node_data_mut().meta.label = label;
         let mut inserted = Vec::new();
         let root_id = self.insert_pending_node_tree(
             edit_index,
@@ -360,11 +362,13 @@ impl<T: Node> Engine<T> {
     pub(crate) fn apply_add_user_item(
         &mut self,
         edit_index: usize,
-        node: Box<dyn Node>,
+        mut node: Box<dyn Node>,
         parent: NodeId,
         prev_sibling: Option<NodeId>,
         creation_context: Option<NodeCreationContext>,
     ) -> Result<AddNodeEffect, EngineEditError> {
+        let label = self.next_unique_child_label(parent, node.node_data().meta.label.as_str());
+        node.node_data_mut().meta.label = label;
         self.apply_add_node_with_role(
             edit_index,
             "AddUserItem",

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::blueprints::{BlueprintDecl, BlueprintId, BlueprintInstanceMeta, BlueprintRegistry};
 use crate::edit::Edit;
@@ -117,6 +117,9 @@ impl<T: Node> Engine<T> {
                 node_type: node_type.clone(),
             })?;
 
+        let preferred_label = label.unwrap_or(catalog_item.label);
+        let resolved_label = self.next_unique_child_label(parent, preferred_label.as_str());
+
         if let Some(blueprint_id) = BlueprintRegistry::<T>::parse_type_id(node_type.as_str()) {
             if self.blueprints.blueprint(&blueprint_id).is_none() {
                 return Err(EngineEditError::UserItemTypeUnavailable {
@@ -131,12 +134,10 @@ impl<T: Node> Engine<T> {
                 blueprint_id: blueprint_id.to_string(),
                 parent,
                 prev_sibling,
-                label,
+                label: Some(resolved_label),
             });
             return Ok(());
         }
-
-        let resolved_label = label.unwrap_or(catalog_item.label);
 
         let Some(mut tree) = factory_node.create_user_item_tree(node_type.as_str()) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
@@ -178,7 +179,8 @@ impl<T: Node> Engine<T> {
         };
 
         let blueprint_version = decl.version;
-        let resolved_label = label.unwrap_or_else(|| decl.label.clone());
+        let preferred_label = label.unwrap_or_else(|| decl.label.clone());
+        let resolved_label = self.next_unique_child_label(parent, preferred_label.as_str());
         let mut node = decl.instantiate();
         node.node_data_mut().meta.label = resolved_label;
         let tag = format!("blueprint:{}", blueprint_id.as_str());
@@ -244,4 +246,58 @@ impl<T: Node> Engine<T> {
     fn item_requires_direct_catalog_host(&self, item: &UserCreatableItem) -> bool {
         item.node_type == "script" || item.node_type == USER_CONTEXT_NODE_TYPE
     }
+
+    pub(crate) fn next_unique_child_label(&self, parent: NodeId, preferred_label: &str) -> String {
+        let preferred_label = preferred_label.trim();
+        let preferred_label = if preferred_label.is_empty() {
+            "Item"
+        } else {
+            preferred_label
+        };
+        let Some(parent_node) = self.nodes.get(parent) else {
+            return preferred_label.to_string();
+        };
+
+        let mut used_labels = HashSet::<String>::new();
+        let mut child = parent_node.node_data().first_child;
+        while let Some(child_id) = child {
+            let Some(child_node) = self.nodes.get(child_id) else {
+                break;
+            };
+            let child_data = child_node.node_data();
+            let label = child_data.meta.label.trim();
+            if !label.is_empty() {
+                used_labels.insert(label.to_string());
+            }
+            child = child_data.next_sibling;
+        }
+
+        if !used_labels.contains(preferred_label) {
+            return preferred_label.to_string();
+        }
+
+        let (base_label, first_suffix) = unique_label_base(preferred_label);
+        let mut suffix = first_suffix;
+        loop {
+            let candidate = format!("{base_label} {suffix}");
+            if !used_labels.contains(&candidate) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+}
+
+fn unique_label_base(label: &str) -> (&str, u64) {
+    let Some((base, suffix)) = label.rsplit_once(' ') else {
+        return (label, 2);
+    };
+    if base.trim().is_empty() {
+        return (label, 2);
+    }
+    suffix
+        .parse::<u64>()
+        .ok()
+        .filter(|suffix| *suffix >= 2)
+        .map_or((label, 2), |suffix| (base, suffix + 1))
 }
