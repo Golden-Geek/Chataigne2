@@ -150,6 +150,7 @@
 	const ROUTING_MARGIN_REM = 16;
 	const ROUTING_BUCKET_REM = 16;
 	const ROUTING_MAX_VISITS = 24_000;
+	const SCROLL_TARGET_ACTIVATION_MS = 300;
 	const ROUTING_TURN_COST = 0.35;
 	const TITLE_DOUBLE_CLICK_MS = 300;
 	const TITLE_DOUBLE_CLICK_DISTANCE_PX = 6;
@@ -181,6 +182,9 @@
 	let nodeResizeGesture = $state<NodeResizeGesture | null>(null);
 	let selectionGesture = $state<SelectionGesture | null>(null);
 	let connectionDraft = $state<ConnectionDraft | null>(null);
+	let hoveredScrollTarget: HTMLElement | null = null;
+	let wheelScrollTarget: HTMLElement | null = null;
+	let scrollActivationTimer: ReturnType<typeof setTimeout> | null = null;
 	let dragPositions = $state<Record<string, GraphNodePosition>>({});
 	let optimisticPositions = $state<Record<string, GraphNodePosition>>({});
 	let resizeSizes = $state<Record<string, GraphNodeSize>>({});
@@ -1643,6 +1647,15 @@
 	};
 
 	const handlePointerMove = (event: PointerEvent): void => {
+		const hasActiveGesture =
+			selectionGesture?.pointerId === event.pointerId ||
+			panGesture?.pointerId === event.pointerId ||
+			nodeDragGesture?.pointerId === event.pointerId ||
+			nodeResizeGesture?.pointerId === event.pointerId ||
+			connectionDraft?.pointerId === event.pointerId;
+		if (!hasActiveGesture) {
+			updateScrollHoverTarget(event);
+		}
 		if (selectionGesture?.pointerId === event.pointerId) {
 			const pointer = localPointerPosition(event);
 			selectionGesture = {
@@ -2005,7 +2018,60 @@
 		}
 	};
 
+	const isScrollableElement = (element: HTMLElement): boolean => {
+		if (element.scrollHeight <= element.clientHeight) {
+			return false;
+		}
+		const overflowY = getComputedStyle(element).overflowY;
+		return overflowY === 'auto' || overflowY === 'scroll';
+	};
+
+	const findScrollableUnderPointer = (target: EventTarget | null): HTMLElement | null => {
+		let element = target instanceof HTMLElement ? target : null;
+		while (element && element !== container) {
+			if (isScrollableElement(element)) {
+				return element;
+			}
+			element = element.parentElement;
+		}
+		return null;
+	};
+
+	const clearScrollActivationTimer = (): void => {
+		if (scrollActivationTimer !== null) {
+			clearTimeout(scrollActivationTimer);
+			scrollActivationTimer = null;
+		}
+	};
+
+	// Briefly passing the pointer over a scrollable area keeps wheel = zoom; only once the
+	// pointer dwells there past SCROLL_TARGET_ACTIVATION_MS does wheel switch to scrolling it.
+	const updateScrollHoverTarget = (event: PointerEvent): void => {
+		const candidate = findScrollableUnderPointer(event.target);
+		if (candidate === hoveredScrollTarget) {
+			return;
+		}
+		hoveredScrollTarget = candidate;
+		wheelScrollTarget = null;
+		clearScrollActivationTimer();
+		if (candidate) {
+			scrollActivationTimer = setTimeout(() => {
+				wheelScrollTarget = candidate;
+				scrollActivationTimer = null;
+			}, SCROLL_TARGET_ACTIVATION_MS);
+		}
+	};
+
+	const resetScrollHoverTarget = (): void => {
+		hoveredScrollTarget = null;
+		wheelScrollTarget = null;
+		clearScrollActivationTimer();
+	};
+
 	const handleWheel = (event: WheelEvent): void => {
+		if (wheelScrollTarget && event.target instanceof Node && wheelScrollTarget.contains(event.target)) {
+			return;
+		}
 		event.preventDefault();
 		const bounds = container?.getBoundingClientRect();
 		if (!bounds) {
@@ -2079,6 +2145,7 @@
 		return () => {
 			observer.disconnect();
 			cancelCameraAnimation();
+			clearScrollActivationTimer();
 		};
 	});
 </script>
@@ -2106,6 +2173,7 @@
 	onpointermove={handlePointerMove}
 	onpointerup={handlePointerEnd}
 	onpointercancel={handlePointerEnd}
+	onpointerleave={resetScrollHoverTarget}
 	onkeydown={handleKeydown}
 	onwheel={handleWheel}
 	oncontextmenu={handleContextMenu}>
