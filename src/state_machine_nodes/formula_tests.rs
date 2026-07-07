@@ -1766,7 +1766,6 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
                     source,
                     new_parent: formula,
                     new_prev_sibling: Some(target),
-                    label: Some("Constant Copy".into()),
                     initial_params: vec![UiCreateUserItemInitialParam {
                         decl_id: DeclId("position".into()),
                         value: ParamValue::Vec2(22.0, 3.0),
@@ -1776,7 +1775,6 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
                     source: target,
                     new_parent: formula,
                     new_prev_sibling: None,
-                    label: Some("Debug Copy".into()),
                     initial_params: vec![UiCreateUserItemInitialParam {
                         decl_id: DeclId("position".into()),
                         value: ParamValue::Vec2(38.0, 3.0),
@@ -1845,7 +1843,7 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
         .graph
         .nodes
         .values()
-        .find(|node| node.label == "Constant Copy")
+        .find(|node| node.label == "Constant 2")
         .expect("Copied source ANode should materialize")
         .id
         .clone();
@@ -1853,7 +1851,7 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
         .graph
         .nodes
         .values()
-        .find(|node| node.label == "Debug Copy")
+        .find(|node| node.label == "Debug Log 2")
         .expect("Copied target ANode should materialize")
         .id
         .clone();

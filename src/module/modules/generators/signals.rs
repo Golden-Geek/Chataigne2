@@ -517,6 +517,12 @@ impl Node for SignalList {
         self.node_data_mut().meta.can_be_disabled = false;
     }
 
+    // Lifecycle hooks never read ctx.tree_snapshot(); opting out avoids a whole-tree
+    // snapshot per inserted list on bulk paths (project load adds one per module).
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[SIGNAL_ITEM_KIND]))
     }

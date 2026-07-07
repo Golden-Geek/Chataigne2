@@ -420,6 +420,11 @@ impl StateMachineManager {
         self.runtime_cache.perf_stats
     }
 
+    #[cfg(test)]
+    pub(crate) fn runtime_topology_dirty(&self) -> bool {
+        self.runtime_cache.topology_dirty
+    }
+
     fn mark_runtime_structure_dirty(&mut self, ctx: &mut ProcessCtx, node: NodeId) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             self.runtime_cache.topology_dirty = true;
@@ -1137,7 +1142,11 @@ fn runtime_invalidation_for_node(
             return RuntimeInvalidation::Formula(node.uuid);
         }
         if node.node_type == PROCESSOR_NODE_TYPE {
-            return RuntimeInvalidation::Processor(candidate);
+            return if candidate == node_id {
+                RuntimeInvalidation::Topology
+            } else {
+                RuntimeInvalidation::Processor(candidate)
+            };
         }
         if candidate == manager || node.node_type == STATE_NODE_TYPE {
             return RuntimeInvalidation::Topology;

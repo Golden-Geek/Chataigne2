@@ -471,12 +471,13 @@ export const findEmptyAlchemistDuplicateOffset = ({
 	return withBase({ x: stepX, y: stepY });
 };
 
-export const nextAlchemistCopyLabel = (
-	entry: AlchemistClipboardNode,
+export const nextAvailableAlchemistLabel = (
+	label: string,
+	fallbackLabel: string,
 	usedLabels: Set<string>
 ): string => {
-	const label = entry.label.trim();
-	const baseLabel = label.length > 0 ? `${label} Copy` : `${entry.node_type} Copy`;
+	const trimmed = label.trim();
+	const baseLabel = trimmed.length > 0 ? trimmed : fallbackLabel;
 	if (!usedLabels.has(baseLabel)) {
 		usedLabels.add(baseLabel);
 		return baseLabel;
@@ -489,13 +490,3 @@ export const nextAlchemistCopyLabel = (
 	usedLabels.add(next);
 	return next;
 };
-
-export const formulaChildLabels = (
-	formula: UiNodeDto,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
-): Set<string> =>
-	new Set(
-		formula.children
-			.map((childId) => nodesById.get(childId)?.meta.label.trim())
-			.filter((label): label is string => label !== undefined && label.length > 0)
-	);

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use chataigne_state_machine::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
@@ -12,6 +12,7 @@ use golden_alchemist::{
     primitive_node_registry,
 };
 use golden_core::{
+    app::ProjectNode,
     engine::EngineTime,
     node::{DeclId, Folder, Node},
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
@@ -25,9 +26,12 @@ use super::{
     next_input_value_condition_validity, next_input_value_condition_valid_state,
     output_preview_signature, processor_formula_from_snapshot, processor_formula_source_ref,
     processor_override_value, processor_should_evaluate, set_output_target_param,
-    should_emit_runtime_log, RuntimeLogKey, STATE_ITEM_KIND, StateMachineManager,
+    runtime_invalidation_for_node, should_emit_runtime_log, RuntimeInvalidation, RuntimeLogKey,
+    StateMachineManager, PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND,
 };
-use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
+use crate::app::state_machine_nodes_processor::{
+    FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID,
+};
 
 #[test]
 fn state_machine_manager_is_fixed_and_creates_states() {
@@ -188,6 +192,143 @@ fn processor_evaluation_requires_runtime_or_signal_reason() {
 }
 
 #[test]
+fn processor_root_invalidation_rebuilds_topology_but_descendants_are_local() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("state machine manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+
+    engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
+    engine
+        .apply_edits()
+        .expect("state should attach to the manager");
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, PROCESSOR_MANAGER_DECL_ID)
+        .expect("state should have a processor manager");
+
+    engine.add_user_item(
+        crate::app::StateProcessor::new().into(),
+        Some(processor_manager_id),
+    );
+    engine
+        .apply_edits()
+        .expect("processor should attach to the processor manager");
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == crate::app::StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    let formula_source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("processor should have a formula source key child");
+
+    assert_eq!(
+        runtime_invalidation_for_node(&snapshot, manager_id, processor_id),
+        RuntimeInvalidation::Topology
+    );
+    assert_eq!(
+        runtime_invalidation_for_node(&snapshot, manager_id, formula_source_key),
+        RuntimeInvalidation::Processor(processor_id)
+    );
+}
+
+#[test]
+fn duplicated_processor_marks_manager_topology_dirty_immediately() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("state machine manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+
+    engine.add_user_item(crate::app::StateMachineState::new().into(), Some(manager_id));
+    engine
+        .apply_edits()
+        .expect("state should attach to the manager");
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, PROCESSOR_MANAGER_DECL_ID)
+        .expect("state should have a processor manager");
+
+    engine.add_user_item(
+        crate::app::StateProcessor::new().into(),
+        Some(processor_manager_id),
+    );
+    engine
+        .apply_edits()
+        .expect("processor should attach to the processor manager");
+    run_manager_runtime_tick(&mut engine);
+    assert!(
+        !manager_topology_dirty(&engine, manager_id),
+        "initial processor topology should be rebuilt before duplication",
+    );
+
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == crate::app::StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    engine
+        .duplicate_subtree_with(
+            processor_id,
+            processor_manager_id,
+            Some(processor_id),
+            Some("Processor Copy".to_owned()),
+            |node| node.project_encode_data(),
+            <crate::app::AppNode as ProjectNode>::project_decode_node,
+        )
+        .expect("processor duplicate should succeed");
+
+    assert!(
+        manager_topology_dirty(&engine, manager_id),
+        "duplicating a processor must wake the state-machine runtime before any unrelated edit",
+    );
+}
+
+#[test]
 fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
     let formula = stateful_trigger_formula();
     let mut processor = Processor::from_formula("Processor", &formula);
@@ -276,6 +417,32 @@ fn manager_shared_compile_cache_compiles_formula_once() {
 
     assert!(Arc::ptr_eq(&first, &second));
     assert_eq!(manager.runtime_perf_stats().formula_compiles, 1);
+}
+
+fn run_manager_runtime_tick(engine: &mut crate::app::AppEngine) {
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("state-machine inbox should dispatch");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("state-machine runtime tick should run");
+    engine
+        .apply_edits()
+        .expect("state-machine runtime edits should apply");
+}
+
+fn manager_topology_dirty(
+    engine: &crate::app::AppEngine,
+    manager_id: golden_core::node::NodeId,
+) -> bool {
+    let crate::app::AppNode::StateMachineManager(manager) = engine
+        .nodes
+        .get(manager_id)
+        .expect("state machine manager should exist")
+    else {
+        panic!("expected StateMachineManager node");
+    };
+    manager.runtime_topology_dirty()
 }
 
 fn value_set_trigger_fired(value_set: &ValueSet, key: &str) -> bool {
