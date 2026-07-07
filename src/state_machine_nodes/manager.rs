@@ -34,7 +34,8 @@ use golden_core::{
 
 use crate::app::state_machine_nodes_formula::{
     anode_from_snapshot, constraint_value_type, formula_from_snapshot, local_signature_bindings,
-    param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param, ANODE_NODE_TYPE,
+    param_to_runtime_value as formula_param_to_runtime_value, runtime_value_to_param,
+    ANODE_NODE_TYPE, FORMULA_EXTERNAL_READ_ONLY_TAG,
 };
 use crate::app::state_machine_nodes_processor::{
     processor_managed_region_decl_id, FormulaCatalog, FormulaSourceRef,
@@ -1795,27 +1796,26 @@ fn processor_formula_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
     formulas: &HashMap<NodeUuid, AlchemistFormula>,
-    catalog: &FormulaCatalog,
+    _catalog: &FormulaCatalog,
 ) -> Option<(Option<NodeId>, AlchemistFormula, ProcessorFormulaUiState, String)> {
     let source = processor_formula_source_ref(snapshot, processor_node)?;
     let source_key = source.processor_create_type();
-    let formula_ui = catalog.formula_ui_state(&source);
-    match source {
-        FormulaSourceRef::ProjectNode(reference) => {
-            let uuid = reference.uuid();
-            let formula_node = snapshot.node_id_by_uuid(uuid)?;
-            formulas
-                .get(&uuid)
-                .cloned()
-                .map(|formula| (Some(formula_node), formula, formula_ui, source_key))
-        }
-        source @ FormulaSourceRef::Builtin { .. } => {
-            catalog
-                .resolve_builtin(&source)
-                .ok()
-                .map(|formula| (None, formula, formula_ui, source_key))
-        }
-    }
+    let FormulaSourceRef::ProjectNode(reference) = source;
+    let uuid = reference.uuid();
+    let formula_node = snapshot.node_id_by_uuid(uuid)?;
+    let formula_ui = snapshot
+        .node(formula_node)
+        .filter(|node| {
+            node.tags
+                .iter()
+                .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
+        })
+        .map(|_| ProcessorFormulaUiState::builtin(true, false))
+        .unwrap_or_else(ProcessorFormulaUiState::project);
+    formulas
+        .get(&uuid)
+        .cloned()
+        .map(|formula| (Some(formula_node), formula, formula_ui, source_key))
 }
 
 fn apply_processor_managed_regions(

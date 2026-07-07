@@ -341,25 +341,26 @@ fn sync_processor_surface_order(
 }
 
 fn reconcile_properties_level(
-    snapshot: &ProcessTreeSnapshot,
+    source_snapshot: &ProcessTreeSnapshot,
     source_container: NodeId,
+    dest_snapshot: &ProcessTreeSnapshot,
     dest_container: NodeId,
     ctx: &mut ProcessCtx,
 ) {
     let mut desired = HashSet::new();
     let mut desired_children = Vec::new();
     let mut previous_existing = None;
-    for source in snapshot.child_ids(source_container) {
-        let Some(source_node) = snapshot.node(source) else {
+    for source in source_snapshot.child_ids(source_container) {
+        let Some(source_node) = source_snapshot.node(source) else {
             continue;
         };
         let decl_id = processor_surface_decl_id(source_node.uuid);
-        let Some(expected_tree) = processor_surface_child_tree(snapshot, source) else {
+        let Some(expected_tree) = processor_surface_child_tree(source_snapshot, source) else {
             continue;
         };
         desired.insert(decl_id.clone());
         let Some(existing) =
-            snapshot.find_child_by_decl_id(dest_container, &decl_id)
+            dest_snapshot.find_child_by_decl_id(dest_container, &decl_id)
         else {
             let already_queued = ctx.edits.pending.iter().any(|req| {
                 if let Edit::AddNodeTree { tree, parent: p, .. } = &req.edit {
@@ -378,7 +379,7 @@ fn reconcile_properties_level(
             }
             continue;
         };
-        let Some(existing_node) = snapshot.node(existing) else {
+        let Some(existing_node) = dest_snapshot.node(existing) else {
             continue;
         };
         desired_children.push(existing);
@@ -410,15 +411,15 @@ fn reconcile_properties_level(
         }
         if source_node.node_type == PROPERTY_NODE_TYPE {
             let Some(source_value) =
-                snapshot.find_child_by_decl_id(source, "value")
+                source_snapshot.find_child_by_decl_id(source, "value")
             else {
                 continue;
             };
-            if let Some(constraints) = snapshot
+            if let Some(constraints) = source_snapshot
                 .node(source_value)
                 .and_then(|node| node.param_constraints.clone())
                 .filter(|constraints| {
-                    snapshot
+                    dest_snapshot
                         .node(existing)
                         .and_then(|node| node.param_constraints.as_ref())
                         != Some(constraints)
@@ -430,14 +431,20 @@ fn reconcile_properties_level(
                 });
             }
         } else if source_node.node_type == PROPERTY_FOLDER_NODE_TYPE {
-            reconcile_properties_level(snapshot, source, existing, ctx);
+            reconcile_properties_level(
+                source_snapshot,
+                source,
+                dest_snapshot,
+                existing,
+                ctx,
+            );
         }
     }
 
-    sync_processor_surface_order(snapshot, dest_container, &desired_children, ctx);
+    sync_processor_surface_order(dest_snapshot, dest_container, &desired_children, ctx);
 
-    for child in snapshot.child_ids(dest_container) {
-        let Some(node) = snapshot.node(child) else {
+    for child in dest_snapshot.child_ids(dest_container) {
+        let Some(node) = dest_snapshot.node(child) else {
             continue;
         };
         if node.decl_id.starts_with(PROCESSOR_SURFACE_DECL_PREFIX)
@@ -610,13 +617,6 @@ impl StateProcessorManager {
 
 fn create_processor_for_formula_type(node_type: &str) -> Option<Box<dyn Node>> {
     let source = FormulaSourceRef::parse_processor_create_type(node_type).ok()?;
-    if matches!(source, FormulaSourceRef::Builtin { .. })
-        && FormulaCatalog::with_builtins()
-            .resolve_builtin(&source)
-            .is_err()
-    {
-        return None;
-    }
     let mut processor = StateProcessor::new();
     processor.set_formula_source(source);
     Some(Box::new(processor))
@@ -824,16 +824,9 @@ impl Node for StateProcessor {
 impl StateProcessor {
     fn set_formula_source(&mut self, source: FormulaSourceRef) {
         self.formula_source = ProcessorFormulaSourceState::from_source(&source);
-        match source {
-            FormulaSourceRef::ProjectNode(reference) => self.formula.apply_runtime_value(
-                &ParamValue::Reference(reference),
-            ),
-            FormulaSourceRef::Builtin { .. } => {
-                self.formula.apply_runtime_value(&ParamValue::Reference(
-                    NodeReference::default(),
-                ))
-            }
-        };
+        let FormulaSourceRef::ProjectNode(reference) = source;
+        self.formula
+            .apply_runtime_value(&ParamValue::Reference(reference));
         self.sync_formula_source_key();
     }
 
@@ -876,10 +869,8 @@ impl StateProcessor {
     }
 
     fn formula_node(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
-        let FormulaSourceRef::ProjectNode(reference) =
-            self.formula_source_ref().ok().flatten()?
-        else {
-            return None;
+        let reference = match self.formula_source_ref().ok().flatten()? {
+            FormulaSourceRef::ProjectNode(reference) => reference,
         };
         snapshot.node_id_by_uuid(reference.uuid()).filter(|formula| {
             snapshot
@@ -904,10 +895,28 @@ impl StateProcessor {
         self.subscribed_formula = next;
     }
 
-    fn reconcile_formula(&self, ctx: &mut ProcessCtx) {
+    fn reconcile_formula(&mut self, ctx: &mut ProcessCtx) {
         self.reconcile_formula_properties(ctx);
         self.reconcile_formula_managed_regions(ctx);
         self.reconcile_formula_warning(ctx);
+        self.reconcile_formula_icon(ctx);
+    }
+
+    /// Mirrors the referenced formula's icon onto the processor itself, so a
+    /// processor built from a formula with a custom icon (e.g. a built-in
+    /// formula with a sibling `.svg`/`.png`) shows the same icon wherever the
+    /// processor is displayed.
+    fn reconcile_formula_icon(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let icon = self
+            .formula_node(&snapshot)
+            .and_then(|formula| snapshot.node(formula))
+            .and_then(|formula| formula.presentation.icon.clone());
+        if self.node_data().meta.presentation.icon != icon {
+            self.node_data_mut().meta.presentation.icon = icon;
+        }
     }
 
     /// Surface a warning on the processor itself when its formula reference is
@@ -925,13 +934,6 @@ impl StateProcessor {
                 "Missing formula",
                 "This processor has no formula assigned.".to_owned(),
             )),
-            Ok(Some(source @ FormulaSourceRef::Builtin { .. })) => {
-                let catalog = FormulaCatalog::from_snapshot(&snapshot);
-                catalog
-                    .resolve_builtin(&source)
-                    .err()
-                    .map(|error| ("Missing formula", error.to_string()))
-            }
             Ok(Some(FormulaSourceRef::ProjectNode(_))) => match self.formula_node(&snapshot) {
                 None => Some((
                     "Missing formula",
@@ -981,6 +983,10 @@ impl StateProcessor {
         // Properties are mirrored flat at the processor's top level (no
         // intermediate "Properties" folder), so the processor node itself is
         // the destination container for the formula's property surfaces.
+        let Ok(Some(FormulaSourceRef::ProjectNode(_))) = self.formula_source_ref() else {
+            remove_processor_surface_children(&snapshot, self.id(), ctx);
+            return;
+        };
         let Some(formula) = self.formula_node(&snapshot) else {
             remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
@@ -991,28 +997,23 @@ impl StateProcessor {
             remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
         };
-
-        reconcile_properties_level(&snapshot, source_properties, self.id(), ctx);
+        reconcile_properties_level(
+            &snapshot,
+            source_properties,
+            &snapshot,
+            self.id(),
+            ctx,
+        );
     }
 
     fn managed_region_definitions(
         &self,
         snapshot: &ProcessTreeSnapshot,
     ) -> Vec<ManagedRegionDefinition> {
-        match self.formula_source_ref() {
-            Ok(Some(source @ FormulaSourceRef::Builtin { .. })) => {
-                FormulaCatalog::from_snapshot(snapshot)
-                    .resolve_builtin(&source)
-                    .map(|formula| formula.surface.managed_regions)
-                    .unwrap_or_default()
-            }
-            Ok(Some(FormulaSourceRef::ProjectNode(_))) => self
-                .formula_node(snapshot)
-                .and_then(|formula| formula_from_snapshot(snapshot, formula).ok())
-                .map(|formula| formula.surface.managed_regions)
-                .unwrap_or_default(),
-            _ => Vec::new(),
-        }
+        self.formula_node(snapshot)
+            .and_then(|formula| formula_from_snapshot(snapshot, formula).ok())
+            .map(|formula| formula.surface.managed_regions)
+            .unwrap_or_default()
     }
 
     fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {

@@ -1,5 +1,6 @@
 use golden_core::{
-    node::{Folder, Node, NodeId},
+    edit::{Edit, NodeTree},
+    node::{Folder, Node, NodeId, NodeMetaPatch, PresentationHint},
     parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
     ui_sync::UiEditIntent,
@@ -7,11 +8,11 @@ use golden_core::{
 
 use crate::app::{
     AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager, FilterChainManager,
-    FormulaLibrary, InputsManager, OutputsManager,
+    FormulaLibrary, InputsManager, OutputsManager, StateMachineManager,
 };
 
 use super::{
-    FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    FormulaCatalog, FormulaSourceRef,
     PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
     PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_ITEM_KIND,
     PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
@@ -84,10 +85,7 @@ fn processor_manager_lists_custom_formulas() {
         formula_items[0].node_type,
         format!("state_processor:project:{}", formula_uuid.0)
     );
-    assert_eq!(
-        formula_items[0].menu_path,
-        vec!["Project Formulas".to_string()]
-    );
+    assert!(formula_items[0].menu_path.is_empty());
 }
 
 #[test]
@@ -110,55 +108,17 @@ fn formula_library_lists_formula_creation_items_only() {
 }
 
 #[test]
-fn invalid_builtin_formula_source_fails_cleanly() {
-    let catalog = FormulaCatalog::with_builtins();
-    let source = FormulaSourceRef::builtin("example", "missing", 1);
-    let error = catalog
-        .resolve_builtin(&source)
-        .expect_err("unknown builtin should fail");
-
-    assert!(error
-        .to_string()
-        .contains("builtin formula source 'builtin:example.missing@1'"));
-
-    let parse_error = FormulaSourceRef::parse_processor_create_type(
-        "state_processor:builtin:example.formula@bad",
-    )
-    .expect_err("invalid builtin version should fail");
-    assert!(parse_error
-        .to_string()
-        .contains("invalid builtin formula version"));
-}
-
-#[test]
-fn builtin_formula_sources_parse_without_shipping_named_defaults() {
-    let source = FormulaSourceRef::parse_processor_create_type(
-        "state_processor:builtin:example.formula@1",
-    )
-    .expect("builtin source should parse");
-    let FormulaSourceRef::Builtin {
-        package,
-        formula_id,
-        version,
-    } = source
-    else {
-        panic!("expected builtin source");
-    };
-
-    assert_eq!(package.as_ref(), "example");
-    assert_eq!(formula_id.as_ref(), "formula");
-    assert_eq!(version, 1);
-}
-
-#[test]
-fn unknown_builtin_processor_source_is_not_creatable() {
+fn legacy_builtin_processor_source_is_not_creatable() {
     let manager = StateProcessorManager::new();
 
-    let processor = manager.create_user_item("state_processor:builtin:example.missing@1");
+    let source = "state_processor:builtin:example.formula@1";
+    FormulaSourceRef::parse_processor_create_type(source)
+        .expect_err("legacy built-in sources should not parse");
+    let processor = manager.create_user_item(source);
 
     assert!(
         processor.is_none(),
-        "unknown built-in processor sources must fail at the creation boundary"
+        "legacy built-in processor sources must fail at the creation boundary"
     );
 }
 
@@ -179,63 +139,6 @@ fn processor_created_from_typed_project_item_keeps_source_and_reference() {
         Ok(Some(FormulaSourceRef::ProjectNode(reference))) if reference.uuid() == formula_uuid
     ));
     assert_eq!(processor.formula.get_ref().uuid(), formula_uuid);
-}
-
-#[test]
-fn processor_formula_source_state_serializes_builtin_source() {
-    let state = ProcessorFormulaSourceState::from_source(&FormulaSourceRef::builtin(
-        "example",
-        "formula",
-        1,
-    ));
-    let json = serde_json::to_string(&state).expect("source state should serialize");
-    let restored: ProcessorFormulaSourceState =
-        serde_json::from_str(&json).expect("source state should deserialize");
-
-    assert_eq!(restored, state);
-    assert!(matches!(
-        restored.to_source_ref(),
-        Ok(Some(FormulaSourceRef::Builtin {
-            package,
-            formula_id,
-            version,
-        })) if package.as_ref() == "example"
-            && formula_id.as_ref() == "formula"
-            && version == 1
-    ));
-}
-
-#[test]
-fn unresolved_builtin_processor_source_sets_missing_formula_warning() {
-    let (mut engine, _, _) = engine_with_formula();
-    engine.add_node(StateProcessorManager::new().into(), None);
-    engine.apply_edits().expect("manager should attach");
-    let manager_id = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
-        .map(|(id, _)| id)
-        .expect("processor manager should exist");
-    let mut processor = StateProcessor::new();
-    processor.set_formula_source(FormulaSourceRef::builtin(
-        "example",
-        "missing",
-        1,
-    ));
-    engine.add_user_item(processor.into(), Some(manager_id));
-    engine.apply_edits().expect("Processor should attach");
-    let processor_id = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
-        .map(|(id, _)| id)
-        .expect("Processor should exist");
-
-    assert!(node_has_warning_id(
-        &engine,
-        processor_id,
-        "state_processor_formula"
-    ));
 }
 
 #[test]
@@ -301,6 +204,184 @@ fn project_formula_processor_instantiates_managed_region_folders() {
                 processor_managed_region_decl_id("outputs"),
                 "Outputs".to_owned()
             )
+        ]
+    );
+}
+
+#[test]
+fn builtin_action_processor_created_inside_state_exposes_managers() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    for formula in FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load")
+    {
+        library_tree.push_child(formula);
+    }
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine.add_node(StateMachineManager::new().into(), None);
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("default formula and state machine roots should attach");
+    }
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+    let action_formula = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(id, node)| (id, node.node_data().meta.uuid))
+        .expect("built-in Action formula should be materialized in the formula library");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: manager_id,
+        node_type: crate::app::StateMachineState::NODE_TYPE.to_owned(),
+        label: Some("State".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "state creation should succeed: {ack:?}");
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("state children should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, "processors")
+        .expect("state should have a processor manager");
+
+    let action_item = FormulaCatalog::from_snapshot(&snapshot)
+        .processor_palette_items()
+        .into_iter()
+        .find(|item| item.label == "Action")
+        .expect("built-in Action formula should be exposed as a processor item");
+    assert_eq!(
+        action_item.node_type,
+        FormulaSourceRef::project_uuid(action_formula.1).processor_create_type()
+    );
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: processor_manager_id,
+        node_type: action_item.node_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        ack.success,
+        "built-in Action processor creation should succeed: {ack:?}"
+    );
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("Action processor surface should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    let source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("processor should expose its formula source key");
+    assert_eq!(
+        snapshot
+            .node(source_key)
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Str(action_item.node_type))
+    );
+    assert_eq!(snapshot.node_id_by_uuid(action_formula.1), Some(action_formula.0));
+    let exposed_managers = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .filter_map(|child| {
+            let node = engine.nodes.get(child)?;
+            matches!(
+                node.get_type(),
+                ConditionManager::NODE_TYPE | OutputsManager::NODE_TYPE
+            )
+            .then(|| {
+                (
+                    node.get_type().to_owned(),
+                    node.node_data().meta.label.clone(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        exposed_managers,
+        vec![
+            (
+                ConditionManager::NODE_TYPE.to_owned(),
+                "Conditions".to_owned(),
+            ),
+            (OutputsManager::NODE_TYPE.to_owned(), "On True".to_owned()),
+            (OutputsManager::NODE_TYPE.to_owned(), "On False".to_owned()),
+        ]
+    );
+
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own a Managed Regions root");
+
+    let actual = snapshot
+        .child_ids(regions_root)
+        .into_iter()
+        .map(|child| {
+            let node = engine.nodes.get(child).expect("region should exist");
+            (
+                node.get_type().to_owned(),
+                node.node_data().meta.decl_id.0.clone(),
+                node.node_data().meta.label.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual,
+        vec![
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("conditions"),
+                "Conditions".to_owned(),
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("on_true"),
+                "On True".to_owned(),
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("on_false"),
+                "On False".to_owned(),
+            ),
         ]
     );
 }
@@ -991,5 +1072,57 @@ fn processor_with_missing_formula_reference_sets_warning() {
     assert!(
         node_has_warning_id(&engine, processor_id, super::PROCESSOR_FORMULA_WARNING_ID),
         "Processor referencing a missing formula should expose a warning"
+    );
+}
+
+#[test]
+fn processor_mirrors_formula_icon() {
+    let (mut engine, formula_id, formula_uuid) = engine_with_formula();
+    let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(processor_id)
+            .expect("Processor should exist")
+            .node_data()
+            .meta
+            .presentation
+            .icon,
+        None,
+        "Processor should have no icon before its formula has one"
+    );
+
+    let icon = "data:image/svg+xml;base64,PHN2Zy8+";
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: formula_id,
+        patch: NodeMetaPatch {
+            presentation: Some(PresentationHint {
+                icon: Some(icon.to_owned()),
+                ..PresentationHint::default()
+            }),
+            ..NodeMetaPatch::default()
+        },
+    });
+    assert!(ack.success, "Formula icon patch should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Processor should receive the formula icon change");
+    engine
+        .apply_edits()
+        .expect("Processor icon mirroring should stabilize");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(processor_id)
+            .expect("Processor should exist")
+            .node_data()
+            .meta
+            .presentation
+            .icon
+            .as_deref(),
+        Some(icon),
+        "Processor should mirror its formula's icon"
     );
 }

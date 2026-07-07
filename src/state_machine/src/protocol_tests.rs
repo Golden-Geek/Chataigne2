@@ -78,21 +78,21 @@ fn output_preview_sample_dto_keeps_formula_processor_lane_and_exec_identity() {
 }
 
 #[test]
-fn processor_ui_dto_preserves_builtin_formula_source_state() {
+fn processor_ui_dto_preserves_read_only_external_formula_source_state() {
     let model = ProcessorUiModel {
         id: ProcessorId::new(),
         label: "Formula".into(),
         active: true,
-        formula_id: "example.formula@1".into(),
+        formula_id: "11111111-2222-4333-8444-000000000001".into(),
         formula_label: "Formula".into(),
-        formula_source_key: Some("state_processor:builtin:example.formula@1".into()),
+        formula_source_key: Some("state_processor:project:11111111-2222-4333-8444-000000000001".into()),
         surface: FormulaSurface {
             sections: Vec::new(),
             managed_regions: Vec::new(),
         },
         managed_region_instances: ManagedRegionInstances::default(),
         diagnostics: Vec::new(),
-        formula_source: ProcessorFormulaUiState::builtin(true, true),
+        formula_source: ProcessorFormulaUiState::builtin(true, false),
     };
 
     let dto = ProcessorUiDto::from(&model);
@@ -103,10 +103,10 @@ fn processor_ui_dto_preserves_builtin_formula_source_state() {
     ));
     assert_eq!(
         dto.formula_source_key.as_deref(),
-        Some("state_processor:builtin:example.formula@1")
+        Some("state_processor:project:11111111-2222-4333-8444-000000000001")
     );
     assert!(dto.formula_open_readonly_from_processor);
-    assert!(dto.formula_can_duplicate_to_library);
+    assert!(!dto.formula_can_duplicate_to_library);
 }
 
 #[test]

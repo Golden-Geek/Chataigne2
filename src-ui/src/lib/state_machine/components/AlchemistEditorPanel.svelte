@@ -150,6 +150,9 @@
 	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
+	const FORMULA_EXTERNAL_FILE_TAG = 'chataigne.formula.external.file';
+	const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.builtin:';
+	const FORMULA_EXTERNAL_READ_ONLY_TAG = 'chataigne.formula.external.read_only';
 	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
 	let props: PanelProps = $props();
@@ -319,6 +322,15 @@
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
 
+	const formulaIsBuiltIn = (node: UiNodeDto | null | undefined): boolean =>
+		Boolean(node?.meta.tags.some((tag) => tag.startsWith(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX)));
+
+	const formulaIsExternalFile = (node: UiNodeDto | null | undefined): boolean =>
+		Boolean(node?.meta.tags.includes(FORMULA_EXTERNAL_FILE_TAG));
+
+	const formulaIsReadOnly = (node: UiNodeDto | null | undefined): boolean =>
+		Boolean(node?.meta.tags.includes(FORMULA_EXTERNAL_READ_ONLY_TAG));
+
 	const isProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.user_item_kind === PROCESSOR_ITEM_KIND || node?.node_type === PROCESSOR_ITEM_KIND;
 
@@ -483,6 +495,9 @@
 		if (previewTarget?.kind === 'formula') return previewTargetNode(previewTarget);
 		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
+	let formulaBuiltIn = $derived(formulaIsBuiltIn(formula));
+	let formulaExternalFile = $derived(formulaIsExternalFile(formula));
+	let formulaReadOnly = $derived(formulaIsReadOnly(formula));
 	let runtimePreviewSequence = $derived(
 		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
 	);
@@ -628,23 +643,25 @@
 	const managedRegionItemState = (item: ManagedItemDto): string =>
 		item.enabled && item.anode_enabled ? item.anode_type_id : `${item.anode_type_id} off`;
 	let anodeItems = $derived(
-		formula?.creatable_user_items
-			.filter(
-				(item) =>
-					item.node_type.startsWith(ANODE_CREATE_PREFIX) &&
-					!HIDDEN_ANODE_CREATE_TYPES.has(item.node_type)
-			)
-			.map((item) => {
-				const typeId = item.node_type.slice(ANODE_CREATE_PREFIX.length);
-				const category = item.menu_path[0] ?? '';
-				return {
-					...item,
-					menu_path_colors: item.menu_path.map((segment, index) =>
-						index === 0 ? anodeCategoryColor(segment) : anodeDefaultColor(category, typeId)
-					),
-					color: anodeDefaultColor(category, typeId)
-				};
-			}) ?? []
+		formulaReadOnly
+			? []
+			: (formula?.creatable_user_items
+					.filter(
+						(item) =>
+							item.node_type.startsWith(ANODE_CREATE_PREFIX) &&
+							!HIDDEN_ANODE_CREATE_TYPES.has(item.node_type)
+					)
+					.map((item) => {
+						const typeId = item.node_type.slice(ANODE_CREATE_PREFIX.length);
+						const category = item.menu_path[0] ?? '';
+						return {
+							...item,
+							menu_path_colors: item.menu_path.map((segment, index) =>
+								index === 0 ? anodeCategoryColor(segment) : anodeDefaultColor(category, typeId)
+							),
+							color: anodeDefaultColor(category, typeId)
+						};
+					}) ?? [])
 	);
 	let properties = $derived(
 		graphState ? directChild(formula, graphState.nodesById, PROPERTIES_DECL_ID) : null
@@ -758,6 +775,7 @@
 	): void => {
 		if (
 			!formula ||
+			formulaReadOnly ||
 			!graphState ||
 			!anodeItems.some((candidate) => candidate.node_type === item.node_type)
 		)
@@ -788,6 +806,7 @@
 	};
 
 	const createPropertyItem = (parent: UiNodeDto, item: UiCreatableUserItem): void => {
+		if (formulaReadOnly) return;
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				parent.node_id,
@@ -865,7 +884,9 @@
 		null;
 
 	const createPropertyGetter = (property: UiNodeDto, position: GraphNodePosition): void => {
-		if (!formula || !graphState || property.node_type !== PROPERTY_NODE_TYPE) return;
+		if (!formula || formulaReadOnly || !graphState || property.node_type !== PROPERTY_NODE_TYPE) {
+			return;
+		}
 		void runMutation(async () => {
 			const result = await sendCreateUserItemByTypeIntent(
 				formula.node_id,
@@ -907,7 +928,14 @@
 	};
 
 	const createManagerGetter = (manager: UiNodeDto, position: GraphNodePosition): void => {
-		if (!formula || !graphState || manager.node_type !== PROPERTY_MANAGER_NODE_TYPE) return;
+		if (
+			!formula ||
+			formulaReadOnly ||
+			!graphState ||
+			manager.node_type !== PROPERTY_MANAGER_NODE_TYPE
+		) {
+			return;
+		}
 		const role = managerRole(manager);
 		const nodeType = role ? MANAGER_ANODE_BY_ROLE[role] : undefined;
 		if (!nodeType) return;
@@ -944,13 +972,14 @@
 	};
 
 	const allowPropertyDrop = (event: DragEvent): void => {
+		if (formulaReadOnly) return;
 		if (!event.dataTransfer?.types.includes(PROPERTY_DRAG_TYPE)) return;
 		event.preventDefault();
 		event.dataTransfer.dropEffect = 'copy';
 	};
 
 	const dropProperty = (event: DragEvent): void => {
-		if (!graphState) return;
+		if (formulaReadOnly || !graphState) return;
 		const position = graphEditor?.clientToWorld(event.clientX, event.clientY) ?? { x: 0, y: 0 };
 
 		const propertyId = Number(event.dataTransfer?.getData(PROPERTY_DRAG_TYPE));
@@ -996,15 +1025,17 @@
 				}
 			);
 		}
-		editItems.push({
-			id: 'paste-alchemist-clipboard',
-			label: 'Paste',
-			commandId: 'edit.paste',
-			action: () => {
-				void pasteGraphItems();
-				contextMenuOpen = false;
-			}
-		});
+		if (!formulaReadOnly) {
+			editItems.push({
+				id: 'paste-alchemist-clipboard',
+				label: 'Paste',
+				commandId: 'edit.paste',
+				action: () => {
+					void pasteGraphItems();
+					contextMenuOpen = false;
+				}
+			});
+		}
 		return createItems.length > 0 ? [...editItems, { separator: true }, ...createItems] : editItems;
 	});
 
@@ -1076,7 +1107,7 @@
 		sendAlchemistEditBatch(label, intents, 'alchemist-formula');
 
 	const selectedAlchemistClipboard = (): AlchemistClipboard | null => {
-		if (!formula || !graphState || !session) return null;
+		if (!formula || formulaReadOnly || !graphState || !session) return null;
 		return buildAlchemistClipboard({
 			formula,
 			nodesById: graphState.nodesById,
@@ -1463,6 +1494,7 @@
 	};
 
 	const duplicateSelectedGraphItems = async (): Promise<boolean> => {
+		if (formulaReadOnly) return false;
 		if (alchemistDuplicateInProgress) return true;
 		const clipboard = selectedAlchemistClipboard();
 		if (!clipboard) return false;
@@ -1484,6 +1516,7 @@
 	};
 
 	const pasteGraphItems = async (): Promise<boolean> => {
+		if (formulaReadOnly) return false;
 		if (alchemistDuplicateInProgress) return true;
 		const clipboard = (await readAlchemistClipboardFromSystem()) ?? alchemistClipboard;
 		if (!clipboard) return false;
@@ -1503,13 +1536,14 @@
 	};
 
 	const cutSelectedGraphItems = async (): Promise<boolean> => {
+		if (formulaReadOnly) return false;
 		if (!copySelectedGraphItems()) return false;
 		return removeSelectedGraphItems();
 	};
 
 	const moveNodes = (moves: GraphNodeMove[]): Promise<void> =>
 		runMutation(async () => {
-			if (!graphState || moves.length === 0) return;
+			if (formulaReadOnly || !graphState || moves.length === 0) return;
 			const intents = moves.flatMap((move): UiEditIntent[] => {
 				const anode = graphState.nodesById.get(Number(move.nodeId));
 				const position = parameterChild(anode, graphState.nodesById, 'position');
@@ -1535,7 +1569,7 @@
 	};
 
 	const removeSelectedGraphItems = async (): Promise<boolean> => {
-		if (!formula || !graphState || !session) return false;
+		if (!formula || formulaReadOnly || !graphState || !session) return false;
 		const selectedIds = new Set(session.selectedNodesIds);
 		const selectedAnodeIds = [...selectedIds].filter(
 			(nodeId) => anodeNodeIds.has(nodeId) && canRemoveNode(nodeId)
@@ -1572,7 +1606,7 @@
 
 	const resizeNode = (resize: GraphNodeResize): Promise<void> =>
 		runMutation(async () => {
-			if (!graphState) return;
+			if (formulaReadOnly || !graphState) return;
 			const anode = graphState.nodesById.get(Number(resize.nodeId));
 			const size = parameterChild(anode, graphState.nodesById, 'size');
 			if (
@@ -1611,7 +1645,7 @@
 
 	const renameNode = (nodeId: string, label: string): Promise<void> =>
 		runMutation(async () => {
-			if (!graphState) return;
+			if (formulaReadOnly || !graphState) return;
 			const anode = graphState.nodesById.get(Number(nodeId));
 			const nextLabel = label.trim();
 			if (anode?.node_type !== ANODE_NODE_TYPE || nextLabel.length === 0) return;
@@ -1626,7 +1660,7 @@
 
 	const setNodeCollapsed = (nodeId: string, collapsed: boolean): Promise<void> =>
 		runMutation(async () => {
-			if (!graphState) return;
+			if (formulaReadOnly || !graphState) return;
 			const anode = graphState.nodesById.get(Number(nodeId));
 			if (anode?.node_type !== ANODE_NODE_TYPE) return;
 			await editParameters(`${collapsed ? 'Collapse' : 'Expand'} ${anode.meta.label}`, [
@@ -1645,7 +1679,7 @@
 
 	const setNodeEnabled = (nodeId: string, enabled: boolean): Promise<void> =>
 		runMutation(async () => {
-			if (!graphState) return;
+			if (formulaReadOnly || !graphState) return;
 			const anode = graphState.nodesById.get(Number(nodeId));
 			if (anode?.node_type !== ANODE_NODE_TYPE || !anode.meta.can_be_disabled) return;
 			await editParameters(`${enabled ? 'Enable' : 'Disable'} ${anode.meta.label}`, [
@@ -1681,7 +1715,7 @@
 	};
 
 	const connectNodes = (connection: GraphConnectionRequest): void => {
-		if (!formula || !graphState) return;
+		if (!formula || formulaReadOnly || !graphState) return;
 		const source = graphState.nodesById.get(Number(connection.from.nodeId));
 		const target = graphState.nodesById.get(Number(connection.to.nodeId));
 		if (source?.node_type !== ANODE_NODE_TYPE || target?.node_type !== ANODE_NODE_TYPE) return;
@@ -1841,15 +1875,13 @@
 
 {#snippet toolbarEndContent()}
 	{#if formula}
-		<FormulaPreviewModeSelector model={previewSessionModel} />
-		<ProcessorLaneSelector
-			lanes={previewSessionModel.lanes}
-			selectedLaneId={previewSessionModel.selectedLaneId}
-			onSelect={(laneId) =>
-				formulaPreviewSessionStore.selectLane(processorNode?.node_id ?? null, laneId)} />
-	{/if}
-	{#if formula && anodeItems.length > 0}
-		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
+		{#if formulaBuiltIn}
+			<span class="formula-source-pill" title="Built-in formula">Built-in</span>
+		{:else if formulaExternalFile}
+			<span class="formula-source-pill" title="External formula">External</span>
+		{:else if formulaReadOnly}
+			<span class="formula-source-pill" title="Read-only formula">Read-only</span>
+		{/if}
 	{/if}
 	{#if formula}
 		<AutoWireToggle checked={autoWire} onchange={setAutoWire} />
@@ -1868,6 +1900,9 @@
 		<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
 			{saveStatus === 'saving' ? '…' : '!'}
 		</span>
+	{/if}
+	{#if formula && anodeItems.length > 0}
+		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
 	{/if}
 {/snippet}
 
@@ -1967,18 +2002,24 @@
 					{#if formula}
 						<ManagerListPanel
 							managerNode={properties}
-							addTargetNode={activePropertyContainer}
-							addItems={activePropertyContainer?.creatable_user_items}
+							addTargetNode={formulaReadOnly ? null : activePropertyContainer}
+							addItems={formulaReadOnly ? [] : activePropertyContainer?.creatable_user_items}
 							searchPlaceholder="Search properties..."
 							missingMessage="Formula properties are not available."
-							emptyMessage="Drag a property onto the graph to create a getter."
-							rootDropMessage="Drop here to move into Properties."
+							emptyMessage={formulaReadOnly
+								? 'Built-in formula properties are read-only.'
+								: 'Drag a property onto the graph to create a getter.'}
+							rootDropMessage={formulaReadOnly
+								? 'Built-in formula properties are read-only.'
+								: 'Drop here to move into Properties.'}
 							addButtonTitle="Add property item"
 							isTreeNode={isPropertyTreeNode}
 							canRenderNodeChildren={canRenderPropertyChildren}
-							nodeDraggable={canMovePropertyNode}
-							onNodeDragStartData={setPropertyGraphDragData}
-							onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
+							nodeDraggable={formulaReadOnly ? () => false : canMovePropertyNode}
+							onNodeDragStartData={formulaReadOnly ? undefined : setPropertyGraphDragData}
+							onCreateItem={formulaReadOnly
+								? undefined
+								: (parent, item) => createPropertyItem(parent, item)} />
 					{/if}
 				</div>
 				<!-- Resize handle on right edge -->
@@ -2026,8 +2067,8 @@
 					class="graph-drop-zone"
 					role="application"
 					aria-label="Alchemist graph drop target"
-					ondragover={allowPropertyDrop}
-					ondrop={dropProperty}>
+					ondragover={formulaReadOnly ? undefined : allowPropertyDrop}
+					ondrop={formulaReadOnly ? undefined : dropProperty}>
 					<AlchemistGraphEditor
 						bind:this={graphEditor}
 						{formula}
@@ -2036,21 +2077,30 @@
 						{selectedEdgeIds}
 						{outputPreviews}
 						{activeSocketRefs}
+						readOnly={formulaReadOnly}
 						catalogItems={anodeItems}
 						onGraphSelectionChange={selectGraphItems}
-						onNodesMove={moveNodes}
-						onNodeResize={resizeNode}
-						onNodeRename={renameNode}
-						onNodeCollapsedChange={setNodeCollapsed}
-						onNodeEnabledChange={setNodeEnabled}
-						onConnect={connectNodes}
-						onBackgroundContextMenu={openContextMenu}
-						onCreateRequest={openCreateRequest}
+						onNodesMove={formulaReadOnly ? undefined : moveNodes}
+						onNodeResize={formulaReadOnly ? undefined : resizeNode}
+						onNodeRename={formulaReadOnly ? undefined : renameNode}
+						onNodeCollapsedChange={formulaReadOnly ? undefined : setNodeCollapsed}
+						onNodeEnabledChange={formulaReadOnly ? undefined : setNodeEnabled}
+						onConnect={formulaReadOnly ? undefined : connectNodes}
+						onBackgroundContextMenu={formulaReadOnly ? undefined : openContextMenu}
+						onCreateRequest={formulaReadOnly ? undefined : openCreateRequest}
 						initialCamera={formulaCamera}
 						onCameraChange={setFormulaCamera}
 						viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
 						{autoWire}
 						toolbarEnd={toolbarEndContent} />
+					<div class="preview-status-bar" aria-label="Formula preview context">
+						<FormulaPreviewModeSelector model={previewSessionModel} />
+						<ProcessorLaneSelector
+							lanes={previewSessionModel.lanes}
+							selectedLaneId={previewSessionModel.selectedLaneId}
+							onSelect={(laneId) =>
+								formulaPreviewSessionStore.selectLane(processorNode?.node_id ?? null, laneId)} />
+					</div>
 					{#if diagnostics.length > 0}
 						<aside class="diagnostics" aria-label="Formula diagnostics">
 							{#each diagnostics as diagnostic (`${diagnostic.code}:${diagnostic.origin}`)}
@@ -2284,11 +2334,22 @@
 		flex: 0 0 auto;
 	}
 
-	.processor-source-pill {
+	.processor-source-pill,
+	.formula-source-pill {
 		padding: 0.08rem 0.28rem;
 		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 75%, transparent);
 		border-radius: 999rem;
 		background: color-mix(in srgb, var(--gc-color-accent, #5d8cff) 12%, transparent);
+	}
+
+	.formula-source-pill {
+		display: inline-flex;
+		align-items: center;
+		min-block-size: 1rem;
+		color: color-mix(in srgb, var(--gc-color-text) 66%, transparent);
+		font-size: 0.62rem;
+		line-height: 1;
+		white-space: nowrap;
 	}
 
 	.processor-surface-header strong,
@@ -2491,10 +2552,27 @@
 		font-size: 0.72rem;
 	}
 
+	.preview-status-bar {
+		position: absolute;
+		inset-inline-end: 0.75rem;
+		inset-block-end: 0.75rem;
+		z-index: 5;
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem 0.55rem;
+		max-inline-size: calc(100% - 1.5rem);
+		padding: 0.28rem 0.5rem;
+		border: 0.06rem solid var(--gc-color-border);
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--gc-color-background) 84%, transparent);
+		backdrop-filter: blur(0.5rem);
+	}
+
 	.diagnostics {
 		position: absolute;
 		inset-inline: 0.75rem;
-		inset-block-end: 0.75rem;
+		inset-block-end: 3.35rem;
 		display: grid;
 		max-block-size: 9rem;
 		gap: 0.2rem;

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -34,13 +35,23 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::state_machine_nodes_processor::{FormulaCatalog, FormulaSourceRef};
+use crate::app::state_machine_nodes_processor::FormulaCatalog;
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
     "alchemist_formula_folder";
 pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str =
     "alchemist_formula_folder";
+pub(crate) const FORMULA_EXTERNAL_FILE_CREATE_TYPE: &str =
+    "alchemist_formula:external_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_DECL_ID: &str =
+    "external_formula_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_TAG: &str =
+    "chataigne.formula.external.file";
+pub(crate) const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX: &str =
+    "chataigne.formula.external.builtin:";
+pub(crate) const FORMULA_EXTERNAL_READ_ONLY_TAG: &str =
+    "chataigne.formula.external.read_only";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
@@ -64,15 +75,12 @@ const PROPERTY_ANODE_TYPE: &str = "property";
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
 pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
     "managed_regions_json";
-#[cfg(test)]
-pub(crate) const FORMULA_DUPLICATE_SOURCE_DECL_ID: &str =
-    "duplicate_from_formula_source";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
 const PROPERTY_MANAGER_ROLE_TAG_PREFIX: &str = "alchemist.manager.role:";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
-const FORMULA_DUPLICATE_SOURCE_WARNING_ID: &str =
-    "alchemist_formula_duplicate_source";
+const FORMULA_EXTERNAL_FILE_WARNING_ID: &str =
+    "alchemist_formula_external_file";
 const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
     "alchemist_formula_diagnostic";
 
@@ -214,10 +222,13 @@ fn formula_container_rules() -> UserContainerRules {
 
 fn formula_container_accepts(item_type: &str, item_kind: &str) -> bool {
     match item_kind {
-        FORMULA_ITEM_KIND => crate::app::declared_user_item_type_matches(
-            item_type,
-            FORMULA_ITEM_KIND,
-        ),
+        FORMULA_ITEM_KIND => {
+            item_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE
+                || crate::app::declared_user_item_type_matches(
+                    item_type,
+                    FORMULA_ITEM_KIND,
+                )
+        }
         FORMULA_FOLDER_ITEM_KIND => item_type == FORMULA_FOLDER_NODE_TYPE,
         _ => false,
     }
@@ -225,6 +236,11 @@ fn formula_container_accepts(item_type: &str, item_kind: &str) -> bool {
 
 fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
     let mut items = crate::app::declared_user_creatable_items(FORMULA_ITEM_KIND);
+    items.push(UserCreatableItem::new(
+        FORMULA_EXTERNAL_FILE_CREATE_TYPE,
+        FORMULA_ITEM_KIND,
+        "External Formula",
+    ));
     items.push(UserCreatableItem::new(
         FORMULA_FOLDER_NODE_TYPE,
         FORMULA_FOLDER_ITEM_KIND,
@@ -309,12 +325,22 @@ pub(crate) fn create_anode_user_item_tree(node_type: &str) -> Option<NodeTree> {
 }
 
 fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
+    if node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE {
+        return Some(Box::new(external_formula_node()));
+    }
     crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
         .or_else(|| {
             (node_type == FORMULA_FOLDER_NODE_TYPE).then(|| {
                 Box::new(AlchemistFormulaFolder::new()) as Box<dyn Node>
             })
         })
+}
+
+fn create_formula_container_item_tree(node_type: &str) -> Option<NodeTree> {
+    if node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE {
+        return Some(external_formula_tree());
+    }
+    create_formula_container_item(node_type).map(NodeTree::boxed)
 }
 
 fn parameter(
@@ -329,6 +355,31 @@ fn parameter(
     parameter.control_modes_enabled = !read_only;
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.into());
     parameter
+}
+
+fn external_formula_file_parameter() -> Parameter {
+    parameter(
+        "Formula File",
+        FORMULA_EXTERNAL_FILE_DECL_ID,
+        ParamValue::File(String::new()),
+        false,
+    )
+}
+
+fn external_formula_node() -> AlchemistFormulaDefinition {
+    let mut formula = AlchemistFormulaDefinition::new();
+    formula.node_data_mut().meta.label = "External Formula".to_owned();
+    formula
+        .node_data_mut()
+        .meta
+        .tags
+        .push(FORMULA_EXTERNAL_FILE_TAG.to_owned());
+    formula
+}
+
+fn external_formula_tree() -> NodeTree {
+    let formula = external_formula_node();
+    NodeTree::new(formula).with_child(NodeTree::new(external_formula_file_parameter()))
 }
 
 fn declared_folder(label: &str, decl_id: &str) -> Folder {
@@ -2982,22 +3033,6 @@ fn formula_managed_regions_from_snapshot(
     })
 }
 
-fn managed_regions_json_from_builtin_source(source_key: &str) -> Result<String, String> {
-    let source = FormulaSourceRef::parse_processor_create_type(source_key)
-        .map_err(|error| error.to_string())?;
-    if !matches!(source, FormulaSourceRef::Builtin { .. }) {
-        return Err(format!(
-            "formula duplicate source `{source_key}` is not a built-in formula"
-        ));
-    }
-    let formula = FormulaCatalog::with_builtins()
-        .resolve_builtin(&source)
-        .map_err(|error| error.to_string())?;
-    serde_json::to_string(&formula.surface.managed_regions).map_err(|error| {
-        format!("failed to serialize built-in formula managed regions: {error}")
-    })
-}
-
 fn surface_item_from_property(
     snapshot: &ProcessTreeSnapshot,
     property: NodeId,
@@ -3100,18 +3135,17 @@ impl Node for AlchemistConnection {
         read_only = true,
         show_in_inspector_content = false
     );
-    duplicate_from_formula_source: String = String::new() (
-        label = "Duplicate Source",
-        read_only = true,
-        show_in_inspector_content = false
-    );
 )]
 pub struct AlchemistFormulaDefinition {}
 
 #[item("alchemist_formula", node = "alchemist_formula", from_struct)]
 impl Node for AlchemistFormulaDefinition {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        if self.is_read_only_external_formula() {
+            self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
+        } else {
+            self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        }
         self.node_data_mut().meta.can_be_disabled = false;
         self.reconcile_properties(ctx);
     }
@@ -3121,11 +3155,16 @@ impl Node for AlchemistFormulaDefinition {
         ctx: &mut ProcessCtx,
         _context: NodeCreationContext,
     ) {
-        self.seed_managed_regions_from_duplicate_source(ctx);
+        self.reconcile_external_formula_file_parameter(ctx);
+        if self.sync_external_formula_file(ctx) {
+            return;
+        }
         self.reconcile_properties(ctx);
         self.sync_property_getters(ctx);
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        self.enforce_external_formula_permissions(ctx);
+        self.schedule_external_formula_permission_enforcement(ctx);
     }
 
     fn on_param_change(
@@ -3134,8 +3173,10 @@ impl Node for AlchemistFormulaDefinition {
         param: NodeId,
         _old_value: ParamValue,
     ) {
-        if param == self.duplicate_from_formula_source.id() {
-            self.seed_managed_regions_from_duplicate_source(ctx);
+        if self.is_external_formula_file_param(ctx, param)
+            && self.sync_external_formula_file(ctx)
+        {
+            return;
         }
         if param != self.is_valid.id() && param != self.diagnostics_json.id() {
             let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
@@ -3165,6 +3206,10 @@ impl Node for AlchemistFormulaDefinition {
     ) {
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        if self.is_read_only_external_formula() {
+            self.enforce_external_formula_subtree_permissions(ctx, _child);
+            self.schedule_external_formula_permission_enforcement(ctx);
+        }
     }
 
     fn on_child_removed(
@@ -3250,48 +3295,203 @@ impl Node for AlchemistFormulaDefinition {
     }
 }
 
-impl AlchemistFormulaDefinition {
-    fn seed_managed_regions_from_duplicate_source(&mut self, ctx: &mut ProcessCtx) {
-        let source_key = self
-            .duplicate_from_formula_source
-            .get_ref()
-            .as_str()
-            .trim()
-            .to_owned();
-        if source_key.is_empty() {
-            ctx.clear_node_warning(
-                self.id(),
-                Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
-            );
-            return;
-        }
-        if !self.managed_regions_json.get_ref().as_str().trim().is_empty() {
-            self.duplicate_from_formula_source.set(ctx, String::new());
-            ctx.clear_node_warning(
-                self.id(),
-                Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
-            );
-            return;
-        }
+fn preserve_external_formula_child(decl_id: &str) -> bool {
+    matches!(
+        decl_id,
+        "is_valid"
+            | "diagnostics_json"
+            | FORMULA_MANAGED_REGIONS_JSON_DECL_ID
+            | FORMULA_EXTERNAL_FILE_DECL_ID
+    )
+}
 
-        let managed_regions_json =
-            match managed_regions_json_from_builtin_source(&source_key) {
-                Ok(value) => value,
-                Err(error) => {
-                    ctx.set_node_warning_with(
-                        self.id(),
-                        Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
-                        "Formula duplicate source is invalid",
-                        Some(&error),
-                    );
-                    return;
-                }
+fn imported_formula_content_children(imported: NodeTree) -> (Option<String>, Vec<NodeTree>) {
+    let mut managed_regions_json = None;
+    let children = imported
+        .children
+        .into_iter()
+        .filter_map(|child| {
+            let decl_id = child.node.node_data().meta.decl_id.0.as_str();
+            if decl_id == FORMULA_MANAGED_REGIONS_JSON_DECL_ID {
+                managed_regions_json = managed_regions_json_from_tree_node(&child);
+                return None;
+            }
+            (!preserve_external_formula_child(decl_id)).then_some(child)
+        })
+        .collect();
+    (managed_regions_json, children)
+}
+
+fn managed_regions_json_from_tree_node(node: &NodeTree) -> Option<String> {
+    let parameter = node.node.as_any().downcast_ref::<Parameter>()?;
+    match &parameter.value {
+        ParamValue::Str(value) => Some(value.clone()),
+        _ => None,
+    }
+}
+
+impl AlchemistFormulaDefinition {
+    fn is_external_file_formula(&self) -> bool {
+        self.node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG)
+    }
+
+    fn is_read_only_external_formula(&self) -> bool {
+        self.node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
+    }
+
+    fn reconcile_external_formula_file_parameter(&self, ctx: &mut ProcessCtx) {
+        if !self.is_external_file_formula() {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+        {
+            ctx.add_child(self.id(), external_formula_file_parameter(), None);
+        }
+    }
+
+    fn external_formula_file_path(&self, ctx: &ProcessCtx) -> Option<PathBuf> {
+        let snapshot = ctx.tree_snapshot()?;
+        let value = child_param(snapshot, self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)?;
+        match value {
+            ParamValue::File(path) | ParamValue::Str(path) => {
+                let path = path.trim();
+                (!path.is_empty()).then(|| PathBuf::from(path))
+            }
+            _ => None,
+        }
+    }
+
+    fn is_external_formula_file_param(&self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        ctx.tree_snapshot()
+            .and_then(|snapshot| snapshot.node(param))
+            .is_some_and(|node| node.decl_id == FORMULA_EXTERNAL_FILE_DECL_ID)
+    }
+
+    fn sync_external_formula_file(&mut self, ctx: &mut ProcessCtx) -> bool {
+        if !self.is_external_file_formula() {
+            return false;
+        }
+        let Some(path) = self.external_formula_file_path(ctx) else {
+            ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID));
+            return false;
+        };
+        match FormulaCatalog::external_formula_tree_from_file(&path) {
+            Ok(tree) => {
+                ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID));
+                self.replace_external_formula_contents(ctx, tree);
+                true
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "External formula file could not be loaded",
+                    Some(&format!("{}: {error}", path.display())),
+                );
+                false
+            }
+        }
+    }
+
+    fn replace_external_formula_contents(&mut self, ctx: &mut ProcessCtx, imported: NodeTree) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let (managed_regions_json, children) = imported_formula_content_children(imported);
+        for child in snapshot.child_ids(self.id()) {
+            let Some(node) = snapshot.node(child) else {
+                continue;
             };
-        self.managed_regions_json.set(ctx, managed_regions_json);
-        self.duplicate_from_formula_source.set(ctx, String::new());
-        ctx.clear_node_warning(
-            self.id(),
-            Some(FORMULA_DUPLICATE_SOURCE_WARNING_ID),
+            if preserve_external_formula_child(node.decl_id.as_str()) {
+                continue;
+            }
+            ctx.edits.push(Edit::RemoveNode { node: child });
+        }
+        self.managed_regions_json
+            .set(ctx, managed_regions_json.unwrap_or_default());
+        for child in children {
+            ctx.edits.push(Edit::AddNodeTree {
+                tree: child,
+                parent: self.id(),
+                prev_sibling: None,
+            });
+        }
+    }
+
+    fn enforce_external_formula_permissions(&self, ctx: &mut ProcessCtx) {
+        if !self.is_read_only_external_formula() {
+            return;
+        }
+        self.enforce_external_formula_subtree_permissions(ctx, self.id());
+    }
+
+    fn schedule_external_formula_permission_enforcement(&self, ctx: &mut ProcessCtx) {
+        if !self.is_read_only_external_formula() {
+            return;
+        }
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: self.id(),
+            callback: Box::new(|node, ctx| {
+                let Some(formula) = node
+                    .as_any_mut()
+                    .downcast_mut::<AlchemistFormulaDefinition>()
+                else {
+                    return Ok(());
+                };
+                formula.enforce_external_formula_permissions(ctx);
+                Ok(())
+            }),
+            needs_tree_snapshot: true,
+        });
+    }
+
+    fn enforce_external_formula_subtree_permissions(&self, ctx: &mut ProcessCtx, root: NodeId) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            Self::enforce_external_formula_node_permissions(ctx, root);
+            return;
+        };
+        let mut pending = vec![root];
+        while let Some(node_id) = pending.pop() {
+            if snapshot.node(node_id).is_none() {
+                continue;
+            }
+            pending.extend(snapshot.child_ids(node_id));
+            Self::enforce_external_formula_node_permissions(ctx, node_id);
+        }
+    }
+
+    fn enforce_external_formula_node_permissions(ctx: &mut ProcessCtx, node_id: NodeId) {
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: node_id,
+            callback: Box::new(|node, _ctx| {
+                if let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() {
+                    parameter.read_only = true;
+                }
+                Ok(())
+            }),
+            needs_tree_snapshot: false,
+        });
+        ctx.patch_node_meta(
+            node_id,
+            NodeMetaPatch {
+                can_be_disabled: Some(false),
+                user_permissions: Some(NodeUserPermissions::none()),
+                ..NodeMetaPatch::default()
+            },
         );
     }
 
@@ -3741,6 +3941,10 @@ impl Node for FormulaLibrary {
         create_formula_container_item(node_type)
     }
 
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        create_formula_container_item_tree(node_type)
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
@@ -3771,6 +3975,10 @@ impl Node for AlchemistFormulaFolder {
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         create_formula_container_item(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        create_formula_container_item_tree(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

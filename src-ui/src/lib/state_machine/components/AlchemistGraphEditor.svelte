@@ -39,6 +39,7 @@
 		onCameraChange,
 		viewportInset,
 		autoWire = true,
+		readOnly = false,
 		toolbarEnd
 	}: {
 		formula: UiNodeDto;
@@ -61,6 +62,7 @@
 		onCameraChange?: (camera: GraphCamera) => void;
 		viewportInset?: GraphViewportInset;
 		autoWire?: boolean;
+		readOnly?: boolean;
 		toolbarEnd?: Snippet;
 	} = $props();
 
@@ -121,10 +123,15 @@
 		const preview = outputPreviews.get(key);
 		return preview ? { ...preview, active: activeSocketRefs.has(key) } : null;
 	};
-	const inputPreview = (graphNode: GraphNode, socket: GraphSocket): FormulaOutputPreviewChip | null =>
-		graphNode.outputs.some((output) => output.id === socket.id) ? null : outputPreview(graphNode, socket);
+	const inputPreview = (
+		graphNode: GraphNode,
+		socket: GraphSocket
+	): FormulaOutputPreviewChip | null =>
+		graphNode.outputs.some((output) => output.id === socket.id)
+			? null
+			: outputPreview(graphNode, socket);
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
-		canConnectGraphConnection(nodes, connection);
+		!readOnly && canConnectGraphConnection(nodes, connection);
 
 	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
 		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
@@ -148,6 +155,11 @@
 {/snippet}
 
 <div class="alchemist-graph-editor">
+	{#if readOnly}
+		<div class="read-only-lock" aria-hidden="true">
+			<span class="lock-icon"><span></span></span>
+		</div>
+	{/if}
 	<GraphCanvas
 		bind:this={graphCanvas}
 		{nodes}
@@ -155,15 +167,15 @@
 		{selectedNodeIds}
 		{selectedEdgeIds}
 		{onGraphSelectionChange}
-		{onNodesMove}
-		{onNodeResize}
-		{onNodeRename}
-		{onNodeCollapsedChange}
-		{onNodeEnabledChange}
-		{onConnect}
+		onNodesMove={readOnly ? undefined : onNodesMove}
+		onNodeResize={readOnly ? undefined : onNodeResize}
+		onNodeRename={readOnly ? undefined : onNodeRename}
+		onNodeCollapsedChange={readOnly ? undefined : onNodeCollapsedChange}
+		onNodeEnabledChange={readOnly ? undefined : onNodeEnabledChange}
+		onConnect={readOnly ? undefined : onConnect}
 		{canConnect}
-		{onBackgroundContextMenu}
-		{onCreateRequest}
+		onBackgroundContextMenu={readOnly ? undefined : onBackgroundContextMenu}
+		onCreateRequest={readOnly ? undefined : onCreateRequest}
 		{initialCamera}
 		{onCameraChange}
 		{viewportInset}
@@ -173,15 +185,67 @@
 		routeEdgesAroundNodes={autoWire}
 		socketLabels="always"
 		autoHomeOnMount={false}
-		emptyLabel="Add an ANode to start this Formula." />
+		emptyLabel={readOnly ? 'No ANodes in this Formula.' : 'Add an ANode to start this Formula.'} />
 </div>
 
 <style>
 	.alchemist-graph-editor {
+		position: relative;
 		inline-size: 100%;
 		block-size: 100%;
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: hidden;
+	}
+
+	.read-only-lock {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: none;
+		display: grid;
+		place-items: center;
+		color: color-mix(in srgb, var(--gc-color-text) 18%, transparent);
+	}
+
+	.lock-icon {
+		position: relative;
+		inline-size: 8rem;
+		block-size: 7rem;
+		border: 0.55rem solid currentColor;
+		border-radius: 0.7rem;
+		margin-block-start: 3rem;
+	}
+
+	.lock-icon::before {
+		content: '';
+		position: absolute;
+		inset-inline: 1.15rem;
+		block-size: 4.5rem;
+		inset-block-start: -4.2rem;
+		border: 0.55rem solid currentColor;
+		border-block-end: 0;
+		border-radius: 3rem 3rem 0 0;
+	}
+
+	.lock-icon span {
+		position: absolute;
+		inline-size: 0.75rem;
+		block-size: 2.3rem;
+		inset-inline-start: calc(50% - 0.375rem);
+		inset-block-start: 2.15rem;
+		border-radius: 999rem;
+		background: currentColor;
+	}
+
+	.lock-icon span::before {
+		content: '';
+		position: absolute;
+		inline-size: 1.45rem;
+		block-size: 1.45rem;
+		inset-inline-start: calc(50% - 0.725rem);
+		inset-block-start: -0.95rem;
+		border-radius: 999rem;
+		background: currentColor;
 	}
 </style>

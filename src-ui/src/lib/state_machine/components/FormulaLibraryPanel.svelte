@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ManagerListPanel, type PanelProps, type PanelState, type UiNodeDto } from 'golden_ui';
+	import FormulaLibraryRowSupplement from './FormulaLibraryRowSupplement.svelte';
 
 	let _props: PanelProps = $props();
 
@@ -31,4 +32,5 @@
 	rootDropMessage="Drop here to move into Formulas."
 	addButtonTitle="Add formula"
 	isTreeNode={isFormulaTreeNode}
-	canRenderNodeChildren={canRenderFormulaChildren} />
+	canRenderNodeChildren={canRenderFormulaChildren}
+	rowSupplementComponent={FormulaLibraryRowSupplement} />

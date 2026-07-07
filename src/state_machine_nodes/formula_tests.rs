@@ -22,11 +22,12 @@ use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
     AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
     AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
-    AlchemistPropertiesManager, FORMULA_DUPLICATE_SOURCE_DECL_ID,
-    FORMULA_DUPLICATE_SOURCE_WARNING_ID, FORMULA_FOLDER_ITEM_KIND,
-    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FormulaLibrary, PROPERTIES_DECL_ID,
-    PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
-    formula_from_snapshot, node_warning_detail, param_to_runtime_value,
+    AlchemistPropertiesManager, FORMULA_EXTERNAL_FILE_CREATE_TYPE,
+    FORMULA_EXTERNAL_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
+    FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
+    PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
+    param_to_runtime_value,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -62,63 +63,6 @@ fn formula_library_accepts_real_formula_nodes() {
 }
 
 #[test]
-fn invalid_duplicate_builtin_formula_source_warns_without_fake_metadata() {
-    let root: AppNode = Folder::new("root").into();
-    let mut engine = AppEngine::new(root);
-    engine.add_node(FormulaLibrary::new().into(), None);
-    engine.apply_edits().expect("Formula Library should attach");
-    let library = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
-        .map(|(id, _)| id)
-        .expect("Formula Library should exist");
-
-    let source_key = "state_processor:builtin:example.missing@1";
-    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
-        parent: library,
-        node_type: AlchemistFormulaDefinition::NODE_TYPE.to_owned(),
-        label: Some("Broken Built-in Copy".into()),
-        initial_params: vec![UiCreateUserItemInitialParam {
-            decl_id: DeclId(FORMULA_DUPLICATE_SOURCE_DECL_ID.into()),
-            value: ParamValue::Str(source_key.into()),
-        }],
-    });
-    assert!(ack.success, "Formula creation should succeed: {ack:?}");
-    let formula_node = direct_children(&engine, library)
-        .into_iter()
-        .find(|node| {
-            engine.nodes.get(*node).is_some_and(|node| {
-                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
-            })
-        })
-        .expect("duplicated formula should exist");
-    let snapshot = engine.process_tree_snapshot();
-
-    let materialized = formula_from_snapshot(&snapshot, formula_node)
-        .expect("formula should remain structurally materializable");
-    assert!(materialized.surface.managed_regions.is_empty());
-    let warning = node_warning_detail(
-        &snapshot,
-        formula_node,
-        FORMULA_DUPLICATE_SOURCE_WARNING_ID,
-    )
-    .expect("invalid duplicate source should warn");
-    assert!(warning.contains("example.missing"));
-
-    let duplicate_seed = find_child_by_decl(
-        &engine,
-        formula_node,
-        FORMULA_DUPLICATE_SOURCE_DECL_ID,
-    )
-    .and_then(|node| snapshot.node(node))
-    .and_then(|node| node.param_value.as_ref())
-    .and_then(ParamValue::as_str)
-    .expect("duplicate source seed should exist");
-    assert_eq!(duplicate_seed, source_key);
-}
-
-#[test]
 fn formula_library_and_folders_accept_formulas_and_formula_folders() {
     let library = FormulaLibrary::new();
     let folder = AlchemistFormulaFolder::new();
@@ -138,10 +82,110 @@ fn formula_library_and_folders_accept_formulas_and_formula_folders() {
                 && item.item_kind == FORMULA_ITEM_KIND
         }));
         assert!(items.iter().any(|item| {
+            item.node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE
+                && item.item_kind == FORMULA_ITEM_KIND
+                && item.label == "External Formula"
+        }));
+        assert!(items.iter().any(|item| {
             item.node_type == FORMULA_FOLDER_NODE_TYPE
                 && item.item_kind == FORMULA_FOLDER_ITEM_KIND
         }));
     }
+}
+
+#[test]
+fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("Formula Library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: library,
+        node_type: FORMULA_EXTERNAL_FILE_CREATE_TYPE.to_owned(),
+        label: Some("Linked Action".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "External Formula creation should succeed: {ack:?}");
+    let formula = direct_children(&engine, library)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+        })
+        .expect("External Formula should exist");
+    assert!(engine
+        .nodes
+        .get(formula)
+        .expect("External Formula should exist")
+        .node_data()
+        .meta
+        .tags
+        .iter()
+        .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG));
+
+    let file_param = find_child_by_decl(&engine, formula, FORMULA_EXTERNAL_FILE_DECL_ID)
+        .expect("External Formula should expose a Formula File parameter");
+    let file_parameter = engine
+        .nodes
+        .get(file_param)
+        .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+        .expect("Formula File should be a parameter");
+    assert!(!file_parameter.read_only);
+    assert!(matches!(file_parameter.value, ParamValue::File(ref path) if path.is_empty()));
+
+    let action_path = std::env::current_dir()
+        .expect("current dir should resolve")
+        .join("builtin_formulas")
+        .join("Action.json");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: file_param,
+        value: ParamValue::File(action_path.to_string_lossy().into_owned()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        ack.success,
+        "Setting the external formula file should succeed: {ack:?}"
+    );
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("External formula file load should settle");
+    }
+
+    assert!(
+        find_child_by_decl(&engine, formula, FORMULA_EXTERNAL_FILE_DECL_ID).is_some(),
+        "External Formula should keep its file parameter after reload"
+    );
+    let regions_param = find_child_by_decl(&engine, formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+        .expect("External Action formula should expose managed regions metadata");
+    let raw_regions = match engine
+        .nodes
+        .get(regions_param)
+        .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+        .map(|parameter| &parameter.value)
+    {
+        Some(ParamValue::Str(value)) => value,
+        other => panic!("Managed regions metadata should be a string, got {other:?}"),
+    };
+    let regions: Vec<serde_json::Value> =
+        serde_json::from_str(raw_regions).expect("Managed regions should decode");
+    assert_eq!(
+        regions
+            .iter()
+            .map(|region| region["label"].as_str().unwrap_or_default())
+            .collect::<Vec<_>>(),
+        vec!["Conditions", "On True", "On False"]
+    );
 }
 
 #[test]
