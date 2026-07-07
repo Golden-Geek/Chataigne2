@@ -82,6 +82,9 @@ pub struct PresentationHint {
     /// Preferred UI color.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Color>,
+    /// Preferred UI icon, as a data URI (e.g. `data:image/svg+xml;base64,...`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     /// Whether UI tree/inspector containers should start collapsed until a user chooses otherwise.
     #[serde(default, skip_serializing_if = "is_false")]
     pub collapsed: bool,
@@ -109,6 +112,7 @@ impl Default for PresentationHint {
     fn default() -> Self {
         Self {
             color: None,
+            icon: None,
             collapsed: false,
             warnings: Vec::new(),
             show_child_warnings_max_depth: 0,
