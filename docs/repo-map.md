@@ -30,10 +30,9 @@
   orchestration, InputSet/OutputSet materialization, command intents, and
   protocol generation.
 - `src/state_machine_nodes/`: app-owned state-machine tree nodes, including the
-  Formula Library, Processor Manager, built-in formula catalog/package loader,
+  Formula Library, Processor Manager, built-in formula file catalog loader,
   processor managed-region folders, and app-owned manager bridge ANodes.
-- `src/state_machine_nodes/builtin_formulas/`: shipped Action and Mapping
-  formula package definitions.
+- `builtin_formulas/`: shipped Action and Mapping exported formula files.
 - `submodules/golden_alchemist_core/`: reusable Alchemist graph typing,
   compilation, runtime evaluation, primitive ANodes, ConditionGate,
   filter-pipeline capabilities, shape checking, and managed-region metadata.

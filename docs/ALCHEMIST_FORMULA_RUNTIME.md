@@ -23,15 +23,14 @@ are not ordinary Formula Library children and must not be path-imported from app
 code.
 
 Built-in formulas are data files, not Rust declarations. `FormulaCatalog` loads
-packages from `CHATAIGNE_BUILTIN_FORMULAS_DIR` when set, otherwise from a
-`builtin_formulas` directory. If no package directory exists, the built-in
-catalog is empty. Product-owned formulas can later appear under Built-ins by
-placing package files in that folder.
+individual exported formula files from `CHATAIGNE_BUILTIN_FORMULAS_DIR` when
+set, otherwise from the root `builtin_formulas` directory. If no formula
+directory exists, the built-in catalog is empty. Chataigne currently ships
+`builtin_formulas/Action.json` and `builtin_formulas/Mapping.json`.
 
-Chataigne ships an app-provided package file at
-`builtin_formulas/chataigne.formulas.json`. The package is data-only and may be
-empty; product-owned templates should appear there as authored formula
-definitions, not as hardcoded runtime concepts.
+The exported file name owns the stable built-in identity. `Action.json` resolves
+as `chataigne.action@1`, and `Mapping.json` resolves as `chataigne.mapping@1`,
+even when a future re-export changes the formula root UUID.
 
 Processor creation flows through catalog entries. Project formulas marked
 processor-creatable appear under Project Formulas. Built-ins can be opened
@@ -45,7 +44,7 @@ invalid sources resolve to explicit diagnostics instead of being rewritten.
 
 ## Managed Processor Surfaces
 
-Formula packages may declare managed region surfaces. The runtime recognizes
+Formula files may declare managed region surfaces. The runtime recognizes
 neutral region shapes rather than product formula names:
 
 ```text
@@ -72,9 +71,9 @@ No product-named processor owns a special evaluator for filters or conditions.
 For users and module authors, this means:
 
 ```text
-Product formula names live in package files.
-Value-pipeline packages are authored through Inputs / Filters / Outputs.
-Trigger-pipeline packages are authored through Trigger / Filters / Commands.
+Product formula names live in exported formula files.
+Value-pipeline formulas are authored through Inputs / Filters / Outputs.
+Trigger-pipeline formulas are authored through Trigger / Filters / Commands.
 Conditions are filters through ConditionGate.
 Complex branching belongs in custom formulas.
 ```

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     error::Error,
     fmt, fs,
     path::{Path, PathBuf},
@@ -7,15 +7,18 @@ use std::{
 };
 
 use chataigne_state_machine::ProcessorFormulaUiState;
-use golden_alchemist::{
-    AlchemistFormula, AlchemistGraph, FormulaContextContract, FormulaId,
-    FormulaMigration, FormulaPropertySchema, FormulaSurface,
-};
+use golden_alchemist::{AlchemistFormula, FormulaId};
 use golden_core::{
-    node::{NodeId, NodeReference, NodeUuid, UserCreatableItem},
-    process_ctx::ProcessTreeSnapshot,
+    node::{
+        DashboardWidgetTargetDescriptor, NodeId, NodeReference, NodeUuid,
+        PresentationHint, UserCreatableItem,
+    },
+    parameter::ParamValue,
+    process_ctx::{ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use uuid::Uuid;
 
 use crate::app::state_machine_nodes_formula::formula_from_snapshot;
 
@@ -26,6 +29,9 @@ const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const PROCESSOR_BUILTIN_CREATE_PREFIX: &str = "state_processor:builtin:";
 const BUILTIN_FORMULA_DIR_ENV: &str = "CHATAIGNE_BUILTIN_FORMULAS_DIR";
 const BUILTIN_FORMULA_DIR: &str = "builtin_formulas";
+const EXPORTED_NODE_TREE_KIND: &str = "golden-ui.node-tree";
+const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
+const FORMULA_DESCRIPTION: &str = "Built-in Chataigne formula.";
 
 #[derive(Clone, Debug)]
 pub(crate) enum FormulaSourceRef {
@@ -324,21 +330,13 @@ impl FormulaCatalog {
     }
 
     pub(crate) fn with_builtins() -> Self {
-        Self::from_builtin_package_dir(builtin_formula_package_dir()).unwrap_or_default()
+        Self::from_builtin_formula_dir(builtin_formula_dir())
+            .expect("built-in formula files should load")
     }
 
-    pub(crate) fn from_builtin_package_source(
-        source: &str,
-    ) -> Result<Self, BuiltinFormulaPackageError> {
-        let package = BuiltinFormulaPackage::decode(source)?;
-        Ok(Self {
-            entries: package.into_entries()?,
-        })
-    }
-
-    fn from_builtin_package_dir(
+    pub(crate) fn from_builtin_formula_dir(
         path: impl AsRef<Path>,
-    ) -> Result<Self, BuiltinFormulaPackageError> {
+    ) -> Result<Self, BuiltinFormulaLoadError> {
         let path = path.as_ref();
         let entries = match fs::read_dir(path) {
             Ok(entries) => entries,
@@ -346,31 +344,41 @@ impl FormulaCatalog {
                 return Ok(Self::default());
             }
             Err(error) => {
-                return Err(BuiltinFormulaPackageError::Io {
+                return Err(BuiltinFormulaLoadError::Io {
                     path: path.to_path_buf(),
                     source: error,
                 });
             }
         };
 
-        let mut catalog = Self::default();
+        let mut paths = Vec::new();
         for entry in entries {
-            let entry = entry.map_err(|error| BuiltinFormulaPackageError::Io {
+            let entry = entry.map_err(|error| BuiltinFormulaLoadError::Io {
                 path: path.to_path_buf(),
                 source: error,
             })?;
-            let package_path = entry.path();
-            if package_path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            let formula_path = entry.path();
+            if formula_path.extension().and_then(|extension| extension.to_str()) != Some("json") {
                 continue;
             }
+            paths.push(formula_path);
+        }
+        paths.sort();
+
+        let mut seen = HashSet::new();
+        let mut catalog = Self::default();
+        for formula_path in paths {
             let source =
-                fs::read_to_string(&package_path).map_err(|error| BuiltinFormulaPackageError::Io {
-                    path: package_path.clone(),
+                fs::read_to_string(&formula_path).map_err(|error| BuiltinFormulaLoadError::Io {
+                    path: formula_path.clone(),
                     source: error,
                 })?;
-            catalog
-                .entries
-                .extend(Self::from_builtin_package_source(&source)?.entries);
+            let entry = BuiltinFormulaFile::decode(&formula_path, &source)?.into_entry()?;
+            let key = builtin_source_key(&entry.source);
+            if !seen.insert(key.clone()) {
+                return Err(BuiltinFormulaLoadError::DuplicateFormula { source: key });
+            }
+            catalog.entries.push(entry);
         }
         Ok(catalog)
     }
@@ -481,196 +489,590 @@ impl FormulaCatalog {
     }
 
     pub(super) fn processor_palette_items(&self) -> Vec<UserCreatableItem> {
+        let has_builtin_items = self
+            .processor_palette_entries()
+            .any(|entry| matches!(entry.source, FormulaSourceRef::Builtin { .. }));
+        let mut saw_project_item = false;
+
         self.processor_palette_entries()
             .filter_map(|entry| {
                 let template = entry.processor_template.as_ref()?;
-                let menu_path = match &entry.source {
-                    FormulaSourceRef::ProjectNode(_) => "Project Formulas",
-                    FormulaSourceRef::Builtin { .. } => "Built-ins",
+
+                let separator_before = match &entry.source {
+                    FormulaSourceRef::ProjectNode(_) if has_builtin_items && !saw_project_item => {
+                        saw_project_item = true;
+                        true
+                    }
+                    FormulaSourceRef::ProjectNode(_) => {
+                        saw_project_item = true;
+                        false
+                    }
+                    FormulaSourceRef::Builtin { .. } => false,
                 };
+
                 Some(
                     UserCreatableItem::new(
                         &template.create_type,
                         PROCESSOR_ITEM_KIND,
                         &entry.label,
                     )
-                    .with_menu_path([menu_path]),
+                    .with_separator_before(separator_before),
                 )
             })
             .collect()
     }
 }
 
-fn builtin_formula_package_dir() -> PathBuf {
+fn builtin_formula_dir() -> PathBuf {
     std::env::var_os(BUILTIN_FORMULA_DIR_ENV)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(BUILTIN_FORMULA_DIR))
 }
 
-#[derive(Debug, Deserialize)]
-struct BuiltinFormulaPackage {
-    package: String,
-    formulas: Vec<BuiltinFormulaDefinition>,
-}
-
-impl BuiltinFormulaPackage {
-    fn decode(source: &str) -> Result<Self, BuiltinFormulaPackageError> {
-        serde_json::from_str(source).map_err(BuiltinFormulaPackageError::Decode)
-    }
-
-    fn into_entries(self) -> Result<Vec<FormulaCatalogEntry>, BuiltinFormulaPackageError> {
-        let package = self.package.trim();
-        if package.is_empty() {
-            return Err(BuiltinFormulaPackageError::EmptyPackage);
-        }
-
-        let mut seen = HashSet::new();
-        self.formulas
-            .into_iter()
-            .map(|formula| {
-                let key = format!("{}.{}@{}", package, formula.formula_id, formula.version);
-                if !seen.insert(key.clone()) {
-                    return Err(BuiltinFormulaPackageError::DuplicateFormula { source: key });
-                }
-                formula.into_catalog_entry(package)
-            })
-            .collect()
+fn builtin_source_key(source: &FormulaSourceRef) -> String {
+    match source {
+        FormulaSourceRef::Builtin {
+            package,
+            formula_id,
+            version,
+        } => format!("{package}.{formula_id}@{version}"),
+        FormulaSourceRef::ProjectNode(reference) => reference.uuid().0.to_string(),
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct BuiltinFormulaDefinition {
-    formula_id: String,
+#[derive(Clone, Copy, Debug)]
+struct BuiltinFormulaIdentity {
+    package: &'static str,
+    formula_id: &'static str,
     version: u32,
-    label: String,
-    description: String,
-    #[serde(default)]
-    tags: Vec<String>,
-    #[serde(default)]
-    graph: AlchemistGraph,
-    #[serde(default)]
-    properties: FormulaPropertySchema,
-    #[serde(default)]
-    surface: FormulaSurface,
-    #[serde(default)]
-    context_contract: FormulaContextContract,
-    #[serde(default)]
-    migrations: Vec<FormulaMigration>,
-    visibility: BuiltinFormulaVisibility,
-    #[serde(default = "default_builtin_processor_template")]
-    processor_template: bool,
 }
 
-impl BuiltinFormulaDefinition {
-    fn into_catalog_entry(
-        self,
-        package: &str,
-    ) -> Result<FormulaCatalogEntry, BuiltinFormulaPackageError> {
-        let formula_id = self.formula_id.trim();
-        if formula_id.is_empty() {
-            return Err(BuiltinFormulaPackageError::EmptyFormulaId {
-                package: package.to_owned(),
+impl BuiltinFormulaIdentity {
+    const ACTION: Self = Self {
+        package: "chataigne",
+        formula_id: "action",
+        version: 1,
+    };
+    const MAPPING: Self = Self {
+        package: "chataigne",
+        formula_id: "mapping",
+        version: 1,
+    };
+
+    fn from_file_name(file_name: &str) -> Option<Self> {
+        match file_name.to_ascii_lowercase().as_str() {
+            "action.json" => Some(Self::ACTION),
+            "mapping.json" => Some(Self::MAPPING),
+            _ => None,
+        }
+    }
+
+    fn source(self) -> FormulaSourceRef {
+        FormulaSourceRef::builtin(self.package, self.formula_id, self.version)
+    }
+
+    fn formula_id(self) -> FormulaId {
+        FormulaId::new(format!("{}.{}", self.package, self.formula_id))
+    }
+
+    fn visibility(self) -> FormulaVisibility {
+        FormulaVisibility {
+            show_in_formula_library: false,
+            show_in_processor_palette: true,
+            can_duplicate_to_library: true,
+            open_readonly_from_processor: true,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct BuiltinFormulaFile {
+    identity: BuiltinFormulaIdentity,
+    tree: ExportedNodeTree,
+}
+
+impl BuiltinFormulaFile {
+    fn decode(path: &Path, source: &str) -> Result<Self, BuiltinFormulaLoadError> {
+        let value =
+            serde_json::from_str::<JsonValue>(source).map_err(BuiltinFormulaLoadError::Decode)?;
+        if value.get("kind").and_then(JsonValue::as_str) != Some(EXPORTED_NODE_TREE_KIND) {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "file '{}' is not an exported node-tree formula",
+                    path.display()
+                ),
             });
         }
 
-        let source = FormulaSourceRef::builtin(
-            package.to_owned(),
-            formula_id.to_owned(),
-            self.version,
-        );
-        let tags = self.tags;
-        let mut graph = self.graph;
-        if graph.metadata.label.is_empty() {
-            graph.metadata.label = self.label.clone();
-        }
-        if graph.metadata.description.is_none() {
-            graph.metadata.description = Some(self.description.clone());
-        }
-        if graph.metadata.tags.is_empty() {
-            graph.metadata.tags = tags.clone();
-        }
-        let formula = AlchemistFormula {
-            id: FormulaId::new(format!("{}.{}", package, formula_id)),
-            version: self.version,
-            label: self.label.clone(),
-            description: Some(self.description.clone()),
-            tags,
-            graph,
-            properties: self.properties,
-            surface: self.surface,
-            context_contract: self.context_contract,
-            migrations: self.migrations,
-        };
-        let mut entry = FormulaCatalogEntry::builtin_processor_template(
-            source,
-            self.label,
-            self.description,
-            self.visibility.into(),
-            formula,
-        );
-        if !self.processor_template {
-            entry.processor_template = None;
-        }
-        Ok(entry)
+        let file_name = path
+            .file_name()
+            .and_then(|file_name| file_name.to_str())
+            .ok_or_else(|| BuiltinFormulaLoadError::UnsupportedFormulaFile {
+                path: path.to_path_buf(),
+            })?;
+        let identity = BuiltinFormulaIdentity::from_file_name(file_name).ok_or_else(|| {
+            BuiltinFormulaLoadError::UnsupportedFormulaFile {
+                path: path.to_path_buf(),
+            }
+        })?;
+        let tree = serde_json::from_value(value).map_err(BuiltinFormulaLoadError::Decode)?;
+        Ok(Self { identity, tree })
+    }
+
+    fn into_entry(self) -> Result<FormulaCatalogEntry, BuiltinFormulaLoadError> {
+        self.tree.into_catalog_entry(self.identity)
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct BuiltinFormulaVisibility {
-    show_in_formula_library: bool,
-    show_in_processor_palette: bool,
-    can_duplicate_to_library: bool,
-    open_readonly_from_processor: bool,
+struct ExportedNodeTree {
+    kind: String,
+    version: u32,
+    nodes: Vec<ExportedNode>,
 }
 
-impl From<BuiltinFormulaVisibility> for FormulaVisibility {
-    fn from(value: BuiltinFormulaVisibility) -> Self {
-        Self {
-            show_in_formula_library: value.show_in_formula_library,
-            show_in_processor_palette: value.show_in_processor_palette,
-            can_duplicate_to_library: value.can_duplicate_to_library,
-            open_readonly_from_processor: value.open_readonly_from_processor,
+impl ExportedNodeTree {
+    fn into_catalog_entry(
+        self,
+        identity: BuiltinFormulaIdentity,
+    ) -> Result<FormulaCatalogEntry, BuiltinFormulaLoadError> {
+        if self.kind != EXPORTED_NODE_TREE_KIND {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!("unsupported node-tree kind '{}'", self.kind),
+            });
+        }
+        if self.version != 1 {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!("unsupported node-tree version {}", self.version),
+            });
+        }
+        if self.nodes.len() != 1 {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: "export must contain exactly one formula root".to_owned(),
+            });
+        }
+
+        let manager_roles = self.manager_roles_by_uuid()?;
+        let root_node = self.nodes.into_iter().next().expect("checked length");
+        if root_node.node_type != FORMULA_NODE_TYPE {
+            return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!(
+                    "export root '{}' is not an Alchemist formula",
+                    root_node.label
+                ),
+            });
+        }
+
+        let root = root_node.node_id();
+        let mut nodes = HashMap::new();
+        push_exported_snapshot_node(
+            root_node,
+            None,
+            None,
+            true,
+            &manager_roles,
+            &mut nodes,
+        )?;
+        let snapshot = ProcessTreeSnapshot::new(root, nodes);
+        let mut formula = formula_from_snapshot(&snapshot, root).map_err(|reason| {
+            BuiltinFormulaLoadError::InvalidExportedFormula { reason }
+        })?;
+
+        formula.id = identity.formula_id();
+        formula.version = identity.version;
+        if formula.description.is_none() {
+            formula.description = Some(FORMULA_DESCRIPTION.to_owned());
+        }
+        if formula.graph.metadata.description.is_none() {
+            formula.graph.metadata.description = formula.description.clone();
+        }
+
+        Ok(FormulaCatalogEntry::builtin_processor_template(
+            identity.source(),
+            formula.label.clone(),
+            formula.description.clone().unwrap_or_default(),
+            identity.visibility(),
+            formula,
+        ))
+    }
+
+    fn manager_roles_by_uuid(
+        &self,
+    ) -> Result<HashMap<NodeUuid, String>, BuiltinFormulaLoadError> {
+        let mut roles = HashMap::new();
+        for node in &self.nodes {
+            collect_exported_manager_roles(node, &mut roles)?;
+        }
+        Ok(roles)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ExportedNode {
+    #[serde(rename = "sourceId")]
+    source_id: u64,
+    #[serde(rename = "sourceUuid")]
+    source_uuid: Uuid,
+    node_type: String,
+    decl_id: String,
+    label: String,
+    #[serde(default)]
+    data: ExportedNodeData,
+    #[serde(default)]
+    meta: ExportedNodeMeta,
+    #[serde(default)]
+    children: Vec<ExportedNode>,
+}
+
+impl ExportedNode {
+    fn node_id(&self) -> NodeId {
+        NodeId(self.source_id)
+    }
+
+    fn node_uuid(&self) -> NodeUuid {
+        NodeUuid(self.source_uuid)
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ExportedNodeMeta {
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
+    #[serde(default)]
+    can_be_disabled: bool,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    presentation: PresentationHint,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum ExportedNodeData {
+    Node {
+        #[allow(dead_code)]
+        node_type: String,
+    },
+    Parameter { param: ExportedParameter },
+}
+
+impl Default for ExportedNodeData {
+    fn default() -> Self {
+        Self::Node {
+            node_type: String::new(),
         }
     }
 }
 
-const fn default_builtin_processor_template() -> bool {
+#[derive(Debug, Deserialize)]
+struct ExportedParameter {
+    value: JsonValue,
+}
+
+fn push_exported_snapshot_node(
+    mut node: ExportedNode,
+    parent: Option<NodeId>,
+    next_sibling: Option<NodeId>,
+    parent_enabled: bool,
+    manager_roles: &HashMap<NodeUuid, String>,
+    nodes: &mut HashMap<NodeId, ProcessTreeNodeSnapshot>,
+) -> Result<(), BuiltinFormulaLoadError> {
+    let id = node.node_id();
+    let uuid = node.node_uuid();
+    let first_child = node.children.first().map(ExportedNode::node_id);
+    let enabled = parent_enabled && node.meta.enabled;
+    let child_count = node.children.len();
+    let mut tags = std::mem::take(&mut node.meta.tags);
+    if node.node_type == "alchemist_anode"
+        && !tags
+            .iter()
+            .any(|tag| tag.starts_with(ANODE_TYPE_TAG_PREFIX))
+    {
+        if let Some(type_id) = exported_anode_type(&node, manager_roles)? {
+            tags.push(format!("{ANODE_TYPE_TAG_PREFIX}{type_id}"));
+        }
+    }
+    let param_value = exported_param_value(&node)?;
+    let label = node.meta.label.unwrap_or(node.label);
+    let decl_id = node.decl_id;
+    let short_name = decl_id
+        .rsplit('/')
+        .next()
+        .filter(|value| !value.is_empty())
+        .unwrap_or(decl_id.as_str())
+        .to_owned();
+
+    let children = node.children;
+    nodes.insert(
+        id,
+        ProcessTreeNodeSnapshot {
+            id,
+            uuid,
+            parent,
+            first_child,
+            next_sibling,
+            node_type: node.node_type,
+            decl_id,
+            short_name,
+            label,
+            tags,
+            presentation: node.meta.presentation,
+            enabled,
+            can_be_disabled: node.meta.can_be_disabled,
+            child_count,
+            param_value,
+            param_constraints: None,
+            dashboard_widget_target: DashboardWidgetTargetDescriptor::inspector_only(),
+            script_properties: HashMap::new(),
+            script_methods: Vec::new(),
+        },
+    );
+
+    let mut iter = children.into_iter().peekable();
+    while let Some(child) = iter.next() {
+        let next_child = iter.peek().map(ExportedNode::node_id);
+        push_exported_snapshot_node(
+            child,
+            Some(id),
+            next_child,
+            enabled,
+            manager_roles,
+            nodes,
+        )?;
+    }
+    Ok(())
+}
+
+fn exported_param_value(
+    node: &ExportedNode,
+) -> Result<Option<ParamValue>, BuiltinFormulaLoadError> {
+    match &node.data {
+        ExportedNodeData::Node { .. } => Ok(None),
+        ExportedNodeData::Parameter { param } => parse_exported_param_value(&param.value)
+            .map(Some)
+            .map_err(|reason| BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: format!("parameter '{}' has invalid value: {reason}", node.label),
+            }),
+    }
+}
+
+fn parse_exported_param_value(value: &JsonValue) -> Result<ParamValue, String> {
+    let kind = value
+        .get("kind")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| "missing value kind".to_owned())?;
+    match kind {
+        "trigger" => Ok(ParamValue::Trigger()),
+        "int" => Ok(ParamValue::Int(
+            value_field(value)?
+                .as_i64()
+                .ok_or_else(|| "int value must be an integer".to_owned())?
+                .try_into()
+                .map_err(|_| "int value is outside i32 range".to_owned())?,
+        )),
+        "float" => Ok(ParamValue::Float(number_value(value)?)),
+        "str" => Ok(ParamValue::Str(string_value(value)?.to_owned())),
+        "file" => Ok(ParamValue::File(string_value(value)?.to_owned())),
+        "enum" => Ok(ParamValue::Enum(string_value(value)?.to_owned())),
+        "bool" => Ok(ParamValue::Bool(
+            value_field(value)?
+                .as_bool()
+                .ok_or_else(|| "bool value must be a boolean".to_owned())?,
+        )),
+        "vec2" => {
+            let values = number_array(value, 2)?;
+            Ok(ParamValue::Vec2(values[0], values[1]))
+        }
+        "vec3" => {
+            let values = number_array(value, 3)?;
+            Ok(ParamValue::Vec3(values[0], values[1], values[2]))
+        }
+        "color" => {
+            let color = value.get("value").unwrap_or(value);
+            let color = color
+                .as_object()
+                .ok_or_else(|| "color value must be an object".to_owned())?;
+            Ok(ParamValue::Color(
+                object_number(color, "r")?,
+                object_number(color, "g")?,
+                object_number(color, "b")?,
+                object_number(color, "a")?,
+            ))
+        }
+        "reference" => {
+            let uuid = value
+                .get("uuid")
+                .and_then(JsonValue::as_str)
+                .ok_or_else(|| "reference value must contain a uuid".to_owned())?
+                .parse::<Uuid>()
+                .map_err(|error| format!("reference uuid is invalid: {error}"))?;
+            Ok(ParamValue::Reference(NodeReference::new(NodeUuid(uuid))))
+        }
+        other => Err(format!("unsupported value kind '{other}'")),
+    }
+}
+
+fn value_field(value: &JsonValue) -> Result<&JsonValue, String> {
+    value
+        .get("value")
+        .ok_or_else(|| "missing value payload".to_owned())
+}
+
+fn string_value(value: &JsonValue) -> Result<&str, String> {
+    value_field(value)?
+        .as_str()
+        .ok_or_else(|| "value must be a string".to_owned())
+}
+
+fn number_value(value: &JsonValue) -> Result<f64, String> {
+    value_field(value)?
+        .as_f64()
+        .ok_or_else(|| "value must be a number".to_owned())
+}
+
+fn number_array(value: &JsonValue, expected_len: usize) -> Result<Vec<f64>, String> {
+    let values = value_field(value)?
+        .as_array()
+        .ok_or_else(|| "value must be an array".to_owned())?;
+    if values.len() != expected_len {
+        return Err(format!(
+            "value must contain {expected_len} numeric components"
+        ));
+    }
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_f64()
+                .ok_or_else(|| "array component must be numeric".to_owned())
+        })
+        .collect()
+}
+
+fn object_number(
+    object: &serde_json::Map<String, JsonValue>,
+    key: &str,
+) -> Result<f64, String> {
+    object
+        .get(key)
+        .and_then(JsonValue::as_f64)
+        .ok_or_else(|| format!("color component '{key}' must be numeric"))
+}
+
+fn collect_exported_manager_roles(
+    node: &ExportedNode,
+    roles: &mut HashMap<NodeUuid, String>,
+) -> Result<(), BuiltinFormulaLoadError> {
+    if node.node_type == "alchemist_property_manager" {
+        if let Some(role) = exported_child_string(node, "role")? {
+            roles.insert(node.node_uuid(), role);
+        }
+    }
+    for child in &node.children {
+        collect_exported_manager_roles(child, roles)?;
+    }
+    Ok(())
+}
+
+fn exported_anode_type(
+    node: &ExportedNode,
+    manager_roles: &HashMap<NodeUuid, String>,
+) -> Result<Option<&'static str>, BuiltinFormulaLoadError> {
+    let Some(manager_uuid) = exported_manager_reference(node)? else {
+        return Ok(None);
+    };
+    Ok(manager_roles
+        .get(&manager_uuid)
+        .and_then(|role| match role.as_str() {
+            "condition" => Some(chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE),
+            "filter" => Some(chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE),
+            "input" => Some(chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE),
+            "output" => Some(chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE),
+            _ => None,
+        }))
+}
+
+fn exported_manager_reference(
+    node: &ExportedNode,
+) -> Result<Option<NodeUuid>, BuiltinFormulaLoadError> {
+    let Some(config) = node.children.iter().find(|child| child.decl_id == "config") else {
+        return Ok(None);
+    };
+    let Some(manager) = config
+        .children
+        .iter()
+        .find(|child| child.decl_id == "config/manager_id")
+    else {
+        return Ok(None);
+    };
+    let Some(value) = exported_param_value(manager)? else {
+        return Ok(None);
+    };
+    Ok(match value {
+        ParamValue::Reference(reference) if !reference.is_empty() => Some(reference.uuid()),
+        _ => None,
+    })
+}
+
+fn exported_child_string(
+    node: &ExportedNode,
+    decl_id: &str,
+) -> Result<Option<String>, BuiltinFormulaLoadError> {
+    let Some(child) = node.children.iter().find(|child| child.decl_id == decl_id) else {
+        return Ok(None);
+    };
+    let Some(value) = exported_param_value(child)? else {
+        return Ok(None);
+    };
+    Ok(match value {
+        ParamValue::Str(value) | ParamValue::Enum(value) => Some(value),
+        _ => None,
+    })
+}
+
+const fn default_enabled() -> bool {
     true
 }
 
 #[derive(Debug)]
-pub(crate) enum BuiltinFormulaPackageError {
+pub(crate) enum BuiltinFormulaLoadError {
     Decode(serde_json::Error),
     Io {
         path: PathBuf,
         source: std::io::Error,
     },
-    EmptyPackage,
-    EmptyFormulaId { package: String },
     DuplicateFormula { source: String },
+    UnsupportedFormulaFile { path: PathBuf },
+    InvalidExportedFormula { reason: String },
 }
 
-impl fmt::Display for BuiltinFormulaPackageError {
+impl fmt::Display for BuiltinFormulaLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Decode(error) => write!(f, "failed to decode builtin formula package: {error}"),
+            Self::Decode(error) => write!(f, "failed to decode builtin formula file: {error}"),
             Self::Io { path, source } => write!(
                 f,
-                "failed to read builtin formula package path '{}': {source}",
+                "failed to read builtin formula file '{}': {source}",
                 path.display()
             ),
-            Self::EmptyPackage => write!(f, "builtin formula package has an empty package id"),
-            Self::EmptyFormulaId { package } => {
-                write!(f, "builtin formula package '{package}' contains an empty formula id")
-            }
             Self::DuplicateFormula { source } => {
-                write!(f, "builtin formula package contains duplicate formula '{source}'")
+                write!(f, "builtin formula files contain duplicate formula '{source}'")
+            }
+            Self::UnsupportedFormulaFile { path } => write!(
+                f,
+                "builtin formula file '{}' is not a supported built-in formula identity",
+                path.display()
+            ),
+            Self::InvalidExportedFormula { reason } => {
+                write!(f, "invalid exported builtin formula: {reason}")
             }
         }
     }
 }
 
-impl Error for BuiltinFormulaPackageError {}
+impl Error for BuiltinFormulaLoadError {}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]

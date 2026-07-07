@@ -35,10 +35,12 @@ schema.
 
 The Formula Catalog is the complete resolver for project and shipped formulas.
 The Formula Library is only the editable project tree. Built-in formulas are
-catalog entries loaded from package files, not product-name branches in runtime
-code. When duplication is allowed, the app creates a new project formula through
-the public Formula Library creation path and seeds it from backend-owned catalog
-metadata.
+catalog entries loaded from individual exported formula files, not product-name
+branches in runtime code. The built-in file name forces the stable
+package/formula/version identity, so re-exporting `Action.json` keeps resolving
+as `chataigne.action@1`. When duplication is allowed, the app creates a new
+project formula through the public Formula Library creation path and seeds it
+from backend-owned catalog metadata.
 
 Processors persist a typed formula source rather than assuming every processor
 points at a project formula node. Project formulas still resolve through node
