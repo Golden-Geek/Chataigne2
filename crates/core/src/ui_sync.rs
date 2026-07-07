@@ -1887,7 +1887,7 @@ impl<T: Node> Engine<T> {
                 .map_err(ProjectPersistenceError::Engine)?;
         }
 
-        self.dispatch_loaded_subtree_structure_events(duplicated_roots.as_slice())?;
+        self.queue_loaded_subtree_structure_events(duplicated_roots.as_slice())?;
 
         Ok(copied_roots)
     }

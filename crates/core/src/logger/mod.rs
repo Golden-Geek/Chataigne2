@@ -103,6 +103,17 @@ impl LoggerState {
 
 static LOGGER_STATE: LazyLock<Mutex<LoggerState>> = LazyLock::new(|| Mutex::new(LoggerState::with_defaults()));
 
+#[cfg(test)]
+static LOGGER_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+#[cfg(test)]
+pub(crate) fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+    match LOGGER_TEST_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
 thread_local! {
     static CURRENT_NODE_ORIGIN: Cell<Option<NodeId>> = const { Cell::new(None) };
 }

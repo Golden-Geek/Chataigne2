@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn logger_joins_multiple_parts() {
+    let _guard = test_lock();
     clear();
     let record = crate::log!("hello", 42, "world");
     assert_eq!(record.level, LogLevel::Info);
@@ -11,6 +12,7 @@ fn logger_joins_multiple_parts() {
 
 #[test]
 fn logger_accepts_options() {
+    let _guard = test_lock();
     clear();
     let record = crate::log!(tag = "ui", level = warning; "payload");
     assert_eq!(record.level, LogLevel::Warning);
@@ -19,6 +21,7 @@ fn logger_accepts_options() {
 
 #[test]
 fn logger_accepts_success_options() {
+    let _guard = test_lock();
     clear();
     let record = crate::log!(tag = "ui", level = success; "payload");
     assert_eq!(record.level, LogLevel::Success);
@@ -27,6 +30,7 @@ fn logger_accepts_success_options() {
 
 #[test]
 fn logger_accepts_warning_shortcut() {
+    let _guard = test_lock();
     clear();
     let record = crate::logwarning!("payload");
     assert_eq!(record.level, LogLevel::Warning);
@@ -35,6 +39,7 @@ fn logger_accepts_warning_shortcut() {
 
 #[test]
 fn logger_accepts_error_shortcut_options() {
+    let _guard = test_lock();
     clear();
     let origin = NodeId(9);
     let record = crate::logerror!(origin = origin, tag = "ui"; "payload");
@@ -45,6 +50,7 @@ fn logger_accepts_error_shortcut_options() {
 
 #[test]
 fn logger_accepts_success_shortcut_options() {
+    let _guard = test_lock();
     clear();
     let record = crate::logsuccess!(tag = "ui"; "payload");
     assert_eq!(record.level, LogLevel::Success);
@@ -53,6 +59,7 @@ fn logger_accepts_success_shortcut_options() {
 
 #[test]
 fn logger_uses_thread_local_origin_when_not_explicit() {
+    let _guard = test_lock();
     clear();
     let origin = NodeId(12);
 
@@ -62,6 +69,7 @@ fn logger_uses_thread_local_origin_when_not_explicit() {
 
 #[test]
 fn logger_collapses_consecutive_duplicates_into_one_record() {
+    let _guard = test_lock();
     clear();
     set_max_entries(DEFAULT_LOG_MAX_ENTRIES);
 
@@ -82,6 +90,7 @@ fn logger_collapses_consecutive_duplicates_into_one_record() {
 
 #[test]
 fn logger_max_entries_counts_collapsed_runs() {
+    let _guard = test_lock();
     clear();
     set_max_entries(2);
 

@@ -4821,6 +4821,67 @@ fn phase6_add_node_tree_large_emits_subtree_inserted_op() {
 }
 
 #[test]
+fn undo_remove_large_subtree_emits_compact_insert_transaction() {
+    let mut engine = Engine::new(Folder::new("root".to_string()));
+    let mut tree = crate::edit::NodeTree::new(Folder::new("subtree_root".to_string()));
+    for i in 0..10 {
+        tree = tree.with_child(crate::edit::NodeTree::new(Folder::new(format!("child_{i}"))));
+    }
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine.apply_edits().expect("add_node_tree should succeed");
+    let subtree_root = direct_children(&engine, engine.root)
+        .first()
+        .copied()
+        .expect("inserted subtree root should exist");
+
+    engine.clear_ui_event_log();
+    let remove_ack = engine.apply_ui_intent(UiEditIntent::RemoveNode { node: subtree_root });
+    assert!(
+        remove_ack.success,
+        "remove intent should apply: {:?}",
+        remove_ack.error_message
+    );
+
+    engine.clear_ui_event_log();
+    let undo_ack = engine.apply_ui_intent(UiEditIntent::Undo);
+    assert!(
+        undo_ack.success,
+        "undo intent should apply: {:?}",
+        undo_ack.error_message
+    );
+
+    let batch = engine.ui_event_batch(None, UiSubscriptionScope::WholeGraph);
+    assert!(
+        batch
+            .events
+            .iter()
+            .all(|event| !matches!(event.kind, UiEventKind::NodeCreated { .. })),
+        "undo restore should not expose per-node NodeCreated UI events"
+    );
+
+    let ops = first_graph_transaction_ops(&batch);
+    assert_eq!(ops.len(), 1, "undo restore should emit exactly one compact graph op");
+    match &ops[0] {
+        UiGraphOp::SubtreeInserted {
+            root,
+            parent,
+            nodes,
+            parent_children_after,
+        } => {
+            assert_eq!(*root, subtree_root);
+            assert_eq!(*parent, engine.root);
+            assert_eq!(nodes.len(), 11);
+            assert_eq!(parent_children_after, &vec![subtree_root]);
+        }
+        other => panic!("expected SubtreeInserted op, got {other:?}"),
+    }
+}
+
+#[test]
 fn reorder_children_does_not_require_whole_graph_resync() {
     let mut engine = Engine::new(Folder::new("root".to_string()));
     engine.add_node(Folder::new("child_a".to_string()), None);
@@ -4958,8 +5019,8 @@ fn duplicate_subtree_preserves_payload_and_remaps_internal_references() {
         .expect("duplicate subtree should succeed");
 
     assert!(
-        engine.inbox.events.is_empty(),
-        "duplicate subtree should not enqueue structural inbox events like a live node add"
+        engine.inbox.events.len() == 2,
+        "duplicate subtree should queue only root structural inbox events"
     );
     assert!(
         !engine.ui_event_log().iter().any(|event| matches!(
@@ -6261,6 +6322,7 @@ fn ui_snapshot_projects_parameter_nodes_with_param_payload() {
 
 #[test]
 fn ui_snapshot_includes_logger_state() {
+    let _logger_guard = logger::test_lock();
     logger::clear();
     crate::log!(tag = "tests", level = error; "snapshot logger payload");
 
@@ -6268,15 +6330,21 @@ fn ui_snapshot_includes_logger_state() {
     let snapshot = engine.ui_snapshot(UiSubscriptionScope::WholeGraph);
 
     assert!(snapshot.logger.max_entries >= 1);
-    assert_eq!(snapshot.logger.records.len(), 1);
-    assert_eq!(snapshot.logger.records[0].tag, "tests");
-    assert_eq!(snapshot.logger.records[0].message, "snapshot logger payload");
+    assert!(
+        snapshot
+            .logger
+            .records
+            .iter()
+            .any(|record| record.tag == "tests" && record.message == "snapshot logger payload"),
+        "snapshot should include the logger record emitted by this test"
+    );
 
     logger::clear();
 }
 
 #[test]
 fn ui_logger_intents_emit_custom_events() {
+    let _logger_guard = logger::test_lock();
     logger::clear();
     let mut engine = Engine::new(Folder::new("root".to_string()));
 
@@ -6285,7 +6353,10 @@ fn ui_logger_intents_emit_custom_events() {
     assert_eq!(logger::max_entries(), 3);
 
     crate::log!("entry");
-    assert_eq!(logger::records().len(), 1);
+    assert!(
+        logger::records().iter().any(|record| record.message == "entry"),
+        "logger should retain the entry emitted by this test"
+    );
 
     let clear_ack = engine.apply_ui_intent(UiEditIntent::ClearLogs);
     assert!(clear_ack.success);
@@ -6308,6 +6379,7 @@ fn ui_logger_intents_emit_custom_events() {
 
 #[test]
 fn run_tick_flushes_pending_logger_records_into_ui_event_log() {
+    let _logger_guard = logger::test_lock();
     logger::clear();
     let mut engine = Engine::new(Folder::new("root".to_string()));
 
@@ -10333,7 +10405,7 @@ fn precompute_inbox_dispatch_builds_per_node_event_batches() {
 }
 
 #[test]
-fn duplicate_subtree_dispatches_structure_events_to_existing_observers_without_queued_inbox() {
+fn duplicate_subtree_queues_root_structure_events_for_existing_observers() {
     let root = RoutingNode::with_policy("root", 1, 0, EventPropagation::Notify);
     let mut engine = Engine::new(root);
 
@@ -10365,15 +10437,24 @@ fn duplicate_subtree_dispatches_structure_events_to_existing_observers_without_q
 
     let root = engine.nodes.get(engine.root).expect("root should exist");
     assert_eq!(
-        root.last_inbox_size, 2,
-        "duplicate should dispatch node-created and child-added to existing observers",
+        root.last_inbox_size, 0,
+        "duplicate should not dispatch observer callbacks synchronously",
     );
+    assert_eq!(root.observed_node_created, 0);
+    assert_eq!(root.observed_child_added, 0);
+    assert_eq!(
+        engine.inbox.events.len(),
+        2,
+        "duplicate should queue root node-created and child-added events for the normal inbox path",
+    );
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued duplicate structure events should dispatch");
+
+    let root = engine.nodes.get(engine.root).expect("root should exist");
+    assert_eq!(root.last_inbox_size, 2);
     assert_eq!(root.observed_node_created, 1);
     assert_eq!(root.observed_child_added, 1);
-    assert!(
-        engine.inbox.events.is_empty(),
-        "duplicate should not leave synthetic structure events queued in the public inbox",
-    );
     assert_eq!(
         engine.nodes.get(source).and_then(|node| node.node_data().next_sibling),
         Some(duplicate),

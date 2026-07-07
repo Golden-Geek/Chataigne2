@@ -181,11 +181,7 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
                         status: UiAckStatus::Applied,
                         error_code: None,
                         error_message: None,
-                        earliest_event_time: engine
-                            .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
-                            .events
-                            .first()
-                            .map(|event| event.time),
+                        earliest_event_time: earliest_ui_event_time_since(engine, before_event_time),
                         history: engine.ui_history_state(),
                     },
                     Err(err) => UiAck {
@@ -223,11 +219,7 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
                 status: UiAckStatus::Applied,
                 error_code: None,
                 error_message: None,
-                earliest_event_time: engine
-                    .ui_event_batch(before_event_time, UiSubscriptionScope::WholeGraph)
-                    .events
-                    .first()
-                    .map(|event| event.time),
+                earliest_event_time: earliest_ui_event_time_since(engine, before_event_time),
                 history: engine.ui_history_state(),
             },
             Err(err) => UiAck {
@@ -241,6 +233,20 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
         },
         other => engine.apply_ui_intent_from_client(other, ui_client_instance_id),
     }
+}
+
+fn earliest_ui_event_time_since<T: Node>(
+    engine: &Engine<T>,
+    previous_event_time: Option<EngineTime>,
+) -> Option<EngineTime> {
+    engine
+        .ui_event_log()
+        .iter()
+        .find(|event| match previous_event_time {
+            Some(previous) => event.time > previous,
+            None => true,
+        })
+        .map(|event| event.time)
 }
 
 fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {

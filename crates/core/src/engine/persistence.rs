@@ -532,7 +532,7 @@ impl<T: Node> Engine<T> {
         )?;
         let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
         if dispatch_structure_events {
-            self.dispatch_loaded_subtree_structure_events(&[duplicated_root])?;
+            self.queue_loaded_subtree_structure_events(&[duplicated_root])?;
         }
         self.sync_missing_reference_warnings_for_nodes_silent(duplicated_node_ids.as_slice());
         self.rebuild_user_context_registry_from_nodes();
@@ -754,16 +754,10 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    pub(crate) fn dispatch_loaded_subtree_structure_events(
+    pub(crate) fn queue_loaded_subtree_structure_events(
         &mut self,
         node_ids: &[NodeId],
     ) -> Result<(), ProjectPersistenceError> {
-        let mut index_by_node = HashMap::<NodeId, usize>::new();
-        let mut per_node_events = Vec::<(NodeId, EventFrame)>::new();
-        let mut recipients = Vec::<NodeId>::new();
-        let mut dedupe = HashSet::<NodeId>::new();
-        let mut ancestry_depths = HashMap::<NodeId, u32>::new();
-
         for node_id in node_ids.iter().copied() {
             let Some(node) = self.nodes.get(node_id) else {
                 continue;
@@ -772,43 +766,15 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let decl_id = node.node_data().meta.decl_id.clone();
-            let events = [
-                Event {
-                    time: self.time,
-                    kind: EventKind::NodeCreated { node: node_id },
-                },
-                Event {
-                    time: self.time,
-                    kind: EventKind::ChildAdded {
-                        parent,
-                        child: node_id,
-                        decl_id,
-                    },
-                },
-            ];
 
-            for event in events {
-                self.route_event_recipients_into(&event, &mut recipients, &mut dedupe, &mut ancestry_depths);
-                let event = Arc::new(event);
-                for recipient in &recipients {
-                    let index = match index_by_node.get(recipient).copied() {
-                        Some(index) => index,
-                        None => {
-                            let index = per_node_events.len();
-                            per_node_events.push((*recipient, EventFrame::new()));
-                            index_by_node.insert(*recipient, index);
-                            index
-                        }
-                    };
-                    per_node_events[index].1.push_shared(Arc::clone(&event));
-                }
-                recipients.clear();
-                dedupe.clear();
-                ancestry_depths.clear();
-            }
+            self.emit_inbox_event(EventKind::NodeCreated { node: node_id });
+            self.emit_inbox_event(EventKind::ChildAdded {
+                parent,
+                child: node_id,
+                decl_id,
+            });
         }
 
-        self.dispatch_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)?;
         Ok(())
     }
 
