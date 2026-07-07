@@ -1978,7 +1978,6 @@
 							canRenderNodeChildren={canRenderPropertyChildren}
 							nodeDraggable={canMovePropertyNode}
 							onNodeDragStartData={setPropertyGraphDragData}
-							onSelectNode={(n: UiNodeDto) => session?.selectNode(n.node_id, 'REPLACE')}
 							onCreateItem={(parent, item) => createPropertyItem(parent, item)} />
 					{/if}
 				</div>

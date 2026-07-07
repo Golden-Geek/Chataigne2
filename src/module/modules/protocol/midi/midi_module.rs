@@ -13,8 +13,8 @@ use golden_core::{
         NodeUserPermissions,
     },
     parameter::{
-        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterEventBehaviour,
-        RangeConstraint,
+        Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterConstraints, ParameterEnumOption,
+        ParameterEventBehaviour, RangeConstraint,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -50,7 +50,7 @@ const SYSTEM_FOLDER_DECL_ID: &str = "system";
 const SYSEX_FOLDER_DECL_ID: &str = "sysex";
 const FOURTEEN_BIT_CHANNELS_FOLDER_DECL_ID: &str = "fourteen_bit_channels";
 
-const MIDI_CC_ROTARY_TAG_PREFIX: &str = "midi:cc:rotary:";
+const MIDI_CC_ROTARY_MODE_DECL_ID: &str = "rotary_mode";
 
 const PROGRAM_DECL_ID: &str = "program";
 const CHANNEL_PRESSURE_DECL_ID: &str = "channel_pressure";
@@ -145,7 +145,7 @@ struct MtcQuarterFrameState {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct MidiCcTagConfig {
+struct MidiCcConfig {
     rotary_mechanism: &'static str,
 }
 
@@ -844,7 +844,7 @@ impl MidiModule {
         let Some(cc_id) = self.ensure_cc_parameter(ctx, snapshot, channel, controller) else {
             return MidiApplyResult::Retry;
         };
-        let config = midi_cc_tag_config(snapshot.node(cc_id).map(|node| node.tags.as_slice()).unwrap_or(&[]));
+        let config = midi_cc_config(snapshot, cc_id);
 
         if config.rotary_mechanism != ROTARY_ABSOLUTE {
             let current = snapshot
@@ -1459,6 +1459,7 @@ impl MidiModule {
             Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "int") => {
                 self.clear_pending_auto_child(cc_folder_id, decl_id.as_str());
                 sync_int_parameter_constraints(ctx, snapshot, existing_id, range);
+                self.ensure_cc_rotary_mode_parameter(ctx, snapshot, existing_id);
                 Some(existing_id)
             }
             Some(existing_id) => {
@@ -1498,6 +1499,36 @@ impl MidiModule {
                     self.schedule_ordered_value_rebuild(ctx, cc_folder_id);
                 }
                 None
+            }
+        }
+    }
+
+    fn ensure_cc_rotary_mode_parameter(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        snapshot: &ProcessTreeSnapshot,
+        cc_id: NodeId,
+    ) {
+        match snapshot.find_child_by_decl_id(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
+            Some(existing_id) if snapshot.node(existing_id).is_some_and(|node| node.node_type == "enum") => {
+                self.clear_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID);
+            }
+            Some(existing_id) => {
+                if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
+                    ctx.replace_node_boxed(
+                        existing_id,
+                        Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)),
+                    );
+                }
+            }
+            None => {
+                if self.mark_pending_auto_child(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID) {
+                    ctx.add_child_boxed(
+                        cc_id,
+                        Box::new(create_cc_rotary_mode_parameter(ROTARY_ABSOLUTE)),
+                        None,
+                    );
+                }
             }
         }
     }
@@ -1640,6 +1671,7 @@ impl MidiModule {
         match existing_id {
             Some(node_id) if snapshot.node(node_id).is_some_and(|node| node.node_type == "int") => {
                 sync_int_parameter_constraints(ctx, snapshot, node_id, range);
+                self.ensure_cc_rotary_mode_parameter(ctx, snapshot, node_id);
                 self.set_internal_param(ctx, node_id, ParamValue::Int(value));
             }
             Some(node_id) => {
@@ -2613,7 +2645,7 @@ fn feedback_messages_for_cc_param(
     let channel = channel_for_descendant(snapshot, param.id)?;
     let controller = cc_from_decl_id(param.decl_id.as_str())?;
     let value = param.param_value.as_ref()?.as_int().unwrap_or(0);
-    let config = midi_cc_tag_config(param.tags.as_slice());
+    let config = midi_cc_config(snapshot, param.id);
     let channel_14_bit = midi_cc_channel_is_14_bit(snapshot, param.id, channel);
 
     if config.rotary_mechanism != ROTARY_ABSOLUTE {
@@ -2688,6 +2720,32 @@ fn create_int_parameter(
     apply_midi_value_identity(parameter.node_data_mut(), decl_id);
     parameter.read_only = read_only;
     parameter.constraints = int_parameter_constraints(range);
+    parameter
+}
+
+fn rotary_mode_option(variant_id: &'static str, label: &'static str, ordering: i32) -> ParameterEnumOption {
+    ParameterEnumOption {
+        variant_id: variant_id.to_string(),
+        value: ParamValue::Enum(variant_id.to_string()),
+        label: label.to_string(),
+        tags: Vec::new(),
+        ordering: Some(ordering),
+    }
+}
+
+fn create_cc_rotary_mode_parameter(value: &'static str) -> Parameter {
+    let mut parameter = Parameter::new(
+        "Rotary Mode",
+        ParamValue::Enum(value.to_string()),
+        ParameterChangeCheck::ValueChange,
+    );
+    apply_midi_value_identity(parameter.node_data_mut(), MIDI_CC_ROTARY_MODE_DECL_ID);
+    parameter.constraints.enum_options = vec![
+        rotary_mode_option(ROTARY_ABSOLUTE, "Absolute", 0),
+        rotary_mode_option(ROTARY_TWOS_COMPLEMENT, "Two's Complement", 1),
+        rotary_mode_option(ROTARY_BINARY_OFFSET, "Binary Offset", 2),
+        rotary_mode_option(ROTARY_SIGN_MAGNITUDE, "Sign Magnitude", 3),
+    ];
     parameter
 }
 
@@ -2836,17 +2894,19 @@ fn reorder_ordered_midi_value_children(ctx: &mut ProcessCtx, snapshot: &ProcessT
     }
 }
 
-fn midi_cc_tag_config(tags: &[String]) -> MidiCcTagConfig {
-    let rotary_mechanism = tags
-        .iter()
-        .find_map(|tag| tag.strip_prefix(MIDI_CC_ROTARY_TAG_PREFIX))
-        .and_then(normalize_rotary_mechanism_tag)
+fn midi_cc_config(snapshot: &ProcessTreeSnapshot, cc_id: NodeId) -> MidiCcConfig {
+    let rotary_mechanism = snapshot
+        .find_child_by_decl_id(cc_id, MIDI_CC_ROTARY_MODE_DECL_ID)
+        .and_then(|mode_id| snapshot.node(mode_id))
+        .and_then(|mode| mode.param_value.as_ref())
+        .and_then(|value| value.as_enum().or_else(|| value.as_str()))
+        .and_then(|mechanism| normalize_rotary_mechanism(mechanism.as_str()))
         .unwrap_or(ROTARY_ABSOLUTE);
 
-    MidiCcTagConfig { rotary_mechanism }
+    MidiCcConfig { rotary_mechanism }
 }
 
-fn normalize_rotary_mechanism_tag(mechanism: &str) -> Option<&'static str> {
+fn normalize_rotary_mechanism(mechanism: &str) -> Option<&'static str> {
     match mechanism {
         ROTARY_ABSOLUTE => Some(ROTARY_ABSOLUTE),
         ROTARY_TWOS_COMPLEMENT => Some(ROTARY_TWOS_COMPLEMENT),

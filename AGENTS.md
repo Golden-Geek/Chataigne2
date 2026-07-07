@@ -62,6 +62,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Use Svelte 5 and runes only.
 - Do not use legacy `on:` event syntax; use `onclick`, `onfocus`, `onblur`, and similar direct event props.
 - Use relative units for layout and spacing: `em`, `rem`, `%`, `vh`, `vw`.
+- UI must not own backend/domain behavior. It may collect user input, compute viewport-dependent presentation hints, and send explicit intents, but it must not allocate unique node labels, choose domain defaults, infer control modes, encode module policy, decide graph mutation semantics, or write internal node parameters to make a higher-level operation valid. Put that behavior in `golden_core`, the app/module backend, or a backend intent so every UI, transport, script, and headless caller gets identical behavior. Do not add UI-side compatibility shims for backend behavior drift.
 - Avoid fixed pixel sizing unless a task deliberately establishes and documents an exception.
 - Keep UI state split into small focused stores with one thin facade where needed.
 - Do not let orchestration files grow into god objects.

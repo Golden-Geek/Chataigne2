@@ -1,7 +1,6 @@
 <script lang="ts">
 	import {
 		MainWindow,
-		registerNodeContextMenuContributor,
 		registerNodeInspector,
 		registerOutlinerRowSupplement,
 		type PanelSpawnRequest,
@@ -11,7 +10,6 @@
 	import ModuleCommandInspector from '$lib/inspectors/modules/ModuleCommandInspector.svelte';
 	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
-	import { midiCcContextMenuContributor } from '$lib/panels/modules/midi-context-menu';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
 	import ConditionManagerInspector from '$lib/state_machine/components/ConditionManagerInspector.svelte';
@@ -62,8 +60,6 @@
 	registerNodeInspector('sm_input_source', {
 		component: InputSourceInspector
 	});
-
-	registerNodeContextMenuContributor('midi-cc', midiCcContextMenuContributor);
 
 	// registerOutlinerRowSupplement('module', {
 	// 	component: ModuleItem
