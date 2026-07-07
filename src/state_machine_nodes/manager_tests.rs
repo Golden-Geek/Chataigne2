@@ -256,7 +256,7 @@ fn processor_root_invalidation_rebuilds_topology_but_descendants_are_local() {
 }
 
 #[test]
-fn duplicated_processor_marks_manager_topology_dirty_immediately() {
+fn duplicated_processor_marks_manager_topology_dirty_after_queued_structure_dispatch() {
     let root: crate::app::AppNode = Folder::new("root").into();
     let mut engine = crate::app::AppEngine::new(root);
     engine.add_node(StateMachineManager::new().into(), None);
@@ -323,8 +323,17 @@ fn duplicated_processor_marks_manager_topology_dirty_immediately() {
         .expect("processor duplicate should succeed");
 
     assert!(
+        !manager_topology_dirty(&engine, manager_id),
+        "duplicating a processor should not synchronously rebuild state-machine topology",
+    );
+
+    engine
+        .dispatch_inbox(golden_core::process_ctx::ExecutionPhase::EngineTick)
+        .expect("queued duplicate structure events should dispatch");
+
+    assert!(
         manager_topology_dirty(&engine, manager_id),
-        "duplicating a processor must wake the state-machine runtime before any unrelated edit",
+        "queued duplicate structure events must wake the state-machine runtime before evaluation",
     );
 }
 
