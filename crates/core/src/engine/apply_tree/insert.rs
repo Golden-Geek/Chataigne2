@@ -152,10 +152,22 @@ impl<T: Node> Engine<T> {
         // Run app init after declared/generated children are materialized and handles are bound.
         self.run_node_init(child_id, creation_context)?;
         if let Some(context) = creation_context {
-            self.run_node_ready(child_id, context)?;
+            if context == NodeCreationContext::ProjectLoad {
+                // Loaded engines run node-ready as one deferred batch (shared tree
+                // snapshot) via `run_pending_node_ready_callbacks`; join that batch
+                // instead of paying a per-node ready pass during load.
+                self.queue_node_ready(child_id, context);
+            } else {
+                self.run_node_ready(child_id, context)?;
+            }
         }
 
-        self.push_added_subtree_ui_events(child_id, parent);
+        // Project load discards all UI graph transactions before the engine goes live
+        // (`from_project_file_with` clears the inbox and the host sends a full snapshot),
+        // so skip the per-add UI event build — it costs a whole-tree snapshot per node.
+        if creation_context != Some(NodeCreationContext::ProjectLoad) {
+            self.push_added_subtree_ui_events(child_id, parent);
+        }
 
         Ok(AddNodeEffect {
             node: child_id,

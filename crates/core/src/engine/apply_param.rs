@@ -410,11 +410,14 @@ impl<T: Node> Engine<T> {
         edit_index: usize,
         node: NodeId,
         callback: NodeMutation,
+        needs_tree_snapshot: bool,
     ) -> Result<(), EngineEditError> {
         const OP: &str = "CallNodeMutation";
         let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         ctx.runtime_elapsed = self.runtime_elapsed;
-        ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
+        if needs_tree_snapshot {
+            ctx.set_tree_snapshot(self.get_or_build_tick_snapshot());
+        }
 
         {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {

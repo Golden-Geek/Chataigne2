@@ -107,4 +107,30 @@ impl NodeHandle {
             Ok(())
         });
     }
+
+    /// Queues one typed mutation callback that never reads `ctx.tree_snapshot()`.
+    ///
+    /// Same contract as [`Self::with_mut`], but the engine skips the whole-tree
+    /// snapshot build when applying it. Use for leaf configuration mutations
+    /// (param constraints, ui hints) on bulk-sensitive paths.
+    pub fn with_mut_leaf<N, F>(&self, ctx: &mut ProcessCtx, callback: F)
+    where
+        N: Node + 'static,
+        F: FnOnce(&mut N, &mut ProcessCtx) + Send + 'static,
+    {
+        let target = self.node;
+        ctx.call_node_mutation_without_snapshot(target, move |node, child_ctx| {
+            let node_type = node.get_type().to_string();
+            let Some(typed) = node.as_any_mut().downcast_mut::<N>() else {
+                return Err(format!(
+                    "node {:?} is type '{}' and cannot be downcast to {}",
+                    target,
+                    node_type,
+                    std::any::type_name::<N>()
+                ));
+            };
+            callback(typed, child_ctx);
+            Ok(())
+        });
+    }
 }

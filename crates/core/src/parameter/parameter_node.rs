@@ -434,6 +434,14 @@ impl Node for Parameter {
         self
     }
 
+    // The default implementation answers this by building a full parameter snapshot
+    // (value + constraints clones) just to test `is_none()`. Parameters are leaves that
+    // never walk the tree in lifecycle hooks, so answer with a constant instead — this
+    // gate runs for every node on bulk paths like project load.
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         let baseline = default_parameter_project_data(self.get_type())?;
         let mut data = serde_json::Map::new();

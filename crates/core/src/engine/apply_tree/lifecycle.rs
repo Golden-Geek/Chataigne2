@@ -183,11 +183,13 @@ impl<T: Node> Engine<T> {
     pub(crate) fn run_node_destroy(
         &mut self,
         node_id: NodeId,
-        tree_snapshot: &Arc<crate::process_ctx::ProcessTreeSnapshot>,
+        tree_snapshot: Option<&Arc<crate::process_ctx::ProcessTreeSnapshot>>,
     ) {
         let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         destroy_ctx.runtime_elapsed = self.runtime_elapsed;
-        destroy_ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+        if let Some(tree_snapshot) = tree_snapshot {
+            destroy_ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
+        }
 
         if let Some(node) = self.nodes.get_mut(node_id) {
             crate::logger::with_node_origin(node_id, || {
@@ -201,9 +203,16 @@ impl<T: Node> Engine<T> {
             return;
         }
 
-        let tree_snapshot = self.build_process_tree_snapshot();
+        // Same dynamic gate as the add/init path: only pay for a whole-tree snapshot
+        // when some node in the removed subtree actually reads it during destroy.
+        let needs_tree_snapshot = node_ids.iter().any(|node_id| {
+            self.nodes
+                .get(*node_id)
+                .is_some_and(|node| node.lifecycle_requires_tree_snapshot())
+        });
+        let tree_snapshot = needs_tree_snapshot.then(|| self.build_process_tree_snapshot());
         for node_id in node_ids.iter().rev().copied() {
-            self.run_node_destroy(node_id, &tree_snapshot);
+            self.run_node_destroy(node_id, tree_snapshot.as_ref());
         }
     }
 

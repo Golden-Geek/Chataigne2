@@ -649,9 +649,6 @@ pub struct UiDuplicateNodeSpec {
     /// Optional sibling after which insertion occurs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub new_prev_sibling: Option<NodeId>,
-    /// Optional explicit label for the duplicated root.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
     /// Optional direct parameter values applied to the duplicated root before the batch completes.
     #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
     pub initial_params: Vec<UiCreateUserItemInitialParam>,
@@ -1220,9 +1217,6 @@ pub enum UiEditIntent {
         /// Optional sibling after which insertion occurs.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         new_prev_sibling: Option<NodeId>,
-        /// Optional explicit label for the duplicated root.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        label: Option<String>,
         /// Optional direct parameter values applied to the duplicated root before the intent completes.
         #[serde(default, skip_serializing_if = "is_empty_create_user_item_initial_params")]
         initial_params: Vec<UiCreateUserItemInitialParam>,
@@ -1855,14 +1849,16 @@ impl<T: Node> Engine<T> {
     {
         let mut copied_by_source = HashMap::<NodeId, NodeId>::new();
         let mut copied_roots = Vec::with_capacity(nodes.len() + created_items.len());
+        let mut duplicated_roots = Vec::with_capacity(nodes.len());
 
         for spec in nodes {
             let source = spec.source;
-            let duplicated_root = self.duplicate_subtree_with(
+            let duplicated_root = self.duplicate_subtree_with_dispatch(
                 source,
                 spec.new_parent,
                 spec.new_prev_sibling,
-                spec.label,
+                None,
+                false,
                 &mut encode_data,
                 &mut decode_node,
             )?;
@@ -1872,6 +1868,7 @@ impl<T: Node> Engine<T> {
             }
             copied_by_source.insert(source, duplicated_root);
             copied_roots.push(duplicated_root);
+            duplicated_roots.push(duplicated_root);
         }
 
         for spec in created_items {
@@ -1889,6 +1886,8 @@ impl<T: Node> Engine<T> {
             self.ui_apply_create_user_item_returning_node(item.parent, item.node_type, item.label, initial_params)
                 .map_err(ProjectPersistenceError::Engine)?;
         }
+
+        self.dispatch_loaded_subtree_structure_events(duplicated_roots.as_slice())?;
 
         Ok(copied_roots)
     }
@@ -2082,15 +2081,14 @@ impl<T: Node> Engine<T> {
                 source,
                 new_parent,
                 new_prev_sibling,
-                label,
                 initial_params: _,
             } => UiAck {
                 success: false,
                 status: UiAckStatus::Rejected,
                 error_code: Some("duplicate_node_transport_required".to_string()),
                 error_message: Some(format!(
-                    "duplicateNode requires transport-level project codec support (source={}, new_parent={}, new_prev_sibling={:?}, label={:?})",
-                    source.0, new_parent.0, new_prev_sibling, label
+                    "duplicateNode requires transport-level project codec support (source={}, new_parent={}, new_prev_sibling={:?})",
+                    source.0, new_parent.0, new_prev_sibling
                 )),
                 earliest_event_time: None,
                 history: self.ui_history_state(),
@@ -2115,6 +2113,7 @@ impl<T: Node> Engine<T> {
             UiEditIntent::FitAnimationCurvePath { curve, points, options } => {
                 self.edits.push(Edit::CallNodeMutation {
                     node: curve,
+                    needs_tree_snapshot: true,
                     callback: Box::new(move |node, ctx| {
                         let Some(curve_node) = node.as_any_mut().downcast_mut::<CurveNode>() else {
                             return Err("target node should be CurveNode".to_string());

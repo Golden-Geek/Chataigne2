@@ -3852,6 +3852,9 @@ impl Node for ScriptNode {
                                     let new_default = spec.default_value.clone();
                                     ctx.edits.push(crate::edit::Edit::CallNodeMutation {
                                         node: child_id,
+                                        // Leaf param-spec sync: the callback only mutates the
+                                        // parameter and queues follow-up edits.
+                                        needs_tree_snapshot: false,
                                         callback: Box::new(move |node_dyn, ctx| {
                                             if let Some(param) =
                                                 node_dyn.as_any_mut().downcast_mut::<crate::parameter::Parameter>()

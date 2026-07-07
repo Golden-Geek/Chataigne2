@@ -120,6 +120,9 @@ pub enum Edit {
         node: NodeId,
         /// Deferred typed callback to run against the target node.
         callback: NodeMutation,
+        /// Whether the callback reads `ctx.tree_snapshot()`. Leaf mutations (param
+        /// configuration sync) opt out so bulk paths skip the whole-tree snapshot build.
+        needs_tree_snapshot: bool,
     },
     /// Insert a node under `parent`, optionally after a sibling.
     AddNode {

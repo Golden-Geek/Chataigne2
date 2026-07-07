@@ -395,6 +395,23 @@ impl ProcessCtx {
         self.edits.push(Edit::CallNodeMutation {
             node,
             callback: Box::new(callback),
+            needs_tree_snapshot: true,
+        });
+    }
+
+    /// Queues one runtime Rust callback invocation on `node` whose callback never
+    /// reads `ctx.tree_snapshot()`.
+    ///
+    /// The engine skips the whole-tree snapshot build for these, which keeps bulk
+    /// paths (project load, subtree paste) from going `O(n^2)` on mutation batches.
+    pub fn call_node_mutation_without_snapshot<F>(&mut self, node: NodeId, callback: F)
+    where
+        F: FnOnce(&mut dyn Node, &mut ProcessCtx) -> Result<(), String> + Send + 'static,
+    {
+        self.edits.push(Edit::CallNodeMutation {
+            node,
+            callback: Box::new(callback),
+            needs_tree_snapshot: false,
         });
     }
 

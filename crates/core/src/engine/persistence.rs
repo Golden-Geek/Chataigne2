@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -403,14 +403,18 @@ impl<T: Node> Engine<T> {
             root_data.next_sibling = None;
         }
 
+        let decode_started = std::time::Instant::now();
         let mut engine = Engine::new(root);
         let root_id = engine.root;
         engine.load_children_records(root_id, &project.root.children, &mut decode_node)?;
+        let decode_elapsed = decode_started.elapsed();
 
         // Rebuild runtime caches for UUID-based references before lifecycle hooks run.
         // Presentation warnings are synced once after lifecycle has restored declared structure.
+        let caches_started = std::time::Instant::now();
         engine.resolve_reference_caches();
         engine.rebuild_user_context_registry_from_nodes();
+        let caches_elapsed = caches_started.elapsed();
 
         // Freshly loaded projects should start with clean runtime-only state before re-running node lifecycle hooks.
         engine.inbox.clear();
@@ -424,9 +428,19 @@ impl<T: Node> Engine<T> {
             seq: 0,
         };
 
+        let replay_started = std::time::Instant::now();
         engine.replay_loaded_subtree_lifecycle(root_id, NodeCreationContext::ProjectLoad, LoadedReadyMode::Deferred)?;
+        let replay_elapsed = replay_started.elapsed();
+        let warnings_started = std::time::Instant::now();
         engine.sync_missing_reference_warnings_silent();
         engine.rebuild_user_context_registry_from_nodes();
+        eprintln!(
+            "[project-load] decode_ms={} caches_ms={} replay_ms={} warnings_ms={}",
+            decode_elapsed.as_millis(),
+            caches_elapsed.as_millis(),
+            replay_elapsed.as_millis(),
+            warnings_started.elapsed().as_millis()
+        );
 
         // Loaded projects should not surface bootstrap-only events or history to the runtime host.
         engine.inbox.clear();
@@ -461,7 +475,32 @@ impl<T: Node> Engine<T> {
         source: NodeId,
         new_parent: NodeId,
         new_prev_sibling: Option<NodeId>,
-        label: Option<String>,
+        label_override: Option<String>,
+        encode_data: Encode,
+        decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        Encode: FnMut(&T) -> Result<serde_json::Value, String>,
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        self.duplicate_subtree_with_dispatch(
+            source,
+            new_parent,
+            new_prev_sibling,
+            label_override,
+            true,
+            encode_data,
+            decode_node,
+        )
+    }
+
+    pub(crate) fn duplicate_subtree_with_dispatch<Encode, Decode>(
+        &mut self,
+        source: NodeId,
+        new_parent: NodeId,
+        new_prev_sibling: Option<NodeId>,
+        label_override: Option<String>,
+        dispatch_structure_events: bool,
         mut encode_data: Encode,
         mut decode_node: Decode,
     ) -> Result<NodeId, ProjectPersistenceError>
@@ -470,12 +509,11 @@ impl<T: Node> Engine<T> {
         Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
         let mut record = self.encode_node_record_with(source, &mut encode_data)?;
-        if let Some(label) = label {
-            let short_name = generate_short_name(&label);
-            record.meta.label = Some(label);
-            record.meta.short_name = Some(short_name.clone());
-            record.meta.decl_id = Some(DeclId(short_name));
-        }
+        let label = label_override.unwrap_or_else(|| self.next_duplicate_label(new_parent, &record));
+        let short_name = generate_short_name(&label);
+        record.meta.label = Some(label);
+        record.meta.short_name = Some(short_name.clone());
+        record.meta.decl_id = Some(DeclId(short_name));
 
         let mut uuid_map = HashMap::<NodeUuid, NodeUuid>::new();
         remap_record_uuids(&mut record, &mut uuid_map);
@@ -493,6 +531,9 @@ impl<T: Node> Engine<T> {
             LoadedReadyMode::Immediate,
         )?;
         let duplicated_node_ids = self.collect_loaded_subtree_node_ids(duplicated_root)?;
+        if dispatch_structure_events {
+            self.dispatch_loaded_subtree_structure_events(&[duplicated_root])?;
+        }
         self.sync_missing_reference_warnings_for_nodes_silent(duplicated_node_ids.as_slice());
         self.rebuild_user_context_registry_from_nodes();
         self.mark_user_context_graph_changed();
@@ -514,6 +555,47 @@ impl<T: Node> Engine<T> {
         );
 
         Ok(duplicated_root)
+    }
+
+    fn next_duplicate_label(&self, parent: NodeId, record: &ProjectNodeRecord) -> String {
+        let source_label = record
+            .meta
+            .label
+            .as_deref()
+            .map(str::trim)
+            .filter(|label| !label.is_empty())
+            .unwrap_or(record.node_type.as_str());
+        let Some(parent_node) = self.nodes.get(parent) else {
+            return source_label.to_string();
+        };
+
+        let mut used_labels = HashSet::<String>::new();
+        let mut child = parent_node.node_data().first_child;
+        while let Some(child_id) = child {
+            let Some(child_node) = self.nodes.get(child_id) else {
+                break;
+            };
+            let child_data = child_node.node_data();
+            let label = child_data.meta.label.trim();
+            if !label.is_empty() {
+                used_labels.insert(label.to_string());
+            }
+            child = child_data.next_sibling;
+        }
+
+        if !used_labels.contains(source_label) {
+            return source_label.to_string();
+        }
+
+        let (base_label, first_suffix) = duplicate_label_base(source_label);
+        let mut suffix = first_suffix;
+        loop {
+            let candidate = format!("{base_label} {suffix}");
+            if !used_labels.contains(&candidate) {
+                return candidate;
+            }
+            suffix += 1;
+        }
     }
 
     /// Inserts one persisted node hierarchy beneath an existing parent.
@@ -669,6 +751,64 @@ impl<T: Node> Engine<T> {
             }
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn dispatch_loaded_subtree_structure_events(
+        &mut self,
+        node_ids: &[NodeId],
+    ) -> Result<(), ProjectPersistenceError> {
+        let mut index_by_node = HashMap::<NodeId, usize>::new();
+        let mut per_node_events = Vec::<(NodeId, EventFrame)>::new();
+        let mut recipients = Vec::<NodeId>::new();
+        let mut dedupe = HashSet::<NodeId>::new();
+        let mut ancestry_depths = HashMap::<NodeId, u32>::new();
+
+        for node_id in node_ids.iter().copied() {
+            let Some(node) = self.nodes.get(node_id) else {
+                continue;
+            };
+            let Some(parent) = node.node_data().parent else {
+                continue;
+            };
+            let decl_id = node.node_data().meta.decl_id.clone();
+            let events = [
+                Event {
+                    time: self.time,
+                    kind: EventKind::NodeCreated { node: node_id },
+                },
+                Event {
+                    time: self.time,
+                    kind: EventKind::ChildAdded {
+                        parent,
+                        child: node_id,
+                        decl_id,
+                    },
+                },
+            ];
+
+            for event in events {
+                self.route_event_recipients_into(&event, &mut recipients, &mut dedupe, &mut ancestry_depths);
+                let event = Arc::new(event);
+                for recipient in &recipients {
+                    let index = match index_by_node.get(recipient).copied() {
+                        Some(index) => index,
+                        None => {
+                            let index = per_node_events.len();
+                            per_node_events.push((*recipient, EventFrame::new()));
+                            index_by_node.insert(*recipient, index);
+                            index
+                        }
+                    };
+                    per_node_events[index].1.push_shared(Arc::clone(&event));
+                }
+                recipients.clear();
+                dedupe.clear();
+                ancestry_depths.clear();
+            }
+        }
+
+        self.dispatch_precomputed_inbox(ExecutionPhase::EngineTick, per_node_events)?;
         Ok(())
     }
 
@@ -973,7 +1113,7 @@ impl<T: Node> Engine<T> {
     }
 }
 
-fn remap_record_uuids(record: &mut ProjectNodeRecord, uuid_map: &mut HashMap<NodeUuid, NodeUuid>) {
+pub(crate) fn remap_record_uuids(record: &mut ProjectNodeRecord, uuid_map: &mut HashMap<NodeUuid, NodeUuid>) {
     let next_uuid = NodeUuid(Uuid::new_v4());
     uuid_map.insert(record.uuid, next_uuid);
     record.uuid = next_uuid;
@@ -1017,6 +1157,20 @@ fn generate_short_name(label: &str) -> String {
     }
 
     short_name
+}
+
+fn duplicate_label_base(label: &str) -> (&str, u64) {
+    let Some((base, suffix)) = label.rsplit_once(' ') else {
+        return (label, 2);
+    };
+    if base.trim().is_empty() {
+        return (label, 2);
+    }
+    suffix
+        .parse::<u64>()
+        .ok()
+        .filter(|suffix| *suffix >= 2)
+        .map_or((label, 2), |suffix| (base, suffix + 1))
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ impl<T: Node> Engine<T> {
         &mut self,
         edit_index: usize,
         node: NodeId,
+        creation_context: Option<NodeCreationContext>,
     ) -> Result<RemoveNodeEffect<T>, EngineEditError> {
         const OP: &str = "RemoveNode";
 
@@ -38,11 +39,15 @@ impl<T: Node> Engine<T> {
         }
 
         self.emit_inbox_event(EventKind::ChildRemoved { parent, child: node });
-        self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeRemoved {
-            root: node,
-            removed_ids,
-            parent_after: self.ui_children_order_patch(parent),
-        }]);
+        // Project load discards UI graph transactions before the engine goes live,
+        // so skip building removal ops (see the matching gate in apply_add_node).
+        if creation_context != Some(NodeCreationContext::ProjectLoad) {
+            self.push_ui_graph_transaction(vec![UiGraphOp::SubtreeRemoved {
+                root: node,
+                removed_ids,
+                parent_after: self.ui_children_order_patch(parent),
+            }]);
+        }
 
         Ok(RemoveNodeEffect {
             node,

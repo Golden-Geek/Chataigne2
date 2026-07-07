@@ -290,6 +290,11 @@ impl Node for Folder {
     fn inbox_requires_tree_snapshot(&self, _events: &EventFrame) -> bool {
         false
     }
+
+    // Folders have no lifecycle hooks, so inserting one never needs a whole-tree snapshot.
+    fn lifecycle_requires_tree_snapshot(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

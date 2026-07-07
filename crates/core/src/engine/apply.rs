@@ -1,10 +1,9 @@
-use std::{any::type_name, collections::BTreeMap};
-
 use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
 use crate::events::{Event, EventKind};
 use crate::node::{Node, NodeCreationContext};
 use crate::parameter::ParamValue;
+use std::{any::type_name, collections::BTreeMap};
 
 use super::history::{HistoryStep, HistoryTransaction};
 use super::{Engine, EngineEditError};
@@ -149,8 +148,12 @@ impl<T: Node> Engine<T> {
                     self.apply_call_node_script_method(edit_index, node, method, args)?;
                     (Ok(None), true)
                 }
-                Edit::CallNodeMutation { node, callback } => {
-                    self.apply_call_node_mutation(edit_index, node, callback)?;
+                Edit::CallNodeMutation {
+                    node,
+                    callback,
+                    needs_tree_snapshot,
+                } => {
+                    self.apply_call_node_mutation(edit_index, node, callback, needs_tree_snapshot)?;
                     (Ok(None), true)
                 }
                 Edit::AddNode {
@@ -221,7 +224,7 @@ impl<T: Node> Engine<T> {
                 Edit::RemoveNode { node } => {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
-                    let effect = self.apply_remove_node(edit_index, node)?;
+                    let effect = self.apply_remove_node(edit_index, node, creation_context)?;
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::MoveNode {

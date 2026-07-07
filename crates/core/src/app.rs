@@ -221,15 +221,27 @@ pub fn from_sparse_project_json<T>(json: &str) -> Result<Engine<T>, ProjectPersi
 where
     T: ProjectNode + From<Folder>,
 {
+    let parse_started = std::time::Instant::now();
     let project: ProjectFile = serde_json::from_str(json)?;
+    let parse_elapsed = parse_started.elapsed();
     if project.version != PROJECT_FILE_VERSION {
         return Err(ProjectPersistenceError::UnsupportedVersion {
             found: project.version,
             expected: PROJECT_FILE_VERSION,
         });
     }
+    let expand_started = std::time::Instant::now();
     let expanded = expand_sparse_project_file::<T>(project)?;
-    Engine::<T>::from_project_file_with(expanded, T::project_decode_node)
+    let expand_elapsed = expand_started.elapsed();
+    let build_started = std::time::Instant::now();
+    let engine = Engine::<T>::from_project_file_with(expanded, T::project_decode_node);
+    eprintln!(
+        "[project-load] parse_ms={} expand_ms={} engine_build_ms={}",
+        parse_elapsed.as_millis(),
+        expand_elapsed.as_millis(),
+        build_started.elapsed().as_millis()
+    );
+    engine
 }
 
 /// Loads one sparse project file by first expanding declared deltas against the
@@ -338,7 +350,9 @@ where
 }
 
 #[derive(Default)]
-struct SparseExpansionCache;
+struct SparseExpansionCache {
+    structural_baselines: HashMap<String, ProjectNodeRecord>,
+}
 
 impl SparseExpansionCache {
     fn structural_baseline_from_expanded_record<T>(
@@ -350,8 +364,49 @@ impl SparseExpansionCache {
     where
         T: ProjectNode + From<Folder>,
     {
-        build_structural_baseline_record_from_expanded_record::<T>(record, parent_node, parent_record)
+        let key = sparse_expansion_baseline_cache_key(record, parent_record)?;
+        if let Some(baseline) = self.structural_baselines.get(&key) {
+            let mut baseline = baseline.clone();
+            // Every materialization must own fresh uuids: overlay-matched children take
+            // the overlay uuid during merge, but unmatched declared children keep the
+            // baseline uuid and would otherwise collide across cache hits.
+            crate::engine::remap_project_record_uuids(&mut baseline, &mut HashMap::new());
+            // The root record's uuid is replaced by the overlay uuid during merge; keep
+            // it aligned anyway for the callers that read the baseline directly.
+            baseline.uuid = record.uuid;
+            return Ok(baseline);
+        }
+
+        let baseline = build_structural_baseline_record_from_expanded_record::<T>(record, parent_node, parent_record)?;
+        self.structural_baselines.insert(key, baseline.clone());
+        Ok(baseline)
     }
+}
+
+/// Cache key for one sparse-expansion structural baseline.
+///
+/// The baseline output is fully determined (modulo generated uuids) by the record's
+/// type, role, data and meta plus the parent context that item factories can read.
+fn sparse_expansion_baseline_cache_key(
+    record: &ProjectNodeRecord,
+    parent_record: Option<&ProjectNodeRecord>,
+) -> Result<String, ProjectPersistenceError> {
+    let parent = match parent_record {
+        Some(parent) => format!(
+            "{}|{:?}|{}",
+            parent.node_type,
+            parent.user_role,
+            sparse_json_cache_key(parent.data.as_ref())?
+        ),
+        None => "root".to_string(),
+    };
+    let meta = serde_json::to_string(&record.meta)?;
+    Ok(format!(
+        "parent:{parent}\nnode:{}|{:?}|{}\nmeta:{meta}",
+        record.node_type,
+        record.user_role,
+        sparse_json_cache_key(record.data.as_ref())?
+    ))
 }
 
 #[derive(Default)]

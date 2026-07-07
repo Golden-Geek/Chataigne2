@@ -296,37 +296,32 @@ impl ParameterAnimationControlNode {
     }
 
     fn sync_waveform_dependent_nodes(&mut self, ctx: &mut ProcessCtx) {
+        // Use the decl-bound NodeIds tracked via `bind_decl_child`/`unbind_child` rather
+        // than `ctx.tree_snapshot()`: this reconcile runs from `engine_preprocess_inbox`,
+        // which the plain engine tick invokes without a snapshot (see
+        // `preprocess_precomputed_inbox_is_snapshot_free`), so relying on the snapshot
+        // silently no-ops the amplitude/offset/curve removal on every runtime waveform
+        // change outside of project load/init.
         let is_curve = self.waveform == AnimationWaveform::Curve;
 
-        let (curve_child, amplitude_child, offset_child) = ctx
-            .tree_snapshot()
-            .map(|snapshot| {
-                (
-                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_CURVE_DECL_ID),
-                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_AMPLITUDE_DECL_ID),
-                    snapshot.find_child(self.id(), PARAMETER_ANIMATION_OFFSET_DECL_ID),
-                )
-            })
-            .unwrap_or((None, None, None));
-
         if is_curve {
-            if curve_child.is_none() {
+            if self.curve_node.is_none() {
                 ctx.add_child_boxed(self.id(), Box::new(CurveNode::new()), None);
             }
-            if let Some(amp_id) = amplitude_child {
+            if let Some(amp_id) = self.amplitude_param {
                 self.remove_child(ctx, amp_id);
             }
-            if let Some(off_id) = offset_child {
+            if let Some(off_id) = self.offset_param {
                 self.remove_child(ctx, off_id);
             }
         } else {
-            if let Some(curve_id) = curve_child {
+            if let Some(curve_id) = self.curve_node {
                 self.remove_child(ctx, curve_id);
             }
-            if amplitude_child.is_none() {
+            if self.amplitude_param.is_none() {
                 ctx.add_child_boxed(self.id(), Box::new(make_animation_amplitude_parameter()), None);
             }
-            if offset_child.is_none() {
+            if self.offset_param.is_none() {
                 ctx.add_child_boxed(self.id(), Box::new(make_animation_offset_parameter()), None);
             }
         }

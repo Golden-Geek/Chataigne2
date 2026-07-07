@@ -165,13 +165,12 @@ fn apply_ui_intent_with_transport<T: ProjectLifecycle>(
             source,
             new_parent,
             new_prev_sibling,
-            label,
             initial_params,
         } => match engine.duplicate_subtree_with(
             source,
             new_parent,
             new_prev_sibling,
-            label,
+            None,
             |node| node.project_encode_data(),
             |node_type, data, meta| T::project_decode_node(node_type, data, meta),
         ) {

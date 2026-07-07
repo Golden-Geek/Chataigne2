@@ -2471,7 +2471,7 @@ fn expand_struct(
             });
             let sync_bound_widget = args.widget.as_ref().map(|widget| {
                 quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut::<golden_core::parameter::Parameter, _>(
+                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
                         ctx,
                         |__param_node, _child_ctx| {
                             if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
@@ -2577,6 +2577,14 @@ fn expand_struct(
                         }
                     } else if self.#field_ident.is_bound() {
                         ctx.edits.push(golden_core::edit::Edit::RemoveNode { node: self.#field_ident.id() });
+                        // Clear the binding immediately rather than waiting for the
+                        // `ChildRemoved` event to round-trip: this reconcile can run more
+                        // than once against the same shared tree snapshot within a single
+                        // dispatch batch (e.g. once via the parent's own on_inbox callback
+                        // and once via this node's own preprocess pass), and without this
+                        // the second pass still sees `is_bound() == true` and queues a
+                        // second `RemoveNode` for an id the engine already removed.
+                        self.#field_ident.clear_node_id();
                     }
                 });
                 param_order_reconcile_statements.push(quote! {
@@ -2807,7 +2815,7 @@ fn expand_struct(
             let field_ident = &param.field;
             let sync_bound_widget = param.widget.as_ref().map(|widget| {
                 quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut::<golden_core::parameter::Parameter, _>(
+                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
                         ctx,
                         |__param_node, _child_ctx| {
                             if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
@@ -2848,7 +2856,7 @@ fn expand_struct(
             let field_ident = &param.field;
             let sync_bound_widget = param.widget.as_ref().map(|widget| {
                 quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut::<golden_core::parameter::Parameter, _>(
+                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
                         ctx,
                         |__param_node, _child_ctx| {
                             if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
@@ -2962,6 +2970,10 @@ fn expand_struct(
                             }
                         } else if self.#field_ident.is_bound() {
                             ctx.edits.push(golden_core::edit::Edit::RemoveNode { node: self.#field_ident.id() });
+                            // See the matching comment on the sibling reconcile arm above:
+                            // clear eagerly so a second reconcile pass in the same dispatch
+                            // batch doesn't queue a duplicate `RemoveNode` for this id.
+                            self.#field_ident.clear_node_id();
                         }
                     }
                 }

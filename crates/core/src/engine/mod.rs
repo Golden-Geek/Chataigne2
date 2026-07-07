@@ -66,6 +66,7 @@ pub use persistence::ProjectNodeMeta;
 pub use persistence::ProjectNodeRecord;
 /// Project persistence error type.
 pub use persistence::ProjectPersistenceError;
+pub(crate) use persistence::remap_record_uuids as remap_project_record_uuids;
 /// Runtime error type returned by resolve/scheduling and tick execution.
 pub use runtime::EngineRuntimeError;
 /// Fixed-step accumulator configuration for `run_for` / `run_loop`.
