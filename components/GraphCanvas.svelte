@@ -14,7 +14,9 @@
 		GraphSocket,
 		GraphSocketDirection,
 		GraphSocketRef,
-		GraphViewportInset
+		GraphViewportInset,
+		GraphWorldBounds,
+		GraphWorldContentContext
 	} from '../types';
 
 	interface PanGesture {
@@ -94,9 +96,12 @@
 		nodeHeaderContent,
 		inputSocketContent,
 		outputSocketContent,
+		worldContent,
+		worldBounds,
 		toolbarEnd,
 		onNodeContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundDoubleClick,
 		onCreateRequest,
 		routeEdgesAroundNodes = false,
 		socketLabels = 'hover',
@@ -123,9 +128,12 @@
 		nodeHeaderContent?: Snippet<[GraphNode]>;
 		inputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
 		outputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
+		worldContent?: Snippet<[GraphWorldContentContext]>;
+		worldBounds?: GraphWorldBounds;
 		toolbarEnd?: Snippet;
 		onNodeContextMenu?: (event: MouseEvent, nodeId: string) => void;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
+		onBackgroundDoubleClick?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
 		routeEdgesAroundNodes?: boolean;
 		socketLabels?: 'always' | 'hover' | 'never';
@@ -1284,14 +1292,17 @@
 		setZoom((event.currentTarget as HTMLInputElement).valueAsNumber / 100);
 	};
 
-	const frameNodes = (candidates: GraphNode[]): boolean => {
-		if (!container || candidates.length === 0) {
+	const frameBounds = (bounds: GraphWorldBounds | null): boolean => {
+		if (!container || bounds === null) {
 			return false;
 		}
-		const left = Math.min(...candidates.map((node) => node.position.x));
-		const top = Math.min(...candidates.map((node) => node.position.y));
-		const right = Math.max(...candidates.map((node) => node.position.x + nodeWidth(node)));
-		const bottom = Math.max(...candidates.map((node) => node.position.y + nodeHeight(node)));
+		const left = Math.min(bounds.left, bounds.right);
+		const top = Math.min(bounds.top, bounds.bottom);
+		const right = Math.max(bounds.left, bounds.right);
+		const bottom = Math.max(bounds.top, bounds.bottom);
+		if (![left, top, right, bottom].every(Number.isFinite)) {
+			return false;
+		}
 		const widthPx = Math.max(remPx, (right - left) * remPx);
 		const heightPx = Math.max(remPx, (bottom - top) * remPx);
 		const paddingPx = FRAME_PADDING_REM * remPx;
@@ -1318,12 +1329,30 @@
 		return true;
 	};
 
-	export const frameSelection = (): boolean => {
-		const selected = effectiveNodes.filter((node) => selectedIds.has(node.id));
-		return frameNodes(selected.length > 0 ? selected : effectiveNodes);
+	const boundsForNodes = (candidates: GraphNode[]): GraphWorldBounds | null => {
+		if (candidates.length === 0) {
+			return null;
+		}
+		return {
+			left: Math.min(...candidates.map((node) => node.position.x)),
+			top: Math.min(...candidates.map((node) => node.position.y)),
+			right: Math.max(...candidates.map((node) => node.position.x + nodeWidth(node))),
+			bottom: Math.max(...candidates.map((node) => node.position.y + nodeHeight(node)))
+		};
 	};
 
-	export const home = (): boolean => frameNodes(effectiveNodes);
+	const frameNodes = (candidates: GraphNode[]): boolean => frameBounds(boundsForNodes(candidates));
+
+	export const frameSelection = (): boolean => {
+		const selected = effectiveNodes.filter((node) => selectedIds.has(node.id));
+		if (selected.length > 0 || effectiveNodes.length > 0) {
+			return frameNodes(selected.length > 0 ? selected : effectiveNodes);
+		}
+		return frameBounds(worldBounds ?? null);
+	};
+
+	export const home = (): boolean =>
+		effectiveNodes.length > 0 ? frameNodes(effectiveNodes) : frameBounds(worldBounds ?? null);
 
 	export const focus = (): void => {
 		container?.focus();
@@ -2109,6 +2138,21 @@
 		onBackgroundContextMenu?.(event, clientToWorld(event.clientX, event.clientY));
 	};
 
+	const handleDoubleClick = (event: MouseEvent): void => {
+		const targetElement = event.target instanceof Element ? event.target : null;
+		if (
+			!onBackgroundDoubleClick ||
+			targetElement?.closest(
+				'.toolbar, [data-node-id], button, input, select, textarea, a, [role="button"]'
+			)
+		) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		onBackgroundDoubleClick(event, clientToWorld(event.clientX, event.clientY));
+	};
+
 	const handleKeydown = (event: KeyboardEvent): void => {
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) {
 			return;
@@ -2189,7 +2233,8 @@
 	onpointerleave={resetScrollHoverTarget}
 	onkeydown={handleKeydown}
 	onwheel={handleWheel}
-	oncontextmenu={handleContextMenu}>
+	oncontextmenu={handleContextMenu}
+	ondblclick={handleDoubleClick}>
 	<div
 		class="toolbar"
 		role="group"
@@ -2225,6 +2270,12 @@
 
 	<div class="world-pan" style:transform={panStyle}>
 		<div class="world">
+			{#if worldContent}
+				<div class="world-content">
+					{@render worldContent({ camera, remPx, viewportWidth, viewportHeight })}
+				</div>
+			{/if}
+
 			<svg class="wires" aria-label="Graph connections">
 				{#each visibleEdges as edge, index (`${edge.id ?? index}:${edge.from.nodeId}:${edge.to.nodeId}`)}
 					{@const path = edgePath(edge)}
@@ -2602,7 +2653,7 @@
 		<div class="selection-box" style={selectionBoxStyle}></div>
 	{/if}
 
-	{#if nodes.length === 0}
+	{#if nodes.length === 0 && !worldContent}
 		<p class="empty">{emptyLabel}</p>
 	{/if}
 </div>
@@ -2679,6 +2730,14 @@
 		overflow: visible;
 		pointer-events: none;
 		/* z-index: 2; */
+	}
+
+	.world-content {
+		position: absolute;
+		inset: 0 auto auto 0;
+		inline-size: 0.1rem;
+		block-size: 0.1rem;
+		overflow: visible;
 	}
 
 	.wires path {

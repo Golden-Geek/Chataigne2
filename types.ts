@@ -35,6 +35,20 @@ export interface GraphViewportInset {
 	bottom?: number;
 }
 
+export interface GraphWorldBounds {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+}
+
+export interface GraphWorldContentContext {
+	camera: GraphCamera;
+	remPx: number;
+	viewportWidth: number;
+	viewportHeight: number;
+}
+
 export interface GraphNodeBypassConnection {
 	inputSocketId: string;
 	outputSocketId: string;

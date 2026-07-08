@@ -13,5 +13,7 @@ export type {
 	GraphSocket,
 	GraphSocketDirection,
 	GraphSocketRef,
-	GraphViewportInset
+	GraphViewportInset,
+	GraphWorldBounds,
+	GraphWorldContentContext
 } from './types';
