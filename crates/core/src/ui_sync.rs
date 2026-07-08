@@ -174,6 +174,9 @@ pub struct UiScriptReloadRequest {
 pub struct UiProjectPathRequest {
     /// Project path selected by the host.
     pub path: String,
+    /// Optional project-owned UI state to write into the saved project document.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_state: Option<serde_json::Value>,
 }
 
 /// HTTP request payload for uploading a browser-selected project file before loading it.
@@ -190,6 +193,9 @@ pub struct UiProjectUploadRequest {
 pub struct UiProjectPathDto {
     /// Resolved project path on the host.
     pub path: String,
+    /// Optional project-owned UI state loaded from the project document.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_state: Option<serde_json::Value>,
 }
 
 /// UI-facing app project-file metadata.

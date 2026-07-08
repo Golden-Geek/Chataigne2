@@ -5,11 +5,12 @@ use std::fs;
 use std::io::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::edit::{Edit, NodeTree};
 use crate::engine::{
-    Engine, EngineRuntimeError, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeMeta, ProjectNodeRecord,
-    ProjectPersistenceError,
+    Engine, EngineRuntimeError, NodeUpdateRate, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeMeta, ProjectNodeRecord,
+    ProjectPersistenceError, runtime_loop_interval_for_frequency_hz,
 };
 use crate::node::{DashboardNode, DeclId, Folder, Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
@@ -23,10 +24,20 @@ pub const PREFERENCES_APP_DATA_TAG: &str = "golden.preferences.app_data";
 pub const PREFERENCES_STARTUP_AND_UPDATE_DECL_ID: &str = "startup_and_update";
 /// Declaration id of the Save and Load preferences category.
 pub const PREFERENCES_SAVE_AND_LOAD_DECL_ID: &str = "save_and_load";
+/// Declaration id of the Engine preferences category.
+pub const PREFERENCES_ENGINE_DECL_ID: &str = "engine";
 /// Declaration id of the Interface preferences category.
 pub const PREFERENCES_INTERFACE_DECL_ID: &str = "interface";
 /// Declaration id of the app data folder file parameter.
 pub const PREFERENCES_DATA_FOLDER_DECL_ID: &str = "data_folder";
+/// Declaration id of the runtime loop max frequency preference.
+pub const PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID: &str = "engine_max_frequency";
+/// Declaration id of the header warning threshold frequency preference.
+pub const PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID: &str = "engine_low_frequency";
+/// Default runtime loop max frequency preference in hertz.
+pub const DEFAULT_ENGINE_MAX_FREQUENCY_HZ: NodeUpdateRate = 200;
+/// Default header warning threshold frequency preference in hertz.
+pub const DEFAULT_ENGINE_LOW_FREQUENCY_HZ: NodeUpdateRate = 60;
 
 /// App-provided project file metadata consumed by hosts and UIs.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,6 +172,33 @@ fn preferences_data_folder_parameter(default_data_folder: impl Into<String>) -> 
     parameter
 }
 
+fn preferences_engine_frequency_parameter(label: &str, decl_id: &str, default_hz: NodeUpdateRate) -> Parameter {
+    let mut parameter = Parameter::new(
+        label,
+        ParamValue::Int(default_hz as i32),
+        ParameterChangeCheck::ValueChange,
+    );
+    let meta = &mut parameter.node_data_mut().meta;
+    meta.decl_id = DeclId(decl_id.to_string());
+    meta.tags.push(PREFERENCES_APP_DATA_TAG.to_string());
+    parameter
+}
+
+fn preferences_engine_folder_tree() -> NodeTree {
+    let mut engine = NodeTree::new(app_data_folder("Engine", PREFERENCES_ENGINE_DECL_ID));
+    engine.push_child(NodeTree::new(preferences_engine_frequency_parameter(
+        "Engine Max Frequency",
+        PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_MAX_FREQUENCY_HZ,
+    )));
+    engine.push_child(NodeTree::new(preferences_engine_frequency_parameter(
+        "Engine Low Frequency",
+        PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
+    )));
+    engine
+}
+
 /// Builds the default app-wide Preferences tree.
 ///
 /// Preferences are regular folder/parameter nodes so existing inspectors can edit them, but
@@ -175,6 +213,8 @@ pub fn default_preferences_tree(default_data_folder: impl Into<String>) -> NodeT
     let mut save_and_load = NodeTree::new(app_data_folder("Save and Load", PREFERENCES_SAVE_AND_LOAD_DECL_ID));
     save_and_load.push_child(NodeTree::new(preferences_data_folder_parameter(default_data_folder)));
     preferences.push_child(save_and_load);
+
+    preferences.push_child(preferences_engine_folder_tree());
 
     preferences.push_child(NodeTree::new(app_data_folder(
         "Interface",
@@ -211,6 +251,88 @@ pub fn preferences_data_folder_from_snapshot(snapshot: &ProcessTreeSnapshot) -> 
 pub fn preferences_data_folder<T: Node>(engine: &Engine<T>) -> Option<PathBuf> {
     let snapshot = engine.process_tree_snapshot();
     preferences_data_folder_from_snapshot(snapshot.as_ref())
+}
+
+fn frequency_from_param_value(value: &ParamValue) -> Option<NodeUpdateRate> {
+    match value {
+        ParamValue::Int(value) => NodeUpdateRate::try_from(*value).ok().filter(|value| *value > 0),
+        ParamValue::Float(value) => {
+            let value = value.round();
+            (value >= 1.0 && value <= f64::from(NodeUpdateRate::MAX)).then_some(value as NodeUpdateRate)
+        }
+        ParamValue::Str(value) => value.trim().parse::<NodeUpdateRate>().ok().filter(|value| *value > 0),
+        _ => None,
+    }
+}
+
+fn preferences_engine_frequency_hz_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    decl_id: &str,
+    default_hz: NodeUpdateRate,
+) -> NodeUpdateRate {
+    let Some(preferences) = preferences_root_from_snapshot(snapshot) else {
+        return default_hz;
+    };
+    let Some(engine) = child_by_decl(snapshot, preferences, PREFERENCES_ENGINE_DECL_ID) else {
+        return default_hz;
+    };
+    let Some(frequency) = child_by_decl(snapshot, engine, decl_id) else {
+        return default_hz;
+    };
+    let Some(value) = snapshot.node(frequency).and_then(|node| node.param_value.as_ref()) else {
+        return default_hz;
+    };
+    frequency_from_param_value(value).unwrap_or(default_hz)
+}
+
+/// Returns the Engine Max Frequency preference from a tree snapshot.
+pub fn preferences_engine_max_frequency_hz_from_snapshot(snapshot: &ProcessTreeSnapshot) -> NodeUpdateRate {
+    preferences_engine_frequency_hz_from_snapshot(
+        snapshot,
+        PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_MAX_FREQUENCY_HZ,
+    )
+}
+
+/// Returns the Engine Low Frequency preference from a tree snapshot.
+pub fn preferences_engine_low_frequency_hz_from_snapshot(snapshot: &ProcessTreeSnapshot) -> NodeUpdateRate {
+    preferences_engine_frequency_hz_from_snapshot(
+        snapshot,
+        PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
+        DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
+    )
+}
+
+/// Returns the Engine Max Frequency preference from a live engine.
+pub fn preferences_engine_max_frequency_hz<T: Node>(engine: &Engine<T>) -> NodeUpdateRate {
+    let snapshot = engine.process_tree_snapshot();
+    preferences_engine_max_frequency_hz_from_snapshot(snapshot.as_ref())
+}
+
+/// Returns the Engine Low Frequency preference from a live engine.
+pub fn preferences_engine_low_frequency_hz<T: Node>(engine: &Engine<T>) -> NodeUpdateRate {
+    let snapshot = engine.process_tree_snapshot();
+    preferences_engine_low_frequency_hz_from_snapshot(snapshot.as_ref())
+}
+
+/// Returns the runtime loop cap interval implied by the Engine Max Frequency preference.
+pub fn preferences_engine_max_frequency_interval_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Duration {
+    runtime_loop_interval_for_frequency_hz(preferences_engine_max_frequency_hz_from_snapshot(snapshot))
+}
+
+/// Returns the runtime loop cap interval implied by the live Engine Max Frequency preference.
+pub fn preferences_engine_max_frequency_interval<T: Node>(engine: &Engine<T>) -> Duration {
+    runtime_loop_interval_for_frequency_hz(preferences_engine_max_frequency_hz(engine))
+}
+
+/// Applies app Preferences that affect runtime guardrails.
+pub fn apply_preferences_runtime_limits<T: Node>(engine: &mut Engine<T>) {
+    let max_loop_frequency_hz = preferences_engine_max_frequency_hz(engine);
+    let mut limits = engine.runtime_limits();
+    if limits.max_loop_frequency_hz != max_loop_frequency_hz {
+        limits.max_loop_frequency_hz = max_loop_frequency_hz;
+        engine.set_runtime_limits(limits);
+    }
 }
 
 /// Queues any missing Preferences defaults into a live engine.
@@ -256,6 +378,49 @@ pub fn ensure_preferences_tree<T: Node>(engine: &mut Engine<T>, default_data_fol
         engine.edits.push(Edit::AddNodeTree {
             tree: NodeTree::new(preferences_data_folder_parameter(default_data_folder)),
             parent: save_and_load,
+            prev_sibling: None,
+        });
+    }
+
+    if let Some(engine_folder) = child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_ENGINE_DECL_ID) {
+        if child_by_decl(
+            snapshot.as_ref(),
+            engine_folder,
+            PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
+        )
+        .is_none()
+        {
+            engine.edits.push(Edit::AddNodeTree {
+                tree: NodeTree::new(preferences_engine_frequency_parameter(
+                    "Engine Max Frequency",
+                    PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
+                    DEFAULT_ENGINE_MAX_FREQUENCY_HZ,
+                )),
+                parent: engine_folder,
+                prev_sibling: None,
+            });
+        }
+        if child_by_decl(
+            snapshot.as_ref(),
+            engine_folder,
+            PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
+        )
+        .is_none()
+        {
+            engine.edits.push(Edit::AddNodeTree {
+                tree: NodeTree::new(preferences_engine_frequency_parameter(
+                    "Engine Low Frequency",
+                    PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
+                    DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
+                )),
+                parent: engine_folder,
+                prev_sibling: None,
+            });
+        }
+    } else {
+        engine.edits.push(Edit::AddNodeTree {
+            tree: preferences_engine_folder_tree(),
+            parent: preferences,
             prev_sibling: None,
         });
     }
@@ -379,6 +544,19 @@ where
     Ok(serde_json::to_string_pretty(&project)?)
 }
 
+/// Serializes one project with an optional project-owned UI state payload.
+pub fn to_sparse_project_json_pretty_with_ui_state<T>(
+    engine: &Engine<T>,
+    ui_state: Option<serde_json::Value>,
+) -> Result<String, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let mut project = to_sparse_project_file(engine)?;
+    project.ui_state = ui_state;
+    Ok(serde_json::to_string_pretty(&project)?)
+}
+
 /// Serializes one node subtree using the same sparse codec as project files.
 pub fn to_sparse_subtree_json_pretty<T>(engine: &Engine<T>, root: NodeId) -> Result<String, ProjectPersistenceError>
 where
@@ -405,6 +583,16 @@ pub fn from_sparse_project_json<T>(json: &str) -> Result<Engine<T>, ProjectPersi
 where
     T: ProjectNode + From<Folder>,
 {
+    Ok(from_sparse_project_json_with_ui_state(json)?.0)
+}
+
+/// Loads one sparse project JSON document and returns its project-owned UI state.
+pub fn from_sparse_project_json_with_ui_state<T>(
+    json: &str,
+) -> Result<(Engine<T>, Option<serde_json::Value>), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
     let parse_started = std::time::Instant::now();
     let project: ProjectFile = serde_json::from_str(json)?;
     let parse_elapsed = parse_started.elapsed();
@@ -414,6 +602,7 @@ where
             expected: PROJECT_FILE_VERSION,
         });
     }
+    let ui_state = project.ui_state.clone();
     let expand_started = std::time::Instant::now();
     let expanded = expand_sparse_project_file::<T>(project)?;
     let expand_elapsed = expand_started.elapsed();
@@ -425,7 +614,7 @@ where
         expand_elapsed.as_millis(),
         build_started.elapsed().as_millis()
     );
-    engine
+    engine.map(|engine| (engine, ui_state))
 }
 
 /// Loads one sparse project file by first expanding declared deltas against the
@@ -435,8 +624,19 @@ where
     T: ProjectNode + From<Folder>,
     P: AsRef<Path>,
 {
+    Ok(load_sparse_project_file_with_ui_state(path)?.0)
+}
+
+/// Loads one sparse project file and returns its project-owned UI state.
+pub fn load_sparse_project_file_with_ui_state<T, P>(
+    path: P,
+) -> Result<(Engine<T>, Option<serde_json::Value>), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+    P: AsRef<Path>,
+{
     let json = fs::read_to_string(path)?;
-    from_sparse_project_json(&json)
+    from_sparse_project_json_with_ui_state(&json)
 }
 
 /// Imports one sparse persisted subtree beneath `parent`.
@@ -488,6 +688,7 @@ where
 
     Ok(ProjectFile {
         version: PROJECT_FILE_VERSION.to_string(),
+        ui_state: None,
         root,
     })
 }
@@ -520,6 +721,7 @@ where
 
     Ok(ProjectFile {
         version: PROJECT_FILE_VERSION.to_string(),
+        ui_state: None,
         root,
     })
 }
@@ -531,6 +733,7 @@ where
     let mut cache = SparseExpansionCache::default();
     Ok(ProjectFile {
         version: project.version,
+        ui_state: project.ui_state,
         root: expand_sparse_node_record::<T>(&project.root, None, None, None, &mut cache)?,
     })
 }
@@ -1554,6 +1757,7 @@ impl<T: Node> GoldenApp<T> {
         self.engine.run_pending_node_ready_callbacks()?;
         self.engine.resolve_if_needed()?;
         self.engine.clear_history();
+        apply_preferences_runtime_limits(&mut self.engine);
         self.engine.run_loop()
     }
 }

@@ -155,7 +155,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    /// Runs the runtime loop for `duration`, capped at 1000hz.
+    /// Runs the runtime loop for `duration`, capped by `RuntimeLimits::max_loop_frequency_hz`.
     ///
     /// When `runtime_limits.fixed_step` is `Some`, uses the fixed-step accumulator:
     /// wall-clock time is absorbed in exact `step`-sized logical ticks so nodes always
@@ -176,8 +176,9 @@ impl<T: Node> Engine<T> {
             }
 
             let tick_elapsed = tick_start.elapsed();
-            if tick_elapsed < RUNTIME_LOOP_CAP_INTERVAL {
-                let sleep_for = RUNTIME_LOOP_CAP_INTERVAL - tick_elapsed;
+            let cap_interval = self.runtime_limits.loop_cap_interval();
+            if tick_elapsed < cap_interval {
+                let sleep_for = cap_interval - tick_elapsed;
                 let remaining_total = duration.saturating_sub(start.elapsed());
                 if !remaining_total.is_zero() {
                     thread::sleep(sleep_for.min(remaining_total));
@@ -188,7 +189,7 @@ impl<T: Node> Engine<T> {
         Ok(())
     }
 
-    /// Runs the runtime loop indefinitely, capped at 1000hz.
+    /// Runs the runtime loop indefinitely, capped by `RuntimeLimits::max_loop_frequency_hz`.
     ///
     /// When `runtime_limits.fixed_step` is `Some`, uses the fixed-step accumulator.
     pub fn run_loop(&mut self) -> Result<(), EngineRuntimeError> {
@@ -206,8 +207,9 @@ impl<T: Node> Engine<T> {
             }
 
             let tick_elapsed = tick_start.elapsed();
-            if tick_elapsed < RUNTIME_LOOP_CAP_INTERVAL {
-                thread::sleep(RUNTIME_LOOP_CAP_INTERVAL - tick_elapsed);
+            let cap_interval = self.runtime_limits.loop_cap_interval();
+            if tick_elapsed < cap_interval {
+                thread::sleep(cap_interval - tick_elapsed);
             }
         }
     }

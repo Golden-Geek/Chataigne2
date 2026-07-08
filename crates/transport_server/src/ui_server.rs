@@ -9,7 +9,9 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use futures_util::{SinkExt, StreamExt};
-use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
+use golden_engine::app::{
+    ProjectFileSpec, ProjectLifecycle, apply_preferences_runtime_limits, prepare_engine_for_runtime,
+};
 use golden_engine::engine::{Engine, EngineTime};
 use golden_engine::node::{Node, NodeId};
 use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelReplaceReason};
@@ -612,6 +614,7 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
     project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
     T::project_opened(&mut engine).map_err(Error::other)?;
     prepare_engine_for_runtime(&mut engine)?;
+    apply_preferences_runtime_limits(&mut engine);
     if let Some(preferences) = config.preferences.as_ref() {
         project_host::save_preferences(&engine, preferences).map_err(Error::other)?;
     }
@@ -629,7 +632,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         let guard = lock_engine(&engine);
         Arc::new(UiReadModel::from_engine(&*guard, project_file.snapshot()))
     };
-    spawn_runtime_loop(engine.clone(), read_model.clone(), config.tick_interval);
+    spawn_runtime_loop(engine.clone(), read_model.clone());
     let ws_hub = spawn_ws_hub(
         engine.clone(),
         read_model.clone(),
@@ -674,11 +677,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
     Ok(())
 }
 
-fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
-    engine: Arc<Mutex<Engine<T>>>,
-    read_model: Arc<UiReadModel>,
-    tick_interval: Duration,
-) {
+fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(engine: Arc<Mutex<Engine<T>>>, read_model: Arc<UiReadModel>) {
     thread::spawn(move || {
         let mut last_tick_start = Instant::now();
         let mut stats_window_start = last_tick_start;
@@ -693,18 +692,21 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
             // ring buffer concurrently with intent events from the WS hub or HTTP threads.
             // Out-of-order ring entries would cause the frontend to receive paramChanged for
             // newly-created nodes before the graphTransaction that creates them.
-            let capture = {
+            let (capture, tick_interval) = {
                 let mut guard = match engine.lock() {
                     Ok(guard) => guard,
                     Err(poisoned) => poisoned.into_inner(),
                 };
                 let before_event_time = guard.ui_event_log().last().map(|event| event.time);
-                if let Err(err) = guard.run_tick(elapsed) {
+                let capture = if let Err(err) = guard.run_tick(elapsed) {
                     report_runtime_tick_failure(&err);
                     None
                 } else {
                     Some(read_model.collect_event_batch(&*guard, before_event_time))
-                }
+                };
+                apply_preferences_runtime_limits(&mut *guard);
+                let tick_interval = guard.runtime_limits().loop_cap_interval().max(Duration::from_nanos(1));
+                (capture, tick_interval)
             };
             if let Some(capture) = capture {
                 read_model.apply_event_capture(capture);
@@ -1537,7 +1539,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
-            match project_host::save_project(&state.engine, &payload.path) {
+            match project_host::save_project(&state.engine, &payload.path, payload.ui_state) {
                 Ok(path) => {
                     state.project_file.set_current_path(path);
                     state.read_model.set_project_file(state.project_file.snapshot());
@@ -1552,10 +1554,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
             match project_host::load_project(&state.engine, &payload.path, state.preferences.as_ref()) {
-                Ok(path) => {
-                    state.project_file.set_current_path(path);
+                Ok((path, ui_state)) => {
+                    state.project_file.set_current_path(path.clone());
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
-                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                    write_json(stream, "200 OK", &ProjectPathDto { path, ui_state })?;
                 }
                 Err(err) => {
                     write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
@@ -1575,10 +1577,10 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 &payload.contents,
                 state.preferences.as_ref(),
             ) {
-                Ok(path) => {
+                Ok((path, ui_state)) => {
                     state.project_file.set_current_path(path.clone());
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
-                    write_json(stream, "200 OK", &ProjectPathDto { path })?;
+                    write_json(stream, "200 OK", &ProjectPathDto { path, ui_state })?;
                 }
                 Err(err) => {
                     write_json_error(stream, "400 Bad Request", &format!("project-upload-load failed: {err}"))?;

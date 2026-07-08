@@ -70,8 +70,8 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let event_cursor = self.inbox.events.len();
-        let tree_snapshot = self.build_process_tree_snapshot();
+        let mut event_cursor = self.inbox.events.len();
+        let mut tree_snapshot = self.build_process_tree_snapshot();
         for node_id in node_ids.iter().copied() {
             let mut ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
             ctx.runtime_elapsed = self.runtime_elapsed;
@@ -83,6 +83,11 @@ impl<T: Node> Engine<T> {
                 });
             }
             self.absorb_edits(&mut ctx)?;
+            if self.stabilization_scope_depth == 0 && self.pending_lifecycle_edits_include_structural() {
+                self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
+                event_cursor = self.inbox.events.len();
+                tree_snapshot = self.build_process_tree_snapshot();
+            }
         }
         if self.stabilization_scope_depth == 0 {
             self.stabilize_added_node_structure(event_cursor, Some(creation_context))?;
@@ -259,4 +264,25 @@ impl<T: Node> Engine<T> {
 
         Ok(())
     }
+
+    fn pending_lifecycle_edits_include_structural(&self) -> bool {
+        self.edits
+            .pending
+            .iter()
+            .any(|request| lifecycle_edit_is_structural(&request.edit))
+    }
+}
+
+fn lifecycle_edit_is_structural(edit: &crate::edit::Edit) -> bool {
+    matches!(
+        edit,
+        crate::edit::Edit::AddNode { .. }
+            | crate::edit::Edit::AddNodeTree { .. }
+            | crate::edit::Edit::AddUserItemTree { .. }
+            | crate::edit::Edit::AddUserItem { .. }
+            | crate::edit::Edit::CreateBlueprintInstance { .. }
+            | crate::edit::Edit::ReplaceNode { .. }
+            | crate::edit::Edit::RemoveNode { .. }
+            | crate::edit::Edit::MoveNode { .. }
+    )
 }

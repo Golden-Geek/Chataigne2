@@ -41,6 +41,9 @@ pub struct ProjectFile {
     /// File format version.
     #[serde(default = "default_project_file_version")]
     pub version: String,
+    /// Optional project-owned UI state carried verbatim by hosts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_state: Option<serde_json::Value>,
     /// Root node record.
     pub root: ProjectNodeRecord,
 }
@@ -345,6 +348,7 @@ impl<T: Node> Engine<T> {
         let root = self.encode_node_record_with(self.root, &mut encode_data)?;
         Ok(ProjectFile {
             version: PROJECT_FILE_VERSION.to_string(),
+            ui_state: None,
             root,
         })
     }

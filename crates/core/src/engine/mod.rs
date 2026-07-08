@@ -67,6 +67,8 @@ pub use persistence::ProjectNodeRecord;
 /// Project persistence error type.
 pub use persistence::ProjectPersistenceError;
 pub(crate) use persistence::remap_record_uuids as remap_project_record_uuids;
+/// Default runtime loop frequency cap in hertz.
+pub use runtime::DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ;
 /// Runtime error type returned by resolve/scheduling and tick execution.
 pub use runtime::EngineRuntimeError;
 /// Fixed-step accumulator configuration for `run_for` / `run_loop`.
@@ -77,6 +79,8 @@ pub use runtime::NodeExecutionRule;
 pub use runtime::NodeUpdateRate;
 /// Runtime safety and scheduling limits.
 pub use runtime::RuntimeLimits;
+/// Converts a frequency cap in hertz to a runtime loop interval.
+pub use runtime::runtime_loop_interval_for_frequency_hz;
 /// Per-tick performance counters returned by `Engine::tick_stats`.
 pub use tick_scratch::TickStats;
 

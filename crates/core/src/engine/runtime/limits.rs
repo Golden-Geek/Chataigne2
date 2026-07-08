@@ -5,6 +5,15 @@ use crate::node::NodeId;
 /// Per-node update frequency in hertz.
 pub type NodeUpdateRate = u32;
 
+/// Default cap used by raw engine runtime loops when no app preference overrides it.
+pub const DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ: NodeUpdateRate = 1_000;
+
+/// Converts a frequency cap in hertz to the minimum interval between runtime loop iterations.
+pub fn runtime_loop_interval_for_frequency_hz(frequency_hz: NodeUpdateRate) -> Duration {
+    let frequency_hz = frequency_hz.max(1);
+    Duration::from_nanos((1_000_000_000u64 / u64::from(frequency_hz)).max(1))
+}
+
 /// Configuration for the fixed-step accumulator used by `run_for` / `run_loop`.
 ///
 /// When present in `RuntimeLimits`, wall-clock time is accumulated and drained
@@ -83,11 +92,20 @@ pub struct RuntimeLimits {
     pub max_update_callbacks_per_tick: usize,
     /// Maximum catch-up firings processed per bucket in one tick.
     pub max_bucket_catch_up_per_tick: u32,
+    /// Maximum raw runtime loop frequency in hertz.
+    pub max_loop_frequency_hz: NodeUpdateRate,
     /// When `Some`, `run_for` and `run_loop` use the fixed-step accumulator pattern:
     /// wall-clock time is accumulated and drained in exact `step`-sized logical ticks.
     ///
     /// When `None` (default), raw frame elapsed is passed directly to `run_tick`.
     pub fixed_step: Option<FixedStepConfig>,
+}
+
+impl RuntimeLimits {
+    /// Returns the sleep interval implied by `max_loop_frequency_hz`.
+    pub fn loop_cap_interval(&self) -> Duration {
+        runtime_loop_interval_for_frequency_hz(self.max_loop_frequency_hz)
+    }
 }
 
 impl Default for RuntimeLimits {
@@ -96,6 +114,7 @@ impl Default for RuntimeLimits {
             max_stabilization_passes_per_tick: 16,
             max_update_callbacks_per_tick: 100_000,
             max_bucket_catch_up_per_tick: 4,
+            max_loop_frequency_hz: DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ,
             fixed_step: None,
         }
     }

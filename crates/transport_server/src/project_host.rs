@@ -6,8 +6,8 @@ use std::time::Instant;
 
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_tree,
-    insert_sparse_preferences_json, load_sparse_project_file, prepare_engine_for_runtime, shutdown_engine_for_runtime,
-    to_sparse_preferences_json_pretty, to_sparse_project_json_pretty,
+    insert_sparse_preferences_json, load_sparse_project_file_with_ui_state, prepare_engine_for_runtime,
+    shutdown_engine_for_runtime, to_sparse_preferences_json_pretty, to_sparse_project_json_pretty_with_ui_state,
 };
 use golden_engine::engine::Engine;
 use golden_engine::logger::{self, LogLevel};
@@ -189,6 +189,7 @@ pub(crate) fn create_new_project<T: ProjectLifecycle>(
 pub(crate) fn save_project<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     raw_path: &str,
+    ui_state: Option<serde_json::Value>,
 ) -> Result<String, String> {
     let file_spec = T::project_file_spec();
     let path = normalize_project_save_path(raw_path, &file_spec)
@@ -207,7 +208,7 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
     let clone_or_snapshot_ms = 0;
 
     let serialize_started = Instant::now();
-    let json = to_sparse_project_json_pretty(&guard).map_err(|err| err.to_string())?;
+    let json = to_sparse_project_json_pretty_with_ui_state(&guard, ui_state).map_err(|err| err.to_string())?;
     let serialize_elapsed = serialize_started.elapsed();
     drop(guard);
 
@@ -245,12 +246,13 @@ pub(crate) fn load_project<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     raw_path: &str,
     preferences: Option<&UiPreferencesConfig>,
-) -> Result<String, String> {
+) -> Result<(String, Option<serde_json::Value>), String> {
     let path = normalize_project_path(raw_path).ok_or_else(|| "project-load path cannot be empty".to_string())?;
 
     let started = Instant::now();
     let load_started = Instant::now();
-    let mut next_engine = load_sparse_project_file::<T, _>(path.as_str()).map_err(|err| err.to_string())?;
+    let (mut next_engine, ui_state) =
+        load_sparse_project_file_with_ui_state::<T, _>(path.as_str()).map_err(|err| err.to_string())?;
     let load_elapsed = load_started.elapsed();
     let node_count = next_engine.nodes.iter().count();
 
@@ -284,7 +286,7 @@ pub(crate) fn load_project<T: ProjectLifecycle>(
             started.elapsed().as_millis()
         ),
     );
-    Ok(path)
+    Ok((path, ui_state))
 }
 
 pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
@@ -292,7 +294,7 @@ pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
     raw_file_name: &str,
     contents: &str,
     preferences: Option<&UiPreferencesConfig>,
-) -> Result<String, String> {
+) -> Result<(String, Option<serde_json::Value>), String> {
     if contents.trim().is_empty() {
         return Err("project upload contents cannot be empty".to_string());
     }

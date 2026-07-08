@@ -16,7 +16,6 @@ pub(super) use crate::process_ctx::{ExecutionPhase, ProcessCtx};
 
 pub(super) use super::{Engine, EngineEditError};
 
-pub(super) const RUNTIME_LOOP_CAP_INTERVAL: Duration = Duration::from_micros(1_000);
 pub(super) const PERF_LOG_TICK_THRESHOLD_MS: u128 = 8;
 pub(super) const PERF_LOG_MIN_TICK_INTERVAL: u64 = 60;
 pub(super) const STABILIZATION_WARN_PASSES: usize = 4;
@@ -40,7 +39,10 @@ mod tick;
 mod trace;
 
 pub use errors::EngineRuntimeError;
-pub use limits::{FixedStepConfig, NodeExecutionRule, NodeUpdateRate, RuntimeLimits};
+pub use limits::{
+    DEFAULT_RUNTIME_LOOP_MAX_FREQUENCY_HZ, FixedStepConfig, NodeExecutionRule, NodeUpdateRate, RuntimeLimits,
+    runtime_loop_interval_for_frequency_hz,
+};
 pub(crate) use scheduler::ScheduleMgr;
 
 impl<T: Node> Engine<T> {

@@ -62,6 +62,7 @@ impl Node for UiSchemaDescriptionNode {}
 
 static REMOVE_LIFECYCLE_DESTROY_COUNT: AtomicUsize = AtomicUsize::new(0);
 static REMOVE_LIFECYCLE_READY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static READY_REMOVED_CHILD_MUTATION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 #[crate::node("remove_lifecycle_probe_node")]
 struct RemoveLifecycleProbeNode {}
@@ -75,6 +76,63 @@ impl Node for RemoveLifecycleProbeNode {
     fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
         REMOVE_LIFECYCLE_READY_COUNT.fetch_add(1, Ordering::SeqCst);
     }
+}
+
+#[crate::node("ready_removes_child_parent_node")]
+struct ReadyRemovesChildParentNode {}
+
+#[crate::node("ready_removes_child_parent_node", from_struct)]
+impl Node for ReadyRemovesChildParentNode {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
+        let Some(snapshot) = ctx.tree_snapshot() else {
+            return;
+        };
+        for child in snapshot.child_ids(self.id()) {
+            ctx.edits.push(Edit::RemoveNode { node: child });
+        }
+    }
+}
+
+#[crate::node("ready_removed_child_mutation_node")]
+struct ReadyRemovedChildMutationNode {}
+
+#[crate::node("ready_removed_child_mutation_node", from_struct)]
+impl Node for ReadyRemovedChildMutationNode {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: crate::node::NodeCreationContext) {
+        let node = self.id();
+        ctx.edits.push(Edit::CallNodeMutation {
+            node,
+            callback: Box::new(|_, _| {
+                READY_REMOVED_CHILD_MUTATION_COUNT.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }),
+            needs_tree_snapshot: false,
+        });
+    }
+}
+
+#[test]
+fn ready_batch_stabilizes_structural_edits_before_removed_child_ready_callbacks() {
+    READY_REMOVED_CHILD_MUTATION_COUNT.store(0, Ordering::SeqCst);
+
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    let parent: MacroTestNode = ReadyRemovesChildParentNode::new().into();
+    let child: MacroTestNode = ReadyRemovedChildMutationNode::new().into();
+    let mut tree = crate::edit::NodeTree::new(parent);
+    tree.push_child(crate::edit::NodeTree::new(child));
+
+    engine.edits.push(Edit::AddNodeTree {
+        parent: engine.root,
+        tree,
+        prev_sibling: None,
+    });
+
+    engine
+        .apply_edits()
+        .expect("ready structural edits should stabilize before stale child callbacks");
+
+    assert_eq!(READY_REMOVED_CHILD_MUTATION_COUNT.load(Ordering::SeqCst), 0);
 }
 
 #[test]
@@ -1195,6 +1253,8 @@ crate::define_node_enum!(
         UiSchemaDescriptionNode,
         SharedDeclaredDescriptionNode,
         RemoveLifecycleProbeNode,
+        ReadyRemovesChildParentNode,
+        ReadyRemovedChildMutationNode,
     }
 );
 
