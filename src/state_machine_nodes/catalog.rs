@@ -54,6 +54,13 @@ pub(crate) enum FormulaSourceRef {
     ProjectNode(NodeReference),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RenamedSharedFormulaPath {
+    pub(crate) node: NodeId,
+    pub(crate) path: PathBuf,
+    pub(crate) label: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub(crate) enum ProcessorFormulaSourceState {
     Empty,
@@ -276,12 +283,26 @@ impl FormulaCatalog {
         library: NodeId,
         shared_dir: impl AsRef<Path>,
     ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
-        let existing_paths: HashSet<PathBuf> =
+        Self::missing_shared_formula_trees_excluding_paths(
+            snapshot,
+            library,
+            shared_dir,
+            &HashSet::new(),
+        )
+    }
+
+    pub(crate) fn missing_shared_formula_trees_excluding_paths(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        shared_dir: impl AsRef<Path>,
+        ignored_paths: &HashSet<PathBuf>,
+    ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        let mut existing_paths: HashSet<PathBuf> =
             shared_formula_node_paths(snapshot, library, shared_dir.as_ref())
                 .into_iter()
                 .map(|(_, path)| path)
                 .collect();
-
+        existing_paths.extend(ignored_paths.iter().cloned());
         Ok(shared_formula_file_paths(shared_dir.as_ref())?
             .into_iter()
             .filter(|path| !existing_paths.contains(path))
@@ -294,12 +315,68 @@ impl FormulaCatalog {
         library: NodeId,
         shared_dir: impl AsRef<Path>,
     ) -> Result<Vec<NodeId>, BuiltinFormulaLoadError> {
+        Self::stale_shared_formula_nodes_excluding(snapshot, library, shared_dir, &HashSet::new())
+    }
+
+    pub(crate) fn stale_shared_formula_nodes_excluding(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        shared_dir: impl AsRef<Path>,
+        ignored_nodes: &HashSet<NodeId>,
+    ) -> Result<Vec<NodeId>, BuiltinFormulaLoadError> {
         let current_paths: HashSet<PathBuf> =
             shared_formula_file_paths(shared_dir.as_ref())?.into_iter().collect();
         Ok(shared_formula_node_paths(snapshot, library, shared_dir.as_ref())
             .into_iter()
-            .filter_map(|(node, path)| (!current_paths.contains(&path)).then_some(node))
+            .filter_map(|(node, path)| {
+                (!ignored_nodes.contains(&node) && !current_paths.contains(&path)).then_some(node)
+            })
             .collect())
+    }
+
+    pub(crate) fn renamed_shared_formula_paths(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        shared_dir: impl AsRef<Path>,
+    ) -> Result<Vec<RenamedSharedFormulaPath>, BuiltinFormulaLoadError> {
+        let shared_dir = shared_dir.as_ref();
+        let linked_nodes = shared_formula_node_paths(snapshot, library, shared_dir);
+        let linked_paths: HashSet<PathBuf> = linked_nodes
+            .iter()
+            .map(|(_, path)| path.clone())
+            .collect();
+        let linked_by_uuid: HashMap<NodeUuid, (NodeId, PathBuf)> = linked_nodes
+            .into_iter()
+            .filter_map(|(node, path)| {
+                snapshot
+                    .node(node)
+                    .map(|snapshot_node| (snapshot_node.uuid, (node, path)))
+            })
+            .collect();
+        let current_paths = shared_formula_file_paths(shared_dir)?;
+        let current_path_set: HashSet<PathBuf> = current_paths.iter().cloned().collect();
+        let mut updated_nodes = HashSet::new();
+        let mut renamed = Vec::new();
+        for path in current_paths {
+            if linked_paths.contains(&path) {
+                continue;
+            }
+            let Ok((uuid, label)) = shared_formula_file_identity(&path) else {
+                continue;
+            };
+            let Some((node, linked_path)) = linked_by_uuid.get(&uuid) else {
+                continue;
+            };
+            if current_path_set.contains(linked_path) || !updated_nodes.insert(*node) {
+                continue;
+            }
+            renamed.push(RenamedSharedFormulaPath {
+                node: *node,
+                path,
+                label,
+            });
+        }
+        Ok(renamed)
     }
 
     #[cfg(test)]
@@ -510,14 +587,34 @@ impl FormulaCatalog {
     /// serialize formula content itself. Built from a `ProcessTreeSnapshot`
     /// (rather than the fuller UI-sync DTO) so it's usable from a node's own
     /// `ProcessCtx`-scoped hooks, not just from full engine access.
-    pub(crate) fn export_formula_json(snapshot: &ProcessTreeSnapshot, formula_node: NodeId) -> Option<String> {
+    pub(crate) fn export_formula_json(
+        snapshot: &ProcessTreeSnapshot,
+        formula_node: NodeId,
+    ) -> Option<String> {
+        Self::export_formula_json_with_root_uuid(snapshot, formula_node, None)
+    }
+
+    pub(crate) fn export_formula_json_with_root_uuid(
+        snapshot: &ProcessTreeSnapshot,
+        formula_node: NodeId,
+        root_uuid: Option<NodeUuid>,
+    ) -> Option<String> {
         let root = export_node_json(snapshot, formula_node)?;
+        let root = root_uuid
+            .and_then(|uuid| exported_root_with_uuid(root.clone(), uuid))
+            .unwrap_or(root);
         let payload = serde_json::json!({
             "kind": EXPORTED_NODE_TREE_KIND,
             "version": 1,
             "nodes": [root],
         });
         serde_json::to_string_pretty(&payload).ok()
+    }
+
+    pub(crate) fn shared_formula_file_identity(
+        path: impl AsRef<Path>,
+    ) -> Result<(NodeUuid, String), BuiltinFormulaLoadError> {
+        shared_formula_file_identity(path.as_ref())
     }
 
     pub(crate) fn formula_node_tree(
@@ -570,6 +667,12 @@ fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<J
         },
         "children": children,
     }))
+}
+
+fn exported_root_with_uuid(mut root: JsonValue, uuid: NodeUuid) -> Option<JsonValue> {
+    root.as_object_mut()?
+        .insert("sourceUuid".to_owned(), JsonValue::String(uuid.0.to_string()));
+    Some(root)
 }
 
 fn export_child_decl_id(decl_id: &str) -> bool {
@@ -668,6 +771,33 @@ fn shared_formula_node_paths(
     formulas
 }
 
+fn shared_formula_file_identity(
+    path: &Path,
+) -> Result<(NodeUuid, String), BuiltinFormulaLoadError> {
+    let source = fs::read_to_string(path).map_err(|error| BuiltinFormulaLoadError::Io {
+        path: path.to_path_buf(),
+        source: error,
+    })?;
+    let tree = decode_exported_formula_tree(path, &source)?;
+    if tree.nodes.len() != 1 {
+        return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+            reason: format!("file '{}' must contain one formula root", path.display()),
+        });
+    }
+    let root = tree.nodes.into_iter().next().expect("checked length");
+    if root.node_type != FORMULA_NODE_TYPE {
+        return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
+            reason: format!(
+                "file '{}' root '{}' is not an Alchemist formula",
+                path.display(),
+                root.label
+            ),
+        });
+    }
+    let label = root.meta.label.clone().unwrap_or_else(|| root.label.clone());
+    Ok((root.node_uuid(), label))
+}
+
 /// A fresh external-file-linked formula tree pointing at `path`, in the same
 /// shape as manually adding one via the "External Formula" Add-menu item
 /// (see `state_machine_nodes_formula::external_formula_tree_for_path`); its
@@ -675,12 +805,21 @@ fn shared_formula_node_paths(
 /// it attaches, so only a placeholder label derived from the filename is
 /// needed here.
 fn shared_formula_tree_from_path(path: &Path) -> NodeTree {
-    let label = path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .filter(|stem| !stem.is_empty())
-        .unwrap_or("Shared Formula");
-    external_formula_tree_for_path(path, label)
+    match shared_formula_file_identity(path) {
+        Ok((uuid, label)) => {
+            let mut tree = external_formula_tree_for_path(path, label);
+            tree.node.node_data_mut().meta.uuid = uuid;
+            tree
+        }
+        Err(_) => {
+            let label = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .filter(|stem| !stem.is_empty())
+                .unwrap_or("Shared Formula");
+            external_formula_tree_for_path(path, label)
+        }
+    }
 }
 
 fn snapshot_child_file_path(

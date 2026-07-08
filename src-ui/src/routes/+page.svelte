@@ -11,6 +11,7 @@
 	import ModuleInspectorPanelHeader from '$lib/inspectors/modules/ModuleInspectorPanelHeader.svelte';
 	import ModuleNodeInspector from '$lib/inspectors/modules/ModuleNodeInspector.svelte';
 	import ModulePanel from '$lib/panels/modules/ModulePanel.svelte';
+	import SpatializerEditorPanel from '$lib/panels/modules/SpatializerEditorPanel.svelte';
 	import AlchemistEditorPanel from '$lib/state_machine/components/AlchemistEditorPanel.svelte';
 	import ConditionManagerInspector from '$lib/state_machine/components/ConditionManagerInspector.svelte';
 	import FormulaLibraryPanel from '$lib/state_machine/components/FormulaLibraryPanel.svelte';
@@ -83,6 +84,12 @@
 			title: 'Alchemist Editor',
 			component: AlchemistEditorPanel,
 			description: 'Visual editor for custom Alchemist Formulas'
+		},
+		spatializerEditor: {
+			title: 'Spatializer',
+			component: SpatializerEditorPanel,
+			description: '2D editor for Spatializer modules',
+			category: 'Module Editors'
 		},
 		formulaLibrary: {
 			title: 'Formula Library',

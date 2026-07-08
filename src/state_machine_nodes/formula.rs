@@ -3420,7 +3420,7 @@ impl Node for AlchemistFormulaDefinition {
         &mut self,
         ctx: &mut ProcessCtx,
         node: NodeId,
-        _patch: NodeMetaPatch,
+        patch: NodeMetaPatch,
     ) {
         if ctx
             .tree_snapshot()
@@ -3429,6 +3429,14 @@ impl Node for AlchemistFormulaDefinition {
             self.save_external_formula_file(ctx);
             return;
         }
+        let shared_formula_rename = if node == self.id() {
+            patch
+                .label
+                .as_deref()
+                .and_then(|label| self.rename_shared_formula_file_for_label(ctx, label))
+        } else {
+            None
+        };
         if ctx.tree_snapshot().is_some_and(|snapshot| {
             snapshot
                 .node(node)
@@ -3438,7 +3446,13 @@ impl Node for AlchemistFormulaDefinition {
         }
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
-        self.save_external_formula_file(ctx);
+        match shared_formula_rename {
+            Some(SharedFormulaFileRename::Renamed(path)) => {
+                self.save_external_formula_file_to_path(ctx, path.as_path());
+            }
+            Some(SharedFormulaFileRename::Blocked) => {}
+            None => self.save_external_formula_file(ctx),
+        }
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -3539,7 +3553,18 @@ fn write_formula_node_to_file(
     formula_node: NodeId,
     path: &Path,
 ) -> Result<(), String> {
-    let Some(json) = FormulaCatalog::export_formula_json(snapshot, formula_node) else {
+    write_formula_node_to_file_with_root_uuid(snapshot, formula_node, path, None)
+}
+
+fn write_formula_node_to_file_with_root_uuid(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    path: &Path,
+    root_uuid: Option<NodeUuid>,
+) -> Result<(), String> {
+    let Some(json) =
+        FormulaCatalog::export_formula_json_with_root_uuid(snapshot, formula_node, root_uuid)
+    else {
         return Err("formula could not be serialized".to_owned());
     };
     if let Some(parent) = path.parent() {
@@ -3549,6 +3574,60 @@ fn write_formula_node_to_file(
     }
     fs::write(path, json)
         .map_err(|error| format!("failed to write formula file '{}': {error}", path.display()))
+}
+
+enum SharedFormulaFileRename {
+    Renamed(PathBuf),
+    Blocked,
+}
+
+fn shared_formula_path_for_label(shared_dir: &Path, label: &str) -> PathBuf {
+    shared_dir.join(format!("{}.json", shared_formula_file_stem(label)))
+}
+
+fn shared_formula_file_stem(label: &str) -> String {
+    let mut stem = String::new();
+    for ch in label.trim().chars() {
+        if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+            stem.push('_');
+        } else {
+            stem.push(ch);
+        }
+    }
+    let mut stem = stem
+        .trim_matches(|ch| ch == ' ' || ch == '.')
+        .to_owned();
+    if stem.is_empty() {
+        stem = "Shared Formula".to_owned();
+    }
+    if is_windows_reserved_file_stem(&stem) {
+        stem.insert(0, '_');
+    }
+    stem
+}
+
+fn is_windows_reserved_file_stem(stem: &str) -> bool {
+    let device_name = stem
+        .split('.')
+        .next()
+        .unwrap_or(stem)
+        .to_ascii_uppercase();
+    matches!(device_name.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || device_name
+            .strip_prefix("COM")
+            .and_then(|suffix| suffix.parse::<u8>().ok())
+            .is_some_and(|index| (1..=9).contains(&index))
+        || device_name
+            .strip_prefix("LPT")
+            .and_then(|suffix| suffix.parse::<u8>().ok())
+            .is_some_and(|index| (1..=9).contains(&index))
+}
+
+fn paths_refer_to_same_file(left: &Path, right: &Path) -> bool {
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
 }
 
 impl AlchemistFormulaDefinition {
@@ -3633,6 +3712,74 @@ impl AlchemistFormulaDefinition {
             }
             _ => None,
         }
+    }
+
+    fn rename_shared_formula_file_for_label(
+        &self,
+        ctx: &mut ProcessCtx,
+        label: &str,
+    ) -> Option<SharedFormulaFileRename> {
+        if !self.is_external_file_formula() || self.is_read_only_external_formula() {
+            return None;
+        }
+        let snapshot = ctx.tree_snapshot_arc()?;
+        let shared_dir = shared_formula_dir_from_snapshot(snapshot.as_ref())?;
+        let current_path = self.external_formula_file_path(ctx)?;
+        if !current_path.starts_with(&shared_dir) {
+            return None;
+        }
+        let next_path = shared_formula_path_for_label(&shared_dir, label);
+        if next_path == current_path {
+            return None;
+        }
+        let Some(file_param) =
+            snapshot.find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+        else {
+            return None;
+        };
+        let current_exists = current_path.exists();
+        if current_exists && next_path.exists() && !paths_refer_to_same_file(&current_path, &next_path)
+        {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Shared formula file could not be renamed",
+                Some(&format!("target file '{}' already exists", next_path.display())),
+            );
+            return Some(SharedFormulaFileRename::Blocked);
+        }
+        if let Some(parent) = next_path.parent() {
+            if let Err(error) = fs::create_dir_all(parent) {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formula file could not be renamed",
+                    Some(&format!("failed to create folder '{}': {error}", parent.display())),
+                );
+                return Some(SharedFormulaFileRename::Blocked);
+            }
+        }
+        if current_exists && !paths_refer_to_same_file(&current_path, &next_path) {
+            if let Err(error) = fs::rename(&current_path, &next_path) {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formula file could not be renamed",
+                    Some(&format!(
+                        "failed to rename '{}' to '{}': {error}",
+                        current_path.display(),
+                        next_path.display()
+                    )),
+                );
+                return Some(SharedFormulaFileRename::Blocked);
+            }
+        }
+        ctx.edits.push(Edit::SetParam {
+            node: file_param,
+            value: ParamValue::File(next_path.to_string_lossy().into_owned()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        Some(SharedFormulaFileRename::Renamed(next_path))
     }
 
     fn source_reference_param(
@@ -3792,10 +3939,26 @@ impl AlchemistFormulaDefinition {
         let Some(path) = self.external_formula_file_path(ctx) else {
             return;
         };
+        self.save_external_formula_file_to_path(ctx, path.as_path());
+    }
+
+    fn save_external_formula_file_to_path(&self, ctx: &mut ProcessCtx, path: &Path) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        match write_formula_node_to_file(snapshot.as_ref(), self.id(), path.as_path()) {
+        let root_uuid = shared_formula_dir_from_snapshot(snapshot.as_ref())
+            .filter(|shared_dir| path.starts_with(shared_dir))
+            .and_then(|_| {
+                FormulaCatalog::shared_formula_file_identity(path)
+                    .ok()
+                    .map(|(uuid, _)| uuid)
+            });
+        match write_formula_node_to_file_with_root_uuid(
+            snapshot.as_ref(),
+            self.id(),
+            path,
+            root_uuid,
+        ) {
             Ok(()) => ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID)),
             Err(error) => ctx.set_node_warning_with(
                 self.id(),
@@ -3874,7 +4037,22 @@ impl AlchemistFormulaDefinition {
     }
 
     fn replace_external_formula_contents(&mut self, ctx: &mut ProcessCtx, imported: NodeTree) {
+        self.sync_external_formula_label(ctx, &imported);
         self.replace_formula_contents(ctx, imported);
+    }
+
+    fn sync_external_formula_label(&self, ctx: &mut ProcessCtx, imported: &NodeTree) {
+        let label = imported.node.node_data().meta.label.trim();
+        if label.is_empty() || label == self.node_data().meta.label {
+            return;
+        }
+        ctx.patch_node_meta(
+            self.id(),
+            NodeMetaPatch {
+                label: Some(label.to_owned()),
+                ..NodeMetaPatch::default()
+            },
+        );
     }
 
     fn replace_formula_contents(&mut self, ctx: &mut ProcessCtx, imported: NodeTree) {
@@ -4597,10 +4775,56 @@ impl FormulaLibrary {
         let Some(shared_dir) = shared_formula_dir_from_snapshot(snapshot.as_ref()) else {
             return;
         };
-        match FormulaCatalog::stale_shared_formula_nodes(
+        let mut renamed_nodes = HashSet::new();
+        let mut renamed_paths = HashSet::new();
+        match FormulaCatalog::renamed_shared_formula_paths(
             snapshot.as_ref(),
             self.id(),
             &shared_dir,
+        ) {
+            Ok(renames) => {
+                for rename in renames {
+                    let Some(file_param) =
+                        snapshot.find_child_by_decl_id(rename.node, FORMULA_EXTERNAL_FILE_DECL_ID)
+                    else {
+                        continue;
+                    };
+                    renamed_nodes.insert(rename.node);
+                    renamed_paths.insert(rename.path.clone());
+                    ctx.edits.push(Edit::SetParam {
+                        node: file_param,
+                        value: ParamValue::File(rename.path.to_string_lossy().into_owned()),
+                        behaviour: ParameterEventBehaviour::Coalesce,
+                    });
+                    if snapshot
+                        .node(rename.node)
+                        .is_some_and(|node| node.label != rename.label)
+                    {
+                        ctx.patch_node_meta(
+                            rename.node,
+                            NodeMetaPatch {
+                                label: Some(rename.label),
+                                ..NodeMetaPatch::default()
+                            },
+                        );
+                    }
+                }
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formulas folder could not be read",
+                    Some(&error.to_string()),
+                );
+                return;
+            }
+        }
+        match FormulaCatalog::stale_shared_formula_nodes_excluding(
+            snapshot.as_ref(),
+            self.id(),
+            &shared_dir,
+            &renamed_nodes,
         ) {
             Ok(nodes) => {
                 for node in nodes {
@@ -4617,10 +4841,11 @@ impl FormulaLibrary {
                 return;
             }
         }
-        match FormulaCatalog::missing_shared_formula_trees(
+        match FormulaCatalog::missing_shared_formula_trees_excluding_paths(
             snapshot.as_ref(),
             self.id(),
             &shared_dir,
+            &renamed_paths,
         ) {
             Ok(trees) => {
                 for tree in trees {

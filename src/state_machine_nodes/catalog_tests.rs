@@ -1,10 +1,12 @@
-use std::{fs, time::SystemTime};
+use std::{collections::HashSet, fs, time::SystemTime};
 
 use golden_core::{
     app::ensure_preferences_tree,
     edit::{Edit, NodeTree},
-    node::{Folder, Node},
+    node::{Folder, Node, NodeMetaPatch},
     parameter::{ParamValue, Parameter},
+    process_ctx::ExecutionPhase,
+    ui_sync::UiEditIntent,
 };
 
 use super::FormulaCatalog;
@@ -12,7 +14,8 @@ use crate::app::{
     state_machine_nodes_formula::{
         create_anode_user_item_tree, external_formula_tree_for_path,
         ANODE_CREATE_PREFIX, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
-        FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
+        FORMULA_EXTERNAL_FILE_DECL_ID, FORMULA_EXTERNAL_READ_ONLY_TAG,
+        FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
     },
     AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary,
 };
@@ -390,6 +393,259 @@ fn stale_shared_formula_nodes_reports_links_whose_files_were_removed() {
 }
 
 #[test]
+fn renaming_shared_formula_moves_file_and_keeps_formula_uuid() {
+    let shared_dir = temp_builtin_formula_dir("shared_rename");
+    let _shared_dir_guard = shared_formula_dir_test_override_to(&shared_dir);
+    let old_path = shared_dir.join("Old Shared.json");
+    let new_path = shared_dir.join("New Shared.json");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    library_tree.push_child(external_formula_tree_for_path(&old_path, "Old Shared"));
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine.apply_edits().expect("formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let formula_id = only_formula_child(&engine, library_id);
+    let snapshot = engine.process_tree_snapshot();
+    let formula_uuid = snapshot
+        .node(formula_id)
+        .expect("shared formula should exist")
+        .uuid;
+    let exported = FormulaCatalog::export_formula_json(&snapshot, formula_id)
+        .expect("shared formula should export");
+    fs::write(&old_path, exported).expect("old shared formula file should write");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: formula_id,
+        patch: NodeMetaPatch {
+            label: Some("New Shared".to_owned()),
+            ..Default::default()
+        },
+    });
+    assert!(ack.success, "shared formula rename should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("shared formula should receive the rename");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("shared formula rename should settle");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    assert_eq!(
+        snapshot
+            .node(formula_id)
+            .expect("shared formula should still exist")
+            .uuid,
+        formula_uuid,
+        "renaming the shared formula must not replace the linked node"
+    );
+    assert!(
+        !old_path.exists(),
+        "renaming the shared formula should move the old file"
+    );
+    assert!(
+        new_path.exists(),
+        "renaming the shared formula should create the renamed file"
+    );
+    assert_eq!(
+        shared_formula_file_param(&snapshot, formula_id),
+        new_path,
+        "the existing formula node should now link to the renamed file"
+    );
+
+    fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
+fn renamed_shared_formula_file_relinks_existing_node_by_uuid() {
+    let shared_dir = temp_builtin_formula_dir("shared_relink");
+    let old_path = shared_dir.join("Old Shared.json");
+    let new_path = shared_dir.join("New Shared.json");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    library_tree.push_child(external_formula_tree_for_path(&old_path, "Old Shared"));
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine.apply_edits().expect("formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let formula_id = only_formula_child(&engine, library_id);
+    let snapshot = engine.process_tree_snapshot();
+    let exported = FormulaCatalog::export_formula_json(&snapshot, formula_id)
+        .expect("shared formula should export");
+    let mut exported: serde_json::Value =
+        serde_json::from_str(&exported).expect("shared formula export should decode");
+    exported["nodes"][0]["label"] = serde_json::json!("New Shared");
+    exported["nodes"][0]["meta"]["label"] = serde_json::json!("New Shared");
+    let exported =
+        serde_json::to_string_pretty(&exported).expect("renamed shared formula should encode");
+    fs::write(&new_path, exported).expect("renamed shared formula file should write");
+
+    let renamed = FormulaCatalog::renamed_shared_formula_paths(&snapshot, library_id, &shared_dir)
+        .expect("shared directory should scan");
+    assert_eq!(renamed.len(), 1);
+    assert_eq!(renamed[0].node, formula_id);
+    assert_eq!(renamed[0].path, new_path);
+    assert_eq!(
+        renamed[0].label, "New Shared",
+        "the renamed file label should be carried into the existing session"
+    );
+
+    let renamed_nodes = renamed
+        .iter()
+        .map(|rename| rename.node)
+        .collect::<HashSet<_>>();
+    let renamed_paths = renamed
+        .iter()
+        .map(|rename| rename.path.clone())
+        .collect::<HashSet<_>>();
+    assert!(
+        FormulaCatalog::stale_shared_formula_nodes_excluding(
+            &snapshot,
+            library_id,
+            &shared_dir,
+            &renamed_nodes,
+        )
+        .expect("shared directory should scan")
+        .is_empty(),
+        "a renamed shared formula must not be removed from existing sessions"
+    );
+    assert!(
+        FormulaCatalog::missing_shared_formula_trees_excluding_paths(
+            &snapshot,
+            library_id,
+            &shared_dir,
+            &renamed_paths,
+        )
+        .expect("shared directory should scan")
+        .is_empty(),
+        "a renamed shared formula must not be re-added with a new UUID"
+    );
+
+    fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
+fn shared_formula_renamed_from_another_session_preserves_file_uuid() {
+    let shared_dir = temp_builtin_formula_dir("shared_cross_session_rename");
+    let _shared_dir_guard = shared_formula_dir_test_override_to(&shared_dir);
+    let old_path = shared_dir.join("Old Shared.json");
+    let new_path = shared_dir.join("New Shared.json");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut first_session = AppEngine::new(root);
+    let mut first_library_tree = NodeTree::new(FormulaLibrary::new());
+    first_library_tree.push_child(external_formula_tree_for_path(&old_path, "Old Shared"));
+    first_session.edits.push(Edit::AddNodeTree {
+        tree: first_library_tree,
+        parent: first_session.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        first_session
+            .apply_edits()
+            .expect("first session formula library should attach");
+    }
+    let first_library_id = formula_library_id(&first_session);
+    let first_formula_id = only_formula_child(&first_session, first_library_id);
+    let first_snapshot = first_session.process_tree_snapshot();
+    let original_uuid = first_snapshot
+        .node(first_formula_id)
+        .expect("first session shared formula should exist")
+        .uuid;
+    let exported = FormulaCatalog::export_formula_json(&first_snapshot, first_formula_id)
+        .expect("shared formula should export");
+    fs::write(&old_path, exported).expect("original shared formula file should write");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut second_session = AppEngine::new(root);
+    second_session.edits.push(Edit::AddNodeTree {
+        tree: NodeTree::new(FormulaLibrary::new()),
+        parent: second_session.root,
+        prev_sibling: None,
+    });
+    second_session
+        .apply_edits()
+        .expect("second session formula library should attach");
+    let second_library_id = formula_library_id(&second_session);
+    let second_snapshot = second_session.process_tree_snapshot();
+    let missing =
+        FormulaCatalog::missing_shared_formula_trees(&second_snapshot, second_library_id, &shared_dir)
+            .expect("shared directory should scan");
+    assert_eq!(missing.len(), 1);
+    assert_eq!(
+        missing[0].node.node_data().meta.uuid, original_uuid,
+        "auto-populated shared formulas must use the file's UUID"
+    );
+    second_session.edits.push(Edit::AddNodeTree {
+        tree: missing.into_iter().next().expect("checked length"),
+        parent: second_library_id,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        second_session
+            .apply_edits()
+            .expect("second session shared formula should settle");
+    }
+    let second_formula_id = only_formula_child(&second_session, second_library_id);
+
+    let ack = second_session.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: second_formula_id,
+        patch: NodeMetaPatch {
+            label: Some("New Shared".to_owned()),
+            ..Default::default()
+        },
+    });
+    assert!(
+        ack.success,
+        "second session shared formula rename should succeed: {ack:?}"
+    );
+    second_session
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("second session should receive the rename");
+    for _ in 0..4 {
+        second_session
+            .apply_edits()
+            .expect("second session shared formula rename should settle");
+    }
+
+    assert!(!old_path.exists(), "old shared formula path should be moved");
+    assert!(new_path.exists(), "renamed shared formula file should exist");
+    assert_eq!(
+        FormulaCatalog::shared_formula_file_identity(&new_path)
+            .expect("renamed shared formula should decode")
+            .0,
+        original_uuid,
+        "renaming from another session must not rewrite the shared file UUID"
+    );
+    let relink =
+        FormulaCatalog::renamed_shared_formula_paths(&first_snapshot, first_library_id, &shared_dir)
+            .expect("first session should scan renamed shared formulas");
+    assert_eq!(relink.len(), 1);
+    assert_eq!(relink[0].node, first_formula_id);
+    assert_eq!(relink[0].path, new_path);
+
+    fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
 fn default_missing_shared_formula_trees_uses_preferences_data_folder() {
     let _shared_dir_guard = shared_formula_dir_env_removed();
     let data_folder = temp_builtin_formula_dir("preferences_data_folder");
@@ -676,6 +932,14 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
     SharedFormulaDirTestOverride { previous }
 }
 
+fn shared_formula_dir_test_override_to(path: &std::path::Path) -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", path);
+    }
+    SharedFormulaDirTestOverride { previous }
+}
+
 fn shared_formula_dir_env_removed() -> SharedFormulaDirTestOverride {
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
     unsafe {
@@ -713,6 +977,40 @@ fn formula_library_id(engine: &AppEngine) -> golden_core::node::NodeId {
         .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
         .map(|(id, _)| id)
         .expect("formula library should exist")
+}
+
+fn only_formula_child(
+    engine: &AppEngine,
+    library: golden_core::node::NodeId,
+) -> golden_core::node::NodeId {
+    let snapshot = engine.process_tree_snapshot();
+    snapshot
+        .child_ids(library)
+        .into_iter()
+        .find(|node| {
+            snapshot.node(*node).is_some_and(|node| {
+                node.node_type == AlchemistFormulaDefinition::NODE_TYPE
+            })
+        })
+        .expect("formula child should exist")
+}
+
+fn shared_formula_file_param(
+    snapshot: &golden_core::process_ctx::ProcessTreeSnapshot,
+    formula: golden_core::node::NodeId,
+) -> std::path::PathBuf {
+    let file_param = snapshot
+        .find_child_by_decl_id(formula, FORMULA_EXTERNAL_FILE_DECL_ID)
+        .expect("shared formula should have a file parameter");
+    match snapshot
+        .node(file_param)
+        .and_then(|node| node.param_value.as_ref())
+    {
+        Some(ParamValue::File(path)) | Some(ParamValue::Str(path)) => {
+            std::path::PathBuf::from(path)
+        }
+        other => panic!("shared formula file parameter should be a path, got {other:?}"),
+    }
 }
 
 fn exported_node_by_decl_id<'a>(
