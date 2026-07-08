@@ -27,9 +27,11 @@ use uuid::Uuid;
 
 use crate::app::{
     state_machine_nodes_formula::{
-        formula_from_snapshot, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
-        FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
-        PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE,
+        external_formula_tree_for_path, formula_from_snapshot,
+        FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_FILE_DECL_ID,
+        FORMULA_EXTERNAL_FILE_TAG, FORMULA_EXTERNAL_READ_ONLY_TAG,
+        FORMULA_MANAGED_REGIONS_JSON_DECL_ID, PROPERTIES_DECL_ID,
+        PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE,
     },
     AppNode,
 };
@@ -40,6 +42,9 @@ pub(super) const PROCESSOR_CREATE_PREFIX: &str = "state_processor:";
 const PROCESSOR_PROJECT_CREATE_PREFIX: &str = "state_processor:project:";
 const BUILTIN_FORMULA_DIR_ENV: &str = "CHATAIGNE_BUILTIN_FORMULAS_DIR";
 const BUILTIN_FORMULA_DIR: &str = "builtin_formulas";
+const SHARED_FORMULA_DIR_ENV: &str = "CHATAIGNE_SHARED_FORMULAS_DIR";
+const SHARED_FORMULA_APP_DATA_DIR: &str = "Chataigne";
+const SHARED_FORMULA_SUBDIR: &str = "formulas";
 const EXPORTED_NODE_TREE_KIND: &str = "golden-ui.node-tree";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 
@@ -182,12 +187,26 @@ impl FormulaVisibility {
     }
 }
 
+/// Where a formula's definition comes from, used to group processor Add-menu
+/// items and to drive the Formula Library's Built-ins/Shared/Project filter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FormulaOrigin {
+    /// Bundled with the app, read-only, loaded from `builtin_formulas/`.
+    Builtin,
+    /// Read-only, loaded from the user's cross-project shared formulas folder.
+    Shared,
+    /// Authored in this project's Formula Library, including formulas linked
+    /// to a project-specific external file on disk.
+    Project,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct FormulaCatalogEntry {
     pub(crate) label: String,
     pub(crate) visibility: FormulaVisibility,
     pub(crate) processor_template: Option<ProcessorTemplateMeta>,
-    is_builtin_external: bool,
+    origin: FormulaOrigin,
+    icon: Option<String>,
 }
 
 impl FormulaCatalogEntry {
@@ -201,7 +220,8 @@ impl FormulaCatalogEntry {
             label: label.into(),
             visibility,
             processor_template,
-            is_builtin_external: false,
+            origin: FormulaOrigin::Project,
+            icon: None,
         }
     }
 }
@@ -220,6 +240,90 @@ impl FormulaCatalog {
         catalog
     }
 
+    /// Filters `candidates` (freshly loaded from the builtin formula
+    /// directory) down to the ones not already present as a child of
+    /// `library`, matched by stable node UUID. Called every time a project
+    /// is opened so formulas added to that directory in a newer app version
+    /// show up in projects saved by an older one, without duplicating
+    /// formulas the project already has.
+    pub(crate) fn missing_external_formula_trees(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        candidates: Vec<NodeTree>,
+    ) -> Vec<NodeTree> {
+        let existing_uuids: HashSet<NodeUuid> = snapshot
+            .child_ids(library)
+            .into_iter()
+            .filter_map(|child_id| snapshot.node(child_id).map(|node| node.uuid))
+            .collect();
+        candidates
+            .into_iter()
+            .filter(|tree| !existing_uuids.contains(&tree.node.node_data().meta.uuid))
+            .collect()
+    }
+
+    /// Shared formulas are modeled as ordinary external-file-linked formula
+    /// nodes (see `state_machine_nodes_formula::external_formula_tree_for_path`)
+    /// whose file happens to live in the shared formulas folder, rather than
+    /// as a separate read-only import mechanism — this reuses the existing
+    /// editable, self-syncing external-file behavior instead of duplicating
+    /// it. Returns a tree for every `.json` file in `shared_dir` that isn't
+    /// already linked from a child of `library`, matched by file path (not
+    /// UUID, since each is a fresh node).
+    pub(crate) fn missing_shared_formula_trees(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        shared_dir: impl AsRef<Path>,
+    ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        let existing_paths: HashSet<PathBuf> = snapshot
+            .child_ids(library)
+            .into_iter()
+            .filter_map(|child_id| {
+                let node = snapshot.node(child_id)?;
+                node.tags
+                    .iter()
+                    .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG)
+                    .then(|| snapshot_child_file_path(snapshot, child_id, FORMULA_EXTERNAL_FILE_DECL_ID))
+                    .flatten()
+            })
+            .collect();
+
+        Ok(shared_formula_file_paths(shared_dir.as_ref())?
+            .into_iter()
+            .filter(|path| !existing_paths.contains(path))
+            .map(|path| shared_formula_tree_from_path(&path))
+            .collect())
+    }
+
+    /// All `.json` files currently in `shared_dir`, each as a fresh
+    /// external-file-linked formula tree, with no dedup against an existing
+    /// project (used when seeding a brand-new project, which has none yet).
+    pub(crate) fn all_shared_formula_trees(
+        shared_dir: impl AsRef<Path>,
+    ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        Ok(shared_formula_file_paths(shared_dir.as_ref())?
+            .into_iter()
+            .map(|path| shared_formula_tree_from_path(&path))
+            .collect())
+    }
+
+    pub(crate) fn default_all_shared_formula_trees() -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        match shared_formula_dir() {
+            Some(dir) => Self::all_shared_formula_trees(dir),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    pub(crate) fn default_missing_shared_formula_trees(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+    ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
+        match shared_formula_dir() {
+            Some(dir) => Self::missing_shared_formula_trees(snapshot, library, dir),
+            None => Ok(Vec::new()),
+        }
+    }
+
     fn add_project_formulas(&mut self, snapshot: &ProcessTreeSnapshot, library: NodeId) {
         self.entries.extend(
             snapshot
@@ -233,14 +337,33 @@ impl FormulaCatalog {
                             formula.label.clone(),
                             FormulaVisibility::project_formula(),
                         );
-                        entry.is_builtin_external = formula
+                        let is_builtin = formula
                             .tags
                             .iter()
                             .any(|tag| tag.starts_with(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX));
+                        let is_external_file =
+                            formula.tags.iter().any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG);
+                        let is_shared = is_external_file
+                            && snapshot_child_file_path(
+                                snapshot,
+                                formula_id,
+                                FORMULA_EXTERNAL_FILE_DECL_ID,
+                            )
+                            .is_some_and(|path| {
+                                shared_formula_dir().is_some_and(|shared_dir| path.starts_with(shared_dir))
+                            });
+                        entry.origin = if is_builtin {
+                            FormulaOrigin::Builtin
+                        } else if is_shared {
+                            FormulaOrigin::Shared
+                        } else {
+                            FormulaOrigin::Project
+                        };
                         entry.visibility.open_readonly_from_processor =
                             formula.tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG);
                         entry.visibility.can_duplicate_to_library =
                             entry.visibility.open_readonly_from_processor;
+                        entry.icon = formula.presentation.icon.clone();
                         entry
                     })
                 }),
@@ -276,36 +399,48 @@ impl FormulaCatalog {
         }
     }
 
+    /// Builds Add-menu items for creating a processor from a formula, grouped
+    /// (in order) into built-in, shared (external-file-linked), and in-project
+    /// formulas, with a separator inserted before the first item of each
+    /// non-empty group that follows another.
     pub(super) fn processor_palette_items(&self) -> Vec<UserCreatableItem> {
-        let has_builtin_items = self
-            .processor_palette_entries()
-            .any(|entry| entry.is_builtin_external);
-        let mut saw_session_item = false;
+        let mut groups: [Vec<&FormulaCatalogEntry>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+        for entry in self.processor_palette_entries() {
+            let group = match entry.origin {
+                FormulaOrigin::Builtin => 0,
+                FormulaOrigin::Shared => 1,
+                FormulaOrigin::Project => 2,
+            };
+            groups[group].push(entry);
+        }
 
-        self.processor_palette_entries()
-            .filter_map(|entry| {
-                let template = entry.processor_template.as_ref()?;
-
-                let separator_before = if entry.is_builtin_external {
-                    false
-                } else if has_builtin_items && !saw_session_item {
-                    saw_session_item = true;
-                    true
-                } else {
-                    saw_session_item = true;
-                    false
+        let mut items = Vec::new();
+        let mut needs_separator = false;
+        for group in groups {
+            let mut first_in_group = true;
+            for entry in group {
+                let Some(template) = entry.processor_template.as_ref() else {
+                    continue;
                 };
+                let separator_before = first_in_group && needs_separator;
+                first_in_group = false;
 
-                Some(
-                    UserCreatableItem::new(
-                        &template.create_type,
-                        PROCESSOR_ITEM_KIND,
-                        &entry.label,
-                    )
-                    .with_separator_before(separator_before),
+                let mut item = UserCreatableItem::new(
+                    &template.create_type,
+                    PROCESSOR_ITEM_KIND,
+                    &entry.label,
                 )
-            })
-            .collect()
+                .with_separator_before(separator_before);
+                if let Some(icon) = entry.icon.clone() {
+                    item = item.with_icon(icon);
+                }
+                items.push(item);
+            }
+            if !first_in_group {
+                needs_separator = true;
+            }
+        }
+        items
     }
 
     pub(crate) fn builtin_formula_trees(
@@ -342,13 +477,13 @@ impl FormulaCatalog {
         paths
             .into_iter()
             .map(|formula_path| {
-                let source = fs::read_to_string(&formula_path).map_err(|error| {
+                let file_source = fs::read_to_string(&formula_path).map_err(|error| {
                     BuiltinFormulaLoadError::Io {
                         path: formula_path.clone(),
                         source: error,
                     }
                 })?;
-                BuiltinFormulaFile::decode(&formula_path, &source)?.into_node_tree()
+                BuiltinFormulaFile::decode(&formula_path, &file_source)?.into_node_tree()
             })
             .collect()
     }
@@ -371,7 +506,7 @@ impl FormulaCatalog {
         let identity_hint = path
             .file_name()
             .and_then(|file_name| file_name.to_str())
-            .and_then(BuiltinFormulaIdentity::from_file_name);
+            .and_then(BuiltinFormulaIdentity::legacy_hint_from_file_name);
         let icon = sibling_icon_data_uri(path)?;
         tree.into_external_node_tree(false, identity_hint, icon)
     }
@@ -381,6 +516,75 @@ fn builtin_formula_dir() -> PathBuf {
     std::env::var_os(BUILTIN_FORMULA_DIR_ENV)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(BUILTIN_FORMULA_DIR))
+}
+
+/// Per-user folder holding formulas the user wants to reuse across projects.
+/// Lives under the OS-conventional shared application-data directory (not a
+/// literal hardcoded path) so it's independent of any single project file.
+pub(crate) fn shared_formula_dir() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os(SHARED_FORMULA_DIR_ENV) {
+        return Some(PathBuf::from(dir));
+    }
+    dirs::data_dir().map(|dir| dir.join(SHARED_FORMULA_APP_DATA_DIR).join(SHARED_FORMULA_SUBDIR))
+}
+
+/// Sorted list of `.json` files directly inside `shared_dir` (a missing
+/// directory just means there are no shared formulas yet).
+fn shared_formula_file_paths(shared_dir: &Path) -> Result<Vec<PathBuf>, BuiltinFormulaLoadError> {
+    let entries = match fs::read_dir(shared_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            return Err(BuiltinFormulaLoadError::Io {
+                path: shared_dir.to_path_buf(),
+                source: error,
+            });
+        }
+    };
+
+    let mut paths = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| BuiltinFormulaLoadError::Io {
+            path: shared_dir.to_path_buf(),
+            source: error,
+        })?;
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) == Some("json") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+/// A fresh external-file-linked formula tree pointing at `path`, in the same
+/// shape as manually adding one via the "External Formula" Add-menu item
+/// (see `state_machine_nodes_formula::external_formula_tree_for_path`); its
+/// real content is filled in by the existing external-file sync as soon as
+/// it attaches, so only a placeholder label derived from the filename is
+/// needed here.
+fn shared_formula_tree_from_path(path: &Path) -> NodeTree {
+    let label = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|stem| !stem.is_empty())
+        .unwrap_or("Shared Formula");
+    external_formula_tree_for_path(path, label)
+}
+
+fn snapshot_child_file_path(
+    snapshot: &ProcessTreeSnapshot,
+    node: NodeId,
+    decl_id: &str,
+) -> Option<PathBuf> {
+    let child = snapshot.find_child_by_decl_id(node, decl_id)?;
+    match snapshot.node(child)?.param_value.as_ref()? {
+        ParamValue::File(value) | ParamValue::Str(value) => {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| PathBuf::from(trimmed))
+        }
+        _ => None,
+    }
 }
 
 /// Looks for a sibling `.svg`/`.png` file matching `formula_path`'s file stem and,
@@ -405,43 +609,69 @@ fn sibling_icon_data_uri(formula_path: &Path) -> Result<Option<String>, BuiltinF
     Ok(None)
 }
 
-#[derive(Clone, Copy, Debug)]
+/// Fixed namespace for deterministically deriving a built-in formula's node
+/// UUID from its filename (see `stable_node_uuid`).
+const BUILTIN_FORMULA_UUID_NAMESPACE: &str = "8f27f490-9d0a-4d0f-8b3e-000000000b01";
+
+#[derive(Clone, Debug)]
 struct BuiltinFormulaIdentity {
-    package: &'static str,
-    formula_id: &'static str,
+    package: String,
+    formula_id: String,
     version: u32,
 }
 
 impl BuiltinFormulaIdentity {
-    const ACTION: Self = Self {
-        package: "chataigne",
-        formula_id: "action",
-        version: 1,
-    };
-    const MAPPING: Self = Self {
-        package: "chataigne",
-        formula_id: "mapping",
-        version: 1,
-    };
-
+    /// Derives an identity for any file in the builtin formula directory,
+    /// from its file stem. New files need no code changes to get a stable
+    /// identity: the app-shipped `action.json`/`mapping.json` keep their
+    /// historical hardcoded UUIDs (see `stable_node_uuid`) for backward
+    /// compatibility with already-saved projects; every other filename gets
+    /// a deterministic UUID derived from its name instead.
     fn from_file_name(file_name: &str) -> Option<Self> {
-        match file_name.to_ascii_lowercase().as_str() {
-            "action.json" => Some(Self::ACTION),
-            "mapping.json" => Some(Self::MAPPING),
-            _ => None,
+        let stem = Path::new(file_name).file_stem().and_then(|stem| stem.to_str())?;
+        if stem.is_empty() {
+            return None;
         }
+        Some(Self {
+            package: "chataigne".to_owned(),
+            formula_id: stem.to_ascii_lowercase(),
+            version: 1,
+        })
     }
 
-    fn stable_node_uuid(self) -> NodeUuid {
-        let value = match self.formula_id {
-            "action" => "11111111-2222-4333-8444-000000000001",
-            "mapping" => "11111111-2222-4333-8444-000000000002",
-            _ => "11111111-2222-4333-8444-000000000000",
+    /// Narrow legacy lookup used only for the arbitrary external-file-link
+    /// hint (a single project-scoped formula linked to a file the user
+    /// picked), preserved exactly as before: only the two shipped built-in
+    /// filenames resolve to an identity there.
+    fn legacy_hint_from_file_name(file_name: &str) -> Option<Self> {
+        let formula_id = match file_name.to_ascii_lowercase().as_str() {
+            "action.json" => "action",
+            "mapping.json" => "mapping",
+            _ => return None,
         };
-        NodeUuid(Uuid::parse_str(value).expect("built-in formula uuid should be valid"))
+        Some(Self {
+            package: "chataigne".to_owned(),
+            formula_id: formula_id.to_owned(),
+            version: 1,
+        })
     }
 
-    fn external_builtin_tag(self) -> String {
+    fn stable_node_uuid(&self) -> NodeUuid {
+        let legacy = match self.formula_id.as_str() {
+            "action" => Some("11111111-2222-4333-8444-000000000001"),
+            "mapping" => Some("11111111-2222-4333-8444-000000000002"),
+            _ => None,
+        };
+        if let Some(value) = legacy {
+            return NodeUuid(Uuid::parse_str(value).expect("built-in formula uuid should be valid"));
+        }
+        let namespace = Uuid::parse_str(BUILTIN_FORMULA_UUID_NAMESPACE)
+            .expect("built-in formula uuid namespace should be valid");
+        let name = format!("{}.{}", self.package, self.formula_id);
+        NodeUuid(Uuid::new_v5(&namespace, name.as_bytes()))
+    }
+
+    fn external_tag(&self) -> String {
         format!(
             "{FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX}{}.{}@{}",
             self.package, self.formula_id, self.version
@@ -457,7 +687,7 @@ struct BuiltinFormulaFile {
 }
 
 impl BuiltinFormulaFile {
-    fn decode(path: &Path, source: &str) -> Result<Self, BuiltinFormulaLoadError> {
+    fn decode(path: &Path, file_source: &str) -> Result<Self, BuiltinFormulaLoadError> {
         let file_name = path
             .file_name()
             .and_then(|file_name| file_name.to_str())
@@ -469,7 +699,7 @@ impl BuiltinFormulaFile {
                 path: path.to_path_buf(),
             }
         })?;
-        let tree = decode_exported_formula_tree(path, source)?;
+        let tree = decode_exported_formula_tree(path, file_source)?;
         let icon = sibling_icon_data_uri(path)?;
         Ok(Self { identity, tree, icon })
     }
@@ -495,7 +725,7 @@ impl ExportedNodeTree {
         self.into_formula_node_tree(
             Some(identity.stable_node_uuid()),
             true,
-            Some(identity.external_builtin_tag()),
+            Some(identity.external_tag()),
             Some(identity),
             icon,
         )
@@ -546,7 +776,7 @@ impl ExportedNodeTree {
         }
 
         if let Some(managed_regions_json) =
-            derived_managed_regions_json(&root_node, &manager_roles, builtin_identity)?
+            derived_managed_regions_json(&root_node, &manager_roles, builtin_identity.as_ref())?
         {
             set_exported_managed_regions_json(&mut root_node, managed_regions_json)?;
         }
@@ -1037,7 +1267,7 @@ fn exported_child_string(
 fn derived_managed_regions_json(
     root_node: &ExportedNode,
     manager_roles: &HashMap<NodeUuid, String>,
-    identity: Option<BuiltinFormulaIdentity>,
+    identity: Option<&BuiltinFormulaIdentity>,
 ) -> Result<Option<String>, BuiltinFormulaLoadError> {
     if exported_child_string(root_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)?
         .as_deref()
@@ -1100,7 +1330,7 @@ fn set_exported_managed_regions_json(
 fn managed_regions_from_property_managers(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
-    identity: Option<BuiltinFormulaIdentity>,
+    identity: Option<&BuiltinFormulaIdentity>,
 ) -> Vec<ManagedRegionDefinition> {
     let Some(properties) = snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID) else {
         return Vec::new();
@@ -1121,7 +1351,7 @@ fn managed_regions_from_property_managers(
 fn collect_managed_regions_from_property_managers(
     snapshot: &ProcessTreeSnapshot,
     container: NodeId,
-    identity: Option<BuiltinFormulaIdentity>,
+    identity: Option<&BuiltinFormulaIdentity>,
     used_ids: &mut HashSet<String>,
     regions: &mut Vec<ManagedRegionDefinition>,
 ) {
@@ -1146,7 +1376,7 @@ fn collect_managed_regions_from_property_managers(
 fn managed_region_from_property_manager(
     snapshot: &ProcessTreeSnapshot,
     manager: NodeId,
-    identity: Option<BuiltinFormulaIdentity>,
+    identity: Option<&BuiltinFormulaIdentity>,
     used_ids: &mut HashSet<String>,
 ) -> Option<ManagedRegionDefinition> {
     let node = snapshot.node(manager)?;
@@ -1166,7 +1396,7 @@ fn managed_region_from_property_manager(
 }
 
 fn managed_region_contract(
-    identity: Option<BuiltinFormulaIdentity>,
+    identity: Option<&BuiltinFormulaIdentity>,
     role: &str,
 ) -> Option<(ManagedRegionKind, SurfaceItemKind)> {
     match role {
@@ -1179,10 +1409,7 @@ fn managed_region_contract(
             SurfaceItemKind::Filter,
         )),
         "input" => Some((ManagedRegionKind::InputSet, SurfaceItemKind::Input)),
-        "output"
-            if identity
-                .is_some_and(|identity| identity.formula_id == BuiltinFormulaIdentity::ACTION.formula_id) =>
-        {
+        "output" if identity.is_some_and(|identity| identity.formula_id == "action") => {
             Some((ManagedRegionKind::CommandSet, SurfaceItemKind::Command))
         }
         "output" => Some((ManagedRegionKind::OutputSet, SurfaceItemKind::Output)),

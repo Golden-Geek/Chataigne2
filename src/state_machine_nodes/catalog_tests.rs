@@ -9,8 +9,8 @@ use golden_core::{
 use super::FormulaCatalog;
 use crate::app::{
     state_machine_nodes_formula::{
-        FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_READ_ONLY_TAG,
-        FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
+        external_formula_tree_for_path, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
+        FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
     },
     AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary,
 };
@@ -135,6 +135,139 @@ fn processor_palette_places_session_formulas_after_builtin_separator() {
     assert!(!palette[0].separator_before);
     assert!(!palette[1].separator_before);
     assert!(palette[first_session_index].separator_before);
+}
+
+#[test]
+fn missing_external_formula_trees_finds_builtins_absent_from_an_older_project() {
+    // Simulates a project file saved before "Mapping" existed as a built-in:
+    // its Formula Library only has "Action". Re-scanning the shipped
+    // built-ins should report "Mapping" as missing, and "Action" as already
+    // present (it must not be re-added / duplicated).
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let all_builtins = FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load");
+    let action_only = all_builtins
+        .into_iter()
+        .find(|tree| tree.node.node_data().meta.label == "Action")
+        .expect("Action built-in should exist");
+
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    library_tree.push_child(action_only);
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let snapshot = engine.process_tree_snapshot();
+    let candidates = FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load");
+    let missing =
+        FormulaCatalog::missing_external_formula_trees(&snapshot, library_id, candidates);
+
+    assert_eq!(
+        missing
+            .iter()
+            .map(|tree| tree.node.node_data().meta.label.clone())
+            .collect::<Vec<_>>(),
+        vec!["Mapping"]
+    );
+}
+
+#[test]
+fn missing_shared_formula_trees_creates_external_file_formulas_for_new_shared_files() {
+    // Shared formulas are just external-file-linked formulas pointed at the
+    // shared folder, so scanning it should produce a fresh external-file
+    // tree per file, and skip files a library child already links to.
+    let shared_dir = temp_builtin_formula_dir("shared_merge");
+    fs::write(shared_dir.join("MyShared.json"), "placeholder").expect("temp shared file should write");
+    fs::write(shared_dir.join("AlreadyLinked.json"), "placeholder").expect("temp shared file should write");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let already_linked_path = shared_dir.join("AlreadyLinked.json");
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    library_tree.push_child(external_formula_tree_for_path(&already_linked_path, "Already Linked"));
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine.apply_edits().expect("formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let snapshot = engine.process_tree_snapshot();
+    let missing = FormulaCatalog::missing_shared_formula_trees(&snapshot, library_id, &shared_dir)
+        .expect("shared directory should scan");
+
+    assert_eq!(
+        missing
+            .iter()
+            .map(|tree| tree.node.node_data().meta.label.clone())
+            .collect::<Vec<_>>(),
+        vec!["MyShared"],
+        "only the not-yet-linked shared file should be reported as missing"
+    );
+
+    fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
+fn processor_palette_builtin_items_expose_sibling_icon() {
+    let catalog = catalog_with_project_formula("Session Formula");
+    let palette = catalog.processor_palette_items();
+
+    let action_icon = palette[0]
+        .icon
+        .as_deref()
+        .expect("Action processor palette item should have an icon");
+    assert!(action_icon.starts_with("data:image/svg+xml;base64,"));
+
+    let mapping_icon = palette[1]
+        .icon
+        .as_deref()
+        .expect("Mapping processor palette item should have an icon");
+    assert!(mapping_icon.starts_with("data:image/svg+xml;base64,"));
+
+    let session_index = palette
+        .iter()
+        .position(|item| item.label == "Session Formula")
+        .expect("session formula should be in the processor palette");
+    assert!(
+        palette[session_index].icon.is_none(),
+        "Session formula without a sibling icon file should have no palette icon"
+    );
+}
+
+#[test]
+fn processor_palette_groups_builtin_shared_and_project_formulas() {
+    let catalog =
+        catalog_with_shared_and_project_formulas("Shared Formula", "Project Formula");
+    let palette = catalog.processor_palette_items();
+
+    assert_eq!(
+        palette.iter().map(|item| item.label.as_str()).collect::<Vec<_>>(),
+        vec!["Action", "Mapping", "Shared Formula", "Project Formula"]
+    );
+    assert!(!palette[0].separator_before, "Action starts the built-in group");
+    assert!(!palette[1].separator_before, "Mapping stays in the built-in group");
+    assert!(
+        palette[2].separator_before,
+        "Shared Formula should start a new group after built-ins"
+    );
+    assert!(
+        palette[3].separator_before,
+        "Project Formula should start a new group after shared formulas"
+    );
 }
 
 #[test]
@@ -270,6 +403,70 @@ fn catalog_with_project_formula(label: &str) -> FormulaCatalog {
         .expect("project formula should attach");
 
     FormulaCatalog::from_snapshot(&engine.process_tree_snapshot())
+}
+
+fn catalog_with_shared_and_project_formulas(
+    shared_label: &str,
+    project_label: &str,
+) -> FormulaCatalog {
+    // Shared formulas are classified by their linked file living inside the
+    // shared formulas folder, so point one there (the file itself doesn't
+    // need to exist for classification/palette-grouping purposes).
+    let _shared_dir_guard = shared_formula_dir_test_override();
+    let shared_dir = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR")
+        .expect("guard should set CHATAIGNE_SHARED_FORMULAS_DIR");
+    let shared_path = std::path::Path::new(&shared_dir).join("shared_formula.json");
+
+    let mut engine = engine_with_builtin_formula_library();
+    let library_id = formula_library_id(&engine);
+
+    let shared_tree = external_formula_tree_for_path(&shared_path, shared_label);
+    engine.edits.push(Edit::AddNodeTree {
+        tree: shared_tree,
+        parent: library_id,
+        prev_sibling: None,
+    });
+
+    let mut project_formula = AlchemistFormulaDefinition::new();
+    project_formula.node_data_mut().meta.label = project_label.to_owned();
+    engine.add_user_item(project_formula.into(), Some(library_id));
+
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("shared and project formulas should attach");
+    }
+
+    FormulaCatalog::from_snapshot(&engine.process_tree_snapshot())
+}
+
+/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
+/// so shared-formula resolution sees zero shared formulas regardless of
+/// what the current machine's real Shared formulas folder contains, and
+/// tests that need to build a path "inside" the shared folder have a known
+/// value to build against. Restores the previous value (if any) when dropped.
+struct SharedFormulaDirTestOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl Drop for SharedFormulaDirTestOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
+            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
+        }
+    }
+}
+
+fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var(
+            "CHATAIGNE_SHARED_FORMULAS_DIR",
+            "chataigne2-tests-nonexistent-shared-formulas-dir",
+        );
+    }
+    SharedFormulaDirTestOverride { previous }
 }
 
 fn engine_with_builtin_formula_library() -> AppEngine {

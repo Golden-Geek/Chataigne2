@@ -82,6 +82,11 @@
 		type FormulaOutputPreviewChip
 	} from '../preview/formulaOutputPreviewStore.svelte';
 	import { formulaPreviewSessionStore } from '../preview/formulaPreviewSessionStore.svelte';
+	import {
+		formulaIsExternalFile,
+		formulaIsReadOnly,
+		formulaSourceKind
+	} from '../formulaSource';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
 	import AutoWireToggle from './AutoWireToggle.svelte';
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
@@ -150,9 +155,6 @@
 	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
-	const FORMULA_EXTERNAL_FILE_TAG = 'chataigne.formula.external.file';
-	const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.builtin:';
-	const FORMULA_EXTERNAL_READ_ONLY_TAG = 'chataigne.formula.external.read_only';
 	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
 	let props: PanelProps = $props();
@@ -322,15 +324,6 @@
 	const isFormula = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.node_type === FORMULA_NODE_TYPE;
 
-	const formulaIsBuiltIn = (node: UiNodeDto | null | undefined): boolean =>
-		Boolean(node?.meta.tags.some((tag) => tag.startsWith(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX)));
-
-	const formulaIsExternalFile = (node: UiNodeDto | null | undefined): boolean =>
-		Boolean(node?.meta.tags.includes(FORMULA_EXTERNAL_FILE_TAG));
-
-	const formulaIsReadOnly = (node: UiNodeDto | null | undefined): boolean =>
-		Boolean(node?.meta.tags.includes(FORMULA_EXTERNAL_READ_ONLY_TAG));
-
 	const isProcessor = (node: UiNodeDto | null | undefined): node is UiNodeDto =>
 		node?.user_item_kind === PROCESSOR_ITEM_KIND || node?.node_type === PROCESSOR_ITEM_KIND;
 
@@ -495,7 +488,7 @@
 		if (previewTarget?.kind === 'formula') return previewTargetNode(previewTarget);
 		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
-	let formulaBuiltIn = $derived(formulaIsBuiltIn(formula));
+	let formulaSource = $derived(formulaSourceKind(formula, graphState?.nodesById ?? new Map()));
 	let formulaExternalFile = $derived(formulaIsExternalFile(formula));
 	let formulaReadOnly = $derived(formulaIsReadOnly(formula));
 	let runtimePreviewSequence = $derived(
@@ -1875,8 +1868,10 @@
 
 {#snippet toolbarEndContent()}
 	{#if formula}
-		{#if formulaBuiltIn}
+		{#if formulaSource === 'builtin'}
 			<span class="formula-source-pill" title="Built-in formula">Built-in</span>
+		{:else if formulaSource === 'shared'}
+			<span class="formula-source-pill" title="Shared formula">Shared</span>
 		{:else if formulaExternalFile}
 			<span class="formula-source-pill" title="External formula">External</span>
 		{:else if formulaReadOnly}
@@ -2563,7 +2558,7 @@
 		gap: 0.4rem 0.55rem;
 		max-inline-size: calc(100% - 1.5rem);
 		padding: 0.28rem 0.5rem;
-		border: 0.06rem solid var(--gc-color-border);
+		border: 0.06rem solid color-mix(in srgb, var(--gc-color-background) 10%, rgba(255,255,255,0.1));
 		border-radius: 0.5rem;
 		background: color-mix(in srgb, var(--gc-color-background) 84%, transparent);
 		backdrop-filter: blur(0.5rem);

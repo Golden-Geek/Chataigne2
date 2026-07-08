@@ -39,6 +39,7 @@ base64 = "0.22"
 buttplug = "10.0.2"
 chataigne_state_machine = { path = "src/state_machine" }
 device_query = "4.0.1"
+dirs = "6"
 elgato-streamdeck = { version = "0.13", optional = true }
 futures-util = "0.3"
 golden_core = { path = "submodules/golden_core/crates/core_facade" }
@@ -65,7 +66,7 @@ serialport = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 smallvec = "1"
-uuid = { version = "1", features = ["serde", "v4"] }
+uuid = { version = "1", features = ["serde", "v4", "v5"] }
 sysinfo = "0.39.1"
 tauri = "2"
 tokio = { version = "1", features = ["net", "rt", "time"] }

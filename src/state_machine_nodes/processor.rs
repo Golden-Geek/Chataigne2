@@ -22,13 +22,47 @@ use crate::app::state_machine_nodes_formula::{
     ANODE_ITEM_KIND, FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
     PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
-use crate::app::{ConditionManager, FilterChainManager, InputsManager, OutputsManager};
+use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
 mod catalog;
 
 pub(crate) use self::catalog::{
-    FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    shared_formula_dir, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
 };
+
+/// Adds any built-in/shared formulas not yet present in the project's
+/// Formula Library. Run on every project load (including brand-new
+/// projects, right after they're seeded) so formulas shipped or added to
+/// the user's shared folder in a newer app version show up in projects
+/// saved by an older one, instead of only ever being baked in at creation
+/// time.
+pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), String> {
+    let snapshot = engine.process_tree_snapshot();
+    let Some(library) = find_formula_library(&snapshot) else {
+        return Ok(());
+    };
+
+    let builtin_candidates = FormulaCatalog::default_builtin_formula_trees()
+        .map_err(|error| error.to_string())?;
+    for tree in FormulaCatalog::missing_external_formula_trees(&snapshot, library, builtin_candidates) {
+        engine.edits.push(Edit::AddNodeTree {
+            tree,
+            parent: library,
+            prev_sibling: None,
+        });
+    }
+
+    let shared_trees = FormulaCatalog::default_missing_shared_formula_trees(&snapshot, library)
+        .map_err(|error| error.to_string())?;
+    for tree in shared_trees {
+        engine.edits.push(Edit::AddNodeTree {
+            tree,
+            parent: library,
+            prev_sibling: None,
+        });
+    }
+    Ok(())
+}
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
 const FORMULA_NODE_TYPE: &str = "alchemist_formula";
@@ -534,11 +568,10 @@ impl Node for StateProcessorManager {
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = self.formula_items.clone();
-        items.push(UserCreatableItem::new(
-            PROCESSOR_FOLDER_NODE_TYPE,
-            PROCESSOR_FOLDER_ITEM_KIND,
-            "Folder",
-        ));
+        items.push(
+            UserCreatableItem::new(PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_FOLDER_ITEM_KIND, "Folder")
+                .with_separator_before(!items.is_empty()),
+        );
         items
     }
 
@@ -640,11 +673,10 @@ impl Node for StateProcessorFolder {
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
         let mut items = self.formula_items.clone();
-        items.push(UserCreatableItem::new(
-            PROCESSOR_FOLDER_NODE_TYPE,
-            PROCESSOR_FOLDER_ITEM_KIND,
-            "Folder",
-        ));
+        items.push(
+            UserCreatableItem::new(PROCESSOR_FOLDER_NODE_TYPE, PROCESSOR_FOLDER_ITEM_KIND, "Folder")
+                .with_separator_before(!items.is_empty()),
+        );
         items
     }
 

@@ -59,6 +59,53 @@ fn engine_with_formula() -> (
 }
 
 #[test]
+fn sync_external_formulas_adds_missing_builtins_to_an_opened_project() {
+    // A project saved before any built-ins were baked in (or before newer
+    // ones were added) should still gain the shipped built-ins once the
+    // project is opened, without needing to be recreated.
+    // Isolate from whatever the current machine's real Shared formulas
+    // folder happens to contain.
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    super::sync_external_formulas(&mut engine).expect("sync should succeed");
+    engine.apply_edits().expect("synced formulas should attach");
+
+    let labels = engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(labels, vec!["Action", "Mapping"]);
+
+    // Running it again must not duplicate anything already present.
+    super::sync_external_formulas(&mut engine).expect("re-sync should succeed");
+    engine.apply_edits().expect("re-sync should be a no-op");
+    let labels_after_resync = engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(labels_after_resync, vec!["Action", "Mapping"]);
+}
+
+#[test]
 fn processor_manager_lists_custom_formulas() {
     let (mut engine, _, formula_uuid) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);
@@ -86,6 +133,54 @@ fn processor_manager_lists_custom_formulas() {
         format!("state_processor:project:{}", formula_uuid.0)
     );
     assert!(formula_items[0].menu_path.is_empty());
+}
+
+#[test]
+fn processor_manager_add_menu_separates_folder_from_formulas() {
+    let (mut engine, _, _) = engine_with_formula();
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+
+    let manager = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("processor manager should exist");
+    let items = manager.user_creatable_items();
+    let folder_item = items
+        .iter()
+        .find(|item| item.item_kind == PROCESSOR_FOLDER_ITEM_KIND)
+        .expect("Folder item should be in the Add menu");
+    assert!(
+        folder_item.separator_before,
+        "Folder should be separated from formula items when formulas exist"
+    );
+}
+
+#[test]
+fn processor_manager_add_menu_has_no_separator_when_no_formulas_exist() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("library and manager should attach");
+
+    let manager = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("processor manager should exist");
+    let items = manager.user_creatable_items();
+    let folder_item = items
+        .iter()
+        .find(|item| item.item_kind == PROCESSOR_FOLDER_ITEM_KIND)
+        .expect("Folder item should be in the Add menu");
+    assert!(
+        !folder_item.separator_before,
+        "Folder should not have a separator when there are no formulas"
+    );
 }
 
 #[test]
@@ -1125,4 +1220,32 @@ fn processor_mirrors_formula_icon() {
         Some(icon),
         "Processor should mirror its formula's icon"
     );
+}
+
+/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
+/// so `default_shared_formula_trees()` sees zero shared formulas regardless
+/// of what the current machine's real Shared formulas folder contains.
+/// Restores the previous value (if any) when dropped.
+struct SharedFormulaDirTestOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl Drop for SharedFormulaDirTestOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
+            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
+        }
+    }
+}
+
+fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var(
+            "CHATAIGNE_SHARED_FORMULAS_DIR",
+            "chataigne2-tests-nonexistent-shared-formulas-dir",
+        );
+    }
+    SharedFormulaDirTestOverride { previous }
 }

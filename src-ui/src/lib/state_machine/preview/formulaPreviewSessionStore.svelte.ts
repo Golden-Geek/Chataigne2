@@ -114,7 +114,7 @@ class FormulaPreviewSessionStore {
 			mode,
 			lanes,
 			selectedLaneId: selectedLane?.id ?? null,
-			title: formula ? `Watching ${formula.meta.label}` : 'No Formula',
+			title: formula ? `${formula.meta.label}` : 'No Formula',
 			subtitle: previewSubtitle(processor, selectedLane)
 		};
 	}

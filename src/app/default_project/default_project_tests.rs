@@ -26,6 +26,11 @@ fn default_project_contains_one_top_level_state_machine_manager() {
 
 #[test]
 fn default_project_contains_builtin_external_formulas() {
+    // Isolate from whatever the current machine's real Shared formulas
+    // folder happens to contain (e.g. formulas saved there by a running
+    // app instance) so this only ever sees the two shipped built-ins.
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
     let root: AppNode = Folder::new("root").into();
     let mut engine = AppEngine::new(root);
 
@@ -69,4 +74,32 @@ fn default_project_contains_builtin_external_formulas() {
         assert!(!permissions.can_remove_and_duplicate);
         assert!(!permissions.can_edit_name);
     }
+}
+
+/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
+/// so `default_shared_formula_trees()` sees zero shared formulas regardless
+/// of what the current machine's real Shared formulas folder contains.
+/// Restores the previous value (if any) when dropped.
+struct SharedFormulaDirTestOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl Drop for SharedFormulaDirTestOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
+            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
+        }
+    }
+}
+
+fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var(
+            "CHATAIGNE_SHARED_FORMULAS_DIR",
+            "chataigne2-tests-nonexistent-shared-formulas-dir",
+        );
+    }
+    SharedFormulaDirTestOverride { previous }
 }

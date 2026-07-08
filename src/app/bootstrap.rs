@@ -14,4 +14,8 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         super::default_project::initialize_default_project(engine);
         Ok(())
     }
+
+    fn project_opened(engine: &mut AppEngine) -> Result<(), String> {
+        super::state_machine_nodes_processor::sync_external_formulas(engine)
+    }
 }

@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -35,7 +35,7 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::state_machine_nodes_processor::FormulaCatalog;
+use crate::app::state_machine_nodes_processor::{shared_formula_dir, FormulaCatalog};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
@@ -380,6 +380,25 @@ fn external_formula_node() -> AlchemistFormulaDefinition {
 fn external_formula_tree() -> NodeTree {
     let formula = external_formula_node();
     NodeTree::new(formula).with_child(NodeTree::new(external_formula_file_parameter()))
+}
+
+/// Builds an external-file-linked formula tree pre-pointed at `path`, in the
+/// same shape as manually adding one via the "External Formula" Add-menu
+/// item (`external_formula_tree`) — used to auto-populate the library with
+/// formulas found in the user's shared formulas folder. Its real label and
+/// content are filled in by the existing external-file sync as soon as it
+/// attaches (see `AlchemistFormulaDefinition::sync_external_formula_file`);
+/// `label` is just the placeholder shown until then.
+pub(crate) fn external_formula_tree_for_path(path: &Path, label: impl Into<String>) -> NodeTree {
+    let mut formula = external_formula_node();
+    formula.node_data_mut().meta.label = label.into();
+    let file_param = parameter(
+        "Formula File",
+        FORMULA_EXTERNAL_FILE_DECL_ID,
+        ParamValue::File(path.to_string_lossy().into_owned()),
+        false,
+    );
+    NodeTree::new(formula).with_child(NodeTree::new(file_param))
 }
 
 fn declared_folder(label: &str, decl_id: &str) -> Folder {
@@ -3949,6 +3968,47 @@ impl Node for FormulaLibrary {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.reconcile_shared_formula_dir_parameter(ctx);
+    }
+}
+
+const FORMULA_LIBRARY_SHARED_DIR_DECL_ID: &str = "shared_formula_dir";
+
+fn shared_formula_dir_parameter() -> Parameter {
+    let path = shared_formula_dir()
+        .map(|dir| dir.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    parameter(
+        "Shared Formulas Folder",
+        FORMULA_LIBRARY_SHARED_DIR_DECL_ID,
+        ParamValue::Str(path),
+        true,
+    )
+}
+
+impl FormulaLibrary {
+    /// Exposes the resolved shared-formulas folder as a read-only parameter
+    /// so the frontend can tell whether an external-file-linked formula's
+    /// path is inside it (i.e. is "Shared") without hardcoding the app-data
+    /// path convention on the client.
+    fn reconcile_shared_formula_dir_parameter(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
+        {
+            ctx.add_child(self.id(), shared_formula_dir_parameter(), None);
+        }
     }
 }
 

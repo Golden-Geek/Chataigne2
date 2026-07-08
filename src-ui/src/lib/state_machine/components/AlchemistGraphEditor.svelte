@@ -13,6 +13,7 @@
 		type GraphViewportInset
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+	import lockIcon from '../../golden_alchemist_ui/icons/lock.svg';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
@@ -154,12 +155,10 @@
 	<ANodeOutputValueChip preview={outputPreview(graphNode, socket)} />
 {/snippet}
 
-<div class="alchemist-graph-editor">
-	{#if readOnly}
-		<div class="read-only-lock" aria-hidden="true">
-			<span class="lock-icon"><span></span></span>
-		</div>
-	{/if}
+<div
+	class="alchemist-graph-editor"
+	class:read-only={readOnly}
+	style:--read-only-lock-image={`url("${lockIcon}")`}>
 	<GraphCanvas
 		bind:this={graphCanvas}
 		{nodes}
@@ -198,54 +197,15 @@
 		overflow: hidden;
 	}
 
-	.read-only-lock {
+	.alchemist-graph-editor.read-only :global(.graph-canvas)::before {
+		content: '';
 		position: absolute;
 		inset: 0;
-		z-index: 2;
+		z-index: 0;
 		pointer-events: none;
-		display: grid;
-		place-items: center;
-		color: color-mix(in srgb, var(--gc-color-text) 18%, transparent);
-	}
-
-	.lock-icon {
-		position: relative;
-		inline-size: 8rem;
-		block-size: 7rem;
-		border: 0.55rem solid currentColor;
-		border-radius: 0.7rem;
-		margin-block-start: 3rem;
-	}
-
-	.lock-icon::before {
-		content: '';
-		position: absolute;
-		inset-inline: 1.15rem;
-		block-size: 4.5rem;
-		inset-block-start: -4.2rem;
-		border: 0.55rem solid currentColor;
-		border-block-end: 0;
-		border-radius: 3rem 3rem 0 0;
-	}
-
-	.lock-icon span {
-		position: absolute;
-		inline-size: 0.75rem;
-		block-size: 2.3rem;
-		inset-inline-start: calc(50% - 0.375rem);
-		inset-block-start: 2.15rem;
-		border-radius: 999rem;
 		background: currentColor;
-	}
-
-	.lock-icon span::before {
-		content: '';
-		position: absolute;
-		inline-size: 1.45rem;
-		block-size: 1.45rem;
-		inset-inline-start: calc(50% - 0.725rem);
-		inset-block-start: -0.95rem;
-		border-radius: 999rem;
-		background: currentColor;
+		color: color-mix(in srgb, var(--gc-color-text) 16%, transparent);
+		mask: var(--read-only-lock-image) center / 30% no-repeat;
+		-webkit-mask: var(--read-only-lock-image) center / 30% no-repeat;
 	}
 </style>
