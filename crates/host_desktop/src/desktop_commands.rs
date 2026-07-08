@@ -1,6 +1,28 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+/// Writes `contents` to `file_name` inside a subdirectory of the OS
+/// shared application-data directory, creating it if needed. `subdir_segments`
+/// is joined onto the app-data root (e.g. `["MyApp", "presets"]`); the app
+/// decides its own convention, this command just resolves the OS-specific
+/// root and performs the write. Returns the absolute path written.
+#[tauri::command]
+pub fn write_app_data_file(
+    subdir_segments: Vec<String>,
+    file_name: String,
+    contents: String,
+) -> Result<String, String> {
+    let mut dir = dirs::data_dir()
+        .ok_or_else(|| "could not resolve the app data directory on this system".to_string())?;
+    for segment in &subdir_segments {
+        dir.push(segment);
+    }
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let path = dir.join(file_name);
+    std::fs::write(&path, contents).map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 fn normalize_extensions(allowed_extensions: Option<Vec<String>>) -> Vec<String> {
     allowed_extensions
         .unwrap_or_default()

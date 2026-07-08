@@ -637,7 +637,8 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
             crate::desktop_commands::window_is_maximized,
             crate::desktop_commands::start_drag,
             crate::desktop_commands::open_file_dialog,
-            crate::desktop_commands::save_file_dialog
+            crate::desktop_commands::save_file_dialog,
+            crate::desktop_commands::write_app_data_file
         ])
         .append_invoke_initialization_script(&init_script)
         .run(tauri_context)

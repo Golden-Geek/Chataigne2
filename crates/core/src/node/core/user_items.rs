@@ -126,6 +126,9 @@ pub struct UserCreatableItem {
     /// Whether the Add menu should render a divider immediately above this item.
     #[serde(default, skip_serializing_if = "is_false")]
     pub separator_before: bool,
+    /// Optional icon shown for this item in Add menus, as a data URI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 impl UserCreatableItem {
@@ -139,6 +142,7 @@ impl UserCreatableItem {
             initial_params: Vec::new(),
             select_when_created: true,
             separator_before: false,
+            icon: None,
         }
     }
 
@@ -181,6 +185,12 @@ impl UserCreatableItem {
     /// Requests a divider be rendered immediately above this item in the Add menu.
     pub fn with_separator_before(mut self, separator_before: bool) -> Self {
         self.separator_before = separator_before;
+        self
+    }
+
+    /// Sets an icon (typically a data URI) shown for this item in Add menus.
+    pub fn with_icon(mut self, icon: impl Into<String>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 }

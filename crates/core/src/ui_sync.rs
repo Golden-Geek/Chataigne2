@@ -491,6 +491,9 @@ pub struct UiCreatableUserItemDto {
     /// Whether the Add menu should render a divider immediately above this item.
     #[serde(default, skip_serializing_if = "is_false")]
     pub separator_before: bool,
+    /// Optional icon shown for this item in Add menus, as a data URI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 impl From<UserCreatableItem> for UiCreatableUserItemDto {
@@ -503,6 +506,7 @@ impl From<UserCreatableItem> for UiCreatableUserItemDto {
             initial_params: item.initial_params.into_iter().map(Into::into).collect(),
             select_when_created: item.select_when_created,
             separator_before: item.separator_before,
+            icon: item.icon,
         }
     }
 }
