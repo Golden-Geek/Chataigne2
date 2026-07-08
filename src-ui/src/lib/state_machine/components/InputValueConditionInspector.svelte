@@ -3,6 +3,7 @@
 		NodeInspector,
 		type NodeId,
 		type NodeInspectorComponentProps,
+		type NodePickerModalView,
 		type ParamValue,
 		type UiNodeDto
 	} from 'golden_ui';
@@ -145,6 +146,7 @@
 
 	let session = $derived(appState.session);
 	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
+	let graphParentById = $derived(session?.graph.state.parentById ?? null);
 	let liveNode: UiNodeDto = $derived(graphNodesById?.get(node.node_id) ?? node);
 	let graphNodesByUuid = $derived.by((): ReadonlyMap<string, NodeId> => {
 		if (!graphNodesById) return new Map();
@@ -176,6 +178,28 @@
 		const value = parameterValue(candidate);
 		return value?.kind === 'bool' ? value.value : null;
 	};
+
+	const isModuleNode = (candidate: UiNodeDto | null): boolean =>
+		candidate?.user_item_kind === 'module';
+
+	const isModuleValuesBranch = (candidate: UiNodeDto): boolean => {
+		if (!graphNodesById || !graphParentById) return false;
+		let current: NodeId | undefined = candidate.node_id;
+		while (current !== undefined) {
+			const currentNode = graphNodesById.get(current);
+			if (!currentNode) return false;
+			const parentId = graphParentById.get(current);
+			const parentNode = parentId === undefined ? null : (graphNodesById.get(parentId) ?? null);
+			if (currentNode.decl_id === 'values' && isModuleNode(parentNode)) {
+				return true;
+			}
+			current = parentId;
+		}
+		return false;
+	};
+
+	const moduleValueViewFilter = (candidate: UiNodeDto): boolean =>
+		isModuleNode(candidate) || isModuleValuesBranch(candidate);
 
 	const referencedNodeId = (value: ParamValue | null): NodeId | null => {
 		if (!graphNodesById || value?.kind !== 'reference') return null;
@@ -259,6 +283,17 @@
 	let referenceMaxNode = $derived(childByDeclId(liveNode, 'reference_max'));
 	let referenceStringNode = $derived(childByDeclId(liveNode, 'reference_string'));
 	let advancedNode = $derived(childByDeclId(liveNode, 'advanced'));
+	let sourceReferencePickerViews = $derived<NodePickerModalView[]>([
+		{
+			id: 'module-value',
+			label: 'Module Value',
+			nodeVisibilityFilter: moduleValueViewFilter
+		},
+		{
+			id: 'generic',
+			label: 'Generic'
+		}
+	]);
 
 	$effect(() => {
 		if (!sourceParameter || !comparatorNode) return;
@@ -286,7 +321,12 @@
 {#snippet conditionContent()}
 	{#if sourceReferenceNode}
 		<div class="condition-source">
-			<NodeInspector nodes={[sourceReferenceNode]} level={level + 1} order="solo" {layoutMode} />
+			<NodeInspector
+				nodes={[sourceReferenceNode]}
+				level={level + 1}
+				order="solo"
+				{layoutMode}
+				referencePickerViews={sourceReferencePickerViews} />
 		</div>
 	{/if}
 
