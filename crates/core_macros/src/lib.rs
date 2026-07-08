@@ -2017,7 +2017,7 @@ fn build_presentation_assignment_tokens(
     let initial_value = base_expr.map_or_else(|| quote!(::std::default::Default::default()), |expr| quote!(#expr));
     let set_color = fields.color.as_ref().map(|expr| {
         quote! {
-            __golden_presentation.color = Some((#expr).into());
+            __golden_presentation.default_color = Some((#expr).into());
         }
     });
     let set_collapsed = fields.collapsed.as_ref().map(|expr| {

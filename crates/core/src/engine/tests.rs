@@ -1687,7 +1687,7 @@ fn children_macro_materializes_declared_node_children_and_binds_handles() {
         Some("Declared curve child")
     );
     assert_eq!(
-        curve_node.node_data().meta.presentation.color,
+        curve_node.node_data().meta.presentation.default_color,
         Some(crate::color::Color::new(0.25, 0.5, 0.75, 1.0))
     );
     assert!(curve_node.node_data().meta.presentation.collapsed);
@@ -1721,7 +1721,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
         .meta
         .clone();
     assert_eq!(
-        owner_meta.presentation.color,
+        owner_meta.presentation.default_color,
         Some(crate::color::Color::new(0.95, 0.4, 0.2, 1.0))
     );
     assert!(!owner_meta.presentation.show_in_nested_inspector);
@@ -1742,7 +1742,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
     assert_eq!(settings_meta.semantics.intent.as_deref(), Some("container"));
     assert_eq!(settings_meta.semantics.unit.as_deref(), Some("section"));
     assert_eq!(
-        settings_meta.presentation.color,
+        settings_meta.presentation.default_color,
         Some(crate::color::Color::new(0.1, 0.2, 0.3, 1.0))
     );
     assert!(settings_meta.presentation.collapsed);
@@ -1764,7 +1764,7 @@ fn params_macro_applies_metadata_overrides_for_generated_nodes() {
     assert_eq!(gain_meta.semantics.intent.as_deref(), Some("level"));
     assert_eq!(gain_meta.semantics.unit.as_deref(), Some("db"));
     assert_eq!(
-        gain_meta.presentation.color,
+        gain_meta.presentation.default_color,
         Some(crate::color::Color::new(0.7, 0.8, 0.9, 1.0))
     );
 }

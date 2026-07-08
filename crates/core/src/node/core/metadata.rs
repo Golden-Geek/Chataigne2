@@ -79,9 +79,12 @@ fn is_false(value: &bool) -> bool {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Node-level presentation hints persisted in metadata.
 pub struct PresentationHint {
-    /// Preferred UI color.
+    /// User-selected UI color override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Color>,
+    /// Backend-provided default UI color for this node kind or declaration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_color: Option<Color>,
     /// Preferred UI icon, as a data URI (e.g. `data:image/svg+xml;base64,...`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -112,6 +115,7 @@ impl Default for PresentationHint {
     fn default() -> Self {
         Self {
             color: None,
+            default_color: None,
             icon: None,
             collapsed: false,
             warnings: Vec::new(),
