@@ -3202,12 +3202,17 @@ impl<T: Node> Engine<T> {
         children
     }
 
-    pub(crate) fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
+    /// Builds the UI-facing DTO for a single node, e.g. for apps that need
+    /// to serialize a node (or subtree, by walking `.children` recursively)
+    /// outside the normal UI sync/event pipeline.
+    pub fn ui_node_dto_for_event(&self, node_id: NodeId) -> Option<UiNodeDto> {
         let catalog_snapshot = self.build_process_tree_snapshot();
         self.ui_node_dto_for_event_with_catalog_snapshot(node_id, catalog_snapshot.as_ref())
     }
 
-    pub(crate) fn ui_node_dto_for_event_with_catalog_snapshot(
+    /// As `ui_node_dto_for_event`, reusing an already-built snapshot — use
+    /// this when converting many nodes at once to avoid rebuilding it per call.
+    pub fn ui_node_dto_for_event_with_catalog_snapshot(
         &self,
         node_id: NodeId,
         catalog_snapshot: &ProcessTreeSnapshot,

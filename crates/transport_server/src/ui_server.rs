@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
@@ -60,6 +61,15 @@ pub struct UiAsset {
 }
 
 #[derive(Clone)]
+/// Host-managed Preferences persistence settings.
+pub struct UiPreferencesConfig {
+    /// Absolute path to the app-data Preferences JSON file.
+    pub file_path: PathBuf,
+    /// Default app data folder stored in Preferences when no value exists yet.
+    pub default_data_folder: String,
+}
+
+#[derive(Clone)]
 /// Runtime settings for the built-in HTTP and WebSocket UI server.
 pub struct UiServerConfig {
     /// Socket address where the built-in UI server listens.
@@ -70,6 +80,8 @@ pub struct UiServerConfig {
     pub value_flush_interval: Duration,
     /// Optional bundled frontend assets served from non-API routes.
     pub frontend_assets: &'static [UiAsset],
+    /// Optional app-data Preferences persistence.
+    pub preferences: Option<UiPreferencesConfig>,
 }
 
 impl Default for UiServerConfig {
@@ -79,6 +91,7 @@ impl Default for UiServerConfig {
             tick_interval: Duration::from_millis(16),
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
+            preferences: None,
         }
     }
 }
@@ -139,6 +152,7 @@ struct ServerState<T: ProjectLifecycle> {
     project_file: ProjectFileSession,
     ws_hub: WsHubHandle,
     frontend_assets: &'static [UiAsset],
+    preferences: Option<UiPreferencesConfig>,
 }
 
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
@@ -149,6 +163,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
             project_file: self.project_file.clone(),
             ws_hub: self.ws_hub.clone(),
             frontend_assets: self.frontend_assets,
+            preferences: self.preferences.clone(),
         }
     }
 }
@@ -340,6 +355,22 @@ fn log_ui_intent_timing(channel: &str, timing: &UiIntentTiming) {
         timing.requires_resync,
         timing.total_ms
     );
+}
+
+fn save_preferences_after_success<T: ProjectLifecycle>(
+    engine: &Engine<T>,
+    preferences: Option<&UiPreferencesConfig>,
+    success: bool,
+) {
+    if !success {
+        return;
+    }
+    let Some(preferences) = preferences else {
+        return;
+    };
+    if let Err(err) = project_host::save_preferences(engine, preferences) {
+        eprintln!("[preferences] failed to save after edit: {err}");
+    }
 }
 
 fn skipped_after_failed_batch_ack<T: ProjectLifecycle>(engine: &Engine<T>) -> UiAck {
@@ -578,7 +609,12 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
     mut engine: Engine<T>,
     config: UiServerConfig,
 ) -> std::io::Result<()> {
+    project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
+    T::project_opened(&mut engine).map_err(Error::other)?;
     prepare_engine_for_runtime(&mut engine)?;
+    if let Some(preferences) = config.preferences.as_ref() {
+        project_host::save_preferences(&engine, preferences).map_err(Error::other)?;
+    }
     let shared_engine = Arc::new(Mutex::new(engine));
     run_ui_server(shared_engine, config)
 }
@@ -599,6 +635,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         read_model.clone(),
         config.tick_interval.max(WS_RETRY_INTERVAL),
         config.value_flush_interval.max(Duration::from_millis(1)),
+        config.preferences.clone(),
         make_server_session_id(),
     );
 
@@ -615,6 +652,7 @@ pub fn run_ui_server<T: ProjectLifecycle + 'static>(
         project_file,
         ws_hub,
         frontend_assets: config.frontend_assets,
+        preferences: config.preferences,
     };
 
     for stream in listener.incoming() {
@@ -711,6 +749,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
     read_model: Arc<UiReadModel>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
+    preferences: Option<UiPreferencesConfig>,
     session_id: String,
 ) -> WsHubHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<WsHubCommand>();
@@ -721,6 +760,7 @@ fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
             cmd_rx,
             dispatch_interval,
             value_flush_interval,
+            preferences,
             session_id,
         )
     });
@@ -733,6 +773,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
+    preferences: Option<UiPreferencesConfig>,
     session_id: String,
 ) {
     let mut clients = HashMap::<u64, WsClientState>::new();
@@ -750,6 +791,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                     &mut client_instances,
                     &mut origins,
                     command,
+                    preferences.as_ref(),
                     &session_id,
                 );
                 while let Ok(next) = cmd_rx.try_recv() {
@@ -760,6 +802,7 @@ fn ws_hub_loop<T: ProjectLifecycle>(
                         &mut client_instances,
                         &mut origins,
                         next,
+                        preferences.as_ref(),
                         &session_id,
                     );
                 }
@@ -782,6 +825,7 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
     client_instances: &mut HashMap<String, u64>,
     origins: &mut HashMap<EngineTime, WsEventOrigin>,
     command: WsHubCommand,
+    preferences: Option<&UiPreferencesConfig>,
     session_id: &str,
 ) {
     match command {
@@ -916,14 +960,16 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                 let client_instance_id = clients
                     .get(&client_id)
                     .and_then(|client| client.client_instance_id.as_deref());
-                apply_ui_intent_with_timing(
+                let result = apply_ui_intent_with_timing(
                     read_model,
                     &mut guard,
                     intent,
                     client_instance_id,
                     lock_wait_ms,
                     total_started,
-                )
+                );
+                save_preferences_after_success(&*guard, preferences, result.0.success);
+                result
             }; // engine lock dropped here
             let batch = read_model.apply_event_capture(capture);
             log_ui_intent_timing("ui-ws", &timing);
@@ -1002,6 +1048,8 @@ fn handle_ws_hub_command<T: ProjectLifecycle>(
                         stop_after_failure = true;
                     }
                 }
+                let any_success = acks.iter().any(|ack| ack.success);
+                save_preferences_after_success(&*guard, preferences, any_success);
 
                 (acks, captures, timing_rows)
             }; // engine lock dropped here
@@ -1474,16 +1522,18 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                 }
             }
         }
-        ("POST", "/api/ui/project-new") => match project_host::create_new_project(&state.engine) {
-            Ok(()) => {
-                state.project_file.clear_current_path();
-                refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
-                write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+        ("POST", "/api/ui/project-new") => {
+            match project_host::create_new_project(&state.engine, state.preferences.as_ref()) {
+                Ok(()) => {
+                    state.project_file.clear_current_path();
+                    refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
+                    write_json(stream, "200 OK", &serde_json::json!({ "ok": true }))?;
+                }
+                Err(err) => {
+                    write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
+                }
             }
-            Err(err) => {
-                write_json_error(stream, "400 Bad Request", &format!("project-new failed: {err}"))?;
-            }
-        },
+        }
         ("POST", "/api/ui/project-save") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-save payload: {err}")))?;
@@ -1501,7 +1551,7 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-load") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
-            match project_host::load_project(&state.engine, &payload.path) {
+            match project_host::load_project(&state.engine, &payload.path, state.preferences.as_ref()) {
                 Ok(path) => {
                     state.project_file.set_current_path(path);
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
@@ -1519,7 +1569,12 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                     format!("invalid project-upload-load payload: {err}"),
                 )
             })?;
-            match project_host::upload_project_and_load(&state.engine, &payload.file_name, &payload.contents) {
+            match project_host::upload_project_and_load(
+                &state.engine,
+                &payload.file_name,
+                &payload.contents,
+                state.preferences.as_ref(),
+            ) {
                 Ok(path) => {
                     state.project_file.set_current_path(path.clone());
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
@@ -1540,14 +1595,16 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
             let (ack, capture, timing) = {
                 let mut guard = lock_engine(&state.engine);
                 let lock_wait_ms = lock_started.elapsed().as_millis();
-                apply_ui_intent_with_timing(
+                let result = apply_ui_intent_with_timing(
                     &state.read_model,
                     &mut guard,
                     intent,
                     client_instance_id.as_deref(),
                     lock_wait_ms,
                     total_started,
-                )
+                );
+                save_preferences_after_success(&*guard, state.preferences.as_ref(), result.0.success);
+                result
             }; // engine lock dropped here
             state.read_model.apply_event_capture(capture);
             log_ui_intent_timing("ui-http", &timing);
@@ -1611,6 +1668,8 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                         stop_after_failure = true;
                     }
                 }
+                let any_success = acks.iter().any(|ack| ack.success);
+                save_preferences_after_success(&*guard, state.preferences.as_ref(), any_success);
                 (acks, captures, timing_rows)
             }; // engine lock dropped here
             let mut total_events = 0usize;

@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Writes `contents` to `file_name` inside a subdirectory of the OS
 /// shared application-data directory, creating it if needed. `subdir_segments`
@@ -12,8 +12,8 @@ pub fn write_app_data_file(
     file_name: String,
     contents: String,
 ) -> Result<String, String> {
-    let mut dir = dirs::data_dir()
-        .ok_or_else(|| "could not resolve the app data directory on this system".to_string())?;
+    let mut dir =
+        dirs::data_dir().ok_or_else(|| "could not resolve the app data directory on this system".to_string())?;
     for segment in &subdir_segments {
         dir.push(segment);
     }
@@ -21,6 +21,38 @@ pub fn write_app_data_file(
     let path = dir.join(file_name);
     std::fs::write(&path, contents).map_err(|error| error.to_string())?;
     Ok(path.to_string_lossy().to_string())
+}
+
+/// Writes `contents` to `file_name` inside an explicit directory, creating the
+/// directory if needed. The file name must be a single path segment.
+#[tauri::command]
+pub fn write_file_in_directory(directory: String, file_name: String, contents: String) -> Result<String, String> {
+    let directory = directory.trim();
+    if directory.is_empty() {
+        return Err("write directory cannot be empty".to_string());
+    }
+
+    let file_name = normalize_write_file_name(&file_name)?;
+    let dir = PathBuf::from(directory);
+    std::fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let path = dir.join(file_name);
+    std::fs::write(&path, contents).map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+fn normalize_write_file_name(raw_file_name: &str) -> Result<String, String> {
+    let trimmed = raw_file_name.trim();
+    if trimmed.is_empty() {
+        return Err("file name cannot be empty".to_string());
+    }
+
+    let Some(file_name) = Path::new(trimmed).file_name().and_then(|value| value.to_str()) else {
+        return Err("file name must be valid unicode".to_string());
+    };
+    if file_name != trimmed {
+        return Err("file name must not contain path separators".to_string());
+    }
+    Ok(file_name.to_string())
 }
 
 fn normalize_extensions(allowed_extensions: Option<Vec<String>>) -> Vec<String> {

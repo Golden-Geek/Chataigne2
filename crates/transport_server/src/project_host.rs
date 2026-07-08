@@ -5,11 +5,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use golden_engine::app::{
-    ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, load_sparse_project_file,
-    prepare_engine_for_runtime, shutdown_engine_for_runtime, to_sparse_project_json_pretty,
+    ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_tree,
+    insert_sparse_preferences_json, load_sparse_project_file, prepare_engine_for_runtime, shutdown_engine_for_runtime,
+    to_sparse_preferences_json_pretty, to_sparse_project_json_pretty,
 };
 use golden_engine::engine::Engine;
 use golden_engine::logger::{self, LogLevel};
+
+use crate::ui_server::UiPreferencesConfig;
 
 const BROWSER_PROJECT_DIRECTORY_SEGMENTS: &[&str] = &["Documents", "Chataigne"];
 
@@ -125,8 +128,61 @@ fn replace_live_engine<T: ProjectLifecycle>(
     Ok(())
 }
 
-pub(crate) fn create_new_project<T: ProjectLifecycle>(engine: &Arc<Mutex<Engine<T>>>) -> Result<(), String> {
-    let next_engine = create_new_project_engine::<T>()?;
+pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
+    engine: &mut Engine<T>,
+    preferences: Option<&UiPreferencesConfig>,
+) -> Result<(), String> {
+    let default_data_folder = preferences
+        .map(|config| config.default_data_folder.clone())
+        .unwrap_or_default();
+
+    if let Some(preferences) = preferences {
+        match fs::read_to_string(&preferences.file_path) {
+            Ok(contents) if !contents.trim().is_empty() => {
+                insert_sparse_preferences_json(engine, &contents).map_err(|err| err.to_string())?;
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "failed to read preferences file {}: {error}",
+                    preferences.file_path.display()
+                ));
+            }
+        }
+    }
+
+    ensure_preferences_tree(engine, default_data_folder);
+    Ok(())
+}
+
+pub(crate) fn save_preferences<T: ProjectLifecycle>(
+    engine: &Engine<T>,
+    preferences: &UiPreferencesConfig,
+) -> Result<(), String> {
+    let Some(json) = to_sparse_preferences_json_pretty(engine).map_err(|err| err.to_string())? else {
+        return Ok(());
+    };
+
+    if let Some(parent) = preferences.file_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("failed to create preferences directory {}: {err}", parent.display()))?;
+    }
+    fs::write(&preferences.file_path, json.as_bytes()).map_err(|err| {
+        format!(
+            "failed to write preferences file {}: {err}",
+            preferences.file_path.display()
+        )
+    })
+}
+
+pub(crate) fn create_new_project<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    preferences: Option<&UiPreferencesConfig>,
+) -> Result<(), String> {
+    let mut next_engine = create_new_project_engine::<T>()?;
+    load_preferences_into_engine(&mut next_engine, preferences)?;
+    T::project_opened(&mut next_engine)?;
     replace_live_engine(engine, next_engine, "project_new")
 }
 
@@ -188,6 +244,7 @@ pub(crate) fn save_project<T: ProjectLifecycle>(
 pub(crate) fn load_project<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     raw_path: &str,
+    preferences: Option<&UiPreferencesConfig>,
 ) -> Result<String, String> {
     let path = normalize_project_path(raw_path).ok_or_else(|| "project-load path cannot be empty".to_string())?;
 
@@ -198,6 +255,7 @@ pub(crate) fn load_project<T: ProjectLifecycle>(
     let node_count = next_engine.nodes.iter().count();
 
     let configure_started = Instant::now();
+    load_preferences_into_engine(&mut next_engine, preferences)?;
     configure_loaded_engine(&mut next_engine)?;
     let configure_elapsed = configure_started.elapsed();
 
@@ -233,6 +291,7 @@ pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     raw_file_name: &str,
     contents: &str,
+    preferences: Option<&UiPreferencesConfig>,
 ) -> Result<String, String> {
     if contents.trim().is_empty() {
         return Err("project upload contents cannot be empty".to_string());
@@ -253,7 +312,7 @@ pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
         .map_err(|err| format!("failed to write uploaded project file {}: {err}", path.display()))?;
 
     let normalized_path = path.to_string_lossy().to_string();
-    load_project(engine, &normalized_path)
+    load_project(engine, &normalized_path, preferences)
 }
 
 #[cfg(test)]

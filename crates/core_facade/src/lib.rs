@@ -69,10 +69,14 @@ pub mod logger {
 /// Host-independent app lifecycle hooks plus the default host/runtime entry points.
 pub mod app {
     pub use golden_engine::app::{
-        GoldenApp, ProjectFileSpec, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine,
-        create_engine, create_new_project_engine, from_sparse_project_json, insert_sparse_subtree_json,
-        load_sparse_project_file, prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
-        to_sparse_project_json_pretty, to_sparse_subtree_json_pretty,
+        GoldenApp, PREFERENCES_APP_DATA_TAG, PREFERENCES_DATA_FOLDER_DECL_ID, PREFERENCES_DECL_ID,
+        PREFERENCES_INTERFACE_DECL_ID, PREFERENCES_SAVE_AND_LOAD_DECL_ID, PREFERENCES_STARTUP_AND_UPDATE_DECL_ID,
+        ProjectFileSpec, ProjectLifecycle, ProjectNode, add_default_project_nodes, configure_loaded_engine,
+        create_engine, create_new_project_engine, default_preferences_tree, ensure_preferences_tree,
+        from_sparse_project_json, insert_sparse_preferences_json, insert_sparse_subtree_json, load_sparse_project_file,
+        preferences_data_folder, preferences_data_folder_from_snapshot, preferences_root_from_snapshot,
+        prepare_engine_for_runtime, save_sparse_project_file, shutdown_engine_for_runtime,
+        to_sparse_preferences_json_pretty, to_sparse_project_json_pretty, to_sparse_subtree_json_pretty,
     };
     pub use golden_host_desktop::{
         FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,
@@ -80,7 +84,9 @@ pub mod app {
         launch_with_ui_assets_and_dev_server, parse_launch_args, parse_launch_args_from_env, run_default,
         run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
     };
-    pub use golden_transport_server::{UiAsset, UiServerConfig, run_ui_server, run_with_ui_server_config};
+    pub use golden_transport_server::{
+        UiAsset, UiPreferencesConfig, UiServerConfig, run_ui_server, run_with_ui_server_config,
+    };
 }
 
 /// UI protocol DTOs and transport-oriented helpers.

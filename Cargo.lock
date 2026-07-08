@@ -1605,6 +1605,7 @@ dependencies = [
 name = "golden_host_desktop"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "golden_engine",
  "golden_transport_server",
  "rfd",

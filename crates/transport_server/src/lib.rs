@@ -5,4 +5,4 @@
 mod project_host;
 mod ui_server;
 
-pub use ui_server::{UiAsset, UiServerConfig, run_ui_server, run_with_ui_server_config};
+pub use ui_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_ui_server, run_with_ui_server_config};

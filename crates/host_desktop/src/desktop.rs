@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
@@ -11,7 +11,7 @@ use tauri::{Runtime, Url, WebviewUrl};
 
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
 use golden_engine::engine::Engine;
-use golden_transport_server::{UiAsset, UiServerConfig, run_with_ui_server_config};
+use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config};
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
@@ -211,6 +211,11 @@ where
     R: Runtime,
 {
     let mut config = UiServerConfig::default();
+    let app_data_dir = default_app_data_dir::<T>()?;
+    config.preferences = Some(UiPreferencesConfig {
+        file_path: app_data_dir.join(T::preferences_file_name()),
+        default_data_folder: app_data_dir.to_string_lossy().to_string(),
+    });
     let frontend_assets = if args.no_frontend || args.dev { &[] } else { ui_assets };
     if let Ok(bind_addr) = std::env::var("GC_UI_BIND") {
         if !bind_addr.trim().is_empty() {
@@ -285,6 +290,18 @@ where
     let run_result = run_tauri(&frontend_url, tauri_context);
     drop(dev_server_process);
     run_result
+}
+
+fn default_app_data_dir<T: ProjectLifecycle>() -> std::io::Result<PathBuf> {
+    let mut dir =
+        dirs::data_dir().ok_or_else(|| Error::new(ErrorKind::NotFound, "could not resolve the app data directory"))?;
+    let app_dir_name = T::app_data_directory_name().trim();
+    if app_dir_name.is_empty() {
+        dir.push(T::project_file_spec().normalized_display_name());
+    } else {
+        dir.push(app_dir_name);
+    }
+    Ok(dir)
 }
 
 fn print_usage() {
@@ -638,7 +655,8 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
             crate::desktop_commands::start_drag,
             crate::desktop_commands::open_file_dialog,
             crate::desktop_commands::save_file_dialog,
-            crate::desktop_commands::write_app_data_file
+            crate::desktop_commands::write_app_data_file,
+            crate::desktop_commands::write_file_in_directory
         ])
         .append_invoke_initialization_script(&init_script)
         .run(tauri_context)

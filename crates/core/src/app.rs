@@ -3,16 +3,30 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::edit::{Edit, NodeTree};
 use crate::engine::{
     Engine, EngineRuntimeError, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeMeta, ProjectNodeRecord,
     ProjectPersistenceError,
 };
-use crate::node::{DashboardNode, Folder, Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
-use crate::parameter::Parameter;
-use crate::process_ctx::{ExecutionPhase, ProcessCtx};
+use crate::node::{DashboardNode, DeclId, Folder, Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
+use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
+use crate::process_ctx::{ExecutionPhase, ProcessCtx, ProcessTreeSnapshot};
+
+/// Declaration id of the app-wide Preferences folder under the project root.
+pub const PREFERENCES_DECL_ID: &str = "preferences";
+/// Metadata tag marking nodes that belong to app-data persistence, not project persistence.
+pub const PREFERENCES_APP_DATA_TAG: &str = "golden.preferences.app_data";
+/// Declaration id of the Startup and Update preferences category.
+pub const PREFERENCES_STARTUP_AND_UPDATE_DECL_ID: &str = "startup_and_update";
+/// Declaration id of the Save and Load preferences category.
+pub const PREFERENCES_SAVE_AND_LOAD_DECL_ID: &str = "save_and_load";
+/// Declaration id of the Interface preferences category.
+pub const PREFERENCES_INTERFACE_DECL_ID: &str = "interface";
+/// Declaration id of the app data folder file parameter.
+pub const PREFERENCES_DATA_FOLDER_DECL_ID: &str = "data_folder";
 
 /// App-provided project file metadata consumed by hosts and UIs.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +96,16 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         ProjectFileSpec::default()
     }
 
+    /// Directory name under the OS app-data root for host-managed app data.
+    fn app_data_directory_name() -> &'static str {
+        Self::project_file_spec().display_name
+    }
+
+    /// File name used for the host-managed Preferences tree.
+    fn preferences_file_name() -> &'static str {
+        "preferences.json"
+    }
+
     /// Applies runtime-only engine setup that must run on every recreation.
     fn configure_engine(_engine: &mut Engine<Self>) -> Result<(), String>
     where
@@ -114,6 +138,166 @@ where
     T: Node + From<DashboardNode>,
 {
     engine.add_node(DashboardNode::new().into(), None);
+}
+
+fn app_data_folder(label: &str, decl_id: &str) -> Folder {
+    let mut folder = Folder::new(label);
+    let meta = &mut folder.node_data_mut().meta;
+    meta.decl_id = DeclId(decl_id.to_string());
+    meta.can_be_disabled = false;
+    meta.tags.push(PREFERENCES_APP_DATA_TAG.to_string());
+    folder
+}
+
+fn preferences_data_folder_parameter(default_data_folder: impl Into<String>) -> Parameter {
+    let mut parameter = Parameter::new(
+        "Data Folder",
+        ParamValue::File(default_data_folder.into()),
+        ParameterChangeCheck::ValueChange,
+    );
+    let meta = &mut parameter.node_data_mut().meta;
+    meta.decl_id = DeclId(PREFERENCES_DATA_FOLDER_DECL_ID.to_string());
+    meta.tags.push(PREFERENCES_APP_DATA_TAG.to_string());
+    parameter
+}
+
+/// Builds the default app-wide Preferences tree.
+///
+/// Preferences are regular folder/parameter nodes so existing inspectors can edit them, but
+/// the subtree is tagged for app-data persistence rather than project/session persistence.
+pub fn default_preferences_tree(default_data_folder: impl Into<String>) -> NodeTree {
+    let mut preferences = NodeTree::new(app_data_folder("Preferences", PREFERENCES_DECL_ID));
+    preferences.push_child(NodeTree::new(app_data_folder(
+        "Startup and Update",
+        PREFERENCES_STARTUP_AND_UPDATE_DECL_ID,
+    )));
+
+    let mut save_and_load = NodeTree::new(app_data_folder("Save and Load", PREFERENCES_SAVE_AND_LOAD_DECL_ID));
+    save_and_load.push_child(NodeTree::new(preferences_data_folder_parameter(default_data_folder)));
+    preferences.push_child(save_and_load);
+
+    preferences.push_child(NodeTree::new(app_data_folder(
+        "Interface",
+        PREFERENCES_INTERFACE_DECL_ID,
+    )));
+    preferences
+}
+
+fn child_by_decl(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
+    snapshot.find_child_by_decl_id(parent, decl_id)
+}
+
+/// Returns the Preferences root id from a tree snapshot.
+pub fn preferences_root_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {
+    child_by_decl(snapshot, snapshot.root(), PREFERENCES_DECL_ID)
+}
+
+/// Returns the app-wide Data Folder preference from a tree snapshot.
+pub fn preferences_data_folder_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Option<PathBuf> {
+    let preferences = preferences_root_from_snapshot(snapshot)?;
+    let save_and_load = child_by_decl(snapshot, preferences, PREFERENCES_SAVE_AND_LOAD_DECL_ID)?;
+    let data_folder = child_by_decl(snapshot, save_and_load, PREFERENCES_DATA_FOLDER_DECL_ID)?;
+    let value = snapshot.node(data_folder)?.param_value.as_ref()?;
+    match value {
+        ParamValue::File(path) | ParamValue::Str(path) => {
+            let path = path.trim();
+            (!path.is_empty()).then(|| PathBuf::from(path))
+        }
+        _ => None,
+    }
+}
+
+/// Returns the app-wide Data Folder preference from a live engine.
+pub fn preferences_data_folder<T: Node>(engine: &Engine<T>) -> Option<PathBuf> {
+    let snapshot = engine.process_tree_snapshot();
+    preferences_data_folder_from_snapshot(snapshot.as_ref())
+}
+
+/// Queues any missing Preferences defaults into a live engine.
+pub fn ensure_preferences_tree<T: Node>(engine: &mut Engine<T>, default_data_folder: impl Into<String>) {
+    let default_data_folder = default_data_folder.into();
+    let snapshot = engine.process_tree_snapshot();
+    let Some(preferences) = preferences_root_from_snapshot(snapshot.as_ref()) else {
+        engine.edits.push(Edit::AddNodeTree {
+            tree: default_preferences_tree(default_data_folder),
+            parent: engine.root,
+            prev_sibling: None,
+        });
+        return;
+    };
+
+    if child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_STARTUP_AND_UPDATE_DECL_ID).is_none() {
+        engine.edits.push(Edit::AddNodeTree {
+            tree: NodeTree::new(app_data_folder(
+                "Startup and Update",
+                PREFERENCES_STARTUP_AND_UPDATE_DECL_ID,
+            )),
+            parent: preferences,
+            prev_sibling: None,
+        });
+    }
+
+    let save_and_load = child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_SAVE_AND_LOAD_DECL_ID);
+    let save_and_load = match save_and_load {
+        Some(id) => id,
+        None => {
+            let mut tree = NodeTree::new(app_data_folder("Save and Load", PREFERENCES_SAVE_AND_LOAD_DECL_ID));
+            tree.push_child(NodeTree::new(preferences_data_folder_parameter(default_data_folder)));
+            engine.edits.push(Edit::AddNodeTree {
+                tree,
+                parent: preferences,
+                prev_sibling: None,
+            });
+            return;
+        }
+    };
+
+    if child_by_decl(snapshot.as_ref(), save_and_load, PREFERENCES_DATA_FOLDER_DECL_ID).is_none() {
+        engine.edits.push(Edit::AddNodeTree {
+            tree: NodeTree::new(preferences_data_folder_parameter(default_data_folder)),
+            parent: save_and_load,
+            prev_sibling: None,
+        });
+    }
+
+    if child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_INTERFACE_DECL_ID).is_none() {
+        engine.edits.push(Edit::AddNodeTree {
+            tree: NodeTree::new(app_data_folder("Interface", PREFERENCES_INTERFACE_DECL_ID)),
+            parent: preferences,
+            prev_sibling: None,
+        });
+    }
+}
+
+/// Loads one persisted Preferences tree under the engine root.
+pub fn insert_sparse_preferences_json<T>(
+    engine: &mut Engine<T>,
+    json: &str,
+) -> Result<Option<NodeId>, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    if json.trim().is_empty() {
+        return Ok(None);
+    }
+    insert_sparse_subtree_json(engine, engine.root, None, json).map(Some)
+}
+
+/// Serializes the live Preferences tree for app-data persistence.
+pub fn to_sparse_preferences_json_pretty<T>(engine: &Engine<T>) -> Result<Option<String>, ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    let snapshot = engine.process_tree_snapshot();
+    let Some(preferences) = preferences_root_from_snapshot(snapshot.as_ref()) else {
+        return Ok(None);
+    };
+    to_sparse_subtree_json_pretty(engine, preferences).map(Some)
+}
+
+fn node_is_app_data_persisted<T: Node>(node: &T) -> bool {
+    let meta = &node.node_data().meta;
+    meta.decl_id.0 == PREFERENCES_DECL_ID || meta.tags.iter().any(|tag| tag == PREFERENCES_APP_DATA_TAG)
 }
 
 /// Creates a fresh engine instance and applies the app runtime configuration.
@@ -288,6 +472,7 @@ where
         engine.root,
         Some(&structural_root),
         false,
+        true,
         &referenced_uuids,
         &mut cache,
     )?
@@ -318,6 +503,7 @@ where
         engine,
         root_id,
         Some(&structural_root),
+        false,
         false,
         &referenced_uuids,
         &mut cache,
@@ -818,6 +1004,7 @@ fn encode_sparse_node_record<T>(
     node_id: NodeId,
     matched_parent_baseline: Option<&ProjectNodeRecord>,
     allow_omission: bool,
+    omit_app_data_nodes: bool,
     referenced_uuids: &HashSet<NodeUuid>,
     cache: &mut SparseEncodeCache,
 ) -> Result<Option<ProjectNodeRecord>, ProjectPersistenceError>
@@ -828,6 +1015,10 @@ where
         .nodes
         .get(node_id)
         .ok_or(ProjectPersistenceError::MissingNode(node_id))?;
+
+    if omit_app_data_nodes && node_is_app_data_persisted(node) {
+        return Ok(None);
+    }
 
     let node_type = node.get_type().to_string();
     let user_role = node.node_data().user_role;
@@ -886,6 +1077,7 @@ where
             child_id,
             matched_child_baseline,
             matched_child_baseline.is_some(),
+            omit_app_data_nodes,
             referenced_uuids,
             cache,
         )? {
