@@ -10,7 +10,7 @@ use golden_alchemist::{
     SurfaceItemKind,
 };
 use golden_core::{
-    app::ProjectNode,
+    app::{preferences_data_folder_from_snapshot, ProjectNode},
     edit::NodeTree,
     node::{
         DashboardWidgetTargetDescriptor, DeclId, Node, NodeId, NodeMeta,
@@ -295,36 +295,18 @@ impl FormulaCatalog {
             .collect())
     }
 
-    /// All `.json` files currently in `shared_dir`, each as a fresh
-    /// external-file-linked formula tree, with no dedup against an existing
-    /// project (used when seeding a brand-new project, which has none yet).
-    pub(crate) fn all_shared_formula_trees(
-        shared_dir: impl AsRef<Path>,
-    ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
-        Ok(shared_formula_file_paths(shared_dir.as_ref())?
-            .into_iter()
-            .map(|path| shared_formula_tree_from_path(&path))
-            .collect())
-    }
-
-    pub(crate) fn default_all_shared_formula_trees() -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
-        match shared_formula_dir() {
-            Some(dir) => Self::all_shared_formula_trees(dir),
-            None => Ok(Vec::new()),
-        }
-    }
-
     pub(crate) fn default_missing_shared_formula_trees(
         snapshot: &ProcessTreeSnapshot,
         library: NodeId,
     ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
-        match shared_formula_dir() {
+        match shared_formula_dir_from_snapshot(snapshot) {
             Some(dir) => Self::missing_shared_formula_trees(snapshot, library, dir),
             None => Ok(Vec::new()),
         }
     }
 
     fn add_project_formulas(&mut self, snapshot: &ProcessTreeSnapshot, library: NodeId) {
+        let shared_formula_dir = shared_formula_dir_from_snapshot(snapshot);
         self.entries.extend(
             snapshot
                 .child_ids(library)
@@ -350,7 +332,9 @@ impl FormulaCatalog {
                                 FORMULA_EXTERNAL_FILE_DECL_ID,
                             )
                             .is_some_and(|path| {
-                                shared_formula_dir().is_some_and(|shared_dir| path.starts_with(shared_dir))
+                                shared_formula_dir
+                                    .as_ref()
+                                    .is_some_and(|shared_dir| path.starts_with(shared_dir))
                             });
                         entry.origin = if is_builtin {
                             FormulaOrigin::Builtin
@@ -510,6 +494,54 @@ impl FormulaCatalog {
         let icon = sibling_icon_data_uri(path)?;
         tree.into_external_node_tree(false, identity_hint, icon)
     }
+
+    /// Serializes `formula_node`'s subtree to the same `golden-ui.node-tree`
+    /// JSON format `external_formula_tree_from_file`/`decode_exported_formula_tree`
+    /// read — the backend's own counterpart to the frontend's node-tree-clipboard
+    /// export, so features like "Save to Shared" don't need the client to
+    /// serialize formula content itself. Built from a `ProcessTreeSnapshot`
+    /// (rather than the fuller UI-sync DTO) so it's usable from a node's own
+    /// `ProcessCtx`-scoped hooks, not just from full engine access.
+    pub(crate) fn export_formula_json(snapshot: &ProcessTreeSnapshot, formula_node: NodeId) -> Option<String> {
+        let root = export_node_json(snapshot, formula_node)?;
+        let payload = serde_json::json!({
+            "kind": EXPORTED_NODE_TREE_KIND,
+            "version": 1,
+            "nodes": [root],
+        });
+        serde_json::to_string_pretty(&payload).ok()
+    }
+}
+
+fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<JsonValue> {
+    let node = snapshot.node(node_id)?;
+    let children: Vec<JsonValue> = snapshot
+        .child_ids(node_id)
+        .into_iter()
+        .filter_map(|child_id| export_node_json(snapshot, child_id))
+        .collect();
+    let data = match &node.param_value {
+        Some(value) => serde_json::json!({
+            "kind": "parameter",
+            "param": { "value": value },
+        }),
+        None => serde_json::json!({ "kind": "node", "node_type": node.node_type }),
+    };
+    Some(serde_json::json!({
+        "sourceId": node_id.0,
+        "sourceUuid": node.uuid.0.to_string(),
+        "node_type": node.node_type,
+        "decl_id": node.decl_id,
+        "label": node.label,
+        "data": data,
+        "meta": {
+            "label": node.label,
+            "enabled": node.enabled,
+            "can_be_disabled": node.can_be_disabled,
+            "presentation": node.presentation,
+        },
+        "children": children,
+    }))
 }
 
 fn builtin_formula_dir() -> PathBuf {
@@ -518,13 +550,24 @@ fn builtin_formula_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(BUILTIN_FORMULA_DIR))
 }
 
-/// Per-user folder holding formulas the user wants to reuse across projects.
-/// Lives under the OS-conventional shared application-data directory (not a
-/// literal hardcoded path) so it's independent of any single project file.
-pub(crate) fn shared_formula_dir() -> Option<PathBuf> {
-    if let Some(dir) = std::env::var_os(SHARED_FORMULA_DIR_ENV) {
-        return Some(PathBuf::from(dir));
-    }
+pub(crate) fn shared_formula_dir_for_data_folder(data_folder: impl AsRef<Path>) -> PathBuf {
+    data_folder.as_ref().join(SHARED_FORMULA_SUBDIR)
+}
+
+pub(crate) fn shared_formula_dir_from_snapshot(snapshot: &ProcessTreeSnapshot) -> Option<PathBuf> {
+    configured_shared_formula_dir()
+        .or_else(|| {
+            preferences_data_folder_from_snapshot(snapshot)
+                .map(|data_folder| shared_formula_dir_for_data_folder(data_folder))
+        })
+        .or_else(default_shared_formula_dir)
+}
+
+fn configured_shared_formula_dir() -> Option<PathBuf> {
+    std::env::var_os(SHARED_FORMULA_DIR_ENV).map(PathBuf::from)
+}
+
+fn default_shared_formula_dir() -> Option<PathBuf> {
     dirs::data_dir().map(|dir| dir.join(SHARED_FORMULA_APP_DATA_DIR).join(SHARED_FORMULA_SUBDIR))
 }
 

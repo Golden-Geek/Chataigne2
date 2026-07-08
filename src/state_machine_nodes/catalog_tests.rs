@@ -1,6 +1,7 @@
 use std::{fs, time::SystemTime};
 
 use golden_core::{
+    app::ensure_preferences_tree,
     edit::{Edit, NodeTree},
     node::{Folder, Node},
     parameter::{ParamValue, Parameter},
@@ -219,6 +220,45 @@ fn missing_shared_formula_trees_creates_external_file_formulas_for_new_shared_fi
     );
 
     fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
+fn default_missing_shared_formula_trees_uses_preferences_data_folder() {
+    let _shared_dir_guard = shared_formula_dir_env_removed();
+    let data_folder = temp_builtin_formula_dir("preferences_data_folder");
+    let shared_dir = data_folder.join("formulas");
+    fs::create_dir_all(&shared_dir).expect("shared formulas folder should be creatable");
+    fs::write(shared_dir.join("FromPreferences.json"), "placeholder")
+        .expect("temp shared file should write");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    ensure_preferences_tree(&mut engine, data_folder.to_string_lossy().to_string());
+    engine.edits.push(Edit::AddNodeTree {
+        tree: NodeTree::new(FormulaLibrary::new()),
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("preferences and formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let snapshot = engine.process_tree_snapshot();
+    let missing = FormulaCatalog::default_missing_shared_formula_trees(&snapshot, library_id)
+        .expect("configured shared directory should scan");
+
+    assert_eq!(
+        missing
+            .iter()
+            .map(|tree| tree.node.node_data().meta.label.clone())
+            .collect::<Vec<_>>(),
+        vec!["FromPreferences"]
+    );
+
+    fs::remove_dir_all(&data_folder).ok();
 }
 
 #[test]
@@ -465,6 +505,14 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
             "CHATAIGNE_SHARED_FORMULAS_DIR",
             "chataigne2-tests-nonexistent-shared-formulas-dir",
         );
+    }
+    SharedFormulaDirTestOverride { previous }
+}
+
+fn shared_formula_dir_env_removed() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR");
     }
     SharedFormulaDirTestOverride { previous }
 }

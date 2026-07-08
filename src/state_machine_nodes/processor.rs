@@ -27,7 +27,7 @@ use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager,
 mod catalog;
 
 pub(crate) use self::catalog::{
-    shared_formula_dir, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
+    shared_formula_dir_from_snapshot, FormulaCatalog, FormulaSourceRef, ProcessorFormulaSourceState,
 };
 
 /// Adds any built-in/shared formulas not yet present in the project's

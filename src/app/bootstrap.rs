@@ -5,6 +5,10 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         golden_core::app::ProjectFileSpec::new("Noisette", "noisette")
     }
 
+    fn app_data_directory_name() -> &'static str {
+        "Chataigne"
+    }
+
     fn configure_engine(engine: &mut AppEngine) -> Result<(), String> {
         super::module::register_module_reference_filters(engine);
         Ok(())

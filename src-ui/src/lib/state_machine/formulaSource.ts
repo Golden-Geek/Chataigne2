@@ -6,8 +6,44 @@ export const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.b
 export const FORMULA_EXTERNAL_READ_ONLY_TAG = 'chataigne.formula.external.read_only';
 export const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
 export const FORMULA_LIBRARY_SHARED_DIR_DECL_ID = 'shared_formula_dir';
+export const PREFERENCES_DECL_ID = 'preferences';
+export const PREFERENCES_SAVE_AND_LOAD_DECL_ID = 'save_and_load';
+export const PREFERENCES_DATA_FOLDER_DECL_ID = 'data_folder';
+
+const SHARED_FORMULA_SUBDIR = 'formulas';
 
 export type FormulaSourceKind = 'builtin' | 'shared' | 'project';
+
+export type FormulaSourceDisplay = {
+	filterLabel: string;
+	badgeLabel: string;
+	title: string;
+	accent: string;
+};
+
+const FORMULA_SOURCE_DISPLAY: Record<FormulaSourceKind, FormulaSourceDisplay> = {
+	builtin: {
+		filterLabel: 'Built-ins',
+		badgeLabel: 'Built-in',
+		title: 'Built-in formula',
+		accent: '#6fa8ff'
+	},
+	shared: {
+		filterLabel: 'Shared',
+		badgeLabel: 'Shared',
+		title: 'Shared formula',
+		accent: '#55c985'
+	},
+	project: {
+		filterLabel: 'Project',
+		badgeLabel: 'Project',
+		title: 'Project formula',
+		accent: '#dfa84a'
+	}
+};
+
+export const formulaSourceDisplay = (kind: FormulaSourceKind): FormulaSourceDisplay =>
+	FORMULA_SOURCE_DISPLAY[kind];
 
 const hasTag = (node: UiNodeDto | null | undefined, tag: string): boolean =>
 	Boolean(node?.meta.tags.includes(tag));
@@ -50,6 +86,28 @@ const findChildByDeclId = (
 	return null;
 };
 
+const joinPathSegment = (base: string, segment: string): string | null => {
+	const trimmed = base.trim().replace(/[\\/]+$/, '');
+	if (trimmed.length === 0) {
+		return null;
+	}
+	const separator = trimmed.includes('\\') && !trimmed.includes('/') ? '\\' : '/';
+	return `${trimmed}${separator}${segment}`;
+};
+
+const preferencesDataFolder = (nodesById: ReadonlyMap<NodeId, UiNodeDto>): string | null => {
+	for (const node of nodesById.values()) {
+		if (node.decl_id !== PREFERENCES_DECL_ID) {
+			continue;
+		}
+		const saveAndLoad = findChildByDeclId(node, nodesById, PREFERENCES_SAVE_AND_LOAD_DECL_ID);
+		const dataFolder = findChildByDeclId(saveAndLoad, nodesById, PREFERENCES_DATA_FOLDER_DECL_ID);
+		const path = stringParamValue(dataFolder);
+		return path && path.trim().length > 0 ? path : null;
+	}
+	return null;
+};
+
 /** This formula's linked file path, or null if it isn't external-file-linked. */
 export const formulaExternalFilePath = (
 	node: UiNodeDto | null | undefined,
@@ -63,8 +121,16 @@ export const formulaExternalFilePath = (
 	return path && path.trim().length > 0 ? path : null;
 };
 
-/** The resolved shared-formulas folder, read from the project's Formula Library node. */
+/** The resolved shared-formulas folder, derived from Preferences and exposed fallbacks. */
 export const sharedFormulaDir = (nodesById: ReadonlyMap<NodeId, UiNodeDto>): string | null => {
+	const dataFolder = preferencesDataFolder(nodesById);
+	if (dataFolder) {
+		const sharedDir = joinPathSegment(dataFolder, SHARED_FORMULA_SUBDIR);
+		if (sharedDir) {
+			return sharedDir;
+		}
+	}
+
 	for (const node of nodesById.values()) {
 		if (node.node_type === FORMULA_LIBRARY_NODE_TYPE) {
 			const dirParam = findChildByDeclId(node, nodesById, FORMULA_LIBRARY_SHARED_DIR_DECL_ID);
@@ -97,7 +163,10 @@ export const formulaSourceKind = (
 	const filePath = formulaExternalFilePath(node, nodesById);
 	if (filePath) {
 		const sharedDir = sharedFormulaDir(nodesById);
-		if (sharedDir && normalizeForPathCompare(filePath).startsWith(normalizeForPathCompare(sharedDir))) {
+		if (
+			sharedDir &&
+			normalizeForPathCompare(filePath).startsWith(normalizeForPathCompare(sharedDir))
+		) {
 			return 'shared';
 		}
 	}

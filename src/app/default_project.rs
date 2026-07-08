@@ -19,9 +19,6 @@ fn formula_library_tree() -> NodeTree {
     for formula in FormulaCatalog::default_builtin_formula_trees().expect("built-in formula files should load") {
         tree.push_child(formula);
     }
-    for formula in FormulaCatalog::default_all_shared_formula_trees().expect("shared formula files should load") {
-        tree.push_child(formula);
-    }
     tree
 }
 

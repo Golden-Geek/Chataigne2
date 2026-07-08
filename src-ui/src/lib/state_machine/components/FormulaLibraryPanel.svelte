@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { ManagerListPanel, type PanelProps, type PanelState, type UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import { formulaSourceKind, type FormulaSourceKind } from '../formulaSource';
+	import {
+		formulaSourceDisplay,
+		formulaSourceKind,
+		type FormulaSourceKind,
+		type FormulaSourceDisplay
+	} from '../formulaSource';
 	import FormulaLibraryRowSupplement from './FormulaLibraryRowSupplement.svelte';
 
 	let _props: PanelProps = $props();
@@ -12,11 +17,12 @@
 	const FORMULA_ITEM_KIND = 'alchemist_formula';
 	const FORMULA_FOLDER_ITEM_KIND = 'alchemist_formula_folder';
 
-	const SOURCE_FILTERS: { id: FormulaSourceKind; label: string }[] = [
-		{ id: 'builtin', label: 'Built-ins' },
-		{ id: 'shared', label: 'Shared' },
-		{ id: 'project', label: 'Project' }
-	];
+	type SourceFilter = { id: FormulaSourceKind } & FormulaSourceDisplay;
+
+	const SOURCE_FILTERS: SourceFilter[] = (['builtin', 'shared', 'project'] as const).map((id) => ({
+		id,
+		...formulaSourceDisplay(id)
+	}));
 
 	const isFormulaTreeNode = (candidate: UiNodeDto | null): candidate is UiNodeDto =>
 		Boolean(
@@ -55,7 +61,6 @@
 </script>
 
 <div class="formula-library-panel">
-	
 	<div class="formula-library-list">
 		<ManagerListPanel
 			managerNodeType={FORMULA_LIBRARY_NODE_TYPE}
@@ -75,9 +80,11 @@
 				type="button"
 				class="formula-source-chip"
 				class:active={activeSources.has(filter.id)}
+				style:--formula-source-color={filter.accent}
+				title={filter.title}
 				aria-pressed={activeSources.has(filter.id)}
 				onclick={() => toggleSource(filter.id)}>
-				{filter.label}
+				{filter.filterLabel}
 			</button>
 		{/each}
 	</div>
@@ -99,23 +106,27 @@
 
 	.formula-source-chip {
 		padding: 0.18rem 0.5rem;
-		flex:1;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 80%, transparent);
+		flex: 1;
+		border: 0.06rem solid
+			color-mix(in srgb, var(--formula-source-color) 36%, var(--gc-color-border));
 		border-radius: 999rem;
-		background: color-mix(in srgb, var(--gc-color-background) 92%, transparent);
-		color: color-mix(in srgb, var(--gc-color-text) 64%, transparent);
+		background: color-mix(in srgb, var(--formula-source-color) 10%, transparent);
+		color: color-mix(in srgb, var(--formula-source-color) 62%, var(--gc-color-text));
 		font-size: 0.68rem;
 		font-weight: 650;
 		line-height: 1.3;
 		white-space: nowrap;
 		cursor: pointer;
-		transition: all 0.1s ease-in-out;
+		transition:
+			background 0.1s ease-in-out,
+			border-color 0.1s ease-in-out,
+			color 0.1s ease-in-out;
 	}
 
 	.formula-source-chip.active {
 		color: var(--gc-color-text);
-		background: color-mix(var(--gc-color-accent) 50%, transparent);
-		border-color: transparent;
+		background: color-mix(in srgb, var(--formula-source-color) 38%, transparent);
+		border-color: color-mix(in srgb, var(--formula-source-color) 72%, transparent);
 	}
 
 	.formula-library-list {

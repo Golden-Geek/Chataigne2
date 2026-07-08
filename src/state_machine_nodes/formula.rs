@@ -35,7 +35,7 @@ use golden_core::{
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
-use crate::app::state_machine_nodes_processor::{shared_formula_dir, FormulaCatalog};
+use crate::app::state_machine_nodes_processor::{shared_formula_dir_from_snapshot, FormulaCatalog};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
@@ -3981,10 +3981,7 @@ impl Node for FormulaLibrary {
 
 const FORMULA_LIBRARY_SHARED_DIR_DECL_ID: &str = "shared_formula_dir";
 
-fn shared_formula_dir_parameter() -> Parameter {
-    let path = shared_formula_dir()
-        .map(|dir| dir.to_string_lossy().into_owned())
-        .unwrap_or_default();
+fn shared_formula_dir_parameter(path: String) -> Parameter {
     parameter(
         "Shared Formulas Folder",
         FORMULA_LIBRARY_SHARED_DIR_DECL_ID,
@@ -4002,12 +3999,15 @@ impl FormulaLibrary {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
+        let path = shared_formula_dir_from_snapshot(snapshot.as_ref())
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .unwrap_or_default();
         if snapshot
             .find_child_by_decl_id(self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
             .is_none()
             && !child_add_pending(ctx, self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
         {
-            ctx.add_child(self.id(), shared_formula_dir_parameter(), None);
+            ctx.add_child(self.id(), shared_formula_dir_parameter(path), None);
         }
     }
 }
