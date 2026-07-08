@@ -19,8 +19,8 @@ use golden_core::{
 use crate::app::state_machine_nodes_formula::{
     anode_container_accepts_for_roles, anode_creatable_items_for_roles, create_anode_user_item,
     create_anode_user_item_tree, formula_from_snapshot, node_has_warning, node_warning_detail, node_warning_matches,
-    ANODE_ITEM_KIND, FORMULA_WARNING_ID, PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE,
-    PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
+    ANODE_ITEM_KIND, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
+    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE, PROPERTY_NODE_TYPE,
 };
 use crate::app::{AppEngine, ConditionManager, FilterChainManager, InputsManager, OutputsManager};
 
@@ -37,6 +37,8 @@ pub(crate) use self::catalog::{
 /// saved by an older one, instead of only ever being baked in at creation
 /// time.
 pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), String> {
+    apply_formula_sync_edits(engine, "startup formula prerequisites")?;
+
     let snapshot = engine.process_tree_snapshot();
     let Some(library) = find_formula_library(&snapshot) else {
         return Ok(());
@@ -44,7 +46,33 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
 
     let builtin_candidates = FormulaCatalog::default_builtin_formula_trees()
         .map_err(|error| error.to_string())?;
-    for tree in FormulaCatalog::missing_external_formula_trees(&snapshot, library, builtin_candidates) {
+    let existing_builtins = builtin_formula_nodes(&snapshot, library);
+    let builtin_trees = if existing_builtins.is_empty() {
+        FormulaCatalog::missing_external_formula_trees(&snapshot, library, builtin_candidates)
+    } else {
+        builtin_candidates
+    };
+
+    let shared_sync = if let Some(shared_dir) = shared_formula_dir_from_snapshot(&snapshot) {
+        let stale_nodes =
+            FormulaCatalog::stale_shared_formula_nodes(&snapshot, library, &shared_dir)
+                .map_err(|error| error.to_string())?;
+        let missing_trees =
+            FormulaCatalog::missing_shared_formula_trees(&snapshot, library, &shared_dir)
+                .map_err(|error| error.to_string())?;
+        Some((stale_nodes, missing_trees))
+    } else {
+        None
+    };
+
+    let mut queued_formula_edits = false;
+
+    for node in &existing_builtins {
+        queued_formula_edits = true;
+        engine.edits.push(Edit::RemoveNode { node: *node });
+    }
+    for tree in builtin_trees {
+        queued_formula_edits = true;
         engine.edits.push(Edit::AddNodeTree {
             tree,
             parent: library,
@@ -52,16 +80,81 @@ pub(crate) fn sync_external_formulas(engine: &mut AppEngine) -> Result<(), Strin
         });
     }
 
-    let shared_trees = FormulaCatalog::default_missing_shared_formula_trees(&snapshot, library)
-        .map_err(|error| error.to_string())?;
-    for tree in shared_trees {
-        engine.edits.push(Edit::AddNodeTree {
-            tree,
-            parent: library,
-            prev_sibling: None,
+    if let Some((stale_nodes, missing_trees)) = shared_sync {
+        for node in stale_nodes {
+            queued_formula_edits = true;
+            engine.edits.push(Edit::RemoveNode { node });
+        }
+        for tree in missing_trees {
+            queued_formula_edits = true;
+            engine.edits.push(Edit::AddNodeTree {
+                tree,
+                parent: library,
+                prev_sibling: None,
+            });
+        }
+    }
+
+    if queued_formula_edits {
+        apply_formula_sync_edits(engine, "external formula sync")?;
+    }
+    move_builtin_formulas_to_front(engine, library)?;
+
+    Ok(())
+}
+
+fn apply_formula_sync_edits(engine: &mut AppEngine, context: &str) -> Result<(), String> {
+    engine
+        .apply_edits()
+        .map_err(|error| format!("{context} failed: {error}"))
+}
+
+fn move_builtin_formulas_to_front(engine: &mut AppEngine, library: NodeId) -> Result<(), String> {
+    let snapshot = engine.process_tree_snapshot();
+    if !formula_library_has_late_builtin(&snapshot, library) {
+        return Ok(());
+    }
+
+    for node in builtin_formula_nodes(&snapshot, library).into_iter().rev() {
+        engine.edits.push(Edit::MoveNode {
+            node,
+            new_parent: library,
+            new_prev_sibling: None,
         });
     }
-    Ok(())
+    apply_formula_sync_edits(engine, "formula library ordering")
+}
+
+fn formula_library_has_late_builtin(snapshot: &ProcessTreeSnapshot, library: NodeId) -> bool {
+    let mut seen_non_builtin = false;
+    for child in snapshot.child_ids(library) {
+        if is_builtin_formula_node(snapshot, child) {
+            if seen_non_builtin {
+                return true;
+            }
+        } else {
+            seen_non_builtin = true;
+        }
+    }
+    false
+}
+
+fn builtin_formula_nodes(snapshot: &ProcessTreeSnapshot, library: NodeId) -> Vec<NodeId> {
+    snapshot
+        .child_ids(library)
+        .into_iter()
+        .filter(|node_id| is_builtin_formula_node(snapshot, *node_id))
+        .collect()
+}
+
+fn is_builtin_formula_node(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> bool {
+    snapshot.node(node_id).is_some_and(|node| {
+        node.node_type == FORMULA_NODE_TYPE
+            && node
+                .tags
+                .iter()
+                .any(|tag| tag.starts_with(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX))
+    })
 }
 
 const FORMULA_LIBRARY_NODE_TYPE: &str = "alchemist_formula_library";
@@ -131,7 +224,8 @@ fn processor_property_parameter(
     );
     parameter.node_data_mut().meta.decl_id =
         DeclId(processor_surface_decl_id(source_node.uuid));
-    parameter.node_data_mut().meta.presentation.color = source_node.presentation.color;
+    parameter.node_data_mut().meta.presentation.default_color =
+        source_node.presentation.color.or(source_node.presentation.default_color);
     if let Some(constraints) = snapshot
         .node(value_id)
         .and_then(|value| value.param_constraints.clone())
@@ -161,7 +255,8 @@ fn processor_property_manager(
     manager.node_data_mut().meta.label = source_node.label.clone();
     manager.node_data_mut().meta.decl_id =
         DeclId(processor_surface_decl_id(source_node.uuid));
-    manager.node_data_mut().meta.presentation.color = source_node.presentation.color;
+    manager.node_data_mut().meta.presentation.default_color =
+        source_node.presentation.color.or(source_node.presentation.default_color);
     Some(manager)
 }
 
@@ -197,7 +292,8 @@ fn processor_surface_child_tree(
             folder.node_data_mut().meta.label = source_node.label.clone();
             folder.node_data_mut().meta.decl_id =
                 DeclId(processor_surface_decl_id(source_node.uuid));
-            folder.node_data_mut().meta.presentation.color = source_node.presentation.color;
+            folder.node_data_mut().meta.presentation.default_color =
+                source_node.presentation.color.or(source_node.presentation.default_color);
             folder.node_data_mut().meta.user_permissions = locked_instance_permissions();
             let mut tree = NodeTree::new(folder);
             for child in snapshot.child_ids(source) {
@@ -426,12 +522,15 @@ fn reconcile_properties_level(
             continue;
         }
         let label_changed = existing_node.label != source_node.label;
-        let color_changed =
-            existing_node.presentation.color != source_node.presentation.color;
+        let source_color = source_node
+            .presentation
+            .color
+            .or(source_node.presentation.default_color);
+        let color_changed = existing_node.presentation.default_color != source_color;
         if label_changed || color_changed {
             let presentation = color_changed.then(|| {
                 let mut presentation = existing_node.presentation.clone();
-                presentation.color = source_node.presentation.color;
+                presentation.default_color = source_color;
                 presentation
             });
             ctx.patch_node_meta(

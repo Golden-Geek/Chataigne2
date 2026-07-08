@@ -85,11 +85,12 @@
 	import {
 		formulaIsExternalFile,
 		formulaIsReadOnly,
+		formulaSourceDisplay as getFormulaSourceDisplay,
 		formulaSourceKind
 	} from '../formulaSource';
 	import AlchemistGraphEditor from './AlchemistGraphEditor.svelte';
-	import AutoWireToggle from './AutoWireToggle.svelte';
 	import FormulaPreviewModeSelector from './FormulaPreviewModeSelector.svelte';
+	import GraphToolbarActions from './GraphToolbarActions.svelte';
 	import ProcessorLaneSelector from './ProcessorLaneSelector.svelte';
 
 	interface ClipboardReferenceLookup {
@@ -154,6 +155,8 @@
 	const PROCESSOR_MANAGED_REGIONS_DECL_ID = 'managed_regions';
 	const PROCESSOR_MANAGED_REGION_DECL_PREFIX = 'managed_region/';
 	const FORMULA_LIBRARY_NODE_TYPE = 'alchemist_formula_library';
+	const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.builtin:';
+	const FORMULA_COPY_SOURCE_DECL_ID = 'formula_copy_source';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
 	const PREVIEW_ACTIVITY_HOLD_MS = 50;
 
@@ -489,8 +492,23 @@
 		return requestedFormula ?? formulaNodes[0] ?? null;
 	});
 	let formulaSource = $derived(formulaSourceKind(formula, graphState?.nodesById ?? new Map()));
+	let formulaSourceDisplay = $derived(getFormulaSourceDisplay(formulaSource));
 	let formulaExternalFile = $derived(formulaIsExternalFile(formula));
 	let formulaReadOnly = $derived(formulaIsReadOnly(formula));
+	let formulaSourceBadgeLabel = $derived(
+		formulaSource === 'project' && formulaExternalFile
+			? 'External'
+			: formulaSource === 'project' && formulaReadOnly
+				? 'Read-only'
+				: formulaSourceDisplay.badgeLabel
+	);
+	let formulaSourceBadgeTitle = $derived(
+		formulaSource === 'project' && formulaExternalFile
+			? 'Project formula linked to an external file'
+			: formulaSource === 'project' && formulaReadOnly
+				? 'Read-only project formula'
+				: formulaSourceDisplay.title
+	);
 	let runtimePreviewSequence = $derived(
 		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
 	);
@@ -745,6 +763,19 @@
 		return nextAvailableAlchemistLabel(label, 'Formula', used);
 	};
 
+	const formulaReferenceValue = (target: UiNodeDto): UiCreateUserItemInitialParam['value'] => ({
+		kind: 'reference',
+		uuid: target.uuid,
+		cached_id: target.node_id,
+		cached_name: target.meta.label,
+		relative_path_from_root: []
+	});
+
+	const formulaNodeForBuiltinSource = (sourceKey: string): UiNodeDto | null => {
+		const sourceTag = `${FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX}${sourceKey}`;
+		return formulaNodes.find((formula) => formula.meta.tags.includes(sourceTag)) ?? null;
+	};
+
 	const runMutation = (operation: () => Promise<void>): Promise<void> => {
 		saveStatus = 'saving';
 		const queued = persistenceTail
@@ -830,6 +861,8 @@
 		const formulaLabel = processorUi.formula_label;
 		const sourceKey = processorUi.formula_source_key;
 		if (!sourceKey) return;
+		const sourceFormula = formulaNodeForBuiltinSource(sourceKey);
+		if (!sourceFormula) return;
 		const libraryNodeId = formulaLibrary.node_id;
 		const label = duplicateFormulaLabel(formulaLabel);
 		void runMutation(async () => {
@@ -837,7 +870,7 @@
 				select_when_created: true,
 				created_node_type: FORMULA_NODE_TYPE,
 				initial_params: [
-					initialParam('duplicate_from_formula_source', { kind: 'str', value: sourceKey })
+					initialParam(FORMULA_COPY_SOURCE_DECL_ID, formulaReferenceValue(sourceFormula))
 				]
 			});
 			if (!result.success) throw new Error(`failed to duplicate ${formulaLabel}`);
@@ -1866,38 +1899,14 @@
 	});
 </script>
 
-{#snippet toolbarEndContent()}
+{#snippet graphToolbarContent()}
 	{#if formula}
-		{#if formulaSource === 'builtin'}
-			<span class="formula-source-pill" title="Built-in formula">Built-in</span>
-		{:else if formulaSource === 'shared'}
-			<span class="formula-source-pill" title="Shared formula">Shared</span>
-		{:else if formulaExternalFile}
-			<span class="formula-source-pill" title="External formula">External</span>
-		{:else if formulaReadOnly}
-			<span class="formula-source-pill" title="Read-only formula">Read-only</span>
-		{/if}
-	{/if}
-	{#if formula}
-		<AutoWireToggle checked={autoWire} onchange={setAutoWire} />
-	{/if}
-	{#if formula}
-		<span
-			class="formula-status"
-			class:valid={formulaValid}
-			class:error={!formulaValid}
-			title={formulaStatusTitle}
-			aria-label={formulaStatusTitle}>
-			{formulaValid ? '✓' : '!'}
-		</span>
-	{/if}
-	{#if saveStatus === 'saving' || saveStatus === 'error'}
-		<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
-			{saveStatus === 'saving' ? '…' : '!'}
-		</span>
-	{/if}
-	{#if formula && anodeItems.length > 0}
-		<NodeAddButton node={formula} items={anodeItems} onCreateItem={(item) => createNode(item)} />
+		<GraphToolbarActions
+			{autoWire}
+			onAutoWireChange={setAutoWire}
+			addNode={formula}
+			addItems={anodeItems}
+			onCreateItem={(item) => createNode(item)} />
 	{/if}
 {/snippet}
 
@@ -2087,8 +2096,27 @@
 						onCameraChange={setFormulaCamera}
 						viewportInset={{ left: propertiesVisible ? propertiesWidth : 0 }}
 						{autoWire}
-						toolbarEnd={toolbarEndContent} />
+						toolbarEnd={graphToolbarContent} />
 					<div class="preview-status-bar" aria-label="Formula preview context">
+						<span
+							class="formula-source-pill"
+							title={formulaSourceBadgeTitle}
+							style:--formula-source-color={formulaSourceDisplay.accent}>
+							{formulaSourceBadgeLabel}
+						</span>
+						<span
+							class="formula-status"
+							class:valid={formulaValid}
+							class:error={!formulaValid}
+							title={formulaStatusTitle}
+							aria-label={formulaStatusTitle}>
+							{formulaValid ? '✓' : '!'}
+						</span>
+						{#if saveStatus === 'saving' || saveStatus === 'error'}
+							<span class="save-indicator" class:error={saveStatus === 'error'} aria-live="polite">
+								{saveStatus === 'saving' ? '…' : '!'}
+							</span>
+						{/if}
 						<FormulaPreviewModeSelector model={previewSessionModel} />
 						<ProcessorLaneSelector
 							lanes={previewSessionModel.lanes}
@@ -2168,7 +2196,7 @@
 		position: absolute;
 		inset-block: 0;
 		inset-inline-start: 0;
-		z-index: 20;
+		z-index: 30;
 		display: grid;
 		grid-template-rows: auto minmax(0, 1fr) auto;
 		min-inline-size: 0;
@@ -2223,7 +2251,7 @@
 		position: absolute;
 		top: 0;
 		left: 0;
-		z-index: 25;
+		z-index: 35;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
@@ -2341,7 +2369,9 @@
 		display: inline-flex;
 		align-items: center;
 		min-block-size: 1rem;
-		color: color-mix(in srgb, var(--gc-color-text) 66%, transparent);
+		border-color: color-mix(in srgb, var(--formula-source-color) 48%, var(--gc-color-border));
+		background: color-mix(in srgb, var(--formula-source-color) 16%, transparent);
+		color: color-mix(in srgb, var(--formula-source-color) 62%, var(--gc-color-text));
 		font-size: 0.62rem;
 		line-height: 1;
 		white-space: nowrap;
@@ -2558,7 +2588,8 @@
 		gap: 0.4rem 0.55rem;
 		max-inline-size: calc(100% - 1.5rem);
 		padding: 0.28rem 0.5rem;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-background) 10%, rgba(255,255,255,0.1));
+		border: 0.06rem solid
+			color-mix(in srgb, var(--gc-color-background) 10%, rgba(255, 255, 255, 0.1));
 		border-radius: 0.5rem;
 		background: color-mix(in srgb, var(--gc-color-background) 84%, transparent);
 		backdrop-filter: blur(0.5rem);

@@ -15,7 +15,6 @@ use crate::app::StateMachineManager;
 fn state_defaults_are_ready_for_canvas_authoring() {
     let state = StateMachineState::new();
 
-    assert!(state.active.get());
     assert_eq!(state.description.get_ref(), "");
     assert_eq!(state.position.get().x, 0.0);
     assert_eq!(state.position.get().y, 0.0);
@@ -64,6 +63,16 @@ fn state_canvas_geometry_survives_project_reload() {
             .presentation
             .color,
         Some(Color::new(0.28, 0.56, 0.92, 1.0))
+    );
+    assert!(
+        engine
+            .nodes
+            .get(state_id)
+            .expect("state should exist")
+            .node_data()
+            .meta
+            .can_be_disabled,
+        "States should expose the node-level enable switch"
     );
     let transition_manager_id = child_by_decl(&engine, state_id, "transitions");
     engine.add_user_item(

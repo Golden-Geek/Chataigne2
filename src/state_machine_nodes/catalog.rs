@@ -10,14 +10,14 @@ use golden_alchemist::{
     SurfaceItemKind,
 };
 use golden_core::{
-    app::{preferences_data_folder_from_snapshot, ProjectNode},
+    app::{preferences_data_folder_from_snapshot, ProjectNode, PREFERENCES_APP_DATA_TAG},
     edit::NodeTree,
     node::{
         DashboardWidgetTargetDescriptor, DeclId, Node, NodeId, NodeMeta,
         NodeReference, NodeUserPermissions, NodeUuid, PresentationHint,
         UserCreatableItem,
     },
-    parameter::ParamValue,
+    parameter::{CssValue, ParamValue},
     process_ctx::{ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
@@ -29,9 +29,10 @@ use crate::app::{
     state_machine_nodes_formula::{
         external_formula_tree_for_path, formula_from_snapshot,
         FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_FILE_DECL_ID,
-        FORMULA_EXTERNAL_FILE_TAG, FORMULA_EXTERNAL_READ_ONLY_TAG,
-        FORMULA_MANAGED_REGIONS_JSON_DECL_ID, PROPERTIES_DECL_ID,
-        PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE,
+        FORMULA_EXTERNAL_DELETE_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
+        FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_EXTERNAL_SOURCE_DECL_ID,
+        FORMULA_COPY_SOURCE_DECL_ID, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
+        PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE,
     },
     AppNode,
 };
@@ -275,18 +276,11 @@ impl FormulaCatalog {
         library: NodeId,
         shared_dir: impl AsRef<Path>,
     ) -> Result<Vec<NodeTree>, BuiltinFormulaLoadError> {
-        let existing_paths: HashSet<PathBuf> = snapshot
-            .child_ids(library)
-            .into_iter()
-            .filter_map(|child_id| {
-                let node = snapshot.node(child_id)?;
-                node.tags
-                    .iter()
-                    .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG)
-                    .then(|| snapshot_child_file_path(snapshot, child_id, FORMULA_EXTERNAL_FILE_DECL_ID))
-                    .flatten()
-            })
-            .collect();
+        let existing_paths: HashSet<PathBuf> =
+            shared_formula_node_paths(snapshot, library, shared_dir.as_ref())
+                .into_iter()
+                .map(|(_, path)| path)
+                .collect();
 
         Ok(shared_formula_file_paths(shared_dir.as_ref())?
             .into_iter()
@@ -295,6 +289,20 @@ impl FormulaCatalog {
             .collect())
     }
 
+    pub(crate) fn stale_shared_formula_nodes(
+        snapshot: &ProcessTreeSnapshot,
+        library: NodeId,
+        shared_dir: impl AsRef<Path>,
+    ) -> Result<Vec<NodeId>, BuiltinFormulaLoadError> {
+        let current_paths: HashSet<PathBuf> =
+            shared_formula_file_paths(shared_dir.as_ref())?.into_iter().collect();
+        Ok(shared_formula_node_paths(snapshot, library, shared_dir.as_ref())
+            .into_iter()
+            .filter_map(|(node, path)| (!current_paths.contains(&path)).then_some(node))
+            .collect())
+    }
+
+    #[cfg(test)]
     pub(crate) fn default_missing_shared_formula_trees(
         snapshot: &ProcessTreeSnapshot,
         library: NodeId,
@@ -511,6 +519,20 @@ impl FormulaCatalog {
         });
         serde_json::to_string_pretty(&payload).ok()
     }
+
+    pub(crate) fn formula_node_tree(
+        snapshot: &ProcessTreeSnapshot,
+        formula_node: NodeId,
+    ) -> Result<NodeTree, BuiltinFormulaLoadError> {
+        let source = Self::export_formula_json(snapshot, formula_node).ok_or_else(|| {
+            BuiltinFormulaLoadError::InvalidExportedFormula {
+                reason: "formula node could not be serialized".to_owned(),
+            }
+        })?;
+        decode_exported_formula_tree(Path::new("<formula>"), &source)?.into_formula_node_tree(
+            None, false, None, None, None,
+        )
+    }
 }
 
 fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<JsonValue> {
@@ -518,12 +540,17 @@ fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<J
     let children: Vec<JsonValue> = snapshot
         .child_ids(node_id)
         .into_iter()
+        .filter(|child_id| {
+            snapshot
+                .node(*child_id)
+                .is_some_and(|child| export_child_decl_id(child.decl_id.as_str()))
+        })
         .filter_map(|child_id| export_node_json(snapshot, child_id))
         .collect();
     let data = match &node.param_value {
         Some(value) => serde_json::json!({
             "kind": "parameter",
-            "param": { "value": value },
+            "param": { "value": export_param_value_json(value) },
         }),
         None => serde_json::json!({ "kind": "node", "node_type": node.node_type }),
     };
@@ -542,6 +569,16 @@ fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<J
         },
         "children": children,
     }))
+}
+
+fn export_child_decl_id(decl_id: &str) -> bool {
+    !matches!(
+        decl_id,
+        FORMULA_EXTERNAL_FILE_DECL_ID
+            | FORMULA_EXTERNAL_SOURCE_DECL_ID
+            | FORMULA_EXTERNAL_DELETE_FILE_DECL_ID
+            | FORMULA_COPY_SOURCE_DECL_ID
+    )
 }
 
 fn builtin_formula_dir() -> PathBuf {
@@ -598,6 +635,36 @@ fn shared_formula_file_paths(shared_dir: &Path) -> Result<Vec<PathBuf>, BuiltinF
     }
     paths.sort();
     Ok(paths)
+}
+
+fn shared_formula_node_paths(
+    snapshot: &ProcessTreeSnapshot,
+    library: NodeId,
+    shared_dir: &Path,
+) -> Vec<(NodeId, PathBuf)> {
+    let mut formulas = Vec::new();
+    let mut pending = snapshot.child_ids(library);
+    while let Some(node_id) = pending.pop() {
+        let Some(node) = snapshot.node(node_id) else {
+            continue;
+        };
+        pending.extend(snapshot.child_ids(node_id));
+        if node.node_type != FORMULA_NODE_TYPE {
+            continue;
+        }
+        if !node.tags.iter().any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG) {
+            continue;
+        }
+        let Some(path) =
+            snapshot_child_file_path(snapshot, node_id, FORMULA_EXTERNAL_FILE_DECL_ID)
+        else {
+            continue;
+        };
+        if path.starts_with(shared_dir) {
+            formulas.push((node_id, path));
+        }
+    }
+    formulas
 }
 
 /// A fresh external-file-linked formula tree pointing at `path`, in the same
@@ -1028,8 +1095,12 @@ fn exported_node_to_tree(
 ) -> Result<NodeTree, BuiltinFormulaLoadError> {
     let mut tags = std::mem::take(&mut node.meta.tags);
     if let Some(tag) = root_provenance_tag {
+        let is_builtin = tag.starts_with(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX);
         if !tags.iter().any(|existing| existing == &tag) {
             tags.push(tag);
+        }
+        if is_builtin && !tags.iter().any(|existing| existing == PREFERENCES_APP_DATA_TAG) {
+            tags.push(PREFERENCES_APP_DATA_TAG.to_owned());
         }
     }
     if read_only && !tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG) {
@@ -1133,11 +1204,38 @@ fn exported_parameter_project_data(
     Ok(JsonValue::Object(project))
 }
 
+fn export_param_value_json(value: &ParamValue) -> JsonValue {
+    match value {
+        ParamValue::Trigger() => serde_json::json!({ "kind": "trigger" }),
+        ParamValue::Int(value) => serde_json::json!({ "kind": "int", "value": value }),
+        ParamValue::Float(value) => serde_json::json!({ "kind": "float", "value": value }),
+        ParamValue::Str(value) => serde_json::json!({ "kind": "str", "value": value }),
+        ParamValue::File(value) => serde_json::json!({ "kind": "file", "value": value }),
+        ParamValue::Enum(value) => serde_json::json!({ "kind": "enum", "value": value }),
+        ParamValue::Bool(value) => serde_json::json!({ "kind": "bool", "value": value }),
+        ParamValue::CssValue(value) => {
+            serde_json::json!({ "kind": "css", "value": value.to_css_string() })
+        }
+        ParamValue::Vec2(x, y) => serde_json::json!({ "kind": "vec2", "value": [x, y] }),
+        ParamValue::Vec3(x, y, z) => serde_json::json!({ "kind": "vec3", "value": [x, y, z] }),
+        ParamValue::Color(r, g, b, a) => serde_json::json!({
+            "kind": "color",
+            "value": { "r": r, "g": g, "b": b, "a": a },
+        }),
+        ParamValue::Reference(reference) => serde_json::json!({
+            "kind": "reference",
+            "uuid": reference.uuid().0.to_string(),
+        }),
+    }
+}
+
 fn parse_exported_param_value(value: &JsonValue) -> Result<ParamValue, String> {
-    let kind = value
+    let Some(kind) = value
         .get("kind")
         .and_then(JsonValue::as_str)
-        .ok_or_else(|| "missing value kind".to_owned())?;
+    else {
+        return parse_untagged_exported_param_value(value);
+    };
     match kind {
         "trigger" => Ok(ParamValue::Trigger()),
         "int" => Ok(ParamValue::Int(
@@ -1156,6 +1254,9 @@ fn parse_exported_param_value(value: &JsonValue) -> Result<ParamValue, String> {
                 .as_bool()
                 .ok_or_else(|| "bool value must be a boolean".to_owned())?,
         )),
+        "css" => CssValue::parse(string_value(value)?)
+            .map(ParamValue::CssValue)
+            .ok_or_else(|| "css value is invalid".to_owned()),
         "vec2" => {
             let values = number_array(value, 2)?;
             Ok(ParamValue::Vec2(values[0], values[1]))
@@ -1187,6 +1288,41 @@ fn parse_exported_param_value(value: &JsonValue) -> Result<ParamValue, String> {
         }
         other => Err(format!("unsupported value kind '{other}'")),
     }
+}
+
+fn parse_untagged_exported_param_value(value: &JsonValue) -> Result<ParamValue, String> {
+    if let Some(value) = value.as_str() {
+        return Ok(ParamValue::Str(value.to_owned()));
+    }
+    if let Some(value) = value.as_bool() {
+        return Ok(ParamValue::Bool(value));
+    }
+    if let Some(value) = value.as_i64() {
+        return value
+            .try_into()
+            .map(ParamValue::Int)
+            .map_err(|_| "int value is outside i32 range".to_owned());
+    }
+    if let Some(value) = value.as_f64() {
+        return Ok(ParamValue::Float(value));
+    }
+    if let Some(object) = value.as_object() {
+        if let Some(uuid) = object.get("uuid").and_then(JsonValue::as_str) {
+            let uuid = uuid
+                .parse::<Uuid>()
+                .map_err(|error| format!("reference uuid is invalid: {error}"))?;
+            return Ok(ParamValue::Reference(NodeReference::new(NodeUuid(uuid))));
+        }
+        if ["r", "g", "b", "a"].iter().all(|key| object.contains_key(*key)) {
+            return Ok(ParamValue::Color(
+                object_number(object, "r")?,
+                object_number(object, "g")?,
+                object_number(object, "b")?,
+                object_number(object, "a")?,
+            ));
+        }
+    }
+    Err("missing value kind".to_owned())
 }
 
 fn value_field(value: &JsonValue) -> Result<&JsonValue, String> {

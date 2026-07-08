@@ -3,11 +3,6 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import { sendCreateUserItemByTypeIntent } from 'golden_ui/store/ui-intents';
 	import {
-		buildNodeTreeClipboardPayload,
-		nodeTreeClipboardJson
-	} from 'golden_ui/store/session/node-tree-clipboard';
-	import { hasDesktopHost, writeDesktopFileInDirectory } from 'golden_ui/host/desktop';
-	import {
 		FORMULA_EXTERNAL_FILE_DECL_ID,
 		formulaIsExternalFile,
 		formulaSourceDisplay,
@@ -19,6 +14,9 @@
 	// src/state_machine_nodes/formula.rs — this is the same create-type the
 	// "External Formula" Add-menu item uses, just with the path pre-filled.
 	const FORMULA_EXTERNAL_FILE_CREATE_TYPE = 'alchemist_formula:external_file';
+	const FORMULA_NODE_TYPE = 'alchemist_formula';
+	const FORMULA_EXTERNAL_SOURCE_DECL_ID = 'external_formula_source';
+	const FORMULA_COPY_SOURCE_DECL_ID = 'formula_copy_source';
 
 	let { node }: { node: UiNodeDto } = $props();
 
@@ -36,8 +34,9 @@
 	// cross-project Shared folder; built-ins/shared/external-file-linked ones
 	// already have a canonical source elsewhere.
 	let canSaveToShared = $derived(
-		sourceKind === 'project' && !external && sharedDir !== null && hasDesktopHost()
+		sourceKind === 'project' && !external && sharedDir !== null
 	);
+	let canCopyToProject = $derived(sourceKind === 'shared' || sourceKind === 'builtin');
 
 	let saving = $state(false);
 	let savedFeedback = $state(false);
@@ -52,6 +51,19 @@
 			.slice(0, 80);
 		return (stem || 'formula').toLowerCase();
 	};
+
+	const joinPath = (directory: string, fileName: string): string => {
+		const separator = directory.includes('\\') ? '\\' : '/';
+		return `${directory.replace(/[\\/]+$/g, '')}${separator}${fileName}`;
+	};
+
+	const referenceValue = (target: UiNodeDto) => ({
+		kind: 'reference' as const,
+		uuid: target.uuid,
+		cached_id: target.node_id,
+		cached_name: target.meta.label,
+		relative_path_from_root: [] as string[]
+	});
 
 	const saveToShared = async (event: MouseEvent): Promise<void> => {
 		event.stopPropagation();
@@ -68,38 +80,33 @@
 				return;
 			}
 			const stem = sharedFormulaStem(node.meta.label);
-			const payload = buildNodeTreeClipboardPayload([node], graphState.nodesById);
-			const json = nodeTreeClipboardJson(payload);
-			const written = await writeDesktopFileInDirectory(
-				sharedDir,
-				`${stem}.json`,
-				json,
-				'save-to-shared'
-			);
-			if (!written) {
-				saveError = 'Save failed - see console for details.';
-				return;
-			}
+			const targetPath = joinPath(sharedDir, `${stem}.json`);
 
 			// Adds a new Shared sibling next to this formula (via the same
 			// creation path as the "External Formula" Add-menu item, pointed
-			// at the file just written) rather than converting this node in
-			// place, so any processor already using this formula keeps working.
+			// at the file the backend will write) rather than converting this
+			// node in place, so any processor already using this formula keeps
+			// working.
 			const result = await sendCreateUserItemByTypeIntent(
 				parentId,
 				FORMULA_EXTERNAL_FILE_CREATE_TYPE,
 				node.meta.label,
 				{
+					created_node_type: FORMULA_NODE_TYPE,
 					initial_params: [
 						{
 							decl_id: FORMULA_EXTERNAL_FILE_DECL_ID,
-							value: { kind: 'file', value: written }
+							value: { kind: 'file', value: targetPath }
+						},
+						{
+							decl_id: FORMULA_EXTERNAL_SOURCE_DECL_ID,
+							value: referenceValue(node)
 						}
 					]
 				}
 			);
 			if (!result.success) {
-				saveError = `Saved to ${written}, but failed to add it to the library.`;
+				saveError = 'Save failed - see console for details.';
 				return;
 			}
 
@@ -111,33 +118,86 @@
 			saving = false;
 		}
 	};
+
+	const copyToProject = async (event: MouseEvent): Promise<void> => {
+		event.stopPropagation();
+		const graphState = appState.session?.graph.state;
+		const parentId = graphState?.parentById.get(node.node_id);
+		if (!graphState || parentId === undefined || saving) {
+			return;
+		}
+		saving = true;
+		saveError = null;
+		try {
+			const result = await sendCreateUserItemByTypeIntent(parentId, FORMULA_NODE_TYPE, node.meta.label, {
+				created_node_type: FORMULA_NODE_TYPE,
+				initial_params: [
+					{
+						decl_id: FORMULA_COPY_SOURCE_DECL_ID,
+						value: referenceValue(node)
+					}
+				]
+			});
+			if (!result.success) {
+				saveError = 'Copy failed - see console for details.';
+				return;
+			}
+			savedFeedback = true;
+			setTimeout(() => {
+				savedFeedback = false;
+			}, 1500);
+		} finally {
+			saving = false;
+		}
+	};
+
 </script>
 
-<span
-	class="formula-source-pill"
-	title={sourceTitle}
-	style:--formula-source-color={sourceDisplay.accent}>
-	{sourceDisplay.badgeLabel}
+<span class="formula-row-supplement">
+	<span
+		class="formula-source-pill"
+		title={sourceTitle}
+		style:--formula-source-color={sourceDisplay.accent}>
+		{sourceDisplay.badgeLabel}
+	</span>
+	{#if canSaveToShared}
+		<button
+			type="button"
+			class="save-to-shared-button"
+			title={saveError ?? 'Publish a copy to your Shared formulas folder, reusable across projects'}
+			class:has-error={saveError !== null}
+			disabled={saving}
+			onclick={saveToShared}>
+			{#if savedFeedback}
+				Added to Shared
+			{:else if saveError}
+				Save failed
+			{:else}
+				Save to Shared
+			{/if}
+		</button>
+	{/if}
+	{#if canCopyToProject}
+		<button
+			type="button"
+			class="save-to-shared-button"
+			title={saveError ?? 'Copy this formula into the current project'}
+			class:has-error={saveError !== null}
+			disabled={saving}
+			onclick={copyToProject}>
+			{savedFeedback ? 'Copied' : 'Copy to Project'}
+		</button>
+	{/if}
 </span>
-{#if canSaveToShared}
-	<button
-		type="button"
-		class="save-to-shared-button"
-		title={saveError ?? 'Publish a copy to your Shared formulas folder, reusable across projects'}
-		class:has-error={saveError !== null}
-		disabled={saving}
-		onclick={saveToShared}>
-		{#if savedFeedback}
-			Added to Shared
-		{:else if saveError}
-			Save failed
-		{:else}
-			Save to Shared
-		{/if}
-	</button>
-{/if}
 
 <style>
+	.formula-row-supplement {
+		display: inline-flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.25rem;
+	}
+
 	.formula-source-pill {
 		display: inline-flex;
 		align-items: center;

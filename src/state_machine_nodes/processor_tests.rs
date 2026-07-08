@@ -22,8 +22,8 @@ use super::{
 };
 use crate::app::state_machine_nodes_formula::{
     AlchemistProperty, ANODE_CREATE_PREFIX, ANODE_NODE_TYPE,
-    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
-    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
+    PROPERTY_CREATE_PREFIX, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
 };
 
 fn engine_with_formula() -> (
@@ -103,6 +103,110 @@ fn sync_external_formulas_adds_missing_builtins_to_an_opened_project() {
         .map(|node| node.node_data().meta.label.clone())
         .collect::<Vec<_>>();
     assert_eq!(labels_after_resync, vec!["Action", "Mapping"]);
+}
+
+#[test]
+fn sync_external_formulas_keeps_builtins_before_existing_formulas() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let mut formula = <AlchemistFormulaDefinition as Node>::project_create(
+        AlchemistFormulaDefinition::NODE_TYPE,
+    )
+    .expect("custom Formula should be creatable");
+    formula.node_data_mut().meta.label = "Shared".into();
+    engine.add_user_item(formula.into(), Some(library));
+    engine.apply_edits().expect("formula should attach");
+
+    assert_eq!(direct_formula_labels(&engine, library), vec!["Shared"]);
+
+    super::sync_external_formulas(&mut engine).expect("sync should succeed");
+    engine.apply_edits().expect("sync should settle");
+
+    assert_eq!(
+        direct_formula_labels(&engine, library),
+        vec!["Action", "Mapping", "Shared"]
+    );
+}
+
+#[test]
+fn sparse_project_omits_builtins_and_reloads_current_builtin_formulas() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+
+    super::sync_external_formulas(&mut engine).expect("builtin sync should succeed");
+    engine.apply_edits().expect("builtin formulas should attach");
+
+    let action_uuid = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(_, node)| node.node_data().meta.uuid)
+        .expect("Action builtin formula should exist");
+    let processor_id = attach_processor_referencing(&mut engine, action_uuid);
+    let processor_uuid = engine
+        .nodes
+        .get(processor_id)
+        .expect("processor should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("project should encode");
+    let project: serde_json::Value = serde_json::from_str(&json).expect("project should be JSON");
+    assert!(
+        !project_json_contains_node_type(&project, AlchemistFormulaDefinition::NODE_TYPE),
+        "built-in formulas are app-versioned assets and should not be persisted in project files"
+    );
+
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("project should decode");
+    super::sync_external_formulas(&mut loaded).expect("loaded project should sync builtins");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded)
+        .expect("loaded startup should settle");
+
+    let loaded_action = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(id, _)| id)
+        .expect("loaded project should regain current Action builtin");
+    let loaded_processor = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == processor_uuid)
+        .map(|(id, _)| id)
+        .expect("processor should reload");
+
+    assert!(
+        !node_has_warning_id(&loaded, loaded_action, FORMULA_WARNING_ID),
+        "reloaded current Action builtin should materialize without formula warnings"
+    );
+    assert!(
+        !node_has_warning_id(&loaded, loaded_processor, super::PROCESSOR_FORMULA_WARNING_ID),
+        "processor should keep resolving the stable Action builtin reference"
+    );
 }
 
 #[test]
@@ -1080,6 +1184,17 @@ fn node_has_warning_id(engine: &AppEngine, node: NodeId, warning_id: &str) -> bo
     })
 }
 
+fn direct_formula_labels(engine: &AppEngine, library: NodeId) -> Vec<String> {
+    engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect()
+}
+
 fn seed_formula_managed_regions(engine: &mut AppEngine, formula: NodeId, regions_json: &str) {
     let param = engine
         .process_tree_snapshot()
@@ -1248,4 +1363,23 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
         );
     }
     SharedFormulaDirTestOverride { previous }
+}
+
+fn project_json_contains_node_type(value: &serde_json::Value, node_type: &str) -> bool {
+    if value
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|value| value == node_type)
+    {
+        return true;
+    }
+    match value {
+        serde_json::Value::Array(items) => items
+            .iter()
+            .any(|item| project_json_contains_node_type(item, node_type)),
+        serde_json::Value::Object(fields) => fields
+            .values()
+            .any(|item| project_json_contains_node_type(item, node_type)),
+        _ => false,
+    }
 }

@@ -1,0 +1,447 @@
+{
+  "version": "1.0",
+  "root": {
+    "uuid": "2bfaa0b3-83c8-40c4-be99-89c5dc089e99",
+    "type": "folder",
+    "meta": {
+      "decl_id": "root",
+      "short_name": "root",
+      "enabled": true,
+      "can_be_disabled": false,
+      "label": "Root"
+    },
+    "children": [
+      {
+        "uuid": "afe0d80c-07b4-4788-ab39-9c9631bdbab7",
+        "type": "dashboard"
+      },
+      {
+        "uuid": "4ee677b2-8e6a-4818-86b7-e5499d088345",
+        "type": "alchemist_formula_library",
+        "children": [
+          {
+            "uuid": "c2f20eb6-de01-49fd-9127-5f1ab041d887",
+            "type": "str",
+            "meta": {
+              "decl_id": "shared_formula_dir",
+              "short_name": "sharedFormulasFolder",
+              "label": "Shared Formulas Folder"
+            },
+            "data": {
+              "control_modes_enabled": false,
+              "default_value": {
+                "Str": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas"
+              },
+              "read_only": true
+            }
+          },
+          {
+            "uuid": "ba513f2b-1c79-4064-bd80-68913c084077",
+            "type": "alchemist_formula",
+            "user_role": "itemRoot",
+            "meta": {
+              "label": "TestF 2",
+              "tags": [
+                "chataigne.formula.external.file"
+              ]
+            },
+            "children": [
+              {
+                "uuid": "da2af1a1-305d-46fe-ac50-4f8e796c3b22",
+                "type": "file",
+                "meta": {
+                  "decl_id": "external_formula_file",
+                  "short_name": "formulaFile",
+                  "label": "Formula File"
+                },
+                "data": {
+                  "value": {
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\testf.json"
+                  }
+                }
+              },
+              {
+                "uuid": "f2306e08-e9fe-41c4-b2f5-258580ad80cb",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "external_formula_source",
+                  "short_name": "externalFormulaSource",
+                  "label": "External Formula Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              },
+              {
+                "uuid": "1f324912-d51b-432c-b479-d500ebd659ee",
+                "type": "bool",
+                "meta": {
+                  "decl_id": "external_formula_delete_file",
+                  "short_name": "deleteExternalFormulaFile",
+                  "label": "Delete External Formula File",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "1e639df8-a20d-402a-9707-ec22c481c650",
+        "type": "module_manager",
+        "children": [
+          {
+            "uuid": "82a637c2-edeb-4b78-8371-f7e8b67097c2",
+            "type": "metronomes_module",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "50818a64-f6ba-4fd6-82bc-72a9a04c66fb",
+                "type": "folder",
+                "meta": {
+                  "decl_id": "values"
+                },
+                "children": [
+                  {
+                    "uuid": "2c9a69b2-5850-27ce-da82-bb896c1da71a",
+                    "type": "trigger",
+                    "meta": {
+                      "decl_id": "metronome_41ff1dc0373e48a3bfddcde80068c21a",
+                      "short_name": "metronome_41ff1dc0373e48a3bfddcde80068c21a",
+                      "label": "Metronome",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "data": {
+                      "read_only": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "2ff9c0d9-e4a9-465a-8914-5df9eb70f7a2",
+        "type": "state_machine_manager",
+        "children": [
+          {
+            "uuid": "52b9f322-749a-437e-9fd6-b3ca80c32143",
+            "type": "state",
+            "user_role": "itemRoot",
+            "children": [
+              {
+                "uuid": "52f4c1b9-7a33-4e9e-b650-db24a1d55e5f",
+                "type": "vec2",
+                "meta": {
+                  "decl_id": "position"
+                },
+                "data": {
+                  "value": {
+                    "Vec2": [
+                      47.0,
+                      0.0
+                    ]
+                  }
+                }
+              },
+              {
+                "uuid": "02b73cb6-0435-441e-86ee-cc92634fe2a3",
+                "type": "state_processor_manager",
+                "meta": {
+                  "decl_id": "processors",
+                  "presentation": {
+                    "show_in_nested_inspector": false
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "71e34161-ed9a-4f9f-9509-eb8f01a4d690",
+                    "type": "state_processor",
+                    "user_role": "itemRoot",
+                    "meta": {
+                      "label": "Action",
+                      "presentation": {
+                        "icon": "data:image/svg+xml;base64,PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIFRyYW5zZm9ybWVkIGJ5OiBTVkcgUmVwbyBNaXhlciBUb29scyAtLT4KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KDTxnIGlkPSJTVkdSZXBvX2JnQ2FycmllciIgc3Ryb2tlLXdpZHRoPSIwIi8+Cg08ZyBpZD0iU1ZHUmVwb190cmFjZXJDYXJyaWVyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KDTxnIGlkPSJTVkdSZXBvX2ljb25DYXJyaWVyIj4gPHBhdGggZD0iTTExLjI0OTcgMy44OTg2M1YxMi45MTg2QzExLjI0OTcgMTMuMjQ4NiAxMS4wODk3IDEzLjU0ODYgMTAuODE5NyAxMy43Mzg2TDMuNjA5NjkgMTguNzg4NkMzLjAxOTY5IDE5LjE5ODYgMi4xNzk2OSAxOC44Nzg2IDIuMDQ5NjkgMTguMTY4NkMxLjg5OTY5IDE3LjMwODYgMi4wOTk2OSAxNi4yOTg2IDIuNjk5NjkgMTUuMjA4Nkw1LjgxOTY5IDkuNTk4NjRMOC43NTk2OSA0LjMwODYzQzguOTg5NjkgMy44OTg2MyA5LjIzOTY5IDMuNTM4NjMgOS40OTk2OSAzLjIyODYzQzEwLjA5OTcgMi41Mjg2MyAxMS4yNDk3IDIuOTc4NjMgMTEuMjQ5NyAzLjg5ODYzWiIgZmlsbD0iI2Y4NjhlYyIvPiA8cGF0aCBkPSJNMjAuMzkgMTguNzg4NkwxMy4xOCAxMy43Mzg2QzEyLjkxIDEzLjU0ODYgMTIuNzUgMTMuMjQ4NiAxMi43NSAxMi45MTg2VjMuODk4NjNDMTIuNzUgMi45Nzg2MyAxMy45IDIuNTI4NjMgMTQuNSAzLjIyODYzQzE0Ljc2IDMuNTM4NjMgMTUuMDEgMy44OTg2MyAxNS4yNCA0LjMwODYzTDE4LjE4IDkuNTk4NjRMMjEuMyAxNS4yMDg2QzIxLjkgMTYuMjk4NiAyMi4xIDE3LjMwODYgMjEuOTUgMTguMTY4NkMyMS44MiAxOC44Nzg2IDIwLjk4IDE5LjE5ODYgMjAuMzkgMTguNzg4NloiIGZpbGw9IiNmODY4ZWMiLz4gPHBhdGggZD0iTTUuMjYwMTggMTkuMTRMMTEuNDEwMiAxNS4wNEMxMS43NDAyIDE0LjgyIDEyLjI4MDIgMTQuODIgMTIuNjEwMiAxNS4wNEwxOC43NjAyIDE5LjE0QzIwLjM5MDIgMjAuMjMgMjAuMTIwMiAyMS4xMiAxOC4xNjAyIDIxLjEySDUuODUwMThDMy45MDAxOCAyMS4xMSAzLjYzMDE4IDIwLjIyIDUuMjYwMTggMTkuMTRaIiBmaWxsPSIjZjg2OGVjIi8+IDwvZz4KDTwvc3ZnPg=="
+                      }
+                    },
+                    "data": {
+                      "formula_source": {
+                        "Project": {
+                          "uuid": "11111111-2222-4333-8444-000000000001"
+                        }
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "5f357b3b-8fc8-4da5-b267-9769e7d2b70e",
+                        "type": "reference",
+                        "meta": {
+                          "decl_id": "formula"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Reference": {
+                              "uuid": "11111111-2222-4333-8444-000000000001"
+                            }
+                          },
+                          "value": {
+                            "Reference": {
+                              "cached_name": "Action",
+                              "relative_path_from_root": [
+                                "formulas",
+                                "formula"
+                              ],
+                              "uuid": "11111111-2222-4333-8444-000000000001"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "64332d9b-c3e3-4fd5-b672-266a514b3637",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "formula_source_key"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": "state_processor:project:11111111-2222-4333-8444-000000000001"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "1ab73914-2d78-4fbc-8e52-145192bb1a73",
+                        "type": "state_processor_managed_regions",
+                        "meta": {
+                          "decl_id": "managed_regions"
+                        },
+                        "children": [
+                          {
+                            "uuid": "b8e1478f-415b-46ba-8898-e2afd238086a",
+                            "type": "state_processor_managed_region",
+                            "meta": {
+                              "decl_id": "managed_region/conditions",
+                              "label": "Conditions",
+                              "tags": [
+                                "state_processor.managed_region.role:input"
+                              ]
+                            }
+                          },
+                          {
+                            "uuid": "c85ff64a-fcf1-4688-9fa8-e5c61a027f9d",
+                            "type": "state_processor_managed_region",
+                            "meta": {
+                              "decl_id": "managed_region/on_true",
+                              "label": "On True",
+                              "tags": [
+                                "state_processor.managed_region.role:command"
+                              ]
+                            }
+                          },
+                          {
+                            "uuid": "5254d33d-f304-4ca9-8b3c-1f4715652274",
+                            "type": "state_processor_managed_region",
+                            "meta": {
+                              "decl_id": "managed_region/on_false",
+                              "label": "On False",
+                              "tags": [
+                                "state_processor.managed_region.role:command"
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "374f7e7d-f647-4c54-b173-958c95c756ac",
+                        "type": "sm_condition_manager",
+                        "meta": {
+                          "decl_id": "surface/a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.186,
+                              "g": 0.569,
+                              "b": 0.8171,
+                              "a": 1.0
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "0e6ba60c-ea86-44c8-98f9-245797cdbc95",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/23999a34-6c29-4850-8b52-e77b9b8d7873",
+                          "label": "On True",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.3785,
+                              "g": 0.8584,
+                              "b": 0.2502,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "45a078aa-1289-4a25-8887-638c6ae49f84",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "95215fb7-529b-46a2-ab45-19fdbe417b5a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a3615ff9-b05f-4b1a-bb96-dbb777d38575",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f785e550-8259-46c9-a8fd-663aba8d845f",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "14b1f7ca-54d8-4fb8-94b0-e13066bf70c2",
+                        "type": "sm_outputs_manager",
+                        "meta": {
+                          "decl_id": "surface/a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                          "label": "On False",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.8471,
+                              "g": 0.427,
+                              "b": 0.0987,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "2488fe1a-2f79-4155-b575-addb16f25ec7",
+                            "type": "folder",
+                            "meta": {
+                              "decl_id": "advanced",
+                              "user_permissions": {}
+                            },
+                            "children": [
+                              {
+                                "uuid": "353a7ebc-092c-4811-bc7c-f0eb70bd9d15",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "38aa4935-660a-44e9-bc83-654a173e7924",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "59acdf51-d5d4-41da-86f6-bef2c9520da0",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

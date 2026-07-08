@@ -162,20 +162,29 @@ impl WatchedAppMetricsWorker {
             metrics_by_target: Mutex::new(HashMap::new()),
             stop_requested: AtomicBool::new(false),
         });
-        let worker_state = Arc::clone(&state);
-        let worker = thread::spawn(move || watched_app_worker_loop(worker_state));
 
         Self {
             state,
-            worker: Some(worker),
+            worker: None,
         }
     }
 
-    fn sync_targets<'a, I>(&self, target_paths: I)
+    fn ensure_started(&mut self) {
+        if self.worker.is_some() {
+            return;
+        }
+
+        self.state.stop_requested.store(false, Ordering::Relaxed);
+        let worker_state = Arc::clone(&self.state);
+        self.worker = Some(thread::spawn(move || watched_app_worker_loop(worker_state)));
+    }
+
+    fn sync_targets<'a, I>(&mut self, target_paths: I)
     where
         I: IntoIterator<Item = &'a str>,
     {
         let target_paths = dedupe_watched_app_paths(target_paths);
+        let has_targets = !target_paths.is_empty();
         let allowed_keys = target_paths
             .iter()
             .map(|path| watched_app_target_key(path.as_str()))
@@ -192,7 +201,12 @@ impl WatchedAppMetricsWorker {
         }
 
         *lock_unpoisoned(&self.state.target_paths) = target_paths;
-        self.request_refresh();
+        if has_targets {
+            self.ensure_started();
+        }
+        if self.worker.is_some() {
+            self.request_refresh();
+        }
     }
 
     fn watched_app_metrics(&self, target_path: &str) -> WatchedAppMetrics {
@@ -208,7 +222,7 @@ impl WatchedAppMetricsWorker {
         }
     }
 
-    fn reset(&self) {
+    fn reset(&mut self) {
         self.sync_targets(std::iter::empty::<&str>());
     }
 
@@ -235,13 +249,8 @@ pub(crate) struct AppControlRuntime {
 
 impl AppControlRuntime {
     pub(crate) fn create() -> Self {
-        let mut system = System::new_all();
-        system.refresh_cpu_usage();
-        system.refresh_memory();
-        system.refresh_processes(ProcessesToUpdate::All, true);
-
         Self {
-            system,
+            system: System::new(),
             watched_app_worker: WatchedAppMetricsWorker::create(),
             folder_snapshots: HashMap::new(),
         }
@@ -252,7 +261,7 @@ impl AppControlRuntime {
         self.folder_snapshots.clear();
     }
 
-    pub(crate) fn sync_watched_app_targets<'a, I>(&self, target_paths: I)
+    pub(crate) fn sync_watched_app_targets<'a, I>(&mut self, target_paths: I)
     where
         I: IntoIterator<Item = &'a str>,
     {

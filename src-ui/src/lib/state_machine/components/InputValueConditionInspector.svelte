@@ -180,7 +180,8 @@
 	};
 
 	const isModuleNode = (candidate: UiNodeDto | null): boolean =>
-		candidate?.user_item_kind === 'module';
+		candidate !== null &&
+		(candidate.user_item_kind === 'module' || childByDeclId(candidate, 'values') !== null);
 
 	const isModuleValuesBranch = (candidate: UiNodeDto): boolean => {
 		if (!graphNodesById || !graphParentById) return false;
@@ -198,8 +199,21 @@
 		return false;
 	};
 
+	const isModuleValuesFolder = (candidate: UiNodeDto | null): boolean => {
+		if (!candidate || !graphNodesById || !graphParentById || candidate.decl_id !== 'values') {
+			return false;
+		}
+		const parentId = graphParentById.get(candidate.node_id);
+		const parentNode = parentId === undefined ? null : (graphNodesById.get(parentId) ?? null);
+		return isModuleNode(parentNode);
+	};
+
 	const moduleValueViewFilter = (candidate: UiNodeDto): boolean =>
 		isModuleNode(candidate) || isModuleValuesBranch(candidate);
+
+	const moduleValueViewRowFilter = (candidate: UiNodeDto): boolean =>
+		isModuleNode(candidate) ||
+		(isModuleValuesBranch(candidate) && !isModuleValuesFolder(candidate));
 
 	const referencedNodeId = (value: ParamValue | null): NodeId | null => {
 		if (!graphNodesById || value?.kind !== 'reference') return null;
@@ -287,7 +301,8 @@
 		{
 			id: 'module-value',
 			label: 'Module Value',
-			nodeVisibilityFilter: moduleValueViewFilter
+			nodeVisibilityFilter: moduleValueViewFilter,
+			nodeRowVisibilityFilter: moduleValueViewRowFilter
 		},
 		{
 			id: 'generic',

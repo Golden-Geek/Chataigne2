@@ -119,6 +119,10 @@ const metadataColor = (color: UiColorDto | null | undefined): string | undefined
 	return `rgb(${r} ${g} ${b} / ${clamp01(color.a)})`;
 };
 
+const presentationColor = (
+	presentation: UiNodeDto['meta']['presentation'] | null | undefined
+): string | undefined => metadataColor(presentation?.color ?? presentation?.default_color);
+
 const valueTypeColor = (typeId: string | null | undefined): string | undefined => {
 	switch (typeId) {
 		case 'trigger':
@@ -358,7 +362,7 @@ const graphSockets = (
 		if (socketIds.has(id)) return [];
 		socketIds.add(id);
 		const valueType = socketParameter(socket, nodesById, `${declId}/value_type`) ?? undefined;
-		const color = metadataColor(socket.meta.presentation?.color) ?? valueTypeColor(valueType);
+		const color = presentationColor(socket.meta.presentation) ?? valueTypeColor(valueType);
 		const defaultParamId = socketDefaultParamId(socket, nodesById, folderDeclId, id);
 		return [socketWithComponents(id, socket.meta.label, valueType, color, defaultParamId)];
 	});
@@ -565,7 +569,7 @@ export const toGraphNodes = (
 			collapsed: anode.meta.presentation?.collapsed === true,
 			enabled: anode.meta.enabled,
 			canDisable: anode.meta.can_be_disabled,
-			color: metadataColor(anode.meta.presentation?.color),
+			color: presentationColor(anode.meta.presentation),
 			position: {
 				x: position?.kind === 'vec2' ? position.value[0] : 0,
 				y: position?.kind === 'vec2' ? position.value[1] : 0

@@ -1,18 +1,12 @@
 use golden_core::{
     color::Color,
     item, node,
-    node::{Node, NodeUserPermissions},
-    parameter::ParamValue,
+    node::{Node, NodeId, NodeMetaPatch, NodeUserPermissions},
     process_ctx::ProcessCtx,
 };
 
 #[node("state", label = "State")]
 #[children(
-    active: bool = true (
-        label = "Active",
-        description = "Whether this State is active in its connected State Network.",
-        callback = Self::active_changed
-    );
     description: String = String::new() (
         label = "Description",
         description = "User-authored description for this State."
@@ -43,27 +37,30 @@ use golden_core::{
 )]
 pub struct StateMachineState {}
 
-impl StateMachineState {
-    fn active_changed(&mut self, ctx: &mut ProcessCtx, _old_value: ParamValue) {
-        let preferred_active = self.active.get().then_some(self.id());
-        let forced_inactive = (!self.active.get()).then_some(self.id());
-        crate::app::state_machine_nodes_transition::reconcile_state_networks(
-            ctx,
-            preferred_active,
-            forced_inactive,
-            None,
-        );
-    }
-}
-
 #[item("state", node = "state", from_struct)]
 impl Node for StateMachineState {
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let meta = &mut self.node_data_mut().meta;
         meta.user_permissions = NodeUserPermissions::all();
-        if meta.presentation.color.is_none() {
-            meta.presentation.color = Some(Color::new(0.28, 0.56, 0.92, 1.0));
+        meta.can_be_disabled = true;
+        if meta.presentation.default_color.is_none() {
+            meta.presentation.default_color = Some(Color::new(0.28, 0.56, 0.92, 1.0));
         }
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: NodeMetaPatch) {
+        if node != self.id() {
+            return;
+        }
+        let Some(enabled) = patch.enabled else {
+            return;
+        };
+        crate::app::state_machine_nodes_transition::reconcile_state_networks(
+            ctx,
+            enabled.then_some(self.id()),
+            (!enabled).then_some(self.id()),
+            None,
+        );
     }
 
     fn project_create(node_type: &str) -> Option<Self> {

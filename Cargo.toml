@@ -55,6 +55,7 @@ libloading = "0.8"
 midir = "0.11.0"
 midly = "0.5.3"
 mio = { version = "1.2", features = ["net", "os-poll"] }
+notify = "8.2"
 open_dmx = "1.1.1"
 rand = "0.10.0"
 regex = "1"

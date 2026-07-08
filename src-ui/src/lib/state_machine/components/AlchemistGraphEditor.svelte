@@ -13,6 +13,7 @@
 		type GraphViewportInset
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
 	import lockIcon from '../../golden_alchemist_ui/icons/lock.svg';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
@@ -133,6 +134,13 @@
 			: outputPreview(graphNode, socket);
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
 		!readOnly && canConnectGraphConnection(nodes, connection);
+	const openGraphNodeContextMenu = (event: MouseEvent, nodeId: string): void => {
+		const parsedNodeId = Number(nodeId);
+		if (!Number.isSafeInteger(parsedNodeId)) {
+			return;
+		}
+		openNodeContextMenu(parsedNodeId, event.clientX, event.clientY);
+	};
 
 	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
 		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
@@ -173,6 +181,7 @@
 		onNodeEnabledChange={readOnly ? undefined : onNodeEnabledChange}
 		onConnect={readOnly ? undefined : onConnect}
 		{canConnect}
+		onNodeContextMenu={readOnly ? undefined : openGraphNodeContextMenu}
 		onBackgroundContextMenu={readOnly ? undefined : onBackgroundContextMenu}
 		onCreateRequest={readOnly ? undefined : onCreateRequest}
 		{initialCamera}

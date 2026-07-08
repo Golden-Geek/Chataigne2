@@ -546,7 +546,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .node_data()
         .meta
         .presentation
-        .color;
+        .default_color;
     let value_color = engine
         .nodes
         .get(value)
@@ -554,7 +554,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .node_data()
         .meta
         .presentation
-        .color;
+        .default_color;
     assert!(property_color.is_some());
     assert_eq!(property_color, value_color);
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -667,7 +667,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             .node_data()
             .meta
             .presentation
-            .color,
+            .default_color,
         property_presentation.color
     );
 

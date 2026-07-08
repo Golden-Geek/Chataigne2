@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use golden_alchemist::{
     ANodeDeclaration, ANodeId, ANodeInstance, AlchemistFormula, AlchemistFormulaInstance, AlchemistGraph,
-    AlchemistRuntime, CompileCtx, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertySchema, FormulaRef,
-    FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition,
-    ManagedRegionId, ManagedRegionInstance, ManagedRegionKind, OutputSocketRef, PrimitiveNodeDeclaration,
-    PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries, RuntimeValue, SocketId, StableRef, SurfaceItemKind,
-    TriggerValue, ValueTypeId, ValueTypeRegistry, compile_graph,
+    AlchemistRuntime, CompileCtx, DebugCaptureMode, EvaluationCtx, FormulaContextContract, FormulaId,
+    FormulaPropertySchema, FormulaRef, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance,
+    ManagedItemUiState, ManagedRegionDefinition, ManagedRegionId, ManagedRegionInstance, ManagedRegionKind,
+    OutputSocketRef, PrimitiveNodeDeclaration, PrimitiveNodeKind, RuntimeInputSnapshot, RuntimeRegistries,
+    RuntimeValue, SocketId, StableRef, SurfaceItemKind, TriggerValue, ValueTypeId, ValueTypeRegistry, compile_graph,
 };
 use golden_statechart::StateId;
 
@@ -394,6 +394,61 @@ fn trigger_input_produces_command_intent() {
     };
     assert!(trigger.fired);
     assert_eq!(trigger.edge_id, 7);
+}
+
+#[test]
+fn trigger_pipeline_allows_multiple_command_regions() {
+    let (mut formula, mut instance) = trigger_pipeline_formula_and_instance();
+    formula.surface.managed_regions.push(ManagedRegionDefinition {
+        id: ManagedRegionId::new("commands_false"),
+        kind: ManagedRegionKind::CommandSet,
+        label: "On False".into(),
+        input_socket: None,
+        output_socket: None,
+        accepted_roles: vec![SurfaceItemKind::Command],
+    });
+
+    let source = endpoint_ref("module/trigger");
+    let target_true = command_target("target/on_true");
+    let target_false = command_target("target/on_false");
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("trigger"),
+        region("trigger", vec![input_item("Trigger", source.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands"),
+        region("commands", vec![output_item("On True", target_true.clone())]),
+    );
+    instance.managed_regions.regions.insert(
+        ManagedRegionId::new("commands_false"),
+        region("commands_false", vec![output_item("On False", target_false.clone())]),
+    );
+
+    let mut runtime = compile_managed_formula(&formula, &instance);
+    let mut inputs = RuntimeInputSnapshot::default();
+    inputs.insert(source, RuntimeValue::Trigger(TriggerValue::fired(8, 16)));
+    let value_types = crate::alchemist::value_type_registry();
+    let registries = RuntimeRegistries {
+        value_types: &value_types,
+    };
+    let ctx = eval_ctx(16, &inputs, &registries);
+
+    let output = runtime.evaluate(&ctx);
+
+    assert!(output.diagnostics.is_empty());
+    assert_eq!(output.intents.len(), 2);
+    assert!(
+        output
+            .intents
+            .iter()
+            .any(|intent| intent.target.as_ref() == Some(&target_true))
+    );
+    assert!(
+        output
+            .intents
+            .iter()
+            .any(|intent| intent.target.as_ref() == Some(&target_false))
+    );
 }
 
 #[test]
@@ -876,7 +931,7 @@ fn evaluate_direct_output(graph: AlchemistGraph, output_node: ANodeId, socket: &
         value_types: &value_types,
     };
     let ctx = eval_ctx(1, &inputs, &registries);
-    let output = runtime.evaluate(&ctx);
+    let output = runtime.evaluate_with_capture_mode(&ctx, DebugCaptureMode::All { history_len: 64 });
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     output
         .debug_samples

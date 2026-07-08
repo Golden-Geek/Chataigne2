@@ -25,13 +25,13 @@ enum ManagedFormulaRuntimeKind {
 struct ValuePipelineRuntime {
     input_set: InputSetRuntime,
     filter_pipeline: ManagedFilterPipelineRuntime,
-    output_set: OutputSetRuntime,
+    output_sets: Vec<OutputSetRuntime>,
 }
 
 struct TriggerPipelineRuntime {
     trigger: TriggerInputRuntime,
     filter_pipeline: ManagedFilterPipelineRuntime,
-    commands: CommandSetRuntime,
+    commands: Vec<CommandSetRuntime>,
 }
 
 impl ManagedFormulaRuntime {
@@ -68,11 +68,17 @@ impl ManagedFormulaRuntime {
         ctx: &CompileCtx<'_>,
     ) -> Result<Self, ManagedFormulaError> {
         let input = required_region(&formula.surface.managed_regions, ManagedRegionKind::InputSet)?;
-        let output = required_region(&formula.surface.managed_regions, ManagedRegionKind::OutputSet)?;
+        let outputs = required_regions(&formula.surface.managed_regions, ManagedRegionKind::OutputSet)?;
         let filter = optional_region(&formula.surface.managed_regions, ManagedRegionKind::FilterPipeline)?;
 
         let input_instance = required_region_instance(instance, &input.id)?;
-        let output_instance = required_region_instance(instance, &output.id)?;
+        let output_sets = outputs
+            .into_iter()
+            .map(|definition| {
+                let region = required_region_instance(instance, &definition.id)?;
+                OutputSetRuntime::from_managed_region(definition, region).map_err(ManagedFormulaError::from)
+            })
+            .collect::<Result<Vec<_>, ManagedFormulaError>>()?;
         let filter_instance = filter
             .map(|definition| required_region_instance(instance, &definition.id).map(|region| (definition, region)))
             .transpose()?;
@@ -81,7 +87,7 @@ impl ManagedFormulaRuntime {
             kind: ManagedFormulaRuntimeKind::ValuePipeline(ValuePipelineRuntime {
                 input_set: InputSetRuntime::from_managed_region(input, input_instance)?,
                 filter_pipeline: ManagedFilterPipelineRuntime::new(filter_instance, ctx)?,
-                output_set: OutputSetRuntime::from_managed_region(output, output_instance)?,
+                output_sets,
             }),
         })
     }
@@ -92,11 +98,17 @@ impl ManagedFormulaRuntime {
         ctx: &CompileCtx<'_>,
     ) -> Result<Self, ManagedFormulaError> {
         let trigger = required_region(&formula.surface.managed_regions, ManagedRegionKind::TriggerInput)?;
-        let commands = required_region(&formula.surface.managed_regions, ManagedRegionKind::CommandSet)?;
+        let command_regions = required_regions(&formula.surface.managed_regions, ManagedRegionKind::CommandSet)?;
         let filter = optional_region(&formula.surface.managed_regions, ManagedRegionKind::FilterPipeline)?;
 
         let trigger_instance = required_region_instance(instance, &trigger.id)?;
-        let commands_instance = required_region_instance(instance, &commands.id)?;
+        let commands = command_regions
+            .into_iter()
+            .map(|definition| {
+                let region = required_region_instance(instance, &definition.id)?;
+                CommandSetRuntime::from_managed_region(definition, region)
+            })
+            .collect::<Result<Vec<_>, ManagedFormulaError>>()?;
         let filter_instance = filter
             .map(|definition| required_region_instance(instance, &definition.id).map(|region| (definition, region)))
             .transpose()?;
@@ -105,7 +117,7 @@ impl ManagedFormulaRuntime {
             kind: ManagedFormulaRuntimeKind::TriggerPipeline(TriggerPipelineRuntime {
                 trigger: TriggerInputRuntime::from_managed_region(trigger, trigger_instance)?,
                 filter_pipeline: ManagedFilterPipelineRuntime::new(filter_instance, ctx)?,
-                commands: CommandSetRuntime::from_managed_region(commands, commands_instance)?,
+                commands,
             }),
         })
     }
@@ -136,13 +148,19 @@ impl ValuePipelineRuntime {
 
         match filtered {
             ManagedFilterOutput::ValueSet(values) => match values.to_runtime_value() {
-                Ok(value) => merge_output_set(&mut output, self.output_set.materialize(&value, ctx)),
+                Ok(value) => {
+                    for output_set in &self.output_sets {
+                        merge_output_set(&mut output, output_set.materialize(&value, ctx));
+                    }
+                }
                 Err(error) => output
                     .diagnostics
                     .push(runtime_error("managed_formula_valueset_error", error)),
             },
             ManagedFilterOutput::Single(value) => {
-                merge_output_set(&mut output, self.output_set.materialize(&value, ctx));
+                for output_set in &self.output_sets {
+                    merge_output_set(&mut output, output_set.materialize(&value, ctx));
+                }
             }
         }
         output
@@ -167,7 +185,9 @@ impl TriggerPipelineRuntime {
             Ok(value) => value,
             Err(error) => return runtime_error_output(error),
         };
-        merge_runtime_output(&mut output, self.commands.materialize(&value, ctx));
+        for commands in &self.commands {
+            merge_runtime_output(&mut output, commands.materialize(&value, ctx));
+        }
         output
     }
 }
@@ -191,6 +211,20 @@ fn required_region(
     kind: ManagedRegionKind,
 ) -> Result<&ManagedRegionDefinition, ManagedFormulaError> {
     optional_region(definitions, kind)?.ok_or(ManagedFormulaError::MissingRegion { kind })
+}
+
+fn required_regions(
+    definitions: &[ManagedRegionDefinition],
+    kind: ManagedRegionKind,
+) -> Result<Vec<&ManagedRegionDefinition>, ManagedFormulaError> {
+    let matching = definitions
+        .iter()
+        .filter(|definition| definition.kind == kind)
+        .collect::<Vec<_>>();
+    if matching.is_empty() {
+        return Err(ManagedFormulaError::MissingRegion { kind });
+    }
+    Ok(matching)
 }
 
 fn optional_region(

@@ -1188,9 +1188,6 @@ fn active_state_nodes(snapshot: &ProcessTreeSnapshot, manager: NodeId) -> Vec<No
             snapshot
                 .node(*state)
                 .is_some_and(|node| node.node_type == STATE_NODE_TYPE && node.enabled)
-                && child_param(snapshot, *state, "active")
-                    .and_then(|value| value.as_bool())
-                    .unwrap_or(false)
         })
         .collect()
 }

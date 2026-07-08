@@ -21,19 +21,25 @@ struct BuildPaths {
     ui_assets_rs: PathBuf,
     app_nodes_rs: PathBuf,
     ui_root: PathBuf,
-    npm_ci_stamp: PathBuf,
+    npm_deps_stamp: PathBuf,
 }
 
 impl BuildPaths {
     fn from_env() -> Self {
         let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is not set"));
+        let ui_root = PathBuf::from("src-ui");
+        let npm_deps_stamp = ui_root
+            .join("node_modules")
+            .join(".cache")
+            .join("chataigne2")
+            .join("package-lock.hash");
         Self {
             out_dir: out_dir.clone(),
             bundled_ui_dir: out_dir.join("ui-dist"),
             ui_assets_rs: out_dir.join("ui_assets.rs"),
             app_nodes_rs: out_dir.join("app_nodes.rs"),
-            npm_ci_stamp: out_dir.join("src-ui-package-lock.hash"),
-            ui_root: PathBuf::from("src-ui"),
+            ui_root,
+            npm_deps_stamp,
         }
     }
 
@@ -287,28 +293,73 @@ fn ensure_ui_dependencies(paths: &BuildPaths) -> std::io::Result<()> {
 
     let lockfile = paths.ui_root.join("package-lock.json");
     let current_hash = file_hash(&lockfile)?;
-    let previous_hash = fs::read_to_string(&paths.npm_ci_stamp)
+    let previous_hash = fs::read_to_string(&paths.npm_deps_stamp)
         .ok()
         .map(|value| value.trim().to_string());
 
     let force_ci = env_flag(GC_FORCE_NPM_CI);
-    let missing_node_modules = !paths.ui_root.join("node_modules").exists();
-    let stale_lockfile = previous_hash.as_deref() != Some(current_hash.as_str());
+    let has_node_modules = paths.ui_root.join("node_modules").exists();
+    let node_modules_ready = ui_node_modules_ready(paths);
 
-    if force_ci || missing_node_modules || stale_lockfile {
-        if force_ci {
-            println!("cargo:warning={GC_FORCE_NPM_CI}=1; running npm ci");
-        } else if missing_node_modules {
-            println!("cargo:warning=src-ui/node_modules is missing; running npm ci");
-        } else {
-            println!("cargo:warning=src-ui/package-lock.json changed; running npm ci");
-        }
-
+    if force_ci {
+        println!("cargo:warning={GC_FORCE_NPM_CI}=1; running npm ci");
         run_npm_command(&paths.ui_root, &["ci", "--ignore-scripts"], &[])?;
-        fs::write(&paths.npm_ci_stamp, current_hash)?;
+        write_npm_deps_stamp(paths, &current_hash)?;
+        return Ok(());
+    }
+
+    if !has_node_modules {
+        println!("cargo:warning=src-ui/node_modules is missing; running npm ci");
+        run_npm_command(&paths.ui_root, &["ci", "--ignore-scripts"], &[])?;
+        write_npm_deps_stamp(paths, &current_hash)?;
+        return Ok(());
+    }
+
+    if !node_modules_ready {
+        println!("cargo:warning=src-ui/node_modules is incomplete; running npm install");
+        run_npm_command(&paths.ui_root, &["install", "--ignore-scripts"], &[])?;
+        write_npm_deps_stamp(paths, &current_hash)?;
+        return Ok(());
+    }
+
+    match previous_hash.as_deref() {
+        Some(previous) if previous == current_hash => {}
+        None => {
+            println!("cargo:warning=src-ui dependency stamp is missing; trusting existing node_modules");
+            write_npm_deps_stamp(paths, &current_hash)?;
+        }
+        Some(_) => {
+            println!("cargo:warning=src-ui/package-lock.json changed; running npm install");
+            run_npm_command(&paths.ui_root, &["install", "--ignore-scripts"], &[])?;
+            write_npm_deps_stamp(paths, &current_hash)?;
+        }
     }
 
     Ok(())
+}
+
+fn ui_node_modules_ready(paths: &BuildPaths) -> bool {
+    paths
+        .ui_root
+        .join("node_modules")
+        .join(".bin")
+        .join(vite_bin_name())
+        .exists()
+}
+
+fn vite_bin_name() -> &'static str {
+    if cfg!(windows) {
+        "vite.cmd"
+    } else {
+        "vite"
+    }
+}
+
+fn write_npm_deps_stamp(paths: &BuildPaths, hash: &str) -> std::io::Result<()> {
+    if let Some(parent) = paths.npm_deps_stamp.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&paths.npm_deps_stamp, hash)
 }
 
 fn build_ui_bundle(paths: &BuildPaths) -> std::io::Result<()> {

@@ -120,6 +120,81 @@ fn shipped_builtin_formula_files_load_as_read_only_external_formulas() {
 }
 
 #[test]
+fn exported_formula_json_uses_tagged_parameter_values() {
+    let engine = engine_with_builtin_formula_library();
+    let action_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(id, _)| id)
+        .expect("Action formula should exist");
+    let snapshot = engine.process_tree_snapshot();
+    let export = FormulaCatalog::export_formula_json(&snapshot, action_id)
+        .expect("Action formula should export");
+    let export: serde_json::Value =
+        serde_json::from_str(&export).expect("formula export should be JSON");
+    let root = export
+        .get("nodes")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|nodes| nodes.first())
+        .expect("formula export should contain a root node");
+
+    let managed_regions =
+        exported_node_by_decl_id(root, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+            .expect("managed region metadata should be exported");
+    assert_eq!(managed_regions["data"]["param"]["value"]["kind"], "str");
+    assert!(managed_regions["data"]["param"]["value"]["value"]
+        .as_str()
+        .is_some_and(|value| value.contains("on_true")));
+
+    let role = exported_node_by_decl_id(root, "role").expect("role should be exported");
+    assert_eq!(role["data"]["param"]["value"]["kind"], "enum");
+}
+
+#[test]
+fn exported_builtin_formula_import_accepts_legacy_untagged_param_values() {
+    let mut action: serde_json::Value =
+        serde_json::from_str(ACTION_FORMULA).expect("Action export should be JSON");
+    let root = action
+        .get_mut("nodes")
+        .and_then(serde_json::Value::as_array_mut)
+        .and_then(|nodes| nodes.first_mut())
+        .expect("Action export should contain a formula root");
+
+    let managed_regions =
+        exported_node_by_decl_id_mut(root, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+            .expect("managed region metadata should be exported");
+    let managed_regions_value = managed_regions["data"]["param"]["value"]["value"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    managed_regions["data"]["param"]["value"] = serde_json::json!(managed_regions_value);
+
+    let role = exported_node_by_decl_id_mut(root, "role").expect("role should be exported");
+    let role_value = role["data"]["param"]["value"]["value"]
+        .as_str()
+        .expect("role should have a string value")
+        .to_owned();
+    role["data"]["param"]["value"] = serde_json::json!(role_value);
+
+    let dir = temp_builtin_formula_dir("legacy_untagged_param_values");
+    fs::write(
+        dir.join("Action.json"),
+        serde_json::to_string_pretty(&action).expect("mutated Action export should encode"),
+    )
+    .expect("temp Action export should be writable");
+
+    let trees = FormulaCatalog::builtin_formula_trees(&dir)
+        .expect("Action formula with legacy untagged values should load");
+
+    assert_eq!(trees.len(), 1);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn processor_palette_places_session_formulas_after_builtin_separator() {
     let catalog = catalog_with_project_formula("Session Formula");
     let palette = catalog.processor_palette_items();
@@ -218,6 +293,41 @@ fn missing_shared_formula_trees_creates_external_file_formulas_for_new_shared_fi
         vec!["MyShared"],
         "only the not-yet-linked shared file should be reported as missing"
     );
+
+    fs::remove_dir_all(&shared_dir).ok();
+}
+
+#[test]
+fn stale_shared_formula_nodes_reports_links_whose_files_were_removed() {
+    let shared_dir = temp_builtin_formula_dir("shared_stale");
+    let removed_path = shared_dir.join("Removed.json");
+    let kept_path = shared_dir.join("Kept.json");
+    fs::write(&kept_path, "placeholder").expect("kept shared file should write");
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    library_tree.push_child(external_formula_tree_for_path(&removed_path, "Removed"));
+    library_tree.push_child(external_formula_tree_for_path(&kept_path, "Kept"));
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine.apply_edits().expect("formula library should attach");
+    }
+
+    let library_id = formula_library_id(&engine);
+    let snapshot = engine.process_tree_snapshot();
+    let stale = FormulaCatalog::stale_shared_formula_nodes(&snapshot, library_id, &shared_dir)
+        .expect("shared directory should scan");
+    let stale_labels = stale
+        .into_iter()
+        .filter_map(|node| snapshot.node(node).map(|node| node.label.clone()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(stale_labels, vec!["Removed"]);
 
     fs::remove_dir_all(&shared_dir).ok();
 }
@@ -546,4 +656,34 @@ fn formula_library_id(engine: &AppEngine) -> golden_core::node::NodeId {
         .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
         .map(|(id, _)| id)
         .expect("formula library should exist")
+}
+
+fn exported_node_by_decl_id<'a>(
+    node: &'a serde_json::Value,
+    decl_id: &str,
+) -> Option<&'a serde_json::Value> {
+    if node.get("decl_id").and_then(serde_json::Value::as_str) == Some(decl_id) {
+        return Some(node);
+    }
+    for child in node.get("children")?.as_array()? {
+        if let Some(found) = exported_node_by_decl_id(child, decl_id) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn exported_node_by_decl_id_mut<'a>(
+    node: &'a mut serde_json::Value,
+    decl_id: &str,
+) -> Option<&'a mut serde_json::Value> {
+    if node.get("decl_id").and_then(serde_json::Value::as_str) == Some(decl_id) {
+        return Some(node);
+    }
+    for child in node.get_mut("children")?.as_array_mut()? {
+        if let Some(found) = exported_node_by_decl_id_mut(child, decl_id) {
+            return Some(found);
+        }
+    }
+    None
 }
