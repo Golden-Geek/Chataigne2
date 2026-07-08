@@ -95,6 +95,7 @@
 		inputSocketContent,
 		outputSocketContent,
 		toolbarEnd,
+		onNodeContextMenu,
 		onBackgroundContextMenu,
 		onCreateRequest,
 		routeEdgesAroundNodes = false,
@@ -123,6 +124,7 @@
 		inputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
 		outputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
 		toolbarEnd?: Snippet;
+		onNodeContextMenu?: (event: MouseEvent, nodeId: string) => void;
 		onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
 		onCreateRequest?: (request: GraphNodeCreationRequest) => void;
 		routeEdgesAroundNodes?: boolean;
@@ -2069,7 +2071,11 @@
 	};
 
 	const handleWheel = (event: WheelEvent): void => {
-		if (wheelScrollTarget && event.target instanceof Node && wheelScrollTarget.contains(event.target)) {
+		if (
+			wheelScrollTarget &&
+			event.target instanceof Node &&
+			wheelScrollTarget.contains(event.target)
+		) {
 			return;
 		}
 		event.preventDefault();
@@ -2084,13 +2090,20 @@
 	};
 
 	const handleContextMenu = (event: MouseEvent): void => {
-		const target = event.target;
+		const targetElement = event.target instanceof Element ? event.target : null;
+		const nodeTarget = targetElement?.closest<HTMLElement>('[data-node-id]');
+		if (nodeTarget) {
+			event.preventDefault();
+			event.stopPropagation();
+			const nodeId = nodeTarget.dataset.nodeId;
+			if (nodeId) {
+				onNodeContextMenu?.(event, nodeId);
+			}
+			return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
-		if (
-			!onBackgroundContextMenu ||
-			(target instanceof Element && target.closest('.node, .toolbar'))
-		) {
+		if (!onBackgroundContextMenu || targetElement?.closest('.toolbar')) {
 			return;
 		}
 		onBackgroundContextMenu?.(event, clientToWorld(event.clientX, event.clientY));
@@ -2276,6 +2289,7 @@
 					style:height={`${nodeHeight(node)}rem`}
 					style:--node-accent={node.color ?? 'var(--ga-outline)'}
 					style:--node-header-height={`${nodeHeaderHeight(node)}rem`}
+					data-node-id={node.id}
 					onpointerdown={(event) => selectNodeBody(event, node)}>
 					{#if node.enabled === false && node.bypassConnections && node.bypassConnections.length > 0}
 						<svg
@@ -2354,33 +2368,40 @@
 								{/each}
 							</div>
 						{/if}
-						{#if node.canDisable === true}
-							<button
-								type="button"
-								class="node-enable"
-								class:enabled={node.enabled !== false}
-								role="switch"
-								aria-checked={node.enabled !== false}
-								aria-label={`${node.enabled === false ? 'Enable' : 'Disable'} ${node.label}`}
-								title={node.enabled === false ? 'Enable node' : 'Disable node'}
-								onpointerdown={(event) => event.stopPropagation()}
-								onclick={(event) => toggleNodeEnabled(event, node)}></button>
-						{/if}
 						{#if renamingNodeId === node.id}
 							<div
 								class="node-title renaming"
 								title={node.description?.trim() || node.subtitle || node.label}>
-								<input
-									bind:this={renameInput}
-									class="node-title-input"
-									value={renameDraft}
-									aria-label={`Rename ${node.label}`}
-									oninput={(event) =>
-										(renameDraft = (event.currentTarget as HTMLInputElement).value)}
-									onkeydown={handleRenameKeydown}
-									onblur={finishNodeRename}
-									onpointerdown={(event) => event.stopPropagation()}
-									onclick={(event) => event.stopPropagation()} />
+								<div class="node-title-row">
+									{#if node.canDisable === true}
+										<button
+											type="button"
+											class="node-enable"
+											class:enabled={node.enabled !== false}
+											role="switch"
+											aria-checked={node.enabled !== false}
+											aria-label={`${node.enabled === false ? 'Enable' : 'Disable'} ${node.label}`}
+											title={node.enabled === false ? 'Enable node' : 'Disable node'}
+											onpointerdown={(event) => event.stopPropagation()}
+											onclick={(event) => toggleNodeEnabled(event, node)}></button>
+									{/if}
+									<input
+										bind:this={renameInput}
+										class="node-title-input"
+										value={renameDraft}
+										aria-label={`Rename ${node.label}`}
+										oninput={(event) =>
+											(renameDraft = (event.currentTarget as HTMLInputElement).value)}
+										onkeydown={handleRenameKeydown}
+										onblur={finishNodeRename}
+										onpointerdown={(event) => event.stopPropagation()}
+										onclick={(event) => event.stopPropagation()} />
+								</div>
+								{#if node.description?.trim()}
+									<small>{node.description}</small>
+								{:else if node.subtitle}
+									<small>{node.subtitle}</small>
+								{/if}
 							</div>
 						{:else}
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -2388,17 +2409,31 @@
 								class="node-title"
 								title={node.description?.trim() || node.subtitle || node.label}
 								onpointerdown={(event) => handleNodeTitlePointerDown(event, node)}>
-								<button
-									type="button"
-									class="node-title-label"
-									class:editable={canRenameNode(node)}
-									aria-disabled={!canRenameNode(node)}
-									title={node.description?.trim() || node.subtitle || node.label}
-									ondblclick={(event) => beginNodeRename(event, node)}
-									onpointerdown={(event) => handleNodeTitlePointerDown(event, node)}
-									onclick={(event) => event.stopPropagation()}>
-									<strong>{node.label}</strong>
-								</button>
+								<div class="node-title-row">
+									{#if node.canDisable === true}
+										<button
+											type="button"
+											class="node-enable"
+											class:enabled={node.enabled !== false}
+											role="switch"
+											aria-checked={node.enabled !== false}
+											aria-label={`${node.enabled === false ? 'Enable' : 'Disable'} ${node.label}`}
+											title={node.enabled === false ? 'Enable node' : 'Disable node'}
+											onpointerdown={(event) => event.stopPropagation()}
+											onclick={(event) => toggleNodeEnabled(event, node)}></button>
+									{/if}
+									<button
+										type="button"
+										class="node-title-label"
+										class:editable={canRenameNode(node)}
+										aria-disabled={!canRenameNode(node)}
+										title={node.description?.trim() || node.subtitle || node.label}
+										ondblclick={(event) => beginNodeRename(event, node)}
+										onpointerdown={(event) => handleNodeTitlePointerDown(event, node)}
+										onclick={(event) => event.stopPropagation()}>
+										<strong>{node.label}</strong>
+									</button>
+								</div>
 								{#if node.description?.trim()}
 									<small>{node.description}</small>
 								{:else if node.subtitle}
@@ -2836,10 +2871,10 @@
 
 	.node-enable {
 		position: relative;
-		flex: 0 0 1.05rem;
+		flex: 0 0 0.85rem;
 		align-self: center;
-		inline-size: 1.05rem;
-		block-size: 100%;
+		inline-size: 0.85rem;
+		block-size: 1rem;
 		padding: 0;
 		border: 0;
 		background: transparent;
@@ -2894,9 +2929,19 @@
 		cursor: text;
 	}
 
+	.node-title-row {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		inline-size: 100%;
+		min-inline-size: 0;
+		gap: 0.18rem;
+	}
+
 	.node-title-label {
 		display: block;
-		inline-size: 100%;
+		flex: 0 1 auto;
+		inline-size: auto;
 		min-inline-size: 0;
 		max-inline-size: 100%;
 		padding: 0;
@@ -2909,7 +2954,14 @@
 		cursor: default;
 	}
 
+	.node .node-title-label strong {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.node-title-input {
+		flex: 1 1 auto;
 		inline-size: 100%;
 		min-inline-size: 0;
 		padding: 0.12rem 0.2rem;
