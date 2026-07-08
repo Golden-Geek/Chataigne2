@@ -13,7 +13,7 @@ use golden_core::{
     node,
     node::{
         curve_from_snapshot, Curve, CurveNode, DeclId, Node, NodeHandle, NodeId, NodeMetaPatch,
-        NodeScriptDescriptor, UserContainerRules, UserCreatableItem,
+        NodeScriptDescriptor, NodeUuid, UserContainerRules, UserCreatableItem,
     },
     parameter::{
         Enum, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
@@ -277,14 +277,32 @@ impl SignalsModule {
         self.base.values_id()
     }
 
-    fn ensure_default_signal(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) {
+    fn ensure_default_signal(&self, ctx: &mut ProcessCtx, snapshot: &ProcessTreeSnapshot) -> bool {
         let Some(list_id) = self.signal_list_id(snapshot) else {
-            return;
+            return false;
         };
 
-        if snapshot.child_ids(list_id).is_empty() {
-            ctx.add_user_item_boxed(list_id, Box::new(SignalItem::new()), None);
+        if !snapshot.child_ids(list_id).is_empty() {
+            return false;
         }
+
+        let mut signal = SignalItem::new();
+        if let Some(uuid) = self.restored_default_signal_uuid(snapshot) {
+            signal.node_data_mut().meta.uuid = uuid;
+        }
+        ctx.add_user_item_boxed(list_id, Box::new(signal), None);
+        true
+    }
+
+    fn restored_default_signal_uuid(&self, snapshot: &ProcessTreeSnapshot) -> Option<NodeUuid> {
+        let values_root = self.values_root(snapshot)?;
+        snapshot
+            .child_ids(values_root)
+            .into_iter()
+            .filter_map(|child_id| snapshot.node(child_id))
+            .filter_map(|child| child.decl_id.strip_prefix("signal_"))
+            .filter_map(|uuid| uuid::Uuid::parse_str(uuid).ok().map(NodeUuid))
+            .find(|uuid| snapshot.node_id_by_uuid(*uuid).is_none())
     }
 
     fn reset_matching_signals(
@@ -387,7 +405,10 @@ impl Node for SignalsModule {
         crate::app::module::enable_module_authoring(self.node_data_mut());
         if let Some(snapshot_arc) = ctx.tree_snapshot_arc() {
             let snapshot = snapshot_arc.as_ref();
-            self.ensure_default_signal(ctx, snapshot);
+            if self.ensure_default_signal(ctx, snapshot) {
+                self.config_dirty = true;
+                return;
+            }
             self.sync_configuration(ctx, snapshot);
         }
     }
@@ -831,6 +852,8 @@ fn sync_value_nodes<'a, I>(
 where
     I: IntoIterator<Item = &'a SignalConfig>,
 {
+    let configs = configs.into_iter().collect::<Vec<_>>();
+    let config_count = configs.len();
     let existing_by_decl = child_ids_by_decl(snapshot, root_id);
     let mut used_node_ids = HashSet::new();
     let mut next_value_nodes_by_item = HashMap::new();
@@ -843,7 +866,14 @@ where
             .get(&config.item_id)
             .copied()
             .filter(|node_id| snapshot.node(*node_id).is_some())
-            .or_else(|| existing_by_decl.get(config.value_decl_id.as_str()).copied());
+            .or_else(|| existing_by_decl.get(config.value_decl_id.as_str()).copied())
+            .or_else(|| {
+                if config_count == 1 {
+                    adoptable_persisted_signal_value(snapshot, root_id, config, &used_node_ids)
+                } else {
+                    None
+                }
+            });
 
         match existing_node_id {
             Some(node_id) => {
@@ -901,6 +931,22 @@ where
     *value_nodes_by_item = next_value_nodes_by_item;
     *value_output_nodes = value_nodes_by_item.values().copied().collect();
     waiting_for_values
+}
+
+fn adoptable_persisted_signal_value(
+    snapshot: &ProcessTreeSnapshot,
+    root_id: NodeId,
+    config: &SignalConfig,
+    used_node_ids: &HashSet<NodeId>,
+) -> Option<NodeId> {
+    snapshot.child_ids(root_id).into_iter().find(|child_id| {
+        !used_node_ids.contains(child_id)
+            && snapshot.node(*child_id).is_some_and(|child| {
+                child.decl_id.starts_with("signal_")
+                    && child.label == config.label
+                    && child.param_value.is_some()
+            })
+    })
 }
 
 fn signal_values_tree(config: &SignalConfig) -> NodeTree {

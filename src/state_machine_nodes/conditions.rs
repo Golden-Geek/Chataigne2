@@ -5,6 +5,7 @@ use golden_core::{
         Node, NodeCreationContext, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions,
         UserContainerRules, UserCreatableItem,
     },
+    parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
 
@@ -52,12 +53,13 @@ macro_rules! leaf_condition_init {
     }
     source: NodeReference (
         label = "Source",
-        reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly
+        reference_target_kind = golden_core::parameter::ReferenceTargetKind::ParameterOnly,
+        reference_allow_projections = true
     );
     source_projection: golden_core::parameter::Enum = "none" (
         label = "Projection",
         show_in_inspector_content = false,
-        enum_options = ["none"]
+        enum_options = ["none", "x", "y", "z", "r", "g", "b", "a"]
     );
     comparator: golden_core::parameter::Enum = "equal" (
         label = "Comparator",
@@ -78,7 +80,17 @@ macro_rules! leaf_condition_init {
             "starts_with",
             "ends_with",
             "regex_match",
-            "value_changed"
+            "value_changed",
+            "magnitude_greater_than",
+            "magnitude_less_than",
+            "speed_greater_than",
+            "speed_less_than",
+            "abs_speed_greater_than",
+            "abs_speed_less_than",
+            "luminance_greater_than",
+            "luminance_less_than",
+            "alpha_greater_than",
+            "alpha_less_than"
         ]
     );
     reference: f64 = 0.0 (
@@ -91,6 +103,18 @@ macro_rules! leaf_condition_init {
     );
     reference_string: String = String::new() (
         label = "Reference (String)",
+        show_in_inspector_content = false
+    );
+    reference_vec2: ParamValue = ParamValue::Vec2(0.0, 0.0) (
+        label = "Reference (Vec2)",
+        show_in_inspector_content = false
+    );
+    reference_vec3: ParamValue = ParamValue::Vec3(0.0, 0.0, 0.0) (
+        label = "Reference (Vec3)",
+        show_in_inspector_content = false
+    );
+    reference_color: ParamValue = ParamValue::Color(0.0, 0.0, 0.0, 1.0) (
+        label = "Reference (Color)",
         show_in_inspector_content = false
     );
 )]

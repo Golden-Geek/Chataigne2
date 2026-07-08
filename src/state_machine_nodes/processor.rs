@@ -1119,7 +1119,6 @@ impl StateProcessor {
             return;
         };
         let Some(formula) = self.formula_node(&snapshot) else {
-            remove_processor_surface_children(&snapshot, self.id(), ctx);
             return;
         };
         let Some(source_properties) =
@@ -1137,19 +1136,20 @@ impl StateProcessor {
         );
     }
 
-    fn managed_region_definitions(
-        &self,
-        snapshot: &ProcessTreeSnapshot,
-    ) -> Vec<ManagedRegionDefinition> {
-        self.formula_node(snapshot)
-            .and_then(|formula| formula_from_snapshot(snapshot, formula).ok())
-            .map(|formula| formula.surface.managed_regions)
-            .unwrap_or_default()
-    }
-
     fn reconcile_formula_managed_regions(&self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
+        };
+        let definitions = match self.formula_source_ref() {
+            Ok(Some(FormulaSourceRef::ProjectNode(_))) => {
+                let Some(formula) = self.formula_node(&snapshot) else {
+                    return;
+                };
+                formula_from_snapshot(&snapshot, formula)
+                    .map(|formula| formula.surface.managed_regions)
+                    .unwrap_or_default()
+            }
+            _ => Vec::new(),
         };
         let Some(regions_root) =
             snapshot.find_child_by_decl_id(self.id(), PROCESSOR_MANAGED_REGIONS_DECL_ID)
@@ -1157,7 +1157,7 @@ impl StateProcessor {
             return;
         };
         let mut desired = HashSet::new();
-        for definition in self.managed_region_definitions(&snapshot) {
+        for definition in definitions {
             let decl_id = processor_managed_region_decl_id(definition.id.as_str());
             desired.insert(decl_id.clone());
             let Some(existing) =

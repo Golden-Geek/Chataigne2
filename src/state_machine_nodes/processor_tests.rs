@@ -210,6 +210,195 @@ fn sparse_project_omits_builtins_and_reloads_current_builtin_formulas() {
 }
 
 #[test]
+fn sparse_project_preserves_builtin_action_processor_manager_items() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine.apply_edits().expect("project roots should attach");
+    super::sync_external_formulas(&mut engine).expect("builtin sync should succeed");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("builtin formulas should materialize");
+    }
+
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: manager_id,
+        node_type: crate::app::StateMachineState::NODE_TYPE.to_owned(),
+        label: Some("State".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "state creation should succeed: {ack:?}");
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("state children should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, "processors")
+        .expect("state should have a processor manager");
+    let action_item = FormulaCatalog::from_snapshot(&snapshot)
+        .processor_palette_items()
+        .into_iter()
+        .find(|item| item.label == "Action")
+        .expect("built-in Action formula should be exposed as a processor item");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: processor_manager_id,
+        node_type: action_item.node_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        ack.success,
+        "built-in Action processor creation should succeed: {ack:?}"
+    );
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("Action processor surface should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    let processor_uuid = engine
+        .nodes
+        .get(processor_id)
+        .expect("processor should exist")
+        .node_data()
+        .meta
+        .uuid;
+    let conditions_id = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .find(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.node_type == ConditionManager::NODE_TYPE && node.label == "Conditions"
+            })
+        })
+        .expect("processor should expose its condition manager");
+    let on_true_id = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .find(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.node_type == OutputsManager::NODE_TYPE && node.label == "On True"
+            })
+        })
+        .expect("processor should expose its On True outputs manager");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: conditions_id,
+        node_type: "sm_script_condition".to_owned(),
+        label: Some("Persisted Condition".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "condition creation should succeed: {ack:?}");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: on_true_id,
+        node_type: "sm_output_group".to_owned(),
+        label: Some("Persisted Output".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "output creation should succeed: {ack:?}");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("manager items should materialize");
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("project should encode");
+    let project: serde_json::Value = serde_json::from_str(&json).expect("project should be JSON");
+    assert!(
+        project_json_contains_node_type(&project, "sm_script_condition"),
+        "saved project should contain the user-created condition"
+    );
+    assert!(
+        project_json_contains_node_type(&project, "sm_output_group"),
+        "saved project should contain the user-created output"
+    );
+
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("project should decode");
+    super::sync_external_formulas(&mut loaded).expect("loaded project should sync builtins");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded)
+        .expect("loaded startup should settle");
+    let loaded_snapshot = loaded.process_tree_snapshot();
+    let loaded_processor = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == processor_uuid)
+        .map(|(id, _)| id)
+        .expect("processor should reload");
+    let loaded_conditions = loaded_snapshot
+        .child_ids(loaded_processor)
+        .into_iter()
+        .find(|child| {
+            loaded_snapshot.node(*child).is_some_and(|node| {
+                node.node_type == ConditionManager::NODE_TYPE && node.label == "Conditions"
+            })
+        })
+        .expect("loaded processor should expose its condition manager");
+    let loaded_on_true = loaded_snapshot
+        .child_ids(loaded_processor)
+        .into_iter()
+        .find(|child| {
+            loaded_snapshot.node(*child).is_some_and(|node| {
+                node.node_type == OutputsManager::NODE_TYPE && node.label == "On True"
+            })
+        })
+        .expect("loaded processor should expose its On True outputs manager");
+
+    assert!(
+        loaded_snapshot
+            .child_ids(loaded_conditions)
+            .into_iter()
+            .any(|child| loaded_snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == "sm_script_condition")),
+        "loaded condition manager should keep the user-created condition"
+    );
+    assert!(
+        loaded_snapshot
+            .child_ids(loaded_on_true)
+            .into_iter()
+            .any(|child| loaded_snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == "sm_output_group")),
+        "loaded outputs manager should keep the user-created output"
+    );
+}
+
+#[test]
 fn processor_manager_lists_custom_formulas() {
     let (mut engine, _, formula_uuid) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);

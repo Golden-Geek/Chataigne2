@@ -22,12 +22,14 @@ use golden_core::{
 
 use super::{
     compile_processor_runtime_for_cache_rebuild, condition_manager_edge_previous,
-    condition_manager_value_set, merge_output_preview_snapshot,
-    next_input_value_condition_validity, next_input_value_condition_valid_state,
-    output_preview_signature, processor_formula_from_snapshot, processor_formula_source_ref,
-    processor_override_value, processor_should_evaluate, set_output_target_param,
-    runtime_invalidation_for_node, should_emit_runtime_log, RuntimeInvalidation, RuntimeLogKey,
-    StateMachineManager, PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND,
+    condition_manager_value_set, param_abs_speed, param_alpha, param_luminance, param_magnitude,
+    param_speed, param_values_equal, project_condition_source_value, ConditionReference,
+    merge_output_preview_snapshot, next_input_value_condition_validity,
+    next_input_value_condition_valid_state, output_preview_signature, processor_formula_from_snapshot,
+    processor_formula_source_ref, processor_override_value, processor_should_evaluate,
+    set_output_target_param, runtime_invalidation_for_node, should_emit_runtime_log,
+    RuntimeInvalidation, RuntimeLogKey, StateMachineManager, PROCESSOR_MANAGER_DECL_ID,
+    STATE_ITEM_KIND,
 };
 use crate::app::state_machine_nodes_processor::{
     FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID,
@@ -164,6 +166,70 @@ fn transient_input_value_condition_pulses_then_settles_invalid() {
 }
 
 #[test]
+fn transient_input_value_condition_does_not_toggle_valid_state() {
+    let fired = next_input_value_condition_validity(false, true, true, true, true);
+    assert!(fired.current);
+    assert!(!fired.settled);
+
+    let fired_with_toggle_enabled =
+        next_input_value_condition_validity(true, true, true, true, true);
+    assert!(fired_with_toggle_enabled.current);
+    assert!(!fired_with_toggle_enabled.settled);
+}
+
+#[test]
+fn input_value_condition_projects_vector_and_color_components() {
+    assert_eq!(
+        project_condition_source_value(&ParamValue::Vec3(1.0, 2.0, 3.0), "value.x"),
+        Some(ParamValue::Float(1.0))
+    );
+    assert_eq!(
+        project_condition_source_value(&ParamValue::Vec2(1.0, 2.0), "y"),
+        Some(ParamValue::Float(2.0))
+    );
+    assert_eq!(
+        project_condition_source_value(&ParamValue::Color(0.1, 0.2, 0.3, 0.4), "alpha"),
+        Some(ParamValue::Float(0.4))
+    );
+    assert_eq!(
+        project_condition_source_value(&ParamValue::Vec2(1.0, 2.0), "z"),
+        None
+    );
+}
+
+#[test]
+fn input_value_condition_compares_vector_and_color_references() {
+    let reference = ConditionReference {
+        number: 5.0,
+        number_max: 10.0,
+        text: "",
+        vec2: Some((3.0, 4.0)),
+        vec3: Some((1.0, 2.0, 3.0)),
+        color: Some((0.1, 0.2, 0.3, 1.0)),
+    };
+
+    assert!(param_values_equal(&ParamValue::Vec2(3.0, 4.0), &reference));
+    assert!(!param_values_equal(&ParamValue::Vec2(3.0, 5.0), &reference));
+    assert!(param_values_equal(&ParamValue::Vec3(1.0, 2.0, 3.0), &reference));
+    assert!(param_values_equal(
+        &ParamValue::Color(0.1, 0.2, 0.3, 1.0),
+        &reference
+    ));
+}
+
+#[test]
+fn input_value_condition_vector_and_color_numeric_operators() {
+    assert_eq!(param_magnitude(&ParamValue::Vec3(2.0, 3.0, 6.0)), Some(7.0));
+    assert_eq!(param_speed(&ParamValue::Vec2(3.0, 4.0)), Some(5.0));
+    assert_eq!(param_abs_speed(&ParamValue::Float(-2.5)), Some(2.5));
+    assert_eq!(param_alpha(&ParamValue::Color(0.1, 0.2, 0.3, 0.4)), Some(0.4));
+    assert_eq!(
+        param_luminance(&ParamValue::Color(1.0, 1.0, 1.0, 1.0)),
+        Some(1.0)
+    );
+}
+
+#[test]
 fn condition_manager_value_set_only_fires_transition_edges() {
     let mut next_trigger_edge_id = 0;
     let transition = condition_manager_value_set(7, true, Some(false), &mut next_trigger_edge_id);
@@ -189,6 +255,21 @@ fn processor_evaluation_requires_runtime_or_signal_reason() {
     assert!(processor_should_evaluate(false, true, false, false));
     assert!(processor_should_evaluate(false, false, true, false));
     assert!(processor_should_evaluate(false, false, false, true));
+}
+
+#[test]
+fn pending_transient_condition_reset_requests_tree_snapshot() {
+    let mut manager = StateMachineManager::new();
+    manager.runtime_cache.topology_dirty = false;
+
+    assert!(!manager.update_requires_tree_snapshot());
+
+    manager
+        .runtime_cache
+        .transient_condition_valid_resets
+        .insert(manager.id(), 1);
+
+    assert!(manager.update_requires_tree_snapshot());
 }
 
 #[test]

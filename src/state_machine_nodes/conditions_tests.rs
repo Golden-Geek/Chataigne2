@@ -1,4 +1,5 @@
 use golden_core::node::{Folder, Node, NodeId};
+use golden_core::parameter::ParamValue;
 use golden_core::ui_sync::UiEditIntent;
 
 use super::{ConditionGroup, InputNodeCondition, InputValueCondition, ScriptCondition};
@@ -17,18 +18,47 @@ fn input_value_condition_defaults() {
     assert!(!*c.toggle_mode.get_ref());
     assert_eq!(*c.validation_delay_s.get_ref(), 0.0);
     assert_eq!(*c.invalidation_delay_s.get_ref(), 0.0);
+    assert_eq!(c.source_projection.get_ref().as_str(), "none");
     assert_eq!(c.comparator.get_ref().as_str(), "equal");
     assert_eq!(*c.reference.get_ref(), 0.0);
     assert_eq!(*c.reference_max.get_ref(), 1.0);
     assert!(c.reference_string.get_ref().is_empty());
+    assert!(matches!(c.reference_vec2.get_ref(), ParamValue::Vec2(0.0, 0.0)));
+    assert!(matches!(
+        c.reference_vec3.get_ref(),
+        ParamValue::Vec3(0.0, 0.0, 0.0)
+    ));
+    assert!(matches!(
+        c.reference_color.get_ref(),
+        ParamValue::Color(0.0, 0.0, 0.0, 1.0)
+    ));
 }
 
 #[test]
 fn input_value_condition_has_value_changed_comparator() {
-    use golden_core::parameter::ParamValue;
     let mut c = InputValueCondition::new();
     c.comparator.apply_runtime_value(&ParamValue::Str("value_changed".into()));
     assert_eq!(c.comparator.get_ref().as_str(), "value_changed");
+}
+
+#[test]
+fn input_value_condition_accepts_vector_and_color_comparators() {
+    let mut c = InputValueCondition::new();
+    for op in [
+        "magnitude_greater_than",
+        "magnitude_less_than",
+        "speed_greater_than",
+        "speed_less_than",
+        "abs_speed_greater_than",
+        "abs_speed_less_than",
+        "luminance_greater_than",
+        "luminance_less_than",
+        "alpha_greater_than",
+        "alpha_less_than",
+    ] {
+        c.comparator.apply_runtime_value(&ParamValue::Str(op.to_owned()));
+        assert_eq!(c.comparator.get_ref().as_str(), op);
+    }
 }
 
 #[test]

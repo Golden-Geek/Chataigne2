@@ -347,6 +347,7 @@ impl Node for StateMachineManager {
             || !self.runtime_cache.dirty_processor_overrides.is_empty()
             || !self.runtime_cache.dirty_input_source_params.is_empty()
             || !self.runtime_cache.dirty_formula_values.is_empty()
+            || !self.runtime_cache.transient_condition_valid_resets.is_empty()
             || self
                 .runtime_cache
                 .processors
@@ -2370,7 +2371,13 @@ fn input_value_condition_valid(
     let condition_uuid = snapshot.node(condition)?.uuid;
     let source_uuid = child_reference_uuid(snapshot, condition, "source")?;
     let source_id = snapshot.node_id_by_uuid(source_uuid)?;
-    let source_value = snapshot.node(source_id)?.param_value.as_ref()?;
+    let raw_source_value = snapshot.node(source_id)?.param_value.as_ref()?;
+    let source_projection = child_string(snapshot, condition, "source_projection").unwrap_or_default();
+    let projected_source_value =
+        project_condition_source_value(raw_source_value, source_projection.as_str());
+    let source_value = projected_source_value
+        .as_ref()
+        .unwrap_or(raw_source_value);
     let comparator = child_string(snapshot, condition, "comparator").unwrap_or_else(|| "equal".to_owned());
     let transient = input_value_condition_is_transient(source_value, comparator.as_str());
     let source_changed = dirty_input_source_params.contains(&source_uuid);
@@ -2528,47 +2535,114 @@ fn compare_condition_value(
     source_value: &ParamValue,
     comparator: &str,
 ) -> bool {
-    let reference = child_param(snapshot, condition, "reference")
+    let reference_number = child_param(snapshot, condition, "reference")
         .and_then(param_numeric)
         .unwrap_or(0.0);
-    let reference_max = child_param(snapshot, condition, "reference_max")
+    let reference_number_max = child_param(snapshot, condition, "reference_max")
         .and_then(param_numeric)
         .unwrap_or(1.0);
     let reference_string = child_string(snapshot, condition, "reference_string").unwrap_or_default();
+    let reference = ConditionReference {
+        number: reference_number,
+        number_max: reference_number_max,
+        text: reference_string.as_str(),
+        vec2: child_param(snapshot, condition, "reference_vec2").and_then(param_vec2),
+        vec3: child_param(snapshot, condition, "reference_vec3").and_then(param_vec3),
+        color: child_param(snapshot, condition, "reference_color").and_then(param_color),
+    };
     match comparator {
-        "not_equal" => !param_values_equal(source_value, reference, reference_string.as_str()),
-        "greater_than" => param_numeric(source_value).is_some_and(|value| value > reference),
-        "greater_than_or_equal" => param_numeric(source_value).is_some_and(|value| value >= reference),
-        "less_than" => param_numeric(source_value).is_some_and(|value| value < reference),
-        "less_than_or_equal" => param_numeric(source_value).is_some_and(|value| value <= reference),
+        "not_equal" => !param_values_equal(source_value, &reference),
+        "greater_than" => param_numeric(source_value).is_some_and(|value| value > reference.number),
+        "greater_than_or_equal" => {
+            param_numeric(source_value).is_some_and(|value| value >= reference.number)
+        }
+        "less_than" => param_numeric(source_value).is_some_and(|value| value < reference.number),
+        "less_than_or_equal" => {
+            param_numeric(source_value).is_some_and(|value| value <= reference.number)
+        }
         "between" => param_numeric(source_value).is_some_and(|value| {
-            let min = reference.min(reference_max);
-            let max = reference.max(reference_max);
+            let min = reference.number.min(reference.number_max);
+            let max = reference.number.max(reference.number_max);
             value >= min && value <= max
         }),
         "outside" => param_numeric(source_value).is_some_and(|value| {
-            let min = reference.min(reference_max);
-            let max = reference.max(reference_max);
+            let min = reference.number.min(reference.number_max);
+            let max = reference.number.max(reference.number_max);
             value < min || value > max
         }),
         "is_true" => param_bool(source_value).unwrap_or(false),
         "is_false" => !param_bool(source_value).unwrap_or(true),
-        "contains" => param_string(source_value).contains(reference_string.as_str()),
-        "does_not_contain" => !param_string(source_value).contains(reference_string.as_str()),
-        "starts_with" => param_string(source_value).starts_with(reference_string.as_str()),
-        "ends_with" => param_string(source_value).ends_with(reference_string.as_str()),
-        "regex_match" => regex::Regex::new(reference_string.as_str())
+        "contains" => param_string(source_value).contains(reference.text),
+        "does_not_contain" => !param_string(source_value).contains(reference.text),
+        "starts_with" => param_string(source_value).starts_with(reference.text),
+        "ends_with" => param_string(source_value).ends_with(reference.text),
+        "regex_match" => regex::Regex::new(reference.text)
             .is_ok_and(|regex| regex.is_match(param_string(source_value).as_str())),
+        "magnitude_greater_than" => {
+            param_magnitude(source_value).is_some_and(|value| value > reference.number)
+        }
+        "magnitude_less_than" => {
+            param_magnitude(source_value).is_some_and(|value| value < reference.number)
+        }
+        "speed_greater_than" => param_speed(source_value).is_some_and(|value| value > reference.number),
+        "speed_less_than" => param_speed(source_value).is_some_and(|value| value < reference.number),
+        "abs_speed_greater_than" => {
+            param_abs_speed(source_value).is_some_and(|value| value > reference.number)
+        }
+        "abs_speed_less_than" => {
+            param_abs_speed(source_value).is_some_and(|value| value < reference.number)
+        }
+        "luminance_greater_than" => {
+            param_luminance(source_value).is_some_and(|value| value > reference.number)
+        }
+        "luminance_less_than" => {
+            param_luminance(source_value).is_some_and(|value| value < reference.number)
+        }
+        "alpha_greater_than" => {
+            param_alpha(source_value).is_some_and(|value| value > reference.number)
+        }
+        "alpha_less_than" => param_alpha(source_value).is_some_and(|value| value < reference.number),
         "value_changed" => false,
-        _ => param_values_equal(source_value, reference, reference_string.as_str()),
+        _ => param_values_equal(source_value, &reference),
     }
 }
 
-fn param_values_equal(value: &ParamValue, reference: f64, reference_string: &str) -> bool {
+struct ConditionReference<'a> {
+    number: f64,
+    number_max: f64,
+    text: &'a str,
+    vec2: Option<(f64, f64)>,
+    vec3: Option<(f64, f64, f64)>,
+    color: Option<(f64, f64, f64, f64)>,
+}
+
+fn param_values_equal(value: &ParamValue, reference: &ConditionReference<'_>) -> bool {
+    match value {
+        ParamValue::Vec2(x, y) => reference.vec2.is_some_and(|(rx, ry)| {
+            floats_equal(*x, rx) && floats_equal(*y, ry)
+        }),
+        ParamValue::Vec3(x, y, z) => reference.vec3.is_some_and(|(rx, ry, rz)| {
+            floats_equal(*x, rx) && floats_equal(*y, ry) && floats_equal(*z, rz)
+        }),
+        ParamValue::Color(r, g, b, a) => reference.color.is_some_and(|(rr, rg, rb, ra)| {
+            floats_equal(*r, rr)
+                && floats_equal(*g, rg)
+                && floats_equal(*b, rb)
+                && floats_equal(*a, ra)
+        }),
+        _ => param_scalar_values_equal(value, reference.number, reference.text),
+    }
+}
+
+fn param_scalar_values_equal(value: &ParamValue, reference: f64, reference_string: &str) -> bool {
     if let Some(number) = param_numeric(value) {
-        return (number - reference).abs() <= f64::EPSILON;
+        return floats_equal(number, reference);
     }
     param_string(value) == reference_string
+}
+
+fn floats_equal(left: f64, right: f64) -> bool {
+    (left - right).abs() <= f64::EPSILON
 }
 
 fn param_numeric(value: &ParamValue) -> Option<f64> {
@@ -2609,6 +2683,97 @@ fn param_string(value: &ParamValue) -> String {
         ParamValue::Color(r, g, b, a) => format!("{r},{g},{b},{a}"),
         ParamValue::Reference(reference) => reference.uuid().0.to_string(),
         ParamValue::Trigger() => String::new(),
+    }
+}
+
+fn param_vec2(value: &ParamValue) -> Option<(f64, f64)> {
+    match value {
+        ParamValue::Vec2(x, y) => Some((*x, *y)),
+        _ => None,
+    }
+}
+
+fn param_vec3(value: &ParamValue) -> Option<(f64, f64, f64)> {
+    match value {
+        ParamValue::Vec3(x, y, z) => Some((*x, *y, *z)),
+        _ => None,
+    }
+}
+
+fn param_color(value: &ParamValue) -> Option<(f64, f64, f64, f64)> {
+    match value {
+        ParamValue::Color(r, g, b, a) => Some((*r, *g, *b, *a)),
+        _ => None,
+    }
+}
+
+fn param_magnitude(value: &ParamValue) -> Option<f64> {
+    match value {
+        ParamValue::Vec2(x, y) => Some((x.powi(2) + y.powi(2)).sqrt()),
+        ParamValue::Vec3(x, y, z) => Some((x.powi(2) + y.powi(2) + z.powi(2)).sqrt()),
+        ParamValue::Color(r, g, b, a) => Some((r.powi(2) + g.powi(2) + b.powi(2) + a.powi(2)).sqrt()),
+        _ => param_numeric(value).map(f64::abs),
+    }
+}
+
+fn param_speed(value: &ParamValue) -> Option<f64> {
+    match value {
+        ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) => param_magnitude(value),
+        _ => param_numeric(value),
+    }
+}
+
+fn param_abs_speed(value: &ParamValue) -> Option<f64> {
+    param_speed(value).map(f64::abs)
+}
+
+fn param_luminance(value: &ParamValue) -> Option<f64> {
+    match value {
+        ParamValue::Color(r, g, b, _) => Some((0.2126 * r) + (0.7152 * g) + (0.0722 * b)),
+        _ => None,
+    }
+}
+
+fn param_alpha(value: &ParamValue) -> Option<f64> {
+    match value {
+        ParamValue::Color(_, _, _, a) => Some(*a),
+        _ => None,
+    }
+}
+
+fn project_condition_source_value(value: &ParamValue, projection: &str) -> Option<ParamValue> {
+    let component = condition_projection_component(projection)?;
+    match (value, component) {
+        (ParamValue::Vec2(x, _), "x") => Some(ParamValue::Float(*x)),
+        (ParamValue::Vec2(_, y), "y") => Some(ParamValue::Float(*y)),
+        (ParamValue::Vec3(x, _, _), "x") => Some(ParamValue::Float(*x)),
+        (ParamValue::Vec3(_, y, _), "y") => Some(ParamValue::Float(*y)),
+        (ParamValue::Vec3(_, _, z), "z") => Some(ParamValue::Float(*z)),
+        (ParamValue::Color(r, _, _, _), "r") => Some(ParamValue::Float(*r)),
+        (ParamValue::Color(_, g, _, _), "g") => Some(ParamValue::Float(*g)),
+        (ParamValue::Color(_, _, b, _), "b") => Some(ParamValue::Float(*b)),
+        (ParamValue::Color(_, _, _, a), "a") => Some(ParamValue::Float(*a)),
+        _ => None,
+    }
+}
+
+fn condition_projection_component(projection: &str) -> Option<&'static str> {
+    let normalized = projection.trim().to_ascii_lowercase();
+    if normalized.is_empty() || normalized == "none" {
+        return None;
+    }
+    let component = normalized
+        .rsplit(|ch: char| matches!(ch, '.' | ':' | '/' | '\\' | '[' | ']'))
+        .find(|part| !part.is_empty())?;
+    match component {
+        "0" | "x" => Some("x"),
+        "1" | "y" => Some("y"),
+        "2" | "z" => Some("z"),
+        "r" | "red" => Some("r"),
+        "g" | "green" => Some("g"),
+        "b" | "blue" => Some("b"),
+        "3" | "a" | "alpha" => Some("a"),
+        _ => None,
     }
 }
 

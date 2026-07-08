@@ -19,8 +19,16 @@
 		defaultContent
 	}: NodeInspectorComponentProps = $props();
 
-	type SourceGroup = 'number' | 'string' | 'bool' | 'unknown';
-	type ReferenceMode = 'none' | 'number' | 'range' | 'string';
+	type SourceGroup =
+		| 'number'
+		| 'string'
+		| 'bool'
+		| 'trigger'
+		| 'vec2'
+		| 'vec3'
+		| 'color'
+		| 'unknown';
+	type ReferenceMode = 'none' | 'number' | 'range' | 'string' | 'vec2' | 'vec3' | 'color';
 	type ComparatorOption = {
 		id: string;
 		label: string;
@@ -34,14 +42,14 @@
 			id: 'equal',
 			label: '=',
 			title: 'Equals',
-			sources: ['number', 'string', 'unknown'],
+			sources: ['number', 'string', 'vec2', 'vec3', 'color', 'unknown'],
 			referenceMode: 'number'
 		},
 		{
 			id: 'not_equal',
 			label: '!=',
 			title: 'Does not equal',
-			sources: ['number', 'string', 'unknown'],
+			sources: ['number', 'string', 'vec2', 'vec3', 'color', 'unknown'],
 			referenceMode: 'number'
 		},
 		{
@@ -139,8 +147,78 @@
 			id: 'value_changed',
 			label: 'Changed',
 			title: 'Value changed',
-			sources: ['number', 'string', 'bool', 'unknown'],
+			sources: ['number', 'string', 'bool', 'vec2', 'vec3', 'color', 'unknown'],
 			referenceMode: 'none'
+		},
+		{
+			id: 'magnitude_greater_than',
+			label: '|v| >',
+			title: 'Magnitude greater than',
+			sources: ['number', 'vec2', 'vec3', 'color'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'magnitude_less_than',
+			label: '|v| <',
+			title: 'Magnitude less than',
+			sources: ['number', 'vec2', 'vec3', 'color'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'speed_greater_than',
+			label: 'Speed >',
+			title: 'Speed greater than',
+			sources: ['number', 'vec2', 'vec3'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'speed_less_than',
+			label: 'Speed <',
+			title: 'Speed less than',
+			sources: ['number', 'vec2', 'vec3'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'abs_speed_greater_than',
+			label: '|Speed| >',
+			title: 'Absolute speed greater than',
+			sources: ['number', 'vec2', 'vec3'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'abs_speed_less_than',
+			label: '|Speed| <',
+			title: 'Absolute speed less than',
+			sources: ['number', 'vec2', 'vec3'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'luminance_greater_than',
+			label: 'Luma >',
+			title: 'Luminance greater than',
+			sources: ['color'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'luminance_less_than',
+			label: 'Luma <',
+			title: 'Luminance less than',
+			sources: ['color'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'alpha_greater_than',
+			label: 'Alpha >',
+			title: 'Alpha greater than',
+			sources: ['color'],
+			referenceMode: 'number'
+		},
+		{
+			id: 'alpha_less_than',
+			label: 'Alpha <',
+			title: 'Alpha less than',
+			sources: ['color'],
+			referenceMode: 'number'
 		}
 	];
 
@@ -220,15 +298,78 @@
 		return value.cached_id ?? graphNodesByUuid.get(value.uuid) ?? null;
 	};
 
-	const sourceGroupFor = (source: UiNodeDto | null): SourceGroup => {
+	const projectionComponent = (projection: string | null): string | null => {
+		const normalized = projection?.trim().toLowerCase();
+		if (!normalized || normalized === 'none') return null;
+		const component = normalized
+			.split(/[.:/\\[\]]/)
+			.filter((part) => part.length > 0)
+			.at(-1);
+		switch (component) {
+			case '0':
+			case 'x':
+				return 'x';
+			case '1':
+			case 'y':
+				return 'y';
+			case '2':
+			case 'z':
+				return 'z';
+			case 'r':
+			case 'red':
+				return 'r';
+			case 'g':
+			case 'green':
+				return 'g';
+			case 'b':
+			case 'blue':
+				return 'b';
+			case '3':
+			case 'a':
+			case 'alpha':
+				return 'a';
+			default:
+				return null;
+		}
+	};
+
+	const projectedSourceGroupFor = (
+		value: ParamValue | null,
+		projection: string | null
+	): SourceGroup | null => {
+		const component = projectionComponent(projection);
+		if (!component) return null;
+		switch (value?.kind) {
+			case 'vec2':
+				return component === 'x' || component === 'y' ? 'number' : null;
+			case 'vec3':
+				return component === 'x' || component === 'y' || component === 'z' ? 'number' : null;
+			case 'color':
+				return ['r', 'g', 'b', 'a'].includes(component) ? 'number' : null;
+			default:
+				return null;
+		}
+	};
+
+	const sourceGroupFor = (source: UiNodeDto | null, projection: string | null): SourceGroup => {
 		const value = parameterValue(source);
+		const projectedGroup = projectedSourceGroupFor(value, projection);
+		if (projectedGroup) return projectedGroup;
 		switch (value?.kind) {
 			case 'bool':
 				return 'bool';
+			case 'trigger':
+				return 'trigger';
 			case 'int':
 			case 'float':
 			case 'css_value':
 				return 'number';
+			case 'vec2':
+				return 'vec2';
+			case 'vec3':
+				return 'vec3';
+			case 'color':
+				return 'color';
 			case 'str':
 			case 'file':
 			case 'enum':
@@ -240,8 +381,12 @@
 
 	const referenceModeFor = (comparator: string, group: SourceGroup): ReferenceMode => {
 		const option = COMPARATOR_OPTIONS.find((candidate) => candidate.id === comparator);
+		if (group === 'trigger') return 'none';
 		if (group === 'unknown') return 'none';
 		if (!option || option.referenceMode === 'none') return 'none';
+		if (option.id === 'equal' || option.id === 'not_equal') {
+			if (group === 'vec2' || group === 'vec3' || group === 'color') return group;
+		}
 		if (option.referenceMode === 'range') return 'range';
 		if (group === 'string') return 'string';
 		return option.referenceMode;
@@ -275,12 +420,15 @@
 		const candidate = sourceId === null ? null : (graphNodesById?.get(sourceId) ?? null);
 		return candidate?.data.kind === 'parameter' ? candidate : null;
 	});
-	let sourceGroup = $derived(sourceGroupFor(sourceParameter));
+	let sourceProjectionNode = $derived(childByDeclId(liveNode, 'source_projection'));
+	let sourceProjection = $derived(stringParameterValue(sourceProjectionNode) ?? 'none');
+	let sourceGroup = $derived(sourceGroupFor(sourceParameter, sourceProjection));
 	let comparatorNode = $derived(childByDeclId(liveNode, 'comparator'));
 	let comparatorValue = $derived(stringParameterValue(comparatorNode) ?? 'equal');
 	let availableComparatorOptions = $derived(
 		COMPARATOR_OPTIONS.filter((option) => option.sources.includes(sourceGroup))
 	);
+	let showComparator = $derived(sourceGroup !== 'trigger' && availableComparatorOptions.length > 0);
 	let selectedComparator = $derived(
 		availableComparatorOptions.some((option) => option.id === comparatorValue)
 			? comparatorValue
@@ -296,6 +444,9 @@
 	let referenceNode = $derived(childByDeclId(liveNode, 'reference'));
 	let referenceMaxNode = $derived(childByDeclId(liveNode, 'reference_max'));
 	let referenceStringNode = $derived(childByDeclId(liveNode, 'reference_string'));
+	let referenceVec2Node = $derived(childByDeclId(liveNode, 'reference_vec2'));
+	let referenceVec3Node = $derived(childByDeclId(liveNode, 'reference_vec3'));
+	let referenceColorNode = $derived(childByDeclId(liveNode, 'reference_color'));
 	let advancedNode = $derived(childByDeclId(liveNode, 'advanced'));
 	let sourceReferencePickerViews = $derived<NodePickerModalView[]>([
 		{
@@ -311,7 +462,7 @@
 	]);
 
 	$effect(() => {
-		if (!sourceParameter || !comparatorNode) return;
+		if (!sourceParameter || !comparatorNode || !showComparator) return;
 		if (availableComparatorOptions.some((option) => option.id === comparatorValue)) return;
 		const fallback = availableComparatorOptions[0]?.id;
 		if (fallback) {
@@ -326,10 +477,10 @@
 		role="presentation"
 		onclick={(event) => event.stopPropagation()}
 		onkeydown={(event) => event.stopPropagation()}>
+		<ReferencedParameterHeaderControl owner={liveNode} />
 		<ValidationChip
 			valid={conditionValid}
 			title={conditionValid ? 'Condition valid' : 'Condition invalid'} />
-		<ReferencedParameterHeaderControl owner={liveNode} />
 	</span>
 {/snippet}
 
@@ -349,7 +500,8 @@
 		<div
 			class="condition-main-row"
 			class:has-reference={referenceMode !== 'none'}
-			class:has-reference-stack={referenceMode === 'range'}>
+			class:has-reference-stack={referenceMode === 'range'}
+			class:without-comparator={!showComparator}>
 			<div class="toggle-field">
 				<button
 					type="button"
@@ -364,22 +516,24 @@
 				</button>
 			</div>
 
-			<label class="comparator-field">
-				<span class="visually-hidden">Comparator</span>
-				<select
-					value={selectedComparator}
-					class:operator-symbol={selectedComparatorLabel.length <= 2}
-					title={availableComparatorOptions.find((option) => option.id === selectedComparator)
-						?.title ?? 'Comparator'}
-					onchange={(event) => {
-						const target = event.currentTarget as HTMLSelectElement;
-						void setParameterValue(comparatorNode, { kind: 'enum', value: target.value });
-					}}>
-					{#each availableComparatorOptions as option}
-						<option value={option.id} title={option.title}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
+			{#if showComparator}
+				<label class="comparator-field">
+					<span class="visually-hidden">Comparator</span>
+					<select
+						value={selectedComparator}
+						class:operator-symbol={selectedComparatorLabel.length <= 2}
+						title={availableComparatorOptions.find((option) => option.id === selectedComparator)
+							?.title ?? 'Comparator'}
+						onchange={(event) => {
+							const target = event.currentTarget as HTMLSelectElement;
+							void setParameterValue(comparatorNode, { kind: 'enum', value: target.value });
+						}}>
+						{#each availableComparatorOptions as option}
+							<option value={option.id} title={option.title}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
 
 			<div class="condition-reference-area" class:empty={referenceMode === 'none'}>
 				{#if referenceMode === 'number' && referenceNode}
@@ -415,6 +569,30 @@
 						{layoutMode}
 						density="compact"
 						labelOverride="" />
+				{:else if referenceMode === 'vec2' && referenceVec2Node}
+					<NodeInspector
+						nodes={[referenceVec2Node]}
+						level={level + 1}
+						order="solo"
+						{layoutMode}
+						density="compact"
+						labelOverride="" />
+				{:else if referenceMode === 'vec3' && referenceVec3Node}
+					<NodeInspector
+						nodes={[referenceVec3Node]}
+						level={level + 1}
+						order="solo"
+						{layoutMode}
+						density="compact"
+						labelOverride="" />
+				{:else if referenceMode === 'color' && referenceColorNode}
+					<NodeInspector
+						nodes={[referenceColorNode]}
+						level={level + 1}
+						order="solo"
+						{layoutMode}
+						density="compact"
+						labelOverride="" />
 				{/if}
 			</div>
 		</div>
@@ -431,12 +609,55 @@
 {@render defaultContent?.(conditionContent, 'input-value-condition-inspector')}
 
 <style>
+	:global(.node-title:has(.condition-header-extra)) {
+		inline-size: 100%;
+		max-inline-size: 100%;
+		min-inline-size: 0;
+		overflow: hidden;
+	}
+
+	:global(.node-title:has(.condition-header-extra) > .title-text) {
+		flex: 0 1 auto;
+		min-inline-size: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.condition-header-extra {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.25rem;
+		box-sizing: border-box;
+		flex: 1 1 auto;
+		inline-size: auto;
+		min-inline-size: 3.4rem;
+		max-inline-size: none;
+		margin-inline-start: 0.2rem;
+		overflow: hidden;
+		container-type: inline-size;
+	}
+
+	.condition-header-extra :global(.validation-chip) {
+		box-sizing: border-box;
+		flex: 0 0 3.4rem;
+		inline-size: 3.4rem;
+		min-inline-size: 3.4rem;
+		margin-inline-start: auto;
+		padding-inline: 0.35rem;
+	}
+
+	.condition-header-extra :global(.referenced-parameter-header-control) {
+		flex: 1 1 2.5rem;
+		inline-size: auto;
 		min-inline-size: 0;
-		margin-left: 0.2rem;
+		max-inline-size: none;
+	}
+
+	@container (max-width: 6.15rem) {
+		.condition-header-extra :global(.referenced-parameter-header-control) {
+			display: none;
+		}
 	}
 
 	:global(.input-value-condition-inspector) {
@@ -468,6 +689,10 @@
 		gap: 0.35rem;
 		align-items: center;
 		min-inline-size: 0;
+	}
+
+	.condition-main-row.without-comparator {
+		grid-template-columns: max-content minmax(8rem, 1fr);
 	}
 
 	.toggle-field,

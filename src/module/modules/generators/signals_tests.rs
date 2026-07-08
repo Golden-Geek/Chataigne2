@@ -1,7 +1,9 @@
 use golden_core::{
     edit::Edit,
     node::{Folder, Node, NodeId, NodeMetaPatch},
-    parameter::{ParamValue, ParameterEventBehaviour, RangeConstraint},
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint,
+    },
     process_ctx::ExecutionPhase,
     script::ScriptSource,
 };
@@ -79,6 +81,69 @@ fn signals_create_default_sine_item_and_direct_ranged_value() {
     );
     assert!(find_child_by_key(&engine, values_root, "phase").is_none());
     assert!(find_child_by_key(&engine, values_root, "cycle").is_none());
+}
+
+#[test]
+fn sparse_reload_preserves_referenced_default_signal_value() {
+    let (mut engine, module_id) = create_signals_module();
+    let values_root = find_path(&engine, module_id, "values").expect("values root");
+    let signal_value =
+        find_child_by_key(&engine, values_root, "Signal").expect("default signal value");
+    let signal_value_uuid = engine
+        .nodes
+        .get(signal_value)
+        .expect("signal value should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    engine.add_node(
+        Parameter::new(
+            "Signal Reference",
+            ParamValue::from(signal_value_uuid),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        None,
+    );
+    stabilize(&mut engine);
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("sparse project should encode");
+    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json)
+        .expect("sparse project should decode");
+    stabilize(&mut loaded);
+
+    let loaded_module = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == SignalsModule::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Signals module should reload");
+    let loaded_values_root = find_path(&loaded, loaded_module, "values").expect("values root");
+    let loaded_signal_value =
+        find_child_by_key(&loaded, loaded_values_root, "Signal").expect("signal value");
+
+    assert_eq!(
+        loaded
+            .nodes
+            .get(loaded_signal_value)
+            .expect("loaded signal value should exist")
+            .node_data()
+            .meta
+            .uuid,
+        signal_value_uuid,
+        "referenced generated signal value should keep its persisted UUID"
+    );
+    let loaded_reference =
+        find_child_by_key(&loaded, loaded.root, "Signal Reference").expect("reference parameter");
+    assert!(
+        matches!(
+            param_value(&loaded, loaded_reference),
+            Some(ParamValue::Reference(reference)) if reference.uuid() == signal_value_uuid
+        ),
+        "persisted references should still resolve to the generated signal value"
+    );
 }
 
 #[test]
