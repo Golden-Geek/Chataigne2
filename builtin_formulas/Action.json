@@ -1,723 +1,394 @@
 {
   "kind": "golden-ui.node-tree",
-  "version": 1,
   "nodes": [
     {
-      "sourceId": 4294967300,
-      "sourceUuid": "7c3dcd13-d180-431a-aa1e-bcdbfb1801fb",
-      "node_type": "alchemist_formula",
-      "user_item_kind": "alchemist_formula",
-      "decl_id": "formula",
-      "label": "Action",
-      "data": {
-        "kind": "node",
-        "node_type": "alchemist_formula"
-      },
-      "meta": {
-        "label": "Action",
-        "enabled": true,
-        "can_be_disabled": false
-      },
       "children": [
         {
-          "sourceId": 4294967301,
-          "sourceUuid": "3917d290-1e7e-409f-a948-3991e1df39c5",
-          "node_type": "bool",
-          "user_item_kind": "bool",
-          "decl_id": "is_valid",
-          "label": "Valid",
+          "children": [],
           "data": {
             "kind": "parameter",
             "param": {
               "value": {
                 "kind": "bool",
                 "value": true
-              },
-              "default_value": {
-                "kind": "bool",
-                "value": false
-              },
-              "event_behaviour": "Coalesce",
-              "read_only": true,
-              "constraints": {
-                "enum_options": [],
-                "policy": "ClampAdapt"
-              },
-              "ui_hints": {},
-              "control": {
-                "mode": "manual",
-                "spec": {
-                  "mode": "manual"
-                }
-              },
-              "reference_allowed_targets": [],
-              "reference_visible_nodes": []
+              }
             }
           },
+          "decl_id": "is_valid",
+          "label": "Valid",
           "meta": {
-            "label": "Valid",
-            "enabled": true,
             "can_be_disabled": false,
+            "enabled": true,
+            "label": "Valid",
             "presentation": {
               "show_in_inspector_content": false
-            }
+            },
+            "tags": []
           },
-          "children": []
+          "node_type": "bool",
+          "sourceId": 4294967301,
+          "sourceUuid": "ab7cbd29-e0ab-4893-a234-94cbc9a36911"
         },
         {
-          "sourceId": 4294967302,
-          "sourceUuid": "d45ca17e-cdd9-44ef-abfd-dc97c0c5556c",
-          "node_type": "str",
-          "user_item_kind": "str",
+          "children": [],
+          "data": {
+            "kind": "parameter",
+            "param": {
+              "value": {
+                "kind": "str",
+                "value": "[]"
+              }
+            }
+          },
           "decl_id": "diagnostics_json",
           "label": "Diagnostics",
+          "meta": {
+            "can_be_disabled": false,
+            "enabled": true,
+            "label": "Diagnostics",
+            "presentation": {
+              "show_in_inspector_content": false
+            },
+            "tags": []
+          },
+          "node_type": "str",
+          "sourceId": 4294967302,
+          "sourceUuid": "b52ebf3b-04fc-4d55-8936-c02c41a359ca"
+        },
+        {
+          "children": [],
           "data": {
             "kind": "parameter",
             "param": {
               "value": {
                 "kind": "str",
-                "value": "[]"
-              },
-              "default_value": {
-                "kind": "str",
-                "value": "[]"
-              },
-              "event_behaviour": "Coalesce",
-              "read_only": true,
-              "constraints": {
-                "enum_options": [],
-                "policy": "ClampAdapt"
-              },
-              "ui_hints": {},
-              "control": {
-                "mode": "manual",
-                "spec": {
-                  "mode": "manual"
-                }
-              },
-              "reference_allowed_targets": [],
-              "reference_visible_nodes": []
+                "value": "[{\"id\":\"conditions\",\"kind\":\"trigger_input\",\"label\":\"Conditions\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Input\"]},{\"id\":\"on_true\",\"kind\":\"command_set\",\"label\":\"On True\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Command\"]},{\"id\":\"on_false\",\"kind\":\"command_set\",\"label\":\"On False\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Command\"]}]"
+              }
             }
           },
-          "meta": {
-            "label": "Diagnostics",
-            "enabled": true,
-            "can_be_disabled": false,
-            "presentation": {
-              "show_in_inspector_content": false
-            }
-          },
-          "children": []
-        },
-        {
-          "sourceId": 4294967303,
-          "sourceUuid": "ef9bca5e-6307-4c6d-8d95-fb6da392bee1",
-          "node_type": "str",
-          "user_item_kind": "str",
           "decl_id": "managed_regions_json",
           "label": "Managed Regions Metadata",
+          "meta": {
+            "can_be_disabled": false,
+            "enabled": true,
+            "label": "Managed Regions Metadata",
+            "presentation": {
+              "show_in_inspector_content": false
+            },
+            "tags": []
+          },
+          "node_type": "str",
+          "sourceId": 4294967303,
+          "sourceUuid": "f8822433-8fef-46cc-a914-8072c289e612"
+        },
+        {
+          "children": [],
           "data": {
             "kind": "parameter",
             "param": {
               "value": {
                 "kind": "str",
                 "value": ""
-              },
-              "default_value": {
-                "kind": "str",
-                "value": ""
-              },
-              "event_behaviour": "Coalesce",
-              "read_only": true,
-              "constraints": {
-                "enum_options": [],
-                "policy": "ClampAdapt"
-              },
-              "ui_hints": {},
-              "control": {
-                "mode": "manual",
-                "spec": {
-                  "mode": "manual"
-                }
-              },
-              "reference_allowed_targets": [],
-              "reference_visible_nodes": []
+              }
             }
           },
-          "meta": {
-            "label": "Managed Regions Metadata",
-            "enabled": true,
-            "can_be_disabled": false,
-            "presentation": {
-              "show_in_inspector_content": false
-            }
-          },
-          "children": []
-        },
-        {
-          "sourceId": 4294967304,
-          "sourceUuid": "a782b4ed-20a5-46ff-a5cf-5ad9caa44b79",
-          "node_type": "str",
-          "user_item_kind": "str",
           "decl_id": "duplicate_from_formula_source",
           "label": "Duplicate Source",
-          "data": {
-            "kind": "parameter",
-            "param": {
-              "value": {
-                "kind": "str",
-                "value": ""
-              },
-              "default_value": {
-                "kind": "str",
-                "value": ""
-              },
-              "event_behaviour": "Coalesce",
-              "read_only": true,
-              "constraints": {
-                "enum_options": [],
-                "policy": "ClampAdapt"
-              },
-              "ui_hints": {},
-              "control": {
-                "mode": "manual",
-                "spec": {
-                  "mode": "manual"
-                }
-              },
-              "reference_allowed_targets": [],
-              "reference_visible_nodes": []
-            }
-          },
           "meta": {
-            "label": "Duplicate Source",
-            "enabled": true,
             "can_be_disabled": false,
+            "enabled": true,
+            "label": "Duplicate Source",
             "presentation": {
               "show_in_inspector_content": false
-            }
+            },
+            "tags": []
           },
-          "children": []
+          "node_type": "str",
+          "sourceId": 4294967308,
+          "sourceUuid": "a782b4ed-20a5-46ff-a5cf-5ad9caa44b79"
         },
         {
-          "sourceId": 4294967305,
-          "sourceUuid": "d3d338d0-acc6-48a4-86f2-9d3624e6c0ef",
-          "node_type": "alchemist_properties",
-          "user_item_kind": "alchemist_properties",
-          "decl_id": "properties",
-          "label": "Properties",
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "enum",
+                        "value": "condition"
+                      }
+                    }
+                  },
+                  "decl_id": "role",
+                  "label": "Role",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Role",
+                    "presentation": {
+                      "show_in_inspector_content": false
+                    },
+                    "tags": []
+                  },
+                  "node_type": "enum",
+                  "sourceId": 4294967311,
+                  "sourceUuid": "ee0f62fc-03ff-4de1-bdfa-cc62753a26b2"
+                },
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    }
+                  },
+                  "decl_id": "exposed",
+                  "label": "Exposed",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Exposed",
+                    "presentation": {},
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967312,
+                  "sourceUuid": "3d7313e1-8afd-4484-bd54-d045ea5e24ce"
+                }
+              ],
+              "data": {
+                "kind": "node",
+                "node_type": "alchemist_property_manager"
+              },
+              "decl_id": "manager",
+              "label": "Conditions",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "Conditions",
+                "presentation": {
+                  "collapsed": true,
+                  "color": {
+                    "a": 1.0,
+                    "b": 0.8171,
+                    "g": 0.569,
+                    "r": 0.186
+                  },
+                  "default_color": {
+                    "a": 1.0,
+                    "b": 0.2212000000000001,
+                    "g": 0.8988,
+                    "r": 0.6051733333333333
+                  }
+                },
+                "tags": [
+                  "alchemist.manager.role:condition"
+                ]
+              },
+              "node_type": "alchemist_property_manager",
+              "sourceId": 4294967310,
+              "sourceUuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf"
+            },
+            {
+              "children": [
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "enum",
+                        "value": "output"
+                      }
+                    }
+                  },
+                  "decl_id": "role",
+                  "label": "Role",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Role",
+                    "presentation": {
+                      "show_in_inspector_content": false
+                    },
+                    "tags": []
+                  },
+                  "node_type": "enum",
+                  "sourceId": 4294967314,
+                  "sourceUuid": "aafa64d4-eb4b-4a10-a8a2-8bc19bd35b49"
+                },
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    }
+                  },
+                  "decl_id": "exposed",
+                  "label": "Exposed",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Exposed",
+                    "presentation": {},
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967315,
+                  "sourceUuid": "d765235a-3e1e-4067-8f86-2ae29af91cb8"
+                }
+              ],
+              "data": {
+                "kind": "node",
+                "node_type": "alchemist_property_manager"
+              },
+              "decl_id": "manager",
+              "label": "On True",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "On True",
+                "presentation": {
+                  "collapsed": true,
+                  "color": {
+                    "a": 1.0,
+                    "b": 0.2502,
+                    "g": 0.8584,
+                    "r": 0.3785
+                  },
+                  "default_color": {
+                    "a": 1.0,
+                    "b": 0.13230000000000003,
+                    "g": 0.8476999999999999,
+                    "r": 0.5138466666666668
+                  }
+                },
+                "tags": [
+                  "alchemist.manager.role:output"
+                ]
+              },
+              "node_type": "alchemist_property_manager",
+              "sourceId": 4294967313,
+              "sourceUuid": "23999a34-6c29-4850-8b52-e77b9b8d7873"
+            },
+            {
+              "children": [
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "enum",
+                        "value": "output"
+                      }
+                    }
+                  },
+                  "decl_id": "role",
+                  "label": "Role",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Role",
+                    "presentation": {
+                      "show_in_inspector_content": false
+                    },
+                    "tags": []
+                  },
+                  "node_type": "enum",
+                  "sourceId": 4294967317,
+                  "sourceUuid": "64422cdc-bb1d-4dcc-baea-c6c2a6007d7b"
+                },
+                {
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    }
+                  },
+                  "decl_id": "exposed",
+                  "label": "Exposed",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Exposed",
+                    "presentation": {},
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967318,
+                  "sourceUuid": "04d3153a-3148-4d92-9b34-199868951bb2"
+                }
+              ],
+              "data": {
+                "kind": "node",
+                "node_type": "alchemist_property_manager"
+              },
+              "decl_id": "outputsCopy",
+              "label": "On False",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "On False",
+                "presentation": {
+                  "collapsed": true,
+                  "color": {
+                    "a": 1.0,
+                    "b": 0.0987,
+                    "g": 0.427,
+                    "r": 0.8471
+                  },
+                  "default_color": {
+                    "a": 1.0,
+                    "b": 0.13230000000000003,
+                    "g": 0.8476999999999999,
+                    "r": 0.5138466666666668
+                  }
+                },
+                "tags": [
+                  "alchemist.manager.role:output"
+                ]
+              },
+              "node_type": "alchemist_property_manager",
+              "sourceId": 4294967316,
+              "sourceUuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153"
+            }
+          ],
           "data": {
             "kind": "node",
             "node_type": "alchemist_properties"
           },
+          "decl_id": "properties",
+          "label": "Properties",
           "meta": {
-            "label": "Properties",
+            "can_be_disabled": false,
             "enabled": true,
-            "can_be_disabled": false
+            "label": "Properties",
+            "presentation": {},
+            "tags": []
           },
-          "children": [
-            {
-              "sourceId": 4294967306,
-              "sourceUuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf",
-              "node_type": "alchemist_property_manager",
-              "user_item_kind": "alchemist_property_manager",
-              "decl_id": "manager",
-              "label": "Conditions",
-              "data": {
-                "kind": "node",
-                "node_type": "alchemist_property_manager"
-              },
-              "meta": {
-                "label": "Conditions",
-                "enabled": true,
-                "can_be_disabled": false,
-                "presentation": {
-                  "color": {
-                    "r": 0.186,
-                    "g": 0.569,
-                    "b": 0.8171,
-                    "a": 1
-                  },
-                  "collapsed": true
-                }
-              },
-              "children": [
-                {
-                  "sourceId": 4294967307,
-                  "sourceUuid": "ee0f62fc-03ff-4de1-bdfa-cc62753a26b2",
-                  "node_type": "enum",
-                  "user_item_kind": "enum",
-                  "decl_id": "role",
-                  "label": "Role",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "enum",
-                        "value": "condition"
-                      },
-                      "default_value": {
-                        "kind": "enum",
-                        "value": "condition"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": true,
-                      "constraints": {
-                        "enum_options": [
-                          {
-                            "variant_id": "condition",
-                            "value": {
-                              "kind": "enum",
-                              "value": "condition"
-                            },
-                            "label": "Condition",
-                            "tags": [],
-                            "ordering": 0
-                          },
-                          {
-                            "variant_id": "filter",
-                            "value": {
-                              "kind": "enum",
-                              "value": "filter"
-                            },
-                            "label": "Filter",
-                            "tags": [],
-                            "ordering": 1
-                          },
-                          {
-                            "variant_id": "input",
-                            "value": {
-                              "kind": "enum",
-                              "value": "input"
-                            },
-                            "label": "Input",
-                            "tags": [],
-                            "ordering": 2
-                          },
-                          {
-                            "variant_id": "output",
-                            "value": {
-                              "kind": "enum",
-                              "value": "output"
-                            },
-                            "label": "Output",
-                            "tags": [],
-                            "ordering": 3
-                          }
-                        ],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Role",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "show_in_inspector_content": false
-                    }
-                  },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967308,
-                  "sourceUuid": "3d7313e1-8afd-4484-bd54-d045ea5e24ce",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
-                  "decl_id": "exposed",
-                  "label": "Exposed",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Exposed",
-                    "enabled": true,
-                    "can_be_disabled": false
-                  },
-                  "children": []
-                }
-              ]
-            },
-            {
-              "sourceId": 4294967309,
-              "sourceUuid": "23999a34-6c29-4850-8b52-e77b9b8d7873",
-              "node_type": "alchemist_property_manager",
-              "user_item_kind": "alchemist_property_manager",
-              "decl_id": "manager",
-              "label": "On True",
-              "data": {
-                "kind": "node",
-                "node_type": "alchemist_property_manager"
-              },
-              "meta": {
-                "label": "On True",
-                "enabled": true,
-                "can_be_disabled": false,
-                "presentation": {
-                  "color": {
-                    "r": 0.3785,
-                    "g": 0.8584,
-                    "b": 0.2502,
-                    "a": 1
-                  },
-                  "collapsed": true
-                }
-              },
-              "children": [
-                {
-                  "sourceId": 4294967310,
-                  "sourceUuid": "aafa64d4-eb4b-4a10-a8a2-8bc19bd35b49",
-                  "node_type": "enum",
-                  "user_item_kind": "enum",
-                  "decl_id": "role",
-                  "label": "Role",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "enum",
-                        "value": "output"
-                      },
-                      "default_value": {
-                        "kind": "enum",
-                        "value": "output"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": true,
-                      "constraints": {
-                        "enum_options": [
-                          {
-                            "variant_id": "condition",
-                            "value": {
-                              "kind": "enum",
-                              "value": "condition"
-                            },
-                            "label": "Condition",
-                            "tags": [],
-                            "ordering": 0
-                          },
-                          {
-                            "variant_id": "filter",
-                            "value": {
-                              "kind": "enum",
-                              "value": "filter"
-                            },
-                            "label": "Filter",
-                            "tags": [],
-                            "ordering": 1
-                          },
-                          {
-                            "variant_id": "input",
-                            "value": {
-                              "kind": "enum",
-                              "value": "input"
-                            },
-                            "label": "Input",
-                            "tags": [],
-                            "ordering": 2
-                          },
-                          {
-                            "variant_id": "output",
-                            "value": {
-                              "kind": "enum",
-                              "value": "output"
-                            },
-                            "label": "Output",
-                            "tags": [],
-                            "ordering": 3
-                          }
-                        ],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Role",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "show_in_inspector_content": false
-                    }
-                  },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967311,
-                  "sourceUuid": "d765235a-3e1e-4067-8f86-2ae29af91cb8",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
-                  "decl_id": "exposed",
-                  "label": "Exposed",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Exposed",
-                    "enabled": true,
-                    "can_be_disabled": false
-                  },
-                  "children": []
-                }
-              ]
-            },
-            {
-              "sourceId": 4294967312,
-              "sourceUuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153",
-              "node_type": "alchemist_property_manager",
-              "user_item_kind": "alchemist_property_manager",
-              "decl_id": "outputsCopy",
-              "label": "On False",
-              "data": {
-                "kind": "node",
-                "node_type": "alchemist_property_manager"
-              },
-              "meta": {
-                "label": "On False",
-                "enabled": true,
-                "can_be_disabled": false,
-                "presentation": {
-                  "color": {
-                    "r": 0.8471,
-                    "g": 0.427,
-                    "b": 0.0987,
-                    "a": 1
-                  },
-                  "collapsed": true
-                }
-              },
-              "children": [
-                {
-                  "sourceId": 4294967313,
-                  "sourceUuid": "64422cdc-bb1d-4dcc-baea-c6c2a6007d7b",
-                  "node_type": "enum",
-                  "user_item_kind": "enum",
-                  "decl_id": "role",
-                  "label": "Role",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "enum",
-                        "value": "output"
-                      },
-                      "default_value": {
-                        "kind": "enum",
-                        "value": "output"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": true,
-                      "constraints": {
-                        "enum_options": [
-                          {
-                            "variant_id": "condition",
-                            "value": {
-                              "kind": "enum",
-                              "value": "condition"
-                            },
-                            "label": "Condition",
-                            "tags": [],
-                            "ordering": 0
-                          },
-                          {
-                            "variant_id": "filter",
-                            "value": {
-                              "kind": "enum",
-                              "value": "filter"
-                            },
-                            "label": "Filter",
-                            "tags": [],
-                            "ordering": 1
-                          },
-                          {
-                            "variant_id": "input",
-                            "value": {
-                              "kind": "enum",
-                              "value": "input"
-                            },
-                            "label": "Input",
-                            "tags": [],
-                            "ordering": 2
-                          },
-                          {
-                            "variant_id": "output",
-                            "value": {
-                              "kind": "enum",
-                              "value": "output"
-                            },
-                            "label": "Output",
-                            "tags": [],
-                            "ordering": 3
-                          }
-                        ],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Role",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "show_in_inspector_content": false
-                    }
-                  },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967314,
-                  "sourceUuid": "04d3153a-3148-4d92-9b34-199868951bb2",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
-                  "decl_id": "exposed",
-                  "label": "Exposed",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Exposed",
-                    "enabled": true,
-                    "can_be_disabled": false
-                  },
-                  "children": []
-                }
-              ]
-            }
-          ]
+          "node_type": "alchemist_properties",
+          "sourceId": 4294967309,
+          "sourceUuid": "d3d338d0-acc6-48a4-86f2-9d3624e6c0ef"
         },
         {
-          "sourceId": 4294967315,
-          "sourceUuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c",
-          "node_type": "alchemist_anode",
-          "user_item_kind": "alchemist_anode",
-          "decl_id": "anode",
-          "label": "Conditions",
-          "data": {
-            "kind": "node",
-            "node_type": "alchemist_anode"
-          },
-          "meta": {
-            "label": "Conditions",
-            "enabled": true,
-            "can_be_disabled": true,
-            "presentation": {
-              "color": {
-                "r": 0.186,
-                "g": 0.569,
-                "b": 0.8171,
-                "a": 1
-              }
-            }
-          },
           "children": [
             {
-              "sourceId": 4294967316,
-              "sourceUuid": "6f4924e4-f874-4cc2-a5c5-68e85064ec25",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "position",
-              "label": "Position",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
@@ -727,740 +398,510 @@
                       -3.295260371071077,
                       8.770851084646194
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      0,
-                      0
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "position",
+              "label": "Position",
               "meta": {
-                "label": "Position",
-                "enabled": true,
                 "can_be_disabled": false,
+                "enabled": true,
+                "label": "Position",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967320,
+              "sourceUuid": "6f4924e4-f874-4cc2-a5c5-68e85064ec25"
             },
             {
-              "sourceId": 4294967317,
-              "sourceUuid": "c83770d0-b77d-41e7-810e-bb432b15f596",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "size",
-              "label": "Size",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "vec2",
                     "value": [
-                      13,
-                      8
+                      13.0,
+                      8.0
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      13,
-                      8
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "size",
+              "label": "Size",
               "meta": {
-                "label": "Size",
-                "enabled": false,
                 "can_be_disabled": true,
+                "enabled": false,
+                "label": "Size",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967321,
+              "sourceUuid": "c83770d0-b77d-41e7-810e-bb432b15f596"
             },
             {
-              "sourceId": 4294967318,
-              "sourceUuid": "f8579517-0eb1-4f6d-8bea-3a544d37de2c",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "config",
-              "label": "Config",
-              "data": {
-                "kind": "node",
-                "node_type": "folder"
-              },
-              "meta": {
-                "label": "Config",
-                "enabled": true,
-                "can_be_disabled": false
-              },
               "children": [
                 {
-                  "sourceId": 4294967319,
-                  "sourceUuid": "3938501d-46c9-447d-9c3c-bc2721111cc7",
-                  "node_type": "reference",
-                  "user_item_kind": "reference",
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "reference",
+                        "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf"
+                      }
+                    }
+                  },
                   "decl_id": "config/manager_id",
                   "label": "Manager",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Manager",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.7,
+                        "g": 0.62,
+                        "r": 0.55
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "reference",
+                  "sourceId": 4294967323,
+                  "sourceUuid": "3938501d-46c9-447d-9c3c-bc2721111cc7"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
-                        "kind": "reference",
-                        "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf",
-                        "cached_name": "Conditions",
-                        "relative_path_from_root": [
-                          "formulas",
-                          "formula",
-                          "properties",
-                          "manager"
-                        ]
-                      },
-                      "default_value": {
-                        "kind": "reference",
-                        "uuid": "00000000-0000-0000-0000-000000000000"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Manager",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.55,
-                        "g": 0.62,
-                        "b": 0.7,
-                        "a": 1
+                        "kind": "bool",
+                        "value": true
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967320,
-                  "sourceUuid": "a099eaee-438c-440f-89b4-e382d4b7fa19",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/process_on_input_change_only",
                   "label": "Process on input change only",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Process on input change only",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967324,
+                  "sourceUuid": "a099eaee-438c-440f-89b4-e382d4b7fa19"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Process on input change only",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967321,
-                  "sourceUuid": "2f3dc0e4-14f0-4698-89fa-42cfb2b7f26a",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/send_on_output_change_only",
                   "label": "Send on output change only",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Send on output change only",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967325,
+                  "sourceUuid": "2f3dc0e4-14f0-4698-89fa-42cfb2b7f26a"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Send on output change only",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
+                        "value": false
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967322,
-                  "sourceUuid": "5eb3fa3c-4cb2-4136-bde8-74607ab96e78",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/log",
                   "label": "Log",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": false
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": false
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
                   "meta": {
-                    "label": "Log",
-                    "enabled": true,
                     "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Log",
                     "presentation": {
                       "color": {
-                        "r": 0.86,
-                        "g": 0.44,
+                        "a": 1.0,
                         "b": 0.78,
-                        "a": 1
+                        "g": 0.44,
+                        "r": 0.86
                       }
-                    }
+                    },
+                    "tags": []
                   },
-                  "children": []
+                  "node_type": "bool",
+                  "sourceId": 4294967326,
+                  "sourceUuid": "5eb3fa3c-4cb2-4136-bde8-74607ab96e78"
                 }
-              ]
+              ],
+              "data": {
+                "kind": "node",
+                "node_type": "folder"
+              },
+              "decl_id": "config",
+              "label": "Config",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "Config",
+                "presentation": {},
+                "tags": []
+              },
+              "node_type": "folder",
+              "sourceId": 4294967322,
+              "sourceUuid": "f8579517-0eb1-4f6d-8bea-3a544d37de2c"
             },
             {
-              "sourceId": 4294967323,
-              "sourceUuid": "685b0adf-f699-45c8-b9a6-ab0548b43d71",
-              "node_type": "folder",
-              "user_item_kind": "folder",
+              "children": [],
+              "data": {
+                "kind": "node",
+                "node_type": "folder"
+              },
               "decl_id": "inputs",
               "label": "Inputs",
-              "data": {
-                "kind": "node",
-                "node_type": "folder"
-              },
               "meta": {
-                "label": "Inputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Inputs",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "folder",
+              "sourceId": 4294967327,
+              "sourceUuid": "685b0adf-f699-45c8-b9a6-ab0548b43d71"
             },
             {
-              "sourceId": 4294967324,
-              "sourceUuid": "86c4b6a8-be68-4903-a209-3076f30e73ba",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "outputs",
-              "label": "Outputs",
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "valid"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/valid/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967330,
+                      "sourceUuid": "f061d54e-0370-4a32-9443-67bdac430c3a"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "bool"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/valid/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967331,
+                      "sourceUuid": "8d2e03c4-654b-40b4-83df-911d5d5991b9"
+                    }
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_output_socket"
+                  },
+                  "decl_id": "outputs/valid",
+                  "label": "Valid",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Valid",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_output_socket",
+                  "sourceId": 4294967329,
+                  "sourceUuid": "d3f9fffb-21f9-478f-9738-6ac2d77c3195"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "on_true"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/on_true/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967333,
+                      "sourceUuid": "16b47bed-bf66-403d-9773-fe088f0c26db"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/on_true/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967334,
+                      "sourceUuid": "98f35475-bbe8-41cb-bf4e-6dd6a24c803c"
+                    }
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_output_socket"
+                  },
+                  "decl_id": "outputs/on_true",
+                  "label": "On True",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "On True",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.22,
+                        "g": 0.42,
+                        "r": 0.98
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_output_socket",
+                  "sourceId": 4294967332,
+                  "sourceUuid": "8bf2054c-12c0-40b1-9132-beec6d34e863"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "on_false"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/on_false/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967336,
+                      "sourceUuid": "d6b5a689-4e7d-499e-a3a0-c0bd235c22bf"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "outputs/on_false/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967337,
+                      "sourceUuid": "698cc109-8f4f-4450-bc1d-4f829e8936fd"
+                    }
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_output_socket"
+                  },
+                  "decl_id": "outputs/on_false",
+                  "label": "On False",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "On False",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.22,
+                        "g": 0.42,
+                        "r": 0.98
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_output_socket",
+                  "sourceId": 4294967335,
+                  "sourceUuid": "c4e4b62a-2b81-41d6-ad67-c31acc699024"
+                }
+              ],
               "data": {
                 "kind": "node",
                 "node_type": "folder"
               },
+              "decl_id": "outputs",
+              "label": "Outputs",
               "meta": {
-                "label": "Outputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Outputs",
+                "presentation": {},
+                "tags": []
               },
-              "children": [
-                {
-                  "sourceId": 4294967325,
-                  "sourceUuid": "d3f9fffb-21f9-478f-9738-6ac2d77c3195",
-                  "node_type": "alchemist_output_socket",
-                  "user_item_kind": "alchemist_output_socket",
-                  "decl_id": "outputs/valid",
-                  "label": "Valid",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_output_socket"
-                  },
-                  "meta": {
-                    "label": "Valid",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
-                      }
-                    }
-                  },
-                  "children": [
-                    {
-                      "sourceId": 4294967326,
-                      "sourceUuid": "f061d54e-0370-4a32-9443-67bdac430c3a",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/valid/socket_id",
-                      "label": "Socket ID",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "valid"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "valid"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967327,
-                      "sourceUuid": "8d2e03c4-654b-40b4-83df-911d5d5991b9",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/valid/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "bool"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "bool"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    }
-                  ]
-                },
-                {
-                  "sourceId": 4294967328,
-                  "sourceUuid": "8bf2054c-12c0-40b1-9132-beec6d34e863",
-                  "node_type": "alchemist_output_socket",
-                  "user_item_kind": "alchemist_output_socket",
-                  "decl_id": "outputs/on_true",
-                  "label": "On True",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_output_socket"
-                  },
-                  "meta": {
-                    "label": "On True",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.98,
-                        "g": 0.42,
-                        "b": 0.22,
-                        "a": 1
-                      }
-                    }
-                  },
-                  "children": [
-                    {
-                      "sourceId": 4294967329,
-                      "sourceUuid": "16b47bed-bf66-403d-9773-fe088f0c26db",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/on_true/socket_id",
-                      "label": "Socket ID",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "on_true"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "on_true"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967330,
-                      "sourceUuid": "98f35475-bbe8-41cb-bf4e-6dd6a24c803c",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/on_true/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    }
-                  ]
-                },
-                {
-                  "sourceId": 4294967331,
-                  "sourceUuid": "c4e4b62a-2b81-41d6-ad67-c31acc699024",
-                  "node_type": "alchemist_output_socket",
-                  "user_item_kind": "alchemist_output_socket",
-                  "decl_id": "outputs/on_false",
-                  "label": "On False",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_output_socket"
-                  },
-                  "meta": {
-                    "label": "On False",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.98,
-                        "g": 0.42,
-                        "b": 0.22,
-                        "a": 1
-                      }
-                    }
-                  },
-                  "children": [
-                    {
-                      "sourceId": 4294967332,
-                      "sourceUuid": "d6b5a689-4e7d-499e-a3a0-c0bd235c22bf",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/on_false/socket_id",
-                      "label": "Socket ID",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "on_false"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "on_false"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967333,
-                      "sourceUuid": "698cc109-8f4f-4450-bc1d-4f829e8936fd",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "outputs/on_false/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    }
-                  ]
-                }
-              ]
+              "node_type": "folder",
+              "sourceId": 4294967328,
+              "sourceUuid": "86c4b6a8-be68-4903-a209-3076f30e73ba"
             }
-          ]
-        },
-        {
-          "sourceId": 4294967334,
-          "sourceUuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1",
-          "node_type": "alchemist_anode",
-          "user_item_kind": "alchemist_anode",
-          "decl_id": "anode",
-          "label": "On True",
+          ],
           "data": {
             "kind": "node",
             "node_type": "alchemist_anode"
           },
+          "decl_id": "anode",
+          "label": "Conditions",
           "meta": {
-            "label": "On True",
-            "enabled": true,
             "can_be_disabled": true,
+            "enabled": true,
+            "label": "Conditions",
             "presentation": {
               "color": {
-                "r": 0.3785,
-                "g": 0.8584,
-                "b": 0.2502,
-                "a": 1
+                "a": 1.0,
+                "b": 0.8171,
+                "g": 0.569,
+                "r": 0.186
+              },
+              "default_color": {
+                "a": 1.0,
+                "b": 0.8171,
+                "g": 0.569,
+                "r": 0.186
               }
-            }
+            },
+            "tags": [
+              "alchemist.anode.type:chataigne.conditions_manager"
+            ]
           },
+          "node_type": "alchemist_anode",
+          "sourceId": 4294967319,
+          "sourceUuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c"
+        },
+        {
           "children": [
             {
-              "sourceId": 4294967335,
-              "sourceUuid": "8889dc5d-ab5e-49b6-b1be-d62e9abb1ebc",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "position",
-              "label": "Position",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
@@ -1470,942 +911,608 @@
                       10.48398190498012,
                       4.232834988343611
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      0,
-                      0
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "position",
+              "label": "Position",
               "meta": {
-                "label": "Position",
-                "enabled": true,
                 "can_be_disabled": false,
+                "enabled": true,
+                "label": "Position",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967339,
+              "sourceUuid": "8889dc5d-ab5e-49b6-b1be-d62e9abb1ebc"
             },
             {
-              "sourceId": 4294967336,
-              "sourceUuid": "8ecb7d24-2863-4ae7-a624-e1eb54feb0bb",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "size",
-              "label": "Size",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "vec2",
                     "value": [
-                      13,
-                      8
+                      13.0,
+                      8.0
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      13,
-                      8
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "size",
+              "label": "Size",
               "meta": {
-                "label": "Size",
-                "enabled": false,
                 "can_be_disabled": true,
+                "enabled": false,
+                "label": "Size",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967340,
+              "sourceUuid": "8ecb7d24-2863-4ae7-a624-e1eb54feb0bb"
             },
             {
-              "sourceId": 4294967337,
-              "sourceUuid": "ea391a74-61f8-4a08-b862-9296380fc27a",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "config",
-              "label": "Config",
-              "data": {
-                "kind": "node",
-                "node_type": "folder"
-              },
-              "meta": {
-                "label": "Config",
-                "enabled": true,
-                "can_be_disabled": false
-              },
               "children": [
                 {
-                  "sourceId": 4294967338,
-                  "sourceUuid": "f73be788-9cba-4cc8-89c8-43c5477bec94",
-                  "node_type": "reference",
-                  "user_item_kind": "reference",
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "reference",
+                        "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873"
+                      }
+                    }
+                  },
                   "decl_id": "config/manager_id",
                   "label": "Manager",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Manager",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.7,
+                        "g": 0.62,
+                        "r": 0.55
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "reference",
+                  "sourceId": 4294967342,
+                  "sourceUuid": "f73be788-9cba-4cc8-89c8-43c5477bec94"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
-                        "kind": "reference",
-                        "uuid": "23999a34-6c29-4850-8b52-e77b9b8d7873",
-                        "cached_name": "On True",
-                        "relative_path_from_root": [
-                          "formulas",
-                          "formula",
-                          "properties",
-                          "manager"
-                        ]
-                      },
-                      "default_value": {
-                        "kind": "reference",
-                        "uuid": "00000000-0000-0000-0000-000000000000"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Manager",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.55,
-                        "g": 0.62,
-                        "b": 0.7,
-                        "a": 1
+                        "kind": "bool",
+                        "value": true
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967339,
-                  "sourceUuid": "4b1eba0f-1514-4b67-83d2-cdb6a8ff72aa",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/trigger_on_values_signal",
                   "label": "Trigger On Values Signal",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Trigger On Values Signal",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967343,
+                  "sourceUuid": "4b1eba0f-1514-4b67-83d2-cdb6a8ff72aa"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Trigger On Values Signal",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967340,
-                  "sourceUuid": "e952c6ed-5d0f-4770-95cf-ec3a42e2c0f5",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/process_on_input_change_only",
                   "label": "Process on input change only",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Process on input change only",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967344,
+                  "sourceUuid": "e952c6ed-5d0f-4770-95cf-ec3a42e2c0f5"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Process on input change only",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967341,
-                  "sourceUuid": "9a19fe6d-0204-450b-814c-d8bb7893e9f0",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/send_on_output_change_only",
                   "label": "Send on output change only",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
                   "meta": {
-                    "label": "Send on output change only",
-                    "enabled": true,
                     "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Send on output change only",
                     "presentation": {
                       "color": {
-                        "r": 0.86,
-                        "g": 0.44,
+                        "a": 1.0,
                         "b": 0.78,
-                        "a": 1
+                        "g": 0.44,
+                        "r": 0.86
                       }
-                    }
+                    },
+                    "tags": []
                   },
-                  "children": []
+                  "node_type": "bool",
+                  "sourceId": 4294967345,
+                  "sourceUuid": "9a19fe6d-0204-450b-814c-d8bb7893e9f0"
                 },
                 {
-                  "sourceId": 4294967342,
-                  "sourceUuid": "cabc7fe1-1b03-4744-bdf7-e81b1f51d2f2",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
-                  "decl_id": "config/log",
-                  "label": "Log",
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": false
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": false
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Log",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
+                  "decl_id": "config/log",
+                  "label": "Log",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Log",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967346,
+                  "sourceUuid": "cabc7fe1-1b03-4744-bdf7-e81b1f51d2f2"
                 }
-              ]
-            },
-            {
-              "sourceId": 4294967343,
-              "sourceUuid": "fb41b2de-8bb2-44de-9a34-ce4591f8a9df",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "inputs",
-              "label": "Inputs",
+              ],
               "data": {
                 "kind": "node",
                 "node_type": "folder"
               },
+              "decl_id": "config",
+              "label": "Config",
               "meta": {
-                "label": "Inputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Config",
+                "presentation": {},
+                "tags": []
               },
+              "node_type": "folder",
+              "sourceId": 4294967341,
+              "sourceUuid": "ea391a74-61f8-4a08-b862-9296380fc27a"
+            },
+            {
               "children": [
                 {
-                  "sourceId": 4294967344,
-                  "sourceUuid": "290e497d-5d9a-4f03-9966-e610d54aaf4b",
-                  "node_type": "alchemist_input_socket",
-                  "user_item_kind": "alchemist_input_socket",
-                  "decl_id": "inputs/values",
-                  "label": "Values",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_input_socket"
-                  },
-                  "meta": {
-                    "label": "Values",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.28,
-                        "g": 0.68,
-                        "b": 0.72,
-                        "a": 1
-                      }
-                    }
-                  },
                   "children": [
                     {
-                      "sourceId": 4294967345,
-                      "sourceUuid": "6adfed1c-4994-4c73-9bf4-5d7ec608522b",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/values/socket_id",
-                      "label": "Socket ID",
+                      "children": [],
                       "data": {
                         "kind": "parameter",
                         "param": {
                           "value": {
                             "kind": "str",
                             "value": "values"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "values"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967346,
-                      "sourceUuid": "8973c0e2-1c4e-4723-bb84-6fcae73b6d36",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/values/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "chataigne.value_set"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "chataigne.value_set"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    }
-                  ]
-                },
-                {
-                  "sourceId": 4294967347,
-                  "sourceUuid": "5b87b341-1694-4ded-a1ce-695421ac4e5f",
-                  "node_type": "alchemist_input_socket",
-                  "user_item_kind": "alchemist_input_socket",
-                  "decl_id": "inputs/trigger",
-                  "label": "Trigger",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_input_socket"
-                  },
-                  "meta": {
-                    "label": "Trigger",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.98,
-                        "g": 0.42,
-                        "b": 0.22,
-                        "a": 1
-                      }
-                    }
-                  },
-                  "children": [
-                    {
-                      "sourceId": 4294967348,
-                      "sourceUuid": "22ee0ac2-d3bc-4474-a634-1ee36656f3a5",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/trigger/socket_id",
-                      "label": "Socket ID",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967349,
-                      "sourceUuid": "3a9952a5-03b4-4dee-8371-eb7b7f3bce66",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/trigger/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967350,
-                      "sourceUuid": "d6d69ef2-3450-4c3d-bc52-772b542e1b6b",
-                      "node_type": "trigger",
-                      "user_item_kind": "trigger",
-                      "decl_id": "inputs/trigger/value",
-                      "label": "Value",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": false,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "color": {
-                            "r": 0.98,
-                            "g": 0.42,
-                            "b": 0.22,
-                            "a": 1
                           }
                         }
                       },
-                      "children": []
+                      "decl_id": "inputs/values/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967349,
+                      "sourceUuid": "6adfed1c-4994-4c73-9bf4-5d7ec608522b"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "chataigne.value_set"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/values/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967350,
+                      "sourceUuid": "8973c0e2-1c4e-4723-bb84-6fcae73b6d36"
                     }
-                  ]
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_input_socket"
+                  },
+                  "decl_id": "inputs/values",
+                  "label": "Values",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Values",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.72,
+                        "g": 0.68,
+                        "r": 0.28
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_input_socket",
+                  "sourceId": 4294967348,
+                  "sourceUuid": "290e497d-5d9a-4f03-9966-e610d54aaf4b"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967352,
+                      "sourceUuid": "22ee0ac2-d3bc-4474-a634-1ee36656f3a5"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967353,
+                      "sourceUuid": "3a9952a5-03b4-4dee-8371-eb7b7f3bce66"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/value",
+                      "label": "Value",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value",
+                        "presentation": {
+                          "color": {
+                            "a": 1.0,
+                            "b": 0.22,
+                            "g": 0.42,
+                            "r": 0.98
+                          }
+                        },
+                        "tags": []
+                      },
+                      "node_type": "trigger",
+                      "sourceId": 4294967354,
+                      "sourceUuid": "d6d69ef2-3450-4c3d-bc52-772b542e1b6b"
+                    }
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_input_socket"
+                  },
+                  "decl_id": "inputs/trigger",
+                  "label": "Trigger",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Trigger",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.22,
+                        "g": 0.42,
+                        "r": 0.98
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_input_socket",
+                  "sourceId": 4294967351,
+                  "sourceUuid": "5b87b341-1694-4ded-a1ce-695421ac4e5f"
                 }
-              ]
-            },
-            {
-              "sourceId": 4294967351,
-              "sourceUuid": "f60ec4d7-8ceb-42c6-8090-8a6f33edcc1d",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "outputs",
-              "label": "Outputs",
+              ],
               "data": {
                 "kind": "node",
                 "node_type": "folder"
               },
+              "decl_id": "inputs",
+              "label": "Inputs",
               "meta": {
-                "label": "Outputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Inputs",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "folder",
+              "sourceId": 4294967347,
+              "sourceUuid": "fb41b2de-8bb2-44de-9a34-ce4591f8a9df"
+            },
+            {
+              "children": [],
+              "data": {
+                "kind": "node",
+                "node_type": "folder"
+              },
+              "decl_id": "outputs",
+              "label": "Outputs",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "Outputs",
+                "presentation": {},
+                "tags": []
+              },
+              "node_type": "folder",
+              "sourceId": 4294967355,
+              "sourceUuid": "f60ec4d7-8ceb-42c6-8090-8a6f33edcc1d"
             }
-          ]
-        },
-        {
-          "sourceId": 4294967352,
-          "sourceUuid": "5280aa0d-b268-43cf-8a7a-e33358b990ba",
-          "node_type": "alchemist_connection",
-          "user_item_kind": "alchemist_connection",
-          "decl_id": "connection",
-          "label": "Connection",
+          ],
           "data": {
             "kind": "node",
-            "node_type": "alchemist_connection"
+            "node_type": "alchemist_anode"
           },
+          "decl_id": "anode",
+          "label": "On True",
           "meta": {
-            "label": "Connection",
+            "can_be_disabled": true,
             "enabled": true,
-            "can_be_disabled": false
+            "label": "On True",
+            "presentation": {
+              "color": {
+                "a": 1.0,
+                "b": 0.2502,
+                "g": 0.8584,
+                "r": 0.3785
+              },
+              "default_color": {
+                "a": 1.0,
+                "b": 0.2502,
+                "g": 0.8584,
+                "r": 0.3785
+              }
+            },
+            "tags": [
+              "alchemist.anode.type:chataigne.outputs_manager"
+            ]
           },
+          "node_type": "alchemist_anode",
+          "sourceId": 4294967338,
+          "sourceUuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1"
+        },
+        {
           "children": [
             {
-              "sourceId": 4294967353,
-              "sourceUuid": "f3974004-dd2d-4da7-af5f-368861b75075",
-              "node_type": "reference",
-              "user_item_kind": "reference",
-              "decl_id": "source_node",
-              "label": "Source",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "reference",
-                    "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c",
-                    "cached_name": "Conditions",
-                    "relative_path_from_root": [
-                      "formulas",
-                      "formula",
-                      "anode"
-                    ]
-                  },
-                  "default_value": {
-                    "kind": "reference",
-                    "uuid": "00000000-0000-0000-0000-000000000000"
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt",
-                    "reference": {
-                      "root": {
-                        "kind": "engineRoot"
-                      },
-                      "target_kind": "anyNode",
-                      "allowed_node_types": [
-                        "alchemist_anode"
-                      ],
-                      "allowed_parameter_types": [],
-                      "allow_projections": false
-                    }
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                    "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c"
+                  }
                 }
               },
+              "decl_id": "source_node",
+              "label": "Source",
               "meta": {
-                "label": "Source",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Source",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "reference",
+              "sourceId": 4294967357,
+              "sourceUuid": "f3974004-dd2d-4da7-af5f-368861b75075"
             },
             {
-              "sourceId": 4294967354,
-              "sourceUuid": "92728f17-fa3a-4737-a47f-9906ca4cb528",
-              "node_type": "str",
-              "user_item_kind": "str",
-              "decl_id": "source_socket",
-              "label": "Source Socket",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "str",
                     "value": "on_true"
-                  },
-                  "default_value": {
-                    "kind": "str",
-                    "value": ""
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "source_socket",
+              "label": "Source Socket",
               "meta": {
-                "label": "Source Socket",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Source Socket",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "str",
+              "sourceId": 4294967358,
+              "sourceUuid": "92728f17-fa3a-4737-a47f-9906ca4cb528"
             },
             {
-              "sourceId": 4294967355,
-              "sourceUuid": "b3c7c3b1-dddb-4596-9795-4e33fd0dfa3e",
-              "node_type": "reference",
-              "user_item_kind": "reference",
-              "decl_id": "target_node",
-              "label": "Target",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "reference",
-                    "uuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1",
-                    "cached_name": "On True",
-                    "relative_path_from_root": [
-                      "formulas",
-                      "formula",
-                      "anode"
-                    ]
-                  },
-                  "default_value": {
-                    "kind": "reference",
-                    "uuid": "00000000-0000-0000-0000-000000000000"
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt",
-                    "reference": {
-                      "root": {
-                        "kind": "engineRoot"
-                      },
-                      "target_kind": "anyNode",
-                      "allowed_node_types": [
-                        "alchemist_anode"
-                      ],
-                      "allowed_parameter_types": [],
-                      "allow_projections": false
-                    }
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                    "uuid": "2da53256-3ddc-4601-ade2-85c08c35d9c1"
+                  }
                 }
               },
+              "decl_id": "target_node",
+              "label": "Target",
               "meta": {
-                "label": "Target",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Target",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "reference",
+              "sourceId": 4294967359,
+              "sourceUuid": "b3c7c3b1-dddb-4596-9795-4e33fd0dfa3e"
             },
             {
-              "sourceId": 4294967356,
-              "sourceUuid": "acc67114-439e-48ad-a3a3-8a76ee90eb03",
-              "node_type": "str",
-              "user_item_kind": "str",
-              "decl_id": "target_socket",
-              "label": "Target Socket",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "str",
                     "value": "trigger"
-                  },
-                  "default_value": {
-                    "kind": "str",
-                    "value": ""
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "target_socket",
+              "label": "Target Socket",
               "meta": {
-                "label": "Target Socket",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Target Socket",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "str",
+              "sourceId": 4294967360,
+              "sourceUuid": "acc67114-439e-48ad-a3a3-8a76ee90eb03"
             }
-          ]
-        },
-        {
-          "sourceId": 4294967357,
-          "sourceUuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c",
-          "node_type": "alchemist_anode",
-          "user_item_kind": "alchemist_anode",
-          "decl_id": "anode",
-          "label": "On False",
+          ],
           "data": {
             "kind": "node",
-            "node_type": "alchemist_anode"
+            "node_type": "alchemist_connection"
           },
+          "decl_id": "connection",
+          "label": "Connection",
           "meta": {
-            "label": "On False",
+            "can_be_disabled": false,
             "enabled": true,
-            "can_be_disabled": true,
-            "presentation": {
-              "color": {
-                "r": 0.8471,
-                "g": 0.427,
-                "b": 0.0987,
-                "a": 1
-              }
-            }
+            "label": "Connection",
+            "presentation": {},
+            "tags": []
           },
+          "node_type": "alchemist_connection",
+          "sourceId": 4294967356,
+          "sourceUuid": "5280aa0d-b268-43cf-8a7a-e33358b990ba"
+        },
+        {
           "children": [
             {
-              "sourceId": 4294967358,
-              "sourceUuid": "c9ef1f17-95cf-45f2-acf2-64aa5637ce85",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "position",
-              "label": "Position",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
@@ -2415,911 +1522,624 @@
                       11.722793338112943,
                       11.650872023065991
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      0,
-                      0
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "position",
+              "label": "Position",
               "meta": {
-                "label": "Position",
-                "enabled": true,
                 "can_be_disabled": false,
+                "enabled": true,
+                "label": "Position",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967362,
+              "sourceUuid": "c9ef1f17-95cf-45f2-acf2-64aa5637ce85"
             },
             {
-              "sourceId": 4294967359,
-              "sourceUuid": "b714bbe4-ec7c-4f5c-b941-251b7bad5a93",
-              "node_type": "vec2",
-              "user_item_kind": "vec2",
-              "decl_id": "size",
-              "label": "Size",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "vec2",
                     "value": [
-                      13,
-                      8
+                      13.0,
+                      8.0
                     ]
-                  },
-                  "default_value": {
-                    "kind": "vec2",
-                    "value": [
-                      13,
-                      8
-                    ]
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "size",
+              "label": "Size",
               "meta": {
-                "label": "Size",
-                "enabled": false,
                 "can_be_disabled": true,
+                "enabled": false,
+                "label": "Size",
                 "presentation": {
                   "show_in_inspector_content": false
-                }
+                },
+                "tags": []
               },
-              "children": []
+              "node_type": "vec2",
+              "sourceId": 4294967363,
+              "sourceUuid": "b714bbe4-ec7c-4f5c-b941-251b7bad5a93"
             },
             {
-              "sourceId": 4294967360,
-              "sourceUuid": "1cfbd580-9658-4fe6-b2b5-b131369d1665",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "config",
-              "label": "Config",
-              "data": {
-                "kind": "node",
-                "node_type": "folder"
-              },
-              "meta": {
-                "label": "Config",
-                "enabled": true,
-                "can_be_disabled": false
-              },
               "children": [
                 {
-                  "sourceId": 4294967361,
-                  "sourceUuid": "9833f8c8-02d5-48a9-9a54-9864b22fde12",
-                  "node_type": "reference",
-                  "user_item_kind": "reference",
+                  "children": [],
+                  "data": {
+                    "kind": "parameter",
+                    "param": {
+                      "value": {
+                        "kind": "reference",
+                        "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153"
+                      }
+                    }
+                  },
                   "decl_id": "config/manager_id",
                   "label": "Manager",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Manager",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.7,
+                        "g": 0.62,
+                        "r": 0.55
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "reference",
+                  "sourceId": 4294967365,
+                  "sourceUuid": "9833f8c8-02d5-48a9-9a54-9864b22fde12"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
-                        "kind": "reference",
-                        "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153",
-                        "cached_name": "On False",
-                        "relative_path_from_root": [
-                          "formulas",
-                          "formula",
-                          "properties",
-                          "outputsCopy"
-                        ]
-                      },
-                      "default_value": {
-                        "kind": "reference",
-                        "uuid": "00000000-0000-0000-0000-000000000000"
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Manager",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.55,
-                        "g": 0.62,
-                        "b": 0.7,
-                        "a": 1
+                        "kind": "bool",
+                        "value": true
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967362,
-                  "sourceUuid": "8840c7f2-0219-47cb-9c02-2708baec6bbd",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/trigger_on_values_signal",
                   "label": "Trigger On Values Signal",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Trigger On Values Signal",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967366,
+                  "sourceUuid": "8840c7f2-0219-47cb-9c02-2708baec6bbd"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Trigger On Values Signal",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967363,
-                  "sourceUuid": "e4d8d906-6678-4ae9-a04f-d92324a8fb7f",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/process_on_input_change_only",
                   "label": "Process on input change only",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Process on input change only",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967367,
+                  "sourceUuid": "e4d8d906-6678-4ae9-a04f-d92324a8fb7f"
+                },
+                {
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Process on input change only",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
-                },
-                {
-                  "sourceId": 4294967364,
-                  "sourceUuid": "5b5a5175-a3f4-4ace-88cd-94cb565d0097",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
                   "decl_id": "config/send_on_output_change_only",
                   "label": "Send on output change only",
-                  "data": {
-                    "kind": "parameter",
-                    "param": {
-                      "value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": true
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
                   "meta": {
-                    "label": "Send on output change only",
-                    "enabled": true,
                     "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Send on output change only",
                     "presentation": {
                       "color": {
-                        "r": 0.86,
-                        "g": 0.44,
+                        "a": 1.0,
                         "b": 0.78,
-                        "a": 1
+                        "g": 0.44,
+                        "r": 0.86
                       }
-                    }
+                    },
+                    "tags": []
                   },
-                  "children": []
+                  "node_type": "bool",
+                  "sourceId": 4294967368,
+                  "sourceUuid": "5b5a5175-a3f4-4ace-88cd-94cb565d0097"
                 },
                 {
-                  "sourceId": 4294967365,
-                  "sourceUuid": "133f3b35-414b-40c3-aada-899728aadc3f",
-                  "node_type": "bool",
-                  "user_item_kind": "bool",
-                  "decl_id": "config/log",
-                  "label": "Log",
+                  "children": [],
                   "data": {
                     "kind": "parameter",
                     "param": {
                       "value": {
                         "kind": "bool",
                         "value": false
-                      },
-                      "default_value": {
-                        "kind": "bool",
-                        "value": false
-                      },
-                      "event_behaviour": "Coalesce",
-                      "read_only": false,
-                      "constraints": {
-                        "enum_options": [],
-                        "policy": "ClampAdapt"
-                      },
-                      "ui_hints": {},
-                      "control": {
-                        "mode": "manual",
-                        "spec": {
-                          "mode": "manual"
-                        }
-                      },
-                      "reference_allowed_targets": [],
-                      "reference_visible_nodes": []
-                    }
-                  },
-                  "meta": {
-                    "label": "Log",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.86,
-                        "g": 0.44,
-                        "b": 0.78,
-                        "a": 1
                       }
                     }
                   },
-                  "children": []
+                  "decl_id": "config/log",
+                  "label": "Log",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Log",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.78,
+                        "g": 0.44,
+                        "r": 0.86
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "bool",
+                  "sourceId": 4294967369,
+                  "sourceUuid": "133f3b35-414b-40c3-aada-899728aadc3f"
                 }
-              ]
-            },
-            {
-              "sourceId": 4294967366,
-              "sourceUuid": "b145edbf-ee76-4964-bf41-09b58ff53e83",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "inputs",
-              "label": "Inputs",
+              ],
               "data": {
                 "kind": "node",
                 "node_type": "folder"
               },
+              "decl_id": "config",
+              "label": "Config",
               "meta": {
-                "label": "Inputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Config",
+                "presentation": {},
+                "tags": []
               },
+              "node_type": "folder",
+              "sourceId": 4294967364,
+              "sourceUuid": "1cfbd580-9658-4fe6-b2b5-b131369d1665"
+            },
+            {
               "children": [
                 {
-                  "sourceId": 4294967367,
-                  "sourceUuid": "62116d5e-4dc8-4b0b-83bc-365636873815",
-                  "node_type": "alchemist_input_socket",
-                  "user_item_kind": "alchemist_input_socket",
-                  "decl_id": "inputs/values",
-                  "label": "Values",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_input_socket"
-                  },
-                  "meta": {
-                    "label": "Values",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.28,
-                        "g": 0.68,
-                        "b": 0.72,
-                        "a": 1
-                      }
-                    }
-                  },
                   "children": [
                     {
-                      "sourceId": 4294967368,
-                      "sourceUuid": "44af029b-a4c1-4beb-94ea-3b79258ed7cc",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/values/socket_id",
-                      "label": "Socket ID",
+                      "children": [],
                       "data": {
                         "kind": "parameter",
                         "param": {
                           "value": {
                             "kind": "str",
                             "value": "values"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "values"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967369,
-                      "sourceUuid": "a82dd1f2-fd40-4c94-a0be-2a89545928da",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/values/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "chataigne.value_set"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "chataigne.value_set"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    }
-                  ]
-                },
-                {
-                  "sourceId": 4294967370,
-                  "sourceUuid": "5e5ac02b-6f12-46e7-bb82-ed3a07631dbe",
-                  "node_type": "alchemist_input_socket",
-                  "user_item_kind": "alchemist_input_socket",
-                  "decl_id": "inputs/trigger",
-                  "label": "Trigger",
-                  "data": {
-                    "kind": "node",
-                    "node_type": "alchemist_input_socket"
-                  },
-                  "meta": {
-                    "label": "Trigger",
-                    "enabled": true,
-                    "can_be_disabled": false,
-                    "presentation": {
-                      "color": {
-                        "r": 0.98,
-                        "g": 0.42,
-                        "b": 0.22,
-                        "a": 1
-                      }
-                    }
-                  },
-                  "children": [
-                    {
-                      "sourceId": 4294967371,
-                      "sourceUuid": "96375dff-135a-4b8c-a442-a7a64064b554",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/trigger/socket_id",
-                      "label": "Socket ID",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Socket ID",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967372,
-                      "sourceUuid": "02e1cf4c-8ab3-41aa-bfe4-9524551b488c",
-                      "node_type": "str",
-                      "user_item_kind": "str",
-                      "decl_id": "inputs/trigger/value_type",
-                      "label": "Value Type",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "str",
-                            "value": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": true,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value Type",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "show_in_inspector_content": false
-                        }
-                      },
-                      "children": []
-                    },
-                    {
-                      "sourceId": 4294967373,
-                      "sourceUuid": "1b5b1f9e-022b-437f-b2dd-f5c4d3600c66",
-                      "node_type": "trigger",
-                      "user_item_kind": "trigger",
-                      "decl_id": "inputs/trigger/value",
-                      "label": "Value",
-                      "data": {
-                        "kind": "parameter",
-                        "param": {
-                          "value": {
-                            "kind": "trigger"
-                          },
-                          "default_value": {
-                            "kind": "trigger"
-                          },
-                          "event_behaviour": "Coalesce",
-                          "read_only": false,
-                          "constraints": {
-                            "enum_options": [],
-                            "policy": "ClampAdapt"
-                          },
-                          "ui_hints": {},
-                          "control": {
-                            "mode": "manual",
-                            "spec": {
-                              "mode": "manual"
-                            }
-                          },
-                          "reference_allowed_targets": [],
-                          "reference_visible_nodes": []
-                        }
-                      },
-                      "meta": {
-                        "label": "Value",
-                        "enabled": true,
-                        "can_be_disabled": false,
-                        "presentation": {
-                          "color": {
-                            "r": 0.98,
-                            "g": 0.42,
-                            "b": 0.22,
-                            "a": 1
                           }
                         }
                       },
-                      "children": []
+                      "decl_id": "inputs/values/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967372,
+                      "sourceUuid": "44af029b-a4c1-4beb-94ea-3b79258ed7cc"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "chataigne.value_set"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/values/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967373,
+                      "sourceUuid": "a82dd1f2-fd40-4c94-a0be-2a89545928da"
                     }
-                  ]
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_input_socket"
+                  },
+                  "decl_id": "inputs/values",
+                  "label": "Values",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Values",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.72,
+                        "g": 0.68,
+                        "r": 0.28
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_input_socket",
+                  "sourceId": 4294967371,
+                  "sourceUuid": "62116d5e-4dc8-4b0b-83bc-365636873815"
+                },
+                {
+                  "children": [
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/socket_id",
+                      "label": "Socket ID",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Socket ID",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967375,
+                      "sourceUuid": "96375dff-135a-4b8c-a442-a7a64064b554"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "str",
+                            "value": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/value_type",
+                      "label": "Value Type",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value Type",
+                        "presentation": {
+                          "show_in_inspector_content": false
+                        },
+                        "tags": []
+                      },
+                      "node_type": "str",
+                      "sourceId": 4294967376,
+                      "sourceUuid": "02e1cf4c-8ab3-41aa-bfe4-9524551b488c"
+                    },
+                    {
+                      "children": [],
+                      "data": {
+                        "kind": "parameter",
+                        "param": {
+                          "value": {
+                            "kind": "trigger"
+                          }
+                        }
+                      },
+                      "decl_id": "inputs/trigger/value",
+                      "label": "Value",
+                      "meta": {
+                        "can_be_disabled": false,
+                        "enabled": true,
+                        "label": "Value",
+                        "presentation": {
+                          "color": {
+                            "a": 1.0,
+                            "b": 0.22,
+                            "g": 0.42,
+                            "r": 0.98
+                          }
+                        },
+                        "tags": []
+                      },
+                      "node_type": "trigger",
+                      "sourceId": 4294967377,
+                      "sourceUuid": "1b5b1f9e-022b-437f-b2dd-f5c4d3600c66"
+                    }
+                  ],
+                  "data": {
+                    "kind": "node",
+                    "node_type": "alchemist_input_socket"
+                  },
+                  "decl_id": "inputs/trigger",
+                  "label": "Trigger",
+                  "meta": {
+                    "can_be_disabled": false,
+                    "enabled": true,
+                    "label": "Trigger",
+                    "presentation": {
+                      "color": {
+                        "a": 1.0,
+                        "b": 0.22,
+                        "g": 0.42,
+                        "r": 0.98
+                      }
+                    },
+                    "tags": []
+                  },
+                  "node_type": "alchemist_input_socket",
+                  "sourceId": 4294967374,
+                  "sourceUuid": "5e5ac02b-6f12-46e7-bb82-ed3a07631dbe"
                 }
-              ]
-            },
-            {
-              "sourceId": 4294967374,
-              "sourceUuid": "a1ec37c8-13d1-413a-bd21-e277dc6b7789",
-              "node_type": "folder",
-              "user_item_kind": "folder",
-              "decl_id": "outputs",
-              "label": "Outputs",
+              ],
               "data": {
                 "kind": "node",
                 "node_type": "folder"
               },
+              "decl_id": "inputs",
+              "label": "Inputs",
               "meta": {
-                "label": "Outputs",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Inputs",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "folder",
+              "sourceId": 4294967370,
+              "sourceUuid": "b145edbf-ee76-4964-bf41-09b58ff53e83"
+            },
+            {
+              "children": [],
+              "data": {
+                "kind": "node",
+                "node_type": "folder"
+              },
+              "decl_id": "outputs",
+              "label": "Outputs",
+              "meta": {
+                "can_be_disabled": false,
+                "enabled": true,
+                "label": "Outputs",
+                "presentation": {},
+                "tags": []
+              },
+              "node_type": "folder",
+              "sourceId": 4294967378,
+              "sourceUuid": "a1ec37c8-13d1-413a-bd21-e277dc6b7789"
             }
-          ]
-        },
-        {
-          "sourceId": 4294967375,
-          "sourceUuid": "72df208d-55ff-43e4-ac90-3fa37af34f7d",
-          "node_type": "alchemist_connection",
-          "user_item_kind": "alchemist_connection",
-          "decl_id": "connection",
-          "label": "Connection",
+          ],
           "data": {
             "kind": "node",
-            "node_type": "alchemist_connection"
+            "node_type": "alchemist_anode"
           },
+          "decl_id": "anode",
+          "label": "On False",
           "meta": {
-            "label": "Connection",
+            "can_be_disabled": true,
             "enabled": true,
-            "can_be_disabled": false
+            "label": "On False",
+            "presentation": {
+              "color": {
+                "a": 1.0,
+                "b": 0.0987,
+                "g": 0.427,
+                "r": 0.8471
+              },
+              "default_color": {
+                "a": 1.0,
+                "b": 0.0987,
+                "g": 0.427,
+                "r": 0.8471
+              }
+            },
+            "tags": [
+              "alchemist.anode.type:chataigne.outputs_manager"
+            ]
           },
+          "node_type": "alchemist_anode",
+          "sourceId": 4294967361,
+          "sourceUuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c"
+        },
+        {
           "children": [
             {
-              "sourceId": 4294967376,
-              "sourceUuid": "b347f268-2f48-4fc6-a936-1a06d7c986fc",
-              "node_type": "reference",
-              "user_item_kind": "reference",
-              "decl_id": "source_node",
-              "label": "Source",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "reference",
-                    "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c",
-                    "cached_name": "Conditions",
-                    "relative_path_from_root": [
-                      "formulas",
-                      "formula",
-                      "anode"
-                    ]
-                  },
-                  "default_value": {
-                    "kind": "reference",
-                    "uuid": "00000000-0000-0000-0000-000000000000"
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt",
-                    "reference": {
-                      "root": {
-                        "kind": "engineRoot"
-                      },
-                      "target_kind": "anyNode",
-                      "allowed_node_types": [
-                        "alchemist_anode"
-                      ],
-                      "allowed_parameter_types": [],
-                      "allow_projections": false
-                    }
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                    "uuid": "41af78d3-2955-40ea-a049-ea6e75b5f10c"
+                  }
                 }
               },
+              "decl_id": "source_node",
+              "label": "Source",
               "meta": {
-                "label": "Source",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Source",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "reference",
+              "sourceId": 4294967380,
+              "sourceUuid": "b347f268-2f48-4fc6-a936-1a06d7c986fc"
             },
             {
-              "sourceId": 4294967377,
-              "sourceUuid": "21afa738-c7ad-418b-a434-ca18e84f978b",
-              "node_type": "str",
-              "user_item_kind": "str",
-              "decl_id": "source_socket",
-              "label": "Source Socket",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "str",
                     "value": "on_false"
-                  },
-                  "default_value": {
-                    "kind": "str",
-                    "value": ""
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "source_socket",
+              "label": "Source Socket",
               "meta": {
-                "label": "Source Socket",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Source Socket",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "str",
+              "sourceId": 4294967381,
+              "sourceUuid": "21afa738-c7ad-418b-a434-ca18e84f978b"
             },
             {
-              "sourceId": 4294967378,
-              "sourceUuid": "205139f2-08e4-48dc-adc6-bf9880cc726c",
-              "node_type": "reference",
-              "user_item_kind": "reference",
-              "decl_id": "target_node",
-              "label": "Target",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "reference",
-                    "uuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c",
-                    "cached_name": "On False",
-                    "relative_path_from_root": [
-                      "formulas",
-                      "formula",
-                      "anode"
-                    ]
-                  },
-                  "default_value": {
-                    "kind": "reference",
-                    "uuid": "00000000-0000-0000-0000-000000000000"
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt",
-                    "reference": {
-                      "root": {
-                        "kind": "engineRoot"
-                      },
-                      "target_kind": "anyNode",
-                      "allowed_node_types": [
-                        "alchemist_anode"
-                      ],
-                      "allowed_parameter_types": [],
-                      "allow_projections": false
-                    }
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                    "uuid": "bcdcffe9-98c9-423b-88cf-22d5c599023c"
+                  }
                 }
               },
+              "decl_id": "target_node",
+              "label": "Target",
               "meta": {
-                "label": "Target",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Target",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "reference",
+              "sourceId": 4294967382,
+              "sourceUuid": "205139f2-08e4-48dc-adc6-bf9880cc726c"
             },
             {
-              "sourceId": 4294967379,
-              "sourceUuid": "d5fe6a92-4272-45c0-8b79-29f879d91e5e",
-              "node_type": "str",
-              "user_item_kind": "str",
-              "decl_id": "target_socket",
-              "label": "Target Socket",
+              "children": [],
               "data": {
                 "kind": "parameter",
                 "param": {
                   "value": {
                     "kind": "str",
                     "value": "trigger"
-                  },
-                  "default_value": {
-                    "kind": "str",
-                    "value": ""
-                  },
-                  "event_behaviour": "Coalesce",
-                  "read_only": false,
-                  "constraints": {
-                    "enum_options": [],
-                    "policy": "ClampAdapt"
-                  },
-                  "ui_hints": {},
-                  "control": {
-                    "mode": "manual",
-                    "spec": {
-                      "mode": "manual"
-                    }
-                  },
-                  "reference_allowed_targets": [],
-                  "reference_visible_nodes": []
+                  }
                 }
               },
+              "decl_id": "target_socket",
+              "label": "Target Socket",
               "meta": {
-                "label": "Target Socket",
+                "can_be_disabled": false,
                 "enabled": true,
-                "can_be_disabled": false
+                "label": "Target Socket",
+                "presentation": {},
+                "tags": []
               },
-              "children": []
+              "node_type": "str",
+              "sourceId": 4294967383,
+              "sourceUuid": "d5fe6a92-4272-45c0-8b79-29f879d91e5e"
             }
-          ]
+          ],
+          "data": {
+            "kind": "node",
+            "node_type": "alchemist_connection"
+          },
+          "decl_id": "connection",
+          "label": "Connection",
+          "meta": {
+            "can_be_disabled": false,
+            "enabled": true,
+            "label": "Connection",
+            "presentation": {},
+            "tags": []
+          },
+          "node_type": "alchemist_connection",
+          "sourceId": 4294967379,
+          "sourceUuid": "72df208d-55ff-43e4-ac90-3fa37af34f7d"
         }
-      ]
+      ],
+      "data": {
+        "kind": "node",
+        "node_type": "alchemist_formula"
+      },
+      "decl_id": "formula",
+      "label": "Action",
+      "meta": {
+        "can_be_disabled": false,
+        "enabled": true,
+        "label": "Action",
+        "presentation": {},
+        "tags": [
+          "chataigne.formula.external.file"
+        ]
+      },
+      "node_type": "alchemist_formula",
+      "sourceId": 4294967300,
+      "sourceUuid": "d7a86820-c31f-4010-b278-0082c03a1a1d"
     }
-  ]
+  ],
+  "version": 1
 }

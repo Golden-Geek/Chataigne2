@@ -73,8 +73,6 @@ macro_rules! leaf_condition_init {
             "less_than_or_equal",
             "between",
             "outside",
-            "is_true",
-            "is_false",
             "contains",
             "does_not_contain",
             "starts_with",
@@ -99,6 +97,10 @@ macro_rules! leaf_condition_init {
     );
     reference_max: f64 = 1.0 (
         label = "Reference Max",
+        show_in_inspector_content = false
+    );
+    reference_bool: bool = true (
+        label = "Reference (Boolean)",
         show_in_inspector_content = false
     );
     reference_string: String = String::new() (

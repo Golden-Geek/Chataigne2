@@ -565,6 +565,7 @@ fn export_node_json(snapshot: &ProcessTreeSnapshot, node_id: NodeId) -> Option<J
             "label": node.label,
             "enabled": node.enabled,
             "can_be_disabled": node.can_be_disabled,
+            "tags": node.tags,
             "presentation": node.presentation,
         },
         "children": children,

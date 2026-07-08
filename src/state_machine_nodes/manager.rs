@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 use chataigne_state_machine::{
@@ -123,6 +124,11 @@ struct FormulaInputValueParam {
 struct ConditionValidity {
     current: bool,
     settled: bool,
+}
+
+struct InputValueConditionSourceSample {
+    source_uuid: NodeUuid,
+    value: ParamValue,
 }
 
 impl ConditionValidity {
@@ -276,6 +282,7 @@ struct StateMachineRuntimeCache {
     condition_manager_values: HashMap<String, RuntimeValue>,
     condition_manager_valid_states: HashMap<String, bool>,
     input_value_condition_inner_valid_states: HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: HashMap<NodeId, u64>,
     next_trigger_edge_id: u64,
     processors: HashMap<NodeId, RuntimeProcessor>,
@@ -635,6 +642,7 @@ impl StateMachineManager {
                     &mut self.runtime_cache.condition_manager_values,
                     &mut self.runtime_cache.condition_manager_valid_states,
                     &mut self.runtime_cache.input_value_condition_inner_valid_states,
+                    &mut self.runtime_cache.input_value_condition_source_samples,
                     &mut self.runtime_cache.transient_condition_valid_resets,
                     &mut self.runtime_cache.next_trigger_edge_id,
                     ctx,
@@ -1905,6 +1913,7 @@ fn processor_runtime_inputs(
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
     input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -1924,6 +1933,7 @@ fn processor_runtime_inputs(
             condition_manager_values,
             condition_manager_valid_states,
             input_value_condition_inner_valid_states,
+            input_value_condition_source_samples,
             transient_condition_valid_resets,
             next_trigger_edge_id,
             ctx,
@@ -2031,6 +2041,7 @@ fn collect_processor_runtime_inputs(
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
     input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -2054,6 +2065,7 @@ fn collect_processor_runtime_inputs(
                 condition_manager_values,
                 condition_manager_valid_states,
                 input_value_condition_inner_valid_states,
+                input_value_condition_source_samples,
                 transient_condition_valid_resets,
                 next_trigger_edge_id,
                 ctx,
@@ -2082,6 +2094,7 @@ fn collect_processor_runtime_inputs(
                 condition_manager_values,
                 condition_manager_valid_states,
                 input_value_condition_inner_valid_states,
+                input_value_condition_source_samples,
                 transient_condition_valid_resets,
                 next_trigger_edge_id,
                 ctx,
@@ -2139,6 +2152,7 @@ fn collect_condition_manager_runtime_input(
     condition_manager_values: &mut HashMap<String, RuntimeValue>,
     condition_manager_valid_states: &mut HashMap<String, bool>,
     input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
     next_trigger_edge_id: &mut u64,
     ctx: &mut ProcessCtx,
@@ -2162,6 +2176,7 @@ fn collect_condition_manager_runtime_input(
             ctx,
             dirty_input_source_params,
             input_value_condition_inner_valid_states,
+            input_value_condition_source_samples,
             transient_condition_valid_resets,
         )
         .unwrap_or_else(|| ConditionValidity::steady(false));
@@ -2317,6 +2332,7 @@ fn condition_group_valid(
     ctx: &mut ProcessCtx,
     dirty_input_source_params: &HashSet<NodeUuid>,
     input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
 ) -> Option<ConditionValidity> {
     let mut current_values = Vec::new();
@@ -2334,6 +2350,7 @@ fn condition_group_valid(
                     ctx,
                     dirty_input_source_params,
                     input_value_condition_inner_valid_states,
+                    input_value_condition_source_samples,
                     transient_condition_valid_resets,
                 ),
                 CONDITION_GROUP_NODE_TYPE => condition_group_valid(
@@ -2342,6 +2359,7 @@ fn condition_group_valid(
                     ctx,
                     dirty_input_source_params,
                     input_value_condition_inner_valid_states,
+                    input_value_condition_source_samples,
                     transient_condition_valid_resets,
                 ),
                 _ => None,
@@ -2366,6 +2384,7 @@ fn input_value_condition_valid(
     ctx: &mut ProcessCtx,
     dirty_input_source_params: &HashSet<NodeUuid>,
     input_value_condition_inner_valid_states: &mut HashMap<NodeUuid, bool>,
+    input_value_condition_source_samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
     transient_condition_valid_resets: &mut HashMap<NodeId, u64>,
 ) -> Option<ConditionValidity> {
     let condition_uuid = snapshot.node(condition)?.uuid;
@@ -2381,10 +2400,23 @@ fn input_value_condition_valid(
     let comparator = child_string(snapshot, condition, "comparator").unwrap_or_else(|| "equal".to_owned());
     let transient = input_value_condition_is_transient(source_value, comparator.as_str());
     let source_changed = dirty_input_source_params.contains(&source_uuid);
+    let source_speed = input_value_condition_source_speed(
+        input_value_condition_source_samples,
+        condition_uuid,
+        source_uuid,
+        source_value,
+        ctx.delta_time,
+    );
     let comparator_valid = if transient {
         source_changed
     } else {
-        compare_condition_value(snapshot, condition, source_value, comparator.as_str())
+        compare_condition_value(
+            snapshot,
+            condition,
+            source_value,
+            comparator.as_str(),
+            source_speed,
+        )
     };
     let previous_inner_valid = input_value_condition_inner_valid_states
         .get(&condition_uuid)
@@ -2415,6 +2447,29 @@ fn input_value_condition_valid(
 
 fn input_value_condition_is_transient(source_value: &ParamValue, comparator: &str) -> bool {
     matches!(source_value, ParamValue::Trigger()) || comparator == "value_changed"
+}
+
+fn input_value_condition_source_speed(
+    samples: &mut HashMap<NodeUuid, InputValueConditionSourceSample>,
+    condition_uuid: NodeUuid,
+    source_uuid: NodeUuid,
+    source_value: &ParamValue,
+    delta_time: Duration,
+) -> Option<f64> {
+    let speed = samples
+        .get(&condition_uuid)
+        .filter(|sample| sample.source_uuid == source_uuid)
+        .and_then(|sample| param_speed(&sample.value, source_value, delta_time));
+
+    samples.insert(
+        condition_uuid,
+        InputValueConditionSourceSample {
+            source_uuid,
+            value: source_value.clone(),
+        },
+    );
+
+    speed
 }
 
 fn next_input_value_condition_validity(
@@ -2534,6 +2589,7 @@ fn compare_condition_value(
     condition: NodeId,
     source_value: &ParamValue,
     comparator: &str,
+    source_speed: Option<f64>,
 ) -> bool {
     let reference_number = child_param(snapshot, condition, "reference")
         .and_then(param_numeric)
@@ -2545,6 +2601,7 @@ fn compare_condition_value(
     let reference = ConditionReference {
         number: reference_number,
         number_max: reference_number_max,
+        boolean: child_bool(snapshot, condition, "reference_bool").unwrap_or(true),
         text: reference_string.as_str(),
         vec2: child_param(snapshot, condition, "reference_vec2").and_then(param_vec2),
         vec3: child_param(snapshot, condition, "reference_vec3").and_then(param_vec3),
@@ -2570,8 +2627,6 @@ fn compare_condition_value(
             let max = reference.number.max(reference.number_max);
             value < min || value > max
         }),
-        "is_true" => param_bool(source_value).unwrap_or(false),
-        "is_false" => !param_bool(source_value).unwrap_or(true),
         "contains" => param_string(source_value).contains(reference.text),
         "does_not_contain" => !param_string(source_value).contains(reference.text),
         "starts_with" => param_string(source_value).starts_with(reference.text),
@@ -2584,13 +2639,17 @@ fn compare_condition_value(
         "magnitude_less_than" => {
             param_magnitude(source_value).is_some_and(|value| value < reference.number)
         }
-        "speed_greater_than" => param_speed(source_value).is_some_and(|value| value > reference.number),
-        "speed_less_than" => param_speed(source_value).is_some_and(|value| value < reference.number),
+        "speed_greater_than" => source_speed.is_some_and(|value| value > reference.number),
+        "speed_less_than" => source_speed.is_some_and(|value| value < reference.number),
         "abs_speed_greater_than" => {
-            param_abs_speed(source_value).is_some_and(|value| value > reference.number)
+            source_speed
+                .map(f64::abs)
+                .is_some_and(|value| value > reference.number)
         }
         "abs_speed_less_than" => {
-            param_abs_speed(source_value).is_some_and(|value| value < reference.number)
+            source_speed
+                .map(f64::abs)
+                .is_some_and(|value| value < reference.number)
         }
         "luminance_greater_than" => {
             param_luminance(source_value).is_some_and(|value| value > reference.number)
@@ -2610,6 +2669,7 @@ fn compare_condition_value(
 struct ConditionReference<'a> {
     number: f64,
     number_max: f64,
+    boolean: bool,
     text: &'a str,
     vec2: Option<(f64, f64)>,
     vec3: Option<(f64, f64, f64)>,
@@ -2618,6 +2678,7 @@ struct ConditionReference<'a> {
 
 fn param_values_equal(value: &ParamValue, reference: &ConditionReference<'_>) -> bool {
     match value {
+        ParamValue::Bool(value) => *value == reference.boolean,
         ParamValue::Vec2(x, y) => reference.vec2.is_some_and(|(rx, ry)| {
             floats_equal(*x, rx) && floats_equal(*y, ry)
         }),
@@ -2712,19 +2773,30 @@ fn param_magnitude(value: &ParamValue) -> Option<f64> {
         ParamValue::Vec2(x, y) => Some((x.powi(2) + y.powi(2)).sqrt()),
         ParamValue::Vec3(x, y, z) => Some((x.powi(2) + y.powi(2) + z.powi(2)).sqrt()),
         ParamValue::Color(r, g, b, a) => Some((r.powi(2) + g.powi(2) + b.powi(2) + a.powi(2)).sqrt()),
-        _ => param_numeric(value).map(f64::abs),
+        _ => None,
     }
 }
 
-fn param_speed(value: &ParamValue) -> Option<f64> {
-    match value {
-        ParamValue::Vec2(_, _) | ParamValue::Vec3(_, _, _) => param_magnitude(value),
-        _ => param_numeric(value),
+fn param_speed(previous: &ParamValue, current: &ParamValue, delta_time: Duration) -> Option<f64> {
+    let delta_seconds = delta_time.as_secs_f64();
+    if delta_seconds <= f64::EPSILON {
+        return None;
     }
-}
 
-fn param_abs_speed(value: &ParamValue) -> Option<f64> {
-    param_speed(value).map(f64::abs)
+    match (previous, current) {
+        (ParamValue::Vec2(px, py), ParamValue::Vec2(x, y)) => {
+            Some(((x - px).powi(2) + (y - py).powi(2)).sqrt() / delta_seconds)
+        }
+        (ParamValue::Vec3(px, py, pz), ParamValue::Vec3(x, y, z)) => Some(
+            ((x - px).powi(2) + (y - py).powi(2) + (z - pz).powi(2)).sqrt()
+                / delta_seconds,
+        ),
+        _ => {
+            let previous = param_numeric(previous)?;
+            let current = param_numeric(current)?;
+            Some((current - previous) / delta_seconds)
+        }
+    }
 }
 
 fn param_luminance(value: &ParamValue) -> Option<f64> {

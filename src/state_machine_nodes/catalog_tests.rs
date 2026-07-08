@@ -10,7 +10,8 @@ use golden_core::{
 use super::FormulaCatalog;
 use crate::app::{
     state_machine_nodes_formula::{
-        external_formula_tree_for_path, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
+        create_anode_user_item_tree, external_formula_tree_for_path,
+        ANODE_CREATE_PREFIX, FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX,
         FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
     },
     AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary,
@@ -152,6 +153,62 @@ fn exported_formula_json_uses_tagged_parameter_values() {
 
     let role = exported_node_by_decl_id(root, "role").expect("role should be exported");
     assert_eq!(role["data"]["param"]["value"]["kind"], "enum");
+}
+
+#[test]
+fn exported_formula_json_preserves_anode_internal_type_tags() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let routing_type = chataigne_state_machine::alchemist::ROUTING_TYPE;
+
+    let mut formula = AlchemistFormulaDefinition::new();
+    formula.node_data_mut().meta.label = "Shared Source".to_owned();
+    let mut formula_tree = NodeTree::new(formula);
+    formula_tree.push_child(
+        create_anode_user_item_tree(&format!("{ANODE_CREATE_PREFIX}{routing_type}"))
+            .expect("routing ANode should be creatable"),
+    );
+    engine.edits.push(Edit::AddNodeTree {
+        tree: formula_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("formula tree should attach");
+    }
+
+    let formula_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Shared Source"
+        })
+        .map(|(id, _)| id)
+        .expect("shared source formula should exist");
+    let snapshot = engine.process_tree_snapshot();
+    let export = FormulaCatalog::export_formula_json(&snapshot, formula_id)
+        .expect("formula should export");
+    let export: serde_json::Value =
+        serde_json::from_str(&export).expect("formula export should be JSON");
+    let root = export
+        .get("nodes")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|nodes| nodes.first())
+        .expect("formula export should contain a root node");
+    let anode =
+        exported_node_by_type(root, "alchemist_anode").expect("ANode should be exported");
+    let tags = anode["meta"]["tags"]
+        .as_array()
+        .expect("ANode metadata should include tags");
+    let expected_tag = format!("alchemist.anode.type:{routing_type}");
+    assert!(
+        tags.iter()
+            .any(|tag| tag.as_str() == Some(expected_tag.as_str())),
+        "ANode export should preserve its internal type tag"
+    );
 }
 
 #[test]
@@ -667,6 +724,21 @@ fn exported_node_by_decl_id<'a>(
     }
     for child in node.get("children")?.as_array()? {
         if let Some(found) = exported_node_by_decl_id(child, decl_id) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn exported_node_by_type<'a>(
+    node: &'a serde_json::Value,
+    node_type: &str,
+) -> Option<&'a serde_json::Value> {
+    if node.get("node_type").and_then(serde_json::Value::as_str) == Some(node_type) {
+        return Some(node);
+    }
+    for child in node.get("children")?.as_array()? {
+        if let Some(found) = exported_node_by_type(child, node_type) {
             return Some(found);
         }
     }

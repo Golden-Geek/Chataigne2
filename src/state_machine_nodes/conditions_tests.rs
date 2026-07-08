@@ -22,6 +22,7 @@ fn input_value_condition_defaults() {
     assert_eq!(c.comparator.get_ref().as_str(), "equal");
     assert_eq!(*c.reference.get_ref(), 0.0);
     assert_eq!(*c.reference_max.get_ref(), 1.0);
+    assert!(*c.reference_bool.get_ref());
     assert!(c.reference_string.get_ref().is_empty());
     assert!(matches!(c.reference_vec2.get_ref(), ParamValue::Vec2(0.0, 0.0)));
     assert!(matches!(

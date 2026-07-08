@@ -88,6 +88,8 @@ pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
 const PROPERTY_MANAGER_ROLE_TAG_PREFIX: &str = "alchemist.manager.role:";
+const ANODE_POSITION_DECL_ID: &str = "position";
+const ANODE_SIZE_DECL_ID: &str = "size";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
 const FORMULA_EXTERNAL_FILE_WARNING_ID: &str =
     "alchemist_formula_external_file";
@@ -917,6 +919,32 @@ fn direct_child_under(
     Some(child)
 }
 
+fn is_anode_layout_decl_id(decl_id: &str) -> bool {
+    matches!(decl_id, ANODE_POSITION_DECL_ID | ANODE_SIZE_DECL_ID)
+}
+
+fn is_anode_layout_node(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    node: NodeId,
+) -> bool {
+    let Some(anode) = direct_child_under(snapshot, formula_node, node) else {
+        return false;
+    };
+    let Some(anode_snapshot) = snapshot.node(anode) else {
+        return false;
+    };
+    if anode_snapshot.node_type != ANODE_NODE_TYPE {
+        return false;
+    }
+    let Some(anode_child) = direct_child_under(snapshot, anode, node) else {
+        return false;
+    };
+    snapshot
+        .node(anode_child)
+        .is_some_and(|node| is_anode_layout_decl_id(node.decl_id.as_str()))
+}
+
 fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
     ctx.edits.pending.iter().any(|request| {
         matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node)
@@ -1699,6 +1727,54 @@ pub(crate) fn node_warning_matches(
     })
 }
 
+fn diagnostic_text_field<'a>(
+    diagnostic: &'a serde_json::Value,
+    key: &str,
+) -> Option<&'a str> {
+    diagnostic
+        .get(key)
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn formula_warning_detail(diagnostics: &[serde_json::Value]) -> String {
+    let mut lines = Vec::new();
+
+    for (index, diagnostic) in diagnostics.iter().enumerate() {
+        if diagnostics.len() > 1 {
+            if index > 0 {
+                lines.push(String::new());
+            }
+            lines.push(format!("Issue {}:", index + 1));
+        }
+
+        if let Some(code) = diagnostic_text_field(diagnostic, "code") {
+            lines.push(format!("Code: {code}"));
+        }
+        if let Some(origin) = diagnostic_text_field(diagnostic, "origin") {
+            lines.push(format!("Origin: {origin}"));
+        }
+
+        let severity = diagnostic_text_field(diagnostic, "severity").unwrap_or("error");
+        let severity_label = match severity {
+            "warning" => "Warning",
+            "info" => "Info",
+            _ => "Error",
+        };
+
+        if let Some(message) = diagnostic_text_field(diagnostic, "message") {
+            lines.push(format!("{severity_label}: {message}"));
+        }
+    }
+
+    if lines.is_empty() {
+        "Formula compilation failed".to_owned()
+    } else {
+        lines.join("\n")
+    }
+}
+
 #[node("alchemist_input_socket", label = "Input")]
 pub struct AlchemistInputSocket {}
 
@@ -1820,7 +1896,9 @@ impl AlchemistANode {
         let meta = &mut node.node_data_mut().meta;
         set_tag(&mut meta.tags, ANODE_TYPE_TAG_PREFIX, type_id);
         meta.label = label.to_owned();
-        meta.presentation.default_color = Some(anode_default_color(category, type_id));
+        let color = anode_default_color(category, type_id);
+        meta.presentation.default_color = Some(color.clone());
+        meta.presentation.color = Some(color);
         if type_id == chataigne_state_machine::alchemist::ROUTING_TYPE {
             meta.presentation.collapsed = true;
         }
@@ -1861,10 +1939,16 @@ impl AlchemistANode {
             return;
         };
         ctx.clear_node_warning(self.id(), Some("alchemist_anode"));
-        if self.node_data().meta.presentation.default_color.is_none() {
-            self.node_data_mut().meta.presentation.default_color = Some(
-                anode_default_color(declaration.category(), &type_id),
-            );
+        let default_color = anode_default_color(declaration.category(), &type_id);
+        let presentation = &mut self.node_data_mut().meta.presentation;
+        if presentation.default_color.is_none() {
+            presentation.default_color = Some(default_color.clone());
+        }
+        if presentation.color.is_none() {
+            presentation.color = presentation
+                .default_color
+                .clone()
+                .or(Some(default_color));
         }
         let Some(config_folder) =
             snapshot.find_child_by_decl_id(self.id(), "config")
@@ -3280,25 +3364,29 @@ impl Node for AlchemistFormulaDefinition {
         {
             return;
         }
-        if param != self.is_valid.id() && param != self.diagnostics_json.id() {
-            let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
-                let child = direct_child_under(snapshot, self.id(), param)?;
-                snapshot
-                    .node(child)
-                    .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
-                    .then_some(child)
-                    .filter(|anode| {
-                        !is_anode_type_variable_config_param(
-                            snapshot,
-                            *anode,
-                            param,
-                        )
-                    })
-            });
-            self.sync_anode_sockets(ctx, skip_anode);
-            self.validate(ctx);
-            self.save_external_formula_file(ctx);
+        if self.is_formula_internal_param(param) {
+            return;
         }
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), param))
+        {
+            self.save_external_formula_file(ctx);
+            return;
+        }
+        let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
+            let child = direct_child_under(snapshot, self.id(), param)?;
+            snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+                .then_some(child)
+                .filter(|anode| {
+                    !is_anode_type_variable_config_param(snapshot, *anode, param)
+                })
+        });
+        self.sync_anode_sockets(ctx, skip_anode);
+        self.validate(ctx);
+        self.save_external_formula_file(ctx);
     }
 
     fn on_child_added(
@@ -3334,6 +3422,13 @@ impl Node for AlchemistFormulaDefinition {
         node: NodeId,
         _patch: NodeMetaPatch,
     ) {
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), node))
+        {
+            self.save_external_formula_file(ctx);
+            return;
+        }
         if ctx.tree_snapshot().is_some_and(|snapshot| {
             snapshot
                 .node(node)
@@ -3593,6 +3688,12 @@ impl AlchemistFormulaDefinition {
             .is_some_and(|node| node.decl_id == FORMULA_COPY_SOURCE_DECL_ID)
     }
 
+    fn is_formula_internal_param(&self, param: NodeId) -> bool {
+        param == self.is_valid.id()
+            || param == self.diagnostics_json.id()
+            || param == self.managed_regions_json.id()
+    }
+
     fn write_external_formula_from_source(&mut self, ctx: &mut ProcessCtx) -> bool {
         if !self.is_external_file_formula() {
             return false;
@@ -3799,6 +3900,28 @@ impl AlchemistFormulaDefinition {
                 prev_sibling: None,
             });
         }
+        self.schedule_formula_reconcile(ctx);
+    }
+
+    fn schedule_formula_reconcile(&self, ctx: &mut ProcessCtx) {
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: self.id(),
+            callback: Box::new(|node, ctx| {
+                let Some(formula) = node
+                    .as_any_mut()
+                    .downcast_mut::<AlchemistFormulaDefinition>()
+                else {
+                    return Ok(());
+                };
+                formula.reconcile_properties(ctx);
+                formula.sync_property_getters(ctx);
+                formula.sync_anode_sockets(ctx, None);
+                formula.validate(ctx);
+                formula.enforce_external_formula_permissions(ctx);
+                Ok(())
+            }),
+            needs_tree_snapshot: true,
+        });
     }
 
     fn enforce_external_formula_permissions(&self, ctx: &mut ProcessCtx) {
@@ -4241,18 +4364,15 @@ impl AlchemistFormulaDefinition {
         let formula_warning_to_set = if valid {
             None
         } else {
-            let summary = diagnostics
-                .first()
-                .and_then(|diagnostic| diagnostic["message"].as_str())
-                .unwrap_or("Formula compilation failed");
+            let detail = formula_warning_detail(&diagnostics);
             (!node_warning_matches(
                 snapshot,
                 self.id(),
                 FORMULA_WARNING_ID,
                 "Formula is invalid",
-                Some(summary),
+                Some(&detail),
             ))
-            .then_some(summary.to_owned())
+            .then_some(detail)
         };
         self.is_valid.set(ctx, valid);
         self.diagnostics_json.set(ctx, diagnostics_json);
@@ -4274,12 +4394,12 @@ impl AlchemistFormulaDefinition {
             if formula_warning_to_clear {
                 ctx.clear_node_warning(self.id(), Some(FORMULA_WARNING_ID));
             }
-        } else if let Some(summary) = formula_warning_to_set {
+        } else if let Some(detail) = formula_warning_to_set {
             ctx.set_node_warning_with(
                 self.id(),
                 Some(FORMULA_WARNING_ID),
                 "Formula is invalid",
-                Some(&summary),
+                Some(&detail),
             );
         }
     }

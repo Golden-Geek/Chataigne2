@@ -28,7 +28,7 @@
 		| 'vec3'
 		| 'color'
 		| 'unknown';
-	type ReferenceMode = 'none' | 'number' | 'range' | 'string' | 'vec2' | 'vec3' | 'color';
+	type ReferenceMode = 'none' | 'number' | 'range' | 'bool' | 'string' | 'vec2' | 'vec3' | 'color';
 	type ComparatorOption = {
 		id: string;
 		label: string;
@@ -42,14 +42,14 @@
 			id: 'equal',
 			label: '=',
 			title: 'Equals',
-			sources: ['number', 'string', 'vec2', 'vec3', 'color', 'unknown'],
+			sources: ['number', 'string', 'bool', 'vec2', 'vec3', 'color', 'unknown'],
 			referenceMode: 'number'
 		},
 		{
 			id: 'not_equal',
 			label: '!=',
 			title: 'Does not equal',
-			sources: ['number', 'string', 'vec2', 'vec3', 'color', 'unknown'],
+			sources: ['number', 'string', 'bool', 'vec2', 'vec3', 'color', 'unknown'],
 			referenceMode: 'number'
 		},
 		{
@@ -95,20 +95,6 @@
 			referenceMode: 'range'
 		},
 		{
-			id: 'is_true',
-			label: 'True',
-			title: 'Is true',
-			sources: ['bool'],
-			referenceMode: 'none'
-		},
-		{
-			id: 'is_false',
-			label: 'False',
-			title: 'Is false',
-			sources: ['bool'],
-			referenceMode: 'none'
-		},
-		{
 			id: 'contains',
 			label: 'Contains',
 			title: 'Contains',
@@ -152,16 +138,16 @@
 		},
 		{
 			id: 'magnitude_greater_than',
-			label: '|v| >',
+			label: 'Magnitude >',
 			title: 'Magnitude greater than',
-			sources: ['number', 'vec2', 'vec3', 'color'],
+			sources: ['vec2', 'vec3', 'color'],
 			referenceMode: 'number'
 		},
 		{
 			id: 'magnitude_less_than',
-			label: '|v| <',
+			label: 'Magnitude <',
 			title: 'Magnitude less than',
-			sources: ['number', 'vec2', 'vec3', 'color'],
+			sources: ['vec2', 'vec3', 'color'],
 			referenceMode: 'number'
 		},
 		{
@@ -180,14 +166,14 @@
 		},
 		{
 			id: 'abs_speed_greater_than',
-			label: '|Speed| >',
+			label: 'Abs Speed >',
 			title: 'Absolute speed greater than',
 			sources: ['number', 'vec2', 'vec3'],
 			referenceMode: 'number'
 		},
 		{
 			id: 'abs_speed_less_than',
-			label: '|Speed| <',
+			label: 'Abs Speed <',
 			title: 'Absolute speed less than',
 			sources: ['number', 'vec2', 'vec3'],
 			referenceMode: 'number'
@@ -385,6 +371,7 @@
 		if (group === 'unknown') return 'none';
 		if (!option || option.referenceMode === 'none') return 'none';
 		if (option.id === 'equal' || option.id === 'not_equal') {
+			if (group === 'bool') return 'bool';
 			if (group === 'vec2' || group === 'vec3' || group === 'color') return group;
 		}
 		if (option.referenceMode === 'range') return 'range';
@@ -443,6 +430,7 @@
 	let toggleMode = $derived(boolParameterValue(toggleModeNode) ?? false);
 	let referenceNode = $derived(childByDeclId(liveNode, 'reference'));
 	let referenceMaxNode = $derived(childByDeclId(liveNode, 'reference_max'));
+	let referenceBoolNode = $derived(childByDeclId(liveNode, 'reference_bool'));
 	let referenceStringNode = $derived(childByDeclId(liveNode, 'reference_string'));
 	let referenceVec2Node = $derived(childByDeclId(liveNode, 'reference_vec2'));
 	let referenceVec3Node = $derived(childByDeclId(liveNode, 'reference_vec3'));
@@ -561,6 +549,14 @@
 							density="compact"
 							labelOverride="" />
 					</div>
+				{:else if referenceMode === 'bool' && referenceBoolNode}
+					<NodeInspector
+						nodes={[referenceBoolNode]}
+						level={level + 1}
+						order="solo"
+						{layoutMode}
+						density="compact"
+						labelOverride="" />
 				{:else if referenceMode === 'string' && referenceStringNode}
 					<NodeInspector
 						nodes={[referenceStringNode]}

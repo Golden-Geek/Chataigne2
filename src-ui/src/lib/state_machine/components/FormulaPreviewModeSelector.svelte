@@ -40,7 +40,7 @@
 		min-inline-size: 0;
 	}
 
-	.preview-labels {
+	/* .preview-labels {
 		display: inline-flex;
 		flex-direction: column;
 		justify-content: center;
@@ -66,7 +66,7 @@
 		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
 		font-size: 0.62rem;
 		font-weight: 600;
-	}
+	} */
 
 	.preview-mode {
 		display: inline-grid;

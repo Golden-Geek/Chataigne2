@@ -111,7 +111,7 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
     let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
         parent: library,
         node_type: FORMULA_EXTERNAL_FILE_CREATE_TYPE.to_owned(),
-        label: Some("Linked Action".into()),
+        label: Some("Action".into()),
         initial_params: Vec::new(),
     });
     assert!(ack.success, "External Formula creation should succeed: {ack:?}");
@@ -185,6 +185,11 @@ fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
             .map(|region| region["label"].as_str().unwrap_or_default())
             .collect::<Vec<_>>(),
         vec!["Conditions", "On True", "On False"]
+    );
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(true),
+        "External formula load should settle validation without a later edit"
     );
 }
 
@@ -1637,6 +1642,58 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
     .expect("imported Formula subtree should materialize");
     assert_eq!(imported.graph.nodes.len(), 2);
     assert_eq!(imported.graph.edges.len(), 1);
+}
+
+#[test]
+fn anode_layout_changes_do_not_revalidate_formula() {
+    let (mut engine, formula) = engine_with_formula();
+    let constant = create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(true)
+    );
+
+    let valid_param =
+        find_child_by_decl(&engine, formula, "is_valid").expect("Valid parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: valid_param,
+        value: ParamValue::Bool(false),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("stale validity sentinel should apply");
+
+    let position =
+        find_child_by_decl(&engine, constant, "position").expect("position should exist");
+    engine.edits.push(Edit::SetParam {
+        node: position,
+        value: ParamValue::Vec2(12.0, 8.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("position edit should apply");
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(false),
+        "Moving an ANode must not revalidate the formula"
+    );
+
+    let size = find_child_by_decl(&engine, constant, "size").expect("size should exist");
+    engine.edits.push(Edit::PatchMeta {
+        node: size,
+        patch: NodeMetaPatch {
+            enabled: Some(true),
+            ..NodeMetaPatch::default()
+        },
+    });
+    engine.apply_edits().expect("size meta edit should apply");
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(false),
+        "Resizing an ANode must not revalidate the formula"
+    );
 }
 
 #[test]

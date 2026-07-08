@@ -1,5 +1,294 @@
 {
   "version": "1.0",
+  "ui_state": {
+    "dock_layout": {
+      "activeGroup": "2",
+      "grid": {
+        "height": 1153.59375,
+        "orientation": "HORIZONTAL",
+        "root": {
+          "data": [
+            {
+              "data": [
+                {
+                  "data": {
+                    "activeView": "modules-1",
+                    "id": "1",
+                    "views": [
+                      "modules-1"
+                    ]
+                  },
+                  "size": 574,
+                  "type": "leaf"
+                },
+                {
+                  "data": {
+                    "activeView": "outliner",
+                    "id": "5",
+                    "views": [
+                      "outliner"
+                    ]
+                  },
+                  "size": 573.59375,
+                  "type": "leaf"
+                }
+              ],
+              "size": 384,
+              "type": "branch"
+            },
+            {
+              "data": [
+                {
+                  "data": {
+                    "activeView": "state-machine",
+                    "id": "2",
+                    "views": [
+                      "state-machine",
+                      "dashboard",
+                      "warnings"
+                    ]
+                  },
+                  "size": 608,
+                  "type": "leaf"
+                },
+                {
+                  "data": [
+                    {
+                      "data": {
+                        "activeView": "formula-library",
+                        "id": "6",
+                        "views": [
+                          "formula-library"
+                        ]
+                      },
+                      "size": 299,
+                      "type": "leaf"
+                    },
+                    {
+                      "data": {
+                        "activeView": "alchemistEditor-1",
+                        "id": "7",
+                        "views": [
+                          "alchemistEditor-1"
+                        ]
+                      },
+                      "size": 908,
+                      "type": "leaf"
+                    }
+                  ],
+                  "size": 539.59375,
+                  "type": "branch"
+                }
+              ],
+              "size": 1213,
+              "type": "branch"
+            },
+            {
+              "data": [
+                {
+                  "data": {
+                    "activeView": "inspector",
+                    "id": "4",
+                    "views": [
+                      "inspector"
+                    ]
+                  },
+                  "size": 744,
+                  "type": "leaf"
+                },
+                {
+                  "data": {
+                    "activeView": "logger",
+                    "id": "8",
+                    "views": [
+                      "logger"
+                    ]
+                  },
+                  "size": 403.59375,
+                  "type": "leaf"
+                }
+              ],
+              "size": 426.1875,
+              "type": "branch"
+            }
+          ],
+          "size": 1153.59375,
+          "type": "branch"
+        },
+        "width": 2035.1875
+      },
+      "panels": {
+        "alchemistEditor-1": {
+          "contentComponent": "alchemistEditor",
+          "id": "alchemistEditor-1",
+          "tabComponent": "golden-tab",
+          "title": "Alchemist: Action"
+        },
+        "dashboard": {
+          "contentComponent": "dashboard",
+          "id": "dashboard",
+          "params": {
+            "dashboardNodeId": 4294967303
+          },
+          "tabComponent": "golden-tab",
+          "title": "Dashboard: Dashboard"
+        },
+        "formula-library": {
+          "contentComponent": "formulaLibrary",
+          "id": "formula-library",
+          "tabComponent": "golden-tab",
+          "title": "Formula Library"
+        },
+        "inspector": {
+          "contentComponent": "inspector",
+          "id": "inspector",
+          "params": {
+            "__gc_panel_state": {
+              "watcherSettingsByParam": {
+                "0686c628-972c-4c8b-9d52-eb1a2addc98e": {
+                  "decimationMode": "off"
+                },
+                "1451b13c-ef2e-4496-aaf4-30d163f9c375": {
+                  "decimationMode": "off"
+                },
+                "1f9f8b6a-7100-4734-bb42-96d3d4f4a6b0": {
+                  "decimationMode": "off"
+                },
+                "2bba9d1f-7c32-4f48-824f-25fb78caea0e": {
+                  "decimationMode": "off"
+                },
+                "2d625293-2902-49ed-aa0b-d661b6a3b92a": {
+                  "decimationMode": "off"
+                },
+                "307a4b7f-339c-41c8-8789-a47d5e167dda": {
+                  "decimationMode": "off"
+                },
+                "3917d290-1e7e-409f-a948-3991e1df39c5": {
+                  "decimationMode": "off"
+                },
+                "63707677-1586-4b14-955e-519a8a43b6de": {
+                  "decimationMode": "off"
+                },
+                "65717506-7923-41a3-b6cd-a5a3e5629d84": {
+                  "decimationMode": "off"
+                },
+                "698cc109-8f4f-4450-bc1d-4f829e8936fd": {
+                  "decimationMode": "off"
+                },
+                "8214dca8-134c-4427-9807-111b995dd4bf": {
+                  "decimationMode": "off"
+                },
+                "90077738-db95-4779-91ee-083513df62c3": {
+                  "decimationMode": "off"
+                },
+                "a782b4ed-20a5-46ff-a5cf-5ad9caa44b79": {
+                  "decimationMode": "off"
+                },
+                "b4cf79c9-5638-43f2-a952-85aeb1a77b5a": {
+                  "decimationMode": "off"
+                },
+                "bc1a3f63-48b6-44cb-8fd7-1a55cab8e3c7": {
+                  "decimationMode": "off"
+                },
+                "d45ca17e-cdd9-44ef-abfd-dc97c0c5556c": {
+                  "decimationMode": "off"
+                },
+                "d469c8ef-a12a-49e7-9d40-d056865d09a3": {
+                  "decimationMode": "off"
+                },
+                "d4858385-f770-4e14-8844-6fa7f05cd631": {
+                  "decimationMode": "off"
+                },
+                "d6d69ef2-3450-4c3d-bc52-772b542e1b6b": {
+                  "decimationMode": "off"
+                },
+                "ddb7688e-9b82-4c2f-a25d-f816c5de325c": {
+                  "decimationMode": "off"
+                },
+                "e198096b-da61-4536-a58f-38fab4be554c": {
+                  "decimationMode": "off"
+                },
+                "ec69b91c-9a4c-46ec-a28d-9bcc53373c96": {
+                  "decimationMode": "off"
+                },
+                "ee0f62fc-03ff-4de1-bdfa-cc62753a26b2": {
+                  "decimationMode": "off"
+                },
+                "ef70d582-e64f-4927-b8eb-0dafa6f0acac": {
+                  "decimationMode": "off"
+                },
+                "f148da35-eec9-450d-8acb-ef748f7f2e2f": {
+                  "decimationMode": "off"
+                },
+                "f8d98794-f4f3-40b4-aec7-ae024a1a762e": {
+                  "decimationMode": "off"
+                },
+                "faa31f84-f3f9-4dbf-8446-02d0fa9f5e75": {
+                  "decimationMode": "off"
+                }
+              }
+            }
+          },
+          "tabComponent": "golden-tab",
+          "title": "Inspector: State Machine"
+        },
+        "logger": {
+          "contentComponent": "logger",
+          "id": "logger",
+          "tabComponent": "golden-tab",
+          "title": "Logger"
+        },
+        "modules-1": {
+          "contentComponent": "modules",
+          "id": "modules-1",
+          "tabComponent": "golden-tab",
+          "title": "Modules"
+        },
+        "outliner": {
+          "contentComponent": "outliner",
+          "id": "outliner",
+          "params": {
+            "__gc_panel_state": {
+              "opennessByNodeId": {
+                "4294967297": true
+              }
+            }
+          },
+          "tabComponent": "golden-tab",
+          "title": "Outliner"
+        },
+        "state-machine": {
+          "contentComponent": "stateMachine",
+          "id": "state-machine",
+          "params": {
+            "__gc_panel_state": {
+              "camera": {
+                "x": -320.80775876235646,
+                "y": 268.74735889194204,
+                "zoom": 1
+              }
+            }
+          },
+          "tabComponent": "golden-tab",
+          "title": "State Machine"
+        },
+        "warnings": {
+          "contentComponent": "warnings",
+          "id": "warnings",
+          "params": {
+            "sourceNodeId": 4294967616,
+            "targetNodeId": 4294967616,
+            "warningId": "alchemist_formula"
+          },
+          "tabComponent": "golden-tab",
+          "title": "Warnings"
+        }
+      }
+    },
+    "selected_node_ids": [
+      4294967450
+    ]
+  },
   "root": {
     "uuid": "2bfaa0b3-83c8-40c4-be99-89c5dc089e99",
     "type": "folder",
@@ -36,67 +325,17 @@
             }
           },
           {
-            "uuid": "ba513f2b-1c79-4064-bd80-68913c084077",
+            "uuid": "e8624a03-3ae6-4dad-ade4-a7cc6c90d66d",
             "type": "alchemist_formula",
-            "user_role": "itemRoot",
             "meta": {
-              "label": "TestF 2",
+              "label": "formula",
               "tags": [
                 "chataigne.formula.external.file"
               ]
             },
             "children": [
               {
-                "uuid": "da2af1a1-305d-46fe-ac50-4f8e796c3b22",
-                "type": "file",
-                "meta": {
-                  "decl_id": "external_formula_file",
-                  "short_name": "formulaFile",
-                  "label": "Formula File"
-                },
-                "data": {
-                  "value": {
-                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\testf.json"
-                  }
-                }
-              },
-              {
-                "uuid": "f2306e08-e9fe-41c4-b2f5-258580ad80cb",
-                "type": "reference",
-                "meta": {
-                  "decl_id": "external_formula_source",
-                  "short_name": "externalFormulaSource",
-                  "label": "External Formula Source",
-                  "presentation": {
-                    "show_in_inspector_content": false
-                  }
-                }
-              },
-              {
-                "uuid": "1f324912-d51b-432c-b479-d500ebd659ee",
-                "type": "bool",
-                "meta": {
-                  "decl_id": "external_formula_delete_file",
-                  "short_name": "deleteExternalFormulaFile",
-                  "label": "Delete External Formula File",
-                  "presentation": {
-                    "show_in_inspector_content": false
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "uuid": "c5e7e677-93e3-40f6-9f8e-36f4e398f2d6",
-            "type": "alchemist_formula",
-            "meta": {
-              "tags": [
-                "chataigne.formula.external.file"
-              ]
-            },
-            "children": [
-              {
-                "uuid": "328c2c7a-0089-40aa-bf30-59858d7bcdeb",
+                "uuid": "e305dc23-b335-4307-93b0-033c4e6d1fdc",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -105,15 +344,15 @@
                 },
                 "data": {
                   "default_value": {
-                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula.json"
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\formula.json"
                   },
                   "value": {
-                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula.json"
+                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\formula.json"
                   }
                 }
               },
               {
-                "uuid": "cf8fbfce-608b-41c7-b5b0-ba4821bc4ad8",
+                "uuid": "a05624a8-fabb-43f5-9f25-1db363362711",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -125,7 +364,7 @@
                 }
               },
               {
-                "uuid": "5b327c11-0977-48fa-940a-5acaba5b7eb0",
+                "uuid": "1b0471f9-2cb3-44bf-a498-c007659a7b5d",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -135,59 +374,909 @@
                     "show_in_inspector_content": false
                   }
                 }
-              }
-            ]
-          },
-          {
-            "uuid": "ae310972-d108-4a28-9908-6a95db90284c",
-            "type": "alchemist_formula",
-            "meta": {
-              "label": "Formula2",
-              "tags": [
-                "chataigne.formula.external.file"
-              ]
-            },
-            "children": [
+              },
               {
-                "uuid": "e56cf0be-4dd7-4d2d-9247-128975076e14",
-                "type": "file",
+                "uuid": "93e4c980-aa8d-43ac-af69-fb7880e6e3e3",
+                "type": "alchemist_properties",
                 "meta": {
-                  "decl_id": "external_formula_file",
-                  "short_name": "formulaFile",
-                  "label": "Formula File"
+                  "decl_id": "properties",
+                  "presentation": {
+                    "collapsed": true
+                  }
                 },
-                "data": {
-                  "default_value": {
-                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula2.json"
+                "children": [
+                  {
+                    "uuid": "8ab08d22-83f1-4db0-a91b-0e6e9361bc64",
+                    "type": "alchemist_property",
+                    "meta": {
+                      "label": "Float",
+                      "tags": [
+                        "alchemist.property.type:float"
+                      ]
+                    },
+                    "children": [
+                      {
+                        "uuid": "e5e7e80b-4425-4ae1-80c9-653dde87857d",
+                        "type": "str",
+                        "meta": {
+                          "decl_id": "property_type",
+                          "short_name": "property_type"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Str": ""
+                          },
+                          "read_only": false
+                        }
+                      },
+                      {
+                        "uuid": "c62ec026-634a-45b5-a118-679c87b14d55",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": false
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "f9bf5aa6-9993-470f-a1c8-b6b1efd2bfa4",
+                        "type": "float",
+                        "meta": {
+                          "decl_id": "value",
+                          "short_name": "value",
+                          "user_permissions": {}
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "uuid": "113ce22e-7f7d-4ee5-8b84-afc2661a9be8",
+                "type": "alchemist_anode",
+                "meta": {
+                  "label": "Function",
+                  "tags": [
+                    "alchemist.anode.type:function"
+                  ],
+                  "presentation": {
+                    "color": {
+                      "r": 0.24560000000000004,
+                      "g": 0.6381333333333332,
+                      "b": 0.8344,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.24560000000000004,
+                      "g": 0.6381333333333332,
+                      "b": 0.8344,
+                      "a": 1.0
+                    },
+                    "collapsed": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "b4ae051d-3d85-4267-92f5-83c704b49575",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          12.514127898734309,
+                          6.9050229820870666
+                        ]
+                      }
+                    }
                   },
-                  "value": {
-                    "File": "C:\\Users\\bkupe\\AppData\\Roaming\\Chataigne\\formulas\\Formula2.json"
+                  {
+                    "uuid": "9ab6db84-fad0-4dc2-b598-56948c3b7a9b",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true
+                    },
+                    "data": {
+                      "default_value": {
+                        "Vec2": [
+                          0.0,
+                          0.0
+                        ]
+                      },
+                      "value": {
+                        "Vec2": [
+                          12.640308884255298,
+                          4.109999999999999
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "7d7f504e-518c-4770-b151-00d3cf75301d",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "46836b86-460f-4fc7-afc6-194b55078868",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "config/function",
+                          "short_name": "function",
+                          "label": "Function",
+                          "presentation": {
+                            "color": {
+                              "r": 0.92,
+                              "g": 0.68,
+                              "b": 0.26,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "sqrt"
+                          },
+                          "value": {
+                            "Enum": "sqrt"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "ceaef9f1-6754-471e-b0dc-a7cd381d497a",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "7071429d-6111-48f1-a3e5-350c1437d465",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "42e7b659-77b7-4c75-b049-555bb605f4b6",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "daafe540-c87b-49d4-9224-9cb8931eb7fb",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3255278c-c88b-4e2c-8da4-590b968f3835",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/value",
+                          "short_name": "value",
+                          "label": "Value",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "bbf12301-5141-48ad-a354-d6ff5f9649c1",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "value"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "87ca6d1a-3421-47ab-a20a-c73b6fc347f1",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "float"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "06c66b59-e085-40c2-a32b-83ae4c2101e3",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "inputs/value/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "presentation": {
+                                "default_color": {
+                                  "r": 0.28,
+                                  "g": 0.74,
+                                  "b": 0.52,
+                                  "a": 1.0
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "6871ee58-7414-4744-a187-f6deb1eaa009",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "427d4b9b-e8ff-47fd-b7e7-e71f55497fff",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/result",
+                          "short_name": "result",
+                          "label": "Result",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "94e536b6-f1a0-4a6b-9c1e-91cedfe009bf",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/result/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "result"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "406bc1b6-64d1-4ba9-b592-f2248c309ebe",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/result/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "float"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
                   }
-                }
+                ]
               },
               {
-                "uuid": "e07e4d97-eaae-48ea-9456-57bd38239779",
-                "type": "reference",
+                "uuid": "236b441f-4cdd-428d-bf34-548872dbb260",
+                "type": "alchemist_anode",
                 "meta": {
-                  "decl_id": "external_formula_source",
-                  "short_name": "externalFormulaSource",
-                  "label": "External Formula Source",
+                  "label": "Math",
+                  "tags": [
+                    "alchemist.anode.type:math"
+                  ],
                   "presentation": {
-                    "show_in_inspector_content": false
+                    "color": {
+                      "r": 0.2476000000000001,
+                      "g": 0.5183466666666666,
+                      "b": 0.8724000000000001,
+                      "a": 1.0
+                    },
+                    "default_color": {
+                      "r": 0.2476000000000001,
+                      "g": 0.5183466666666666,
+                      "b": 0.8724000000000001,
+                      "a": 1.0
+                    },
+                    "collapsed": true
                   }
-                }
+                },
+                "children": [
+                  {
+                    "uuid": "1153e1f3-532a-4085-bbf6-14b428463aa8",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "position"
+                    },
+                    "data": {
+                      "value": {
+                        "Vec2": [
+                          -6.851316750981413,
+                          4.380656342734886
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "8a307ac4-600f-438e-9369-7dbfd568b729",
+                    "type": "vec2",
+                    "meta": {
+                      "decl_id": "size",
+                      "enabled": true
+                    },
+                    "data": {
+                      "default_value": {
+                        "Vec2": [
+                          0.0,
+                          0.0
+                        ]
+                      },
+                      "value": {
+                        "Vec2": [
+                          14.44153176619756,
+                          5.714403738604089
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "d90d7821-8a44-497e-af9a-896e2649868a",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "config",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "74692d64-541f-4154-a278-68a008ae45cc",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "config/operator",
+                          "short_name": "operator",
+                          "label": "Operator",
+                          "presentation": {
+                            "color": {
+                              "r": 0.92,
+                              "g": 0.68,
+                              "b": 0.26,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "add"
+                          },
+                          "value": {
+                            "Enum": "add"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "4e41e833-44ac-44dd-89fc-c472892e58d1",
+                        "type": "int",
+                        "meta": {
+                          "decl_id": "config/num_inputs",
+                          "short_name": "num_inputs",
+                          "enabled": false,
+                          "can_be_disabled": true,
+                          "label": "Num Inputs",
+                          "presentation": {
+                            "color": {
+                              "r": 0.35,
+                              "g": 0.62,
+                              "b": 0.95,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Int": 2
+                          },
+                          "value": {
+                            "Int": 2
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "0ca8be6d-24f6-4f0c-91df-6e6a484fc34c",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "config/value_type",
+                          "short_name": "value_type",
+                          "enabled": false,
+                          "can_be_disabled": true,
+                          "label": "Value Type"
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": "float"
+                          },
+                          "value": {
+                            "Enum": "float"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "c7ae6960-6703-4ccb-a9a1-a83d6c04a1ad",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/process_on_input_change_only",
+                          "short_name": "process_on_input_change_only",
+                          "label": "Process on input change only",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "d3974d11-2262-4e32-b1ce-714b953fb522",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/send_on_output_change_only",
+                          "short_name": "send_on_output_change_only",
+                          "label": "Send on output change only",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": true
+                          },
+                          "value": {
+                            "Bool": true
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "abb8a891-7090-489f-9f25-fc1a78c9a606",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "config/log",
+                          "short_name": "log",
+                          "label": "Log",
+                          "presentation": {
+                            "color": {
+                              "r": 0.86,
+                              "g": 0.44,
+                              "b": 0.78,
+                              "a": 1.0
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "e34ac92a-d533-4c45-9be5-9af3eff0055b",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "inputs",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3f0d38e9-8396-4d65-8d05-83bc5fc94f48",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/value1",
+                          "short_name": "value1",
+                          "label": "Value 1",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "13936cce-fe05-48b8-b71a-214a91c27ea2",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value1/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "value1"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "731c825a-55b8-4c95-ba16-7770c09e0259",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value1/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "float"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "699bbcd2-7bf1-4469-8d9d-b07263b1f818",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "inputs/value1/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "presentation": {
+                                "default_color": {
+                                  "r": 0.28,
+                                  "g": 0.74,
+                                  "b": 0.52,
+                                  "a": 1.0
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      {
+                        "uuid": "02cc8de5-66b3-4c0f-b89e-d8f304474cc1",
+                        "type": "alchemist_input_socket",
+                        "meta": {
+                          "decl_id": "inputs/value2",
+                          "short_name": "value2",
+                          "label": "Value 2",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "d308c593-1869-490d-b0d7-c01af80d6216",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value2/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "value2"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "a1a88838-df06-473d-b6a4-9c3f911d9e35",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "inputs/value2/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "float"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "3b5199a8-1a79-4c01-bac6-c5e9cc37f0ca",
+                            "type": "float",
+                            "meta": {
+                              "decl_id": "inputs/value2/value",
+                              "short_name": "value",
+                              "label": "Value",
+                              "presentation": {
+                                "default_color": {
+                                  "r": 0.28,
+                                  "g": 0.74,
+                                  "b": 0.52,
+                                  "a": 1.0
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "acf007ab-c1d6-4920-8f9a-0266c8940b50",
+                    "type": "folder",
+                    "meta": {
+                      "decl_id": "outputs",
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "3c6d75e9-806a-43cf-a1a0-2605ba855bea",
+                        "type": "alchemist_output_socket",
+                        "meta": {
+                          "decl_id": "outputs/result",
+                          "short_name": "result",
+                          "label": "Result",
+                          "presentation": {
+                            "default_color": {
+                              "r": 0.28,
+                              "g": 0.74,
+                              "b": 0.52,
+                              "a": 1.0
+                            }
+                          }
+                        },
+                        "children": [
+                          {
+                            "uuid": "a4f853f6-d9d8-4707-829a-a4a58af52345",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/result/socket_id",
+                              "short_name": "socket_id",
+                              "label": "Socket ID",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "result"
+                              }
+                            }
+                          },
+                          {
+                            "uuid": "0b52be3b-b021-4002-82af-1617de9eee87",
+                            "type": "str",
+                            "meta": {
+                              "decl_id": "outputs/result/value_type",
+                              "short_name": "value_type",
+                              "label": "Value Type",
+                              "presentation": {
+                                "show_in_inspector_content": false
+                              }
+                            },
+                            "data": {
+                              "value": {
+                                "Str": "float"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
               },
               {
-                "uuid": "d6216502-4af2-430b-a8a7-7fb1e7e3120b",
-                "type": "bool",
-                "meta": {
-                  "decl_id": "external_formula_delete_file",
-                  "short_name": "deleteExternalFormulaFile",
-                  "label": "Delete External Formula File",
-                  "presentation": {
-                    "show_in_inspector_content": false
+                "uuid": "ce785cb4-b66b-4790-8b5b-3df0895b6a51",
+                "type": "alchemist_connection",
+                "children": [
+                  {
+                    "uuid": "0afbe00f-af95-439d-8bec-6abd97cbcfed",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "source_node",
+                      "short_name": "source_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Math",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "236b441f-4cdd-428d-bf34-548872dbb260"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "5bc20010-d752-4f34-bf1e-f89d04020b17",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "source_socket",
+                      "short_name": "source_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "result"
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "1fc5fd9d-297f-4a39-aad0-cfab31733c88",
+                    "type": "reference",
+                    "meta": {
+                      "decl_id": "target_node",
+                      "short_name": "target_node"
+                    },
+                    "data": {
+                      "value": {
+                        "Reference": {
+                          "cached_name": "Function",
+                          "relative_path_from_root": [
+                            "formulas",
+                            "formula",
+                            "anode"
+                          ],
+                          "uuid": "113ce22e-7f7d-4ee5-8b84-afc2661a9be8"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "uuid": "b9140e01-d42f-4a79-bebf-ff28558e3f56",
+                    "type": "str",
+                    "meta": {
+                      "decl_id": "target_socket",
+                      "short_name": "target_socket"
+                    },
+                    "data": {
+                      "value": {
+                        "Str": "value"
+                      }
+                    }
                   }
-                }
+                ]
               }
             ]
           }
@@ -305,26 +1394,7 @@
           {
             "uuid": "5a650a88-4f95-483a-8635-999f674a95ab",
             "type": "joycon_module",
-            "user_role": "itemRoot",
-            "children": [
-              {
-                "uuid": "c5b1c162-1566-41f1-b31b-d924595cec5e",
-                "type": "folder",
-                "meta": {
-                  "decl_id": "connection"
-                },
-                "children": [
-                  {
-                    "uuid": "cefa4f9b-6d4e-473c-9a38-149375344278",
-                    "type": "enum",
-                    "meta": {
-                      "decl_id": "connection/motion_data_mode",
-                      "presentation": {}
-                    }
-                  }
-                ]
-              }
-            ]
+            "user_role": "itemRoot"
           }
         ]
       },
@@ -346,8 +1416,8 @@
                 "data": {
                   "value": {
                     "Vec2": [
-                      47.0,
-                      0.0
+                      46.599998474121094,
+                      -1.550001621246338
                     ]
                   }
                 }
@@ -500,14 +1570,14 @@
                                 "data": {
                                   "value": {
                                     "Reference": {
-                                      "cached_name": "Metronome 2",
+                                      "cached_name": "Signal",
                                       "relative_path_from_root": [
                                         "moduleManager",
                                         "module",
                                         "values",
-                                        "metronome_0d574f88031c41b78cb532ce545dba15"
+                                        "signal_c11d96733c794b6089ce6ed479d67668"
                                       ],
-                                      "uuid": "60323bfa-6c72-2eda-e9ea-44af3828df15"
+                                      "uuid": "13306f98-bc8f-4980-8de2-bab958e53080"
                                     }
                                   }
                                 }
@@ -532,7 +1602,19 @@
                                 },
                                 "data": {
                                   "value": {
-                                    "Float": 0.5
+                                    "Float": 0.39000000000000035
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "2aebcf29-3bad-4eb8-88d5-a7f8a34105aa",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "reference_max"
+                                },
+                                "data": {
+                                  "value": {
+                                    "Float": 0.91
                                   }
                                 }
                               },
@@ -984,6 +2066,266 @@
                               },
                               {
                                 "uuid": "344aa639-bbf7-4789-9e1d-0a8e8a4c2fe4",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6117bcce-dc45-42b9-a6ff-d37bf56e712f",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "8b555236-573a-4557-86f7-ca698d318f87",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "7f9a18a7-fff1-4ade-9505-5b17bfa02646",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "3f9cfa83-cb43-43fc-b65a-08809debf27a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "2acfc52a-7812-4e2c-b27d-ab310ace850d",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "d1b40a48-a917-4706-862b-10900f31d469",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "2909ff22-2395-4775-b1a4-eb4f58b51c86",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "459d19d1-8803-41b6-8f16-6f6f518deca6",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "f74ade10-5b55-432b-ab09-ad1067804357",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "906dda68-9dc1-4bcc-bbf9-5b04204f8a2c",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "b3241a63-661d-4445-a18a-138766943aad",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "3d6e4e84-23a9-48ce-94ca-eff5892fdba6",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "08f54230-49e1-45eb-833b-060a05660d13",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a9f956b0-29b8-4d03-ac74-b23ad782fe62",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "928bfa7c-c44a-4987-b533-8c0505cc54a6",
                                 "type": "bool",
                                 "meta": {
                                   "decl_id": "advanced/cancel_on_trigger",
@@ -1469,6 +2811,266 @@
                               },
                               {
                                 "uuid": "3dce6a4a-f390-4487-bc55-afded57c7471",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "07d0f329-8758-46d2-9ad2-1de2d03b8832",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "da1b16f2-f8e9-4e94-b6f3-8426e5f709cc",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "6c677b81-1488-403e-821e-cc9fc5a82dcd",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "9f237f00-ed20-4c94-9afb-9a2876083801",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "55ab1cb6-af9a-4436-a328-930473c6c3f2",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "84ff69af-0d5b-487d-99b5-30ecc6f4af9e",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "789086fe-45fd-4145-b6c1-469442478a9c",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "c6d42b67-4145-4c8d-8845-7271c539d169",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "90de40e6-c05e-403d-b3e6-dbe2dfea8334",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "89f185bb-c336-424a-939c-6393c79dc52b",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "b5e6eb32-b61f-4c6a-8699-14afb752383a",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "a21c33a2-1389-4bd8-ad71-1a787f31bf7f",
+                                "type": "bool",
+                                "meta": {
+                                  "decl_id": "advanced/cancel_on_trigger",
+                                  "short_name": "cancelPendingOnTrigger",
+                                  "label": "Cancel Pending On Trigger",
+                                  "description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/cancel_on_trigger",
+                                  "declared_description": "Enabled: a new trigger cancels any still-pending outputs first. Disabled: each trigger queues its own outputs.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "47f207a3-9e9e-41b4-85c4-aafc49e29880",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/delay",
+                                  "short_name": "delay",
+                                  "label": "Delay",
+                                  "description": "Seconds to wait before firing outputs.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/delay",
+                                  "declared_description": "Seconds to wait before firing outputs."
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "84c2079a-bc5f-40f0-a69b-d59ea0081a93",
+                                "type": "float",
+                                "meta": {
+                                  "decl_id": "advanced/stagger",
+                                  "short_name": "stagger",
+                                  "label": "Stagger",
+                                  "description": "Seconds to wait between each fired output.",
+                                  "declared_description_key": "sm_outputs_manager::advanced/stagger",
+                                  "declared_description": "Seconds to wait between each fired output.",
+                                  "presentation": {
+                                    "show_in_inspector_content": false
+                                  }
+                                },
+                                "data": {
+                                  "ui_hints": {
+                                    "widget": "time_slider"
+                                  }
+                                }
+                              },
+                              {
+                                "uuid": "d9ee087f-7393-47b0-92c0-6f6ce0aefbff",
                                 "type": "bool",
                                 "meta": {
                                   "decl_id": "advanced/cancel_on_trigger",
