@@ -6,13 +6,48 @@ use std::time::Instant;
 
 use golden_engine::app::{
     ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_tree,
-    insert_sparse_preferences_json, load_sparse_project_file_with_ui_state, prepare_engine_for_runtime,
-    shutdown_engine_for_runtime, to_sparse_preferences_json_pretty, to_sparse_project_json_pretty_with_ui_state,
+    insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
+    load_sparse_project_file_with_ui_state_recovering, prepare_engine_for_runtime,
+    prepare_engine_for_runtime_recovering, shutdown_engine_for_runtime, to_sparse_preferences_json_pretty,
+    to_sparse_project_json_pretty_with_ui_state,
 };
-use golden_engine::engine::Engine;
+use golden_engine::engine::{Engine, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use golden_engine::logger::{self, LogLevel};
 
 use crate::ui_server::UiPreferencesConfig;
+
+pub(crate) struct ProjectLoadResult {
+    pub(crate) path: String,
+    pub(crate) ui_state: Option<serde_json::Value>,
+    pub(crate) recovery: ProjectLoadRecoveryReport,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ProjectLoadError {
+    pub(crate) message: String,
+    pub(crate) recovery: Option<ProjectLoadRecoveryReport>,
+}
+
+impl ProjectLoadError {
+    fn from_persistence(error: ProjectPersistenceError) -> Self {
+        let recovery = match &error {
+            ProjectPersistenceError::Engine(engine_error) => {
+                Some(ProjectLoadRecoveryReport::from_engine_rebuild_error(engine_error))
+            }
+            _ => None,
+        };
+        Self {
+            message: error.to_string(),
+            recovery,
+        }
+    }
+}
+
+impl std::fmt::Display for ProjectLoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
 
 const BROWSER_PROJECT_DIRECTORY_SEGMENTS: &[&str] = &["Documents", "Chataigne"];
 
@@ -90,7 +125,8 @@ fn replace_live_engine<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     next_engine: Engine<T>,
     reason: &str,
-) -> Result<(), String> {
+    recover: bool,
+) -> Result<ProjectLoadRecoveryReport, String> {
     let started = Instant::now();
     let next_node_count = next_engine.nodes.iter().count();
     let mut guard = match engine.lock() {
@@ -109,7 +145,12 @@ fn replace_live_engine<T: ProjectLifecycle>(
     // apply_edits runs node-ready callbacks, which can bind transports.
     // Fully unload and drop the previous engine before the replacement starts runtime work.
     let prepare_started = Instant::now();
-    prepare_engine_for_runtime(&mut *guard).map_err(|err| err.to_string())?;
+    let recovery = if recover {
+        prepare_engine_for_runtime_recovering(&mut *guard)
+    } else {
+        prepare_engine_for_runtime(&mut *guard).map_err(|err| err.to_string())?;
+        ProjectLoadRecoveryReport::default()
+    };
     let prepare_elapsed = prepare_started.elapsed();
     guard.clear_ui_event_log();
     guard.push_ui_custom_event(
@@ -125,7 +166,7 @@ fn replace_live_engine<T: ProjectLifecycle>(
         prepare_elapsed.as_millis(),
         started.elapsed().as_millis()
     );
-    Ok(())
+    Ok(recovery)
 }
 
 pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
@@ -183,7 +224,7 @@ pub(crate) fn create_new_project<T: ProjectLifecycle>(
     let mut next_engine = create_new_project_engine::<T>()?;
     load_preferences_into_engine(&mut next_engine, preferences)?;
     T::project_opened(&mut next_engine)?;
-    replace_live_engine(engine, next_engine, "project_new")
+    replace_live_engine(engine, next_engine, "project_new", false).map(|_| ())
 }
 
 pub(crate) fn save_project<T: ProjectLifecycle>(
@@ -246,47 +287,109 @@ pub(crate) fn load_project<T: ProjectLifecycle>(
     engine: &Arc<Mutex<Engine<T>>>,
     raw_path: &str,
     preferences: Option<&UiPreferencesConfig>,
-) -> Result<(String, Option<serde_json::Value>), String> {
-    let path = normalize_project_path(raw_path).ok_or_else(|| "project-load path cannot be empty".to_string())?;
+) -> Result<ProjectLoadResult, ProjectLoadError> {
+    load_project_with_options(engine, raw_path, preferences, false)
+}
+
+pub(crate) fn load_project_recovering<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_path: &str,
+    preferences: Option<&UiPreferencesConfig>,
+) -> Result<ProjectLoadResult, ProjectLoadError> {
+    load_project_with_options(engine, raw_path, preferences, true)
+}
+
+fn load_project_with_options<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_path: &str,
+    preferences: Option<&UiPreferencesConfig>,
+    recover: bool,
+) -> Result<ProjectLoadResult, ProjectLoadError> {
+    let path = normalize_project_path(raw_path).ok_or_else(|| ProjectLoadError {
+        message: "project-load path cannot be empty".to_string(),
+        recovery: None,
+    })?;
 
     let started = Instant::now();
     let load_started = Instant::now();
-    let (mut next_engine, ui_state) =
-        load_sparse_project_file_with_ui_state::<T, _>(path.as_str()).map_err(|err| err.to_string())?;
+    let (mut next_engine, ui_state, mut recovery) = if recover {
+        load_sparse_project_file_with_ui_state_recovering::<T, _>(path.as_str())
+            .map_err(ProjectLoadError::from_persistence)?
+    } else {
+        let (next_engine, ui_state) = load_sparse_project_file_with_ui_state::<T, _>(path.as_str())
+            .map_err(ProjectLoadError::from_persistence)?;
+        (next_engine, ui_state, ProjectLoadRecoveryReport::default())
+    };
     let load_elapsed = load_started.elapsed();
     let node_count = next_engine.nodes.iter().count();
 
     let configure_started = Instant::now();
-    load_preferences_into_engine(&mut next_engine, preferences)?;
-    configure_loaded_engine(&mut next_engine)?;
+    load_preferences_into_engine(&mut next_engine, preferences).map_err(|message| ProjectLoadError {
+        message,
+        recovery: None,
+    })?;
+    configure_loaded_engine(&mut next_engine).map_err(|message| ProjectLoadError {
+        message,
+        recovery: None,
+    })?;
     let configure_elapsed = configure_started.elapsed();
 
     let replace_started = Instant::now();
-    replace_live_engine(engine, next_engine, "project_loaded")?;
+    let runtime_recovery = replace_live_engine(engine, next_engine, "project_loaded", recover).map_err(|message| {
+        let recovery = recover.then(|| ProjectLoadRecoveryReport::from_runtime_startup_error(message.clone()));
+        ProjectLoadError { message, recovery }
+    })?;
     let replace_elapsed = replace_started.elapsed();
+    recovery.problems.extend(runtime_recovery.problems);
+    let problem_count = recovery.problems.len();
 
     eprintln!(
-        "[project-host] load_project path='{}' nodes={} rebuild_ms={} configure_ms={} replace_ms={} total_ms={}",
+        "[project-host] load_project path='{}' nodes={} rebuild_ms={} configure_ms={} replace_ms={} total_ms={} recovery_problems={}",
         path,
         node_count,
         load_elapsed.as_millis(),
         configure_elapsed.as_millis(),
         replace_elapsed.as_millis(),
-        started.elapsed().as_millis()
+        started.elapsed().as_millis(),
+        problem_count
     );
+    let recovered = !recovery.is_empty();
     let _ = logger::log_message(
-        LogLevel::Success,
+        if recovered {
+            LogLevel::Warning
+        } else {
+            LogLevel::Success
+        },
         "project".to_string(),
         None,
-        format!(
-            "Loaded project: {path} (nodes={node_count} rebuild_ms={} configure_ms={} replace_ms={} total_ms={})",
-            load_elapsed.as_millis(),
-            configure_elapsed.as_millis(),
-            replace_elapsed.as_millis(),
-            started.elapsed().as_millis()
-        ),
+        if recovered {
+            let first_problem = recovery
+                .problems
+                .first()
+                .map(|problem| problem.message.as_str())
+                .unwrap_or("unknown recoverable problem");
+            format!(
+                "Loaded project with recovery: {path} (nodes={node_count} problems={problem_count} first_problem={first_problem} rebuild_ms={} configure_ms={} replace_ms={} total_ms={})",
+                load_elapsed.as_millis(),
+                configure_elapsed.as_millis(),
+                replace_elapsed.as_millis(),
+                started.elapsed().as_millis()
+            )
+        } else {
+            format!(
+                "Loaded project: {path} (nodes={node_count} rebuild_ms={} configure_ms={} replace_ms={} total_ms={})",
+                load_elapsed.as_millis(),
+                configure_elapsed.as_millis(),
+                replace_elapsed.as_millis(),
+                started.elapsed().as_millis()
+            )
+        },
     );
-    Ok((path, ui_state))
+    Ok(ProjectLoadResult {
+        path,
+        ui_state,
+        recovery,
+    })
 }
 
 pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
@@ -294,27 +397,55 @@ pub(crate) fn upload_project_and_load<T: ProjectLifecycle>(
     raw_file_name: &str,
     contents: &str,
     preferences: Option<&UiPreferencesConfig>,
-) -> Result<(String, Option<serde_json::Value>), String> {
+) -> Result<ProjectLoadResult, ProjectLoadError> {
+    upload_project_and_load_with_options(engine, raw_file_name, contents, preferences, false)
+}
+
+pub(crate) fn upload_project_and_load_recovering<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_file_name: &str,
+    contents: &str,
+    preferences: Option<&UiPreferencesConfig>,
+) -> Result<ProjectLoadResult, ProjectLoadError> {
+    upload_project_and_load_with_options(engine, raw_file_name, contents, preferences, true)
+}
+
+fn upload_project_and_load_with_options<T: ProjectLifecycle>(
+    engine: &Arc<Mutex<Engine<T>>>,
+    raw_file_name: &str,
+    contents: &str,
+    preferences: Option<&UiPreferencesConfig>,
+    recover: bool,
+) -> Result<ProjectLoadResult, ProjectLoadError> {
     if contents.trim().is_empty() {
-        return Err("project upload contents cannot be empty".to_string());
+        return Err(ProjectLoadError {
+            message: "project upload contents cannot be empty".to_string(),
+            recovery: None,
+        });
     }
 
-    let directory = browser_project_directory()?;
-    fs::create_dir_all(&directory).map_err(|err| {
-        format!(
+    let directory = browser_project_directory().map_err(|message| ProjectLoadError {
+        message,
+        recovery: None,
+    })?;
+    fs::create_dir_all(&directory).map_err(|err| ProjectLoadError {
+        message: format!(
             "failed to create browser project upload directory {}: {err}",
             directory.display()
-        )
+        ),
+        recovery: None,
     })?;
 
     let file_spec = T::project_file_spec();
     let file_name = sanitize_browser_upload_file_name(raw_file_name, &file_spec);
     let path = directory.join(file_name);
-    fs::write(&path, contents)
-        .map_err(|err| format!("failed to write uploaded project file {}: {err}", path.display()))?;
+    fs::write(&path, contents).map_err(|err| ProjectLoadError {
+        message: format!("failed to write uploaded project file {}: {err}", path.display()),
+        recovery: None,
+    })?;
 
     let normalized_path = path.to_string_lossy().to_string();
-    load_project(engine, &normalized_path, preferences)
+    load_project_with_options(engine, &normalized_path, preferences, recover)
 }
 
 #[cfg(test)]

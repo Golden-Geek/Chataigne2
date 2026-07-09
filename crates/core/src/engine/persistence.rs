@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::events::{Event, EventFrame, EventKind};
 use crate::node::{
     DeclId, Node, NodeCreationContext, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
-    PresentationHint, SemanticsHint, UserNodeRole,
+    PresentationHint, SemanticsHint, UserNodeRole, user_context_multiplex_list_value_type,
 };
 use crate::process_ctx::ExecutionPhase;
 use crate::ui_sync::UiGraphOp;
@@ -301,6 +301,80 @@ pub enum ProjectPersistenceError {
     },
 }
 
+/// Recoverable problems encountered while rebuilding a project file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProjectLoadRecoveryReport {
+    /// Problems that were skipped so the loader could keep the valid graph content.
+    pub problems: Vec<ProjectLoadRecoveryProblem>,
+}
+
+impl ProjectLoadRecoveryReport {
+    /// Returns true when the project loaded without any skipped rebuild work.
+    pub fn is_empty(&self) -> bool {
+        self.problems.is_empty()
+    }
+
+    /// Builds a report for one engine rebuild failure.
+    pub fn from_engine_rebuild_error(error: &EngineEditError) -> Self {
+        Self {
+            problems: vec![ProjectLoadRecoveryProblem {
+                stage: ProjectLoadRecoveryStage::LifecycleReplay,
+                message: format!("engine rebuild error: {error}"),
+            }],
+        }
+    }
+
+    /// Builds a report for one runtime startup failure.
+    pub fn from_runtime_startup_error(message: impl Into<String>) -> Self {
+        let mut report = Self::default();
+        report.push_runtime_startup_error(message);
+        report
+    }
+
+    fn push_engine_rebuild_error(&mut self, error: EngineEditError) {
+        self.problems.push(ProjectLoadRecoveryProblem {
+            stage: ProjectLoadRecoveryStage::LifecycleReplay,
+            message: format!("engine rebuild error: {error}"),
+        });
+    }
+
+    /// Records one skipped runtime startup failure.
+    pub fn push_runtime_startup_error(&mut self, message: impl Into<String>) {
+        self.problems.push(ProjectLoadRecoveryProblem {
+            stage: ProjectLoadRecoveryStage::RuntimeStartup,
+            message: format!("runtime startup error: {}", message.into()),
+        });
+    }
+}
+
+/// One recoverable project-load problem.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProjectLoadRecoveryProblem {
+    /// Load stage where the problem was detected.
+    pub stage: ProjectLoadRecoveryStage,
+    /// Human-readable description of the skipped problem.
+    pub message: String,
+}
+
+/// Project-load stage for a recoverable problem.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProjectLoadRecoveryStage {
+    /// Load-time lifecycle replay emitted invalid rebuild edits.
+    LifecycleReplay,
+    /// Host runtime startup emitted invalid edits or failed to resolve.
+    RuntimeStartup,
+}
+
+impl ProjectLoadRecoveryStage {
+    /// Stable protocol value for this recovery stage.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LifecycleReplay => "lifecycle_replay",
+            Self::RuntimeStartup => "runtime_startup",
+        }
+    }
+}
+
 impl fmt::Display for ProjectPersistenceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -386,7 +460,32 @@ impl<T: Node> Engine<T> {
     ///
     /// The decoder callback receives `(node_type, data, meta)` and must return a
     /// concrete runtime node instance for each record.
-    pub fn from_project_file_with<F>(project: ProjectFile, mut decode_node: F) -> Result<Self, ProjectPersistenceError>
+    pub fn from_project_file_with<F>(project: ProjectFile, decode_node: F) -> Result<Self, ProjectPersistenceError>
+    where
+        F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        Self::from_project_file_with_recovery_mode(project, decode_node, false).map(|(engine, _)| engine)
+    }
+
+    /// Loads a project from an already parsed document, skipping recoverable rebuild problems.
+    ///
+    /// This is intended for explicit user-approved recovery flows. Parse, version,
+    /// and codec errors still fail because no coherent runtime graph is available.
+    pub fn from_project_file_with_recovery<F>(
+        project: ProjectFile,
+        decode_node: F,
+    ) -> Result<(Self, ProjectLoadRecoveryReport), ProjectPersistenceError>
+    where
+        F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        Self::from_project_file_with_recovery_mode(project, decode_node, true)
+    }
+
+    fn from_project_file_with_recovery_mode<F>(
+        project: ProjectFile,
+        mut decode_node: F,
+        recover: bool,
+    ) -> Result<(Self, ProjectLoadRecoveryReport), ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
@@ -432,8 +531,23 @@ impl<T: Node> Engine<T> {
             seq: 0,
         };
 
+        let mut recovery = ProjectLoadRecoveryReport::default();
         let replay_started = std::time::Instant::now();
-        engine.replay_loaded_subtree_lifecycle(root_id, NodeCreationContext::ProjectLoad, LoadedReadyMode::Deferred)?;
+        match engine.replay_loaded_subtree_lifecycle(
+            root_id,
+            NodeCreationContext::ProjectLoad,
+            LoadedReadyMode::Deferred,
+        ) {
+            Ok(()) => {}
+            Err(ProjectPersistenceError::Engine(error)) if recover => {
+                recovery.push_engine_rebuild_error(error);
+                engine.inbox.clear();
+                engine.edits.pending.clear();
+                engine.pending_node_ready.clear();
+                engine.clear_history();
+            }
+            Err(error) => return Err(error),
+        }
         let replay_elapsed = replay_started.elapsed();
         let warnings_started = std::time::Instant::now();
         engine.sync_missing_reference_warnings_silent();
@@ -451,7 +565,7 @@ impl<T: Node> Engine<T> {
         engine.edits.pending.clear();
         engine.clear_history();
 
-        Ok(engine)
+        Ok((engine, recovery))
     }
 
     /// Loads a project from a JSON string.
@@ -709,10 +823,18 @@ impl<T: Node> Engine<T> {
         creation_context: NodeCreationContext,
         ready_mode: LoadedReadyMode,
     ) -> Result<(), ProjectPersistenceError> {
-        let loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        let mut loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+
+        self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
+        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
 
         self.run_node_attached_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
         self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
+        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        self.prune_loaded_duplicate_declared_children(loaded_node_ids.as_slice())?;
+        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
+        self.reconcile_loaded_declared_children(loaded_node_ids.as_slice(), creation_context)?;
+        loaded_node_ids = self.collect_loaded_subtree_node_ids(root)?;
         self.run_node_init_for_batch(loaded_node_ids.as_slice(), Some(creation_context))?;
 
         match ready_mode {
@@ -724,6 +846,89 @@ impl<T: Node> Engine<T> {
                     self.queue_node_ready(node_id, creation_context);
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn prune_loaded_duplicate_declared_children(
+        &mut self,
+        parent_ids: &[NodeId],
+    ) -> Result<(), ProjectPersistenceError> {
+        let mut duplicates = Vec::<NodeId>::new();
+
+        for parent_id in parent_ids {
+            if !self.nodes.contains(*parent_id) {
+                continue;
+            }
+
+            let parent_first_child = {
+                let parent_node = self
+                    .nodes
+                    .get(*parent_id)
+                    .ok_or(ProjectPersistenceError::MissingNode(*parent_id))?;
+                if user_context_multiplex_list_value_type(parent_node.get_type()).is_some() {
+                    continue;
+                }
+                parent_node.node_data().first_child
+            };
+
+            let mut seen = HashMap::<String, NodeId>::new();
+            let mut child = parent_first_child;
+
+            while let Some(child_id) = child {
+                let child_node = self
+                    .nodes
+                    .get(child_id)
+                    .ok_or(ProjectPersistenceError::MissingNode(child_id))?;
+                child = child_node.node_data().next_sibling;
+
+                let child_data = child_node.node_data();
+                if child_data.user_role != UserNodeRole::Regular {
+                    continue;
+                }
+
+                let decl_id = child_data.meta.decl_id.0.trim();
+                if decl_id.is_empty() {
+                    continue;
+                }
+
+                let key = format!("{}|{:?}|{}", child_node.get_type(), child_data.user_role, decl_id);
+                if seen.insert(key, child_id).is_some() {
+                    duplicates.push(child_id);
+                }
+            }
+        }
+
+        for duplicate in duplicates {
+            if self.nodes.contains(duplicate) {
+                self.discard_loaded_duplicate_declared_subtree(duplicate)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn discard_loaded_duplicate_declared_subtree(&mut self, root: NodeId) -> Result<(), ProjectPersistenceError> {
+        const OP: &str = "LoadProjectPruneDuplicateDeclaredChild";
+
+        let subtree = self
+            .collect_subtree(0, OP, root)
+            .map_err(ProjectPersistenceError::Engine)?;
+        self.detach_node(0, OP, root).map_err(ProjectPersistenceError::Engine)?;
+
+        for removed in subtree.into_iter().rev() {
+            self.unregister_node_uuid(removed);
+            self.nodes
+                .detach(removed)
+                .ok_or(EngineEditError::NodeNotFound {
+                    edit_index: 0,
+                    operation: OP,
+                    node: removed,
+                })
+                .map_err(ProjectPersistenceError::Engine)?;
+            self.purge_param_cache_entry(removed);
+            self.blueprints.unregister_instance(removed);
         }
 
         Ok(())

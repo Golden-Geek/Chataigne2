@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use crate::window_state::{WindowStatePersistence, save_window_state};
+
 /// Writes `contents` to `file_name` inside a subdirectory of the OS
 /// shared application-data directory, creating it if needed. `subdir_segments`
 /// is joined onto the app-data root (e.g. `["MyApp", "presets"]`); the app
@@ -166,7 +168,11 @@ pub fn window_close<R: tauri::Runtime>(window: tauri::Window<R>) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn window_destroy<R: tauri::Runtime>(window: tauri::Window<R>) -> Result<(), String> {
+pub fn window_destroy<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    window_state: tauri::State<'_, WindowStatePersistence>,
+) -> Result<(), String> {
+    save_window_state(&window, &window_state);
     window.destroy().map_err(|err| err.to_string())
 }
 

@@ -150,8 +150,8 @@ impl<T: Node> Engine<T> {
         }
 
         // Run app init after declared/generated children are materialized and handles are bound.
-        self.run_node_init(child_id, creation_context)?;
         if let Some(context) = creation_context {
+            self.run_node_init(child_id, creation_context)?;
             if context == NodeCreationContext::ProjectLoad {
                 // Loaded engines run node-ready as one deferred batch (shared tree
                 // snapshot) via `run_pending_node_ready_callbacks`; join that batch
@@ -262,8 +262,8 @@ impl<T: Node> Engine<T> {
         }
 
         self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
-        self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
         if let Some(context) = creation_context {
+            self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
             self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
         }
 
@@ -343,8 +343,8 @@ impl<T: Node> Engine<T> {
         }
 
         self.run_node_attached_for_batch(inserted_ids.as_slice(), creation_context)?;
-        self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
         if let Some(context) = creation_context {
+            self.run_node_init_for_batch(inserted_ids.as_slice(), creation_context)?;
             self.run_node_ready_for_batch(inserted_ids.as_slice(), context)?;
         }
 

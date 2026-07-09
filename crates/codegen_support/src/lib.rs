@@ -7,8 +7,9 @@ use std::path::{Path, PathBuf};
 
 use golden_protocol::{
     UiAck, UiContextCandidatesRequest, UiEditIntent, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
-    UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest,
-    UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
+    UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest,
+    UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiScriptConfigRequest, UiScriptReloadRequest,
+    UiScriptStateRequest, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script::ScriptUiState;
 use ts_rs::{Config, TS};
@@ -109,6 +110,8 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiScriptReloadRequest>(&config, "UiScriptReloadRequest");
     export_binding::<UiProjectPathRequest>(&config, "UiProjectPathRequest");
     export_binding::<UiProjectUploadRequest>(&config, "UiProjectUploadRequest");
+    export_binding::<UiProjectLoadProblemDto>(&config, "UiProjectLoadProblemDto");
+    export_binding::<UiProjectLoadRecoveryDto>(&config, "UiProjectLoadRecoveryDto");
     export_binding::<UiProjectPathDto>(&config, "UiProjectPathDto");
     normalize_generated_typescript_binding(out_dir, "UiCreatableUserItemDto");
 }

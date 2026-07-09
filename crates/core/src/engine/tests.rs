@@ -745,6 +745,18 @@ struct ReuseFolderViaNode {
 #[crate::node("reuse_folder_via_node", via = base, from_struct)]
 impl Node for ReuseFolderViaNode {}
 
+#[crate::node("sparse_declared_folder_node")]
+#[children(
+    folder(advanced, label = "Advanced") {
+        delay: f64 = 0.0 (label = "Delay");
+        gain: f64 = 0.5 (label = "Gain");
+    }
+)]
+struct SparseDeclaredFolderNode {}
+
+#[crate::node("sparse_declared_folder_node", from_struct)]
+impl Node for SparseDeclaredFolderNode {}
+
 #[crate::node("base_children_layout_base_node")]
 #[children(
     folder(connection, label = "Connection") {
@@ -1262,6 +1274,7 @@ crate::define_node_enum!(
         ViaComposedRootNode,
         ReuseFolderBaseNode,
         ReuseFolderViaNode,
+        SparseDeclaredFolderNode,
         BaseChildrenLayoutBaseNode,
         BaseChildrenLayoutViaNode,
         DslParamsNode,
@@ -1280,8 +1293,6 @@ crate::define_node_enum!(
         UiScriptHostNode,
         UiContextHostNode,
         UiMultiplexContextHostNode,
-        UserContextMultiplexNode,
-        UserContextMultiplexListNode,
         ViaScriptHostNode,
         ViaContextHostNode,
         UiSchemaDescriptionNode,
@@ -1291,6 +1302,23 @@ crate::define_node_enum!(
         ReadyRemovedChildMutationNode,
     }
 );
+
+crate::define_node_enum!(
+    enum CoreBuiltinOnlyNode {}
+);
+
+#[test]
+fn node_enum_builtin_set_accepts_user_context_multiplex_nodes() {
+    let multiplex = <CoreBuiltinOnlyNode as Node>::from_boxed_node(Box::new(UserContextMultiplexNode::new("Mux")))
+        .expect("node enum should accept core multiplex nodes");
+    assert_eq!(multiplex.get_type(), USER_CONTEXT_MULTIPLEX_NODE_TYPE);
+
+    let list_type = user_context_multiplex_list_node_type("float");
+    let list =
+        <CoreBuiltinOnlyNode as Node>::from_boxed_node(Box::new(UserContextMultiplexListNode::new("Floats", "float")))
+            .expect("node enum should accept core multiplex list nodes");
+    assert_eq!(list.get_type(), list_type);
+}
 
 #[test]
 fn node_struct_macro_declares_param_and_binds_handle_after_child_event() {
@@ -2670,6 +2698,100 @@ fn params_macro_folder_reuses_via_folder_when_decl_id_matches_by_default() {
 }
 
 #[test]
+fn sparse_project_load_drops_duplicate_declared_child_overlays() {
+    let root: MacroTestNode = Folder::new("root".to_string()).into();
+    let mut engine = Engine::new(root);
+    engine.add_node(SparseDeclaredFolderNode::new().into(), None);
+    for _ in 0..8 {
+        engine.apply_edits().expect("declared children should materialize");
+        engine
+            .dispatch_inbox(ExecutionPhase::EndOfTickStabilization)
+            .expect("declared children should stabilize");
+    }
+
+    let full_project = engine
+        .to_project_file_with(|node| node.project_encode_data())
+        .expect("full project should encode");
+    let owner_record = full_project.root.children.first().expect("owner record should exist");
+    let mut advanced_record = owner_record
+        .children
+        .iter()
+        .find(|child| {
+            child
+                .meta
+                .decl_id
+                .as_ref()
+                .is_some_and(|decl_id| decl_id.0.as_str() == "advanced")
+        })
+        .cloned()
+        .expect("advanced folder record should exist");
+    let expected_decl_ids = advanced_record
+        .children
+        .iter()
+        .map(|child| {
+            child
+                .meta
+                .decl_id
+                .as_ref()
+                .expect("declared child should have a decl_id")
+                .0
+                .clone()
+        })
+        .collect::<Vec<_>>();
+    let duplicate_decl_id = expected_decl_ids
+        .first()
+        .cloned()
+        .expect("advanced folder should have declared children");
+    let duplicate_child = advanced_record
+        .children
+        .first()
+        .cloned()
+        .expect("advanced folder should have declared children");
+    advanced_record.children.insert(1, duplicate_child);
+
+    let sparse_json = crate::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let mut sparse_project: ProjectFile = serde_json::from_str(&sparse_json).expect("sparse project should be JSON");
+    sparse_project
+        .root
+        .children
+        .first_mut()
+        .expect("sparse owner record should exist")
+        .children = vec![advanced_record];
+    let duplicated_json = serde_json::to_string(&sparse_project).expect("mutated sparse project should encode");
+
+    let loaded = crate::app::from_sparse_project_json::<MacroTestNode>(&duplicated_json)
+        .expect("duplicated sparse project should decode");
+    let owner = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("loaded owner should exist");
+    let advanced = find_child_by_decl(&loaded, owner, "advanced").expect("advanced folder should exist");
+    let advanced_decl_ids = child_decl_ids(&loaded, advanced);
+    let mut advanced_child_details = Vec::new();
+    let mut child = loaded.nodes.get(advanced).and_then(|node| node.node_data().first_child);
+    while let Some(child_id) = child {
+        let node = loaded.nodes.get(child_id).expect("advanced child should exist");
+        advanced_child_details.push((
+            node.get_type().to_string(),
+            node.node_data().user_role,
+            node.node_data().meta.decl_id.0.clone(),
+        ));
+        child = node.node_data().next_sibling;
+    }
+
+    assert_eq!(
+        advanced_decl_ids
+            .iter()
+            .filter(|decl_id| decl_id.as_str() == duplicate_decl_id.as_str())
+            .count(),
+        1,
+        "duplicate declared overlays should not create repeated parameters: {advanced_child_details:?}"
+    );
+    assert_eq!(advanced_decl_ids, expected_decl_ids);
+}
+
+#[test]
 fn base_children_placeholder_controls_via_layout_inside_reused_folder() {
     let root: MacroTestNode = Folder::new("root".to_string()).into();
     let mut engine = Engine::new(root);
@@ -3409,6 +3531,14 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
         .into_iter()
         .next()
         .expect("float list should exist");
+    assert!(
+        engine.catalog_creatable_items(list).is_empty(),
+        "multiplex lists should not expose manual entry creation"
+    );
+    assert!(
+        engine.queue_catalog_create(list, "float", None, None).is_err(),
+        "catalog creation should reject manual multiplex entries"
+    );
 
     let reference_list_type = user_context_multiplex_list_node_type("reference");
     engine
@@ -3443,6 +3573,18 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
     assert!(
         reference_snapshot.constraints.reference.allow_projections,
         "reference multiplex entries should allow value projections"
+    );
+    let entry_permissions = &engine
+        .nodes
+        .get(entry_ids[0])
+        .expect("entry should exist")
+        .node_data()
+        .meta
+        .user_permissions;
+    assert!(entry_permissions.can_edit_name, "generated entries keep label editing");
+    assert!(
+        !entry_permissions.can_remove_and_duplicate,
+        "generated entries should not be removable or duplicable"
     );
 
     let lookup = engine.resolve_user_context_symbol(engine.root, "float", Some(UserContextValueType::Float));
@@ -3480,9 +3622,123 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
     let grown_uuids = node_uuids(&engine, &direct_children_of_type(&engine, list, "float"));
     assert_eq!(&grown_uuids[..3], first_uuids.as_slice());
 
+    let trigger_list_type = user_context_multiplex_list_node_type("trigger");
+    engine
+        .queue_catalog_create(multiplex, trigger_list_type.clone(), Some("Triggers".to_string()), None)
+        .expect("queueing trigger list creation should succeed");
+    engine.apply_edits().expect("trigger list creation should apply");
+    engine.apply_edits().expect("new list count sync should apply");
+    let trigger_list = direct_children_of_type(&engine, multiplex, trigger_list_type.as_str())
+        .into_iter()
+        .next()
+        .expect("trigger list should exist");
+    assert_eq!(
+        direct_children_of_type(&engine, trigger_list, "trigger").len(),
+        5,
+        "new lists should immediately sync to the current multiplex count"
+    );
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(6));
+    assert_eq!(
+        direct_children_of_type(&engine, trigger_list, "trigger").len(),
+        6,
+        "growing count should append entries to every list"
+    );
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(4));
+    assert_eq!(
+        direct_children_of_type(&engine, trigger_list, "trigger").len(),
+        4,
+        "shrinking count should remove trailing entries from every list"
+    );
+
     set_param_and_tick(&mut engine, count, ParamValue::Int(2));
     let shrunk_uuids = node_uuids(&engine, &direct_children_of_type(&engine, list, "float"));
     assert_eq!(shrunk_uuids, first_uuids[..2]);
+}
+
+#[test]
+fn sparse_project_round_trips_multiplex_list_entry_names_and_values() {
+    let root: MacroTestNode = UiMultiplexContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
+        .expect("queueing user_context creation should succeed");
+    engine.apply_edits().expect("user_context creation should apply");
+    let scope = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("scope should exist");
+
+    engine
+        .queue_catalog_create(scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE, Some("Mux".to_string()), None)
+        .expect("queueing multiplex creation should succeed");
+    for _ in 0..3 {
+        engine.apply_edits().expect("multiplex creation should apply");
+    }
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("multiplex child creation inbox should dispatch");
+    engine.apply_edits().expect("multiplex listener edits should apply");
+    let multiplex = direct_children_of_type(&engine, scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+        .into_iter()
+        .next()
+        .expect("multiplex should exist");
+    let count = find_child_by_decl(&engine, multiplex, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+        .expect("multiplex should create count parameter");
+
+    let list_type = user_context_multiplex_list_node_type("float");
+    engine
+        .queue_catalog_create(multiplex, list_type.clone(), Some("Speeds".to_string()), None)
+        .expect("queueing float list creation should succeed");
+    engine.apply_edits().expect("float list creation should apply");
+    let list = direct_children_of_type(&engine, multiplex, list_type.as_str())
+        .into_iter()
+        .next()
+        .expect("float list should exist");
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(3));
+    let entry_ids = direct_children_of_type(&engine, list, "float");
+    assert_eq!(entry_ids.len(), 3, "count=3 should create three entries");
+
+    let expected_entries = [("Slow", 0.25), ("Cruise", 1.5), ("Fast", 12.0)];
+    for (entry_id, (label, value)) in entry_ids.iter().zip(expected_entries) {
+        let node = engine.nodes.get_mut(*entry_id).expect("entry should exist");
+        node.node_data_mut().meta.label = label.to_string();
+        let MacroTestNode::Parameter(parameter) = node else {
+            panic!("expected multiplex entry to be a parameter");
+        };
+        parameter.value = ParamValue::Float(value);
+    }
+
+    let json = crate::app::to_sparse_project_json_pretty(&engine).expect("sparse project should encode");
+    let loaded = crate::app::from_sparse_project_json::<MacroTestNode>(&json).expect("sparse project should decode");
+    let loaded_scope = loaded
+        .nodes
+        .get(loaded.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("loaded scope should exist");
+    let loaded_multiplex = direct_children_of_type(&loaded, loaded_scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+        .into_iter()
+        .next()
+        .expect("loaded multiplex should exist");
+    let loaded_list = direct_children_of_type(&loaded, loaded_multiplex, list_type.as_str())
+        .into_iter()
+        .next()
+        .expect("loaded float list should exist");
+    let loaded_entries = direct_children_of_type(&loaded, loaded_list, "float");
+    assert_eq!(loaded_entries.len(), 3, "loaded list should keep three entries");
+
+    for (entry_id, (label, value)) in loaded_entries.iter().zip(expected_entries) {
+        let node = loaded.nodes.get(*entry_id).expect("loaded entry should exist");
+        assert_eq!(node.node_data().meta.label, label);
+        let MacroTestNode::Parameter(parameter) = node else {
+            panic!("expected loaded multiplex entry to be a parameter");
+        };
+        assert_eq!(parameter.value, ParamValue::Float(value));
+    }
 }
 
 #[test]

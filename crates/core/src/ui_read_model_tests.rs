@@ -1,6 +1,6 @@
 use crate::edit::{Edit, EditOrigin};
 use crate::engine::Engine;
-use crate::node::NodeMetaPatch;
+use crate::node::{Node, NodeMetaPatch};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour};
 use crate::ui_read_model::UiReadModel;
 use crate::ui_sync::{UiEditIntent, UiEventBatch, UiEventKind, UiNodeDataDto, UiProjectFileSpec, UiSubscriptionScope};
@@ -92,6 +92,47 @@ fn retained_ui_event_logs_keep_latest_only_for_coalescable_value_params() {
 
     let replay = read_model.replay(None, UiSubscriptionScope::WholeGraph);
     assert_eq!(batch_param_values(&replay), vec![200]);
+}
+
+#[test]
+fn whole_graph_snapshot_survives_corrupt_sibling_cycle() {
+    let mut engine = Engine::new(Parameter::new("root", ParamValue::Int(0), ParameterChangeCheck::None));
+    engine.add_node(
+        Parameter::new("first", ParamValue::Int(1), ParameterChangeCheck::None),
+        None,
+    );
+    engine.add_node(
+        Parameter::new("second", ParamValue::Int(2), ParameterChangeCheck::None),
+        None,
+    );
+    engine.apply_edits().expect("children should be inserted");
+
+    let root = engine.root;
+    let first_child = engine
+        .nodes
+        .get(root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("root should have a first child");
+    let second_child = engine
+        .nodes
+        .get(first_child)
+        .and_then(|node| node.node_data().next_sibling)
+        .expect("first child should have a sibling before corruption");
+    assert_ne!(first_child, second_child);
+
+    engine
+        .nodes
+        .get_mut(first_child)
+        .expect("first child should exist")
+        .node_data_mut()
+        .next_sibling = Some(first_child);
+
+    let read_model = UiReadModel::from_engine(&engine, UiProjectFileSpec::default());
+    let snapshot = read_model.current_snapshot();
+
+    assert!(snapshot.nodes.iter().any(|node| node.node_id == root));
+    assert!(snapshot.nodes.iter().any(|node| node.node_id == first_child));
+    assert!(snapshot.nodes.len() <= engine.nodes.len());
 }
 
 #[test]

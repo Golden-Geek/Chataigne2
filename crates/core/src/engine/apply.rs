@@ -167,6 +167,9 @@ impl<T: Node> Engine<T> {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_add_node(edit_index, node, parent, prev_sibling, creation_context)?;
+                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                        user_context_graph_dirty = true;
+                    }
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddNodeTree {
@@ -177,6 +180,9 @@ impl<T: Node> Engine<T> {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_add_node_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
+                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                        user_context_graph_dirty = true;
+                    }
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddUserItemTree {
@@ -188,6 +194,9 @@ impl<T: Node> Engine<T> {
                     user_context_graph_dirty = true;
                     let effect =
                         self.apply_add_user_item_tree(edit_index, tree, parent, prev_sibling, creation_context)?;
+                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                        user_context_graph_dirty = true;
+                    }
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::AddUserItem {
@@ -198,6 +207,9 @@ impl<T: Node> Engine<T> {
                     missing_reference_warning_dirty = true;
                     user_context_graph_dirty = true;
                     let effect = self.apply_add_user_item(edit_index, node, parent, prev_sibling, creation_context)?;
+                    if self.queue_user_context_multiplex_resize_for_list(effect.node) {
+                        user_context_graph_dirty = true;
+                    }
                     (Ok(Some(effect.into())), true)
                 }
                 Edit::CreateBlueprintInstance {

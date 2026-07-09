@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use crate::edit::{Edit, NodeTree};
 use crate::engine::{
-    Engine, EngineRuntimeError, NodeUpdateRate, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeMeta, ProjectNodeRecord,
-    ProjectPersistenceError, runtime_loop_interval_for_frequency_hz,
+    Engine, EngineRuntimeError, NodeUpdateRate, PROJECT_FILE_VERSION, ProjectFile, ProjectLoadRecoveryReport,
+    ProjectNodeMeta, ProjectNodeRecord, ProjectPersistenceError, runtime_loop_interval_for_frequency_hz,
 };
 use crate::node::{DashboardNode, DeclId, Folder, Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::{ParamValue, Parameter, ParameterChangeCheck};
@@ -512,6 +512,28 @@ pub fn prepare_engine_for_runtime<T: Node>(engine: &mut Engine<T>) -> std::io::R
     Ok(())
 }
 
+/// Applies startup work for a best-effort project recovery load.
+pub fn prepare_engine_for_runtime_recovering<T: Node>(engine: &mut Engine<T>) -> ProjectLoadRecoveryReport {
+    let mut recovery = ProjectLoadRecoveryReport::default();
+
+    if let Err(err) = engine.apply_edits() {
+        recovery.push_runtime_startup_error(format!("initial apply_edits failed: {err}"));
+        engine.edits.pending.clear();
+    }
+    if let Err(err) = engine.run_pending_node_ready_callbacks() {
+        recovery.push_runtime_startup_error(format!("initial node-ready callbacks failed: {err}"));
+        engine.edits.pending.clear();
+    }
+    if let Err(err) = engine.resolve_if_needed() {
+        recovery.push_runtime_startup_error(format!("initial resolve failed: {err}"));
+    }
+
+    engine.inbox.clear();
+    engine.edits.pending.clear();
+    engine.clear_history();
+    recovery
+}
+
 /// Runs node destroy callbacks before discarding or replacing one live engine.
 ///
 /// Any edits queued during destroy are intentionally ignored because the engine is about to be dropped.
@@ -593,6 +615,26 @@ pub fn from_sparse_project_json_with_ui_state<T>(
 where
     T: ProjectNode + From<Folder>,
 {
+    from_sparse_project_json_with_ui_state_inner(json, false).map(|(engine, ui_state, _)| (engine, ui_state))
+}
+
+/// Loads one sparse project JSON document, skipping user-approved recoverable rebuild problems.
+pub fn from_sparse_project_json_with_ui_state_recovering<T>(
+    json: &str,
+) -> Result<(Engine<T>, Option<serde_json::Value>, ProjectLoadRecoveryReport), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
+    from_sparse_project_json_with_ui_state_inner(json, true)
+}
+
+fn from_sparse_project_json_with_ui_state_inner<T>(
+    json: &str,
+    recover: bool,
+) -> Result<(Engine<T>, Option<serde_json::Value>, ProjectLoadRecoveryReport), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
     let parse_started = std::time::Instant::now();
     let project: ProjectFile = serde_json::from_str(json)?;
     let parse_elapsed = parse_started.elapsed();
@@ -607,14 +649,19 @@ where
     let expanded = expand_sparse_project_file::<T>(project)?;
     let expand_elapsed = expand_started.elapsed();
     let build_started = std::time::Instant::now();
-    let engine = Engine::<T>::from_project_file_with(expanded, T::project_decode_node);
+    let engine = if recover {
+        Engine::<T>::from_project_file_with_recovery(expanded, T::project_decode_node)
+    } else {
+        Engine::<T>::from_project_file_with(expanded, T::project_decode_node)
+            .map(|engine| (engine, ProjectLoadRecoveryReport::default()))
+    };
     eprintln!(
         "[project-load] parse_ms={} expand_ms={} engine_build_ms={}",
         parse_elapsed.as_millis(),
         expand_elapsed.as_millis(),
         build_started.elapsed().as_millis()
     );
-    engine.map(|engine| (engine, ui_state))
+    engine.map(|(engine, recovery)| (engine, ui_state, recovery))
 }
 
 /// Loads one sparse project file by first expanding declared deltas against the
@@ -637,6 +684,18 @@ where
 {
     let json = fs::read_to_string(path)?;
     from_sparse_project_json_with_ui_state(&json)
+}
+
+/// Loads one sparse project file, skipping user-approved recoverable rebuild problems.
+pub fn load_sparse_project_file_with_ui_state_recovering<T, P>(
+    path: P,
+) -> Result<(Engine<T>, Option<serde_json::Value>, ProjectLoadRecoveryReport), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+    P: AsRef<Path>,
+{
+    let json = fs::read_to_string(path)?;
+    from_sparse_project_json_with_ui_state_recovering(&json)
 }
 
 /// Imports one sparse persisted subtree beneath `parent`.
@@ -1134,17 +1193,29 @@ where
 
     // Saved sparse children are overlays. Declared baseline children own the structural order.
     for baseline_child in baseline_children {
-        let matched_index = record
+        let matching_indices = record
             .children
             .iter()
             .enumerate()
-            .find(|(index, child)| {
-                !consumed_overlay_children[*index] && sparse_child_matches_baseline(child, baseline_child)
+            .filter_map(|(index, child)| {
+                (!consumed_overlay_children[index] && sparse_child_matches_baseline(child, baseline_child))
+                    .then_some(index)
             })
-            .map(|(index, _)| index);
+            .collect::<Vec<_>>();
+        let matched_index = matching_indices
+            .iter()
+            .copied()
+            .find(|index| sparse_overlay_has_payload(&record.children[*index]))
+            .or_else(|| matching_indices.first().copied());
 
         if let Some(index) = matched_index {
-            consumed_overlay_children[index] = true;
+            if sparse_baseline_child_identity_count(baseline_children, baseline_child) > 1 {
+                consumed_overlay_children[index] = true;
+            } else {
+                for duplicate_index in matching_indices {
+                    consumed_overlay_children[duplicate_index] = true;
+                }
+            }
             match expand_sparse_node_record(
                 &record.children[index],
                 Some(current_node),
@@ -1192,6 +1263,16 @@ where
     Ok(expanded_children)
 }
 
+fn sparse_baseline_child_identity_count(
+    baseline_children: &[ProjectNodeRecord],
+    baseline_child: &ProjectNodeRecord,
+) -> usize {
+    baseline_children
+        .iter()
+        .filter(|candidate| sparse_child_matches_baseline(candidate, baseline_child))
+        .count()
+}
+
 fn sparse_child_matches_baseline(child_record: &ProjectNodeRecord, baseline_child: &ProjectNodeRecord) -> bool {
     let Some(child_decl_id) = child_record.meta.decl_id.as_ref() else {
         return false;
@@ -1200,6 +1281,24 @@ fn sparse_child_matches_baseline(child_record: &ProjectNodeRecord, baseline_chil
     baseline_child.node_type == child_record.node_type
         && baseline_child.user_role == child_record.user_role
         && baseline_child.meta.decl_id.as_ref() == Some(child_decl_id)
+}
+
+fn sparse_overlay_has_payload(record: &ProjectNodeRecord) -> bool {
+    record.data.is_some() || !record.children.is_empty() || sparse_meta_has_payload(&record.meta)
+}
+
+fn sparse_meta_has_payload(meta: &ProjectNodeMeta) -> bool {
+    meta.short_name.is_some()
+        || meta.enabled.is_some()
+        || meta.can_be_disabled.is_some()
+        || meta.label.is_some()
+        || meta.description.is_some()
+        || meta.declared_description_key.is_some()
+        || meta.declared_description.is_some()
+        || meta.tags.is_some()
+        || meta.user_permissions.is_some()
+        || meta.semantics.is_some()
+        || meta.presentation.is_some()
 }
 
 fn encode_sparse_node_record<T>(
@@ -1275,11 +1374,14 @@ where
             .get(child_id)
             .ok_or(ProjectPersistenceError::MissingNode(child_id))?;
         let matched_child_baseline = find_matching_child_baseline(child_node, baseline_children);
+        let repeated_child_baseline = matched_child_baseline
+            .is_some_and(|baseline| sparse_baseline_child_identity_count(baseline_children, baseline) > 1);
+        let child_allow_omission = matched_child_baseline.is_some() && !repeated_child_baseline;
         if let Some(record) = encode_sparse_node_record(
             engine,
             child_id,
             matched_child_baseline,
-            matched_child_baseline.is_some(),
+            child_allow_omission,
             omit_app_data_nodes,
             referenced_uuids,
             cache,

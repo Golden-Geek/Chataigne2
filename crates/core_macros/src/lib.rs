@@ -2559,6 +2559,25 @@ fn expand_struct(
                     ctx.add_child(__golden_node_owner_id, __param_node, #insert_after);
                 }
             };
+            let bind_existing_param_node = quote! {
+                if let Some(__golden_snapshot) = ctx.tree_snapshot() {
+                    if let Some(__golden_existing_node_id) =
+                        __golden_snapshot.find_child_by_decl_id(__golden_node_owner_id, #decl_id_lit)
+                    {
+                        self.#field_ident.set_node_id(__golden_existing_node_id);
+                        if let Some(__golden_existing_value) = __golden_snapshot
+                            .node(__golden_existing_node_id)
+                            .and_then(|__golden_existing_node| __golden_existing_node.param_value.as_ref())
+                        {
+                            let _ = self.#field_ident.apply_runtime_value(__golden_existing_value);
+                        }
+                    } else if self.#field_ident.is_bound()
+                        && __golden_snapshot.node(self.#field_ident.id()).is_none()
+                    {
+                        self.#field_ident.clear_node_id();
+                    }
+                }
+            };
 
             ctor_inits.push(quote! {
                 #field_ident: golden_core::node::ParameterHandle::<#param_value_ty>::new(#default_expr)
@@ -2566,6 +2585,7 @@ fn expand_struct(
 
             if let Some(predicate) = &dependency_predicate {
                 generated_init_statements.push(quote! {
+                    #bind_existing_param_node
                     if #predicate && !self.#field_ident.is_bound() {
                         #create_param_node
                     }
@@ -2606,7 +2626,12 @@ fn expand_struct(
                     }
                 });
             } else {
-                generated_init_statements.push(create_param_node);
+                generated_init_statements.push(quote! {
+                    #bind_existing_param_node
+                    if !self.#field_ident.is_bound() {
+                        #create_param_node
+                    }
+                });
             }
 
             child_added_decl_statements.push(quote! {

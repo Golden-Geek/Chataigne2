@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 use crate::contexts::{UiUserContextsDto, UserContextCandidate, UserContextValueType};
 use crate::edit::{Edit, EditOrigin};
-use crate::engine::{Engine, EngineTime, ProjectPersistenceError};
+use crate::engine::{Engine, EngineTime, ProjectLoadRecoveryReport, ProjectPersistenceError};
 use crate::events::{Event, EventKind};
 use crate::logger::LogRecord;
 use crate::node::{
@@ -177,6 +177,9 @@ pub struct UiProjectPathRequest {
     /// Optional project-owned UI state to write into the saved project document.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui_state: Option<serde_json::Value>,
+    /// Whether to skip recoverable load-time rebuild problems after user confirmation.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub recover: bool,
 }
 
 /// HTTP request payload for uploading a browser-selected project file before loading it.
@@ -186,6 +189,46 @@ pub struct UiProjectUploadRequest {
     pub file_name: String,
     /// Uploaded project document contents.
     pub contents: String,
+    /// Whether to skip recoverable load-time rebuild problems after user confirmation.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub recover: bool,
+}
+
+/// HTTP response payload describing a project load completed with recovery.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectLoadRecoveryDto {
+    /// Problems skipped while loading as much of the project as possible.
+    pub problems: Vec<UiProjectLoadProblemDto>,
+}
+
+/// HTTP response payload for one skipped project-load problem.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiProjectLoadProblemDto {
+    /// Stable load stage identifier.
+    pub stage: String,
+    /// Human-readable problem description.
+    pub message: String,
+}
+
+impl From<&ProjectLoadRecoveryReport> for UiProjectLoadRecoveryDto {
+    fn from(report: &ProjectLoadRecoveryReport) -> Self {
+        Self {
+            problems: report
+                .problems
+                .iter()
+                .map(|problem| UiProjectLoadProblemDto {
+                    stage: problem.stage.as_str().to_string(),
+                    message: problem.message.clone(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<ProjectLoadRecoveryReport> for UiProjectLoadRecoveryDto {
+    fn from(report: ProjectLoadRecoveryReport) -> Self {
+        Self::from(&report)
+    }
 }
 
 /// HTTP response payload carrying a resolved project path.
@@ -196,6 +239,9 @@ pub struct UiProjectPathDto {
     /// Optional project-owned UI state loaded from the project document.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui_state: Option<serde_json::Value>,
+    /// Recovery diagnostics when the user approved a partial project load.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<UiProjectLoadRecoveryDto>,
 }
 
 /// UI-facing app project-file metadata.
@@ -1489,7 +1535,11 @@ impl<T: Node> Engine<T> {
 
             let mut children = Vec::new();
             let mut child = node_data.first_child;
+            let mut seen_children = HashSet::<NodeId>::new();
             while let Some(child_id) = child {
+                if !seen_children.insert(child_id) {
+                    break;
+                }
                 if visible.contains(&child_id) {
                     children.push(child_id);
                 }
@@ -3410,7 +3460,12 @@ impl<T: Node> Engine<T> {
         }
 
         let mut stack = vec![(root, 0u32)];
+        let mut visited = HashSet::<NodeId>::new();
         while let Some((node_id, depth)) = stack.pop() {
+            if !visited.insert(node_id) {
+                continue;
+            }
+
             nodes.push(node_id);
 
             if depth >= max_depth {
@@ -3419,8 +3474,14 @@ impl<T: Node> Engine<T> {
 
             let mut child = self.nodes.get(node_id).and_then(|node| node.node_data().first_child);
             let mut children = Vec::new();
+            let mut sibling_chain = HashSet::<NodeId>::new();
             while let Some(child_id) = child {
-                children.push(child_id);
+                if !sibling_chain.insert(child_id) {
+                    break;
+                }
+                if self.nodes.contains(child_id) {
+                    children.push(child_id);
+                }
                 child = self.nodes.get(child_id).and_then(|node| node.node_data().next_sibling);
             }
 
@@ -3480,8 +3541,12 @@ impl<T: Node> Engine<T> {
     fn node_within_subtree(&self, node: NodeId, root: NodeId, max_depth: u32) -> bool {
         let mut current = Some(node);
         let mut depth = 0u32;
+        let mut visited = HashSet::<NodeId>::new();
 
         while let Some(node_id) = current {
+            if !visited.insert(node_id) {
+                return false;
+            }
             if node_id == root {
                 return depth <= max_depth;
             }

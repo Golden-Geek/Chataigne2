@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use crate::node::{
     DashboardWidgetTargetDescriptor, EventSubscription, Node, NodeId, NodeMetaPatch, NodeUuid, NodeWarning,
     PresentationHint,
 };
-use crate::parameter::{ParamValue, ParameterConstraints, ParameterEventBehaviour};
+use crate::parameter::{ParamValue, ParameterConstraints, ParameterControlState, ParameterEventBehaviour};
 use serde::Serialize;
 
 /// Read-only node record available during callback execution.
@@ -51,6 +51,8 @@ pub struct ProcessTreeNodeSnapshot {
     pub param_value: Option<ParamValue>,
     /// Current parameter constraints when this node is a parameter.
     pub param_constraints: Option<ParameterConstraints>,
+    /// Current parameter control state when this node is a parameter.
+    pub param_control: Option<ParameterControlState>,
     /// Dashboard widget capabilities exposed by this node.
     pub dashboard_widget_target: DashboardWidgetTargetDescriptor,
     /// Additional script-facing properties exposed by this node instance.
@@ -161,12 +163,29 @@ impl ProcessTreeSnapshot {
         self.nodes.get(&node)
     }
 
+    /// Returns a cloned snapshot with selected parameter values replaced.
+    pub fn with_param_values(&self, values: impl IntoIterator<Item = (NodeId, ParamValue)>) -> Self {
+        let mut snapshot = self.clone();
+        for (node_id, value) in values {
+            if let Some(node) = snapshot.nodes.get_mut(&node_id) {
+                if node.param_value.is_some() {
+                    node.param_value = Some(value);
+                }
+            }
+        }
+        snapshot
+    }
+
     /// Returns the first child that matches `key` under `parent`.
     ///
     /// Child keys are matched against `decl_id`, `short_name`, then `label`.
     pub fn find_child(&self, parent: NodeId, key: &str) -> Option<NodeId> {
         let mut child = self.node(parent)?.first_child;
+        let mut visited = HashSet::<NodeId>::new();
         while let Some(child_id) = child {
+            if !visited.insert(child_id) {
+                return None;
+            }
             let child_snapshot = self.node(child_id)?;
             if child_snapshot.matches_child_key(key) {
                 return Some(child_id);
@@ -182,7 +201,11 @@ impl ProcessTreeSnapshot {
     /// callers may pass either the full declaration id or its final path segment.
     pub fn find_child_by_decl_id(&self, parent: NodeId, decl_id: &str) -> Option<NodeId> {
         let mut child = self.node(parent)?.first_child;
+        let mut visited = HashSet::<NodeId>::new();
         while let Some(child_id) = child {
+            if !visited.insert(child_id) {
+                return None;
+            }
             let child_snapshot = self.node(child_id)?;
             if child_snapshot.matches_decl_id(decl_id) {
                 return Some(child_id);
@@ -196,7 +219,11 @@ impl ProcessTreeSnapshot {
     pub fn child_ids(&self, parent: NodeId) -> Vec<NodeId> {
         let mut children = Vec::new();
         let mut child = self.node(parent).and_then(|node| node.first_child);
+        let mut visited = HashSet::<NodeId>::new();
         while let Some(child_id) = child {
+            if !visited.insert(child_id) {
+                break;
+            }
             children.push(child_id);
             child = self.node(child_id).and_then(|snapshot| snapshot.next_sibling);
         }
@@ -207,7 +234,11 @@ impl ProcessTreeSnapshot {
     pub fn child_at(&self, parent: NodeId, index: usize) -> Option<NodeId> {
         let mut current = 0usize;
         let mut child = self.node(parent)?.first_child;
+        let mut visited = HashSet::<NodeId>::new();
         while let Some(child_id) = child {
+            if !visited.insert(child_id) {
+                return None;
+            }
             if current == index {
                 return Some(child_id);
             }
@@ -221,7 +252,11 @@ impl ProcessTreeSnapshot {
     pub fn previous_sibling(&self, parent: NodeId, node: NodeId) -> Option<NodeId> {
         let mut previous = None;
         let mut child = self.node(parent)?.first_child;
+        let mut visited = HashSet::<NodeId>::new();
         while let Some(child_id) = child {
+            if !visited.insert(child_id) {
+                return None;
+            }
             if child_id == node {
                 return previous;
             }

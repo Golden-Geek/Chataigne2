@@ -5,8 +5,10 @@ use super::{normalize_project_save_path, replace_live_engine, sanitize_browser_u
 use golden_engine as golden_core;
 use golden_engine::app::{ProjectFileSpec, ProjectLifecycle, prepare_engine_for_runtime};
 use golden_engine::define_node_enum;
+use golden_engine::edit::Edit;
 use golden_engine::engine::Engine;
-use golden_engine::node::{Folder, Node, NodeCreationContext};
+use golden_engine::node::{Folder, Node, NodeCreationContext, NodeId};
+use golden_engine::parameter::{ParamValue, ParameterEventBehaviour};
 use golden_engine::process_ctx::ProcessCtx;
 
 static PREVIOUS_ENGINE_DROPPED: AtomicBool = AtomicBool::new(false);
@@ -47,8 +49,23 @@ impl Node for ReadyProbeNode {
     }
 }
 
+#[golden_engine::node("bad_ready_node")]
+struct BadReadyNode {}
+
+#[golden_engine::node("bad_ready_node", from_struct)]
+impl Node for BadReadyNode {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _context: NodeCreationContext) {
+        ctx.edits.push(Edit::SetParam {
+            node: NodeId(u64::MAX),
+            value: ParamValue::Int(1),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+    }
+}
+
 define_node_enum!(
     enum ReplaceOrderTestNode {
+        BadReadyNode,
         DropProbeNode,
         DestroyProbeNode,
         ReadyProbeNode,
@@ -102,7 +119,7 @@ fn replace_live_engine_drops_previous_engine_before_node_ready_callbacks() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&shared_engine, next_engine, "test_replace").expect("engine replacement should succeed");
+    replace_live_engine(&shared_engine, next_engine, "test_replace", false).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DROPPED.load(Ordering::SeqCst),
@@ -132,7 +149,7 @@ fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
     let mut next_engine = Engine::new(root);
     next_engine.add_node(ReadyProbeNode::new().into(), None);
 
-    replace_live_engine(&shared_engine, next_engine, "test_replace").expect("engine replacement should succeed");
+    replace_live_engine(&shared_engine, next_engine, "test_replace", false).expect("engine replacement should succeed");
 
     assert!(
         PREVIOUS_ENGINE_DESTROYED.load(Ordering::SeqCst),
@@ -141,5 +158,30 @@ fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
     assert!(
         READY_CALLBACK_SAW_DESTROY.load(Ordering::SeqCst),
         "node-ready callbacks should only run after the previous engine is destroyed"
+    );
+}
+
+#[test]
+fn replace_live_engine_recovery_reports_runtime_startup_errors() {
+    let root: ReplaceOrderTestNode = Folder::new("Root").into();
+    let mut live_engine = Engine::new(root);
+    prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
+
+    let shared_engine = Arc::new(Mutex::new(live_engine));
+
+    let root: ReplaceOrderTestNode = Folder::new("Root").into();
+    let mut next_engine = Engine::new(root);
+    next_engine.add_node(BadReadyNode::new().into(), None);
+
+    let recovery = replace_live_engine(&shared_engine, next_engine, "test_replace", true)
+        .expect("recovery replacement should keep the usable graph");
+
+    assert_eq!(recovery.problems.len(), 1);
+    let problem = &recovery.problems[0];
+    assert_eq!(problem.stage.as_str(), "runtime_startup");
+    assert!(
+        problem.message.contains("SetParam") && problem.message.contains("missing node"),
+        "expected readable missing-node startup failure, got {}",
+        problem.message
     );
 }

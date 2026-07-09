@@ -6,8 +6,8 @@ use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
 use crate::node::{
-    DeclId, EventSubscription, Node, NodeId, NodeReference, PARAMETER_ANIMATION_CONTROL_NODE_TYPE,
-    PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID,
+    CONTEXT_LINK_LANE_DEFERRED_TAG, DeclId, EventSubscription, Node, NodeId, NodeReference,
+    PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_CONTROL_REFERENCE_DECL_ID, PARAMETER_EXPRESSION_SOURCE_DECL_ID,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterAnimationControlNode, ParameterChangeCheck,
@@ -1674,6 +1674,9 @@ impl<T: Node> Engine<T> {
         match lookup {
             UserContextLookup::Resolved(resolution) => {
                 if resolution.kind == UserContextEntryKind::MultiplexList {
+                    if self.node_or_ancestor_has_tag(consumer, CONTEXT_LINK_LANE_DEFERRED_TAG) {
+                        return None;
+                    }
                     diagnostics.push(ParameterControlDiagnostic::new(
                         "context_multiplex_requires_lane",
                         format!(
@@ -1721,6 +1724,21 @@ impl<T: Node> Engine<T> {
                 None
             }
         }
+    }
+
+    fn node_or_ancestor_has_tag(&self, node: NodeId, tag: &str) -> bool {
+        let mut current = Some(node);
+        while let Some(node_id) = current {
+            let Some(node) = self.nodes.get(node_id) else {
+                return false;
+            };
+            let data = node.node_data();
+            if data.meta.tags.iter().any(|candidate| candidate == tag) {
+                return true;
+            }
+            current = data.parent;
+        }
+        false
     }
 
     fn resolve_reference_target_node(&self, reference: &NodeReference) -> Option<NodeId> {

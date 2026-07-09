@@ -110,6 +110,10 @@ impl<T: Node> Engine<T> {
                     self.apply_edits_internal(false, creation_context)?;
                 }
 
+                if creation_context.is_none() {
+                    break;
+                }
+
                 let precomputed = self.precompute_inbox_dispatch_since(event_cursor);
                 event_cursor = self.inbox.events.len();
 

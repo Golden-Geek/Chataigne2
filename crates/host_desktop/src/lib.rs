@@ -4,6 +4,9 @@
 
 mod desktop;
 mod desktop_commands;
+mod window_state;
+#[cfg(test)]
+mod window_state_tests;
 
 pub use desktop::{
     FrontendDevServerConfig, LaunchArgs, launch_engine_with_args, launch_engine_with_ui_assets,

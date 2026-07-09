@@ -18,11 +18,11 @@ use golden_engine::ui_read_model::{UiEventCapture, UiReadModel, UiReadModelRepla
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiAckStatus, UiContextCandidatesRequest as ContextCandidatesRequest, UiEditIntent,
     UiEventBatch, UiEventDto, UiEventKind, UiParamControlInfoRequest as ParamControlInfoRequest, UiProjectFileSpec,
-    UiProjectPathDto as ProjectPathDto, UiProjectPathRequest as ProjectPathRequest,
-    UiProjectUploadRequest as ProjectUploadRequest, UiReferenceTargetsRequest as ReferenceTargetsRequest,
-    UiReplayRequest as ReplayRequest, UiRuntimeStatsDto, UiScriptConfigRequest as ScriptConfigRequest,
-    UiScriptReloadRequest as ScriptReloadRequest, UiScriptStateRequest as ScriptStateRequest,
-    UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
+    UiProjectLoadRecoveryDto as ProjectLoadRecoveryDto, UiProjectPathDto as ProjectPathDto,
+    UiProjectPathRequest as ProjectPathRequest, UiProjectUploadRequest as ProjectUploadRequest,
+    UiReferenceTargetsRequest as ReferenceTargetsRequest, UiReplayRequest as ReplayRequest, UiRuntimeStatsDto,
+    UiScriptConfigRequest as ScriptConfigRequest, UiScriptReloadRequest as ScriptReloadRequest,
+    UiScriptStateRequest as ScriptStateRequest, UiSnapshotRequest as SnapshotRequest, UiSubscriptionScope,
 };
 use serde::{Deserialize, Serialize};
 use tokio::runtime::{Builder, Runtime};
@@ -1553,14 +1553,19 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
         ("POST", "/api/ui/project-load") => {
             let payload: ProjectPathRequest = serde_json::from_slice(&request.body)
                 .map_err(|err| Error::new(ErrorKind::InvalidData, format!("invalid project-load payload: {err}")))?;
-            match project_host::load_project(&state.engine, &payload.path, state.preferences.as_ref()) {
-                Ok((path, ui_state)) => {
-                    state.project_file.set_current_path(path.clone());
+            let load = if payload.recover {
+                project_host::load_project_recovering(&state.engine, &payload.path, state.preferences.as_ref())
+            } else {
+                project_host::load_project(&state.engine, &payload.path, state.preferences.as_ref())
+            };
+            match load {
+                Ok(load) => {
+                    state.project_file.set_current_path(load.path.clone());
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
-                    write_json(stream, "200 OK", &ProjectPathDto { path, ui_state })?;
+                    write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {
-                    write_json_error(stream, "400 Bad Request", &format!("project-load failed: {err}"))?;
+                    write_project_load_error(stream, "400 Bad Request", "project-load", &err)?;
                 }
             }
         }
@@ -1571,19 +1576,29 @@ fn handle_connection<T: ProjectLifecycle>(stream: &mut TcpStream, state: &Server
                     format!("invalid project-upload-load payload: {err}"),
                 )
             })?;
-            match project_host::upload_project_and_load(
-                &state.engine,
-                &payload.file_name,
-                &payload.contents,
-                state.preferences.as_ref(),
-            ) {
-                Ok((path, ui_state)) => {
-                    state.project_file.set_current_path(path.clone());
+            let load = if payload.recover {
+                project_host::upload_project_and_load_recovering(
+                    &state.engine,
+                    &payload.file_name,
+                    &payload.contents,
+                    state.preferences.as_ref(),
+                )
+            } else {
+                project_host::upload_project_and_load(
+                    &state.engine,
+                    &payload.file_name,
+                    &payload.contents,
+                    state.preferences.as_ref(),
+                )
+            };
+            match load {
+                Ok(load) => {
+                    state.project_file.set_current_path(load.path.clone());
                     refresh_read_model_after_project_replace(&state.engine, &state.read_model, &state.project_file);
-                    write_json(stream, "200 OK", &ProjectPathDto { path, ui_state })?;
+                    write_json(stream, "200 OK", &project_path_dto(load))?;
                 }
                 Err(err) => {
-                    write_json_error(stream, "400 Bad Request", &format!("project-upload-load failed: {err}"))?;
+                    write_project_load_error(stream, "400 Bad Request", "project-upload-load", &err)?;
                 }
             }
         }
@@ -2240,6 +2255,43 @@ fn write_json<T: serde::Serialize>(stream: &mut TcpStream, status: &str, payload
 
 fn write_json_error(stream: &mut TcpStream, status: &str, message: &str) -> std::io::Result<()> {
     write_json(stream, status, &serde_json::json!({ "error": message }))
+}
+
+fn project_load_recovery_dto(
+    recovery: &golden_engine::engine::ProjectLoadRecoveryReport,
+) -> Option<ProjectLoadRecoveryDto> {
+    if recovery.is_empty() {
+        None
+    } else {
+        Some(ProjectLoadRecoveryDto::from(recovery))
+    }
+}
+
+fn project_path_dto(load: project_host::ProjectLoadResult) -> ProjectPathDto {
+    let recovery = project_load_recovery_dto(&load.recovery);
+    ProjectPathDto {
+        path: load.path,
+        ui_state: load.ui_state,
+        recovery,
+    }
+}
+
+fn write_project_load_error(
+    stream: &mut TcpStream,
+    status: &str,
+    operation: &str,
+    error: &project_host::ProjectLoadError,
+) -> std::io::Result<()> {
+    let recovery = error.recovery.as_ref().and_then(project_load_recovery_dto);
+    write_json(
+        stream,
+        status,
+        &serde_json::json!({
+            "error": format!("{operation} failed: {error}"),
+            "recoverable": recovery.is_some(),
+            "recovery": recovery,
+        }),
+    )
 }
 
 fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) -> std::io::Result<()> {

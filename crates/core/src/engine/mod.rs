@@ -60,6 +60,12 @@ pub use error::EngineEditError;
 pub use persistence::PROJECT_FILE_VERSION;
 /// Persisted project file DTO.
 pub use persistence::ProjectFile;
+/// One recoverable project-load problem.
+pub use persistence::ProjectLoadRecoveryProblem;
+/// Report of recoverable problems skipped while loading a project file.
+pub use persistence::ProjectLoadRecoveryReport;
+/// Stage where a recoverable project-load problem happened.
+pub use persistence::ProjectLoadRecoveryStage;
 /// Persisted node metadata DTO.
 pub use persistence::ProjectNodeMeta;
 /// Persisted node record DTO.
@@ -728,6 +734,7 @@ impl<T: Node> Engine<T> {
                     child_count: 0,
                     param_value: parameter_snapshot.as_ref().map(|snapshot| snapshot.value.clone()),
                     param_constraints: parameter_snapshot.as_ref().map(|snapshot| snapshot.constraints.clone()),
+                    param_control: parameter_snapshot.as_ref().map(|snapshot| snapshot.control.clone()),
                     dashboard_widget_target,
                     script_properties: descriptor.properties,
                     script_methods: descriptor.methods,
@@ -744,7 +751,12 @@ impl<T: Node> Engine<T> {
 
         if nodes.contains_key(&self.root) {
             let mut stack = vec![(self.root, true)];
+            let mut visited = HashSet::<NodeId>::new();
             while let Some((node_id, ancestors_enabled)) = stack.pop() {
+                if !visited.insert(node_id) {
+                    continue;
+                }
+
                 let (first_child, effective_enabled) = match nodes.get(&node_id) {
                     Some(node) => (node.first_child, ancestors_enabled && node.enabled),
                     None => continue,
@@ -755,9 +767,15 @@ impl<T: Node> Engine<T> {
                 }
 
                 let mut child = first_child;
+                let mut sibling_chain = HashSet::<NodeId>::new();
                 while let Some(child_id) = child {
+                    if !sibling_chain.insert(child_id) {
+                        break;
+                    }
                     let next_sibling = nodes.get(&child_id).and_then(|node| node.next_sibling);
-                    stack.push((child_id, effective_enabled));
+                    if nodes.contains_key(&child_id) {
+                        stack.push((child_id, effective_enabled));
+                    }
                     child = next_sibling;
                 }
             }

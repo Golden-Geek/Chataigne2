@@ -236,43 +236,103 @@ impl<T: Node> Engine<T> {
                 break;
             };
             list_child = list_node.node_data().next_sibling;
-            let Some(value_type) = user_context_multiplex_list_value_type(list_node.get_type()) else {
+            let Some(value_type) = user_context_multiplex_list_value_type(list_node.get_type()).map(str::to_string)
+            else {
                 continue;
             };
 
-            let mut entries = Vec::new();
-            let mut entry_child = list_node.node_data().first_child;
-            while let Some(entry_id) = entry_child {
-                let Some(entry_node) = self.nodes.get(entry_id) else {
-                    break;
-                };
-                entry_child = entry_node.node_data().next_sibling;
-                if entry_node.engine_param_snapshot().is_some()
-                    && entry_node.get_type().eq_ignore_ascii_case(value_type)
-                {
-                    entries.push(entry_id);
-                }
-            }
+            changed |= self.queue_user_context_multiplex_sync_list_to_count(list_id, value_type.as_str(), target_count);
+        }
+        changed
+    }
 
-            if entries.len() > target_count {
-                for entry_id in entries.iter().skip(target_count).rev() {
-                    self.edits.push(Edit::RemoveNode { node: *entry_id });
-                    changed = true;
-                }
+    pub(crate) fn queue_user_context_multiplex_resize_for_list(&mut self, list_id: NodeId) -> bool {
+        let Some(list_node) = self.nodes.get(list_id) else {
+            return false;
+        };
+        let Some(value_type) = user_context_multiplex_list_value_type(list_node.get_type()).map(str::to_string) else {
+            return false;
+        };
+        let Some(multiplex_node) = list_node.node_data().parent else {
+            return false;
+        };
+        if !self
+            .nodes
+            .get(multiplex_node)
+            .is_some_and(|node| node.get_type() == USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+        {
+            return false;
+        }
+        let Some(target_count) = self.user_context_multiplex_target_count(multiplex_node) else {
+            return false;
+        };
+        self.queue_user_context_multiplex_sync_list_to_count(list_id, value_type.as_str(), target_count)
+    }
+
+    fn user_context_multiplex_target_count(&self, multiplex_node: NodeId) -> Option<usize> {
+        let mut child = self
+            .nodes
+            .get(multiplex_node)
+            .and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let Some(child_node) = self.nodes.get(child_id) else {
+                break;
+            };
+            child = child_node.node_data().next_sibling;
+            if !child_node
+                .node_data()
+                .meta
+                .decl_id
+                .0
+                .eq_ignore_ascii_case(USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+            {
                 continue;
             }
+            return match child_node.engine_param_snapshot().map(|snapshot| snapshot.value) {
+                Some(ParamValue::Int(value)) => Some(value.max(0) as usize),
+                _ => None,
+            };
+        }
+        None
+    }
 
-            for _ in entries.len()..target_count {
-                let Some(entry) = user_context_multiplex_entry_parameter(value_type) else {
-                    continue;
-                };
-                self.edits.push(Edit::AddNode {
-                    parent: list_id,
-                    prev_sibling: None,
-                    node: Box::new(entry),
-                });
+    fn queue_user_context_multiplex_sync_list_to_count(
+        &mut self,
+        list_id: NodeId,
+        value_type: &str,
+        target_count: usize,
+    ) -> bool {
+        let mut entries = Vec::new();
+        let mut entry_child = self.nodes.get(list_id).and_then(|node| node.node_data().first_child);
+        while let Some(entry_id) = entry_child {
+            let Some(entry_node) = self.nodes.get(entry_id) else {
+                break;
+            };
+            entry_child = entry_node.node_data().next_sibling;
+            if entry_node.engine_param_snapshot().is_some() && entry_node.get_type().eq_ignore_ascii_case(value_type) {
+                entries.push(entry_id);
+            }
+        }
+
+        let mut changed = false;
+        if entries.len() > target_count {
+            for entry_id in entries.iter().skip(target_count).rev() {
+                self.edits.push(Edit::RemoveNode { node: *entry_id });
                 changed = true;
             }
+            return changed;
+        }
+
+        for _ in entries.len()..target_count {
+            let Some(entry) = user_context_multiplex_entry_parameter(value_type) else {
+                continue;
+            };
+            self.edits.push(Edit::AddNode {
+                parent: list_id,
+                prev_sibling: None,
+                node: Box::new(entry),
+            });
+            changed = true;
         }
         changed
     }

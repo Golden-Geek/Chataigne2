@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::{
-    EventPropagation, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeData, NodeId, PARAMETER_NODE_TYPES,
-    USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_FOLDER_NODE_TYPE,
+    EventPropagation, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeData, NodeId, NodeUserPermissions,
+    PARAMETER_NODE_TYPES, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_FOLDER_NODE_TYPE,
     USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL, USER_CONTEXT_MULTIPLEX_ITEM_KIND,
     USER_CONTEXT_MULTIPLEX_LIST_ITEM_KIND, USER_CONTEXT_MULTIPLEX_LIST_NODE_TYPE_PREFIX,
     USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
@@ -621,10 +621,6 @@ impl UserContextMultiplexListNode {
     }
 }
 
-fn multiplex_list_container_rules() -> UserContainerRules {
-    UserContainerRules::new(&PARAMETER_NODE_TYPES)
-}
-
 impl Node for UserContextMultiplexListNode {
     fn node_data(&self) -> &NodeData {
         &self.node_data
@@ -652,35 +648,6 @@ impl Node for UserContextMultiplexListNode {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(multiplex_list_container_rules())
-    }
-
-    fn user_container_accepts_item(&self, item_type: &str, item_kind: &str) -> bool {
-        item_kind == self.value_type && item_type == self.value_type
-    }
-
-    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        vec![
-            UserCreatableItem::new(
-                self.value_type.clone(),
-                self.value_type.clone(),
-                user_context_parameter_type_label(self.value_type.as_str()),
-            )
-            .with_select_when_created(true),
-        ]
-    }
-
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        let node_type = node_type.trim().to_ascii_lowercase();
-        if node_type != self.value_type {
-            return None;
-        }
-        Some(Box::new(user_context_multiplex_entry_parameter(
-            self.value_type.as_str(),
-        )?))
     }
 
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
@@ -725,6 +692,10 @@ pub(crate) fn user_context_multiplex_entry_parameter(value_type: &str) -> Option
         default_value,
         ParameterChangeCheck::ValueChange,
     );
+    parameter.node_data_mut().meta.user_permissions = NodeUserPermissions {
+        can_edit_name: true,
+        ..NodeUserPermissions::none()
+    };
     if is_reference {
         parameter.constraints.reference.target_kind = ReferenceTargetKind::ParameterOnly;
         parameter.constraints.reference.allow_projections = true;

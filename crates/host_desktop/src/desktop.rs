@@ -7,8 +7,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use tauri::window::Color;
-use tauri::{Runtime, Url, WebviewUrl};
+use tauri::{Manager, Runtime, Url, WebviewUrl};
 
+use crate::window_state::{WindowStatePersistence, restore_window_state, save_window_state};
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
 use golden_engine::engine::Engine;
 use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config};
@@ -287,7 +288,7 @@ where
         }
     }
 
-    let run_result = run_tauri(&frontend_url, tauri_context);
+    let run_result = run_tauri(&frontend_url, tauri_context, app_data_dir.join("window-state.json"));
     drop(dev_server_process);
     run_result
 }
@@ -564,7 +565,11 @@ fn detect_or_default_frontend_url() -> String {
     "http://localhost:5173".to_string()
 }
 
-fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) -> std::io::Result<()> {
+fn run_tauri<R: Runtime>(
+    ui_base_url: &str,
+    tauri_context: tauri::Context<R>,
+    window_state_path: PathBuf,
+) -> std::io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| {
         Error::new(
             ErrorKind::InvalidInput,
@@ -611,13 +616,20 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
         delivered
     };
 
+    let window_state = WindowStatePersistence::new(window_state_path);
+
     tauri::Builder::<R>::new()
+        .manage(window_state.clone())
         .on_window_event(move |window, event| {
             if window.label() != "main" {
                 return;
             }
 
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if let Some(window_state) = window.try_state::<WindowStatePersistence>() {
+                    save_window_state(window, &window_state);
+                }
+
                 if dispatch_close_requested_to_frontend(window) {
                     api.prevent_close();
                 }
@@ -640,9 +652,11 @@ fn run_tauri<R: Runtime>(ui_base_url: &str, tauri_context: tauri::Context<R>) ->
                 // window_builder = window_builder.transparent(true);
             }
 
-            window_builder
+            let window = window_builder
                 .build()
                 .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
+
+            restore_window_state(&window, &window_state);
 
             Ok(())
         })

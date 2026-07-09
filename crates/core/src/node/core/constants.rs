@@ -18,6 +18,9 @@ pub const USER_CONTEXT_MULTIPLEX_LIST_NODE_TYPE_PREFIX: &str = "user_context_mul
 pub const USER_CONTEXT_MULTIPLEX_LIST_ITEM_KIND: &str = "user_context_multiplex_list";
 /// Built-in child `decl_id` for a multiplex count parameter.
 pub const USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID: &str = "count";
+/// Node metadata tag marking a subtree whose Context Link controls are resolved
+/// by a host-owned lane runtime instead of the global control pass.
+pub const CONTEXT_LINK_LANE_DEFERRED_TAG: &str = "context_link_lane_deferred";
 /// Built-in folder node type id.
 pub const FOLDER_NODE_TYPE: &str = "folder";
 /// Built-in item kind used for parameter control helper nodes.
