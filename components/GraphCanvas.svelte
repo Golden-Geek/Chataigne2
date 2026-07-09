@@ -78,6 +78,9 @@
 		key: string;
 	}
 
+	const DEFAULT_MIN_ZOOM = 0.2;
+	const DEFAULT_MAX_ZOOM = 2.5;
+
 	let {
 		nodes,
 		edges,
@@ -108,6 +111,8 @@
 		initialCamera,
 		onCameraChange,
 		viewportInset = {},
+		minZoom = DEFAULT_MIN_ZOOM,
+		maxZoom = DEFAULT_MAX_ZOOM,
 		autoHomeOnMount = true,
 		emptyLabel = 'No nodes in this graph.'
 	}: {
@@ -140,12 +145,12 @@
 		initialCamera?: GraphCamera;
 		onCameraChange?: (camera: GraphCamera) => void;
 		viewportInset?: GraphViewportInset;
+		minZoom?: number;
+		maxZoom?: number;
 		autoHomeOnMount?: boolean;
 		emptyLabel?: string;
 	} = $props();
 
-	const MIN_ZOOM = 0.2;
-	const MAX_ZOOM = 2.5;
 	const CHECKER_CELL_REM = 2;
 	const DEFAULT_NODE_WIDTH_REM = 13;
 	const MIN_NODE_WIDTH_REM = 8;
@@ -168,10 +173,15 @@
 	const finiteNumber = (value: number | undefined, fallback: number): number =>
 		typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
+	let effectiveMaxZoom = $derived(Math.max(0.01, finiteNumber(maxZoom, DEFAULT_MAX_ZOOM)));
+	let effectiveMinZoom = $derived(
+		Math.min(effectiveMaxZoom, Math.max(0.01, finiteNumber(minZoom, DEFAULT_MIN_ZOOM)))
+	);
+
 	const normalizeCamera = (value: GraphCamera | undefined): GraphCamera => ({
 		x: finiteNumber(value?.x, 0),
 		y: finiteNumber(value?.y, 0),
-		zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, finiteNumber(value?.zoom, 1)))
+		zoom: Math.min(effectiveMaxZoom, Math.max(effectiveMinZoom, finiteNumber(value?.zoom, 1)))
 	});
 
 	const cameraKey = (value: GraphCamera): string => `${value.x}:${value.y}:${value.zoom}`;
@@ -1223,7 +1233,7 @@
 	};
 
 	const cameraAtZoom = (zoom: number, anchorX: number, anchorY: number): GraphCamera => {
-		const nextZoom = clamp(zoom, MIN_ZOOM, MAX_ZOOM);
+		const nextZoom = clamp(zoom, effectiveMinZoom, effectiveMaxZoom);
 		const worldX = (anchorX - camera.x) / camera.zoom;
 		const worldY = (anchorY - camera.y) / camera.zoom;
 		return {
@@ -1312,8 +1322,8 @@
 				(viewport.width - paddingPx * 2) / widthPx,
 				(viewport.height - paddingPx * 2) / heightPx
 			),
-			MIN_ZOOM,
-			MAX_ZOOM
+			effectiveMinZoom,
+			effectiveMaxZoom
 		);
 		const centerX = (left + right) * 0.5 * remPx;
 		const centerY = (top + bottom) * 0.5 * remPx;
@@ -2246,8 +2256,8 @@
 			<input
 				class="zoom-slider"
 				type="range"
-				min={MIN_ZOOM * 100}
-				max={MAX_ZOOM * 100}
+				min={effectiveMinZoom * 100}
+				max={effectiveMaxZoom * 100}
 				step="1"
 				value={camera.zoom * 100}
 				aria-label="Zoom"
