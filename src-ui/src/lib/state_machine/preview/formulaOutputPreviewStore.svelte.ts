@@ -118,7 +118,6 @@ export const formulaOutputPreviewMap = (
 		const nodeId = anodeNodeIdByUuid.get(sample.node_id);
 		if (nodeId === undefined) continue;
 		const label = runtimeValueLabel(sample.value);
-		if (!label) continue;
 		const key = `${nodeId}:${sample.output_socket_id}`;
 		const current = result.get(key);
 		if (!newerSample(current, sample)) continue;

@@ -34,9 +34,11 @@ pub use processor::{
     ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
 };
 pub use protocol::{
-    ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedItemDto, ManagedItemUiStateDto, ManagedRegionDefinitionDto,
-    ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto, ProcessorFormulaSourceKindDto,
-    ProcessorLaneSummaryDto, ProcessorUiDto, StateMachineProtocolBundle, export_typescript,
+    ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto, ManagedItemDto, ManagedItemUiStateDto,
+    ManagedRegionDefinitionDto, ManagedRegionInstanceDto, ManagedRegionKindDto, ManagedSocketRefDto,
+    ProcessorFormulaSourceKindDto, ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto,
+    ProcessorLaneParameterPreviewDto, ProcessorLaneSummaryDto, ProcessorUiDto, StateMachineProtocolBundle,
+    export_typescript,
 };
 pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,

@@ -3,6 +3,11 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import type { StateMachineProtocolBundle } from '../generated';
 	import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
+	import {
+		formulaPreviewSessionStore,
+		processorPreviewLaneOptions
+	} from '../preview/formulaPreviewSessionStore.svelte';
+	import { selectedLaneConditionValid } from '../preview/processorLaneInspection.svelte';
 	import ValidationChip from './ValidationChip.svelte';
 
 	const PROCESSOR_ITEM_KIND = 'state_processor';
@@ -15,7 +20,11 @@
 	}>();
 
 	let session = $derived(appState.session);
+	let runtimePreviewSequence = $derived(
+		session?.getCustomEventSequence(STATE_MACHINE_RUNTIME_PREVIEW_TOPIC) ?? 0
+	);
 	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
+		runtimePreviewSequence;
 		if (!session) return null;
 		return session.getCustomEventPayload<StateMachineProtocolBundle>(
 			STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
@@ -60,6 +69,8 @@
 	};
 
 	const conditionManagerValid = (manager: UiNodeDto): boolean => {
+		const laneValid = selectedLaneConditionValid(manager);
+		if (laneValid !== null) return laneValid;
 		const valid = directChild(manager, CONDITION_MANAGER_VALID_DECL_ID);
 		return valid?.data.kind === 'parameter' && valid.data.param.value.kind === 'bool'
 			? valid.data.param.value.value
@@ -72,13 +83,27 @@
 		return runtimePreviewBundle.processors.find((processor) => processor.id === liveNode.uuid)
 			?.multiplex_lane_count ?? 0;
 	});
+	let previewLanes = $derived(
+		processorPreviewLaneOptions(
+			runtimePreviewBundle?.processor_lanes.filter((lane) => lane.processor_id === liveNode.uuid) ?? []
+		)
+	);
+	let previewLane = $derived(
+		isProcessorNode ? formulaPreviewSessionStore.processorLane(liveNode.node_id, previewLanes) : null
+	);
 </script>
 
-{#if conditionManagers.length > 0 || multiplexLaneCount > 0}
+{#if conditionManagers.length > 0 || multiplexLaneCount > 0 || previewLane}
 	<span class="processor-row-supplements">
 		{#if multiplexLaneCount > 0}
 			<span class="processor-multiplex-badge" title={`${multiplexLaneCount} multiplex lanes`}>
 				M : {multiplexLaneCount}
+			</span>
+		{/if}
+			
+		{#if multiplexLaneCount > 1 && previewLane}
+			<span class="processor-preview-lane" title={`Preview lane: ${previewLane.label}`}>
+				{previewLane.label}
 			</span>
 		{/if}
 		{#each conditionManagers as manager (manager.node_id)}
@@ -110,6 +135,18 @@
 		font-size: 0.72em;
 		font-weight: 650;
 		line-height: 1.2;
+		white-space: nowrap;
+	}
+
+	.processor-preview-lane {
+		display: inline-block;
+		max-inline-size: 12rem;
+		overflow: hidden;
+		color: color-mix(in srgb, var(--gc-color-text) 76%, transparent);
+		font-size: 0.72em;
+		font-weight: 600;
+		line-height: 1.2;
+		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 </style>

@@ -6,6 +6,7 @@
 	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import formulaIconUrl from '../../golden_alchemist_ui/icons/formula.svg';
+	import ProcessorPreviewLaneSelector from './ProcessorPreviewLaneSelector.svelte';
 
 	let { node, defaultHeader }: NodeInspectorPanelHeaderComponentProps = $props();
 
@@ -54,6 +55,7 @@
 
 {#snippet formulaHeaderExtra()}
 	<span class="processor-formula-header-extra">
+		<ProcessorPreviewLaneSelector {node} />
 		<!-- <span class="formula-kind">{formulaKind}</span> -->
 		<button
 			type="button"

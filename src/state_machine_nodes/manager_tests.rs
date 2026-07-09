@@ -1,8 +1,9 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, ffi::OsStr, sync::Arc, time::Duration};
 
 use chataigne_state_machine::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorDebugCapture,
-    ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorRuntime, ValueSet,
+    ProcessorContextProvider, ProcessorId, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
+    ProcessorRuntime, ValueSet,
 };
 use golden_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
@@ -30,7 +31,9 @@ use super::{
     merge_output_preview_snapshot, next_input_value_condition_validity,
     next_input_value_condition_valid_state, output_preview_signature, processor_formula_from_snapshot,
     processor_formula_source_ref, processor_override_value, processor_should_evaluate,
-    resolved_output_param_overrides, runtime_invalidation_for_node, set_output_target_param,
+    resolve_multiplex_template_value, resolved_output_param_overrides, runtime_invalidation_for_node,
+    runtime_output_previews_enabled,
+    set_output_target_param,
     should_emit_runtime_log, LaneParamResolver, ProcessorContextAxisRuntime,
     ProcessorContextEntryRuntime, ProcessorContextListRuntime, ProcessorContextRuntime,
     RuntimeInvalidation, RuntimeLogKey, SnapshotProcessorContextProvider, StateMachineManager,
@@ -163,6 +166,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         .find(|(_, node)| node.node_data().meta.label == "Command")
         .map(|(id, _)| id)
         .expect("command container should exist");
+    let axis = ContextAxisId::new("lane");
 
     let mut message = Parameter::new(
         "Message",
@@ -180,16 +184,34 @@ fn output_param_overrides_resolve_context_links_per_lane() {
         ))
         .expect("context link should be valid for string parameter");
     engine.add_node(message.into(), Some(command_id));
+    let mut lane_number = Parameter::new(
+        "Lane Number",
+        ParamValue::Float(-1.0),
+        ParameterChangeCheck::ValueChange,
+    );
+    lane_number.node_data_mut().meta.decl_id = DeclId("lane_number".to_owned());
+    lane_number
+        .engine_set_param_control_state(ParameterControlState::new(
+            ParameterControlMode::ContextLink,
+            ParameterControlSpec::ContextLink {
+                symbol: golden_core::contexts::multiplex_index_context_link_symbol("lane", false),
+                projection: None,
+            },
+        ))
+        .expect("multiplex index link should be valid for a float parameter");
+    engine.add_node(lane_number.into(), Some(command_id));
     engine
         .apply_edits()
-        .expect("message parameter should attach");
+        .expect("output parameters should attach");
 
     let snapshot = engine.process_tree_snapshot();
     let message_id = snapshot
         .find_child_by_decl_id(command_id, "message")
         .expect("message parameter should exist");
+    let lane_number_id = snapshot
+        .find_child_by_decl_id(command_id, "lane_number")
+        .expect("lane number parameter should exist");
     let processor_id = ProcessorId::new();
-    let axis = ContextAxisId::new("lane");
     let left_item = ContextItemId::new("left");
     let right_item = ContextItemId::new("right");
     let provider = SnapshotProcessorContextProvider {
@@ -198,6 +220,7 @@ fn output_param_overrides_resolve_context_links_per_lane() {
             ProcessorContextRuntime {
                 axes: vec![ProcessorContextAxisRuntime {
                     axis: axis.clone(),
+                    name: "Lane".to_owned(),
                     items: vec![left_item.clone(), right_item.clone()],
                 }],
                 lists: vec![ProcessorContextListRuntime {
@@ -227,11 +250,22 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     };
     let left_overrides =
         resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
-    assert_eq!(left_overrides.len(), 1);
-    assert_eq!(left_overrides[0].param_id, message_id);
+    assert_eq!(left_overrides.len(), 2);
     assert_eq!(
-        left_overrides[0].value,
-        ParamValue::Str("left lane".to_owned())
+        &left_overrides
+            .iter()
+            .find(|override_value| override_value.param_id == message_id)
+            .expect("message override should exist")
+            .value,
+        &ParamValue::Str("left lane".to_owned())
+    );
+    assert_eq!(
+        &left_overrides
+            .iter()
+            .find(|override_value| override_value.param_id == lane_number_id)
+            .expect("lane number override should exist")
+            .value,
+        &ParamValue::Float(1.0)
     );
 
     let right_key = ContextKey::single("lane", "right");
@@ -242,12 +276,137 @@ fn output_param_overrides_resolve_context_links_per_lane() {
     };
     let right_overrides =
         resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
-    assert_eq!(right_overrides.len(), 1);
-    assert_eq!(right_overrides[0].param_id, message_id);
+    assert_eq!(right_overrides.len(), 2);
     assert_eq!(
-        right_overrides[0].value,
-        ParamValue::Str("right lane".to_owned())
+        &right_overrides
+            .iter()
+            .find(|override_value| override_value.param_id == message_id)
+            .expect("message override should exist")
+            .value,
+        &ParamValue::Str("right lane".to_owned())
     );
+    assert_eq!(
+        &right_overrides
+            .iter()
+            .find(|override_value| override_value.param_id == lane_number_id)
+            .expect("lane number override should exist")
+            .value,
+        &ParamValue::Float(2.0)
+    );
+}
+
+#[test]
+fn multiplex_template_tokens_resolve_indexes_and_lists_across_named_axes() {
+    let processor_id = ProcessorId::new();
+    let primary_axis = ContextAxisId::new("primary-axis");
+    let secondary_axis = ContextAxisId::new("secondary-axis");
+    let primary_items = [ContextItemId::new("p0"), ContextItemId::new("p1")];
+    let secondary_items = [ContextItemId::new("s0"), ContextItemId::new("s1")];
+    let provider = SnapshotProcessorContextProvider {
+        processors: HashMap::from([(
+            processor_id,
+            ProcessorContextRuntime {
+                axes: vec![
+                    ProcessorContextAxisRuntime {
+                        axis: primary_axis.clone(),
+                        name: "Primary".to_owned(),
+                        items: primary_items.to_vec(),
+                    },
+                    ProcessorContextAxisRuntime {
+                        axis: secondary_axis.clone(),
+                        name: "Secondary".to_owned(),
+                        items: secondary_items.to_vec(),
+                    },
+                ],
+                lists: vec![
+                    ProcessorContextListRuntime {
+                        axis: primary_axis.clone(),
+                        symbol: "Names".to_owned(),
+                        list_id: "primary-names".to_owned(),
+                        entries: vec![
+                            ProcessorContextEntryRuntime {
+                                item: primary_items[0].clone(),
+                                value: RuntimeValue::String("first".into()),
+                            },
+                            ProcessorContextEntryRuntime {
+                                item: primary_items[1].clone(),
+                                value: RuntimeValue::String("second".into()),
+                            },
+                        ],
+                    },
+                    ProcessorContextListRuntime {
+                        axis: secondary_axis.clone(),
+                        symbol: "Names".to_owned(),
+                        list_id: "secondary-names".to_owned(),
+                        entries: vec![
+                            ProcessorContextEntryRuntime {
+                                item: secondary_items[0].clone(),
+                                value: RuntimeValue::String("alpha".into()),
+                            },
+                            ProcessorContextEntryRuntime {
+                                item: secondary_items[1].clone(),
+                                value: RuntimeValue::String("beta".into()),
+                            },
+                        ],
+                    },
+                ],
+            },
+        )]),
+    };
+    let key = ContextKey::new([
+        golden_alchemist::ContextKeyPart::new(primary_axis, primary_items[1].clone()),
+        golden_alchemist::ContextKeyPart::new(secondary_axis, secondary_items[0].clone()),
+    ]);
+
+    let resolved = resolve_multiplex_template_value(
+        "{index}/{index0}/{index:2}/{index0:Secondary}/{list:Names}/{list:Secondary:Names}",
+        |token| provider.resolve_template_token(processor_id, &key, token),
+    );
+    assert_eq!(resolved, "2/1/1/0/second/alpha");
+
+    let dto = provider.context_key_dto(processor_id, &key);
+    assert_eq!(dto.parts[0].axis_label, "Primary");
+    assert_eq!(dto.parts[0].item_label, "#2");
+    assert_eq!(dto.parts[0].index, Some(1));
+    assert_eq!(dto.parts[1].axis_label, "Secondary");
+    assert_eq!(dto.parts[1].item_label, "#1");
+    assert_eq!(dto.parts[1].index, Some(0));
+    assert_eq!(
+        provider.context_key_label(processor_id, &key),
+        "Primary #2 × Secondary #1"
+    );
+}
+
+#[test]
+fn multiplex_index_context_links_resolve_both_index_bases() {
+    let processor_id = ProcessorId::new();
+    let axis = ContextAxisId::new("axis");
+    let items = [ContextItemId::new("first"), ContextItemId::new("second")];
+    let provider = SnapshotProcessorContextProvider {
+        processors: HashMap::from([(
+            processor_id,
+            ProcessorContextRuntime {
+                axes: vec![ProcessorContextAxisRuntime {
+                    axis: axis.clone(),
+                    name: "Rows".to_owned(),
+                    items: items.to_vec(),
+                }],
+                lists: Vec::new(),
+            },
+        )]),
+    };
+    let key = ContextKey::single("axis", "second");
+
+    for (zero_based, expected) in [(false, 2), (true, 1)] {
+        let symbol = golden_core::contexts::multiplex_index_context_link_symbol("axis", zero_based);
+        let (resolved_axis, path) = provider
+            .multiplex_link_for_symbol(processor_id, symbol.as_str())
+            .expect("index link should resolve its multiplex axis");
+        assert_eq!(
+            provider.resolve_context_value(&key, &resolved_axis, &path),
+            Some(RuntimeValue::Int(expected))
+        );
+    }
 }
 
 #[test]
@@ -594,7 +753,7 @@ fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
         inputs: &inputs,
         registries: &registries,
     };
-    let first = runtime.evaluate_processor_with_context_provider_and_send_capture(
+    let first = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
         &processor,
         &first_ctx,
         &provider,
@@ -616,7 +775,7 @@ fn cache_rebuild_compile_preserves_stateful_trigger_memory() {
         inputs: &inputs,
         registries: &registries,
     };
-    let second = runtime.evaluate_processor_with_context_provider_and_send_capture(
+    let second = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
         &processor,
         &second_ctx,
         &provider,
@@ -800,6 +959,14 @@ fn output_preview_signature_is_order_independent_and_trigger_sensitive() {
         RuntimeValue::Trigger(TriggerValue::fired(7, 10)),
         10,
     );
+    let value_at_next_tick = preview_sample(
+        formula_id.clone(),
+        processor_id,
+        value_node,
+        "value",
+        RuntimeValue::Float(0.75),
+        11,
+    );
     let changed_trigger = preview_sample(
         formula_id,
         processor_id,
@@ -812,12 +979,26 @@ fn output_preview_signature_is_order_independent_and_trigger_sensitive() {
     let signature = output_preview_signature(&[value.clone(), trigger.clone()]);
     assert_eq!(
         signature,
-        output_preview_signature(&[trigger, value.clone()])
+        output_preview_signature(&[trigger.clone(), value.clone()])
+    );
+    assert_ne!(
+        signature,
+        output_preview_signature(&[value_at_next_tick, trigger.clone()])
     );
     assert_ne!(
         signature,
         output_preview_signature(&[value, changed_trigger])
     );
+}
+
+#[test]
+fn runtime_output_previews_are_enabled_by_default_with_an_explicit_opt_out() {
+    assert!(runtime_output_previews_enabled(None));
+    assert!(runtime_output_previews_enabled(Some(OsStr::new("1"))));
+    assert!(runtime_output_previews_enabled(Some(OsStr::new("true"))));
+    assert!(!runtime_output_previews_enabled(Some(OsStr::new("0"))));
+    assert!(!runtime_output_previews_enabled(Some(OsStr::new("false"))));
+    assert!(!runtime_output_previews_enabled(Some(OsStr::new("off"))));
 }
 
 #[test]

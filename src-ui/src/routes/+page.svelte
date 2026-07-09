@@ -21,8 +21,10 @@
 	import ProcessorFormulaInspectorPanelHeader from '$lib/state_machine/components/ProcessorFormulaInspectorPanelHeader.svelte';
 	import StateMachinePanel from '$lib/state_machine/components/StateMachinePanel.svelte';
 	import { registerSharedFormulaRemovalGuard } from '$lib/state_machine/sharedFormulaRemoval';
+	import { registerProcessorLaneParameterPreviews } from '$lib/state_machine/preview/processorLaneInspection.svelte';
 
 	registerSharedFormulaRemovalGuard();
+	registerProcessorLaneParameterPreviews();
 
 	registerNodeInspector('module_command', {
 		component: ModuleCommandInspector

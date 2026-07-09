@@ -4,7 +4,7 @@
     "dock_layout": {
       "activeGroup": "2",
       "grid": {
-        "height": 1153.59375,
+        "height": 759.1875,
         "orientation": "HORIZONTAL",
         "root": {
           "data": [
@@ -18,7 +18,7 @@
                       "modules-1"
                     ]
                   },
-                  "size": 576,
+                  "size": 378,
                   "type": "leaf"
                 },
                 {
@@ -29,11 +29,11 @@
                       "outliner"
                     ]
                   },
-                  "size": 571.59375,
+                  "size": 375.1875,
                   "type": "leaf"
                 }
               ],
-              "size": 419,
+              "size": 163,
               "type": "branch"
             },
             {
@@ -48,7 +48,7 @@
                       "warnings"
                     ]
                   },
-                  "size": 752,
+                  "size": 398,
                   "type": "leaf"
                 },
                 {
@@ -61,7 +61,7 @@
                           "formula-library"
                         ]
                       },
-                      "size": 412,
+                      "size": 348,
                       "type": "leaf"
                     },
                     {
@@ -72,15 +72,15 @@
                           "alchemistEditor-1"
                         ]
                       },
-                      "size": 653,
+                      "size": 562,
                       "type": "leaf"
                     }
                   ],
-                  "size": 395.59375,
+                  "size": 355.1875,
                   "type": "branch"
                 }
               ],
-              "size": 1071,
+              "size": 916,
               "type": "branch"
             },
             {
@@ -93,7 +93,7 @@
                       "inspector"
                     ]
                   },
-                  "size": 703,
+                  "size": 619,
                   "type": "leaf"
                 },
                 {
@@ -104,18 +104,18 @@
                       "logger"
                     ]
                   },
-                  "size": 444.59375,
+                  "size": 134.1875,
                   "type": "leaf"
                 }
               ],
-              "size": 533.1875,
+              "size": 428.1875,
               "type": "branch"
             }
           ],
-          "size": 1153.59375,
+          "size": 759.1875,
           "type": "branch"
         },
-        "width": 2035.1875
+        "width": 1519.1875
       },
       "panels": {
         "alchemistEditor-1": {
@@ -286,9 +286,14 @@
             "__gc_panel_state": {
               "opennessByNodeId": {
                 "4294967297": true,
-                "4294967603": true,
-                "4294967604": true,
-                "4294967608": true
+                "4294967299": true,
+                "4294967383": true,
+                "4294967640": true,
+                "4294967641": true,
+                "4294967645": true,
+                "4294967684": true,
+                "4294967685": true,
+                "4294967689": true
               }
             }
           },
@@ -301,9 +306,9 @@
           "params": {
             "__gc_panel_state": {
               "camera": {
-                "x": -903.3473236687151,
-                "y": 189.32639751074404,
-                "zoom": 1.2572046591074482
+                "x": -809.3818704376431,
+                "y": 87.97087341405674,
+                "zoom": 1.1591543514287397
               }
             }
           },
@@ -324,7 +329,7 @@
       }
     },
     "selected_node_ids": [
-      4294967653
+      4294967690
     ]
   },
   "root": {
@@ -1875,6 +1880,202 @@
             ]
           },
           {
+            "uuid": "5d9695b8-ef91-4127-94f7-e51f4d8dd9d6",
+            "type": "alchemist_formula",
+            "user_role": "itemRoot",
+            "meta": {
+              "can_be_disabled": false,
+              "label": "Action 2"
+            },
+            "children": [
+              {
+                "uuid": "80965fa8-d4aa-4c9b-b2d9-81607b2f84a3",
+                "type": "reference",
+                "meta": {
+                  "decl_id": "formula_copy_source",
+                  "short_name": "formulaCopySource",
+                  "label": "Formula Copy Source",
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              },
+              {
+                "uuid": "a782b4ed-20a5-46ff-a5cf-5ad9caa44b79",
+                "type": "str",
+                "meta": {
+                  "decl_id": "duplicate_from_formula_source",
+                  "short_name": "duplicate_from_formula_source",
+                  "label": "Duplicate Source",
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "presentation": {
+                    "show_in_inspector_content": false
+                  }
+                }
+              },
+              {
+                "uuid": "d3d338d0-acc6-48a4-86f2-9d3624e6c0ef",
+                "type": "alchemist_properties",
+                "meta": {
+                  "can_be_disabled": false,
+                  "tags": [
+                    "chataigne.formula.external.read_only"
+                  ],
+                  "user_permissions": {
+                    "can_edit_constraints": true,
+                    "can_edit_tags": true,
+                    "can_edit_color": true
+                  }
+                },
+                "children": [
+                  {
+                    "uuid": "a162f17e-214a-4f69-8af2-75ad2d3cecaf",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "can_be_disabled": false,
+                      "label": "Conditions",
+                      "tags": [
+                        "alchemist.manager.role:condition",
+                        "chataigne.formula.external.read_only"
+                      ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
+                      "presentation": {
+                        "color": {
+                          "r": 0.186,
+                          "g": 0.569,
+                          "b": 0.8171,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.6051733333333333,
+                          "g": 0.8988,
+                          "b": 0.2212000000000001,
+                          "a": 1.0
+                        },
+                        "collapsed": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "ee0f62fc-03ff-4de1-bdfa-cc62753a26b2",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": ""
+                          },
+                          "persist_read_only_value": true,
+                          "read_only": false
+                        }
+                      },
+                      {
+                        "uuid": "3d7313e1-8afd-4484-bd54-d045ea5e24ce",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "uuid": "a9a8817a-31d2-419a-aaaf-67571ddb8153",
+                    "type": "alchemist_property_manager",
+                    "meta": {
+                      "decl_id": "outputsCopy",
+                      "short_name": "outputsCopy",
+                      "can_be_disabled": false,
+                      "label": "On False",
+                      "tags": [
+                        "alchemist.manager.role:output",
+                        "chataigne.formula.external.read_only"
+                      ],
+                      "user_permissions": {
+                        "can_edit_name": true,
+                        "can_remove_and_duplicate": true,
+                        "can_edit_constraints": true,
+                        "can_edit_tags": true,
+                        "can_edit_color": true
+                      },
+                      "presentation": {
+                        "color": {
+                          "r": 0.8471,
+                          "g": 0.427,
+                          "b": 0.0987,
+                          "a": 1.0
+                        },
+                        "default_color": {
+                          "r": 0.5138466666666668,
+                          "g": 0.8476999999999999,
+                          "b": 0.13230000000000003,
+                          "a": 1.0
+                        },
+                        "collapsed": true
+                      }
+                    },
+                    "children": [
+                      {
+                        "uuid": "64422cdc-bb1d-4dcc-baea-c6c2a6007d7b",
+                        "type": "enum",
+                        "meta": {
+                          "decl_id": "role",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Enum": ""
+                          },
+                          "persist_read_only_value": true,
+                          "read_only": false,
+                          "value": {
+                            "Enum": "output"
+                          }
+                        }
+                      },
+                      {
+                        "uuid": "04d3153a-3148-4d92-9b34-199868951bb2",
+                        "type": "bool",
+                        "meta": {
+                          "decl_id": "exposed",
+                          "tags": [
+                            "chataigne.formula.external.read_only"
+                          ]
+                        },
+                        "data": {
+                          "default_value": {
+                            "Bool": false
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "uuid": "9752d4ca-340b-463a-b149-f3c298b72a5e",
             "type": "alchemist_formula",
             "meta": {
@@ -1893,7 +2094,7 @@
             },
             "children": [
               {
-                "uuid": "23a21956-41bb-4b16-9e97-e2477d1b5714",
+                "uuid": "62d5c640-87c7-4273-b2bd-ad43f36f43b2",
                 "type": "file",
                 "meta": {
                   "decl_id": "external_formula_file",
@@ -1910,7 +2111,7 @@
                 }
               },
               {
-                "uuid": "d3e48a88-a36b-4238-82a4-1000d5d7b03e",
+                "uuid": "cdaceeff-a2a1-407c-a1e0-5d8433dc87ac",
                 "type": "reference",
                 "meta": {
                   "decl_id": "external_formula_source",
@@ -1922,7 +2123,7 @@
                 }
               },
               {
-                "uuid": "88d103b1-a3b5-4873-9024-a92b528174e4",
+                "uuid": "67462f3e-a3cb-4b69-85c0-7ee2d930b8c2",
                 "type": "bool",
                 "meta": {
                   "decl_id": "external_formula_delete_file",
@@ -4246,7 +4447,7 @@
                     },
                     "children": [
                       {
-                        "uuid": "275a6cf7-8ddd-406e-8ae9-4c1b8be19730",
+                        "uuid": "23aba688-1fe7-4a76-84a5-bdf2632a5277",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4263,7 +4464,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "b4ed8c65-4dc5-4536-9c2d-c16c8abc36bc",
+                            "uuid": "8160aa75-b4ab-49e9-b8ae-5a09e8aa95e7",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4282,7 +4483,7 @@
                             }
                           },
                           {
-                            "uuid": "f8f082d9-af70-4ac3-8f73-4d8e1ae3b6b7",
+                            "uuid": "38d651c1-3b45-4604-8bd6-b305adacbecd",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4301,7 +4502,7 @@
                             }
                           },
                           {
-                            "uuid": "c577e731-fd0b-4283-b63e-b8d412a73dda",
+                            "uuid": "f8ee63f4-3660-4cf0-8b9a-f74bd27dce07",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -4320,7 +4521,7 @@
                         ]
                       },
                       {
-                        "uuid": "924939c1-a9d2-434c-a96f-396935c07975",
+                        "uuid": "fbf8bd01-b3c7-4077-8aa5-fd9730d71633",
                         "type": "alchemist_input_socket",
                         "meta": {
                           "decl_id": "inputs/value",
@@ -4337,7 +4538,7 @@
                         },
                         "children": [
                           {
-                            "uuid": "5518b266-c2b7-4350-876a-eadc5f8dea6a",
+                            "uuid": "13b283c5-b3f4-43d7-b08c-de25f50fdb96",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/socket_id",
@@ -4356,7 +4557,7 @@
                             }
                           },
                           {
-                            "uuid": "08b64f85-ae5a-4896-a716-9e53c1e9351e",
+                            "uuid": "49371668-99f6-4311-ba20-c91dbd966fae",
                             "type": "str",
                             "meta": {
                               "decl_id": "inputs/value/value_type",
@@ -4375,7 +4576,7 @@
                             }
                           },
                           {
-                            "uuid": "4b1702a8-0918-4971-8a58-cf3f76a3f4f3",
+                            "uuid": "2b69f966-7651-41f2-a519-ffd4809c4d8b",
                             "type": "float",
                             "meta": {
                               "decl_id": "inputs/value/value",
@@ -5802,8 +6003,8 @@
                 "data": {
                   "value": {
                     "Vec2": [
-                      53.39232173855791,
-                      1.505559098421518
+                      50.84736398383375,
+                      0.8154006309587452
                     ]
                   }
                 }
@@ -5818,8 +6019,8 @@
                 "data": {
                   "value": {
                     "Vec2": [
-                      13.596558547464497,
-                      8.31816587349768
+                      17.69437018009826,
+                      9.267133869100594
                     ]
                   }
                 }
@@ -5845,7 +6046,6 @@
                     "type": "state_processor",
                     "user_role": "itemRoot",
                     "meta": {
-                      "enabled": false,
                       "label": "Action",
                       "tags": [
                         "context_link_lane_deferred"
@@ -6719,14 +6919,14 @@
                                 },
                                 "data": {
                                   "control": {
-                                    "mode": "contextLink",
+                                    "mode": "templateText",
                                     "spec": {
-                                      "mode": "contextLink",
-                                      "symbol": "float"
+                                      "mode": "templateText",
+                                      "template": "down {index} : {list:thresh}"
                                     }
                                   },
                                   "value": {
-                                    "Str": "down"
+                                    "Str": "down {index} : {list:thresh}"
                                   }
                                 }
                               }
@@ -6799,6 +6999,9 @@
                         "uuid": "92f14e8f-339d-4b36-b1f3-d620a5ac11ea",
                         "type": "user_context_multiplex_list_float",
                         "user_role": "itemRoot",
+                        "meta": {
+                          "label": "thresh"
+                        },
                         "children": [
                           {
                             "uuid": "552c3536-3eed-46c2-a879-1a7ed0ccfd91",

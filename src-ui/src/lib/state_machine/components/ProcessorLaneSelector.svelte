@@ -1,13 +1,18 @@
 <script lang="ts">
-	import type { FormulaPreviewLaneOption } from '../preview/formulaPreviewSessionStore.svelte';
+	import {
+		FOLLOW_PROCESSOR_LANE_ID,
+		type FormulaPreviewLaneOption
+	} from '../preview/formulaPreviewSessionStore.svelte';
 
 	let {
 		lanes,
 		selectedLaneId,
+		followProcessorLabel = null,
 		onSelect
 	}: {
 		lanes: readonly FormulaPreviewLaneOption[];
 		selectedLaneId: string | null;
+		followProcessorLabel?: string | null;
 		onSelect: (laneId: string) => void;
 	} = $props();
 </script>
@@ -17,8 +22,11 @@
 		<span>Preview lane</span>
 		<select
 			aria-label="Preview lane"
-			value={selectedLaneId ?? lanes[0]?.id ?? ''}
+			value={selectedLaneId ?? FOLLOW_PROCESSOR_LANE_ID}
 			onchange={(event) => onSelect(event.currentTarget.value)}>
+			{#if followProcessorLabel}
+				<option value={FOLLOW_PROCESSOR_LANE_ID}>Default — {followProcessorLabel}</option>
+			{/if}
 			{#each lanes as lane}
 				<option value={lane.id}>
 					{lane.label}{lane.diagnosticsCount > 0 ? ` (${lane.diagnosticsCount})` : ''}

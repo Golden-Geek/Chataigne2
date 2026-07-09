@@ -12,8 +12,8 @@ use golden_statechart::StateId;
 
 use crate::alchemist::node_registry;
 use crate::{
-    INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_TARGET_FIELD, Processor, ProcessorLifecycleEvent,
-    ProcessorRuntime,
+    DefaultProcessorContextProvider, INPUT_SOURCE_FIELD, ManagedFormulaRuntime, OUTPUT_TARGET_FIELD, Processor,
+    ProcessorDebugCapture, ProcessorLifecycleEvent, ProcessorRuntime,
 };
 
 #[test]
@@ -558,7 +558,10 @@ fn manager_condition_gate_matches_direct_anode_result() {
 
 #[test]
 fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
-    let (formula, mut instance) = trigger_pipeline_formula_and_instance();
+    let (mut formula, mut instance) = trigger_pipeline_formula_and_instance();
+    let mut constant = primitive_anode(PrimitiveNodeKind::Constant);
+    constant.config.set("value", RuntimeValue::Bool(true));
+    let constant_id = formula.graph.add_node(constant).unwrap();
     let source = endpoint_ref("module/trigger");
     let target = command_target("target/command");
     instance.managed_regions.regions.insert(
@@ -588,11 +591,26 @@ fn processor_runtime_evaluates_managed_trigger_pipeline_sidecar() {
     };
     let ctx = eval_ctx(18, &inputs, &registries);
 
-    let output = runtime.evaluate_processor(&processor, &ctx);
+    let provider = DefaultProcessorContextProvider;
+    let mut lanes = runtime.evaluate_processor_with_context_provider_and_runtime_capture(
+        &processor,
+        &ctx,
+        &provider,
+        &ProcessorDebugCapture::All { history_len: 64 },
+    );
+    assert_eq!(lanes.len(), 1);
+    let output = lanes.remove(0).output;
 
     assert!(output.diagnostics.is_empty());
     assert_eq!(output.intents.len(), 1);
     assert_eq!(output.intents[0].target.as_ref(), Some(&target));
+    assert!(
+        output
+            .debug_samples
+            .iter()
+            .any(|sample| sample.author_node_id == constant_id),
+        "managed sidecar evaluation should retain authored-graph activity samples"
+    );
 }
 
 #[test]

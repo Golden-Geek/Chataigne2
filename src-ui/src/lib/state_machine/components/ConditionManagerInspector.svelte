@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { NodeInspectorComponentProps, UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
+	import { selectedLaneConditionValid } from '../preview/processorLaneInspection.svelte';
 	import ValidationChip from './ValidationChip.svelte';
 
 	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
@@ -19,10 +20,12 @@
 	};
 
 	let validNode = $derived(childByDeclId(liveNode, 'valid'));
+	let laneValid = $derived(selectedLaneConditionValid(liveNode));
 	let conditionManagerValid = $derived(
-		validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
+		laneValid ??
+			(validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
 			? validNode.data.param.value.value
-			: false
+			: false)
 	);
 </script>
 

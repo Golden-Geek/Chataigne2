@@ -618,17 +618,31 @@ impl ProcessorRuntime {
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
     ) -> Vec<ProcessorLaneOutput> {
-        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, true)
+        self.evaluate_processor_with_context_provider_and_capture_mode(
+            processor,
+            ctx,
+            context_provider,
+            capture,
+            true,
+            true,
+        )
     }
 
-    pub fn evaluate_processor_with_context_provider_and_send_capture(
+    pub fn evaluate_processor_with_context_provider_and_runtime_capture(
         &mut self,
         processor: &Processor,
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
     ) -> Vec<ProcessorLaneOutput> {
-        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, false)
+        self.evaluate_processor_with_context_provider_and_capture_mode(
+            processor,
+            ctx,
+            context_provider,
+            capture,
+            false,
+            true,
+        )
     }
 
     fn evaluate_processor_with_context_provider_and_capture_mode(
@@ -637,15 +651,59 @@ impl ProcessorRuntime {
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
+        force_process_unchanged_inputs: bool,
         capture_unchanged_outputs: bool,
     ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
         }
         if let Some(managed_formula) = self.managed_formula.as_mut() {
+            let mut output = managed_formula.evaluate(ctx);
+            let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
+                return vec![ProcessorLaneOutput {
+                    context_key: None,
+                    output,
+                }];
+            };
+            let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id);
+            if !matches!(capture_mode, DebugCaptureMode::Off) {
+                let context_key = ContextKey::default_lane();
+                let context = RuntimeContextFrame::new(context_key.clone());
+                if let Ok(properties) =
+                    self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
+                {
+                    let mut debug = DebugCaptureSink::new(capture_mode);
+                    let preview = match self.lanes.memory_for_key(context_key, &compiled.graph) {
+                        Some(memory) => evaluate_compiled_graph(
+                            &compiled.graph,
+                            memory,
+                            EvaluationFrame {
+                                ctx,
+                                properties: &properties,
+                                context: &context,
+                                debug: &mut debug,
+                                force_process_unchanged_inputs,
+                                capture_unchanged_outputs,
+                            },
+                        ),
+                        None => evaluate_compiled_graph_stateless(
+                            &compiled.graph,
+                            EvaluationFrame {
+                                ctx,
+                                properties: &properties,
+                                context: &context,
+                                debug: &mut debug,
+                                force_process_unchanged_inputs,
+                                capture_unchanged_outputs,
+                            },
+                        ),
+                    };
+                    output.debug_samples = preview.debug_samples;
+                }
+            }
             return vec![ProcessorLaneOutput {
                 context_key: None,
-                output: managed_formula.evaluate(ctx),
+                output,
             }];
         }
         let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
@@ -696,7 +754,7 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
-                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            force_process_unchanged_inputs,
                             capture_unchanged_outputs,
                         },
                     ),
@@ -707,7 +765,7 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
-                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            force_process_unchanged_inputs,
                             capture_unchanged_outputs,
                         },
                     ),

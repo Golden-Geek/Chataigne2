@@ -369,6 +369,26 @@ pub struct ProcessorLaneSummaryDto {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneParameterPreviewDto {
+    pub node_id: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneConditionPreviewDto {
+    pub node_id: String,
+    pub valid: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneInspectionDto {
+    pub processor_id: String,
+    pub context_key: Option<ContextKeyDto>,
+    pub parameter_values: Vec<ProcessorLaneParameterPreviewDto>,
+    pub condition_states: Vec<ProcessorLaneConditionPreviewDto>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(tag = "kind", rename_all = "snake_case")]
 pub enum FormulaPreviewModeDto {
@@ -538,6 +558,7 @@ pub struct StateMachineProtocolBundle {
     pub diagnostics: Vec<DiagnosticDto>,
     pub runtime_debug: Vec<RuntimeDebugDeltaDto>,
     pub processor_lanes: Vec<ProcessorLaneSummaryDto>,
+    pub processor_lane_inspections: Vec<ProcessorLaneInspectionDto>,
     pub preview_mode: Option<FormulaPreviewModeDto>,
     pub output_preview: Vec<ANodeOutputPreviewSampleDto>,
 }
@@ -561,6 +582,9 @@ export type { ManagedRegionKindDto } from './ManagedRegionKindDto';\n\
 export type { ManagedSocketRefDto } from './ManagedSocketRefDto';\n\
 export type { OutputPreviewStatusDto } from './OutputPreviewStatusDto';\n\
 export type { ProcessorLaneSummaryDto } from './ProcessorLaneSummaryDto';\n\
+export type { ProcessorLaneInspectionDto } from './ProcessorLaneInspectionDto';\n\
+export type { ProcessorLaneParameterPreviewDto } from './ProcessorLaneParameterPreviewDto';\n\
+export type { ProcessorLaneConditionPreviewDto } from './ProcessorLaneConditionPreviewDto';\n\
 export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
 export type { RuntimeValueDto } from './RuntimeValueDto';\n\

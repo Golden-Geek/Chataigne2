@@ -607,6 +607,12 @@ export const toGraphEdges = (
 	activeSocketRefs: ReadonlySet<string> = new Set()
 ): GraphEdge[] => {
 	const socketsByRef = formulaSocketsByRef(formula, nodesById);
+	const activeNodeIds = new Set(
+		Array.from(activeSocketRefs).flatMap((ref) => {
+			const separator = ref.indexOf(':');
+			return separator > 0 ? [ref.slice(0, separator)] : [];
+		})
+	);
 	const nodeIdByUuid = new Map(
 		formulaANodes(formula, nodesById).map((node) => [node.uuid, node.node_id])
 	);
@@ -632,7 +638,8 @@ export const toGraphEdges = (
 				active:
 					activeSocketRefs.has(`${source}:${sourceSocket}`) ||
 					activeSocketRefs.has(`${target}:${targetSocket}`) ||
-					activeSocketRefs.has(String(connection.node_id))
+					activeSocketRefs.has(String(connection.node_id)) ||
+					(activeNodeIds.has(String(source)) && activeNodeIds.has(String(target)))
 			}
 		];
 	});

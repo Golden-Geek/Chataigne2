@@ -158,7 +158,7 @@
 	const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX = 'chataigne.formula.external.builtin:';
 	const FORMULA_COPY_SOURCE_DECL_ID = 'formula_copy_source';
 	const CONDITION_GATE_CREATE_TYPE = `${ANODE_CREATE_PREFIX}condition_gate`;
-	const PREVIEW_ACTIVITY_HOLD_MS = 50;
+	const PREVIEW_ACTIVITY_HOLD_MS = 160;
 
 	let props: PanelProps = $props();
 	let updatedPanelState = $state<PanelState | null>(null);
@@ -264,7 +264,7 @@
 	};
 
 	const previewActivitySignature = (preview: FormulaOutputPreviewChip): string =>
-		runtimeValueSignature(preview.value);
+		`${preview.logicalTick}:${runtimeValueSignature(preview.value)}`;
 
 	const publishActiveSocketRefs = (): void => {
 		activeSocketRefs = new Set(previewActivityDeadlines.keys());
@@ -2120,9 +2120,13 @@
 						<FormulaPreviewModeSelector model={previewSessionModel} />
 						<ProcessorLaneSelector
 							lanes={previewSessionModel.lanes}
-							selectedLaneId={previewSessionModel.selectedLaneId}
+							selectedLaneId={previewSessionModel.laneSelectionId}
+							followProcessorLabel={previewSessionModel.processorLaneLabel}
 							onSelect={(laneId) =>
-								formulaPreviewSessionStore.selectLane(processorNode?.node_id ?? null, laneId)} />
+								formulaPreviewSessionStore.selectEditorLane(
+									processorNode?.node_id ?? null,
+									laneId
+								)} />
 					</div>
 					{#if diagnostics.length > 0}
 						<aside class="diagnostics" aria-label="Formula diagnostics">

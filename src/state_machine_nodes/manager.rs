@@ -1,13 +1,15 @@
 use std::{
     collections::{HashMap, HashSet},
+    ffi::OsStr,
     sync::{Arc, LazyLock},
     time::Duration,
 };
 
 use chataigne_state_machine::{
-    ANodeOutputPreviewSample, ANodeOutputPreviewSampleDto, ContextKeyDto,
+    ANodeOutputPreviewSample, ANodeOutputPreviewSampleDto, ContextKeyDto, ContextKeyPartDto,
     DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis, ProcessorDebugCapture,
     ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorFormulaUiState, ProcessorId,
+    ProcessorLaneConditionPreviewDto, ProcessorLaneInspectionDto, ProcessorLaneParameterPreviewDto,
     ProcessorLaneSummaryDto, ProcessorUiDto, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
     ProcessorRuntime, StateMachineProtocolBundle, processor_output_preview_samples,
     ValueLaneKey, ValueSet, ValueSetEntry, lane_scoped_stable_ref,
@@ -22,7 +24,11 @@ use golden_alchemist::{
     SurfaceItemId, TriggerValue, ValueTypeId, compile_graph, formula_input_value_ref,
 };
 use golden_core::{
-    contexts::UserContextValueType,
+    contexts::{
+        MultiplexContextLinkTarget, MultiplexTemplateToken, MultiplexTokenSelector,
+        UserContextValueType, parse_multiplex_context_link_symbol,
+        parse_multiplex_template_token,
+    },
     engine::NodeExecutionRule,
     events::{Event, EventFrame, EventKind},
     log,
@@ -35,7 +41,7 @@ use golden_core::{
     },
     parameter::{
         ParamValue, ParameterControlMode, ParameterControlSpec, ParameterControlState,
-        project_param_value,
+        coerce_param_value_for_target, project_param_value,
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -152,6 +158,7 @@ struct ProcessorContextRuntime {
 #[derive(Clone, Debug)]
 struct ProcessorContextAxisRuntime {
     axis: ContextAxisId,
+    name: String,
     items: Vec<ContextItemId>,
 }
 
@@ -196,6 +203,28 @@ impl SnapshotProcessorContextProvider {
             return None;
         }
         let runtime = self.processors.get(&processor_id)?;
+        if let Some(target) = parse_multiplex_context_link_symbol(symbol) {
+            return match target {
+                MultiplexContextLinkTarget::Index { axis_id, zero_based } => runtime
+                    .axes
+                    .iter()
+                    .find(|axis| axis.axis.as_str() == axis_id)
+                    .map(|axis| {
+                        let selector = if zero_based { "@index0" } else { "@index" };
+                        (axis.axis.clone(), ContextValuePath::new([selector]))
+                    }),
+                MultiplexContextLinkTarget::List { axis_id, symbol } => runtime
+                    .lists
+                    .iter()
+                    .find(|list| list.axis.as_str() == axis_id && list.symbol == symbol)
+                    .map(|list| {
+                        (
+                            list.axis.clone(),
+                            ContextValuePath::new([list.symbol.as_str()]),
+                        )
+                    }),
+            };
+        }
         runtime
             .lists
             .iter()
@@ -206,6 +235,89 @@ impl SnapshotProcessorContextProvider {
                     ContextValuePath::new([list.symbol.as_str()]),
                 )
             })
+    }
+
+    fn template_axes(&self, processor_id: ProcessorId, template: &str) -> AxisSet {
+        let Some(runtime) = self.processors.get(&processor_id) else {
+            return AxisSet::new();
+        };
+        multiplex_template_tokens(template)
+            .filter_map(|token| runtime.axis_for_template_token(&token))
+            .map(|axis| axis.axis.clone())
+            .collect()
+    }
+
+    fn context_key_dto(&self, processor_id: ProcessorId, key: &ContextKey) -> ContextKeyDto {
+        let runtime = self.processors.get(&processor_id);
+        ContextKeyDto {
+            parts: key
+                .iter()
+                .map(|part| {
+                    let axis = runtime.and_then(|runtime| {
+                        runtime.axes.iter().find(|axis| axis.axis == part.axis)
+                    });
+                    let index = axis.and_then(|axis| {
+                        axis.items.iter().position(|item| item == &part.item)
+                    });
+                    let axis_label = axis
+                        .map(|axis| axis.name.trim())
+                        .filter(|label| !label.is_empty())
+                        .unwrap_or_else(|| part.axis.as_str())
+                        .to_owned();
+                    ContextKeyPartDto {
+                        axis_id: part.axis.as_str().to_owned(),
+                        axis_label,
+                        item_id: part.item.as_str().to_owned(),
+                        item_label: index
+                            .map(|index| format!("#{}", index + 1))
+                            .unwrap_or_else(|| part.item.as_str().to_owned()),
+                        index: index.and_then(|index| u32::try_from(index).ok()),
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    fn context_key_label(&self, processor_id: ProcessorId, key: &ContextKey) -> String {
+        self.context_key_dto(processor_id, key)
+            .parts
+            .into_iter()
+            .map(|part| format!("{} {}", part.axis_label, part.item_label))
+            .collect::<Vec<_>>()
+            .join(" × ")
+    }
+
+    fn resolve_template_token(
+        &self,
+        processor_id: ProcessorId,
+        key: &ContextKey,
+        token: &MultiplexTemplateToken,
+    ) -> Option<String> {
+        let runtime = self.processors.get(&processor_id)?;
+        let axis = runtime.axis_for_template_token(token)?;
+        let item = key
+            .iter()
+            .find(|part| part.axis == axis.axis)
+            .map(|part| &part.item)?;
+        match token {
+            MultiplexTemplateToken::Index { zero_based, .. } => {
+                let index = axis.items.iter().position(|candidate| candidate == item)?;
+                Some((index + usize::from(!zero_based)).to_string())
+            }
+            MultiplexTemplateToken::List { list, .. } => {
+                let value = runtime
+                    .lists
+                    .iter()
+                    .find(|candidate| candidate.axis == axis.axis && candidate.symbol == *list)?
+                    .entries
+                    .iter()
+                    .find(|entry| entry.item == *item)?
+                    .value
+                    .clone();
+                let value = runtime_value_to_param(&value).ok()?;
+                Some(value.as_str().unwrap_or_else(|| value.to_string()))
+            }
+        }
     }
 
     fn lane_count_for_axes(&self, processor_id: ProcessorId, axes: &AxisSet) -> usize {
@@ -277,6 +389,16 @@ impl ProcessorContextProvider for SnapshotProcessorContextProvider {
             .map(|part| &part.item)?;
         let selector = path.segments.first().map(|segment| segment.as_str());
 
+        if matches!(selector, Some("@index" | "@index0")) {
+            let runtime = self.processors.values().find(|runtime| {
+                runtime.axes.iter().any(|candidate| &candidate.axis == axis)
+            })?;
+            let runtime_axis = runtime.axes.iter().find(|candidate| &candidate.axis == axis)?;
+            let index = runtime_axis.items.iter().position(|candidate| candidate == item)?;
+            let offset = usize::from(selector == Some("@index"));
+            return Some(RuntimeValue::Int((index + offset) as i64));
+        }
+
         self.processors
             .values()
             .flat_map(|runtime| runtime.lists.iter())
@@ -293,12 +415,39 @@ impl ProcessorContextProvider for SnapshotProcessorContextProvider {
     }
 }
 
+impl ProcessorContextRuntime {
+    fn axis_for_template_token(
+        &self,
+        token: &MultiplexTemplateToken,
+    ) -> Option<&ProcessorContextAxisRuntime> {
+        let selector = match token {
+            MultiplexTemplateToken::Index { multiplex, .. }
+            | MultiplexTemplateToken::List { multiplex, .. } => multiplex,
+        };
+        match selector {
+            MultiplexTokenSelector::First => self.axes.first(),
+            MultiplexTokenSelector::Ordinal(ordinal) => self.axes.get(ordinal.saturating_sub(1)),
+            MultiplexTokenSelector::Name(name) => self
+                .axes
+                .iter()
+                .find(|axis| axis.name.eq_ignore_ascii_case(name)),
+        }
+    }
+}
+
+fn multiplex_template_tokens(template: &str) -> impl Iterator<Item = MultiplexTemplateToken> + '_ {
+    template
+        .split('{')
+        .skip(1)
+        .filter_map(|suffix| suffix.split_once('}').map(|(token, _)| token))
+        .filter_map(parse_multiplex_template_token)
+}
+
 fn collect_processor_context_runtime(
     snapshot: &ProcessTreeSnapshot,
     processor_node: NodeId,
 ) -> ProcessorContextRuntime {
     let mut runtime = ProcessorContextRuntime::default();
-    let mut seen_symbols = HashSet::<String>::new();
     let mut cursor = Some(processor_node);
     while let Some(owner) = cursor {
         for child in snapshot.child_ids(owner) {
@@ -306,7 +455,7 @@ fn collect_processor_context_runtime(
                 continue;
             };
             if child_snapshot.node_type == USER_CONTEXT_NODE_TYPE {
-                collect_context_scope_multiplexes(snapshot, child, &mut seen_symbols, &mut runtime);
+                collect_context_scope_multiplexes(snapshot, child, &mut runtime);
             }
         }
         cursor = snapshot.node(owner).and_then(|node| node.parent);
@@ -317,7 +466,6 @@ fn collect_processor_context_runtime(
 fn collect_context_scope_multiplexes(
     snapshot: &ProcessTreeSnapshot,
     scope_node: NodeId,
-    seen_symbols: &mut HashSet<String>,
     runtime: &mut ProcessorContextRuntime,
 ) {
     let mut stack = snapshot.child_ids(scope_node);
@@ -330,7 +478,7 @@ fn collect_context_scope_multiplexes(
             continue;
         }
         if node.node_type == USER_CONTEXT_MULTIPLEX_NODE_TYPE {
-            collect_multiplex_lists(snapshot, node_id, seen_symbols, runtime);
+            collect_multiplex_lists(snapshot, node_id, runtime);
             continue;
         }
         let mut children = snapshot.child_ids(node_id);
@@ -342,7 +490,6 @@ fn collect_context_scope_multiplexes(
 fn collect_multiplex_lists(
     snapshot: &ProcessTreeSnapshot,
     multiplex_node: NodeId,
-    seen_symbols: &mut HashSet<String>,
     runtime: &mut ProcessorContextRuntime,
 ) {
     let Some(multiplex_snapshot) = snapshot.node(multiplex_node) else {
@@ -371,7 +518,7 @@ fn collect_multiplex_lists(
             continue;
         };
         let symbol = list_snapshot.decl_id.trim().to_string();
-        if symbol.is_empty() || !seen_symbols.insert(symbol.clone()) {
+        if symbol.is_empty() {
             continue;
         }
 
@@ -396,6 +543,7 @@ fn collect_multiplex_lists(
     if runtime.axes.iter().all(|existing| existing.axis != axis) {
         runtime.axes.push(ProcessorContextAxisRuntime {
             axis: axis.clone(),
+            name: multiplex_snapshot.label.trim().to_owned(),
             items: canonical_items.clone(),
         });
     }
@@ -544,9 +692,12 @@ fn collect_processor_context_link_axes(
             continue;
         }
         if node.is_parameter() {
-            if let Some(axis) = context_link_multiplex_axis(snapshot, child, processor_id, provider) {
-                axes.insert(axis);
-            }
+            axes.extend(context_control_multiplex_axes(
+                snapshot,
+                child,
+                processor_id,
+                provider,
+            ));
         }
         if node.child_count > 0 {
             collect_processor_context_link_axes(snapshot, child, processor_id, provider, axes);
@@ -554,22 +705,27 @@ fn collect_processor_context_link_axes(
     }
 }
 
-fn context_link_multiplex_axis(
+fn context_control_multiplex_axes(
     snapshot: &ProcessTreeSnapshot,
     param: NodeId,
     processor_id: ProcessorId,
     provider: &SnapshotProcessorContextProvider,
-) -> Option<ContextAxisId> {
-    let control = snapshot.node(param)?.param_control.as_ref()?;
-    if control.mode != ParameterControlMode::ContextLink {
-        return None;
-    }
-    let ParameterControlSpec::ContextLink { symbol, .. } = &control.spec else {
-        return None;
+) -> AxisSet {
+    let Some(control) = snapshot.node(param).and_then(|node| node.param_control.as_ref()) else {
+        return AxisSet::new();
     };
-    provider
-        .multiplex_link_for_symbol(processor_id, symbol)
-        .map(|(axis, _)| axis)
+    match (&control.mode, &control.spec) {
+        (ParameterControlMode::ContextLink, ParameterControlSpec::ContextLink { symbol, .. }) => {
+            provider
+                .multiplex_link_for_symbol(processor_id, symbol)
+                .map(|(axis, _)| AxisSet::from([axis]))
+                .unwrap_or_default()
+        }
+        (ParameterControlMode::TemplateText, ParameterControlSpec::TemplateText { template }) => {
+            provider.template_axes(processor_id, template)
+        }
+        _ => AxisSet::new(),
+    }
 }
 
 impl ConditionValidity {
@@ -618,6 +774,7 @@ struct OutputPreviewSignaturePart {
     key: OutputPreviewSampleKey,
     status: OutputPreviewStatusKey,
     value: RuntimeValueSignature,
+    logical_tick: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -729,17 +886,25 @@ struct StateMachineRuntimeCache {
     processors: HashMap<NodeId, RuntimeProcessor>,
     formula_default_previews: HashMap<golden_alchemist::FormulaId, RuntimeFormulaDefaultPreview>,
     output_preview_snapshot: HashMap<OutputPreviewSampleKey, ANodeOutputPreviewSample>,
+    processor_lane_snapshot: HashMap<String, ProcessorLaneSummaryDto>,
+    processor_lane_inspection_snapshot: HashMap<String, ProcessorLaneInspectionDto>,
     last_preview_signature: Option<OutputPreviewSignature>,
     last_preview_tick: Option<u64>,
     last_log_values: HashMap<RuntimeLogKey, RuntimeLogRecord>,
     perf_stats: StateMachineRuntimePerfStats,
 }
 
-static RUNTIME_OUTPUT_PREVIEWS_ENABLED: LazyLock<bool> = LazyLock::new(|| {
-    std::env::var_os("CHATAIGNE_RUNTIME_OUTPUT_PREVIEWS").is_some_and(|value| {
+fn runtime_output_previews_enabled(value: Option<&OsStr>) -> bool {
+    value.is_none_or(|value| {
         let value = value.to_string_lossy();
         !matches!(value.trim().to_ascii_lowercase().as_str(), "" | "0" | "false" | "off")
     })
+}
+
+// Runtime graph feedback is product functionality. Headless/performance runs
+// may explicitly opt out, but a normal app launch must feed the editor.
+static RUNTIME_OUTPUT_PREVIEWS_ENABLED: LazyLock<bool> = LazyLock::new(|| {
+    runtime_output_previews_enabled(std::env::var_os("CHATAIGNE_RUNTIME_OUTPUT_PREVIEWS").as_deref())
 });
 
 #[node("state_machine_manager", label = "State Machine")]
@@ -1065,6 +1230,7 @@ impl StateMachineManager {
         let mut output_preview = Vec::new();
         let mut previewed_formula_defaults = HashSet::new();
         let mut processor_lanes = Vec::new();
+        let mut processor_lane_inspections = Vec::new();
         let mut evaluated_any = false;
         reset_due_transient_condition_valid_params(
             ctx,
@@ -1140,7 +1306,7 @@ impl StateMachineManager {
                 };
                 let lanes = runtime_processor
                     .runtime
-                    .evaluate_processor_with_context_provider_and_send_capture(
+                    .evaluate_processor_with_context_provider_and_runtime_capture(
                         &runtime_processor.processor,
                         &eval_ctx,
                         &provider,
@@ -1196,6 +1362,14 @@ impl StateMachineManager {
                         lane,
                         ctx.time.tick,
                         processor_needs_continuous_evaluation(&runtime_processor.runtime),
+                        &provider,
+                    ));
+                    processor_lane_inspections.push(processor_lane_inspection(
+                        snapshot,
+                        processor_node,
+                        runtime_processor.processor.id,
+                        lane,
+                        &provider,
                     ));
                     for diagnostic in &lane.output.diagnostics {
                         if should_emit_runtime_log(
@@ -1274,7 +1448,55 @@ impl StateMachineManager {
                 self.runtime_cache.output_preview_snapshot.clear();
                 Vec::new()
             };
-            self.publish_output_preview(ctx, processors, output_preview, processor_lanes);
+            if cache_rebuilt {
+                self.runtime_cache.processor_lane_snapshot.clear();
+                self.runtime_cache.processor_lane_inspection_snapshot.clear();
+            }
+            let active_processor_ids = processors
+                .iter()
+                .map(|processor| processor.id.as_str())
+                .collect::<HashSet<_>>();
+            self.runtime_cache
+                .processor_lane_snapshot
+                .retain(|_, lane| active_processor_ids.contains(lane.processor_id.as_str()));
+            for lane in processor_lanes {
+                self.runtime_cache
+                    .processor_lane_snapshot
+                    .insert(processor_lane_summary_key(&lane), lane);
+            }
+            let mut processor_lanes = self
+                .runtime_cache
+                .processor_lane_snapshot
+                .values()
+                .cloned()
+                .collect::<Vec<_>>();
+            processor_lanes.sort_by(|left, right| {
+                left.processor_id
+                    .cmp(&right.processor_id)
+                    .then_with(|| left.label.cmp(&right.label))
+            });
+            self.runtime_cache
+                .processor_lane_inspection_snapshot
+                .retain(|_, inspection| active_processor_ids.contains(inspection.processor_id.as_str()));
+            for inspection in processor_lane_inspections {
+                self.runtime_cache.processor_lane_inspection_snapshot.insert(
+                    processor_lane_inspection_key(&inspection),
+                    inspection,
+                );
+            }
+            let processor_lane_inspections = self
+                .runtime_cache
+                .processor_lane_inspection_snapshot
+                .values()
+                .cloned()
+                .collect::<Vec<_>>();
+            self.publish_output_preview(
+                ctx,
+                processors,
+                output_preview,
+                processor_lanes,
+                processor_lane_inspections,
+            );
         }
     }
 
@@ -1284,6 +1506,7 @@ impl StateMachineManager {
         processors: Vec<ProcessorUiDto>,
         samples: Vec<chataigne_state_machine::ANodeOutputPreviewSample>,
         processor_lanes: Vec<ProcessorLaneSummaryDto>,
+        processor_lane_inspections: Vec<ProcessorLaneInspectionDto>,
     ) {
         let signature = output_preview_signature(&samples);
         let changed = self
@@ -1309,6 +1532,7 @@ impl StateMachineManager {
             diagnostics: Vec::new(),
             runtime_debug: Vec::new(),
             processor_lanes,
+            processor_lane_inspections,
             preview_mode: None,
             output_preview: samples.iter().map(ANodeOutputPreviewSampleDto::from).collect(),
         };
@@ -1867,7 +2091,7 @@ fn formula_default_output_preview_samples(
     entry
         .runtime
         .apply_lifecycle(&entry.processor, ProcessorLifecycleEvent::ProjectStart);
-    let lanes = entry.runtime.evaluate_processor_with_context_provider_and_send_capture(
+    let lanes = entry.runtime.evaluate_processor_with_context_provider_and_runtime_capture(
         &entry.processor,
         ctx,
         provider,
@@ -1924,29 +2148,195 @@ fn processor_lane_summary(
     lane: &chataigne_state_machine::ProcessorLaneOutput,
     tick: u64,
     has_memory: bool,
+    context_provider: &SnapshotProcessorContextProvider,
 ) -> ProcessorLaneSummaryDto {
+    let context_key = lane
+        .context_key
+        .as_ref()
+        .map(|key| context_provider.context_key_dto(processor_id, key));
+    let label = lane.context_key.as_ref().map_or_else(
+        || "Default lane".to_owned(),
+        |key| context_provider.context_key_label(processor_id, key),
+    );
     ProcessorLaneSummaryDto {
         processor_id: processor_id.to_string(),
-        context_key: lane.context_key.as_ref().map(ContextKeyDto::from),
-        label: context_key_label(lane.context_key.as_ref()),
+        context_key,
+        label,
         has_memory,
         last_tick: Some(tick),
         diagnostics_count: lane.output.diagnostics.len(),
     }
 }
 
-fn context_key_label(context_key: Option<&golden_alchemist::ContextKey>) -> String {
-    let Some(context_key) = context_key else {
-        return "Default lane".to_string();
-    };
-    if context_key.is_default_lane() {
-        return "Default lane".to_string();
+fn processor_lane_summary_key(summary: &ProcessorLaneSummaryDto) -> String {
+    format!(
+        "{}:{}",
+        summary.processor_id,
+        context_key_dto_cache_id(summary.context_key.as_ref())
+    )
+}
+
+fn processor_lane_inspection_key(inspection: &ProcessorLaneInspectionDto) -> String {
+    format!(
+        "{}:{}",
+        inspection.processor_id,
+        context_key_dto_cache_id(inspection.context_key.as_ref())
+    )
+}
+
+fn context_key_dto_cache_id(context_key: Option<&ContextKeyDto>) -> String {
+    context_key.map_or_else(
+        || "__default__".to_owned(),
+        |key| {
+            key.parts
+                .iter()
+                .map(|part| format!("{}:{}", part.axis_id, part.item_id))
+                .collect::<Vec<_>>()
+                .join("|")
+        },
+    )
+}
+
+fn processor_lane_inspection(
+    snapshot: &ProcessTreeSnapshot,
+    processor_node: NodeId,
+    processor_id: ProcessorId,
+    lane: &chataigne_state_machine::ProcessorLaneOutput,
+    context_provider: &SnapshotProcessorContextProvider,
+) -> ProcessorLaneInspectionDto {
+    let resolver = lane.context_key.as_ref().map(|context_key| LaneParamResolver {
+        processor_id,
+        context_key,
+        context_provider,
+    });
+    let mut parameter_values = Vec::new();
+    let mut condition_states = Vec::new();
+    collect_processor_lane_inspection(
+        snapshot,
+        processor_node,
+        resolver.as_ref(),
+        &mut parameter_values,
+        &mut condition_states,
+    );
+    ProcessorLaneInspectionDto {
+        processor_id: processor_id.to_string(),
+        context_key: lane
+            .context_key
+            .as_ref()
+            .map(|key| context_provider.context_key_dto(processor_id, key)),
+        parameter_values,
+        condition_states,
     }
-    context_key
-        .iter()
-        .map(|part| part.item.as_str())
-        .collect::<Vec<_>>()
-        .join(" / ")
+}
+
+fn collect_processor_lane_inspection(
+    snapshot: &ProcessTreeSnapshot,
+    node_id: NodeId,
+    resolver: Option<&LaneParamResolver<'_>>,
+    parameter_values: &mut Vec<ProcessorLaneParameterPreviewDto>,
+    condition_states: &mut Vec<ProcessorLaneConditionPreviewDto>,
+) -> Option<bool> {
+    let node = snapshot.node(node_id)?;
+    if node.is_parameter() {
+        if let (Some(resolver), Some(control)) = (resolver, node.param_control.as_ref()) {
+            if matches!(
+                control.mode,
+                ParameterControlMode::ContextLink | ParameterControlMode::TemplateText
+            ) {
+                if let Some(value) = resolver
+                    .param_value(snapshot, node_id)
+                    .as_ref()
+                    .and_then(param_to_runtime_value)
+                {
+                    parameter_values.push(ProcessorLaneParameterPreviewDto {
+                        node_id: node.uuid.0.to_string(),
+                        value: runtime_value_label(&value),
+                    });
+                }
+            }
+        }
+        return None;
+    }
+
+    let mut child_condition_values = Vec::new();
+    for child in snapshot.child_ids(node_id) {
+        if let Some(valid) = collect_processor_lane_inspection(
+            snapshot,
+            child,
+            resolver,
+            parameter_values,
+            condition_states,
+        ) {
+            child_condition_values.push(valid);
+        }
+    }
+
+    if !node.enabled {
+        return None;
+    }
+    let valid = match node.node_type.as_str() {
+        INPUT_VALUE_CONDITION_NODE_TYPE => lane_input_value_condition_valid(snapshot, node_id, resolver),
+        CONDITION_MANAGER_NODE_TYPE | CONDITION_GROUP_NODE_TYPE => resolver.map_or_else(
+            || visible_condition_valid(snapshot, node_id),
+            |_| Some(reduce_condition_values(snapshot, node_id, &child_condition_values)),
+        ),
+        _ => None,
+    }?;
+    condition_states.push(ProcessorLaneConditionPreviewDto {
+        node_id: node.uuid.0.to_string(),
+        valid,
+    });
+    Some(valid)
+}
+
+fn lane_input_value_condition_valid(
+    snapshot: &ProcessTreeSnapshot,
+    condition: NodeId,
+    resolver: Option<&LaneParamResolver<'_>>,
+) -> Option<bool> {
+    let Some(resolver) = resolver else {
+        return visible_condition_valid(snapshot, condition);
+    };
+    let source_uuid = child_reference_uuid_resolved(snapshot, condition, "source", Some(resolver))?;
+    let source_id = snapshot.node_id_by_uuid(source_uuid)?;
+    let raw_source_value = snapshot.node(source_id)?.param_value.as_ref()?;
+    let source_projection =
+        child_string_resolved(snapshot, condition, "source_projection", Some(resolver))
+            .unwrap_or_default();
+    let projected_source_value =
+        project_condition_source_value(raw_source_value, source_projection.as_str());
+    let source_value = projected_source_value.as_ref().unwrap_or(raw_source_value);
+    let comparator = child_string_resolved(snapshot, condition, "comparator", Some(resolver))
+        .unwrap_or_else(|| "equal".to_owned());
+    let toggle_mode = child_bool_resolved(snapshot, condition, "toggle_mode", Some(resolver))
+        .unwrap_or(false);
+    if toggle_mode || input_value_condition_is_transient(source_value, comparator.as_str()) {
+        return visible_condition_valid(snapshot, condition);
+    }
+    Some(compare_condition_value(
+        snapshot,
+        condition,
+        source_value,
+        comparator.as_str(),
+        None,
+        Some(resolver),
+    ))
+}
+
+fn visible_condition_valid(snapshot: &ProcessTreeSnapshot, condition: NodeId) -> Option<bool> {
+    child_bool_resolved(snapshot, condition, "valid", None)
+}
+
+fn context_key_label(context_key: Option<&ContextKey>) -> String {
+    context_key.map_or_else(
+        || "Default lane".to_owned(),
+        |key| {
+            key.iter()
+                .map(|part| part.item.as_str())
+                .collect::<Vec<_>>()
+                .join(" / ")
+        },
+    )
 }
 
 fn output_preview_signature(
@@ -1958,6 +2348,7 @@ fn output_preview_signature(
             key: OutputPreviewSampleKey::from_sample(sample),
             status: OutputPreviewStatusKey::from(sample.status),
             value: RuntimeValueSignature::from_value(&sample.value),
+            logical_tick: sample.logical_tick,
         })
         .collect::<Vec<_>>();
     parts.sort();
@@ -3093,6 +3484,18 @@ impl LaneParamResolver<'_> {
         let Some(control) = node.param_control.as_ref() else {
             return node.param_value.clone();
         };
+        if control.mode == ParameterControlMode::TemplateText {
+            let ParamValue::Str(value) = node.param_value.clone()? else {
+                return node.param_value.clone();
+            };
+            return Some(ParamValue::Str(resolve_multiplex_template_value(
+                value.as_str(),
+                |token| {
+                    self.context_provider
+                        .resolve_template_token(self.processor_id, self.context_key, token)
+                },
+            )));
+        }
         if control.mode != ParameterControlMode::ContextLink {
             return node.param_value.clone();
         }
@@ -3111,14 +3514,40 @@ impl LaneParamResolver<'_> {
         else {
             return node.param_value.clone();
         };
-        let mut value = runtime_value_to_param(&runtime_value).ok()?;
-        if let Some(projection) = projection {
-            if let Some(projected) = project_param_value(&value, *projection) {
-                value = projected;
-            }
-        }
-        Some(value)
+        let value = runtime_value_to_param(&runtime_value).ok()?;
+        let target = node.param_value.as_ref()?;
+        coerce_param_value_for_target(&value, target, *projection)
     }
+}
+
+fn resolve_multiplex_template_value(
+    value: &str,
+    mut resolve: impl FnMut(&MultiplexTemplateToken) -> Option<String>,
+) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(open) = remaining.find('{') {
+        output.push_str(&remaining[..open]);
+        let token_start = open + 1;
+        let Some(close) = remaining[token_start..].find('}') else {
+            output.push_str(&remaining[open..]);
+            return output;
+        };
+        let token_end = token_start + close;
+        let raw = &remaining[token_start..token_end];
+        if let Some(token) = parse_multiplex_template_token(raw) {
+            if let Some(resolved) = resolve(&token) {
+                output.push_str(resolved.as_str());
+            } else {
+                output.push_str(&remaining[open..=token_end]);
+            }
+        } else {
+            output.push_str(&remaining[open..=token_end]);
+        }
+        remaining = &remaining[token_end + 1..];
+    }
+    output.push_str(remaining);
+    output
 }
 
 fn condition_group_valid(

@@ -3,6 +3,8 @@ import type { UiNodeDto } from 'golden_ui';
 
 export type FormulaPreviewEditLevel = 'formula_recipe' | 'processor_instance' | 'selected_lane';
 
+export const FOLLOW_PROCESSOR_LANE_ID = '__follow_processor__';
+
 export interface FormulaPreviewLaneOption {
 	id: string;
 	label: string;
@@ -18,13 +20,15 @@ export interface FormulaPreviewSessionModel {
 	mode: FormulaPreviewModeDto | null;
 	lanes: FormulaPreviewLaneOption[];
 	selectedLaneId: string | null;
+	laneSelectionId: string | null;
+	processorLaneLabel: string | null;
 	title: string;
 	subtitle: string;
 }
 
-const DEFAULT_LANE_ID = '__default__';
+export const DEFAULT_LANE_ID = '__default__';
 
-const contextKeyId = (contextKey: ContextKeyDto | null): string =>
+export const contextKeyId = (contextKey: ContextKeyDto | null): string =>
 	contextKey && contextKey.parts.length > 0
 		? contextKey.parts.map((part) => `${part.axis_id}:${part.item_id}`).join('|')
 		: DEFAULT_LANE_ID;
@@ -42,6 +46,10 @@ const laneOption = (lane: ProcessorLaneSummaryDto): FormulaPreviewLaneOption => 
 	diagnosticsCount: lane.diagnostics_count
 });
 
+export const processorPreviewLaneOptions = (
+	laneSummaries: readonly ProcessorLaneSummaryDto[]
+): FormulaPreviewLaneOption[] => laneSummaries.map(laneOption);
+
 const previewSubtitle = (
 	processor: UiNodeDto | null,
 	selectedLane: FormulaPreviewLaneOption | null
@@ -52,14 +60,32 @@ const previewSubtitle = (
 };
 
 class FormulaPreviewSessionStore {
-	private selectedLaneByProcessor = $state<Record<string, string>>({});
+	private processorLaneByProcessor = $state<Record<string, string>>({});
+	private editorLaneByProcessor = $state<Record<string, string>>({});
 
-	selectLane(processorNodeId: number | null, laneId: string): void {
+	selectProcessorLane(processorNodeId: number | null, laneId: string): void {
 		if (processorNodeId === null) return;
-		this.selectedLaneByProcessor = {
-			...this.selectedLaneByProcessor,
+		this.processorLaneByProcessor = {
+			...this.processorLaneByProcessor,
 			[String(processorNodeId)]: laneId
 		};
+	}
+
+	selectEditorLane(processorNodeId: number | null, laneId: string): void {
+		if (processorNodeId === null) return;
+		this.editorLaneByProcessor = {
+			...this.editorLaneByProcessor,
+			[String(processorNodeId)]: laneId
+		};
+	}
+
+	processorLane(
+		processorNodeId: number | null,
+		lanes: readonly FormulaPreviewLaneOption[]
+	): FormulaPreviewLaneOption | null {
+		if (processorNodeId === null) return null;
+		const selectedId = this.processorLaneByProcessor[String(processorNodeId)];
+		return lanes.find((lane) => lane.id === selectedId) ?? lanes[0] ?? null;
 	}
 
 	model(
@@ -71,7 +97,7 @@ class FormulaPreviewSessionStore {
 			processor === null
 				? []
 				: laneSummaries.length > 0
-					? laneSummaries.map(laneOption)
+					? processorPreviewLaneOptions(laneSummaries)
 					: [
 							{
 								id: DEFAULT_LANE_ID,
@@ -81,13 +107,15 @@ class FormulaPreviewSessionStore {
 								diagnosticsCount: 0
 							}
 						];
-		const selectedLaneId =
+		const processorLane = this.processorLane(processor?.node_id ?? null, lanes);
+		const laneSelectionId =
 			processor === null
 				? null
-				: (this.selectedLaneByProcessor[String(processor.node_id)] ??
-					lanes[0]?.id ??
-					DEFAULT_LANE_ID);
-		const selectedLane = lanes.find((lane) => lane.id === selectedLaneId) ?? lanes[0] ?? null;
+				: (this.editorLaneByProcessor[String(processor.node_id)] ?? FOLLOW_PROCESSOR_LANE_ID);
+		const selectedLane =
+			laneSelectionId === FOLLOW_PROCESSOR_LANE_ID
+				? processorLane
+				: (lanes.find((lane) => lane.id === laneSelectionId) ?? processorLane);
 		const level: FormulaPreviewEditLevel =
 			processor === null
 				? 'formula_recipe'
@@ -114,6 +142,8 @@ class FormulaPreviewSessionStore {
 			mode,
 			lanes,
 			selectedLaneId: selectedLane?.id ?? null,
+			laneSelectionId,
+			processorLaneLabel: processorLane?.label ?? null,
 			title: formula ? `${formula.meta.label}` : 'No Formula',
 			subtitle: previewSubtitle(processor, selectedLane)
 		};

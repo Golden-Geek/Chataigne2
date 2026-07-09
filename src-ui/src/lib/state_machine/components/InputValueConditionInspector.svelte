@@ -10,6 +10,7 @@
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import ReferencedParameterHeaderControl from './ReferencedParameterHeaderControl.svelte';
 	import ValidationChip from './ValidationChip.svelte';
+	import { selectedLaneConditionValid } from '../preview/processorLaneInspection.svelte';
 
 	let {
 		node,
@@ -395,10 +396,12 @@
 	};
 
 	let validNode = $derived(childByDeclId(liveNode, 'valid'));
+	let laneValid = $derived(selectedLaneConditionValid(liveNode));
 	let conditionValid = $derived(
-		validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
+		laneValid ??
+			(validNode?.data.kind === 'parameter' && validNode.data.param.value.kind === 'bool'
 			? validNode.data.param.value.value
-			: false
+			: false)
 	);
 	let sourceReferenceNode = $derived(childByDeclId(liveNode, 'source'));
 	let sourceParameter = $derived.by((): UiNodeDto | null => {
