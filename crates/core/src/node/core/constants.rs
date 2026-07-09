@@ -6,6 +6,18 @@ pub const USER_CONTEXT_ITEM_KIND: &str = "user_context";
 pub const USER_CONTEXT_DEFAULT_LABEL: &str = "Context";
 /// Built-in node type id used for folders inside user-authored lexical context scopes.
 pub const USER_CONTEXT_FOLDER_NODE_TYPE: &str = "user_context_folder";
+/// Built-in node type id used for multiplex axes inside user-authored lexical context scopes.
+pub const USER_CONTEXT_MULTIPLEX_NODE_TYPE: &str = "user_context_multiplex";
+/// Built-in user-item kind used for multiplex axes inside user-authored lexical context scopes.
+pub const USER_CONTEXT_MULTIPLEX_ITEM_KIND: &str = "user_context_multiplex";
+/// Default user-facing label for newly created multiplex nodes.
+pub const USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL: &str = "Multiplex";
+/// Built-in node type prefix used for typed multiplex list nodes.
+pub const USER_CONTEXT_MULTIPLEX_LIST_NODE_TYPE_PREFIX: &str = "user_context_multiplex_list_";
+/// Built-in user-item kind used for typed multiplex list nodes.
+pub const USER_CONTEXT_MULTIPLEX_LIST_ITEM_KIND: &str = "user_context_multiplex_list";
+/// Built-in child `decl_id` for a multiplex count parameter.
+pub const USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID: &str = "count";
 /// Built-in folder node type id.
 pub const FOLDER_NODE_TYPE: &str = "folder";
 /// Built-in item kind used for parameter control helper nodes.

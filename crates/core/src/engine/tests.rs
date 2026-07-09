@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::blueprints::{BlueprintDecl, BlueprintId};
-use crate::contexts::{UserContextLookup, UserContextValueType};
+use crate::contexts::{UserContextEntryKind, UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::{CustomEvent, EventKind};
 use crate::logger::{self, UI_LOG_CLEARED_TOPIC, UI_LOG_MAX_ENTRIES_TOPIC, UI_LOG_RECORD_TOPIC};
@@ -18,7 +18,9 @@ use crate::node::{
     PARAMETER_ANIMATION_RANGE_NODE_TYPE, PARAMETER_ANIMATION_RANGE_X_DECL_ID, PARAMETER_ANIMATION_RANGE_Y_DECL_ID,
     PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_REFERENCE_DECL_ID,
     PARAMETER_EXPRESSION_SOURCE_DECL_ID, PARAMETER_NODE_TYPES, USER_CONTEXT_FOLDER_NODE_TYPE, USER_CONTEXT_ITEM_KIND,
-    USER_CONTEXT_NODE_TYPE, UserContainerRules, UserContextNode, UserCreatableItem, UserNodeRole, curve_from_snapshot,
+    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules,
+    UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode, UserCreatableItem, UserNodeRole,
+    curve_from_snapshot, user_context_multiplex_list_node_type,
 };
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterChangeCheck, ParameterConstraintPolicy, ParameterConstraints,
@@ -1207,6 +1209,35 @@ impl Node for UiContextHostNode {
     }
 }
 
+#[crate::node("ui_multiplex_context_host")]
+struct UiMultiplexContextHostNode {}
+
+#[crate::node(
+    "ui_multiplex_context_host",
+    from_struct,
+    contextualizable = crate::node::UserContextHostPolicy::multiplex_contextualizable()
+)]
+impl Node for UiMultiplexContextHostNode {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[USER_CONTEXT_ITEM_KIND]))
+    }
+
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        vec![
+            UserCreatableItem::new(USER_CONTEXT_NODE_TYPE, USER_CONTEXT_ITEM_KIND, "Context")
+                .with_select_when_created(false),
+        ]
+    }
+
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        matches!(
+            node_type.trim().to_ascii_lowercase().as_str(),
+            USER_CONTEXT_NODE_TYPE | "context"
+        )
+        .then(|| Box::new(UserContextNode::new_with_multiplex("Context", true)) as Box<dyn Node>)
+    }
+}
+
 #[crate::node("policy_only_script_host", impl_node, scriptable)]
 struct PolicyOnlyScriptHostNode {}
 
@@ -1248,6 +1279,9 @@ crate::define_node_enum!(
         DependencyOptionalChildNode,
         UiScriptHostNode,
         UiContextHostNode,
+        UiMultiplexContextHostNode,
+        UserContextMultiplexNode,
+        UserContextMultiplexListNode,
         ViaScriptHostNode,
         ViaContextHostNode,
         UiSchemaDescriptionNode,
@@ -1354,6 +1388,55 @@ fn find_child_by_label_any<T: Node>(engine: &Engine<T>, parent: NodeId, label: &
         child = node.node_data().next_sibling;
     }
     None
+}
+
+fn direct_children_of_type<T: Node>(engine: &Engine<T>, parent: NodeId, node_type: &str) -> Vec<NodeId> {
+    let mut out = Vec::new();
+    let mut child = engine.nodes.get(parent).and_then(|node| node.node_data().first_child);
+    while let Some(id) = child {
+        let Some(node) = engine.nodes.get(id) else {
+            break;
+        };
+        if node.get_type() == node_type {
+            out.push(id);
+        }
+        child = node.node_data().next_sibling;
+    }
+    out
+}
+
+fn node_uuids<T: Node>(engine: &Engine<T>, nodes: &[NodeId]) -> Vec<String> {
+    nodes
+        .iter()
+        .map(|node| {
+            engine
+                .nodes
+                .get(*node)
+                .expect("node should exist")
+                .node_data()
+                .meta
+                .uuid
+                .0
+                .to_string()
+        })
+        .collect()
+}
+
+fn set_param_and_tick<T: Node>(engine: &mut Engine<T>, param: NodeId, value: ParamValue) {
+    engine.edits.push(Edit::SetParam {
+        node: param,
+        value,
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine.apply_edits().expect("param change should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("param change inbox should dispatch");
+    engine.apply_edits().expect("inbox-queued edits should apply");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("tick should process param change");
+    engine.apply_edits().expect("tick-queued edits should apply");
 }
 
 fn switch_animation_to_curve_waveform<T: Node>(engine: &mut Engine<T>, animation_node: NodeId) -> NodeId {
@@ -3250,6 +3333,156 @@ fn user_context_nodes_create_folders_and_all_parameter_types() {
         "bool",
         "inner folder should create requested child type through inherited catalog factory"
     );
+}
+
+#[test]
+fn simple_user_context_does_not_expose_multiplex_authoring() {
+    let root: MacroTestNode = UiContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
+        .expect("queueing user_context creation should succeed");
+    engine.apply_edits().expect("user_context creation should apply");
+
+    let scope = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("scope should exist");
+
+    let creatable = engine.catalog_creatable_items(scope);
+    assert!(
+        !creatable
+            .iter()
+            .any(|item| item.node_type == USER_CONTEXT_MULTIPLEX_NODE_TYPE),
+        "simple context scopes should not expose multiplex authoring"
+    );
+}
+
+#[test]
+fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
+    let root: MacroTestNode = UiMultiplexContextHostNode::new().into();
+    let mut engine = Engine::new(root);
+
+    engine
+        .queue_catalog_create(engine.root, USER_CONTEXT_NODE_TYPE, None, None)
+        .expect("queueing user_context creation should succeed");
+    engine.apply_edits().expect("user_context creation should apply");
+    let scope = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|node| node.node_data().first_child)
+        .expect("scope should exist");
+
+    assert!(
+        engine
+            .catalog_creatable_items(scope)
+            .iter()
+            .any(|item| item.node_type == USER_CONTEXT_MULTIPLEX_NODE_TYPE),
+        "multiplex-enabled context scopes should expose multiplex authoring"
+    );
+
+    engine
+        .queue_catalog_create(scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE, Some("Mux".to_string()), None)
+        .expect("queueing multiplex creation should succeed");
+    for _ in 0..3 {
+        engine.apply_edits().expect("multiplex creation should apply");
+    }
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("multiplex child creation inbox should dispatch");
+    engine.apply_edits().expect("multiplex listener edits should apply");
+    let multiplex = direct_children_of_type(&engine, scope, USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+        .into_iter()
+        .next()
+        .expect("multiplex should exist");
+    let count = find_child_by_decl(&engine, multiplex, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+        .expect("multiplex should create count parameter");
+
+    let list_type = user_context_multiplex_list_node_type("float");
+    engine
+        .queue_catalog_create(multiplex, list_type.clone(), Some("Speeds".to_string()), None)
+        .expect("queueing float list creation should succeed");
+    engine.apply_edits().expect("float list creation should apply");
+    let list = direct_children_of_type(&engine, multiplex, list_type.as_str())
+        .into_iter()
+        .next()
+        .expect("float list should exist");
+
+    let reference_list_type = user_context_multiplex_list_node_type("reference");
+    engine
+        .queue_catalog_create(multiplex, reference_list_type.clone(), Some("Inputs".to_string()), None)
+        .expect("queueing reference list creation should succeed");
+    engine.apply_edits().expect("reference list creation should apply");
+    let reference_list = direct_children_of_type(&engine, multiplex, reference_list_type.as_str())
+        .into_iter()
+        .next()
+        .expect("reference list should exist");
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(3));
+    let entry_ids = direct_children_of_type(&engine, list, "float");
+    assert_eq!(entry_ids.len(), 3, "count=3 should create three entries");
+    let first_uuids = node_uuids(&engine, &entry_ids);
+    let reference_entry_ids = direct_children_of_type(&engine, reference_list, "reference");
+    assert_eq!(
+        reference_entry_ids.len(),
+        3,
+        "count=3 should create three reference entries"
+    );
+    let reference_snapshot = engine
+        .nodes
+        .get(reference_entry_ids[0])
+        .and_then(|node| node.engine_param_snapshot())
+        .expect("reference entry should be a parameter");
+    assert_eq!(
+        reference_snapshot.constraints.reference.target_kind,
+        crate::parameter::ReferenceTargetKind::ParameterOnly,
+        "reference multiplex entries should pick parameter values"
+    );
+    assert!(
+        reference_snapshot.constraints.reference.allow_projections,
+        "reference multiplex entries should allow value projections"
+    );
+
+    let lookup = engine.resolve_user_context_symbol(engine.root, "float", Some(UserContextValueType::Float));
+    assert!(
+        matches!(
+            lookup,
+            UserContextLookup::Resolved(resolved)
+                if resolved.kind == UserContextEntryKind::MultiplexList
+                    && resolved.entry_param == list
+                    && resolved.multiplex.as_ref().is_some_and(|list| list.entries.len() == 3)
+        ),
+        "multiplex list should be indexed once as the context symbol"
+    );
+
+    let entry_decl = engine
+        .nodes
+        .get(entry_ids[0])
+        .expect("entry should exist")
+        .node_data()
+        .meta
+        .decl_id
+        .0
+        .clone();
+    if entry_decl != "float" {
+        assert!(
+            matches!(
+                engine.resolve_user_context_symbol(engine.root, entry_decl.as_str(), None),
+                UserContextLookup::Missing { .. }
+            ),
+            "direct entry params should not be exported as scalar context symbols"
+        );
+    }
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(5));
+    let grown_uuids = node_uuids(&engine, &direct_children_of_type(&engine, list, "float"));
+    assert_eq!(&grown_uuids[..3], first_uuids.as_slice());
+
+    set_param_and_tick(&mut engine, count, ParamValue::Int(2));
+    let shrunk_uuids = node_uuids(&engine, &direct_children_of_type(&engine, list, "float"));
+    assert_eq!(shrunk_uuids, first_uuids[..2]);
 }
 
 #[test]

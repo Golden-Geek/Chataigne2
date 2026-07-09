@@ -128,6 +128,9 @@ impl<T: Node> Engine<T> {
                         {
                             user_context_graph_dirty = true;
                         }
+                        if self.queue_user_context_multiplex_resize_for_count(effect.node) {
+                            user_context_graph_dirty = true;
+                        }
                         effect.behaviour = behaviour;
                         effect.tick = self.time.tick;
                         (Ok(Some(effect.into())), true)

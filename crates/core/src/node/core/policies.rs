@@ -25,18 +25,35 @@ impl IntoScriptHostPolicyOption for Option<ScriptHostPolicy> {
 pub struct UserContextHostPolicy {
     /// Whether `UserContextNode` creation is enabled for this node.
     pub enabled: bool,
+    /// Whether multiplex authoring is enabled inside this node's context scope.
+    #[serde(default)]
+    pub multiplex_enabled: bool,
 }
 
 impl Default for UserContextHostPolicy {
     fn default() -> Self {
-        Self { enabled: false }
+        Self {
+            enabled: false,
+            multiplex_enabled: false,
+        }
     }
 }
 
 impl UserContextHostPolicy {
     /// Default policy used by `#[node(contextualizable)]` and `#[item(..., contextualizable)]`.
     pub fn default_contextualizable() -> Self {
-        Self { enabled: true }
+        Self {
+            enabled: true,
+            multiplex_enabled: false,
+        }
+    }
+
+    /// Policy used by hosts that may author multiplex axes.
+    pub fn multiplex_contextualizable() -> Self {
+        Self {
+            enabled: true,
+            multiplex_enabled: true,
+        }
     }
 }
 

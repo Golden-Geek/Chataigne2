@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use crate::contexts::{UserContextLookup, UserContextValueType};
+use crate::contexts::{UserContextEntryKind, UserContextLookup, UserContextValueType};
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
@@ -1672,19 +1672,31 @@ impl<T: Node> Engine<T> {
     ) -> Option<ParamValue> {
         let lookup = self.resolve_user_context_symbol(consumer, symbol, expected);
         match lookup {
-            UserContextLookup::Resolved(resolution) => param_snapshots
-                .get(&resolution.entry_param)
-                .map(|snapshot| snapshot.value.clone())
-                .or_else(|| {
+            UserContextLookup::Resolved(resolution) => {
+                if resolution.kind == UserContextEntryKind::MultiplexList {
                     diagnostics.push(ParameterControlDiagnostic::new(
-                        "context_target_missing",
+                        "context_multiplex_requires_lane",
                         format!(
-                            "symbol '{}' resolved to missing parameter node {}",
-                            resolution.symbol, resolution.entry_param.0
+                            "symbol '{}' resolves to a multiplex list and can only be evaluated in a processor lane",
+                            resolution.symbol
                         ),
                     ));
-                    None
-                }),
+                    return None;
+                }
+                param_snapshots
+                    .get(&resolution.entry_param)
+                    .map(|snapshot| snapshot.value.clone())
+                    .or_else(|| {
+                        diagnostics.push(ParameterControlDiagnostic::new(
+                            "context_target_missing",
+                            format!(
+                                "symbol '{}' resolved to missing parameter node {}",
+                                resolution.symbol, resolution.entry_param.0
+                            ),
+                        ));
+                        None
+                    })
+            }
             UserContextLookup::TypeMismatch(mismatch) => {
                 diagnostics.push(
                     ParameterControlDiagnostic::new(

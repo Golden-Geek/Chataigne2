@@ -1,11 +1,15 @@
 use std::collections::HashSet;
 
 use crate::contexts::{
-    UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextLookup,
-    UserContextValueType,
+    UiUserContextCandidatesDto, UiUserContextEntryDto, UiUserContextScopeDto, UiUserContextsDto, UserContextEntryKind,
+    UserContextLookup, UserContextMultiplexList, UserContextMultiplexListEntry, UserContextValueType,
 };
-use crate::node::{Node, NodeId, USER_CONTEXT_NODE_TYPE};
-use crate::parameter::compatibility_for_values;
+use crate::edit::Edit;
+use crate::node::{
+    Node, NodeId, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE,
+    user_context_multiplex_entry_parameter, user_context_multiplex_list_value_type,
+};
+use crate::parameter::{ParamValue, compatibility_for_values};
 
 use super::Engine;
 
@@ -99,13 +103,23 @@ impl<T: Node> Engine<T> {
                 candidate.projections.clear();
                 continue;
             };
+            let source_param = match candidate.kind {
+                UserContextEntryKind::Scalar => candidate.entry_param,
+                UserContextEntryKind::MultiplexList => candidate
+                    .multiplex
+                    .as_ref()
+                    .and_then(|list| list.entries.first())
+                    .map(|entry| entry.param)
+                    .unwrap_or(candidate.entry_param),
+            };
             let Some(source_value) = self
                 .nodes
-                .get(candidate.entry_param)
+                .get(source_param)
                 .and_then(|node| node.engine_param_snapshot())
                 .map(|snapshot| snapshot.value)
             else {
-                candidate.compatible = false;
+                candidate.compatible =
+                    candidate.kind == UserContextEntryKind::MultiplexList && Some(candidate.value_type) == expected;
                 candidate.projections.clear();
                 continue;
             };
@@ -141,6 +155,8 @@ impl<T: Node> Engine<T> {
                     symbol: entry.symbol.clone(),
                     param: entry.param,
                     value_type: entry.value_type,
+                    kind: entry.kind,
+                    multiplex: entry.multiplex.clone(),
                 })
                 .collect::<Vec<_>>();
             entries.sort_by(|left, right| {
@@ -180,6 +196,85 @@ impl<T: Node> Engine<T> {
         }
 
         self.user_contexts = rebuilt;
+    }
+
+    pub(crate) fn queue_user_context_multiplex_resize_for_count(&mut self, count_param: NodeId) -> bool {
+        let Some(count_node) = self.nodes.get(count_param) else {
+            return false;
+        };
+        if !count_node
+            .node_data()
+            .meta
+            .decl_id
+            .0
+            .eq_ignore_ascii_case(USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+        {
+            return false;
+        }
+        let Some(multiplex_node) = count_node.node_data().parent else {
+            return false;
+        };
+        if !self
+            .nodes
+            .get(multiplex_node)
+            .is_some_and(|node| node.get_type() == USER_CONTEXT_MULTIPLEX_NODE_TYPE)
+        {
+            return false;
+        }
+        let target_count = match count_node.engine_param_snapshot().map(|snapshot| snapshot.value) {
+            Some(ParamValue::Int(value)) => value.max(0) as usize,
+            _ => return false,
+        };
+
+        let mut changed = false;
+        let mut list_child = self
+            .nodes
+            .get(multiplex_node)
+            .and_then(|node| node.node_data().first_child);
+        while let Some(list_id) = list_child {
+            let Some(list_node) = self.nodes.get(list_id) else {
+                break;
+            };
+            list_child = list_node.node_data().next_sibling;
+            let Some(value_type) = user_context_multiplex_list_value_type(list_node.get_type()) else {
+                continue;
+            };
+
+            let mut entries = Vec::new();
+            let mut entry_child = list_node.node_data().first_child;
+            while let Some(entry_id) = entry_child {
+                let Some(entry_node) = self.nodes.get(entry_id) else {
+                    break;
+                };
+                entry_child = entry_node.node_data().next_sibling;
+                if entry_node.engine_param_snapshot().is_some()
+                    && entry_node.get_type().eq_ignore_ascii_case(value_type)
+                {
+                    entries.push(entry_id);
+                }
+            }
+
+            if entries.len() > target_count {
+                for entry_id in entries.iter().skip(target_count).rev() {
+                    self.edits.push(Edit::RemoveNode { node: *entry_id });
+                    changed = true;
+                }
+                continue;
+            }
+
+            for _ in entries.len()..target_count {
+                let Some(entry) = user_context_multiplex_entry_parameter(value_type) else {
+                    continue;
+                };
+                self.edits.push(Edit::AddNode {
+                    parent: list_id,
+                    prev_sibling: None,
+                    node: Box::new(entry),
+                });
+                changed = true;
+            }
+        }
+        changed
     }
 
     pub(crate) fn node_within_user_context_scope(&self, node: NodeId) -> bool {
@@ -274,6 +369,15 @@ impl<T: Node> Engine<T> {
                 continue;
             }
 
+            if node.get_type() == USER_CONTEXT_MULTIPLEX_NODE_TYPE {
+                self.collect_user_context_multiplex_entries(node_id, scope_owner, &mut seen_symbols, registry);
+                continue;
+            }
+
+            if user_context_multiplex_list_value_type(node.get_type()).is_some() {
+                continue;
+            }
+
             if let Some(snapshot) = node.engine_param_snapshot() {
                 let symbol = node.node_data().meta.decl_id.0.trim().to_string();
                 if !symbol.is_empty() && seen_symbols.insert(symbol.clone()) {
@@ -283,6 +387,81 @@ impl<T: Node> Engine<T> {
             }
 
             self.push_children_reverse(node_id, &mut stack);
+        }
+    }
+
+    fn collect_user_context_multiplex_entries(
+        &self,
+        multiplex_node: NodeId,
+        scope_owner: NodeId,
+        seen_symbols: &mut HashSet<String>,
+        registry: &mut crate::contexts::UserContextRegistry,
+    ) {
+        let mut child = self
+            .nodes
+            .get(multiplex_node)
+            .and_then(|node| node.node_data().first_child);
+        while let Some(child_id) = child {
+            let Some(child_node) = self.nodes.get(child_id) else {
+                break;
+            };
+            child = child_node.node_data().next_sibling;
+
+            if child_node
+                .node_data()
+                .meta
+                .decl_id
+                .0
+                .eq_ignore_ascii_case(USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID)
+            {
+                continue;
+            }
+
+            let Some(value_type_id) = user_context_multiplex_list_value_type(child_node.get_type()) else {
+                continue;
+            };
+            let Some(value_type) = UserContextValueType::from_parameter_node_type(value_type_id) else {
+                continue;
+            };
+            let symbol = child_node.node_data().meta.decl_id.0.trim().to_string();
+            if symbol.is_empty() || !seen_symbols.insert(symbol.clone()) {
+                continue;
+            }
+
+            let mut entries = Vec::<UserContextMultiplexListEntry>::new();
+            let mut entry_child = child_node.node_data().first_child;
+            let mut index = 0u32;
+            while let Some(entry_id) = entry_child {
+                let Some(entry_node) = self.nodes.get(entry_id) else {
+                    break;
+                };
+                entry_child = entry_node.node_data().next_sibling;
+                let Some(snapshot) = entry_node.engine_param_snapshot() else {
+                    continue;
+                };
+                if UserContextValueType::from_param_value(&snapshot.value) != value_type {
+                    continue;
+                }
+                entries.push(UserContextMultiplexListEntry {
+                    param: entry_id,
+                    item_id: entry_node.node_data().meta.uuid.0.to_string(),
+                    index,
+                });
+                index = index.saturating_add(1);
+            }
+
+            let list = UserContextMultiplexList {
+                multiplex: multiplex_node,
+                list: child_id,
+                axis_id: self
+                    .nodes
+                    .get(multiplex_node)
+                    .map(|node| node.node_data().meta.uuid.0.to_string())
+                    .unwrap_or_else(|| multiplex_node.0.to_string()),
+                value_type,
+                entries,
+            };
+            let _ = registry.upsert_multiplex_list_entry(scope_owner, symbol, list);
         }
     }
 

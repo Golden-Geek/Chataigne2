@@ -55,6 +55,63 @@ impl UserContextValueType {
             ParamValue::Reference(_) => Self::Reference,
         }
     }
+
+    /// Infers the value type from a built-in parameter node type id.
+    pub fn from_parameter_node_type(node_type: &str) -> Option<Self> {
+        match node_type {
+            "trigger" => Some(Self::Trigger),
+            "int" => Some(Self::Int),
+            "float" => Some(Self::Float),
+            "str" => Some(Self::Str),
+            "file" => Some(Self::File),
+            "enum" => Some(Self::Enum),
+            "bool" => Some(Self::Bool),
+            "css_value" => Some(Self::CssValue),
+            "vec2" => Some(Self::Vec2),
+            "vec3" => Some(Self::Vec3),
+            "color" => Some(Self::Color),
+            "reference" => Some(Self::Reference),
+            _ => None,
+        }
+    }
+}
+
+/// Context entry kind.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum UserContextEntryKind {
+    /// Single scalar parameter entry.
+    #[default]
+    Scalar,
+    /// Multiplex list entry resolved per runtime lane.
+    MultiplexList,
+}
+
+/// One direct parameter entry inside a multiplex list.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UserContextMultiplexListEntry {
+    /// Entry parameter node.
+    pub param: NodeId,
+    /// Stable lane item id derived from the direct entry parameter UUID.
+    pub item_id: String,
+    /// Zero-based display/order index.
+    pub index: u32,
+}
+
+/// Metadata for one multiplex list context entry.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UserContextMultiplexList {
+    /// Multiplex node hosting the list.
+    pub multiplex: NodeId,
+    /// Typed list node.
+    pub list: NodeId,
+    /// Stable axis id derived from the multiplex node UUID.
+    pub axis_id: String,
+    /// Entry value type.
+    pub value_type: UserContextValueType,
+    /// Direct parameter entries in display order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<UserContextMultiplexListEntry>,
 }
 
 /// One owned `UserContext` entry.
@@ -62,10 +119,16 @@ impl UserContextValueType {
 pub struct UserContextEntry {
     /// Symbol name used in lexical lookups.
     pub symbol: String,
-    /// Parameter node providing this value.
+    /// Backing parameter node for scalar entries, or typed list node for multiplex lists.
     pub param: NodeId,
     /// Entry value type.
     pub value_type: UserContextValueType,
+    /// Entry kind.
+    #[serde(default)]
+    pub kind: UserContextEntryKind,
+    /// Multiplex metadata for list entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiplex: Option<UserContextMultiplexList>,
 }
 
 /// One `UserContext` scope owned by a node.
@@ -99,6 +162,12 @@ pub struct UserContextResolution {
     pub entry_param: NodeId,
     /// Resolved value type.
     pub value_type: UserContextValueType,
+    /// Entry kind.
+    #[serde(default)]
+    pub kind: UserContextEntryKind,
+    /// Multiplex metadata for list entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiplex: Option<UserContextMultiplexList>,
     /// Scope owner node id.
     pub scope_owner: NodeId,
     /// Ancestor distance from consumer (`0` means same node).
@@ -144,6 +213,12 @@ pub struct UserContextCandidate {
     pub symbol: String,
     /// Entry value type.
     pub value_type: UserContextValueType,
+    /// Entry kind.
+    #[serde(default)]
+    pub kind: UserContextEntryKind,
+    /// Multiplex metadata for list entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiplex: Option<UserContextMultiplexList>,
     /// Scope owner node id.
     pub scope_owner: NodeId,
     /// Ancestor distance from consumer (`0` means same node).
@@ -181,6 +256,12 @@ pub struct UiUserContextEntryDto {
     pub param: NodeId,
     /// Entry value type.
     pub value_type: UserContextValueType,
+    /// Entry kind.
+    #[serde(default)]
+    pub kind: UserContextEntryKind,
+    /// Multiplex metadata for list entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multiplex: Option<UserContextMultiplexList>,
 }
 
 /// UI payload for one scope owned by one node.
@@ -275,6 +356,39 @@ impl UserContextRegistry {
         param: NodeId,
         value_type: UserContextValueType,
     ) -> Result<bool, String> {
+        self.upsert_entry_kind(owner, symbol, param, value_type, UserContextEntryKind::Scalar, None)
+    }
+
+    /// Adds or replaces one multiplex list entry in `owner` scope.
+    ///
+    /// Returns `true` when the scope schema changed.
+    pub fn upsert_multiplex_list_entry(
+        &mut self,
+        owner: NodeId,
+        symbol: impl Into<String>,
+        list: UserContextMultiplexList,
+    ) -> Result<bool, String> {
+        let value_type = list.value_type;
+        let param = list.list;
+        self.upsert_entry_kind(
+            owner,
+            symbol,
+            param,
+            value_type,
+            UserContextEntryKind::MultiplexList,
+            Some(list),
+        )
+    }
+
+    fn upsert_entry_kind(
+        &mut self,
+        owner: NodeId,
+        symbol: impl Into<String>,
+        param: NodeId,
+        value_type: UserContextValueType,
+        kind: UserContextEntryKind,
+        multiplex: Option<UserContextMultiplexList>,
+    ) -> Result<bool, String> {
         let symbol = symbol.into().trim().to_string();
         if symbol.is_empty() {
             return Err("context symbol cannot be empty".to_string());
@@ -288,6 +402,8 @@ impl UserContextRegistry {
             symbol: symbol.clone(),
             param,
             value_type,
+            kind,
+            multiplex,
         };
         if scope.entries.get(&symbol) == Some(&next_entry) {
             return Ok(false);
@@ -344,7 +460,13 @@ impl UserContextRegistry {
 
         for scope in self.scopes_by_owner.values_mut() {
             let before = scope.entries.len();
-            scope.entries.retain(|_, entry| param_is_valid(entry.param));
+            scope.entries.retain(|_, entry| {
+                param_is_valid(entry.param)
+                    && entry
+                        .multiplex
+                        .as_ref()
+                        .is_none_or(|list| list.entries.iter().all(|item| param_is_valid(item.param)))
+            });
             if scope.entries.len() != before {
                 scope.generation = scope.generation.saturating_add(1);
                 changed = true;
@@ -413,6 +535,8 @@ impl UserContextRegistry {
                             symbol: symbol.clone(),
                             entry_param: entry.param,
                             value_type: entry.value_type,
+                            kind: entry.kind,
+                            multiplex: entry.multiplex.clone(),
                             scope_owner: scope.owner,
                             lexical_depth: depth,
                         }),
@@ -467,6 +591,8 @@ impl UserContextRegistry {
                     out.push(UserContextCandidate {
                         symbol: entry.symbol,
                         value_type: entry.value_type,
+                        kind: entry.kind,
+                        multiplex: entry.multiplex,
                         scope_owner: scope.owner,
                         lexical_depth: depth,
                         entry_param: entry.param,
