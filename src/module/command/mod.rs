@@ -1,9 +1,12 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use golden_core::{
     events::CustomEvent,
     node,
-    node::{DeclId, Node, NodeData, NodeId, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    node::{
+        DeclId, Node, NodeData, NodeId, NodeReference, NodeUserPermissions, UserContainerRules,
+        UserCreatableItem,
+    },
     parameter::{ParamValue, Parameter, ParameterChangeCheck},
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -11,8 +14,12 @@ use serde::{Deserialize, Serialize};
 
 pub const MODULE_COMMAND_ITEM_KIND: &str = "module_command";
 pub const MODULE_COMMAND_REQUEST_TOPIC: &str = "chataigne.module.command.request";
+/// Topic for asking a specific command node to run once (state-machine outputs
+/// fire one event per lane, which the command turns into a module request).
+pub const MODULE_COMMAND_EXECUTE_TOPIC: &str = "chataigne.module.command.execute";
 pub const MODULE_COMMAND_TESTER_LABEL: &str = "Command Tester";
 pub const MODULE_COMMAND_TESTER_DESCRIPTION: &str = "Create and trigger ad-hoc commands through this module.";
+pub const MODULE_COMMAND_TARGET_MODULE_PATH: &str = "target_module";
 const MODULE_COMMAND_TRIGGER_PATH: &str = "trigger";
 const MODULE_COMMAND_AUTO_TRIGGER_PATH: &str = "auto_trigger";
 
@@ -158,6 +165,31 @@ fn find_descendant_by_decl_id(
     None
 }
 
+fn resolve_linked_module_root(snapshot: &ProcessTreeSnapshot, command_id: NodeId) -> Option<NodeId> {
+    let target_module_param =
+        resolve_module_command_child(snapshot, command_id, MODULE_COMMAND_TARGET_MODULE_PATH)?;
+    let reference = snapshot
+        .node(target_module_param)
+        .and_then(|node| node.param_value.as_ref())
+        .and_then(|value| match value {
+            ParamValue::Reference(reference) => Some(reference),
+            _ => None,
+        })?;
+    let module_id = reference
+        .cached_id()
+        .filter(|node_id| snapshot.node(*node_id).is_some())
+        .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))?;
+    snapshot
+        .node(module_id)
+        .filter(|node| {
+            crate::app::declared_user_item_type_matches(
+                &node.node_type,
+                crate::app::module::MODULE_ITEM_KIND,
+            )
+        })
+        .map(|_| module_id)
+}
+
 pub(crate) fn emit_module_command_request<T: Serialize>(
     ctx: &mut ProcessCtx,
     snapshot: &ProcessTreeSnapshot,
@@ -165,7 +197,8 @@ pub(crate) fn emit_module_command_request<T: Serialize>(
     command_type: &str,
     payload: &T,
 ) -> Result<(), String> {
-    let module_id = crate::app::module::resolve_enclosing_module_root(snapshot, command_id)
+    let module_id = resolve_linked_module_root(snapshot, command_id)
+        .or_else(|| crate::app::module::resolve_enclosing_module_root(snapshot, command_id))
         .ok_or_else(|| "command is not attached under a module root".to_string())?;
     let module_snapshot = snapshot
         .node(module_id)
@@ -185,7 +218,7 @@ pub(crate) fn emit_module_command_request<T: Serialize>(
             .map_err(|error| format!("failed to serialize module command payload: {error}"))?,
     };
 
-    ctx.emit_custom_payload(MODULE_COMMAND_REQUEST_TOPIC, Some(command_id), &event)
+    ctx.emit_custom_payload(MODULE_COMMAND_REQUEST_TOPIC, Some(module_id), &event)
         .map_err(|error| format!("failed to emit module command request: {error}"))
 }
 
@@ -193,6 +226,99 @@ pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<Modul
     (event.topic == MODULE_COMMAND_REQUEST_TOPIC)
         .then(|| event.payload_as::<ModuleCommandRequestEvent>().ok())
         .flatten()
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandExecuteEvent {
+    pub command_id: NodeId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub param_overrides: ModuleCommandParamOverrides,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandParamOverride {
+    pub param_id: NodeId,
+    pub value: ParamValue,
+}
+
+pub(crate) type ModuleCommandParamOverrides = Vec<ModuleCommandParamOverride>;
+
+pub(crate) fn emit_command_execute_with_overrides(
+    ctx: &mut ProcessCtx,
+    command_id: NodeId,
+    param_overrides: ModuleCommandParamOverrides,
+) -> Result<(), String> {
+    let event = ModuleCommandExecuteEvent {
+        command_id,
+        param_overrides,
+    };
+    ctx.emit_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
+        .map_err(|error| format!("failed to emit module command execute: {error}"))
+}
+
+/// Returns `true` when `event` asks `command_id` to run.
+pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId) -> bool {
+    decode_command_execute(event, command_id).is_some()
+}
+
+pub(crate) fn command_execute_param_value(
+    event: &CustomEvent,
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    path: &str,
+) -> Option<ParamValue> {
+    let decoded = decode_command_execute(event, command_id)?;
+    let param_id = resolve_module_command_child(snapshot, command_id, path)?;
+    decoded
+        .param_overrides
+        .iter()
+        .find(|entry| entry.param_id == param_id)
+        .map(|entry| entry.value.clone())
+}
+
+pub(crate) fn command_execute_param_overrides(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> Option<ModuleCommandParamOverrides> {
+    decode_command_execute(event, command_id).map(|decoded| decoded.param_overrides)
+}
+
+pub(crate) fn command_execute_has_param_overrides(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> bool {
+    decode_command_execute(event, command_id)
+        .is_some_and(|decoded| !decoded.param_overrides.is_empty())
+}
+
+pub(crate) fn command_execute_snapshot<'a>(
+    event: &CustomEvent,
+    snapshot: &'a ProcessTreeSnapshot,
+    command_id: NodeId,
+) -> Cow<'a, ProcessTreeSnapshot> {
+    let Some(overrides) = command_execute_param_overrides(event, command_id) else {
+        return Cow::Borrowed(snapshot);
+    };
+    if overrides.is_empty() {
+        return Cow::Borrowed(snapshot);
+    }
+    Cow::Owned(
+        snapshot.with_param_values(
+            overrides
+                .into_iter()
+                .map(|override_value| (override_value.param_id, override_value.value)),
+        ),
+    )
+}
+
+fn decode_command_execute(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> Option<ModuleCommandExecuteEvent> {
+    (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
+        .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
+        .flatten()
+        .filter(|decoded| decoded.command_id == command_id)
 }
 
 #[node("module_command_manager_base", label = "Commands")]
@@ -327,6 +453,12 @@ fn command_type_names(available_command_types: &[&str]) -> Vec<String> {
 
 #[node("module_command_base", label = "Command")]
 #[children(
+    target_module: NodeReference = NodeReference::default() (
+        label = "Module",
+        description = "Module instance that will execute this command when it is used outside the module tree.",
+        reference_target_kind = golden_core::parameter::ReferenceTargetKind::AnyNode,
+        show_in_inspector_content = false
+    );
     trigger: ParamValue = ParamValue::Trigger() (
         label = "Trigger",
         description = "Fire this trigger to run the command.",

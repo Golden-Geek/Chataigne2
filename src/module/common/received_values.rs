@@ -80,11 +80,12 @@ pub(crate) struct ReceivedValueBatchOptions {
     pub(crate) event_behaviour: ParameterEventBehaviour,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ReceivedValueBatchResult {
     pub(crate) applied: usize,
     pub(crate) ignored: usize,
     pub(crate) structure_changed: bool,
+    pub(crate) updated_params: Vec<NodeId>,
 }
 
 pub(crate) fn apply_received_value_batch<'a, I>(
@@ -459,6 +460,7 @@ impl<'a, 'ctx> ReceivedValueBatchPlanner<'a, 'ctx> {
                                 value.clone(),
                                 self.options.event_behaviour,
                             );
+                            self.result.updated_params.push(existing_id);
                         }
                         return true;
                     }

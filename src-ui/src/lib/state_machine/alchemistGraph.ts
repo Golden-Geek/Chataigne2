@@ -27,16 +27,7 @@ export const isValueTypeConfigDecl = (declId: string | null | undefined): boolea
 	declId === VALUE_TYPE_CONFIG_DECL_ID ||
 	(typeof declId === 'string' && declId.startsWith('config/') && declId.endsWith('__type'));
 
-export const MANAGER_REF_TYPE_CONDITIONS = 'chataigne.conditions_manager';
-export const MANAGER_REF_TYPE_INPUTS = 'chataigne.inputs_manager';
-export const MANAGER_REF_TYPE_OUTPUTS = 'chataigne.outputs_manager';
 export const ROUTING_ANODE_TYPE = 'chataigne.routing';
-
-const MANAGER_REF_TYPES = new Set([
-	MANAGER_REF_TYPE_CONDITIONS,
-	MANAGER_REF_TYPE_INPUTS,
-	MANAGER_REF_TYPE_OUTPUTS
-]);
 
 const ROUTING_NODE_SIZE = { width: 5.5, height: 2.7 };
 
@@ -118,19 +109,6 @@ export const anodeDefaultColor = (family: string, typeId: string): string => {
 	return hslToCssRgb(hue, saturation, lightness);
 };
 
-export const managerAnodeType = (role: string): string => {
-	switch (role) {
-		case 'condition':
-			return MANAGER_REF_TYPE_CONDITIONS;
-		case 'input':
-			return MANAGER_REF_TYPE_INPUTS;
-		case 'output':
-			return MANAGER_REF_TYPE_OUTPUTS;
-		default:
-			return '';
-	}
-};
-
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 const metadataColor = (color: UiColorDto | null | undefined): string | undefined => {
@@ -140,6 +118,10 @@ const metadataColor = (color: UiColorDto | null | undefined): string | undefined
 	const b = Math.round(clamp01(color.b) * 255);
 	return `rgb(${r} ${g} ${b} / ${clamp01(color.a)})`;
 };
+
+const presentationColor = (
+	presentation: UiNodeDto['meta']['presentation'] | null | undefined
+): string | undefined => metadataColor(presentation?.color ?? presentation?.default_color);
 
 const valueTypeColor = (typeId: string | null | undefined): string | undefined => {
 	switch (typeId) {
@@ -380,7 +362,7 @@ const graphSockets = (
 		if (socketIds.has(id)) return [];
 		socketIds.add(id);
 		const valueType = socketParameter(socket, nodesById, `${declId}/value_type`) ?? undefined;
-		const color = metadataColor(socket.meta.presentation?.color) ?? valueTypeColor(valueType);
+		const color = presentationColor(socket.meta.presentation) ?? valueTypeColor(valueType);
 		const defaultParamId = socketDefaultParamId(socket, nodesById, folderDeclId, id);
 		return [socketWithComponents(id, socket.meta.label, valueType, color, defaultParamId)];
 	});
@@ -571,9 +553,8 @@ export const toGraphNodes = (
 				? sizeParameter.data.param.value
 				: null;
 		const typeId = anodeType(anode);
-		const managerRef = MANAGER_REF_TYPES.has(typeId);
 		const routingNode = typeId === ROUTING_ANODE_TYPE;
-		const compactNode = managerRef || routingNode;
+		const compactNode = routingNode;
 		const description = anode.meta.description?.trim();
 		const inputs = graphSockets(anode, nodesById, 'inputs', 'alchemist_input_socket');
 		const outputs = graphSockets(anode, nodesById, 'outputs', 'alchemist_output_socket');
@@ -588,7 +569,7 @@ export const toGraphNodes = (
 			collapsed: anode.meta.presentation?.collapsed === true,
 			enabled: anode.meta.enabled,
 			canDisable: anode.meta.can_be_disabled,
-			color: metadataColor(anode.meta.presentation?.color),
+			color: presentationColor(anode.meta.presentation),
 			position: {
 				x: position?.kind === 'vec2' ? position.value[0] : 0,
 				y: position?.kind === 'vec2' ? position.value[1] : 0
@@ -626,6 +607,12 @@ export const toGraphEdges = (
 	activeSocketRefs: ReadonlySet<string> = new Set()
 ): GraphEdge[] => {
 	const socketsByRef = formulaSocketsByRef(formula, nodesById);
+	const activeNodeIds = new Set(
+		Array.from(activeSocketRefs).flatMap((ref) => {
+			const separator = ref.indexOf(':');
+			return separator > 0 ? [ref.slice(0, separator)] : [];
+		})
+	);
 	const nodeIdByUuid = new Map(
 		formulaANodes(formula, nodesById).map((node) => [node.uuid, node.node_id])
 	);
@@ -651,7 +638,8 @@ export const toGraphEdges = (
 				active:
 					activeSocketRefs.has(`${source}:${sourceSocket}`) ||
 					activeSocketRefs.has(`${target}:${targetSocket}`) ||
-					activeSocketRefs.has(String(connection.node_id))
+					activeSocketRefs.has(String(connection.node_id)) ||
+					(activeNodeIds.has(String(source)) && activeNodeIds.has(String(target)))
 			}
 		];
 	});

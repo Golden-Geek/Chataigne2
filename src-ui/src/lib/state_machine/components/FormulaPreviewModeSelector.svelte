@@ -6,24 +6,25 @@
 
 	let { model }: { model: FormulaPreviewSessionModel } = $props();
 
-	const modes: { id: FormulaPreviewEditLevel; label: string }[] = [
-		{ id: 'formula_recipe', label: 'Defaults' },
-		{ id: 'processor_instance', label: 'Instance' },
-		{ id: 'selected_lane', label: 'Lane' }
+	const modes: { id: FormulaPreviewEditLevel; label: string; color: string }[] = [
+		{ id: 'formula_recipe', label: 'Defaults', color: 'var(--gc-color-readonly)' },
+		{ id: 'processor_instance', label: 'Instance', color: 'var(--gc-color-accent)' },
+		{ id: 'selected_lane', label: 'Lane', color: 'var(--gc-color-accent)' }
 	];
 </script>
 
 <div class="preview-context" aria-label="Formula preview context">
-	<div class="preview-labels">
+	<!-- <div class="preview-labels">
 		<span class="preview-title">{model.title}</span>
 		<span class="preview-subtitle">{model.subtitle}</span>
-	</div>
+	</div> -->
 	<div class="preview-mode" aria-label="Formula preview mode">
 		{#each modes as mode}
 			<span
 				class="preview-mode-item"
 				class:active={model.level === mode.id}
 				class:disabled={mode.id !== 'formula_recipe' && model.processorNodeId === null}
+				style="--mode-color: {mode.color};"
 				aria-current={model.level === mode.id ? 'true' : undefined}>
 				{mode.label}
 			</span>
@@ -39,7 +40,7 @@
 		min-inline-size: 0;
 	}
 
-	.preview-labels {
+	/* .preview-labels {
 		display: inline-flex;
 		flex-direction: column;
 		justify-content: center;
@@ -65,7 +66,7 @@
 		color: color-mix(in srgb, var(--gc-color-text) 58%, transparent);
 		font-size: 0.62rem;
 		font-weight: 600;
-	}
+	} */
 
 	.preview-mode {
 		display: inline-grid;
@@ -73,9 +74,8 @@
 		align-items: center;
 		min-block-size: 1.45rem;
 		overflow: hidden;
-		border: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 80%, transparent);
-		border-radius: 0.35rem;
-		background: color-mix(in srgb, var(--gc-color-background) 92%, transparent);
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--gc-color-background) 80%, transparent);
 	}
 
 	.preview-mode-item {
@@ -89,8 +89,9 @@
 		font-weight: 650;
 		letter-spacing: 0;
 		line-height: 1;
+		border-radius:1rem;
 		white-space: nowrap;
-		border-inline-start: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 55%, transparent);
+		border-inline-start: 0.06rem solid color-mix(in srgb, var(--gc-color-border) 35%, transparent);
 	}
 
 	.preview-mode-item:first-child {
@@ -98,8 +99,8 @@
 	}
 
 	.preview-mode-item.active {
-		color: var(--gc-color-background);
-		background: var(--gc-color-accent);
+		color: var(--gc-color-text);
+		background: color-mix(in srgb, var(--mode-color) 60%, transparent);
 	}
 
 	.preview-mode-item.disabled {

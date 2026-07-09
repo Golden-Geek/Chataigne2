@@ -1,6 +1,14 @@
 use std::time::{Duration, Instant};
 
-use golden_core::node::Folder;
+use golden_core::{
+    app::{
+        from_sparse_project_json, load_sparse_project_file, to_sparse_project_json_pretty,
+        ProjectFileSpec, ProjectNode,
+    },
+    node::{Folder, Node, NodeId},
+    ui_read_model::UiReadModel,
+    ui_sync::UiSubscriptionScope,
+};
 
 use crate::app::{AppNode, GamepadModule, MidiModule};
 
@@ -40,6 +48,244 @@ fn measure_ticks(engine: &mut crate::app::AppEngine, n: usize) -> (u64, u64, u64
         total_us += elapsed;
     }
     (min_us, max_us, total_us)
+}
+
+fn sample_project_path(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("test-samples")
+        .join(name)
+}
+
+fn elapsed_ms<T>(operation: impl FnOnce() -> T) -> (T, u128) {
+    let started = Instant::now();
+    let result = operation();
+    (result, started.elapsed().as_millis())
+}
+
+fn best_elapsed_ms<T>(attempts: usize, mut operation: impl FnMut() -> T) -> (T, u128) {
+    assert!(attempts > 0);
+
+    let (mut best_result, mut best_ms) = elapsed_ms(|| operation());
+    for _ in 1..attempts {
+        let (result, elapsed_ms) = elapsed_ms(|| operation());
+        if elapsed_ms < best_ms {
+            best_result = result;
+            best_ms = elapsed_ms;
+        }
+    }
+
+    (best_result, best_ms)
+}
+
+fn first_node_by_item_kind(engine: &crate::app::AppEngine, item_kind: &str) -> Option<NodeId> {
+    engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.user_item_kind() == item_kind
+                && node.node_data().meta.user_permissions.can_remove_and_duplicate
+                && node.node_data().parent.is_some()
+        })
+        .map(|(node_id, _)| node_id)
+}
+
+fn duplicate_node(
+    engine: &mut crate::app::AppEngine,
+    source: NodeId,
+) -> Result<NodeId, golden_core::engine::ProjectPersistenceError> {
+    let source_node = engine
+        .nodes
+        .get(source)
+        .expect("duplicate source should exist");
+    let parent = source_node
+        .node_data()
+        .parent
+        .expect("duplicate source should have a parent");
+    engine.duplicate_subtree_with(
+        source,
+        parent,
+        Some(source),
+        None,
+        |node| node.project_encode_data(),
+        |node_type, data, meta| AppNode::project_decode_node(node_type, data, meta),
+    )
+}
+
+#[test]
+fn simple_sample_project_loads_and_round_trips() {
+    const SAMPLE: &str = "test_simple_load.noisette";
+
+    let path = sample_project_path(SAMPLE);
+    let engine = load_sparse_project_file::<AppNode, _>(&path).expect("simple sample should load");
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1,
+        "simple sample should contain one signals module"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "state_processor")
+            .count(),
+        1,
+        "simple sample should contain one state action"
+    );
+
+    let saved_json = to_sparse_project_json_pretty(&engine).expect("simple sample should save");
+    let reloaded =
+        from_sparse_project_json::<AppNode>(&saved_json).expect("saved simple sample should reload");
+    assert_eq!(
+        reloaded
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn multiplex_sample_project_loads_and_round_trips() {
+    const SAMPLE: &str = "test_multiplex.noisette";
+
+    let path = sample_project_path(SAMPLE);
+    let engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1,
+        "multiplex sample should contain one signals module"
+    );
+
+    let saved_json = to_sparse_project_json_pretty(&engine).expect("multiplex sample should save");
+    from_sparse_project_json::<AppNode>(&saved_json).expect("saved multiplex sample should reload");
+}
+
+#[test]
+fn sample_project_structure_operations_stay_interactive() {
+    const SAMPLE: &str = "test_perf.noisette";
+
+    let path = sample_project_path(SAMPLE);
+    let (loaded, load_ms) =
+        elapsed_ms(|| load_sparse_project_file::<AppNode, _>(&path).expect("sample should load"));
+    let mut engine = loaded;
+    let node_count = engine.nodes.len();
+    let module_count = engine
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.user_item_kind() == super::MODULE_ITEM_KIND)
+        .count();
+
+    let (saved_json, save_ms) = best_elapsed_ms(3, || {
+        to_sparse_project_json_pretty(&engine).expect("sample should serialize sparsely")
+    });
+
+    let (ui_snapshot, snapshot_ms) =
+        best_elapsed_ms(3, || engine.ui_snapshot(UiSubscriptionScope::WholeGraph));
+    let (read_model, read_model_ms) = best_elapsed_ms(3, || {
+        UiReadModel::from_engine(&engine, ProjectFileSpec::new("Noisette", "noisette"))
+    });
+
+    let duplicate_source = first_node_by_item_kind(&engine, super::MODULE_ITEM_KIND)
+        .expect("sample should contain at least one duplicable module");
+    let previous_event_time = read_model.current_event_time();
+    let (duplicated, duplicate_ms) =
+        elapsed_ms(|| duplicate_node(&mut engine, duplicate_source).expect("duplicate should apply"));
+    let duplicate_node_count = engine.nodes.len().saturating_sub(node_count);
+
+    let (capture, collect_ms) = elapsed_ms(|| read_model.collect_event_batch(&engine, previous_event_time));
+    let event_count = capture.batch().events.len();
+    let (_batch, apply_capture_ms) = elapsed_ms(|| read_model.apply_event_capture(capture));
+
+    eprintln!(
+        "sample {SAMPLE}: nodes={node_count} modules={module_count} saved_bytes={} ui_nodes={} duplicated={:?} duplicated_nodes={duplicate_node_count}",
+        saved_json.len(),
+        ui_snapshot.nodes.len(),
+        duplicated,
+    );
+    eprintln!(
+        "sample {SAMPLE}: load={load_ms}ms save={save_ms}ms ui_snapshot={snapshot_ms}ms read_model={read_model_ms}ms duplicate={duplicate_ms}ms collect_events={collect_ms}ms apply_capture={apply_capture_ms}ms events={event_count}",
+    );
+
+    assert!(
+        load_ms < 1_500,
+        "sample load took {load_ms}ms for {node_count} nodes"
+    );
+    assert!(
+        save_ms < 250,
+        "sample save took {save_ms}ms for {node_count} nodes"
+    );
+    assert!(
+        snapshot_ms < 250,
+        "whole-graph UI snapshot took {snapshot_ms}ms for {node_count} nodes"
+    );
+    assert!(
+        read_model_ms < 250,
+        "read model build took {read_model_ms}ms for {node_count} nodes"
+    );
+    assert!(
+        duplicate_ms < 400,
+        "module duplicate took {duplicate_ms}ms for {node_count} existing nodes"
+    );
+    assert!(
+        collect_ms < 50,
+        "event capture took {collect_ms}ms after duplicate"
+    );
+    assert!(
+        apply_capture_ms < 50,
+        "read model event apply took {apply_capture_ms}ms after duplicate"
+    );
+}
+
+#[test]
+fn sample_project_active_runtime_stays_responsive() {
+    const SAMPLE: &str = "test_perf.noisette";
+    const WARMUP: usize = 20;
+    const MEASURED: usize = 80;
+    let path = sample_project_path(SAMPLE);
+    let mut engine = load_sparse_project_file::<AppNode, _>(&path).expect("sample should load");
+    let node_count = engine.nodes.len();
+    let (_, process_snapshot_ms) = elapsed_ms(|| engine.process_tree_snapshot());
+
+    for _ in 0..WARMUP {
+        std::thread::sleep(Duration::from_millis(16));
+        engine
+            .run_tick(Duration::from_millis(16))
+            .expect("active sample tick should not fail");
+    }
+
+    let mut min_us = u64::MAX;
+    let mut max_us = 0u64;
+    let mut total_us = 0u64;
+    for _ in 0..MEASURED {
+        std::thread::sleep(Duration::from_millis(16));
+        let started = Instant::now();
+        engine
+            .run_tick(Duration::from_millis(16))
+            .expect("active sample tick should not fail");
+        let elapsed = started.elapsed().as_micros() as u64;
+        min_us = min_us.min(elapsed);
+        max_us = max_us.max(elapsed);
+        total_us += elapsed;
+    }
+
+    let duplicate_source = first_node_by_item_kind(&engine, super::MODULE_ITEM_KIND)
+        .expect("sample should contain at least one duplicable module");
+    let (_, duplicate_ms) =
+        elapsed_ms(|| duplicate_node(&mut engine, duplicate_source).expect("duplicate should apply"));
+    let avg_us = total_us / MEASURED as u64;
+
+    eprintln!(
+        "active sample {SAMPLE}: nodes={node_count} process_snapshot={process_snapshot_ms}ms tick_avg={avg_us}us tick_min={min_us}us tick_max={max_us}us duplicate={duplicate_ms}ms"
+    );
 }
 
 #[test]

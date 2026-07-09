@@ -62,6 +62,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - Use Svelte 5 and runes only.
 - Do not use legacy `on:` event syntax; use `onclick`, `onfocus`, `onblur`, and similar direct event props.
 - Use relative units for layout and spacing: `em`, `rem`, `%`, `vh`, `vw`.
+- UI must not own backend/domain behavior. It may collect user input, compute viewport-dependent presentation hints, and send explicit intents, but it must not allocate unique node labels, choose domain defaults, infer control modes, encode module policy, decide graph mutation semantics, or write internal node parameters to make a higher-level operation valid. Put that behavior in `golden_core`, the app/module backend, or a backend intent so every UI, transport, script, and headless caller gets identical behavior. Do not add UI-side compatibility shims for backend behavior drift.
 - Avoid fixed pixel sizing unless a task deliberately establishes and documents an exception.
 - Keep UI state split into small focused stores with one thin facade where needed.
 - Do not let orchestration files grow into god objects.
@@ -159,8 +160,23 @@ Always use jCodemunch-MCP tools for code navigation. Never fall back to Read, Gr
 
 **Start any session:**
 
-1. `resolve_repo { "path": "." }` — confirm the project is indexed. If not: `index_folder { "path": "." }`
-2. `suggest_queries` — when the repo is unfamiliar
+1. Choose the owning layer from **Workspace repo routing** below.
+2. `resolve_repo { "path": "<layer path>" }` — confirm that layer is indexed. If not: `index_folder { "path": "<layer path>" }`
+3. `suggest_queries` — when that indexed repo is unfamiliar
+
+**Workspace repo routing:**
+
+This workspace is intentionally indexed as multiple jCodemunch repos. Pick the owning layer before `plan_turn`; do not use the root `Chataigne2` index for `golden_core`, `golden_ui`, or alchemist package work.
+
+| Layer | Resolve path |
+| --- | --- |
+| App shell, app-owned modules, app-owned UI, workspace tooling | `.` |
+| `golden_core` | `submodules/golden_core` |
+| `golden_alchemist_core` | `submodules/golden_alchemist_core` |
+| `golden_ui` | `src-ui/src/lib/golden_ui` |
+| `golden_alchemist_ui` | `src-ui/src/lib/golden_alchemist_ui` |
+
+Call `resolve_repo` with the concrete path above and use the returned repo id for `plan_turn`, `search_symbols`, `search_text`, `get_file_outline`, and reads. For cross-layer changes, resolve and plan each layer separately. Run `.\tools\watch-jcodemunch.ps1 --status` when the repo map looks stale, missing, or ambiguous.
 
 **Finding code:**
 

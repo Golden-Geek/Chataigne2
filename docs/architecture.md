@@ -31,6 +31,40 @@ Reusable Formula assets use Golden Core sparse subtree persistence. A
 `.formula` file is a rooted Formula node hierarchy, not an app-specific graph
 schema.
 
+## Alchemist Managed Processors
+
+The Formula Catalog is the complete resolver for project and shipped formulas.
+The Formula Library is only the editable project tree. Built-in formulas are
+catalog entries loaded from individual exported formula files, not product-name
+branches in runtime code. The built-in file name forces the stable
+package/formula/version identity, so re-exporting `Action.json` keeps resolving
+as `chataigne.action@1`. When duplication is allowed, the app creates a new
+project formula through the public Formula Library creation path and seeds it
+from backend-owned catalog metadata.
+
+Processors persist a typed formula source rather than assuming every processor
+points at a project formula node. Project formulas still resolve through node
+references, while built-ins resolve through stable package/formula/version
+keys. Unknown built-in sources are rejected at creation and reported as
+diagnostics if they appear in older saved data.
+
+Managed processor templates are surfaces over normal Alchemist execution. Value
+pipelines use Inputs, Filters, and Outputs. Trigger pipelines use Trigger,
+Filters, and Commands. Managed regions are real backend-owned child folders on
+the processor node; the UI projects those folders and sends normal node edit
+intents instead of owning a parallel frontend graph model.
+
+Managed surfaces share the same filter-capable ANode pipeline. Conditions are
+ordinary filters through the reusable `ConditionGate` ANode, not a separate
+condition subsystem. `ValueSet` is the Chataigne collection boundary for
+multi-lane values. Elementwise filters run per stable lane, aggregate and
+projection filters are explicit, and runtime outputs become `chataigne.command`
+intents at the managed command/output boundary.
+
+See [ALCHEMIST_FORMULA_RUNTIME.md](ALCHEMIST_FORMULA_RUNTIME.md) for the
+runtime contract, diagnostics, lane-memory strategy, and final managed
+processor architecture.
+
 ## Boundaries
 
 App code should launch through the reusable `golden_core` runtime path and should not reimplement

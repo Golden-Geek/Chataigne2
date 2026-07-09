@@ -13,17 +13,21 @@ use golden_core::{
         UiDuplicateNodeSpec, UiEditIntent,
     },
 };
-use golden_alchemist::{RuntimeValue, TriggerValue, ValueTypeId};
+use golden_alchemist::{
+    ANodeInstance, ANodeTypeId, AlchemistGraph, CompileCtx, RuntimeValue, StableRef, TriggerValue,
+    ValueTypeId, compile_graph,
+};
 
 use super::{
     ANODE_CREATE_PREFIX, ANODE_ITEM_KIND, ANODE_TYPE_TAG_PREFIX,
     AlchemistANode, AlchemistConnection, AlchemistFormulaDefinition,
     AlchemistFormulaFolder, AlchemistProperty, AlchemistPropertyManager,
-    AlchemistPropertiesManager, FORMULA_FOLDER_ITEM_KIND,
-    FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND, FormulaLibrary,
-    PROPERTIES_DECL_ID,
-    PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX,
-    formula_from_snapshot, param_to_runtime_value,
+    AlchemistPropertiesManager, FORMULA_EXTERNAL_FILE_CREATE_TYPE,
+    FORMULA_EXTERNAL_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
+    FORMULA_FOLDER_ITEM_KIND, FORMULA_FOLDER_NODE_TYPE, FORMULA_ITEM_KIND,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FormulaLibrary, PROPERTIES_DECL_ID,
+    PROPERTY_CREATE_PREFIX, PROPERTY_MANAGER_CREATE_PREFIX, formula_from_snapshot,
+    param_to_runtime_value,
 };
 use crate::app::{AppEngine, AppNode};
 
@@ -78,10 +82,115 @@ fn formula_library_and_folders_accept_formulas_and_formula_folders() {
                 && item.item_kind == FORMULA_ITEM_KIND
         }));
         assert!(items.iter().any(|item| {
+            item.node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE
+                && item.item_kind == FORMULA_ITEM_KIND
+                && item.label == "External Formula"
+        }));
+        assert!(items.iter().any(|item| {
             item.node_type == FORMULA_FOLDER_NODE_TYPE
                 && item.item_kind == FORMULA_FOLDER_ITEM_KIND
         }));
     }
+}
+
+#[test]
+fn external_formula_creation_exposes_file_parameter_and_loads_formula_file() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine
+        .apply_edits()
+        .expect("Formula Library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: library,
+        node_type: FORMULA_EXTERNAL_FILE_CREATE_TYPE.to_owned(),
+        label: Some("Action".into()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "External Formula creation should succeed: {ack:?}");
+    let formula = direct_children(&engine, library)
+        .into_iter()
+        .find(|node| {
+            engine.nodes.get(*node).is_some_and(|node| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+        })
+        .expect("External Formula should exist");
+    assert!(engine
+        .nodes
+        .get(formula)
+        .expect("External Formula should exist")
+        .node_data()
+        .meta
+        .tags
+        .iter()
+        .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG));
+
+    let file_param = find_child_by_decl(&engine, formula, FORMULA_EXTERNAL_FILE_DECL_ID)
+        .expect("External Formula should expose a Formula File parameter");
+    let file_parameter = engine
+        .nodes
+        .get(file_param)
+        .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+        .expect("Formula File should be a parameter");
+    assert!(!file_parameter.read_only);
+    assert!(matches!(file_parameter.value, ParamValue::File(ref path) if path.is_empty()));
+
+    let action_path = std::env::current_dir()
+        .expect("current dir should resolve")
+        .join("builtin_formulas")
+        .join("Action.json");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: file_param,
+        value: ParamValue::File(action_path.to_string_lossy().into_owned()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(
+        ack.success,
+        "Setting the external formula file should succeed: {ack:?}"
+    );
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("External formula file load should settle");
+    }
+
+    assert!(
+        find_child_by_decl(&engine, formula, FORMULA_EXTERNAL_FILE_DECL_ID).is_some(),
+        "External Formula should keep its file parameter after reload"
+    );
+    let regions_param = find_child_by_decl(&engine, formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+        .expect("External Action formula should expose managed regions metadata");
+    let raw_regions = match engine
+        .nodes
+        .get(regions_param)
+        .and_then(|node| node.as_any().downcast_ref::<Parameter>())
+        .map(|parameter| &parameter.value)
+    {
+        Some(ParamValue::Str(value)) => value,
+        other => panic!("Managed regions metadata should be a string, got {other:?}"),
+    };
+    let regions: Vec<serde_json::Value> =
+        serde_json::from_str(raw_regions).expect("Managed regions should decode");
+    assert_eq!(
+        regions
+            .iter()
+            .map(|region| region["label"].as_str().unwrap_or_default())
+            .collect::<Vec<_>>(),
+        vec!["Conditions", "On True", "On False"]
+    );
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(true),
+        "External formula load should settle validation without a later edit"
+    );
 }
 
 #[test]
@@ -99,55 +208,204 @@ fn formula_exposes_anode_catalog_as_real_user_items() {
 }
 
 #[test]
-fn manager_reference_anodes_mark_formula_unavailable_in_editor_state() {
-    for (type_id, label) in [
-        (
-            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE,
-            "Conditions",
-        ),
-        (
-            chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
-            "Inputs",
-        ),
-        (
-            chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
-            "Output Commands",
-        ),
-    ] {
-        let (mut engine, formula) = engine_with_formula();
-        create_anode(&mut engine, formula, type_id, 0.0, 0.0);
-        let anode = find_anode_by_type(&engine, formula, type_id);
+fn formula_properties_offer_manager_roles_and_graph_getters() {
+    let properties = AlchemistPropertiesManager::new();
+    let creatable = properties.user_creatable_items();
 
-        assert_eq!(
-            parameter_value(&engine, formula, "is_valid"),
-            ParamValue::Bool(false),
-            "{label} manager ref should mark the formula invalid"
-        );
-        let diagnostics_json = match parameter_value(&engine, formula, "diagnostics_json") {
-            ParamValue::Str(value) => value,
-            other => panic!("diagnostics_json should be a string, got {other:?}"),
-        };
-        let diagnostics: Vec<serde_json::Value> =
-            serde_json::from_str(&diagnostics_json).expect("diagnostics_json should parse");
+    for role in ["condition", "filter", "input", "output"] {
+        let node_type = format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}");
         assert!(
-            diagnostics.iter().any(|diagnostic| {
-                diagnostic["code"] == "chataigne_manager_node_unsupported"
-                    && diagnostic["message"]
-                        .as_str()
-                        .is_some_and(|message| message.contains(label))
-            }),
-            "{label} manager ref should expose the unsupported diagnostic: {diagnostics_json}"
-        );
-
-        assert!(
-            node_has_warning_id(&engine, formula, "alchemist_formula"),
-            "{label} manager ref should set the formula warning"
-        );
-        assert!(
-            node_has_warning_id(&engine, anode, "alchemist_formula_diagnostic"),
-            "{label} manager ref should set an ANode warning"
+            creatable.iter().any(|item| item.node_type == node_type),
+            "{role} manager property should be creatable"
         );
     }
+
+    for node_type in [
+        chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE,
+        chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE,
+    ] {
+        let mut graph = AlchemistGraph::new();
+        let mut node = ANodeInstance::new(ANodeTypeId::new(node_type), "Manager");
+        node.config.set(
+            chataigne_state_machine::alchemist::MANAGER_PROPERTY_FIELD,
+            RuntimeValue::Ref(StableRef::new(ValueTypeId::new("property"), "manager")),
+        );
+        graph.add_node(node).unwrap();
+        let value_types = chataigne_state_machine::alchemist::value_type_registry();
+        let nodes = chataigne_state_machine::alchemist::node_registry();
+        let result = compile_graph(
+            &graph,
+            &CompileCtx {
+                value_types: &value_types,
+                nodes: &nodes,
+                properties: None,
+            },
+        );
+        assert!(
+            !result.has_errors(),
+            "{node_type} should compile as a graph-usable manager getter: {:?}",
+            result.diagnostics
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.code.starts_with("chataigne_manager_bridge")),
+            "{node_type} should not use legacy manager bridge diagnostics"
+        );
+    }
+}
+
+#[test]
+fn formula_manager_property_roles_survive_project_reload() {
+    fn strip_manager_role_persistence(record: &mut serde_json::Value) {
+        let Some(object) = record.as_object_mut() else {
+            return;
+        };
+        let is_manager = object
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            == Some(AlchemistPropertyManager::NODE_TYPE);
+
+        if is_manager {
+            if let Some(tags) = object
+                .get_mut("meta")
+                .and_then(serde_json::Value::as_object_mut)
+                .and_then(|meta| meta.get_mut("tags"))
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                tags.retain(|tag| {
+                    !tag.as_str()
+                        .is_some_and(|tag| tag.starts_with("alchemist.manager.role:"))
+                });
+            }
+
+            if let Some(children) = object
+                .get_mut("children")
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                for child in children.iter_mut() {
+                    let is_role = child
+                        .get("meta")
+                        .and_then(|meta| meta.get("decl_id"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some("role");
+                    if is_role {
+                        if let Some(role) = child.as_object_mut() {
+                            role.remove("data");
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(children) = object
+            .get_mut("children")
+            .and_then(serde_json::Value::as_array_mut)
+        {
+            for child in children {
+                strip_manager_role_persistence(child);
+            }
+        }
+    }
+
+    fn loaded_formula_id(engine: &AppEngine) -> NodeId {
+        engine
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+            })
+            .map(|(id, _)| id)
+            .expect("Formula should reload")
+    }
+
+    fn assert_manager_roles(
+        engine: &AppEngine,
+        formula: NodeId,
+        specs: &[(&str, &str)],
+    ) {
+        let properties = find_child_by_decl(engine, formula, PROPERTIES_DECL_ID)
+            .expect("Properties manager should reload");
+
+        for (role, label) in specs {
+            let manager = direct_children(engine, properties)
+                .into_iter()
+                .find(|node| {
+                    engine.nodes.get(*node).is_some_and(|node| {
+                        node.get_type() == AlchemistPropertyManager::NODE_TYPE
+                            && node.node_data().meta.label == *label
+                    })
+                })
+                .unwrap_or_else(|| {
+                    panic!("{label} manager property should reload")
+                });
+            assert_eq!(
+                parameter_value(engine, manager, "role"),
+                ParamValue::Enum((*role).into()),
+                "{label} manager property role should survive reload"
+            );
+        }
+
+        let materialized =
+            formula_from_snapshot(&engine.process_tree_snapshot(), formula)
+                .expect("reloaded Formula surface should materialize");
+        for (role, label) in specs {
+            assert!(
+                materialized
+                    .surface
+                    .sections
+                    .iter()
+                    .any(|section| section.id.as_str() == *role && section.label == *label),
+                "{label} manager surface section should keep id {role}"
+            );
+        }
+    }
+
+    let (mut engine, formula) = engine_with_formula();
+    let properties = find_child_by_decl(&engine, formula, PROPERTIES_DECL_ID)
+        .expect("Formula should own a Properties manager");
+    let specs = [
+        ("condition", "Conditions"),
+        ("filter", "Filters"),
+        ("input", "Inputs"),
+        ("output", "Outputs"),
+    ];
+
+    for (role, _) in specs {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: properties,
+            node_type: format!("{PROPERTY_MANAGER_CREATE_PREFIX}{role}"),
+            label: None,
+            initial_params: Vec::new(),
+        });
+        assert!(
+            ack.success,
+            "{role} manager property creation should succeed: {ack:?}"
+        );
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("Project should encode");
+    let loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("Project should decode");
+    assert_manager_roles(&loaded, loaded_formula_id(&loaded), &specs);
+
+    let mut legacy_project: serde_json::Value =
+        serde_json::from_str(&json).expect("Project JSON should parse");
+    strip_manager_role_persistence(
+        legacy_project
+            .get_mut("root")
+            .expect("Project JSON should have a root record"),
+    );
+    let legacy_json = serde_json::to_string(&legacy_project)
+        .expect("legacy-shaped Project JSON should encode");
+    let recovered =
+        golden_core::app::from_sparse_project_json::<AppNode>(&legacy_json)
+            .expect("legacy-shaped Project should decode");
+    assert_manager_roles(&recovered, loaded_formula_id(&recovered), &specs);
 }
 
 #[test]
@@ -293,7 +551,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .node_data()
         .meta
         .presentation
-        .color;
+        .default_color;
     let value_color = engine
         .nodes
         .get(value)
@@ -301,7 +559,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
         .node_data()
         .meta
         .presentation
-        .color;
+        .default_color;
     assert!(property_color.is_some());
     assert_eq!(property_color, value_color);
     let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
@@ -414,7 +672,7 @@ fn formula_properties_use_one_catalog_and_bind_read_only_getters() {
             .node_data()
             .meta
             .presentation
-            .color,
+            .default_color,
         property_presentation.color
     );
 
@@ -1387,6 +1645,58 @@ fn authored_formula_subtree_survives_reload_and_compiles() {
 }
 
 #[test]
+fn anode_layout_changes_do_not_revalidate_formula() {
+    let (mut engine, formula) = engine_with_formula();
+    let constant = create_anode(&mut engine, formula, "constant", 2.0, 3.0);
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(true)
+    );
+
+    let valid_param =
+        find_child_by_decl(&engine, formula, "is_valid").expect("Valid parameter should exist");
+    engine.edits.push(Edit::SetParam {
+        node: valid_param,
+        value: ParamValue::Bool(false),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("stale validity sentinel should apply");
+
+    let position =
+        find_child_by_decl(&engine, constant, "position").expect("position should exist");
+    engine.edits.push(Edit::SetParam {
+        node: position,
+        value: ParamValue::Vec2(12.0, 8.0),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("position edit should apply");
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(false),
+        "Moving an ANode must not revalidate the formula"
+    );
+
+    let size = find_child_by_decl(&engine, constant, "size").expect("size should exist");
+    engine.edits.push(Edit::PatchMeta {
+        node: size,
+        patch: NodeMetaPatch {
+            enabled: Some(true),
+            ..NodeMetaPatch::default()
+        },
+    });
+    engine.apply_edits().expect("size meta edit should apply");
+    assert_eq!(
+        parameter_value(&engine, formula, "is_valid"),
+        ParamValue::Bool(false),
+        "Resizing an ANode must not revalidate the formula"
+    );
+}
+
+#[test]
 fn removing_anode_removes_its_dangling_connections() {
     let (mut engine, formula) = engine_with_formula();
     create_anode(&mut engine, formula, "constant", 2.0, 3.0);
@@ -1557,7 +1867,6 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
                     source,
                     new_parent: formula,
                     new_prev_sibling: Some(target),
-                    label: Some("Constant Copy".into()),
                     initial_params: vec![UiCreateUserItemInitialParam {
                         decl_id: DeclId("position".into()),
                         value: ParamValue::Vec2(22.0, 3.0),
@@ -1567,7 +1876,6 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
                     source: target,
                     new_parent: formula,
                     new_prev_sibling: None,
-                    label: Some("Debug Copy".into()),
                     initial_params: vec![UiCreateUserItemInitialParam {
                         decl_id: DeclId("position".into()),
                         value: ParamValue::Vec2(38.0, 3.0),
@@ -1636,7 +1944,7 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
         .graph
         .nodes
         .values()
-        .find(|node| node.label == "Constant Copy")
+        .find(|node| node.label == "Constant 2")
         .expect("Copied source ANode should materialize")
         .id
         .clone();
@@ -1644,7 +1952,7 @@ fn duplicating_connected_anodes_copies_edge_and_undoes_as_one_block() {
         .graph
         .nodes
         .values()
-        .find(|node| node.label == "Debug Copy")
+        .find(|node| node.label == "Debug Log 2")
         .expect("Copied target ANode should materialize")
         .id
         .clone();

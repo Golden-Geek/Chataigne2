@@ -13,7 +13,6 @@
 	} from 'golden_alchemist_ui';
 	import {
 		ContextMenu,
-		NodeAddButton,
 		buildCreatableItemMenu,
 		type ContextMenuAnchor,
 		type ContextMenuItem,
@@ -30,6 +29,7 @@
 		writePanelPersistedState
 	} from 'golden_ui/dockview/panel-persistence';
 	import { registerCommandHandler } from 'golden_ui/store/commands.svelte';
+	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
 	import {
 		createUiEditSession,
 		sendCreateUserItemByTypeIntent,
@@ -37,14 +37,13 @@
 	} from 'golden_ui/store/ui-intents';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
-	import AutoWireToggle from './AutoWireToggle.svelte';
+	import GraphToolbarActions from './GraphToolbarActions.svelte';
 	import StateProcessorManager from './StateProcessorManager.svelte';
 
 	const MANAGER_NODE_TYPE = 'state_machine_manager';
 	const STATE_NODE_TYPE = 'state';
 	const POSITION_DECL_ID = 'position';
 	const SIZE_DECL_ID = 'size';
-	const ACTIVE_DECL_ID = 'active';
 	const PROCESSORS_DECL_ID = 'processors';
 	const TRANSITIONS_DECL_ID = 'transitions';
 	const TRANSITION_TARGET_DECL_ID = 'target';
@@ -132,8 +131,7 @@
 			return;
 		}
 		autoWire =
-			readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params).autoWire ===
-			true;
+			readPanelPersistedState<StateMachinePanelPersistedState>(panelState.params).autoWire === true;
 		initializedAutoWirePanelId = panelState.panelId;
 	});
 
@@ -195,14 +193,6 @@
 	const vec2ParameterValue = (node: UiNodeDto, declId: string): [number, number] | null => {
 		const parameter = parameterChild(node, declId);
 		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'vec2') {
-			return null;
-		}
-		return parameter.data.param.value.value;
-	};
-
-	const boolParameterValue = (node: UiNodeDto, declId: string): boolean | null => {
-		const parameter = parameterChild(node, declId);
-		if (parameter?.data.kind !== 'parameter' || parameter.data.param.value.kind !== 'bool') {
 			return null;
 		}
 		return parameter.data.param.value.value;
@@ -309,6 +299,10 @@
 		return `rgb(${red} ${green} ${blue} / ${clamp01(color.a)})`;
 	};
 
+	const presentationColor = (
+		presentation: UiNodeDto['meta']['presentation'] | null | undefined
+	): string | undefined => metadataColor(presentation?.color ?? presentation?.default_color);
+
 	let graphNodes = $derived.by((): GraphNode[] =>
 		stateNodes.map((node, index) => ({
 			id: String(node.node_id),
@@ -316,13 +310,15 @@
 			description: stringParameterValue(node, 'description')?.trim() || undefined,
 			canRename: node.meta.user_permissions?.can_edit_name !== false,
 			collapsed: node.meta.presentation?.collapsed === true,
-			color: metadataColor(node.meta.presentation?.color),
+			color: presentationColor(node.meta.presentation),
 			position: graphPosition(node, index),
 			size: graphSize(node),
 			automaticSize: graphAutomaticSize(node),
 			resizable: true,
 			socketPlacement: 'header',
-			active: boolParameterValue(node, ACTIVE_DECL_ID) ?? false,
+			active: node.meta.enabled,
+			enabled: node.meta.enabled,
+			canDisable: node.meta.can_be_disabled,
 			inputs: [
 				{
 					id: TRANSITION_INPUT_SOCKET_ID,
@@ -391,7 +387,7 @@
 							socketId: TRANSITION_INPUT_SOCKET_ID
 						},
 						color: sourceSelected ? '#66cc00' : targetSelected ? '#58a6ff' : undefined,
-						active: boolParameterValue(sourceState, ACTIVE_DECL_ID) ?? false
+						active: sourceState.meta.enabled
 					}
 				];
 			});
@@ -596,6 +592,7 @@
 			{
 				select_when_created: item.select_when_created,
 				initial_params: [
+					...item.initial_params,
 					initialParam(POSITION_DECL_ID, {
 						kind: 'vec2',
 						value: [position.x, position.y]
@@ -643,6 +640,25 @@
 		}
 	};
 
+	const setStateEnabled = async (nodeId: string, enabled: boolean): Promise<void> => {
+		if (!session) {
+			return;
+		}
+		const stateId = Number(nodeId);
+		const state = session.graph.state.nodesById.get(stateId);
+		if (
+			!Number.isSafeInteger(stateId) ||
+			state?.node_type !== STATE_NODE_TYPE ||
+			!state.meta.can_be_disabled
+		) {
+			return;
+		}
+		const success = await sendPatchMetaIntent(stateId, { enabled });
+		if (!success) {
+			throw new Error(`failed to ${enabled ? 'enable' : 'disable'} ${state.meta.label}`);
+		}
+	};
+
 	let contextMenuItems = $derived.by((): ContextMenuItem[] => {
 		if (!manager || manager.creatable_user_items.length === 0) {
 			return [];
@@ -662,6 +678,15 @@
 		contextMenuY = event.clientY;
 		contextMenuWorldPosition = position;
 		contextMenuOpen = true;
+		graphCanvas?.focus();
+	};
+
+	const openGraphNodeContextMenu = (event: MouseEvent, nodeId: string): void => {
+		const parsedNodeId = Number(nodeId);
+		if (!Number.isSafeInteger(parsedNodeId)) {
+			return;
+		}
+		openNodeContextMenu(parsedNodeId, event.clientX, event.clientY);
 		graphCanvas?.focus();
 	};
 
@@ -896,20 +921,21 @@
 	{/if}
 {/snippet}
 
+{#snippet graphToolbarContent()}
+	{#if manager}
+		<GraphToolbarActions
+			{autoWire}
+			onAutoWireChange={setAutoWire}
+			addNode={manager}
+			onCreateItem={(item) => createState(item, graphCanvas?.viewportCenter())} />
+	{/if}
+{/snippet}
+
 <section
 	bind:this={panelRoot}
 	class="state-machine-panel"
 	aria-label={panelState.title}
 	onpointerdown={() => graphCanvas?.focus()}>
-	{#if manager}
-		<div class="state-machine-actions">
-			<NodeAddButton
-				node={manager}
-				onCreateItem={(item) => createState(item, graphCanvas?.viewportCenter())} />
-			<AutoWireToggle checked={autoWire} onchange={setAutoWire} />
-		</div>
-	{/if}
-
 	<GraphCanvas
 		bind:this={graphCanvas}
 		nodes={graphNodes}
@@ -921,12 +947,15 @@
 		onNodeResize={persistNodeResize}
 		onNodeRename={renameState}
 		onNodeCollapsedChange={setStateCollapsed}
+		onNodeEnabledChange={setStateEnabled}
 		onConnect={connectStates}
 		nodeContent={stateNodeContent}
+		onNodeContextMenu={openGraphNodeContextMenu}
 		onBackgroundContextMenu={openContextMenu}
 		routeEdgesAroundNodes={autoWire}
 		{initialCamera}
 		onCameraChange={persistCamera}
+		toolbarEnd={manager ? graphToolbarContent : undefined}
 		{emptyLabel} />
 
 	<ContextMenu
@@ -949,16 +978,4 @@
 		background: var(--gc-color-background);
 		border-radius: 0.5rem;
 	}
-
-	.state-machine-actions {
-		position: absolute;
-		inset-block-start: 0.7rem;
-		inset-inline-start: 0.7rem;
-		z-index: 20;
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		padding: 0.15rem;
-	}
-
 </style>

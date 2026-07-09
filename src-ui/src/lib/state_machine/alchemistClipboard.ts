@@ -15,8 +15,26 @@ interface GraphBounds {
 	bottom: number;
 }
 
+export interface AlchemistClipboardTreeNode {
+	sourceId: NodeId;
+	sourceUuid: string;
+	node_type: string;
+	user_item_kind: UiNodeDto['user_item_kind'] | null;
+	decl_id: string;
+	label: string;
+	data: UiNodeDto['data'];
+	meta: {
+		label: string;
+		enabled: boolean;
+		can_be_disabled: boolean;
+		presentation: UiNodeDto['meta']['presentation'];
+	};
+	children: AlchemistClipboardTreeNode[];
+}
+
 export interface AlchemistClipboardNode {
 	sourceId: NodeId;
+	sourceUuid?: string;
 	node_type: string;
 	createNodeType: string;
 	label: string;
@@ -25,6 +43,7 @@ export interface AlchemistClipboardNode {
 		width: number;
 		height: number;
 	};
+	tree?: AlchemistClipboardTreeNode;
 }
 
 export interface AlchemistClipboardEdge {
@@ -36,10 +55,19 @@ export interface AlchemistClipboardEdge {
 
 export interface AlchemistClipboard {
 	formulaId: NodeId;
+	formulaUuid?: string;
 	nodes: AlchemistClipboardNode[];
 	edges: AlchemistClipboardEdge[];
 }
 
+export interface AlchemistClipboardPayload {
+	kind: 'chataigne.alchemist.nodes';
+	version: 2;
+	clipboard: AlchemistClipboard;
+}
+
+const ALCHEMIST_CLIPBOARD_KIND = 'chataigne.alchemist.nodes';
+const ALCHEMIST_CLIPBOARD_VERSION = 2;
 const GRAPH_NODE_DEFAULT_WIDTH = 13;
 const GRAPH_NODE_DEFAULT_HEIGHT = 4.5;
 const GRAPH_NODE_MIN_WIDTH = 8;
@@ -125,6 +153,29 @@ const clipboardEdgeFromGraphEdge = (
 	};
 };
 
+const clipboardTreeFromNode = (
+	node: UiNodeDto,
+	nodesById: ReadonlyMap<NodeId, UiNodeDto>
+): AlchemistClipboardTreeNode => ({
+	sourceId: node.node_id,
+	sourceUuid: node.uuid,
+	node_type: node.node_type,
+	user_item_kind: node.user_item_kind,
+	decl_id: node.decl_id,
+	label: node.meta.label,
+	data: node.data,
+	meta: {
+		label: node.meta.label,
+		enabled: node.meta.enabled,
+		can_be_disabled: node.meta.can_be_disabled,
+		presentation: node.meta.presentation
+	},
+	children: node.children.flatMap((childId): AlchemistClipboardTreeNode[] => {
+		const child = nodesById.get(childId);
+		return child ? [clipboardTreeFromNode(child, nodesById)] : [];
+	})
+});
+
 export const buildAlchemistClipboard = ({
 	formula,
 	nodesById,
@@ -159,11 +210,13 @@ export const buildAlchemistClipboard = ({
 		return [
 			{
 				sourceId: anode.node_id,
+				sourceUuid: anode.uuid,
 				node_type: anode.node_type,
 				createNodeType: `${ANODE_CREATE_PREFIX}${typeId}`,
 				label: anode.meta.label.trim().length > 0 ? anode.meta.label.trim() : graphNode.label,
 				position: { ...graphNode.position },
-				size: graphNodeSize(graphNode)
+				size: graphNodeSize(graphNode),
+				tree: clipboardTreeFromNode(anode, nodesById)
 			}
 		];
 	});
@@ -173,7 +226,169 @@ export const buildAlchemistClipboard = ({
 	const edges = toGraphEdges(formula, nodesById)
 		.map((edge) => clipboardEdgeFromGraphEdge(edge, copiedNodeIds))
 		.filter((edge): edge is AlchemistClipboardEdge => edge !== null);
-	return { formulaId: formula.node_id, nodes, edges };
+	return { formulaId: formula.node_id, formulaUuid: formula.uuid, nodes, edges };
+};
+
+const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
+	typeof candidate === 'object' && candidate !== null;
+
+const numberField = (record: Record<string, unknown>, field: string): number | null => {
+	const value = record[field];
+	return typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
+};
+
+const stringField = (record: Record<string, unknown>, field: string): string | null => {
+	const value = record[field];
+	return typeof value === 'string' ? value : null;
+};
+
+const positionFromJson = (candidate: unknown): GraphNodePosition | null => {
+	if (!isRecord(candidate)) return null;
+	const { x, y } = candidate;
+	return typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y)
+		? { x, y }
+		: null;
+};
+
+const sizeFromJson = (candidate: unknown): { width: number; height: number } | null => {
+	if (!isRecord(candidate)) return null;
+	const { width, height } = candidate;
+	return typeof width === 'number' &&
+		typeof height === 'number' &&
+		Number.isFinite(width) &&
+		Number.isFinite(height)
+		? { width, height }
+		: null;
+};
+
+const treeFromJson = (candidate: unknown): AlchemistClipboardTreeNode | undefined => {
+	if (!isRecord(candidate)) return undefined;
+	const sourceId = numberField(candidate, 'sourceId');
+	const sourceUuid = stringField(candidate, 'sourceUuid');
+	const nodeType = stringField(candidate, 'node_type');
+	const declId = stringField(candidate, 'decl_id');
+	const label = stringField(candidate, 'label');
+	const data = candidate.data;
+	const meta = candidate.meta;
+	const children = candidate.children;
+	if (
+		sourceId === null ||
+		sourceUuid === null ||
+		nodeType === null ||
+		declId === null ||
+		label === null ||
+		!isRecord(data) ||
+		!isRecord(meta) ||
+		!Array.isArray(children)
+	) {
+		return undefined;
+	}
+	return {
+		sourceId,
+		sourceUuid,
+		node_type: nodeType,
+		user_item_kind: typeof candidate.user_item_kind === 'string' ? candidate.user_item_kind : null,
+		decl_id: declId,
+		label,
+		data: data as UiNodeDto['data'],
+		meta: {
+			label: typeof meta.label === 'string' ? meta.label : label,
+			enabled: typeof meta.enabled === 'boolean' ? meta.enabled : true,
+			can_be_disabled: typeof meta.can_be_disabled === 'boolean' ? meta.can_be_disabled : false,
+			presentation: isRecord(meta.presentation)
+				? (meta.presentation as UiNodeDto['meta']['presentation'])
+				: undefined
+		},
+		children: children.flatMap((child): AlchemistClipboardTreeNode[] => {
+			const tree = treeFromJson(child);
+			return tree ? [tree] : [];
+		})
+	};
+};
+
+const clipboardNodeFromJson = (candidate: unknown): AlchemistClipboardNode | null => {
+	if (!isRecord(candidate)) return null;
+	const sourceId = numberField(candidate, 'sourceId');
+	const nodeType = stringField(candidate, 'node_type');
+	const createNodeType = stringField(candidate, 'createNodeType');
+	const label = stringField(candidate, 'label');
+	const position = positionFromJson(candidate.position);
+	const size = sizeFromJson(candidate.size);
+	if (
+		sourceId === null ||
+		nodeType === null ||
+		createNodeType === null ||
+		label === null ||
+		position === null ||
+		size === null
+	) {
+		return null;
+	}
+	return {
+		sourceId,
+		sourceUuid: stringField(candidate, 'sourceUuid') ?? undefined,
+		node_type: nodeType,
+		createNodeType,
+		label,
+		position,
+		size,
+		tree: treeFromJson(candidate.tree)
+	};
+};
+
+const clipboardEdgeFromJson = (candidate: unknown): AlchemistClipboardEdge | null => {
+	if (!isRecord(candidate)) return null;
+	const sourceNodeId = numberField(candidate, 'sourceNodeId');
+	const targetNodeId = numberField(candidate, 'targetNodeId');
+	const sourceSocketId = stringField(candidate, 'sourceSocketId');
+	const targetSocketId = stringField(candidate, 'targetSocketId');
+	return sourceNodeId !== null &&
+		targetNodeId !== null &&
+		sourceSocketId !== null &&
+		targetSocketId !== null
+		? { sourceNodeId, sourceSocketId, targetNodeId, targetSocketId }
+		: null;
+};
+
+export const alchemistClipboardJson = (clipboard: AlchemistClipboard): string => {
+	const payload: AlchemistClipboardPayload = {
+		kind: ALCHEMIST_CLIPBOARD_KIND,
+		version: ALCHEMIST_CLIPBOARD_VERSION,
+		clipboard
+	};
+	return JSON.stringify(payload, null, 2);
+};
+
+export const alchemistClipboardFromJson = (text: string): AlchemistClipboard | null => {
+	try {
+		const payload: unknown = JSON.parse(text);
+		if (!isRecord(payload) || payload.kind !== ALCHEMIST_CLIPBOARD_KIND) return null;
+		if (payload.version !== 1 && payload.version !== ALCHEMIST_CLIPBOARD_VERSION) return null;
+		const clipboard = payload.clipboard;
+		if (
+			!isRecord(clipboard) ||
+			!Array.isArray(clipboard.nodes) ||
+			!Array.isArray(clipboard.edges)
+		) {
+			return null;
+		}
+		const formulaId = numberField(clipboard, 'formulaId');
+		if (formulaId === null) return null;
+		const nodes = clipboard.nodes
+			.map(clipboardNodeFromJson)
+			.filter((node): node is AlchemistClipboardNode => node !== null);
+		if (nodes.length === 0) return null;
+		return {
+			formulaId,
+			formulaUuid: stringField(clipboard, 'formulaUuid') ?? undefined,
+			nodes,
+			edges: clipboard.edges
+				.map(clipboardEdgeFromJson)
+				.filter((edge): edge is AlchemistClipboardEdge => edge !== null)
+		};
+	} catch {
+		return null;
+	}
 };
 
 export const findEmptyAlchemistDuplicateOffset = ({
@@ -256,12 +471,13 @@ export const findEmptyAlchemistDuplicateOffset = ({
 	return withBase({ x: stepX, y: stepY });
 };
 
-export const nextAlchemistCopyLabel = (
-	entry: AlchemistClipboardNode,
+export const nextAvailableAlchemistLabel = (
+	label: string,
+	fallbackLabel: string,
 	usedLabels: Set<string>
 ): string => {
-	const label = entry.label.trim();
-	const baseLabel = label.length > 0 ? `${label} Copy` : `${entry.node_type} Copy`;
+	const trimmed = label.trim();
+	const baseLabel = trimmed.length > 0 ? trimmed : fallbackLabel;
 	if (!usedLabels.has(baseLabel)) {
 		usedLabels.add(baseLabel);
 		return baseLabel;
@@ -274,13 +490,3 @@ export const nextAlchemistCopyLabel = (
 	usedLabels.add(next);
 	return next;
 };
-
-export const formulaChildLabels = (
-	formula: UiNodeDto,
-	nodesById: ReadonlyMap<NodeId, UiNodeDto>
-): Set<string> =>
-	new Set(
-		formula.children
-			.map((childId) => nodesById.get(childId)?.meta.label.trim())
-			.filter((label): label is string => label !== undefined && label.length > 0)
-	);

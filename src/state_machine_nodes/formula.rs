@@ -1,6 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    fs,
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, OnceLock,
+    },
 };
 
 use golden_alchemist::{
@@ -8,12 +13,12 @@ use golden_alchemist::{
     AlchemistGraph, ColorValue, CompileCtx, DiagnosticOrigin,
     DiagnosticSeverity, FormulaContextContract, FormulaId, FormulaPropertyDecl,
     FormulaPropertyId, FormulaPropertySchema, FormulaSurface, InputSocketRef,
-    OutputSocketRef, ParamUiHints, RuntimeValue, SignatureCtx, StableRef,
-    SurfaceItem, SurfaceItemId, SurfaceItemKind, SurfaceSection,
-    SurfaceSectionId, SurfaceSource, TriggerValue, TypeBindingSource,
-    TypeBindings, TypeConstraint, TypeSolveCtx, ValueTypeId, ValueTypeSpec,
-    PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG, SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG,
-    compile_graph, solve_types,
+    ManagedRegionDefinition, OutputSocketRef, ParamUiHints, RuntimeValue,
+    SignatureCtx, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
+    SurfaceSection, SurfaceSectionId, SurfaceSource, TriggerValue,
+    TypeBindingSource, TypeBindings, TypeConstraint, TypeSolveCtx,
+    ValueTypeId, ValueTypeSpec, PROCESS_ON_INPUT_CHANGE_ONLY_CONFIG,
+    SEND_ON_OUTPUT_CHANGE_ONLY_CONFIG, compile_graph, solve_types,
 };
 use golden_core::{
     color::Color,
@@ -21,7 +26,7 @@ use golden_core::{
     events::Event,
     item, node,
     node::{
-        DeclId, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
+        DeclId, Folder, GRADIENT_NODE_TYPE, GradientNode, GradientStop, Node,
         NodeCreationContext, NodeId, NodeMetaPatch, NodeReference,
         NodeUserPermissions, NodeUuid, UserContainerRules, UserCreatableItem,
         gradient_from_snapshot,
@@ -33,12 +38,33 @@ use golden_core::{
     },
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+
+use crate::app::{
+    state_machine_nodes_processor::{shared_formula_dir_from_snapshot, FormulaCatalog},
+    AppNode,
+};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
     "alchemist_formula_folder";
 pub(crate) const FORMULA_FOLDER_NODE_TYPE: &str =
     "alchemist_formula_folder";
+pub(crate) const FORMULA_EXTERNAL_FILE_CREATE_TYPE: &str =
+    "alchemist_formula:external_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_DECL_ID: &str =
+    "external_formula_file";
+pub(crate) const FORMULA_EXTERNAL_FILE_TAG: &str =
+    "chataigne.formula.external.file";
+pub(crate) const FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX: &str =
+    "chataigne.formula.external.builtin:";
+pub(crate) const FORMULA_EXTERNAL_READ_ONLY_TAG: &str =
+    "chataigne.formula.external.read_only";
+pub(crate) const FORMULA_EXTERNAL_SOURCE_DECL_ID: &str =
+    "external_formula_source";
+pub(crate) const FORMULA_EXTERNAL_DELETE_FILE_DECL_ID: &str =
+    "external_formula_delete_file";
+pub(crate) const FORMULA_COPY_SOURCE_DECL_ID: &str = "formula_copy_source";
 pub(crate) const ANODE_ITEM_KIND: &str = "alchemist_anode";
 pub(crate) const CONNECTION_ITEM_KIND: &str = "alchemist_connection";
 pub(crate) const ANODE_CREATE_PREFIX: &str = "alchemist_anode:";
@@ -50,7 +76,7 @@ pub(crate) const PROPERTY_CREATE_PREFIX: &str = "alchemist_property:";
 pub(crate) const PROPERTY_MANAGER_CREATE_PREFIX: &str =
     "alchemist_property_manager:";
 
-const ANODE_NODE_TYPE: &str = "alchemist_anode";
+pub(crate) const ANODE_NODE_TYPE: &str = "alchemist_anode";
 const CONNECTION_NODE_TYPE: &str = "alchemist_connection";
 pub(crate) const PROPERTY_MANAGER_NODE_TYPE: &str =
     "alchemist_property_manager";
@@ -60,9 +86,16 @@ pub(crate) const PROPERTY_NODE_TYPE: &str = "alchemist_property";
 const PROPERTY_ANODE_TYPE: &str = "property";
 
 pub(crate) const PROPERTIES_DECL_ID: &str = "properties";
+pub(crate) const FORMULA_MANAGED_REGIONS_JSON_DECL_ID: &str =
+    "managed_regions_json";
 const ANODE_TYPE_TAG_PREFIX: &str = "alchemist.anode.type:";
 const PROPERTY_TYPE_TAG_PREFIX: &str = "alchemist.property.type:";
+const PROPERTY_MANAGER_ROLE_TAG_PREFIX: &str = "alchemist.manager.role:";
+const ANODE_POSITION_DECL_ID: &str = "position";
+const ANODE_SIZE_DECL_ID: &str = "size";
 pub(crate) const FORMULA_WARNING_ID: &str = "alchemist_formula";
+const FORMULA_EXTERNAL_FILE_WARNING_ID: &str =
+    "alchemist_formula_external_file";
 const ANODE_FORMULA_DIAGNOSTIC_WARNING_ID: &str =
     "alchemist_formula_diagnostic";
 
@@ -134,6 +167,34 @@ fn anode_default_color(family: &str, type_id: &str) -> Color {
     hsl_color(f64::from(hue), saturation, lightness)
 }
 
+fn manager_role_anode_type(role: &str) -> Option<&'static str> {
+    match role {
+        "condition" => Some(chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE),
+        "filter" => Some(chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE),
+        "input" => Some(chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE),
+        "output" => Some(chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE),
+        _ => None,
+    }
+}
+
+fn property_manager_role_from_tags(tags: &[String]) -> Option<String> {
+    tagged_value(tags, PROPERTY_MANAGER_ROLE_TAG_PREFIX)
+        .map(str::trim)
+        .filter(|role| manager_role_anode_type(role).is_some())
+        .map(ToOwned::to_owned)
+}
+
+fn property_manager_role_from_label(label: &str) -> Option<&'static str> {
+    PROPERTY_MANAGER_ROLES
+        .iter()
+        .find(|(_, candidate)| *candidate == label)
+        .map(|(role, _)| *role)
+}
+
+fn manager_role_color(role: &str) -> Option<Color> {
+    manager_role_anode_type(role).map(|type_id| anode_default_color("Managers", type_id))
+}
+
 fn value_type_color(type_id: &str) -> Color {
     match type_id {
         "trigger" => Color::new(0.98, 0.42, 0.22, 1.0),
@@ -143,6 +204,9 @@ fn value_type_color(type_id: &str) -> Color {
         "vec2" => Color::new(0.32, 0.72, 0.92, 1.0),
         "vec3" => Color::new(0.48, 0.58, 0.94, 1.0),
         "color" => Color::new(0.98, 0.36, 0.32, 1.0),
+        chataigne_state_machine::alchemist::VALUE_SET_TYPE => {
+            Color::new(0.28, 0.68, 0.72, 1.0)
+        }
         "value_array" => Color::new(0.51, 0.57, 0.63, 1.0),
         "reference" | "chataigne.module_endpoint" => {
             Color::new(0.64, 0.52, 0.92, 1.0)
@@ -173,10 +237,13 @@ fn formula_container_rules() -> UserContainerRules {
 
 fn formula_container_accepts(item_type: &str, item_kind: &str) -> bool {
     match item_kind {
-        FORMULA_ITEM_KIND => crate::app::declared_user_item_type_matches(
-            item_type,
-            FORMULA_ITEM_KIND,
-        ),
+        FORMULA_ITEM_KIND => {
+            item_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE
+                || crate::app::declared_user_item_type_matches(
+                    item_type,
+                    FORMULA_ITEM_KIND,
+                )
+        }
         FORMULA_FOLDER_ITEM_KIND => item_type == FORMULA_FOLDER_NODE_TYPE,
         _ => false,
     }
@@ -185,6 +252,11 @@ fn formula_container_accepts(item_type: &str, item_kind: &str) -> bool {
 fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
     let mut items = crate::app::declared_user_creatable_items(FORMULA_ITEM_KIND);
     items.push(UserCreatableItem::new(
+        FORMULA_EXTERNAL_FILE_CREATE_TYPE,
+        FORMULA_ITEM_KIND,
+        "External Formula",
+    ));
+    items.push(UserCreatableItem::new(
         FORMULA_FOLDER_NODE_TYPE,
         FORMULA_FOLDER_ITEM_KIND,
         "Folder",
@@ -192,13 +264,104 @@ fn formula_container_creatable_items() -> Vec<UserCreatableItem> {
     items
 }
 
+pub(crate) fn anode_creatable_items_for_roles(
+    roles: &[SurfaceItemKind],
+) -> Vec<UserCreatableItem> {
+    registry()
+        .iter()
+        .filter(|declaration| {
+            roles.is_empty()
+                || roles
+                    .iter()
+                    .any(|role| declaration.supports_role(*role))
+        })
+        .map(|declaration| {
+            UserCreatableItem::new(
+                format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
+                ANODE_ITEM_KIND,
+                declaration.label(),
+            )
+            .with_menu_path([declaration.category()])
+        })
+        .collect()
+}
+
+pub(crate) fn anode_container_accepts_for_roles(
+    item_type: &str,
+    item_kind: &str,
+    roles: &[SurfaceItemKind],
+) -> bool {
+    if item_kind != ANODE_ITEM_KIND {
+        return false;
+    }
+    if item_type == ANODE_NODE_TYPE {
+        return true;
+    }
+    let Some(type_id) = item_type.strip_prefix(ANODE_CREATE_PREFIX) else {
+        return false;
+    };
+    registry()
+        .get(&ANodeTypeId::new(type_id))
+        .is_some_and(|declaration| {
+            roles.is_empty()
+                || roles
+                    .iter()
+                    .any(|role| declaration.supports_role(*role))
+        })
+}
+
+pub(crate) fn create_anode_user_item(node_type: &str) -> Option<Box<dyn Node>> {
+    if node_type == ANODE_NODE_TYPE {
+        return Some(Box::new(AlchemistANode::new()));
+    }
+    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let registry = registry();
+    let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+    Some(Box::new(AlchemistANode::for_type(
+        type_id,
+        declaration.label(),
+        declaration.category(),
+    )))
+}
+
+pub(crate) fn create_anode_user_item_tree(node_type: &str) -> Option<NodeTree> {
+    if node_type == ANODE_NODE_TYPE {
+        return Some(NodeTree::new(AlchemistANode::new()));
+    }
+    let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
+    let registry = registry();
+    let declaration = registry.get(&ANodeTypeId::new(type_id))?;
+    Some(anode_tree_for_declaration(
+        type_id,
+        declaration.label(),
+        declaration.category(),
+        declaration.as_ref(),
+    ))
+}
+
 fn create_formula_container_item(node_type: &str) -> Option<Box<dyn Node>> {
+    if node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE {
+        return Some(Box::new(external_formula_node()));
+    }
     crate::app::create_declared_user_item(node_type, FORMULA_ITEM_KIND)
         .or_else(|| {
             (node_type == FORMULA_FOLDER_NODE_TYPE).then(|| {
                 Box::new(AlchemistFormulaFolder::new()) as Box<dyn Node>
             })
         })
+}
+
+fn create_formula_container_item_tree(node_type: &str) -> Option<NodeTree> {
+    if node_type == FORMULA_EXTERNAL_FILE_CREATE_TYPE {
+        return Some(external_formula_tree());
+    }
+    if node_type == AlchemistFormulaDefinition::NODE_TYPE {
+        return Some(
+            NodeTree::new(AlchemistFormulaDefinition::new())
+                .with_child(NodeTree::new(formula_copy_source_parameter())),
+        );
+    }
+    create_formula_container_item(node_type).map(NodeTree::boxed)
 }
 
 fn parameter(
@@ -213,6 +376,317 @@ fn parameter(
     parameter.control_modes_enabled = !read_only;
     parameter.node_data_mut().meta.decl_id = DeclId(decl_id.into());
     parameter
+}
+
+fn hidden_parameter(
+    label: &str,
+    decl_id: impl Into<String>,
+    value: ParamValue,
+) -> Parameter {
+    let mut parameter = parameter(label, decl_id, value, false);
+    parameter
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
+    parameter
+}
+
+fn external_formula_file_parameter() -> Parameter {
+    parameter(
+        "Formula File",
+        FORMULA_EXTERNAL_FILE_DECL_ID,
+        ParamValue::File(String::new()),
+        false,
+    )
+}
+
+fn external_formula_source_parameter() -> Parameter {
+    hidden_parameter(
+        "External Formula Source",
+        FORMULA_EXTERNAL_SOURCE_DECL_ID,
+        ParamValue::Reference(NodeReference::empty()),
+    )
+}
+
+fn external_formula_delete_file_parameter() -> Parameter {
+    hidden_parameter(
+        "Delete External Formula File",
+        FORMULA_EXTERNAL_DELETE_FILE_DECL_ID,
+        ParamValue::Bool(false),
+    )
+}
+
+fn formula_copy_source_parameter() -> Parameter {
+    hidden_parameter(
+        "Formula Copy Source",
+        FORMULA_COPY_SOURCE_DECL_ID,
+        ParamValue::Reference(NodeReference::empty()),
+    )
+}
+
+fn external_formula_node() -> AlchemistFormulaDefinition {
+    let mut formula = AlchemistFormulaDefinition::new();
+    formula.node_data_mut().meta.label = "External Formula".to_owned();
+    formula
+        .node_data_mut()
+        .meta
+        .tags
+        .push(FORMULA_EXTERNAL_FILE_TAG.to_owned());
+    formula
+}
+
+fn external_formula_tree() -> NodeTree {
+    let formula = external_formula_node();
+    NodeTree::new(formula)
+        .with_child(NodeTree::new(external_formula_file_parameter()))
+        .with_child(NodeTree::new(external_formula_source_parameter()))
+        .with_child(NodeTree::new(external_formula_delete_file_parameter()))
+}
+
+/// Builds an external-file-linked formula tree pre-pointed at `path`, in the
+/// same shape as manually adding one via the "External Formula" Add-menu
+/// item (`external_formula_tree`) — used to auto-populate the library with
+/// formulas found in the user's shared formulas folder. Its real label and
+/// content are filled in by the existing external-file sync as soon as it
+/// attaches (see `AlchemistFormulaDefinition::sync_external_formula_file`);
+/// `label` is just the placeholder shown until then.
+pub(crate) fn external_formula_tree_for_path(path: &Path, label: impl Into<String>) -> NodeTree {
+    let mut formula = external_formula_node();
+    formula.node_data_mut().meta.label = label.into();
+    let file_param = parameter(
+        "Formula File",
+        FORMULA_EXTERNAL_FILE_DECL_ID,
+        ParamValue::File(path.to_string_lossy().into_owned()),
+        false,
+    );
+    NodeTree::new(formula)
+        .with_child(NodeTree::new(file_param))
+        .with_child(NodeTree::new(external_formula_source_parameter()))
+        .with_child(NodeTree::new(external_formula_delete_file_parameter()))
+}
+
+fn declared_folder(label: &str, decl_id: &str) -> Folder {
+    let mut folder = Folder::new(label);
+    folder.node_data_mut().meta.decl_id = DeclId(decl_id.to_owned());
+    folder
+}
+
+fn anode_position_parameter() -> Parameter {
+    let mut position = parameter(
+        "Position",
+        "position",
+        ParamValue::Vec2(0.0, 0.0),
+        false,
+    );
+    position
+        .node_data_mut()
+        .meta
+        .presentation
+        .show_in_inspector_content = false;
+    position
+}
+
+fn anode_size_parameter() -> Parameter {
+    let mut size = parameter("Size", "size", ParamValue::Vec2(13.0, 8.0), false);
+    let meta = &mut size.node_data_mut().meta;
+    meta.enabled = false;
+    meta.can_be_disabled = true;
+    meta.presentation.show_in_inspector_content = false;
+    size
+}
+
+fn default_config_for_declaration(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> golden_alchemist::ANodeConfig {
+    let mut config = golden_alchemist::ANodeConfig::default();
+    for field in declaration.config_fields() {
+        config.set(field.id, field.default_value);
+    }
+
+    let mut instance = ANodeInstance::new(declaration.type_id(), declaration.label());
+    instance.config = config.clone();
+    for field in config_fields_for_instance(declaration, &instance) {
+        config.set(field.id, field.default_value);
+    }
+    config
+}
+
+fn config_value_parameter_for_field(
+    field: &golden_alchemist::ANodeConfigFieldDecl,
+    value_type: &ValueTypeId,
+    default: RuntimeValue,
+) -> Option<Parameter> {
+    let value = runtime_value_to_param(&default).ok()?;
+    let value_decl = config_decl_id(field.id.as_str());
+    let mut config_parameter = parameter(&field.label, &value_decl, value, false);
+    if !field.enum_options.is_empty() {
+        let selected = match &field.default_value {
+            RuntimeValue::String(value) => value.to_string(),
+            _ => String::new(),
+        };
+        config_parameter.value = ParamValue::Enum(selected);
+        config_parameter.default_value = ParamValue::Enum(match &field.default_value {
+            RuntimeValue::String(value) => value.to_string(),
+            _ => String::new(),
+        });
+        config_parameter.constraints.enum_options = field
+            .enum_options
+            .iter()
+            .map(|(variant_id, label)| ParameterEnumOption {
+                variant_id: variant_id.to_string(),
+                value: ParamValue::Enum(variant_id.to_string()),
+                label: label.clone(),
+                tags: Vec::new(),
+                ordering: None,
+            })
+            .collect();
+        config_parameter.constraints.policy = ParameterConstraintPolicy::Reject;
+    }
+    if field.editor.as_deref() == Some("optional_count") {
+        config_parameter.node_data_mut().meta.can_be_disabled = true;
+        config_parameter.node_data_mut().meta.enabled = false;
+    }
+    config_parameter.node_data_mut().meta.presentation.default_color =
+        Some(value_type_color(value_type.as_str()));
+    Some(config_parameter)
+}
+
+fn config_field_trees_for_instance(
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+    instance: &ANodeInstance,
+) -> Vec<NodeTree> {
+    let value_types = value_types();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let config_signature = declaration.signature(
+        &signature_ctx,
+        instance,
+        &instance.type_bindings,
+    );
+    let mut trees = Vec::new();
+
+    for field in config_fields_for_instance(declaration, instance) {
+        let value_decl = config_decl_id(field.id.as_str());
+        if field.editor.as_deref() == Some("gradient") {
+            let mut gradient = GradientNode::new_with_label(&field.label);
+            gradient.node_data_mut().meta.decl_id = DeclId(value_decl);
+            trees.push(NodeTree::new(gradient));
+            continue;
+        }
+
+        if field.type_variable.is_some() {
+            let type_options =
+                field.resolved_type_options(&config_signature, &value_types);
+            let selected_type = match &field.default_value {
+                RuntimeValue::String(value) => value.to_string(),
+                value => runtime_value_type_id(value),
+            };
+            trees.push(NodeTree::new(value_type_parameter(
+                &field.label,
+                &value_decl,
+                &selected_type,
+                false,
+                &type_options,
+            )));
+            continue;
+        }
+
+        let value_type = if field.editor.as_deref() == Some("runtime_value") {
+            let type_decl = config_type_decl_id(field.id.as_str());
+            let type_options =
+                field.resolved_type_options(&config_signature, &value_types);
+            let selected_type = runtime_value_type_id(&field.default_value);
+            let mut type_parameter = value_type_parameter(
+                &format!("{} Type", field.label),
+                &type_decl,
+                &selected_type,
+                false,
+                &type_options,
+            );
+            let meta = &mut type_parameter.node_data_mut().meta;
+            meta.can_be_disabled = false;
+            meta.enabled = true;
+            trees.push(NodeTree::new(type_parameter));
+            ValueTypeId::new(selected_type)
+        } else {
+            field.default_value.value_type()
+        };
+
+        let default = if value_type == field.default_value.value_type() {
+            field.default_value.clone()
+        } else {
+            default_runtime_value(&value_type)
+                .unwrap_or_else(|_| field.default_value.clone())
+        };
+        if let Some(parameter) =
+            config_value_parameter_for_field(&field, &value_type, default)
+        {
+            trees.push(NodeTree::new(parameter));
+        }
+    }
+
+    trees
+}
+
+fn anode_tree_for_declaration(
+    type_id: &str,
+    label: &str,
+    category: &str,
+    declaration: &dyn golden_alchemist::ANodeDeclaration,
+) -> NodeTree {
+    let mut instance = ANodeInstance::new(declaration.type_id(), label);
+    instance.config = default_config_for_declaration(declaration);
+
+    let value_types = value_types();
+    let signature_ctx = SignatureCtx {
+        value_types: &value_types,
+        properties: None,
+    };
+    let signature =
+        declaration.signature(&signature_ctx, &instance, &instance.type_bindings);
+    let signature_bindings = local_signature_bindings(&signature, &instance);
+
+    let mut config_tree = NodeTree::new(declared_folder("Config", "config"));
+    for child in config_field_trees_for_instance(declaration, &instance) {
+        config_tree.push_child(child);
+    }
+
+    let mut inputs_tree = NodeTree::new(declared_folder("Inputs", "inputs"));
+    for input in signature.inputs {
+        let value_type = constraint_value_type(&input.constraint, &signature_bindings);
+        let default = input
+            .default_value
+            .or_else(|| default_runtime_value(&value_type).ok())
+            .unwrap_or(RuntimeValue::Float(0.0));
+        inputs_tree.push_child(input_socket_tree(
+            input.id.as_str(),
+            &input.label,
+            &value_type,
+            &default,
+        ));
+    }
+
+    let mut outputs_tree = NodeTree::new(declared_folder("Outputs", "outputs"));
+    for output in signature.outputs {
+        let value_type =
+            constraint_value_type(&output.constraint, &signature_bindings);
+        outputs_tree.push_child(output_socket_tree(
+            output.id.as_str(),
+            &output.label,
+            &value_type,
+        ));
+    }
+
+    let anode = AlchemistANode::for_type(type_id, label, category);
+    NodeTree::new(anode)
+        .with_child(NodeTree::new(anode_position_parameter()))
+        .with_child(NodeTree::new(anode_size_parameter()))
+        .with_child(config_tree)
+        .with_child(inputs_tree)
+        .with_child(outputs_tree)
 }
 
 fn runtime_value_type_id(value: &RuntimeValue) -> String {
@@ -236,7 +710,7 @@ fn parameter_node_type(value: &ParamValue) -> &'static str {
     }
 }
 
-fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
+pub(crate) fn runtime_value_to_param(value: &RuntimeValue) -> Result<ParamValue, String> {
     Ok(match value {
         RuntimeValue::Unit => ParamValue::Str(String::new()),
         RuntimeValue::Bool(value) => ParamValue::Bool(*value),
@@ -298,7 +772,7 @@ fn default_runtime_value(
         .ok_or_else(|| format!("unknown Alchemist value type `{value_type}`"))
 }
 
-fn param_to_runtime_value(
+pub(crate) fn param_to_runtime_value(
     value: &ParamValue,
     value_type: &ValueTypeId,
 ) -> Result<RuntimeValue, String> {
@@ -448,6 +922,32 @@ fn direct_child_under(
     Some(child)
 }
 
+fn is_anode_layout_decl_id(decl_id: &str) -> bool {
+    matches!(decl_id, ANODE_POSITION_DECL_ID | ANODE_SIZE_DECL_ID)
+}
+
+fn is_anode_layout_node(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    node: NodeId,
+) -> bool {
+    let Some(anode) = direct_child_under(snapshot, formula_node, node) else {
+        return false;
+    };
+    let Some(anode_snapshot) = snapshot.node(anode) else {
+        return false;
+    };
+    if anode_snapshot.node_type != ANODE_NODE_TYPE {
+        return false;
+    }
+    let Some(anode_child) = direct_child_under(snapshot, anode, node) else {
+        return false;
+    };
+    snapshot
+        .node(anode_child)
+        .is_some_and(|node| is_anode_layout_decl_id(node.decl_id.as_str()))
+}
+
 fn node_removal_pending(ctx: &ProcessCtx, node: NodeId) -> bool {
     ctx.edits.pending.iter().any(|request| {
         matches!(&request.edit, Edit::RemoveNode { node: pending } if *pending == node)
@@ -551,15 +1051,60 @@ fn property_meta_by_uuid(
         let Some(node) = snapshot.node(candidate) else {
             continue;
         };
-        if node.node_type == PROPERTY_NODE_TYPE && node.uuid == property_uuid {
-            return Some((node.label.clone(), node.presentation.color));
+        if matches!(
+            node.node_type.as_str(),
+            PROPERTY_NODE_TYPE | PROPERTY_MANAGER_NODE_TYPE
+        ) && node.uuid == property_uuid
+        {
+            let color = if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
+                node.presentation.color.or(node.presentation.default_color).or_else(|| {
+                    child_string(snapshot, candidate, "role")
+                        .and_then(|role| manager_role_color(&role))
+                })
+            } else {
+                node.presentation.color.or(node.presentation.default_color)
+            };
+            return Some((node.label.clone(), color));
         }
         pending.extend(snapshot.child_ids(candidate));
     }
     None
 }
 
-fn constraint_value_type(
+fn manager_anode_uses_property_ref(type_id: &str) -> bool {
+    matches!(
+        type_id,
+        chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::FILTERS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
+            | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
+    )
+}
+
+fn anode_property_ref_config_decl_id(type_id: &str) -> Option<&'static str> {
+    if type_id == PROPERTY_ANODE_TYPE {
+        return Some("config/property_id");
+    }
+    manager_anode_uses_property_ref(type_id).then_some("config/manager_id")
+}
+
+fn anode_parent_formula_is_read_only(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+) -> bool {
+    snapshot
+        .node(anode)
+        .and_then(|node| node.parent)
+        .and_then(|formula| snapshot.node(formula))
+        .is_some_and(|formula| {
+            formula
+                .tags
+                .iter()
+                .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
+        })
+}
+
+pub(crate) fn constraint_value_type(
     constraint: &TypeConstraint,
     bindings: &TypeBindings,
 ) -> ValueTypeId {
@@ -768,7 +1313,7 @@ fn apply_forced_type_bindings_from_config(
     }
 }
 
-fn local_signature_bindings(
+pub(crate) fn local_signature_bindings(
     signature: &golden_alchemist::ANodeSignature,
     instance: &ANodeInstance,
 ) -> TypeBindings {
@@ -907,7 +1452,7 @@ fn sync_auto_input_count(
     });
 }
 
-fn anode_from_snapshot(
+pub(crate) fn anode_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     anode: NodeId,
 ) -> Result<ANodeInstance, String> {
@@ -1201,6 +1746,54 @@ pub(crate) fn node_warning_matches(
     })
 }
 
+fn diagnostic_text_field<'a>(
+    diagnostic: &'a serde_json::Value,
+    key: &str,
+) -> Option<&'a str> {
+    diagnostic
+        .get(key)
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn formula_warning_detail(diagnostics: &[serde_json::Value]) -> String {
+    let mut lines = Vec::new();
+
+    for (index, diagnostic) in diagnostics.iter().enumerate() {
+        if diagnostics.len() > 1 {
+            if index > 0 {
+                lines.push(String::new());
+            }
+            lines.push(format!("Issue {}:", index + 1));
+        }
+
+        if let Some(code) = diagnostic_text_field(diagnostic, "code") {
+            lines.push(format!("Code: {code}"));
+        }
+        if let Some(origin) = diagnostic_text_field(diagnostic, "origin") {
+            lines.push(format!("Origin: {origin}"));
+        }
+
+        let severity = diagnostic_text_field(diagnostic, "severity").unwrap_or("error");
+        let severity_label = match severity {
+            "warning" => "Warning",
+            "info" => "Info",
+            _ => "Error",
+        };
+
+        if let Some(message) = diagnostic_text_field(diagnostic, "message") {
+            lines.push(format!("{severity_label}: {message}"));
+        }
+    }
+
+    if lines.is_empty() {
+        "Formula compilation failed".to_owned()
+    } else {
+        lines.join("\n")
+    }
+}
+
 #[node("alchemist_input_socket", label = "Input")]
 pub struct AlchemistInputSocket {}
 
@@ -1322,7 +1915,9 @@ impl AlchemistANode {
         let meta = &mut node.node_data_mut().meta;
         set_tag(&mut meta.tags, ANODE_TYPE_TAG_PREFIX, type_id);
         meta.label = label.to_owned();
-        meta.presentation.color = Some(anode_default_color(category, type_id));
+        let color = anode_default_color(category, type_id);
+        meta.presentation.default_color = Some(color.clone());
+        meta.presentation.color = Some(color);
         if type_id == chataigne_state_machine::alchemist::ROUTING_TYPE {
             meta.presentation.collapsed = true;
         }
@@ -1350,15 +1945,7 @@ impl AlchemistANode {
         {
             self.remove_child(ctx, legacy_type_child);
         }
-        let manager_ref = matches!(
-            type_id.as_str(),
-            chataigne_state_machine::alchemist::CONDITIONS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::INPUTS_MANAGER_TYPE
-                | chataigne_state_machine::alchemist::OUTPUTS_MANAGER_TYPE
-        );
-        let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = !manager_ref;
-        self.node_data_mut().meta.user_permissions = permissions;
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = true;
         let registry = registry();
         let Some(declaration) = registry.get(&ANodeTypeId::new(&type_id)) else {
@@ -1371,10 +1958,16 @@ impl AlchemistANode {
             return;
         };
         ctx.clear_node_warning(self.id(), Some("alchemist_anode"));
-        if self.node_data().meta.presentation.color.is_none() {
-            self.node_data_mut().meta.presentation.color = Some(
-                anode_default_color(declaration.category(), &type_id),
-            );
+        let default_color = anode_default_color(declaration.category(), &type_id);
+        let presentation = &mut self.node_data_mut().meta.presentation;
+        if presentation.default_color.is_none() {
+            presentation.default_color = Some(default_color.clone());
+        }
+        if presentation.color.is_none() {
+            presentation.color = presentation
+                .default_color
+                .clone()
+                .or(Some(default_color));
         }
         let Some(config_folder) =
             snapshot.find_child_by_decl_id(self.id(), "config")
@@ -1411,6 +2004,8 @@ impl AlchemistANode {
             &instance,
             &instance.type_bindings,
         );
+        let config_read_only =
+            anode_parent_formula_is_read_only(snapshot.as_ref(), self.id());
 
         let mut desired_config = HashSet::new();
         for field in config_fields_for_instance(declaration.as_ref(), &instance) {
@@ -1442,7 +2037,7 @@ impl AlchemistANode {
                         &field.label,
                         &value_decl,
                         &selected_type,
-                        false,
+                        config_read_only,
                         &type_options,
                     ),
                 );
@@ -1463,7 +2058,7 @@ impl AlchemistANode {
                     &format!("{} Type", field.label),
                     &type_decl,
                     &selected_type,
-                    false,
+                    config_read_only,
                     &type_options,
                 );
                 // A runtime value's type is explicit (there are no inputs to
@@ -1493,7 +2088,7 @@ impl AlchemistANode {
                     &field.label,
                     &value_decl,
                     value,
-                    false,
+                    config_read_only,
                 );
                 if !field.enum_options.is_empty() {
                     let selected = child_string(
@@ -1641,16 +2236,19 @@ impl AlchemistANode {
     }
 
     fn mirror_property_reference_presentation(&mut self, ctx: &mut ProcessCtx) {
-        if anode_type_from_tags(&self.node_data().meta.tags).as_deref() != Some(PROPERTY_ANODE_TYPE) {
+        let Some(type_id) = anode_type_from_tags(&self.node_data().meta.tags) else {
             return;
-        }
+        };
+        let Some(config_decl_id) = anode_property_ref_config_decl_id(type_id.as_str()) else {
+            return;
+        };
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
         let Some(config) = snapshot.find_child_by_decl_id(self.id(), "config") else {
             return;
         };
-        let Some(property_uuid) = child_reference_uuid(&snapshot, config, "config/property_id") else {
+        let Some(property_uuid) = child_reference_uuid(&snapshot, config, config_decl_id) else {
             return;
         };
         let Some(formula) = snapshot.node(self.id()).and_then(|node| node.parent) else {
@@ -1664,7 +2262,7 @@ impl AlchemistANode {
         };
         let meta = &mut self.node_data_mut().meta;
         meta.label = label;
-        meta.presentation.color = color;
+        meta.presentation.default_color = color;
     }
 
     fn ensure_parameter_node(
@@ -1937,7 +2535,7 @@ fn input_socket_tree(
     let mut socket = AlchemistInputSocket::new();
     socket.node_data_mut().meta.label = label.to_owned();
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
-    socket.node_data_mut().meta.presentation.color =
+    socket.node_data_mut().meta.presentation.default_color =
         Some(value_type_color(value_type.as_str()));
     let mut socket_id_param = parameter(
         "Socket ID",
@@ -1971,7 +2569,7 @@ fn input_socket_tree(
             default,
             false,
         );
-        value.node_data_mut().meta.presentation.color =
+        value.node_data_mut().meta.presentation.default_color =
             Some(value_type_color(value_type.as_str()));
         tree = tree.with_child(NodeTree::new(value));
     }
@@ -1995,7 +2593,7 @@ fn output_socket_tree(
     let mut socket = AlchemistOutputSocket::new();
     socket.node_data_mut().meta.label = label.to_owned();
     socket.node_data_mut().meta.decl_id = DeclId(decl_id.clone());
-    socket.node_data_mut().meta.presentation.color =
+    socket.node_data_mut().meta.presentation.default_color =
         Some(value_type_color(value_type.as_str()));
     let mut socket_id_param = parameter(
         "Socket ID",
@@ -2024,10 +2622,11 @@ fn output_socket_tree(
         .with_child(NodeTree::new(value_type_param))
 }
 
-pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 3] = [
+pub(crate) const PROPERTY_MANAGER_ROLES: [(&str, &str); 4] = [
     ("condition", "Conditions"),
+    ("filter", "Filters"),
     ("input", "Inputs"),
-    ("output", "Output Commands"),
+    ("output", "Outputs"),
 ];
 
 const PROPERTY_TYPES: [(&str, &str); 12] = [
@@ -2090,7 +2689,7 @@ fn property_parameter(property_type: &str) -> Option<Parameter> {
     let default = property_default(property_type)?;
     let color = parameter_value_color(&default);
     let mut value = parameter("Default value", "value", default, false);
-    value.node_data_mut().meta.presentation.color = Some(color);
+    value.node_data_mut().meta.presentation.default_color = Some(color);
     // Allow users to edit range / step / enum options on the default value, and
     // ensure those constraints are persisted across save/load.
     let mut permissions = NodeUserPermissions::none();
@@ -2259,11 +2858,15 @@ impl Node for AlchemistPropertyFolder {
         label = "Role",
         enum_options = [
             "condition",
+            "filter",
             "input",
             "output"
         ],
         read_only = true,
         show_in_inspector_content = false
+    );
+    exposed: bool = true (
+        label = "Exposed"
     );
 )]
 pub struct AlchemistPropertyManager {}
@@ -2274,11 +2877,29 @@ impl Node for AlchemistPropertyManager {
         PROPERTY_MANAGER_ITEM_KIND
     }
 
-    fn init(&mut self, _ctx: &mut ProcessCtx) {
-        let mut permissions = NodeUserPermissions::all();
-        permissions.can_edit_name = false;
-        self.node_data_mut().meta.user_permissions = permissions;
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
         self.node_data_mut().meta.can_be_disabled = false;
+        self.reconcile_role(ctx);
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.reconcile_role(ctx);
+    }
+
+    fn on_param_change(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        param: NodeId,
+        _old_value: ParamValue,
+    ) {
+        if param == self.role.id() {
+            self.reconcile_role(ctx);
+        }
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -2292,7 +2913,80 @@ impl AlchemistPropertyManager {
         manager
             .role
             .apply_runtime_value(&ParamValue::Enum(role.to_owned()));
+        set_tag(
+            &mut manager.node_data_mut().meta.tags,
+            PROPERTY_MANAGER_ROLE_TAG_PREFIX,
+            role,
+        );
+        manager.node_data_mut().meta.presentation.default_color = manager_role_color(role);
         manager
+    }
+
+    fn reconcile_role(&mut self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+
+        let tagged_role = property_manager_role_from_tags(&self.node_data().meta.tags);
+        let child_role = child_string(&snapshot, self.id(), "role")
+            .filter(|role| manager_role_anode_type(role).is_some());
+        let label_role =
+            property_manager_role_from_label(&self.node_data().meta.label).map(ToOwned::to_owned);
+        let Some(role) = tagged_role
+            .clone()
+            .or_else(|| {
+                let child_role = child_role.clone()?;
+                if child_role == "condition" {
+                    label_role
+                        .clone()
+                        .filter(|role| role != "condition")
+                        .or(Some(child_role))
+                } else {
+                    Some(child_role)
+                }
+            })
+            .or_else(|| label_role.clone())
+            .or_else(|| {
+                let fallback = self.role.get_ref();
+                (fallback.as_str() != "condition").then(|| fallback.as_str().to_owned())
+            })
+        else {
+            return;
+        };
+
+        if tagged_role.as_deref() != Some(role.as_str()) {
+            set_tag(
+                &mut self.node_data_mut().meta.tags,
+                PROPERTY_MANAGER_ROLE_TAG_PREFIX,
+                &role,
+            );
+        }
+        if self.node_data().meta.presentation.default_color.is_none() {
+            self.node_data_mut().meta.presentation.default_color = manager_role_color(&role);
+        }
+
+        if let Some(role_param) = snapshot.find_child_by_decl_id(self.id(), "role") {
+            let desired = ParamValue::Enum(role);
+            ctx.call_node_mutation(role_param, |node, _ctx| {
+                let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>()
+                else {
+                    return Err("expected an Alchemist manager role parameter".into());
+                };
+                parameter.persist_read_only_value = true;
+                Ok(())
+            });
+            if snapshot
+                .node(role_param)
+                .and_then(|node| node.param_value.as_ref())
+                != Some(&desired)
+            {
+                ctx.edits.push(Edit::SetParam {
+                    node: role_param,
+                    value: desired,
+                    behaviour: ParameterEventBehaviour::Coalesce,
+                });
+            }
+        }
     }
 }
 
@@ -2356,7 +3050,7 @@ impl AlchemistProperty {
             PROPERTY_TYPE_TAG_PREFIX,
             property_type,
         );
-        property.node_data_mut().meta.presentation.color =
+        property.node_data_mut().meta.presentation.default_color =
             Some(value_type_color(property_type));
         property
     }
@@ -2386,8 +3080,8 @@ impl AlchemistProperty {
             return;
         };
 
-        if self.node_data().meta.presentation.color.is_none() {
-            self.node_data_mut().meta.presentation.color =
+        if self.node_data().meta.presentation.default_color.is_none() {
+            self.node_data_mut().meta.presentation.default_color =
                 Some(value_type_color(&property_type));
         }
 
@@ -2450,9 +3144,9 @@ impl AlchemistProperty {
         if let Some(existing) = kept {
             // Type matches — only refresh the display color, preserve
             // user-edited constraints (range, enum options, etc.)
-            let color = value.node_data().meta.presentation.color;
+            let color = value.node_data().meta.presentation.default_color;
             ctx.call_node_mutation(existing, move |node, _ctx| {
-                node.node_data_mut().meta.presentation.color = color;
+                node.node_data_mut().meta.presentation.default_color = color;
                 Ok(())
             });
         } else {
@@ -2499,7 +3193,35 @@ fn formula_surface_from_snapshot(
         source: SurfaceSource::Formula,
     }];
     sections.extend(manager_sections);
-    Ok(FormulaSurface { sections })
+    Ok(FormulaSurface {
+        sections,
+        managed_regions: formula_managed_regions_from_snapshot(snapshot, formula_node)?,
+    })
+}
+
+fn formula_managed_regions_from_snapshot(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+) -> Result<Vec<ManagedRegionDefinition>, String> {
+    if snapshot.child_ids(formula_node).into_iter().any(|child| {
+        snapshot
+            .node(child)
+            .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+    }) {
+        return Ok(Vec::new());
+    }
+    let Some(ParamValue::Str(raw)) =
+        child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+    else {
+        return Ok(Vec::new());
+    };
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_str(raw).map_err(|error| {
+        format!("Formula managed region metadata is invalid: {error}")
+    })
 }
 
 fn surface_item_from_property(
@@ -2599,13 +3321,22 @@ impl Node for AlchemistConnection {
         read_only = true,
         show_in_inspector_content = false
     );
+    managed_regions_json: String = String::new() (
+        label = "Managed Regions Metadata",
+        read_only = true,
+        show_in_inspector_content = false
+    );
 )]
 pub struct AlchemistFormulaDefinition {}
 
 #[item("alchemist_formula", node = "alchemist_formula", from_struct)]
 impl Node for AlchemistFormulaDefinition {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        if self.is_read_only_external_formula() {
+            self.node_data_mut().meta.user_permissions = NodeUserPermissions::none();
+        } else {
+            self.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+        }
         self.node_data_mut().meta.can_be_disabled = false;
         self.reconcile_properties(ctx);
     }
@@ -2615,10 +3346,24 @@ impl Node for AlchemistFormulaDefinition {
         ctx: &mut ProcessCtx,
         _context: NodeCreationContext,
     ) {
+        self.reconcile_external_formula_file_parameter(ctx);
+        self.reconcile_external_formula_operation_parameters(ctx);
+        self.reconcile_formula_copy_source_parameter(ctx);
+        if self.copy_formula_from_source(ctx) {
+            return;
+        }
+        if self.write_external_formula_from_source(ctx) {
+            return;
+        }
+        if self.sync_external_formula_file(ctx) {
+            return;
+        }
         self.reconcile_properties(ctx);
         self.sync_property_getters(ctx);
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        self.enforce_external_formula_permissions(ctx);
+        self.schedule_external_formula_permission_enforcement(ctx);
     }
 
     fn on_param_change(
@@ -2627,24 +3372,49 @@ impl Node for AlchemistFormulaDefinition {
         param: NodeId,
         _old_value: ParamValue,
     ) {
-        if param != self.is_valid.id() && param != self.diagnostics_json.id() {
-            let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
-                let child = direct_child_under(snapshot, self.id(), param)?;
-                snapshot
-                    .node(child)
-                    .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
-                    .then_some(child)
-                    .filter(|anode| {
-                        !is_anode_type_variable_config_param(
-                            snapshot,
-                            *anode,
-                            param,
-                        )
-                    })
-            });
-            self.sync_anode_sockets(ctx, skip_anode);
-            self.validate(ctx);
+        if self.is_formula_copy_source_param(ctx, param)
+            && self.copy_formula_from_source(ctx)
+        {
+            return;
         }
+        if self.is_external_formula_source_param(ctx, param)
+            && self.write_external_formula_from_source(ctx)
+        {
+            return;
+        }
+        if self.is_external_formula_delete_file_param(ctx, param)
+            && self.delete_external_formula_file_if_requested(ctx)
+        {
+            return;
+        }
+        if self.is_external_formula_file_param(ctx, param)
+            && self.sync_external_formula_file(ctx)
+        {
+            return;
+        }
+        if self.is_formula_internal_param(param) {
+            return;
+        }
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), param))
+        {
+            self.save_external_formula_file(ctx);
+            return;
+        }
+        let skip_anode = ctx.tree_snapshot().and_then(|snapshot| {
+            let child = direct_child_under(snapshot, self.id(), param)?;
+            snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+                .then_some(child)
+                .filter(|anode| {
+                    !is_anode_type_variable_config_param(snapshot, *anode, param)
+                })
+        });
+        self.sync_anode_sockets(ctx, skip_anode);
+        self.validate(ctx);
+        self.save_external_formula_file(ctx);
     }
 
     fn on_child_added(
@@ -2655,6 +3425,11 @@ impl Node for AlchemistFormulaDefinition {
     ) {
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        if self.is_read_only_external_formula() {
+            self.enforce_external_formula_subtree_permissions(ctx, _child);
+            self.schedule_external_formula_permission_enforcement(ctx);
+        }
+        self.save_external_formula_file(ctx);
     }
 
     fn on_child_removed(
@@ -2666,14 +3441,30 @@ impl Node for AlchemistFormulaDefinition {
         self.remove_dangling_connections(ctx);
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        self.save_external_formula_file(ctx);
     }
 
     fn on_meta_changed(
         &mut self,
         ctx: &mut ProcessCtx,
         node: NodeId,
-        _patch: NodeMetaPatch,
+        patch: NodeMetaPatch,
     ) {
+        if ctx
+            .tree_snapshot()
+            .is_some_and(|snapshot| is_anode_layout_node(snapshot, self.id(), node))
+        {
+            self.save_external_formula_file(ctx);
+            return;
+        }
+        let shared_formula_rename = if node == self.id() {
+            patch
+                .label
+                .as_deref()
+                .and_then(|label| self.rename_shared_formula_file_for_label(ctx, label))
+        } else {
+            None
+        };
         if ctx.tree_snapshot().is_some_and(|snapshot| {
             snapshot
                 .node(node)
@@ -2683,6 +3474,13 @@ impl Node for AlchemistFormulaDefinition {
         }
         self.sync_anode_sockets(ctx, None);
         self.validate(ctx);
+        match shared_formula_rename {
+            Some(SharedFormulaFileRename::Renamed(path)) => {
+                self.save_external_formula_file_to_path(ctx, path.as_path());
+            }
+            Some(SharedFormulaFileRename::Blocked) => {}
+            None => self.save_external_formula_file(ctx),
+        }
     }
 
     fn child_event_interest_depth(&self, _event: &Event) -> u32 {
@@ -2709,17 +3507,7 @@ impl Node for AlchemistFormulaDefinition {
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = registry()
-            .iter()
-            .map(|declaration| {
-                UserCreatableItem::new(
-                    format!("{ANODE_CREATE_PREFIX}{}", declaration.type_id()),
-                    ANODE_ITEM_KIND,
-                    declaration.label(),
-                )
-                .with_menu_path([declaration.category()])
-            })
-            .collect::<Vec<_>>();
+        let mut items = anode_creatable_items_for_roles(&[]);
         items.push(
             UserCreatableItem::new(
                 CONNECTION_NODE_TYPE,
@@ -2735,17 +3523,14 @@ impl Node for AlchemistFormulaDefinition {
         if node_type == CONNECTION_NODE_TYPE {
             return Some(Box::new(AlchemistConnection::new()));
         }
-        if node_type == ANODE_NODE_TYPE {
-            return Some(Box::new(AlchemistANode::new()));
+        create_anode_user_item(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        if node_type == CONNECTION_NODE_TYPE {
+            return Some(NodeTree::new(AlchemistConnection::new()));
         }
-        let type_id = node_type.strip_prefix(ANODE_CREATE_PREFIX)?;
-        let registry = registry();
-        let declaration = registry.get(&ANodeTypeId::new(type_id))?;
-        Some(Box::new(AlchemistANode::for_type(
-            type_id,
-            declaration.label(),
-            declaration.category(),
-        )))
+        create_anode_user_item_tree(node_type)
     }
 
     fn project_create(node_type: &str) -> Option<Self> {
@@ -2753,7 +3538,656 @@ impl Node for AlchemistFormulaDefinition {
     }
 }
 
+fn preserve_external_formula_child(decl_id: &str) -> bool {
+    matches!(
+        decl_id,
+        "is_valid"
+            | "diagnostics_json"
+            | FORMULA_MANAGED_REGIONS_JSON_DECL_ID
+            | FORMULA_EXTERNAL_FILE_DECL_ID
+            | FORMULA_EXTERNAL_SOURCE_DECL_ID
+            | FORMULA_EXTERNAL_DELETE_FILE_DECL_ID
+            | FORMULA_COPY_SOURCE_DECL_ID
+    )
+}
+
+fn imported_formula_content_children(imported: NodeTree) -> Vec<NodeTree> {
+    imported
+        .children
+        .into_iter()
+        .filter_map(|child| {
+            let decl_id = child.node.node_data().meta.decl_id.0.as_str();
+            if decl_id == FORMULA_MANAGED_REGIONS_JSON_DECL_ID {
+                return None;
+            }
+            (!preserve_external_formula_child(decl_id)).then_some(child)
+        })
+        .collect()
+}
+
+fn write_formula_node_to_file(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    path: &Path,
+) -> Result<(), String> {
+    write_formula_node_to_file_with_root_uuid(snapshot, formula_node, path, None)
+}
+
+fn write_formula_node_to_file_with_root_uuid(
+    snapshot: &ProcessTreeSnapshot,
+    formula_node: NodeId,
+    path: &Path,
+    root_uuid: Option<NodeUuid>,
+) -> Result<(), String> {
+    let Some(json) =
+        FormulaCatalog::export_formula_json_with_root_uuid(snapshot, formula_node, root_uuid)
+    else {
+        return Err("formula could not be serialized".to_owned());
+    };
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!("failed to create formula folder '{}': {error}", parent.display())
+        })?;
+    }
+    fs::write(path, json)
+        .map_err(|error| format!("failed to write formula file '{}': {error}", path.display()))
+}
+
+enum SharedFormulaFileRename {
+    Renamed(PathBuf),
+    Blocked,
+}
+
+fn shared_formula_path_for_label(shared_dir: &Path, label: &str) -> PathBuf {
+    shared_dir.join(format!("{}.json", shared_formula_file_stem(label)))
+}
+
+fn shared_formula_file_stem(label: &str) -> String {
+    let mut stem = String::new();
+    for ch in label.trim().chars() {
+        if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+            stem.push('_');
+        } else {
+            stem.push(ch);
+        }
+    }
+    let mut stem = stem
+        .trim_matches(|ch| ch == ' ' || ch == '.')
+        .to_owned();
+    if stem.is_empty() {
+        stem = "Shared Formula".to_owned();
+    }
+    if is_windows_reserved_file_stem(&stem) {
+        stem.insert(0, '_');
+    }
+    stem
+}
+
+fn is_windows_reserved_file_stem(stem: &str) -> bool {
+    let device_name = stem
+        .split('.')
+        .next()
+        .unwrap_or(stem)
+        .to_ascii_uppercase();
+    matches!(device_name.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || device_name
+            .strip_prefix("COM")
+            .and_then(|suffix| suffix.parse::<u8>().ok())
+            .is_some_and(|index| (1..=9).contains(&index))
+        || device_name
+            .strip_prefix("LPT")
+            .and_then(|suffix| suffix.parse::<u8>().ok())
+            .is_some_and(|index| (1..=9).contains(&index))
+}
+
+fn paths_refer_to_same_file(left: &Path, right: &Path) -> bool {
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
+}
+
 impl AlchemistFormulaDefinition {
+    fn is_external_file_formula(&self) -> bool {
+        self.node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == FORMULA_EXTERNAL_FILE_TAG)
+    }
+
+    fn is_read_only_external_formula(&self) -> bool {
+        self.node_data()
+            .meta
+            .tags
+            .iter()
+            .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
+    }
+
+    fn reconcile_external_formula_file_parameter(&self, ctx: &mut ProcessCtx) {
+        if !self.is_external_file_formula() {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+        {
+            ctx.add_child(self.id(), external_formula_file_parameter(), None);
+        }
+    }
+
+    fn reconcile_external_formula_operation_parameters(&self, ctx: &mut ProcessCtx) {
+        if !self.is_external_file_formula() {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_SOURCE_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_EXTERNAL_SOURCE_DECL_ID)
+        {
+            ctx.add_child(self.id(), external_formula_source_parameter(), None);
+        }
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_DELETE_FILE_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_EXTERNAL_DELETE_FILE_DECL_ID)
+        {
+            ctx.add_child(self.id(), external_formula_delete_file_parameter(), None);
+        }
+    }
+
+    fn reconcile_formula_copy_source_parameter(&self, ctx: &mut ProcessCtx) {
+        if self.is_external_file_formula() {
+            return;
+        }
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_COPY_SOURCE_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_COPY_SOURCE_DECL_ID)
+        {
+            ctx.add_child(self.id(), formula_copy_source_parameter(), None);
+        }
+    }
+
+    fn external_formula_file_path(&self, ctx: &ProcessCtx) -> Option<PathBuf> {
+        let snapshot = ctx.tree_snapshot()?;
+        let value = child_param(snapshot, self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)?;
+        match value {
+            ParamValue::File(path) | ParamValue::Str(path) => {
+                let path = path.trim();
+                (!path.is_empty()).then(|| PathBuf::from(path))
+            }
+            _ => None,
+        }
+    }
+
+    fn rename_shared_formula_file_for_label(
+        &self,
+        ctx: &mut ProcessCtx,
+        label: &str,
+    ) -> Option<SharedFormulaFileRename> {
+        if !self.is_external_file_formula() || self.is_read_only_external_formula() {
+            return None;
+        }
+        let snapshot = ctx.tree_snapshot_arc()?;
+        let shared_dir = shared_formula_dir_from_snapshot(snapshot.as_ref())?;
+        let current_path = self.external_formula_file_path(ctx)?;
+        if !current_path.starts_with(&shared_dir) {
+            return None;
+        }
+        let next_path = shared_formula_path_for_label(&shared_dir, label);
+        if next_path == current_path {
+            return None;
+        }
+        let Some(file_param) =
+            snapshot.find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_FILE_DECL_ID)
+        else {
+            return None;
+        };
+        let current_exists = current_path.exists();
+        if current_exists && next_path.exists() && !paths_refer_to_same_file(&current_path, &next_path)
+        {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Shared formula file could not be renamed",
+                Some(&format!("target file '{}' already exists", next_path.display())),
+            );
+            return Some(SharedFormulaFileRename::Blocked);
+        }
+        if let Some(parent) = next_path.parent() {
+            if let Err(error) = fs::create_dir_all(parent) {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formula file could not be renamed",
+                    Some(&format!("failed to create folder '{}': {error}", parent.display())),
+                );
+                return Some(SharedFormulaFileRename::Blocked);
+            }
+        }
+        if current_exists && !paths_refer_to_same_file(&current_path, &next_path) {
+            if let Err(error) = fs::rename(&current_path, &next_path) {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formula file could not be renamed",
+                    Some(&format!(
+                        "failed to rename '{}' to '{}': {error}",
+                        current_path.display(),
+                        next_path.display()
+                    )),
+                );
+                return Some(SharedFormulaFileRename::Blocked);
+            }
+        }
+        ctx.edits.push(Edit::SetParam {
+            node: file_param,
+            value: ParamValue::File(next_path.to_string_lossy().into_owned()),
+            behaviour: ParameterEventBehaviour::Coalesce,
+        });
+        Some(SharedFormulaFileRename::Renamed(next_path))
+    }
+
+    fn source_reference_param(
+        &self,
+        ctx: &ProcessCtx,
+        decl_id: &str,
+    ) -> Option<(NodeId, NodeReference)> {
+        let snapshot = ctx.tree_snapshot()?;
+        let param = snapshot.find_child_by_decl_id(self.id(), decl_id)?;
+        match snapshot.node(param)?.param_value.as_ref()? {
+            ParamValue::Reference(reference) if !reference.uuid().is_nil() => {
+                Some((param, reference.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_source_reference(
+        snapshot: &ProcessTreeSnapshot,
+        reference: &NodeReference,
+    ) -> Option<NodeId> {
+        reference
+            .cached_id()
+            .filter(|node| {
+                snapshot
+                    .node(*node)
+                    .is_some_and(|snapshot_node| snapshot_node.uuid == reference.uuid())
+            })
+            .or_else(|| snapshot.node_id_by_uuid(reference.uuid()))
+    }
+
+    fn is_external_formula_file_param(&self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        ctx.tree_snapshot()
+            .and_then(|snapshot| snapshot.node(param))
+            .is_some_and(|node| node.decl_id == FORMULA_EXTERNAL_FILE_DECL_ID)
+    }
+
+    fn is_external_formula_source_param(&self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        ctx.tree_snapshot()
+            .and_then(|snapshot| snapshot.node(param))
+            .is_some_and(|node| node.decl_id == FORMULA_EXTERNAL_SOURCE_DECL_ID)
+    }
+
+    fn is_external_formula_delete_file_param(&self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        ctx.tree_snapshot()
+            .and_then(|snapshot| snapshot.node(param))
+            .is_some_and(|node| node.decl_id == FORMULA_EXTERNAL_DELETE_FILE_DECL_ID)
+    }
+
+    fn is_formula_copy_source_param(&self, ctx: &ProcessCtx, param: NodeId) -> bool {
+        ctx.tree_snapshot()
+            .and_then(|snapshot| snapshot.node(param))
+            .is_some_and(|node| node.decl_id == FORMULA_COPY_SOURCE_DECL_ID)
+    }
+
+    fn is_formula_internal_param(&self, param: NodeId) -> bool {
+        param == self.is_valid.id()
+            || param == self.diagnostics_json.id()
+            || param == self.managed_regions_json.id()
+    }
+
+    fn write_external_formula_from_source(&mut self, ctx: &mut ProcessCtx) -> bool {
+        if !self.is_external_file_formula() {
+            return false;
+        }
+        let Some((source_param, reference)) =
+            self.source_reference_param(ctx, FORMULA_EXTERNAL_SOURCE_DECL_ID)
+        else {
+            return false;
+        };
+        let Some(path) = self.external_formula_file_path(ctx) else {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "External formula file could not be saved",
+                Some("missing target file path"),
+            );
+            return true;
+        };
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return true;
+        };
+        let Some(source) = Self::resolve_source_reference(snapshot.as_ref(), &reference) else {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "External formula file could not be saved",
+                Some("source formula no longer exists"),
+            );
+            return true;
+        };
+        if let Err(error) =
+            write_formula_node_to_file(snapshot.as_ref(), source, path.as_path())
+        {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "External formula file could not be saved",
+                Some(&error),
+            );
+            return true;
+        }
+        ctx.set_param(
+            source_param,
+            ParamValue::Reference(NodeReference::empty()),
+        );
+        self.sync_external_formula_file(ctx);
+        true
+    }
+
+    fn copy_formula_from_source(&mut self, ctx: &mut ProcessCtx) -> bool {
+        if self.is_external_file_formula() {
+            return false;
+        }
+        let Some((source_param, reference)) =
+            self.source_reference_param(ctx, FORMULA_COPY_SOURCE_DECL_ID)
+        else {
+            return false;
+        };
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return true;
+        };
+        let Some(source) = Self::resolve_source_reference(snapshot.as_ref(), &reference) else {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Formula could not be copied",
+                Some("source formula no longer exists"),
+            );
+            return true;
+        };
+        match FormulaCatalog::formula_node_tree(snapshot.as_ref(), source) {
+            Ok(tree) => {
+                self.replace_formula_contents(ctx, tree);
+                ctx.set_param(
+                    source_param,
+                    ParamValue::Reference(NodeReference::empty()),
+                );
+                true
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Formula could not be copied",
+                    Some(&error.to_string()),
+                );
+                true
+            }
+        }
+    }
+
+    fn save_external_formula_file(&self, ctx: &mut ProcessCtx) {
+        if !self.is_external_file_formula() || self.is_read_only_external_formula() {
+            return;
+        }
+        let Some(path) = self.external_formula_file_path(ctx) else {
+            return;
+        };
+        self.save_external_formula_file_to_path(ctx, path.as_path());
+    }
+
+    fn save_external_formula_file_to_path(&self, ctx: &mut ProcessCtx, path: &Path) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let root_uuid = shared_formula_dir_from_snapshot(snapshot.as_ref())
+            .filter(|shared_dir| path.starts_with(shared_dir))
+            .and_then(|_| {
+                FormulaCatalog::shared_formula_file_identity(path)
+                    .ok()
+                    .map(|(uuid, _)| uuid)
+            });
+        match write_formula_node_to_file_with_root_uuid(
+            snapshot.as_ref(),
+            self.id(),
+            path,
+            root_uuid,
+        ) {
+            Ok(()) => ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID)),
+            Err(error) => ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "External formula file could not be saved",
+                Some(&error),
+            ),
+        }
+    }
+
+    fn delete_external_formula_file_if_requested(&self, ctx: &mut ProcessCtx) -> bool {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return false;
+        };
+        let Some(param) =
+            snapshot.find_child_by_decl_id(self.id(), FORMULA_EXTERNAL_DELETE_FILE_DECL_ID)
+        else {
+            return false;
+        };
+        if !matches!(
+            snapshot.node(param).and_then(|node| node.param_value.as_ref()),
+            Some(ParamValue::Bool(true))
+        ) {
+            return false;
+        }
+        let Some(path) = self.external_formula_file_path(ctx) else {
+            ctx.set_param(param, ParamValue::Bool(false));
+            return true;
+        };
+        if !shared_formula_dir_from_snapshot(snapshot.as_ref())
+            .is_some_and(|shared_dir| path.starts_with(shared_dir))
+        {
+            ctx.set_param(param, ParamValue::Bool(false));
+            return true;
+        }
+        match fs::remove_file(&path) {
+            Ok(()) => ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID))
+            }
+            Err(error) => ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Shared formula file could not be removed",
+                Some(&format!("{}: {error}", path.display())),
+            ),
+        }
+        ctx.set_param(param, ParamValue::Bool(false));
+        true
+    }
+
+    fn sync_external_formula_file(&mut self, ctx: &mut ProcessCtx) -> bool {
+        if !self.is_external_file_formula() {
+            return false;
+        }
+        let Some(path) = self.external_formula_file_path(ctx) else {
+            ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID));
+            return false;
+        };
+        match FormulaCatalog::external_formula_tree_from_file(&path) {
+            Ok(tree) => {
+                ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID));
+                self.replace_external_formula_contents(ctx, tree);
+                true
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "External formula file could not be loaded",
+                    Some(&format!("{}: {error}", path.display())),
+                );
+                false
+            }
+        }
+    }
+
+    fn replace_external_formula_contents(&mut self, ctx: &mut ProcessCtx, imported: NodeTree) {
+        self.sync_external_formula_label(ctx, &imported);
+        self.replace_formula_contents(ctx, imported);
+    }
+
+    fn sync_external_formula_label(&self, ctx: &mut ProcessCtx, imported: &NodeTree) {
+        let label = imported.node.node_data().meta.label.trim();
+        if label.is_empty() || label == self.node_data().meta.label {
+            return;
+        }
+        ctx.patch_node_meta(
+            self.id(),
+            NodeMetaPatch {
+                label: Some(label.to_owned()),
+                ..NodeMetaPatch::default()
+            },
+        );
+    }
+
+    fn replace_formula_contents(&mut self, ctx: &mut ProcessCtx, imported: NodeTree) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let children = imported_formula_content_children(imported);
+        for child in snapshot.child_ids(self.id()) {
+            let Some(node) = snapshot.node(child) else {
+                continue;
+            };
+            if preserve_external_formula_child(node.decl_id.as_str()) {
+                continue;
+            }
+            ctx.edits.push(Edit::RemoveNode { node: child });
+        }
+        self.managed_regions_json.set(ctx, String::new());
+        for child in children {
+            ctx.edits.push(Edit::AddNodeTree {
+                tree: child,
+                parent: self.id(),
+                prev_sibling: None,
+            });
+        }
+        self.schedule_formula_reconcile(ctx);
+    }
+
+    fn schedule_formula_reconcile(&self, ctx: &mut ProcessCtx) {
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: self.id(),
+            callback: Box::new(|node, ctx| {
+                let Some(formula) = node
+                    .as_any_mut()
+                    .downcast_mut::<AlchemistFormulaDefinition>()
+                else {
+                    return Ok(());
+                };
+                formula.reconcile_properties(ctx);
+                formula.sync_property_getters(ctx);
+                formula.sync_anode_sockets(ctx, None);
+                formula.validate(ctx);
+                formula.enforce_external_formula_permissions(ctx);
+                Ok(())
+            }),
+            needs_tree_snapshot: true,
+        });
+    }
+
+    fn enforce_external_formula_permissions(&self, ctx: &mut ProcessCtx) {
+        if !self.is_read_only_external_formula() {
+            return;
+        }
+        self.enforce_external_formula_subtree_permissions(ctx, self.id());
+    }
+
+    fn schedule_external_formula_permission_enforcement(&self, ctx: &mut ProcessCtx) {
+        if !self.is_read_only_external_formula() {
+            return;
+        }
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: self.id(),
+            callback: Box::new(|node, ctx| {
+                if let Some(formula) =
+                    node.as_any_mut()
+                        .downcast_mut::<AlchemistFormulaDefinition>()
+                {
+                    formula.enforce_external_formula_permissions(ctx);
+                } else if let Some(AppNode::AlchemistFormulaDefinition(formula)) =
+                    node.as_any_mut().downcast_mut::<AppNode>()
+                {
+                    formula.enforce_external_formula_permissions(ctx);
+                }
+                Ok(())
+            }),
+            needs_tree_snapshot: true,
+        });
+    }
+
+    fn enforce_external_formula_subtree_permissions(&self, ctx: &mut ProcessCtx, root: NodeId) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            Self::enforce_external_formula_node_permissions(ctx, root);
+            return;
+        };
+        let mut pending = vec![root];
+        while let Some(node_id) = pending.pop() {
+            if snapshot.node(node_id).is_none() {
+                continue;
+            }
+            pending.extend(snapshot.child_ids(node_id));
+            Self::enforce_external_formula_node_permissions(ctx, node_id);
+        }
+    }
+
+    fn enforce_external_formula_node_permissions(ctx: &mut ProcessCtx, node_id: NodeId) {
+        ctx.edits.push(Edit::CallNodeMutation {
+            node: node_id,
+            callback: Box::new(|node, _ctx| {
+                if let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() {
+                    parameter.read_only = true;
+                } else if let Some(AppNode::Parameter(parameter)) =
+                    node.as_any_mut().downcast_mut::<AppNode>()
+                {
+                    parameter.read_only = true;
+                }
+                Ok(())
+            }),
+            needs_tree_snapshot: false,
+        });
+        ctx.patch_node_meta(
+            node_id,
+            NodeMetaPatch {
+                can_be_disabled: Some(false),
+                user_permissions: Some(NodeUserPermissions::none()),
+                ..NodeMetaPatch::default()
+            },
+        );
+    }
+
     fn reconcile_properties(&self, ctx: &mut ProcessCtx) {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
@@ -2982,19 +4416,22 @@ impl AlchemistFormulaDefinition {
             let Some(anode) = snapshot.node(child) else {
                 continue;
             };
-            if anode.node_type != ANODE_NODE_TYPE
-                || anode_type_from_tags(&anode.tags).as_deref()
-                    != Some(PROPERTY_ANODE_TYPE)
-            {
+            if anode.node_type != ANODE_NODE_TYPE {
                 continue;
-            }
+            };
+            let Some(type_id) = anode_type_from_tags(&anode.tags) else {
+                continue;
+            };
+            let Some(config_decl_id) = anode_property_ref_config_decl_id(type_id.as_str()) else {
+                continue;
+            };
             let Some(config) =
                 snapshot.find_child_by_decl_id(child, "config")
             else {
                 continue;
             };
             let Some(property_uuid) =
-                child_reference_uuid(&snapshot, config, "config/property_id")
+                child_reference_uuid(&snapshot, config, config_decl_id)
             else {
                 continue;
             };
@@ -3007,10 +4444,10 @@ impl AlchemistFormulaDefinition {
                 continue;
             };
             let label_changed = anode.label != label;
-            let color_changed = anode.presentation.color != color;
+            let color_changed = anode.presentation.default_color != color;
             if label_changed || color_changed {
                 let mut presentation = anode.presentation.clone();
-                presentation.color = color;
+                presentation.default_color = color;
                 ctx.patch_node_meta(
                     child,
                     NodeMetaPatch {
@@ -3128,18 +4565,15 @@ impl AlchemistFormulaDefinition {
         let formula_warning_to_set = if valid {
             None
         } else {
-            let summary = diagnostics
-                .first()
-                .and_then(|diagnostic| diagnostic["message"].as_str())
-                .unwrap_or("Formula compilation failed");
+            let detail = formula_warning_detail(&diagnostics);
             (!node_warning_matches(
                 snapshot,
                 self.id(),
                 FORMULA_WARNING_ID,
                 "Formula is invalid",
-                Some(summary),
+                Some(&detail),
             ))
-            .then_some(summary.to_owned())
+            .then_some(detail)
         };
         self.is_valid.set(ctx, valid);
         self.diagnostics_json.set(ctx, diagnostics_json);
@@ -3161,12 +4595,12 @@ impl AlchemistFormulaDefinition {
             if formula_warning_to_clear {
                 ctx.clear_node_warning(self.id(), Some(FORMULA_WARNING_ID));
             }
-        } else if let Some(summary) = formula_warning_to_set {
+        } else if let Some(detail) = formula_warning_to_set {
             ctx.set_node_warning_with(
                 self.id(),
                 Some(FORMULA_WARNING_ID),
                 "Formula is invalid",
-                Some(&summary),
+                Some(&detail),
             );
         }
     }
@@ -3174,6 +4608,80 @@ impl AlchemistFormulaDefinition {
 
 #[node("alchemist_formula_library", label = "Formulas")]
 pub struct FormulaLibrary {}
+
+struct SharedFormulaWatcher {
+    directory: PathBuf,
+    dirty: Arc<AtomicBool>,
+    _watcher: RecommendedWatcher,
+}
+
+static SHARED_FORMULA_WATCHER: OnceLock<Mutex<Option<SharedFormulaWatcher>>> =
+    OnceLock::new();
+
+fn shared_formula_watcher_state() -> &'static Mutex<Option<SharedFormulaWatcher>> {
+    SHARED_FORMULA_WATCHER.get_or_init(|| Mutex::new(None))
+}
+
+fn ensure_shared_formula_watcher(directory: PathBuf) -> Result<(), String> {
+    fs::create_dir_all(&directory)
+        .map_err(|error| format!("failed to create shared formulas folder: {error}"))?;
+
+    let mut state = shared_formula_watcher_state()
+        .lock()
+        .map_err(|_| "shared formula watcher lock is poisoned".to_owned())?;
+    if state
+        .as_ref()
+        .is_some_and(|watcher| watcher.directory == directory)
+    {
+        return Ok(());
+    }
+
+    let dirty = Arc::new(AtomicBool::new(true));
+    let dirty_flag = Arc::clone(&dirty);
+    let mut watcher = RecommendedWatcher::new(
+        move |result: Result<notify::Event, notify::Error>| {
+            if result.is_ok() {
+                dirty_flag.store(true, Ordering::Relaxed);
+            }
+        },
+        Config::default(),
+    )
+    .map_err(|error| format!("failed to create shared formula watcher: {error}"))?;
+    watcher
+        .watch(&directory, RecursiveMode::NonRecursive)
+        .map_err(|error| format!("failed to watch shared formulas folder: {error}"))?;
+
+    *state = Some(SharedFormulaWatcher {
+        directory,
+        dirty,
+        _watcher: watcher,
+    });
+    Ok(())
+}
+
+fn shared_formula_watcher_has_pending() -> bool {
+    shared_formula_watcher_state()
+        .lock()
+        .ok()
+        .and_then(|state| {
+            state
+                .as_ref()
+                .map(|watcher| watcher.dirty.load(Ordering::Relaxed))
+        })
+        .unwrap_or(false)
+}
+
+fn take_shared_formula_watcher_pending() -> bool {
+    shared_formula_watcher_state()
+        .lock()
+        .ok()
+        .and_then(|state| {
+            state
+                .as_ref()
+                .map(|watcher| watcher.dirty.swap(false, Ordering::Relaxed))
+        })
+        .unwrap_or(false)
+}
 
 #[node("alchemist_formula_library", from_struct)]
 impl Node for FormulaLibrary {
@@ -3197,10 +4705,187 @@ impl Node for FormulaLibrary {
         create_formula_container_item(node_type)
     }
 
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        create_formula_container_item_tree(node_type)
+    }
+
     fn init(&mut self, _ctx: &mut ProcessCtx) {
         let mut permissions = NodeUserPermissions::all();
         permissions.can_remove_and_duplicate = false;
         self.node_data_mut().meta.user_permissions = permissions;
+    }
+
+    fn on_node_ready(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        _context: NodeCreationContext,
+    ) {
+        self.reconcile_shared_formula_dir_parameter(ctx);
+        self.ensure_shared_formula_watcher(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut ProcessCtx) {
+        if !take_shared_formula_watcher_pending() {
+            return;
+        }
+        self.ensure_shared_formula_watcher(ctx);
+        self.sync_shared_formula_files(ctx);
+    }
+
+    fn needs_update(&self) -> bool {
+        shared_formula_watcher_has_pending()
+    }
+
+    fn update_requires_tree_snapshot(&self) -> bool {
+        shared_formula_watcher_has_pending()
+    }
+}
+
+const FORMULA_LIBRARY_SHARED_DIR_DECL_ID: &str = "shared_formula_dir";
+
+fn shared_formula_dir_parameter(path: String) -> Parameter {
+    parameter(
+        "Shared Formulas Folder",
+        FORMULA_LIBRARY_SHARED_DIR_DECL_ID,
+        ParamValue::Str(path),
+        true,
+    )
+}
+
+impl FormulaLibrary {
+    /// Exposes the resolved shared-formulas folder as a read-only parameter
+    /// so the frontend can tell whether an external-file-linked formula's
+    /// path is inside it (i.e. is "Shared") without hardcoding the app-data
+    /// path convention on the client.
+    fn reconcile_shared_formula_dir_parameter(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let path = shared_formula_dir_from_snapshot(snapshot.as_ref())
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if snapshot
+            .find_child_by_decl_id(self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
+            .is_none()
+            && !child_add_pending(ctx, self.id(), FORMULA_LIBRARY_SHARED_DIR_DECL_ID)
+        {
+            ctx.add_child(self.id(), shared_formula_dir_parameter(path), None);
+        }
+    }
+
+    fn ensure_shared_formula_watcher(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(path) = shared_formula_dir_from_snapshot(snapshot.as_ref()) else {
+            return;
+        };
+        match ensure_shared_formula_watcher(path) {
+            Ok(()) => ctx.clear_node_warning(self.id(), Some(FORMULA_EXTERNAL_FILE_WARNING_ID)),
+            Err(error) => ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Shared formulas folder could not be watched",
+                Some(&error),
+            ),
+        }
+    }
+
+    fn sync_shared_formula_files(&self, ctx: &mut ProcessCtx) {
+        let Some(snapshot) = ctx.tree_snapshot_arc() else {
+            return;
+        };
+        let Some(shared_dir) = shared_formula_dir_from_snapshot(snapshot.as_ref()) else {
+            return;
+        };
+        let mut renamed_nodes = HashSet::new();
+        let mut renamed_paths = HashSet::new();
+        match FormulaCatalog::renamed_shared_formula_paths(
+            snapshot.as_ref(),
+            self.id(),
+            &shared_dir,
+        ) {
+            Ok(renames) => {
+                for rename in renames {
+                    let Some(file_param) =
+                        snapshot.find_child_by_decl_id(rename.node, FORMULA_EXTERNAL_FILE_DECL_ID)
+                    else {
+                        continue;
+                    };
+                    renamed_nodes.insert(rename.node);
+                    renamed_paths.insert(rename.path.clone());
+                    ctx.edits.push(Edit::SetParam {
+                        node: file_param,
+                        value: ParamValue::File(rename.path.to_string_lossy().into_owned()),
+                        behaviour: ParameterEventBehaviour::Coalesce,
+                    });
+                    if snapshot
+                        .node(rename.node)
+                        .is_some_and(|node| node.label != rename.label)
+                    {
+                        ctx.patch_node_meta(
+                            rename.node,
+                            NodeMetaPatch {
+                                label: Some(rename.label),
+                                ..NodeMetaPatch::default()
+                            },
+                        );
+                    }
+                }
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formulas folder could not be read",
+                    Some(&error.to_string()),
+                );
+                return;
+            }
+        }
+        match FormulaCatalog::stale_shared_formula_nodes_excluding(
+            snapshot.as_ref(),
+            self.id(),
+            &shared_dir,
+            &renamed_nodes,
+        ) {
+            Ok(nodes) => {
+                for node in nodes {
+                    ctx.edits.push(Edit::RemoveNode { node });
+                }
+            }
+            Err(error) => {
+                ctx.set_node_warning_with(
+                    self.id(),
+                    Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                    "Shared formulas folder could not be read",
+                    Some(&error.to_string()),
+                );
+                return;
+            }
+        }
+        match FormulaCatalog::missing_shared_formula_trees_excluding_paths(
+            snapshot.as_ref(),
+            self.id(),
+            &shared_dir,
+            &renamed_paths,
+        ) {
+            Ok(trees) => {
+                for tree in trees {
+                    ctx.edits.push(Edit::AddNodeTree {
+                        tree,
+                        parent: self.id(),
+                        prev_sibling: None,
+                    });
+                }
+            }
+            Err(error) => ctx.set_node_warning_with(
+                self.id(),
+                Some(FORMULA_EXTERNAL_FILE_WARNING_ID),
+                "Shared formulas folder could not be read",
+                Some(&error.to_string()),
+            ),
+        }
     }
 }
 
@@ -3227,6 +4912,10 @@ impl Node for AlchemistFormulaFolder {
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         create_formula_container_item(node_type)
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        create_formula_container_item_tree(node_type)
     }
 
     fn init(&mut self, _ctx: &mut ProcessCtx) {

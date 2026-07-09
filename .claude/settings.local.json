@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cargo check *)"
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "mcp__jcodemunch__*",
+      "mcp__context7__*",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "mcp__jcodemunch__search_text",
+      "mcp__jcodemunch__get_file_content",
+      "Bash(cargo check *)",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   }
 }

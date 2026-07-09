@@ -3,9 +3,12 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
-use golden_alchemist::{ContextKey, OutputPreviewStatus, RuntimeValue, SurfaceItemKind};
+use golden_alchemist::{
+    ContextKey, ManagedItemInstance, ManagedItemUiState, ManagedRegionDefinition, ManagedRegionInstance,
+    ManagedRegionKind, ManagedSocketRef, OutputPreviewStatus, RuntimeValue, SurfaceItemKind, ValueTypeSpec,
+};
 
-use crate::ANodeOutputPreviewSample;
+use crate::{ANodeOutputPreviewSample, ProcessorFormulaSourceKind, ProcessorUiModel};
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct StateUiLayoutDto {
@@ -50,7 +53,7 @@ pub enum FormulaSurfaceItemKindDto {
     Input,
     Filter,
     Output,
-    Action,
+    Command,
 }
 
 impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
@@ -62,7 +65,7 @@ impl From<SurfaceItemKind> for FormulaSurfaceItemKindDto {
             SurfaceItemKind::Input => Self::Input,
             SurfaceItemKind::Filter => Self::Filter,
             SurfaceItemKind::Output => Self::Output,
-            SurfaceItemKind::Action => Self::Action,
+            SurfaceItemKind::Command => Self::Command,
         }
     }
 }
@@ -83,6 +86,142 @@ pub struct FormulaSurfaceSectionDto {
     pub items: Vec<FormulaSurfaceItemDto>,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ManagedRegionKindDto {
+    InputSet,
+    FilterPipeline,
+    OutputSet,
+    TriggerInput,
+    CommandSet,
+}
+
+impl From<ManagedRegionKind> for ManagedRegionKindDto {
+    fn from(value: ManagedRegionKind) -> Self {
+        match value {
+            ManagedRegionKind::InputSet => Self::InputSet,
+            ManagedRegionKind::FilterPipeline => Self::FilterPipeline,
+            ManagedRegionKind::OutputSet => Self::OutputSet,
+            ManagedRegionKind::TriggerInput => Self::TriggerInput,
+            ManagedRegionKind::CommandSet => Self::CommandSet,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ManagedSocketRefDto {
+    pub node_id: String,
+    pub socket_id: String,
+}
+
+impl From<&ManagedSocketRef> for ManagedSocketRefDto {
+    fn from(value: &ManagedSocketRef) -> Self {
+        Self {
+            node_id: value.node.to_string(),
+            socket_id: value.socket.to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ManagedRegionDefinitionDto {
+    pub id: String,
+    pub kind: ManagedRegionKindDto,
+    pub label: String,
+    pub input_socket: Option<ManagedSocketRefDto>,
+    pub output_socket: Option<ManagedSocketRefDto>,
+    pub accepted_roles: Vec<FormulaSurfaceItemKindDto>,
+}
+
+impl From<&ManagedRegionDefinition> for ManagedRegionDefinitionDto {
+    fn from(value: &ManagedRegionDefinition) -> Self {
+        Self {
+            id: value.id.to_string(),
+            kind: value.kind.into(),
+            label: value.label.clone(),
+            input_socket: value.input_socket.as_ref().map(ManagedSocketRefDto::from),
+            output_socket: value.output_socket.as_ref().map(ManagedSocketRefDto::from),
+            accepted_roles: value
+                .accepted_roles
+                .iter()
+                .copied()
+                .map(FormulaSurfaceItemKindDto::from)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ManagedItemUiStateDto {
+    pub collapsed: bool,
+}
+
+impl From<&ManagedItemUiState> for ManagedItemUiStateDto {
+    fn from(value: &ManagedItemUiState) -> Self {
+        Self {
+            collapsed: value.collapsed,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ManagedItemDto {
+    pub id: String,
+    pub anode_id: String,
+    pub anode_type_id: String,
+    pub label: String,
+    pub enabled: bool,
+    pub anode_enabled: bool,
+    pub ui_state: ManagedItemUiStateDto,
+}
+
+impl From<&ManagedItemInstance> for ManagedItemDto {
+    fn from(value: &ManagedItemInstance) -> Self {
+        Self {
+            id: value.id.to_string(),
+            anode_id: value.anode.id.to_string(),
+            anode_type_id: value.anode.type_id.to_string(),
+            label: value.anode.label.clone(),
+            enabled: value.enabled,
+            anode_enabled: value.anode.enabled,
+            ui_state: ManagedItemUiStateDto::from(&value.ui_state),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ManagedRegionInstanceDto {
+    pub region_id: String,
+    pub items: Vec<ManagedItemDto>,
+}
+
+impl From<&ManagedRegionInstance> for ManagedRegionInstanceDto {
+    fn from(value: &ManagedRegionInstance) -> Self {
+        Self {
+            region_id: value.region_id.to_string(),
+            items: value.items.iter().map(ManagedItemDto::from).collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ProcessorFormulaSourceKindDto {
+    Project,
+    Builtin,
+}
+
+impl From<ProcessorFormulaSourceKind> for ProcessorFormulaSourceKindDto {
+    fn from(value: ProcessorFormulaSourceKind) -> Self {
+        match value {
+            ProcessorFormulaSourceKind::Project => Self::Project,
+            ProcessorFormulaSourceKind::Builtin => Self::Builtin,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ProcessorUiDto {
     pub id: String,
@@ -90,8 +229,76 @@ pub struct ProcessorUiDto {
     pub active: bool,
     pub formula_id: String,
     pub formula_label: String,
+    pub formula_source_key: Option<String>,
+    pub formula_source_kind: ProcessorFormulaSourceKindDto,
+    pub formula_open_readonly_from_processor: bool,
+    pub formula_can_duplicate_to_library: bool,
     pub surface: Vec<FormulaSurfaceSectionDto>,
+    pub managed_regions: Vec<ManagedRegionDefinitionDto>,
+    pub managed_region_instances: Vec<ManagedRegionInstanceDto>,
     pub diagnostic_ids: Vec<String>,
+    pub multiplex_lane_count: usize,
+}
+
+impl From<&ProcessorUiModel> for ProcessorUiDto {
+    fn from(value: &ProcessorUiModel) -> Self {
+        Self {
+            id: value.id.to_string(),
+            label: value.label.clone(),
+            active: value.active,
+            formula_id: value.formula_id.clone(),
+            formula_label: value.formula_label.clone(),
+            formula_source_key: value.formula_source_key.clone(),
+            formula_source_kind: value.formula_source.source_kind.into(),
+            formula_open_readonly_from_processor: value.formula_source.open_readonly_from_processor,
+            formula_can_duplicate_to_library: value.formula_source.can_duplicate_to_library,
+            surface: value
+                .surface
+                .sections
+                .iter()
+                .map(|section| FormulaSurfaceSectionDto {
+                    id: section.id.to_string(),
+                    label: section.label.clone(),
+                    items: section
+                        .items
+                        .iter()
+                        .map(|item| FormulaSurfaceItemDto {
+                            id: item.id.to_string(),
+                            label: item.label.clone(),
+                            path: item.path.clone(),
+                            kind: item.kind.into(),
+                            value_type: item.value_type.as_ref().map(value_type_spec_label),
+                        })
+                        .collect(),
+                })
+                .collect(),
+            managed_regions: value
+                .surface
+                .managed_regions
+                .iter()
+                .map(ManagedRegionDefinitionDto::from)
+                .collect(),
+            managed_region_instances: value
+                .managed_region_instances
+                .regions
+                .values()
+                .map(ManagedRegionInstanceDto::from)
+                .collect(),
+            diagnostic_ids: value
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.to_string())
+                .collect(),
+            multiplex_lane_count: 0,
+        }
+    }
+}
+
+fn value_type_spec_label(value: &ValueTypeSpec) -> String {
+    match value {
+        ValueTypeSpec::Exact(id) => id.to_string(),
+        ValueTypeSpec::Facet(id) => id.to_string(),
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -159,6 +366,26 @@ pub struct ProcessorLaneSummaryDto {
     pub has_memory: bool,
     pub last_tick: Option<u64>,
     pub diagnostics_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneParameterPreviewDto {
+    pub node_id: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneConditionPreviewDto {
+    pub node_id: String,
+    pub valid: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ProcessorLaneInspectionDto {
+    pub processor_id: String,
+    pub context_key: Option<ContextKeyDto>,
+    pub parameter_values: Vec<ProcessorLaneParameterPreviewDto>,
+    pub condition_states: Vec<ProcessorLaneConditionPreviewDto>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -331,6 +558,7 @@ pub struct StateMachineProtocolBundle {
     pub diagnostics: Vec<DiagnosticDto>,
     pub runtime_debug: Vec<RuntimeDebugDeltaDto>,
     pub processor_lanes: Vec<ProcessorLaneSummaryDto>,
+    pub processor_lane_inspections: Vec<ProcessorLaneInspectionDto>,
     pub preview_mode: Option<FormulaPreviewModeDto>,
     pub output_preview: Vec<ANodeOutputPreviewSampleDto>,
 }
@@ -346,8 +574,17 @@ export type { FormulaPreviewModeDto } from './FormulaPreviewModeDto';\n\
 export type { FormulaSurfaceItemDto } from './FormulaSurfaceItemDto';\n\
 export type { FormulaSurfaceItemKindDto } from './FormulaSurfaceItemKindDto';\n\
 export type { FormulaSurfaceSectionDto } from './FormulaSurfaceSectionDto';\n\
+export type { ManagedItemDto } from './ManagedItemDto';\n\
+export type { ManagedItemUiStateDto } from './ManagedItemUiStateDto';\n\
+export type { ManagedRegionDefinitionDto } from './ManagedRegionDefinitionDto';\n\
+export type { ManagedRegionInstanceDto } from './ManagedRegionInstanceDto';\n\
+export type { ManagedRegionKindDto } from './ManagedRegionKindDto';\n\
+export type { ManagedSocketRefDto } from './ManagedSocketRefDto';\n\
 export type { OutputPreviewStatusDto } from './OutputPreviewStatusDto';\n\
 export type { ProcessorLaneSummaryDto } from './ProcessorLaneSummaryDto';\n\
+export type { ProcessorLaneInspectionDto } from './ProcessorLaneInspectionDto';\n\
+export type { ProcessorLaneParameterPreviewDto } from './ProcessorLaneParameterPreviewDto';\n\
+export type { ProcessorLaneConditionPreviewDto } from './ProcessorLaneConditionPreviewDto';\n\
 export type { ProcessorUiDto } from './ProcessorUiDto';\n\
 export type { RuntimeDebugDeltaDto } from './RuntimeDebugDeltaDto';\n\
 export type { RuntimeValueDto } from './RuntimeValueDto';\n\

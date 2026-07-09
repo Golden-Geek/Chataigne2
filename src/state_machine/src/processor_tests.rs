@@ -3,9 +3,11 @@ use std::{sync::Arc, time::Duration};
 use golden_alchemist::{
     ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, AxisSet, CompileCtx, ContextAxisId, ContextKey,
     ContextValuePath, EvaluationCtx, FormulaContextContract, FormulaId, FormulaPropertyDecl, FormulaPropertyId,
-    FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem, SurfaceItemId, SurfaceItemKind,
-    SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry, primitive_node_registry,
+    FormulaPropertySchema, FormulaSurface, InputSocketRef, ManagedItemId, ManagedItemInstance, ManagedItemUiState,
+    ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind, OutputPreviewStatus, OutputSocketRef,
+    RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue, StableRef, SurfaceItem, SurfaceItemId,
+    SurfaceItemKind, SurfaceSection, SurfaceSectionId, SurfaceSource, ValueTypeId, ValueTypeRegistry,
+    primitive_node_registry,
 };
 
 use crate::{
@@ -747,14 +749,14 @@ fn processor_preview_capture_off_when_editor_not_visible() {
 fn formula_surface_is_present_in_ui_model() {
     let mut formula = formula();
     formula.surface.sections.push(SurfaceSection {
-        id: SurfaceSectionId::new("actions"),
-        label: "Actions".into(),
+        id: SurfaceSectionId::new("commands"),
+        label: "Commands".into(),
         items: vec![SurfaceItem {
             id: SurfaceItemId::new("run"),
             label: "Run".into(),
             description: None,
             path: Vec::new(),
-            kind: SurfaceItemKind::Action,
+            kind: SurfaceItemKind::Command,
             value_type: None,
             ui: golden_alchemist::ParamUiHints::default(),
             bindings: Vec::new(),
@@ -767,4 +769,50 @@ fn formula_surface_is_present_in_ui_model() {
     assert_eq!(ui.formula_id, "test");
     assert_eq!(ui.formula_label, "Test");
     assert_eq!(ui.surface.sections[0].items.len(), 1);
+}
+
+#[test]
+fn managed_regions_are_present_in_ui_model() {
+    let mut formula = formula();
+    formula.surface.managed_regions.push(ManagedRegionDefinition {
+        id: ManagedRegionId::new("filters"),
+        kind: ManagedRegionKind::FilterPipeline,
+        label: "Filters".into(),
+        input_socket: None,
+        output_socket: None,
+        accepted_roles: vec![SurfaceItemKind::Filter],
+    });
+
+    let mut processor = Processor::from_formula("Processor", &formula);
+    let mut remap = ANodeInstance::new(ANodeTypeId::new("remap"), "Remap");
+    remap.enabled = false;
+    processor
+        .formula_instance
+        .managed_regions
+        .regions
+        .get_mut(&ManagedRegionId::new("filters"))
+        .unwrap()
+        .items
+        .push(ManagedItemInstance {
+            id: ManagedItemId::new(),
+            anode: remap,
+            enabled: true,
+            ui_state: ManagedItemUiState { collapsed: true },
+        });
+
+    let ui = processor.ui_model(&formula, Vec::new());
+
+    assert!(ui.active);
+    assert_eq!(ui.surface.managed_regions.len(), 1);
+    assert_eq!(ui.surface.managed_regions[0].label, "Filters");
+    let region = ui
+        .managed_region_instances
+        .regions
+        .get(&ManagedRegionId::new("filters"))
+        .unwrap();
+    assert_eq!(region.items.len(), 1);
+    assert_eq!(region.items[0].anode.label, "Remap");
+    assert!(!region.items[0].anode.enabled);
+    assert!(region.items[0].enabled);
+    assert!(region.items[0].ui_state.collapsed);
 }

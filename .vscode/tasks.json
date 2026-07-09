@@ -47,6 +47,29 @@
       }
     },
     {
+      "label": "jCodeMunch: status",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\tools\\watch-jcodemunch.ps1",
+        "--status"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
       "label": "UI: Copilot dev server (4173)",
       "type": "process",
       "command": "npm",

@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use golden_core::{
     item, node,
-    node::{Node, NodeId, NodeReference, NodeUserPermissions, UserContainerRules, UserCreatableItem},
+    node::{
+        Node, NodeId, NodeMetaPatch, NodeReference, NodeUserPermissions, UserContainerRules,
+        UserCreatableItem,
+    },
     parameter::ParamValue,
     process_ctx::{ProcessCtx, ProcessTreeSnapshot},
 };
@@ -104,18 +107,24 @@ pub(crate) fn reconcile_state_networks(
     let Some(snapshot) = ctx.tree_snapshot_arc() else {
         return;
     };
-    let actions = state_network_param_updates(
+    let actions = state_network_enabled_updates(
         snapshot.as_ref(),
         preferred_active,
         forced_inactive,
         extra_transition,
     );
-    for (param, active) in actions {
-        ctx.set_param(param, ParamValue::Bool(active));
+    for (state, enabled) in actions {
+        ctx.patch_node_meta(
+            state,
+            NodeMetaPatch {
+                enabled: Some(enabled),
+                ..NodeMetaPatch::default()
+            },
+        );
     }
 }
 
-fn state_network_param_updates(
+fn state_network_enabled_updates(
     snapshot: &ProcessTreeSnapshot,
     preferred_active: Option<NodeId>,
     forced_inactive: Option<NodeId>,
@@ -128,7 +137,7 @@ fn state_network_param_updates(
 
     let state_activity: Vec<(NodeId, bool)> = states
         .iter()
-        .map(|state| (*state, state_active(snapshot, *state).unwrap_or(false)))
+        .map(|state| (*state, state_enabled(snapshot, *state).unwrap_or(false)))
         .collect();
     let mut transitions = Vec::new();
     for source in &states {
@@ -151,14 +160,11 @@ fn state_network_param_updates(
     states
         .into_iter()
         .filter_map(|state| {
-            let Some(active_param) = snapshot.find_child_by_decl_id(state, "active") else {
-                return None;
-            };
             let desired = desired_activity.get(&state).copied()?;
-            if state_active(snapshot, state) == Some(desired) {
+            if state_enabled(snapshot, state) == Some(desired) {
                 return None;
             }
-            Some((active_param, desired))
+            Some((state, desired))
         })
         .collect()
 }
@@ -237,12 +243,8 @@ fn collect_state_nodes(snapshot: &ProcessTreeSnapshot) -> Vec<NodeId> {
     states
 }
 
-fn state_active(snapshot: &ProcessTreeSnapshot, state: NodeId) -> Option<bool> {
-    let active_param = snapshot.find_child_by_decl_id(state, "active")?;
-    match snapshot.node(active_param)?.param_value.as_ref()? {
-        ParamValue::Bool(active) => Some(*active),
-        _ => None,
-    }
+fn state_enabled(snapshot: &ProcessTreeSnapshot, state: NodeId) -> Option<bool> {
+    Some(snapshot.node(state)?.enabled)
 }
 
 fn transition_source_state(snapshot: &ProcessTreeSnapshot, transition: NodeId) -> Option<NodeId> {

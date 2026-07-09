@@ -9,6 +9,7 @@ pub(crate) fn enable_module_authoring(node_data: &mut NodeData) {
 
 pub(crate) fn enable_module_manager_authoring(node_data: &mut NodeData) {
     let mut permissions = NodeUserPermissions::all();
+    permissions.can_edit_name = false;
     permissions.can_remove_and_duplicate = false;
     node_data.meta.user_permissions = permissions;
 }

@@ -1,23 +1,29 @@
 use golden_core::{
-    node::{Folder, Node, NodeId, NodeReference},
-    parameter::{ParamValue, Parameter},
+    edit::{Edit, NodeTree},
+    node::{Folder, Node, NodeId, NodeMetaPatch, PresentationHint},
+    parameter::{ParamValue, Parameter, ParameterEventBehaviour},
     process_ctx::ExecutionPhase,
     ui_sync::UiEditIntent,
 };
 
 use crate::app::{
-    AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager, FormulaLibrary, InputsManager,
-    OutputsManager,
+    AlchemistFormulaDefinition, AppEngine, AppNode, ConditionManager, FilterChainManager,
+    FormulaLibrary, InputsManager, OutputsManager, StateMachineManager,
 };
 
 use super::{
+    FormulaCatalog, FormulaSourceRef,
     PROCESSOR_FOLDER_ITEM_KIND, PROCESSOR_FOLDER_NODE_TYPE,
-    PROCESSOR_ITEM_KIND, StateProcessor, StateProcessorFolder,
-    StateProcessorManager, StateProcessorProperties,
+    PROCESSOR_FORMULA_SOURCE_DECL_ID, PROCESSOR_ITEM_KIND,
+    PROCESSOR_MANAGED_REGIONS_DECL_ID, StateProcessor,
+    StateProcessorFolder, StateProcessorManagedRegion,
+    StateProcessorManagedRegions, StateProcessorManager,
+    processor_managed_region_decl_id,
 };
 use crate::app::state_machine_nodes_formula::{
-    AlchemistProperty, PROPERTIES_DECL_ID, PROPERTY_CREATE_PREFIX,
-    PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
+    AlchemistProperty, ANODE_CREATE_PREFIX, ANODE_NODE_TYPE,
+    FORMULA_MANAGED_REGIONS_JSON_DECL_ID, FORMULA_WARNING_ID, PROPERTIES_DECL_ID,
+    PROPERTY_CREATE_PREFIX, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_CREATE_PREFIX,
 };
 
 fn engine_with_formula() -> (
@@ -53,8 +59,348 @@ fn engine_with_formula() -> (
 }
 
 #[test]
+fn sync_external_formulas_adds_missing_builtins_to_an_opened_project() {
+    // A project saved before any built-ins were baked in (or before newer
+    // ones were added) should still gain the shipped built-ins once the
+    // project is opened, without needing to be recreated.
+    // Isolate from whatever the current machine's real Shared formulas
+    // folder happens to contain.
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    super::sync_external_formulas(&mut engine).expect("sync should succeed");
+    engine.apply_edits().expect("synced formulas should attach");
+
+    let labels = engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(labels, vec!["Action", "Mapping"]);
+
+    // Running it again must not duplicate anything already present.
+    super::sync_external_formulas(&mut engine).expect("re-sync should succeed");
+    engine.apply_edits().expect("re-sync should be a no-op");
+    let labels_after_resync = engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(labels_after_resync, vec!["Action", "Mapping"]);
+}
+
+#[test]
+fn sync_external_formulas_keeps_builtins_before_existing_formulas() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Formula Library should exist");
+
+    let mut formula = <AlchemistFormulaDefinition as Node>::project_create(
+        AlchemistFormulaDefinition::NODE_TYPE,
+    )
+    .expect("custom Formula should be creatable");
+    formula.node_data_mut().meta.label = "Shared".into();
+    engine.add_user_item(formula.into(), Some(library));
+    engine.apply_edits().expect("formula should attach");
+
+    assert_eq!(direct_formula_labels(&engine, library), vec!["Shared"]);
+
+    super::sync_external_formulas(&mut engine).expect("sync should succeed");
+    engine.apply_edits().expect("sync should settle");
+
+    assert_eq!(
+        direct_formula_labels(&engine, library),
+        vec!["Action", "Mapping", "Shared"]
+    );
+}
+
+#[test]
+fn sparse_project_omits_builtins_and_reloads_current_builtin_formulas() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.apply_edits().expect("formula library should attach");
+
+    super::sync_external_formulas(&mut engine).expect("builtin sync should succeed");
+    engine.apply_edits().expect("builtin formulas should attach");
+
+    let action_uuid = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(_, node)| node.node_data().meta.uuid)
+        .expect("Action builtin formula should exist");
+    let processor_id = attach_processor_referencing(&mut engine, action_uuid);
+    let processor_uuid = engine
+        .nodes
+        .get(processor_id)
+        .expect("processor should exist")
+        .node_data()
+        .meta
+        .uuid;
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("project should encode");
+    let project: serde_json::Value = serde_json::from_str(&json).expect("project should be JSON");
+    assert!(
+        !project_json_contains_node_type(&project, AlchemistFormulaDefinition::NODE_TYPE),
+        "built-in formulas are app-versioned assets and should not be persisted in project files"
+    );
+
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("project should decode");
+    super::sync_external_formulas(&mut loaded).expect("loaded project should sync builtins");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded)
+        .expect("loaded startup should settle");
+
+    let loaded_action = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(id, _)| id)
+        .expect("loaded project should regain current Action builtin");
+    let loaded_processor = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == processor_uuid)
+        .map(|(id, _)| id)
+        .expect("processor should reload");
+
+    assert!(
+        !node_has_warning_id(&loaded, loaded_action, FORMULA_WARNING_ID),
+        "reloaded current Action builtin should materialize without formula warnings"
+    );
+    assert!(
+        !node_has_warning_id(&loaded, loaded_processor, super::PROCESSOR_FORMULA_WARNING_ID),
+        "processor should keep resolving the stable Action builtin reference"
+    );
+}
+
+#[test]
+fn sparse_project_preserves_builtin_action_processor_manager_items() {
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.add_node(StateMachineManager::new().into(), None);
+    engine.apply_edits().expect("project roots should attach");
+    super::sync_external_formulas(&mut engine).expect("builtin sync should succeed");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("builtin formulas should materialize");
+    }
+
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: manager_id,
+        node_type: crate::app::StateMachineState::NODE_TYPE.to_owned(),
+        label: Some("State".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "state creation should succeed: {ack:?}");
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("state children should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, "processors")
+        .expect("state should have a processor manager");
+    let action_item = FormulaCatalog::from_snapshot(&snapshot)
+        .processor_palette_items()
+        .into_iter()
+        .find(|item| item.label == "Action")
+        .expect("built-in Action formula should be exposed as a processor item");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: processor_manager_id,
+        node_type: action_item.node_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        ack.success,
+        "built-in Action processor creation should succeed: {ack:?}"
+    );
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("Action processor surface should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    let processor_uuid = engine
+        .nodes
+        .get(processor_id)
+        .expect("processor should exist")
+        .node_data()
+        .meta
+        .uuid;
+    let conditions_id = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .find(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.node_type == ConditionManager::NODE_TYPE && node.label == "Conditions"
+            })
+        })
+        .expect("processor should expose its condition manager");
+    let on_true_id = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .find(|child| {
+            snapshot.node(*child).is_some_and(|node| {
+                node.node_type == OutputsManager::NODE_TYPE && node.label == "On True"
+            })
+        })
+        .expect("processor should expose its On True outputs manager");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: conditions_id,
+        node_type: "sm_script_condition".to_owned(),
+        label: Some("Persisted Condition".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "condition creation should succeed: {ack:?}");
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: on_true_id,
+        node_type: "sm_output_group".to_owned(),
+        label: Some("Persisted Output".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "output creation should succeed: {ack:?}");
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("manager items should materialize");
+    }
+
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine)
+        .expect("project should encode");
+    let project: serde_json::Value = serde_json::from_str(&json).expect("project should be JSON");
+    assert!(
+        project_json_contains_node_type(&project, "sm_script_condition"),
+        "saved project should contain the user-created condition"
+    );
+    assert!(
+        project_json_contains_node_type(&project, "sm_output_group"),
+        "saved project should contain the user-created output"
+    );
+
+    let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json)
+        .expect("project should decode");
+    super::sync_external_formulas(&mut loaded).expect("loaded project should sync builtins");
+    golden_core::app::prepare_engine_for_runtime(&mut loaded)
+        .expect("loaded startup should settle");
+    let loaded_snapshot = loaded.process_tree_snapshot();
+    let loaded_processor = loaded
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.uuid == processor_uuid)
+        .map(|(id, _)| id)
+        .expect("processor should reload");
+    let loaded_conditions = loaded_snapshot
+        .child_ids(loaded_processor)
+        .into_iter()
+        .find(|child| {
+            loaded_snapshot.node(*child).is_some_and(|node| {
+                node.node_type == ConditionManager::NODE_TYPE && node.label == "Conditions"
+            })
+        })
+        .expect("loaded processor should expose its condition manager");
+    let loaded_on_true = loaded_snapshot
+        .child_ids(loaded_processor)
+        .into_iter()
+        .find(|child| {
+            loaded_snapshot.node(*child).is_some_and(|node| {
+                node.node_type == OutputsManager::NODE_TYPE && node.label == "On True"
+            })
+        })
+        .expect("loaded processor should expose its On True outputs manager");
+
+    assert!(
+        loaded_snapshot
+            .child_ids(loaded_conditions)
+            .into_iter()
+            .any(|child| loaded_snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == "sm_script_condition")),
+        "loaded condition manager should keep the user-created condition"
+    );
+    assert!(
+        loaded_snapshot
+            .child_ids(loaded_on_true)
+            .into_iter()
+            .any(|child| loaded_snapshot
+                .node(child)
+                .is_some_and(|node| node.node_type == "sm_output_group")),
+        "loaded outputs manager should keep the user-created output"
+    );
+}
+
+#[test]
 fn processor_manager_lists_custom_formulas() {
-    let (mut engine, _, _) = engine_with_formula();
+    let (mut engine, _, formula_uuid) = engine_with_formula();
     engine.add_node(StateProcessorManager::new().into(), None);
     engine.apply_edits().expect("manager should attach");
 
@@ -70,9 +416,431 @@ fn processor_manager_lists_custom_formulas() {
         .filter(|item| item.item_kind == PROCESSOR_ITEM_KIND)
         .collect::<Vec<_>>();
 
-    assert_eq!(formula_items.len(), 1);
-    assert_eq!(formula_items[0].label, "Custom Formula");
-    assert!(formula_items[0].node_type.starts_with("state_processor:"));
+    let labels = formula_items
+        .iter()
+        .map(|item| item.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(labels, vec!["Custom Formula"]);
+    assert_eq!(
+        formula_items[0].node_type,
+        format!("state_processor:project:{}", formula_uuid.0)
+    );
+    assert!(formula_items[0].menu_path.is_empty());
+}
+
+#[test]
+fn processor_manager_add_menu_separates_folder_from_formulas() {
+    let (mut engine, _, _) = engine_with_formula();
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+
+    let manager = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("processor manager should exist");
+    let items = manager.user_creatable_items();
+    let folder_item = items
+        .iter()
+        .find(|item| item.item_kind == PROCESSOR_FOLDER_ITEM_KIND)
+        .expect("Folder item should be in the Add menu");
+    assert!(
+        folder_item.separator_before,
+        "Folder should be separated from formula items when formulas exist"
+    );
+}
+
+#[test]
+fn processor_manager_add_menu_has_no_separator_when_no_formulas_exist() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    engine.add_node(FormulaLibrary::new().into(), None);
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("library and manager should attach");
+
+    let manager = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("processor manager should exist");
+    let items = manager.user_creatable_items();
+    let folder_item = items
+        .iter()
+        .find(|item| item.item_kind == PROCESSOR_FOLDER_ITEM_KIND)
+        .expect("Folder item should be in the Add menu");
+    assert!(
+        !folder_item.separator_before,
+        "Folder should not have a separator when there are no formulas"
+    );
+}
+
+#[test]
+fn formula_library_lists_formula_creation_items_only() {
+    let (engine, _, _) = engine_with_formula();
+    let library = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == FormulaLibrary::NODE_TYPE)
+        .map(|(_, node)| node)
+        .expect("formula library should exist");
+    let labels = library
+        .user_creatable_items()
+        .into_iter()
+        .map(|item| item.label)
+        .collect::<Vec<_>>();
+
+    assert!(labels.iter().any(|label| label == "Formula"));
+    assert!(labels.iter().any(|label| label == "Folder"));
+}
+
+#[test]
+fn legacy_builtin_processor_source_is_not_creatable() {
+    let manager = StateProcessorManager::new();
+
+    let source = "state_processor:builtin:example.formula@1";
+    FormulaSourceRef::parse_processor_create_type(source)
+        .expect_err("legacy built-in sources should not parse");
+    let processor = manager.create_user_item(source);
+
+    assert!(
+        processor.is_none(),
+        "legacy built-in processor sources must fail at the creation boundary"
+    );
+}
+
+#[test]
+fn processor_created_from_typed_project_item_keeps_source_and_reference() {
+    let (_, _, formula_uuid) = engine_with_formula();
+    let manager = StateProcessorManager::new();
+    let processor = manager
+        .create_user_item(&format!("state_processor:project:{}", formula_uuid.0))
+        .expect("typed project processor should be creatable");
+    let processor = processor
+        .as_any()
+        .downcast_ref::<StateProcessor>()
+        .expect("created item should be a state processor");
+
+    assert!(matches!(
+        processor.formula_source.to_source_ref(),
+        Ok(Some(FormulaSourceRef::ProjectNode(reference))) if reference.uuid() == formula_uuid
+    ));
+    assert_eq!(processor.formula.get_ref().uuid(), formula_uuid);
+}
+
+#[test]
+fn project_formula_processor_instantiates_managed_region_folders() {
+    let (mut engine, formula, formula_uuid) = engine_with_formula();
+    seed_formula_managed_regions(&mut engine, formula, value_pipeline_regions_json());
+    let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
+    let snapshot = engine.process_tree_snapshot();
+    let source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("Processor should expose its formula source key");
+
+    assert_eq!(
+        snapshot
+            .node(source_key)
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Str(format!(
+            "state_processor:project:{}",
+            formula_uuid.0
+        )))
+    );
+
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own a Managed Regions root");
+    assert_eq!(
+        engine
+            .nodes
+            .get(regions_root)
+            .expect("Managed Regions root should exist")
+            .get_type(),
+        StateProcessorManagedRegions::NODE_TYPE
+    );
+
+    let actual = snapshot
+        .child_ids(regions_root)
+        .into_iter()
+        .map(|child| {
+            let node = engine.nodes.get(child).expect("region should exist");
+            (
+                node.get_type().to_owned(),
+                node.node_data().meta.decl_id.0.clone(),
+                node.node_data().meta.label.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        actual,
+        vec![
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("inputs"),
+                "Inputs".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("filters"),
+                "Filters".to_owned()
+            ),
+            (
+                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
+                processor_managed_region_decl_id("outputs"),
+                "Outputs".to_owned()
+            )
+        ]
+    );
+}
+
+#[test]
+fn builtin_action_processor_created_inside_state_exposes_managers() {
+    let root: AppNode = Folder::new("root").into();
+    let mut engine = AppEngine::new(root);
+    let mut library_tree = NodeTree::new(FormulaLibrary::new());
+    for formula in FormulaCatalog::default_builtin_formula_trees()
+        .expect("built-in formulas should load")
+    {
+        library_tree.push_child(formula);
+    }
+    engine.edits.push(Edit::AddNodeTree {
+        tree: library_tree,
+        parent: engine.root,
+        prev_sibling: None,
+    });
+    engine.add_node(StateMachineManager::new().into(), None);
+    for _ in 0..4 {
+        engine
+            .apply_edits()
+            .expect("default formula and state machine roots should attach");
+    }
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateMachineManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("state machine manager should exist");
+    let action_formula = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.get_type() == AlchemistFormulaDefinition::NODE_TYPE
+                && node.node_data().meta.label == "Action"
+        })
+        .map(|(id, node)| (id, node.node_data().meta.uuid))
+        .expect("built-in Action formula should be materialized in the formula library");
+
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: manager_id,
+        node_type: crate::app::StateMachineState::NODE_TYPE.to_owned(),
+        label: Some("State".to_owned()),
+        initial_params: Vec::new(),
+    });
+    assert!(ack.success, "state creation should succeed: {ack:?}");
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("state children should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let state_id = snapshot
+        .child_ids(manager_id)
+        .into_iter()
+        .find(|state| {
+            snapshot
+                .node(*state)
+                .is_some_and(|node| node.node_type == crate::app::StateMachineState::NODE_TYPE)
+        })
+        .expect("state should exist");
+    let processor_manager_id = snapshot
+        .find_child_by_decl_id(state_id, "processors")
+        .expect("state should have a processor manager");
+
+    let action_item = FormulaCatalog::from_snapshot(&snapshot)
+        .processor_palette_items()
+        .into_iter()
+        .find(|item| item.label == "Action")
+        .expect("built-in Action formula should be exposed as a processor item");
+    assert_eq!(
+        action_item.node_type,
+        FormulaSourceRef::project_uuid(action_formula.1).processor_create_type()
+    );
+    let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: processor_manager_id,
+        node_type: action_item.node_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        ack.success,
+        "built-in Action processor creation should succeed: {ack:?}"
+    );
+    for _ in 0..3 {
+        engine
+            .apply_edits()
+            .expect("Action processor surface should materialize");
+    }
+
+    let snapshot = engine.process_tree_snapshot();
+    let processor_id = snapshot
+        .child_ids(processor_manager_id)
+        .into_iter()
+        .find(|processor| {
+            snapshot
+                .node(*processor)
+                .is_some_and(|node| node.node_type == StateProcessor::NODE_TYPE)
+        })
+        .expect("processor should exist");
+    let source_key = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_FORMULA_SOURCE_DECL_ID)
+        .expect("processor should expose its formula source key");
+    assert_eq!(
+        snapshot
+            .node(source_key)
+            .and_then(|node| node.param_value.as_ref()),
+        Some(&ParamValue::Str(action_item.node_type))
+    );
+    assert_eq!(snapshot.node_id_by_uuid(action_formula.1), Some(action_formula.0));
+    let exposed_managers = snapshot
+        .child_ids(processor_id)
+        .into_iter()
+        .filter_map(|child| {
+            let node = engine.nodes.get(child)?;
+            matches!(
+                node.get_type(),
+                ConditionManager::NODE_TYPE | OutputsManager::NODE_TYPE
+            )
+            .then(|| {
+                (
+                    node.get_type().to_owned(),
+                    node.node_data().meta.label.clone(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        exposed_managers,
+        vec![
+            (
+                ConditionManager::NODE_TYPE.to_owned(),
+                "Conditions".to_owned(),
+            ),
+            (OutputsManager::NODE_TYPE.to_owned(), "On True".to_owned()),
+            (OutputsManager::NODE_TYPE.to_owned(), "On False".to_owned()),
+        ]
+    );
+
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own a Managed Regions root");
+
+    let actual = snapshot
+        .child_ids(regions_root)
+        .into_iter()
+        .map(|child| {
+            let node = engine.nodes.get(child).expect("region should exist");
+            (
+                node.get_type().to_owned(),
+                node.node_data().meta.decl_id.0.clone(),
+                node.node_data().meta.label.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        actual.is_empty(),
+        "graph formulas should not synthesize managed sidecar regions: {actual:?}"
+    );
+}
+
+#[test]
+fn managed_region_palette_accepts_only_matching_anode_roles() {
+    let (mut engine, formula, formula_uuid) = engine_with_formula();
+    seed_formula_managed_regions(&mut engine, formula, value_pipeline_regions_json());
+    let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
+    let snapshot = engine.process_tree_snapshot();
+    let regions_root = snapshot
+        .find_child_by_decl_id(processor_id, PROCESSOR_MANAGED_REGIONS_DECL_ID)
+        .expect("Processor should own Managed Regions");
+    let filters = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("filters"),
+        )
+        .expect("formula should expose a Filters region");
+    let inputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("inputs"),
+        )
+        .expect("formula should expose an Inputs region");
+    let outputs = snapshot
+        .find_child_by_decl_id(
+            regions_root,
+            &processor_managed_region_decl_id("outputs"),
+        )
+        .expect("formula should expose an Outputs region");
+    let condition_gate_type = format!("{ANODE_CREATE_PREFIX}condition_gate");
+
+    let filter_items = engine
+        .nodes
+        .get(filters)
+        .expect("Filters region should exist")
+        .user_creatable_items();
+    let input_items = engine
+        .nodes
+        .get(inputs)
+        .expect("Inputs region should exist")
+        .user_creatable_items();
+    let output_items = engine
+        .nodes
+        .get(outputs)
+        .expect("Outputs region should exist")
+        .user_creatable_items();
+
+    assert!(filter_items
+        .iter()
+        .any(|item| item.node_type == condition_gate_type));
+    assert!(input_items.is_empty());
+    assert!(output_items.is_empty());
+    assert!(!input_items
+        .iter()
+        .any(|item| item.node_type == condition_gate_type));
+
+    let rejected = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: inputs,
+        node_type: condition_gate_type.clone(),
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        !rejected.success,
+        "Inputs region should reject filter-only ANodes"
+    );
+
+    let accepted = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: filters,
+        node_type: condition_gate_type,
+        label: None,
+        initial_params: Vec::new(),
+    });
+    assert!(
+        accepted.success,
+        "Filters region should accept ConditionGate: {accepted:?}"
+    );
+    let snapshot = engine.process_tree_snapshot();
+    assert!(snapshot.child_ids(filters).into_iter().any(|child| {
+        engine
+            .nodes
+            .get(child)
+            .is_some_and(|node| node.get_type() == ANODE_NODE_TYPE)
+    }));
+
 }
 
 #[test]
@@ -87,9 +855,7 @@ fn processor_created_from_formula_item_keeps_a_stable_reference() {
         .map(|(id, _)| id)
         .expect("processor manager should exist");
     let mut processor = StateProcessor::new();
-    processor.formula.apply_runtime_value(&ParamValue::Reference(
-        NodeReference::new(formula_uuid),
-    ));
+    processor.set_formula_source(FormulaSourceRef::project_uuid(formula_uuid));
     engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
     let processor_id = engine
@@ -206,8 +972,9 @@ fn processor_materializes_formula_properties_as_real_children() {
         .expect("Formula parameter should exist");
     for (role, label) in [
         ("condition", "Conditions"),
+        ("filter", "Filters"),
         ("input", "Inputs"),
-        ("output", "Output Commands"),
+        ("output", "Outputs"),
     ] {
         let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
             parent: properties,
@@ -230,9 +997,7 @@ fn processor_materializes_formula_properties_as_real_children() {
         .map(|(id, _)| id)
         .expect("processor manager should exist");
     let mut processor = StateProcessor::new();
-    processor.formula.apply_runtime_value(&ParamValue::Reference(
-        NodeReference::new(formula_uuid),
-    ));
+    processor.set_formula_source(FormulaSourceRef::project_uuid(formula_uuid));
     engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
     let processor_id = engine
@@ -242,18 +1007,8 @@ fn processor_materializes_formula_properties_as_real_children() {
         .map(|(id, _)| id)
         .expect("Processor should exist");
     let snapshot = engine.process_tree_snapshot();
-    let instance_properties = snapshot
-        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
-        .expect("Processor should instantiate Formula Properties");
-    assert_eq!(
-        engine
-            .nodes
-            .get(instance_properties)
-            .expect("Processor Properties should exist")
-            .get_type(),
-        StateProcessorProperties::NODE_TYPE
-    );
-    let instance_children = snapshot.child_ids(instance_properties);
+    // Properties are mirrored flat at the processor's top level (no Properties folder).
+    let instance_children = snapshot.child_ids(processor_id);
     let parameter = instance_children
         .iter()
         .copied()
@@ -274,8 +1029,9 @@ fn processor_materializes_formula_properties_as_real_children() {
     );
     for (node_type, label) in [
         (ConditionManager::NODE_TYPE, "Conditions"),
+        (FilterChainManager::NODE_TYPE, "Filters"),
         (InputsManager::NODE_TYPE, "Inputs"),
-        (OutputsManager::NODE_TYPE, "Output Commands"),
+        (OutputsManager::NODE_TYPE, "Outputs"),
     ] {
         assert!(instance_children.iter().copied().any(|child| {
             engine.nodes.get(child).is_some_and(|node| {
@@ -320,7 +1076,7 @@ fn processor_materializes_formula_properties_as_real_children() {
         .expect("Processor property reconciliation should stabilize");
     let snapshot = engine.process_tree_snapshot();
     assert!(
-        snapshot.child_ids(instance_properties).into_iter().any(|child| {
+        snapshot.child_ids(processor_id).into_iter().any(|child| {
             engine.nodes.get(child).is_some_and(|node| {
                 node.engine_param_snapshot().is_some()
                     && node.node_data().meta.label == "Enabled"
@@ -328,6 +1084,127 @@ fn processor_materializes_formula_properties_as_real_children() {
         }),
         "Processor should follow Formula property additions"
     );
+}
+
+#[test]
+fn processor_mirrors_formula_property_order() {
+    let (mut engine, formula, formula_uuid) = engine_with_formula();
+    let properties = engine
+        .process_tree_snapshot()
+        .find_child_by_decl_id(formula, PROPERTIES_DECL_ID)
+        .expect("Formula Properties should exist");
+
+    for label in ["Amount", "Enabled"] {
+        let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+            parent: properties,
+            node_type: format!("{PROPERTY_CREATE_PREFIX}float"),
+            label: Some(label.into()),
+            initial_params: Vec::new(),
+        });
+        assert!(
+            ack.success,
+            "Formula property creation should succeed: {ack:?}"
+        );
+    }
+
+    let formula_children = engine.process_tree_snapshot().child_ids(properties);
+    let amount = formula_children
+        .iter()
+        .copied()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|node| node.node_data().meta.label == "Amount")
+        })
+        .expect("Amount property should exist");
+    let enabled = formula_children
+        .iter()
+        .copied()
+        .find(|child| {
+            engine
+                .nodes
+                .get(*child)
+                .is_some_and(|node| node.node_data().meta.label == "Enabled")
+        })
+        .expect("Enabled property should exist");
+
+    engine.add_node(StateProcessorManager::new().into(), None);
+    engine.apply_edits().expect("manager should attach");
+    let manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessorManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("processor manager should exist");
+
+    let mut processor = StateProcessor::new();
+    processor.set_formula_source(FormulaSourceRef::project_uuid(formula_uuid));
+    engine.add_user_item(processor.into(), Some(manager_id));
+    engine.apply_edits().expect("Processor should attach");
+
+    let processor_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == StateProcessor::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("Processor should exist");
+    // Properties are mirrored flat at the processor's top level, so only the
+    // `surface/`-prefixed property mirrors count (not the formula reference etc.).
+    let processor_property_labels = |engine: &AppEngine| {
+        engine
+            .process_tree_snapshot()
+            .child_ids(processor_id)
+            .into_iter()
+            .filter_map(|child| {
+                engine.nodes.get(child).and_then(|node| {
+                    let data = node.node_data();
+                    (node.engine_param_snapshot().is_some()
+                        && data.meta.decl_id.0.starts_with("surface/"))
+                    .then(|| data.meta.label.clone())
+                })
+            })
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        processor_property_labels(&engine),
+        vec!["Amount".to_owned(), "Enabled".to_owned()]
+    );
+
+    let ack = engine.apply_ui_intent(UiEditIntent::MoveNode {
+        node: enabled,
+        new_parent: properties,
+        new_prev_sibling: None,
+    });
+    assert!(
+        ack.success,
+        "Formula property reorder should succeed: {ack:?}"
+    );
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Processor should receive the Formula hierarchy event");
+    engine
+        .apply_edits()
+        .expect("Processor property order reconciliation should stabilize");
+
+    assert_eq!(
+        engine
+            .process_tree_snapshot()
+            .child_ids(properties)
+            .into_iter()
+            .filter_map(|child| engine
+                .nodes
+                .get(child)
+                .map(|node| node.node_data().meta.label.clone()))
+            .collect::<Vec<_>>(),
+        vec!["Enabled".to_owned(), "Amount".to_owned()]
+    );
+    assert_eq!(
+        processor_property_labels(&engine),
+        vec!["Enabled".to_owned(), "Amount".to_owned()]
+    );
+    assert_ne!(amount, enabled);
 }
 
 #[test]
@@ -376,9 +1253,7 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
         .expect("processor manager should exist");
 
     let mut processor = StateProcessor::new();
-    processor.formula.apply_runtime_value(&ParamValue::Reference(
-        NodeReference::new(formula_uuid),
-    ));
+    processor.set_formula_source(FormulaSourceRef::project_uuid(formula_uuid));
     engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
 
@@ -390,12 +1265,9 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
         .expect("Processor should exist");
 
     let snapshot = engine.process_tree_snapshot();
-    let instance_properties = snapshot
-        .find_child_by_decl_id(processor_id, PROPERTIES_DECL_ID)
-        .expect("Processor should instantiate Formula Properties");
-
+    // Property surfaces (including mirrored folders) sit flat under the processor.
     let instance_folder = snapshot
-        .child_ids(instance_properties)
+        .child_ids(processor_id)
         .into_iter()
         .find(|child| {
             engine
@@ -451,7 +1323,7 @@ fn processor_mirrors_formula_property_folders_and_nested_properties() {
 
     let snapshot = engine.process_tree_snapshot();
     let instance_folder = snapshot
-        .child_ids(instance_properties)
+        .child_ids(processor_id)
         .into_iter()
         .find(|child| {
             engine
@@ -482,7 +1354,63 @@ fn node_has_warning_id(engine: &AppEngine, node: NodeId, warning_id: &str) -> bo
                 .warnings
                 .iter()
                 .any(|warning| warning.id == warning_id)
-        })
+    })
+}
+
+fn direct_formula_labels(engine: &AppEngine, library: NodeId) -> Vec<String> {
+    engine
+        .process_tree_snapshot()
+        .child_ids(library)
+        .into_iter()
+        .filter_map(|id| engine.nodes.get(id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| node.node_data().meta.label.clone())
+        .collect()
+}
+
+fn seed_formula_managed_regions(engine: &mut AppEngine, formula: NodeId, regions_json: &str) {
+    let param = engine
+        .process_tree_snapshot()
+        .find_child_by_decl_id(formula, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+        .expect("formula should expose managed region metadata");
+    let ack = engine.apply_ui_intent(UiEditIntent::SetParam {
+        node: param,
+        value: ParamValue::Str(regions_json.to_owned()),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    assert!(ack.success, "managed region metadata should be set: {ack:?}");
+    engine
+        .apply_edits()
+        .expect("managed region metadata should apply");
+}
+
+fn value_pipeline_regions_json() -> &'static str {
+    r#"[
+        {
+            "id": "inputs",
+            "kind": "input_set",
+            "label": "Inputs",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Input"]
+        },
+        {
+            "id": "filters",
+            "kind": "filter_pipeline",
+            "label": "Filters",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Filter"]
+        },
+        {
+            "id": "outputs",
+            "kind": "output_set",
+            "label": "Outputs",
+            "input_socket": null,
+            "output_socket": null,
+            "accepted_roles": ["Output"]
+        }
+    ]"#
 }
 
 fn attach_processor_referencing(
@@ -498,9 +1426,7 @@ fn attach_processor_referencing(
         .map(|(id, _)| id)
         .expect("processor manager should exist");
     let mut processor = StateProcessor::new();
-    processor.formula.apply_runtime_value(&ParamValue::Reference(
-        NodeReference::new(formula_uuid),
-    ));
+    processor.set_formula_source(FormulaSourceRef::project_uuid(formula_uuid));
     engine.add_user_item(processor.into(), Some(manager_id));
     engine.apply_edits().expect("Processor should attach");
     engine
@@ -530,4 +1456,103 @@ fn processor_with_missing_formula_reference_sets_warning() {
         node_has_warning_id(&engine, processor_id, super::PROCESSOR_FORMULA_WARNING_ID),
         "Processor referencing a missing formula should expose a warning"
     );
+}
+
+#[test]
+fn processor_mirrors_formula_icon() {
+    let (mut engine, formula_id, formula_uuid) = engine_with_formula();
+    let processor_id = attach_processor_referencing(&mut engine, formula_uuid);
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(processor_id)
+            .expect("Processor should exist")
+            .node_data()
+            .meta
+            .presentation
+            .icon,
+        None,
+        "Processor should have no icon before its formula has one"
+    );
+
+    let icon = "data:image/svg+xml;base64,PHN2Zy8+";
+    let ack = engine.apply_ui_intent(UiEditIntent::PatchMeta {
+        node: formula_id,
+        patch: NodeMetaPatch {
+            presentation: Some(PresentationHint {
+                icon: Some(icon.to_owned()),
+                ..PresentationHint::default()
+            }),
+            ..NodeMetaPatch::default()
+        },
+    });
+    assert!(ack.success, "Formula icon patch should succeed: {ack:?}");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("Processor should receive the formula icon change");
+    engine
+        .apply_edits()
+        .expect("Processor icon mirroring should stabilize");
+
+    assert_eq!(
+        engine
+            .nodes
+            .get(processor_id)
+            .expect("Processor should exist")
+            .node_data()
+            .meta
+            .presentation
+            .icon
+            .as_deref(),
+        Some(icon),
+        "Processor should mirror its formula's icon"
+    );
+}
+
+/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
+/// so `default_shared_formula_trees()` sees zero shared formulas regardless
+/// of what the current machine's real Shared formulas folder contains.
+/// Restores the previous value (if any) when dropped.
+struct SharedFormulaDirTestOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl Drop for SharedFormulaDirTestOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
+            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
+        }
+    }
+}
+
+fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var(
+            "CHATAIGNE_SHARED_FORMULAS_DIR",
+            "chataigne2-tests-nonexistent-shared-formulas-dir",
+        );
+    }
+    SharedFormulaDirTestOverride { previous }
+}
+
+fn project_json_contains_node_type(value: &serde_json::Value, node_type: &str) -> bool {
+    if value
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|value| value == node_type)
+    {
+        return true;
+    }
+    match value {
+        serde_json::Value::Array(items) => items
+            .iter()
+            .any(|item| project_json_contains_node_type(item, node_type)),
+        serde_json::Value::Object(fields) => fields
+            .values()
+            .any(|item| project_json_contains_node_type(item, node_type)),
+        _ => false,
+    }
 }

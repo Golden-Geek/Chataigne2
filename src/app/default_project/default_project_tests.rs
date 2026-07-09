@@ -1,7 +1,10 @@
 use golden_core::node::{Folder, Node};
 
 use super::initialize_default_project;
-use crate::app::{AppEngine, AppNode, FormulaLibrary, StateMachineManager};
+use crate::app::{
+    state_machine_nodes_formula::{FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_READ_ONLY_TAG},
+    AlchemistFormulaDefinition, AppEngine, AppNode, FormulaLibrary, StateMachineManager,
+};
 
 #[test]
 fn default_project_contains_one_top_level_state_machine_manager() {
@@ -22,12 +25,19 @@ fn default_project_contains_one_top_level_state_machine_manager() {
 }
 
 #[test]
-fn default_project_contains_empty_formula_library() {
+fn default_project_contains_builtin_external_formulas() {
+    // Isolate from whatever the current machine's real Shared formulas
+    // folder happens to contain (e.g. formulas saved there by a running
+    // app instance) so this only ever sees the two shipped built-ins.
+    let _shared_dir_guard = shared_formula_dir_test_override();
+
     let root: AppNode = Folder::new("root").into();
     let mut engine = AppEngine::new(root);
 
     initialize_default_project(&mut engine);
-    engine.apply_edits().expect("default project nodes should attach");
+    for _ in 0..4 {
+        engine.apply_edits().expect("default project nodes should attach");
+    }
 
     let libraries = engine
         .nodes
@@ -38,12 +48,58 @@ fn default_project_contains_empty_formula_library() {
     assert_eq!(libraries.len(), 1);
     assert_eq!(libraries[0].1.node_data().parent, Some(engine.root));
 
-    assert_eq!(
-        engine
-            .nodes
+    let formulas = engine
+        .process_tree_snapshot()
+        .child_ids(libraries[0].0)
+        .into_iter()
+        .filter_map(|node_id| engine.nodes.get(node_id))
+        .filter(|node| node.get_type() == AlchemistFormulaDefinition::NODE_TYPE)
+        .map(|node| {
+            (
+                node.node_data().meta.label.clone(),
+                node.node_data().meta.tags.clone(),
+                node.node_data().meta.user_permissions.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(formulas.len(), 2);
+    assert_eq!(formulas[0].0, "Action");
+    assert_eq!(formulas[1].0, "Mapping");
+    for (_, tags, permissions) in formulas {
+        assert!(tags.iter().any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG));
+        assert!(tags
             .iter()
-            .filter(|(_, node)| node.node_data().parent == Some(libraries[0].0))
-            .count(),
-        0
-    );
+            .any(|tag| tag.starts_with(FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX)));
+        assert!(!permissions.can_remove_and_duplicate);
+        assert!(!permissions.can_edit_name);
+    }
+}
+
+/// Points CHATAIGNE_SHARED_FORMULAS_DIR at a directory that doesn't exist,
+/// so `default_shared_formula_trees()` sees zero shared formulas regardless
+/// of what the current machine's real Shared formulas folder contains.
+/// Restores the previous value (if any) when dropped.
+struct SharedFormulaDirTestOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl Drop for SharedFormulaDirTestOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", value) },
+            None => unsafe { std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR") },
+        }
+    }
+}
+
+fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
+    unsafe {
+        std::env::set_var(
+            "CHATAIGNE_SHARED_FORMULAS_DIR",
+            "chataigne2-tests-nonexistent-shared-formulas-dir",
+        );
+    }
+    SharedFormulaDirTestOverride { previous }
 }

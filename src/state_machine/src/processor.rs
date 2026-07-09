@@ -6,12 +6,15 @@ use golden_alchemist::{
     ANodeId, AlchemistFormula, AlchemistFormulaInstance, AxisSet, CompileCtx, CompiledAlchemistFormula, ContextAxisId,
     ContextKey, ContextValuePath, DebugCaptureMode, DebugCaptureSink, DebugValueSample, Diagnostic, DiagnosticOrigin,
     EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
-    FormulaSurface, LaneRuntimePool, OutputPreviewStatus, RuntimeContextFrame, RuntimeDiagnostic, RuntimeOutput,
-    RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription, RuntimeValue, SocketId, ValueTypeId,
-    compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
+    RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
+    RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
+    evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
+
+use crate::ManagedFormulaRuntime;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -209,10 +212,18 @@ pub struct Processor {
     pub id: ProcessorId,
     pub label: String,
     pub formula_instance: AlchemistFormulaInstance,
+    pub context_property_bindings: IndexMap<SurfaceItemId, ProcessorContextPropertyBinding>,
     pub enabled: bool,
     pub lifecycle: ProcessorLifecyclePolicy,
     pub memory_policy: ProcessorMemoryPolicy,
     pub command_policy: ProcessorCommandPolicy,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ProcessorContextPropertyBinding {
+    pub axis: ContextAxisId,
+    pub path: ContextValuePath,
 }
 
 impl Processor {
@@ -222,6 +233,7 @@ impl Processor {
             id: ProcessorId::new(),
             label: label.into(),
             formula_instance,
+            context_property_bindings: IndexMap::new(),
             enabled: true,
             lifecycle: ProcessorLifecyclePolicy::default(),
             memory_policy: ProcessorMemoryPolicy::default(),
@@ -236,13 +248,28 @@ impl Processor {
 
     #[must_use]
     pub fn ui_model(&self, formula: &AlchemistFormula, diagnostics: Vec<Diagnostic>) -> ProcessorUiModel {
+        self.ui_model_with_formula_source(formula, diagnostics, ProcessorFormulaUiState::default(), None)
+    }
+
+    #[must_use]
+    pub fn ui_model_with_formula_source(
+        &self,
+        formula: &AlchemistFormula,
+        diagnostics: Vec<Diagnostic>,
+        formula_source: ProcessorFormulaUiState,
+        formula_source_key: Option<String>,
+    ) -> ProcessorUiModel {
         ProcessorUiModel {
             id: self.id,
             label: self.label.clone(),
+            active: self.enabled,
             formula_id: formula.id.to_string(),
             formula_label: formula.label.clone(),
+            formula_source_key,
             surface: formula.surface.clone(),
+            managed_region_instances: self.formula_instance.managed_regions.clone(),
             diagnostics,
+            formula_source,
         }
     }
 }
@@ -264,6 +291,7 @@ impl ProcessorDirtyFlags {
 pub struct ProcessorRuntime {
     pub id: ProcessorId,
     pub compiled: Option<Arc<CompiledAlchemistFormula>>,
+    pub managed_formula: Option<ManagedFormulaRuntime>,
     pub plan: Option<ProcessorExecutionPlan>,
     pub lanes: LaneRuntimePool,
     pub active: bool,
@@ -330,6 +358,7 @@ impl ProcessorRuntime {
         Self {
             id,
             compiled: None,
+            managed_formula: None,
             plan: None,
             lanes: LaneRuntimePool::default(),
             active: false,
@@ -390,10 +419,19 @@ impl ProcessorRuntime {
             compiled,
             self.diagnostics.clone(),
         ));
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
         self.compile_from_shared_formula_with_lane_policy(
             processor,
             formula,
             compiled_formula,
+            managed_formula,
             preserve_compatible_lanes,
         )
     }
@@ -404,7 +442,43 @@ impl ProcessorRuntime {
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
     ) -> bool {
-        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, false)
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, None, false)
+    }
+
+    pub fn compile_from_shared_formula_with_compile_ctx(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+        ctx: &CompileCtx<'_>,
+    ) -> bool {
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, managed_formula, false)
+    }
+
+    pub fn compile_from_shared_formula_with_compile_ctx_preserving_compatible_lanes(
+        &mut self,
+        processor: &Processor,
+        formula: &AlchemistFormula,
+        compiled: Arc<CompiledAlchemistFormula>,
+        ctx: &CompileCtx<'_>,
+    ) -> bool {
+        let managed_formula = match ManagedFormulaRuntime::compile(formula, &processor.formula_instance, ctx) {
+            Ok(managed_formula) => managed_formula,
+            Err(error) => {
+                self.clear_runtime();
+                self.diagnostics = vec![error.into_diagnostic()];
+                return false;
+            }
+        };
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, managed_formula, true)
     }
 
     pub fn compile_from_shared_formula_preserving_compatible_lanes(
@@ -413,7 +487,7 @@ impl ProcessorRuntime {
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
     ) -> bool {
-        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, true)
+        self.compile_from_shared_formula_with_lane_policy(processor, formula, compiled, None, true)
     }
 
     fn compile_from_shared_formula_with_lane_policy(
@@ -421,6 +495,7 @@ impl ProcessorRuntime {
         processor: &Processor,
         formula: &AlchemistFormula,
         compiled: Arc<CompiledAlchemistFormula>,
+        managed_formula: Option<ManagedFormulaRuntime>,
         preserve_compatible_lanes: bool,
     ) -> bool {
         if let Err(error) = processor.formula_instance.require_compatible(formula) {
@@ -444,12 +519,14 @@ impl ProcessorRuntime {
             AxisSet::new(),
         ));
         self.compiled = Some(compiled);
+        self.managed_formula = managed_formula;
         self.dirty = ProcessorDirtyFlags::default();
         true
     }
 
     fn clear_runtime(&mut self) {
         self.compiled = None;
+        self.managed_formula = None;
         self.plan = None;
         self.lanes = LaneRuntimePool::default();
         self.subscriptions.clear();
@@ -541,17 +618,31 @@ impl ProcessorRuntime {
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
     ) -> Vec<ProcessorLaneOutput> {
-        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, true)
+        self.evaluate_processor_with_context_provider_and_capture_mode(
+            processor,
+            ctx,
+            context_provider,
+            capture,
+            true,
+            true,
+        )
     }
 
-    pub fn evaluate_processor_with_context_provider_and_send_capture(
+    pub fn evaluate_processor_with_context_provider_and_runtime_capture(
         &mut self,
         processor: &Processor,
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
     ) -> Vec<ProcessorLaneOutput> {
-        self.evaluate_processor_with_context_provider_and_capture_mode(processor, ctx, context_provider, capture, false)
+        self.evaluate_processor_with_context_provider_and_capture_mode(
+            processor,
+            ctx,
+            context_provider,
+            capture,
+            false,
+            true,
+        )
     }
 
     fn evaluate_processor_with_context_provider_and_capture_mode(
@@ -560,10 +651,60 @@ impl ProcessorRuntime {
         ctx: &EvaluationCtx<'_>,
         context_provider: &dyn ProcessorContextProvider,
         capture: &ProcessorDebugCapture,
+        force_process_unchanged_inputs: bool,
         capture_unchanged_outputs: bool,
     ) -> Vec<ProcessorLaneOutput> {
         if !self.active {
             return Vec::new();
+        }
+        if let Some(managed_formula) = self.managed_formula.as_mut() {
+            let mut output = managed_formula.evaluate(ctx);
+            let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
+                return vec![ProcessorLaneOutput {
+                    context_key: None,
+                    output,
+                }];
+            };
+            let capture_mode = capture.debug_capture_mode(&compiled.formula_ref.id);
+            if !matches!(capture_mode, DebugCaptureMode::Off) {
+                let context_key = ContextKey::default_lane();
+                let context = RuntimeContextFrame::new(context_key.clone());
+                if let Ok(properties) =
+                    self.resolve_property_frame(processor, &compiled, &context_key, context_provider)
+                {
+                    let mut debug = DebugCaptureSink::new(capture_mode);
+                    let preview = match self.lanes.memory_for_key(context_key, &compiled.graph) {
+                        Some(memory) => evaluate_compiled_graph(
+                            &compiled.graph,
+                            memory,
+                            EvaluationFrame {
+                                ctx,
+                                properties: &properties,
+                                context: &context,
+                                debug: &mut debug,
+                                force_process_unchanged_inputs,
+                                capture_unchanged_outputs,
+                            },
+                        ),
+                        None => evaluate_compiled_graph_stateless(
+                            &compiled.graph,
+                            EvaluationFrame {
+                                ctx,
+                                properties: &properties,
+                                context: &context,
+                                debug: &mut debug,
+                                force_process_unchanged_inputs,
+                                capture_unchanged_outputs,
+                            },
+                        ),
+                    };
+                    output.debug_samples = preview.debug_samples;
+                }
+            }
+            return vec![ProcessorLaneOutput {
+                context_key: None,
+                output,
+            }];
         }
         let Some(compiled) = self.compiled.as_ref().map(Arc::clone) else {
             return Vec::new();
@@ -613,7 +754,7 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
-                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            force_process_unchanged_inputs,
                             capture_unchanged_outputs,
                         },
                     ),
@@ -624,7 +765,7 @@ impl ProcessorRuntime {
                             properties: &properties,
                             context: &context,
                             debug: &mut debug,
-                            force_process_unchanged_inputs: capture_unchanged_outputs,
+                            force_process_unchanged_inputs,
                             capture_unchanged_outputs,
                         },
                     ),
@@ -641,14 +782,21 @@ impl ProcessorRuntime {
         &self,
         processor: &Processor,
         compiled: &CompiledAlchemistFormula,
-        _context_key: &ContextKey,
-        _context_provider: &dyn ProcessorContextProvider,
+        context_key: &ContextKey,
+        context_provider: &dyn ProcessorContextProvider,
     ) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
         let mut overrides = IndexMap::new();
         for (surface_item, value) in &processor.formula_instance.overrides.values {
             let property_id = FormulaPropertyId::new(surface_item.as_str());
             if compiled.properties.get(&property_id).is_some() {
-                overrides.insert(property_id, value.clone());
+                let value = processor
+                    .context_property_bindings
+                    .get(surface_item)
+                    .and_then(|binding| {
+                        context_provider.resolve_context_value(context_key, &binding.axis, &binding.path)
+                    })
+                    .unwrap_or_else(|| value.clone());
+                overrides.insert(property_id, value);
             }
         }
         RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)
@@ -736,8 +884,51 @@ pub fn processor_output_preview_samples(
 pub struct ProcessorUiModel {
     pub id: ProcessorId,
     pub label: String,
+    pub active: bool,
     pub formula_id: String,
     pub formula_label: String,
+    pub formula_source_key: Option<String>,
     pub surface: FormulaSurface,
+    pub managed_region_instances: ManagedRegionInstances,
     pub diagnostics: Vec<Diagnostic>,
+    pub formula_source: ProcessorFormulaUiState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProcessorFormulaSourceKind {
+    Project,
+    Builtin,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcessorFormulaUiState {
+    pub source_kind: ProcessorFormulaSourceKind,
+    pub open_readonly_from_processor: bool,
+    pub can_duplicate_to_library: bool,
+}
+
+impl ProcessorFormulaUiState {
+    #[must_use]
+    pub fn project() -> Self {
+        Self {
+            source_kind: ProcessorFormulaSourceKind::Project,
+            open_readonly_from_processor: false,
+            can_duplicate_to_library: false,
+        }
+    }
+
+    #[must_use]
+    pub fn builtin(open_readonly_from_processor: bool, can_duplicate_to_library: bool) -> Self {
+        Self {
+            source_kind: ProcessorFormulaSourceKind::Builtin,
+            open_readonly_from_processor,
+            can_duplicate_to_library,
+        }
+    }
+}
+
+impl Default for ProcessorFormulaUiState {
+    fn default() -> Self {
+        Self::project()
+    }
 }

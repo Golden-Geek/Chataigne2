@@ -9,8 +9,8 @@
 </script>
 
 {#if preview}
-	{#if preview.value.kind === 'trigger'}
-		<!-- Trigger outputs have no readout: the connection highlight already
+	{#if preview.value.kind === 'trigger' || preview.value.kind === 'unit'}
+		<!-- Trigger and unit outputs have no readout: the connection highlight
 		     signals that something was sent out. -->
 	{:else if preview.value.kind === 'bool'}
 		<span class="output-bool-readout" title={preview.title}>

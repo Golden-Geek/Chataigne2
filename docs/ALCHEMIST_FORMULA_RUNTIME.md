@@ -14,6 +14,70 @@ The app must not clone or patch a Formula graph for each processor instance.
 The graph is authored once, compiled into a reusable plan, and evaluated with
 runtime frames supplied by the processor lane currently being executed.
 
+## Formula Catalog And Library
+
+The Formula Catalog resolves every formula source the processor runtime may use:
+editable project formulas, external built-in packages, and future package
+formulas. The Formula Library remains the user-editable project tree. Built-ins
+are not ordinary Formula Library children and must not be path-imported from app
+code.
+
+Built-in formulas are data files, not Rust declarations. `FormulaCatalog` loads
+individual exported formula files from `CHATAIGNE_BUILTIN_FORMULAS_DIR` when
+set, otherwise from the root `builtin_formulas` directory. If no formula
+directory exists, the built-in catalog is empty. Chataigne currently ships
+`builtin_formulas/Action.json` and `builtin_formulas/Mapping.json`.
+
+The exported file name owns the stable built-in identity. `Action.json` resolves
+as `chataigne.action@1`, and `Mapping.json` resolves as `chataigne.mapping@1`,
+even when a future re-export changes the formula root UUID.
+
+Processor creation flows through catalog entries. Project formulas marked
+processor-creatable appear under Project Formulas. Built-ins can be opened
+read-only from a processor and duplicated only through the public Formula
+Library creation boundary.
+
+`StateProcessor` persists a typed formula source. Project sources keep stable
+node references. Built-in sources keep package, formula id, and version keys.
+Creation rejects syntactically valid but unknown built-in sources, and old saved
+invalid sources resolve to explicit diagnostics instead of being rewritten.
+
+## Managed Processor Surfaces
+
+Formula files may declare managed region surfaces. The runtime recognizes
+neutral region shapes rather than product formula names:
+
+```text
+Value pipeline:
+  Inputs
+  Filters
+  Outputs
+
+Trigger pipeline:
+  Trigger
+  Filters
+  Commands
+```
+
+Managed regions are backend-owned processor child folders. The UI projects
+those folders, reads role-filtered creation palettes from the backend, and sends
+ordinary edit intents to add, reorder, remove, or configure managed items.
+
+Value pipelines materialize InputSet values, run the managed filter pipeline,
+and dispatch through OutputSet. Trigger pipelines read one enabled trigger
+input, run the same filter pipeline, and emit command intents through CommandSet.
+No product-named processor owns a special evaluator for filters or conditions.
+
+For users and module authors, this means:
+
+```text
+Product formula names live in exported formula files.
+Value-pipeline formulas are authored through Inputs / Filters / Outputs.
+Trigger-pipeline formulas are authored through Trigger / Filters / Commands.
+Conditions are filters through ConditionGate.
+Complex branching belongs in custom formulas.
+```
+
 ## Core Model
 
 `Formula` is the authored recipe. It owns the graph, typed property
@@ -103,29 +167,57 @@ guards evaluate once in `GlobalStateMachineContext`, and transition effects run
 once after a transition fires. If a transition needs processor-derived data,
 that data must arrive through an explicit global aggregation or manager result.
 
-## Manager Reference Nodes
+## Manager Properties
 
-Chataigne manager reference ANodes for Conditions, Inputs, and Output Commands
-are app-owned product integrations, not reusable Alchemist primitives. Until
-their real runtime contracts are implemented, these nodes compile to explicit
-`chataigne_manager_node_unsupported` diagnostics.
+Formula properties may expose manager-backed processor folders for Conditions,
+Filters, Inputs, and Outputs. These folders are processor child nodes managed by
+the backend; they are not graph ANodes and do not compile through StableRef
+bridge nodes.
 
-They must not return fake defaults such as `false`, an empty `ParamArray`, or a
-silently dropped command. The Formula editor surfaces the compile diagnostic
-through the formula validity flag, formula diagnostics JSON, and authored ANode
-warnings so unsupported manager behavior is visible before runtime.
+Conditions and filters expose reusable filter-capable items. Inputs expose
+declared processor input source items. Outputs expose command items, including
+module-provided commands and generic commands such as setting a parameter value.
 
-The intended contracts remain:
+## ValueSet And Managed Pipelines
 
-```text
-Inside processor formula:
-  context_key may exist.
-  output commands emit processor-origin intents with that optional context key.
+`ValueSet` is the Chataigne collection boundary for multi-lane values. It keeps
+stable lane keys, labels, sources, and runtime values together. The old
+`chataigne.param_array` type is a clean schema break and is rejected rather than
+registered as an alias.
 
-Inside transition graph:
-  no processor context key exists.
-  output commands emit transition-origin intents after the transition fires.
-```
+The reusable pipeline shape checker lives in `golden_alchemist_core`. It uses
+ANode role capability metadata to classify filter transitions as elementwise,
+aggregate, reshape, expand, or whole-set. Unsupported transitions produce typed
+diagnostics instead of silently broadcasting, merging, or wiring scalar sockets
+to opaque extension payloads.
+
+Chataigne owns the lane-aware managed pipeline runtime. Elementwise filters
+compile once and run per `ValueSet` lane through stable `ContextKey` values.
+Stateful filters use `LaneRuntimePool`, so each lane keeps independent memory.
+Aggregate/projection pipelines, including Pack Vec3, use explicit fixed-slot
+projection instead of implicit lane collapse.
+
+`ConditionGate` is a reusable filter-capable ANode. Whole-value gating works for
+single values, triggers, command-intent-like extension values, and complete
+`ValueSet` payloads. The raw reusable Alchemist runtime still reports a
+diagnostic for `gate_application = per_lane` because it has no Chataigne
+`ValueSet` lane context. Chataigne's managed `ValueSetPipelineRuntime` owns that
+lane boundary: when it lowers an elementwise filter pipeline, `per_lane`
+ConditionGate items are compiled as scalar gates inside each stable value lane.
+
+## Runtime Intents And Diagnostics
+
+OutputSet and CommandSet are the managed boundaries that turn formula values
+into Chataigne side effects. They emit `chataigne.command` runtime intents;
+transport connection state, module reconnect behavior, and external IO remain
+outside pure formula evaluation.
+
+Diagnostics are part of the contract. Missing input sources, invalid output
+targets, unknown managed regions, invalid filter items, shape mismatches,
+unsupported `ValueSet` transitions, and incompatible ConditionGate modes must
+fail explicitly. The runtime does not insert fallback values to hide invalid
+graphs and does not dispatch partial output sets when counts or targets do not
+match.
 
 ## Property Runtime
 

@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(cargo build *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "mcp__jcodemunch__search_text",
+      "mcp__jcodemunch__search_symbols",
+      "mcp__jcodemunch__get_file_content",
+      "Bash(cargo check *)",
+      "Bash(awk -F: '$1 >= 760 && $1 <= 810')",
+      "Bash(grep -nA 25 \"note_command_dependencies_follow_note_mode\" \"C:/Users/bkupe/AppData/Local/Temp/claude/d--Projects-Dev-Chataigne2/a6d21383-dcb4-43b5-876c-9614d8afc037/tasks/brrvankjr.output\")",
+      "Bash(python3 -)"
     ]
   },
   "enabledMcpjsonServers": [

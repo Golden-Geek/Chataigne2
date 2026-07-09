@@ -13,6 +13,8 @@
 		type GraphViewportInset
 	} from 'golden_alchemist_ui';
 	import type { NodeId, UiCreatableUserItem, UiNodeDto } from 'golden_ui';
+	import { openNodeContextMenu } from 'golden_ui/store/node-context-menu.svelte';
+	import lockIcon from '../../golden_alchemist_ui/icons/lock.svg';
 	import { canConnectGraphConnection, toGraphEdges, toGraphNodes } from '../alchemistGraph';
 	import type { FormulaOutputPreviewChip } from '../preview/formulaOutputPreviewStore.svelte';
 	import ANodeSocketDefaultEditor from './ANodeSocketDefaultEditor.svelte';
@@ -39,6 +41,7 @@
 		onCameraChange,
 		viewportInset,
 		autoWire = true,
+		readOnly = false,
 		toolbarEnd
 	}: {
 		formula: UiNodeDto;
@@ -61,6 +64,7 @@
 		onCameraChange?: (camera: GraphCamera) => void;
 		viewportInset?: GraphViewportInset;
 		autoWire?: boolean;
+		readOnly?: boolean;
 		toolbarEnd?: Snippet;
 	} = $props();
 
@@ -121,8 +125,22 @@
 		const preview = outputPreviews.get(key);
 		return preview ? { ...preview, active: activeSocketRefs.has(key) } : null;
 	};
+	const inputPreview = (
+		graphNode: GraphNode,
+		socket: GraphSocket
+	): FormulaOutputPreviewChip | null =>
+		graphNode.outputs.some((output) => output.id === socket.id)
+			? null
+			: outputPreview(graphNode, socket);
 	const canConnect = (connection: GraphConnectionRequest): boolean =>
-		canConnectGraphConnection(nodes, connection);
+		!readOnly && canConnectGraphConnection(nodes, connection);
+	const openGraphNodeContextMenu = (event: MouseEvent, nodeId: string): void => {
+		const parsedNodeId = Number(nodeId);
+		if (!Number.isSafeInteger(parsedNodeId)) {
+			return;
+		}
+		openNodeContextMenu(parsedNodeId, event.clientX, event.clientY);
+	};
 
 	export const clientToWorld = (clientX: number, clientY: number): GraphNodePosition =>
 		graphCanvas?.clientToWorld(clientX, clientY) ?? { x: 0, y: 0 };
@@ -133,18 +151,22 @@
 		graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
 </script>
 
-{#snippet inputSocketContent(_graphNode: GraphNode, socket: GraphSocket)}
+{#snippet inputSocketContent(graphNode: GraphNode, socket: GraphSocket)}
 	{@const parameter = inputDefaultParameter(socket)}
 	{#if parameter}
 		<ANodeSocketDefaultEditor {parameter} />
 	{/if}
+	<ANodeOutputValueChip preview={inputPreview(graphNode, socket)} />
 {/snippet}
 
 {#snippet outputSocketContent(graphNode: GraphNode, socket: GraphSocket)}
 	<ANodeOutputValueChip preview={outputPreview(graphNode, socket)} />
 {/snippet}
 
-<div class="alchemist-graph-editor">
+<div
+	class="alchemist-graph-editor"
+	class:read-only={readOnly}
+	style:--read-only-lock-image={`url("${lockIcon}")`}>
 	<GraphCanvas
 		bind:this={graphCanvas}
 		{nodes}
@@ -152,15 +174,16 @@
 		{selectedNodeIds}
 		{selectedEdgeIds}
 		{onGraphSelectionChange}
-		{onNodesMove}
-		{onNodeResize}
-		{onNodeRename}
-		{onNodeCollapsedChange}
-		{onNodeEnabledChange}
-		{onConnect}
+		onNodesMove={readOnly ? undefined : onNodesMove}
+		onNodeResize={readOnly ? undefined : onNodeResize}
+		onNodeRename={readOnly ? undefined : onNodeRename}
+		onNodeCollapsedChange={readOnly ? undefined : onNodeCollapsedChange}
+		onNodeEnabledChange={readOnly ? undefined : onNodeEnabledChange}
+		onConnect={readOnly ? undefined : onConnect}
 		{canConnect}
-		{onBackgroundContextMenu}
-		{onCreateRequest}
+		onNodeContextMenu={readOnly ? undefined : openGraphNodeContextMenu}
+		onBackgroundContextMenu={readOnly ? undefined : onBackgroundContextMenu}
+		onCreateRequest={readOnly ? undefined : onCreateRequest}
 		{initialCamera}
 		{onCameraChange}
 		{viewportInset}
@@ -170,15 +193,28 @@
 		routeEdgesAroundNodes={autoWire}
 		socketLabels="always"
 		autoHomeOnMount={false}
-		emptyLabel="Add an ANode to start this Formula." />
+		emptyLabel={readOnly ? 'No ANodes in this Formula.' : 'Add an ANode to start this Formula.'} />
 </div>
 
 <style>
 	.alchemist-graph-editor {
+		position: relative;
 		inline-size: 100%;
 		block-size: 100%;
 		min-inline-size: 0;
 		min-block-size: 0;
 		overflow: hidden;
+	}
+
+	.alchemist-graph-editor.read-only :global(.graph-canvas)::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		background: currentColor;
+		color: color-mix(in srgb, var(--gc-color-text) 16%, transparent);
+		mask: var(--read-only-lock-image) center / 30% no-repeat;
+		-webkit-mask: var(--read-only-lock-image) center / 30% no-repeat;
 	}
 </style>

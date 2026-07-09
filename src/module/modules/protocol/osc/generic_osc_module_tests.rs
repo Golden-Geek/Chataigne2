@@ -12,6 +12,7 @@ use rosc::{decoder, OscPacket, OscType};
 
 use crate::app::{
     AppNode, GenericOscModule, ModuleManager, OscDecodedMessage, OscSendCustomMessageCommand, OscValuePayload,
+    OutputsManager,
 };
 
 #[test]
@@ -189,10 +190,7 @@ fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
 
     engine
         .run_tick(Duration::from_millis(20))
-        .expect("first runtime tick should materialize missing parent path");
-    engine
-        .run_tick(Duration::from_millis(20))
-        .expect("second runtime tick should materialize multi-value leaf subtree");
+        .expect("runtime tick should materialize missing parent path and multi-value leaf subtree");
 
     let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
     else {
@@ -213,6 +211,54 @@ fn incoming_multi_message_auto_adds_missing_path_with_batched_trees() {
     assert_eq!(param_value(&engine, first_value), ParamValue::Float(1.0));
     assert_eq!(param_value(&engine, second_value), ParamValue::Float(2.0));
     assert_eq!(param_value(&engine, third_value), ParamValue::Float(3.0));
+}
+
+#[test]
+fn incoming_messages_auto_add_shared_missing_path_in_one_tick() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+    engine.add_node(GenericOscModule::create().into(), None);
+    engine.apply_edits().expect("osc module should attach");
+    engine.resolve().expect("runtime schedule should resolve");
+
+    let module_id = engine
+        .nodes
+        .get(engine.root)
+        .and_then(|root| root.node_data().first_child)
+        .expect("module should be attached under root");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get_mut(module_id).expect("module should exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    module.disable_transport_for_test();
+    module.enqueue_incoming_message_for_test(OscDecodedMessage {
+        address: "/rig/arm/x".to_string(),
+        payload: OscValuePayload::Single(ParamValue::Float(1.25)),
+    });
+    module.enqueue_incoming_message_for_test(OscDecodedMessage {
+        address: "/rig/arm/y".to_string(),
+        payload: OscValuePayload::Single(ParamValue::Float(2.5)),
+    });
+
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should materialize queued shared OSC path values");
+
+    let crate::app::AppNode::GenericOscModule(module) = engine.nodes.get(module_id).expect("module should still exist")
+    else {
+        panic!("expected GenericOscModule node");
+    };
+    assert!(
+        !module.has_pending_incoming_messages_for_test(),
+        "batched shared missing path creation should drain the incoming queue"
+    );
+
+    let x_value = find_path(&engine, module_id, "values/rig/arm/x").expect("x parameter should exist");
+    let y_value = find_path(&engine, module_id, "values/rig/arm/y").expect("y parameter should exist");
+
+    assert_eq!(param_value(&engine, x_value), ParamValue::Float(1.25));
+    assert_eq!(param_value(&engine, y_value), ParamValue::Float(2.5));
 }
 
 #[test]
@@ -787,6 +833,221 @@ fn send_custom_message_command_sends_osc_packet_through_module_output() {
 }
 
 #[test]
+fn execute_event_runs_osc_command_through_module_output() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    receiver
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("test receiver should accept a read timeout");
+    let receiver_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
+    let command_tester_id = find_path(&engine, module_id, "command_tester").expect("command tester should exist");
+    let command_id = create_send_custom_message_command(&mut engine, command_tester_id);
+
+    let address_param = find_path(&engine, command_id, "address").expect("command address param should exist");
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/execute-event".to_string()),
+    );
+    engine.apply_edits().expect("command setup edits should apply");
+
+    // Fire the command the way the state-machine output dispatch does: a single
+    // execute event targeting the command (not a trigger-param edit), so the path
+    // works per-lane under multiplex.
+    let execute_event = golden_core::events::CustomEvent::new(
+        crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC,
+        Some(command_id),
+        serde_json::to_value(crate::app::module_command::ModuleCommandExecuteEvent {
+            command_id,
+            param_overrides: Vec::new(),
+        })
+        .expect("execute event payload should serialize"),
+    );
+    engine.edits.push(Edit::EmitCustomEvent { event: execute_event });
+    engine.apply_edits().expect("execute event edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("execute event should dispatch to the command");
+    engine
+        .apply_edits()
+        .expect("queued command request should apply through the engine");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued command request should dispatch to the module");
+    engine
+        .apply_edits()
+        .expect("queued command request side effects should apply through the engine");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should let the transport process the queued command");
+
+    let mut buffer = [0u8; 2048];
+    let (length, _) = receiver
+        .recv_from(&mut buffer)
+        .expect("execute event should cause the command to send a UDP packet");
+    let (_, packet) = decoder::decode_udp(&buffer[..length]).expect("udp payload should decode as osc");
+
+    match packet {
+        OscPacket::Message(message) => {
+            assert_eq!(message.addr, "/test/execute-event");
+        }
+        other => panic!("expected OSC message packet, got {other:?}"),
+    }
+}
+
+#[test]
+fn output_manager_creates_module_linked_osc_command() {
+    let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
+    receiver
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .expect("test receiver should accept a read timeout");
+    let receiver_port = receiver
+        .local_addr()
+        .expect("test receiver should expose a local address")
+        .port();
+
+    let (mut engine, module_id) = create_osc_module_with_output(receiver_port);
+    engine.add_node(OutputsManager::new().into(), None);
+    engine.apply_edits().expect("outputs manager should attach");
+
+    let output_manager_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.get_type() == OutputsManager::NODE_TYPE)
+        .map(|(id, _)| id)
+        .expect("outputs manager should exist");
+    let module_label = engine
+        .nodes
+        .get(module_id)
+        .expect("OSC module should exist")
+        .node_data()
+        .meta
+        .label
+        .clone();
+    let catalog = engine.catalog_creatable_items(output_manager_id);
+    assert!(
+        catalog.iter().any(|item| {
+            item.node_type
+                == crate::app::state_machine_nodes_generic_commands::GenericLogCommand::NODE_TYPE
+                && item.menu_path == vec!["Generic".to_string()]
+        }),
+        "generic output commands should be grouped under Generic; catalog was {catalog:?}"
+    );
+    let command_item = catalog
+        .into_iter()
+        .find(|item| {
+            item.node_type == crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE
+                && item.menu_path.first() == Some(&module_label)
+        })
+        .expect("outputs manager should expose an OSC command under the OSC module");
+    assert_eq!(
+        command_item.item_kind,
+        crate::app::module_command::MODULE_COMMAND_ITEM_KIND
+    );
+
+    let create_ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+        parent: output_manager_id,
+        node_type: command_item.node_type.clone(),
+        label: Some(command_item.label.clone()),
+        initial_params: command_item
+            .initial_params
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    });
+    assert!(
+        create_ack.success,
+        "module-linked output command should be creatable: {create_ack:?}"
+    );
+
+    let command_id = find_direct_child_by_type(
+        &engine,
+        output_manager_id,
+        crate::app::OSC_SEND_CUSTOM_MESSAGE_COMMAND_NODE_TYPE,
+    )
+    .expect("outputs manager should contain the created OSC command");
+    let target_module = find_path(
+        &engine,
+        command_id,
+        crate::app::module_command::MODULE_COMMAND_TARGET_MODULE_PATH,
+    )
+    .expect("output-created command should include a target module reference");
+    let module_uuid = engine
+        .nodes
+        .get(module_id)
+        .expect("OSC module should exist")
+        .node_data()
+        .meta
+        .uuid;
+    assert_eq!(
+        engine
+            .nodes
+            .get(target_module)
+            .and_then(|node| node.engine_param_snapshot())
+            .and_then(|snapshot| match snapshot.value {
+                ParamValue::Reference(reference) => Some(reference.uuid()),
+                _ => None,
+            }),
+        Some(module_uuid)
+    );
+
+    let address_param =
+        find_path(&engine, command_id, "address").expect("command address param should exist");
+    let trigger_param =
+        find_path(&engine, command_id, "trigger").expect("command trigger param should exist");
+    set_param(
+        &mut engine,
+        address_param,
+        ParamValue::Str("/test/output-manager".to_string()),
+    );
+    engine
+        .apply_edits()
+        .expect("command setup edits should apply");
+
+    engine.edits.push(Edit::SetParam {
+        node: trigger_param,
+        value: ParamValue::Trigger(),
+        behaviour: ParameterEventBehaviour::Coalesce,
+    });
+    engine
+        .apply_edits()
+        .expect("command trigger edit should apply");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("command trigger should dispatch");
+    engine
+        .apply_edits()
+        .expect("queued command request should apply through the engine");
+    engine
+        .dispatch_inbox(ExecutionPhase::EngineTick)
+        .expect("queued command request should dispatch to the linked module");
+    engine
+        .apply_edits()
+        .expect("queued command side effects should apply through the engine");
+    engine
+        .run_tick(Duration::from_millis(20))
+        .expect("runtime tick should let the transport process the queued command");
+
+    let mut buffer = [0u8; 2048];
+    let (length, _) = receiver
+        .recv_from(&mut buffer)
+        .expect("linked OSC command should send a UDP packet");
+    let (_, packet) = decoder::decode_udp(&buffer[..length]).expect("udp payload should decode as osc");
+
+    match packet {
+        OscPacket::Message(message) => {
+            assert_eq!(message.addr, "/test/output-manager");
+            assert!(message.args.is_empty());
+        }
+        other => panic!("expected OSC message packet, got {other:?}"),
+    }
+}
+
+#[test]
 fn auto_trigger_send_custom_message_command_sends_when_command_parameter_changes() {
     let receiver = UdpSocket::bind("127.0.0.1:0").expect("test receiver should bind");
     receiver
@@ -930,6 +1191,23 @@ fn find_child_by_key(engine: &crate::app::AppEngine, parent: NodeId, key: &str) 
             || meta.short_name == key
             || meta.label == key
         {
+            return Some(child_id);
+        }
+        child = node.node_data().next_sibling;
+    }
+
+    None
+}
+
+fn find_direct_child_by_type(
+    engine: &crate::app::AppEngine,
+    parent: NodeId,
+    node_type: &str,
+) -> Option<NodeId> {
+    let mut child = engine.nodes.get(parent)?.node_data().first_child;
+    while let Some(child_id) = child {
+        let node = engine.nodes.get(child_id)?;
+        if node.get_type() == node_type {
             return Some(child_id);
         }
         child = node.node_data().next_sibling;

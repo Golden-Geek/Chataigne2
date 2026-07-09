@@ -2,7 +2,8 @@
 	import type { NodeInspectorComponentProps } from 'golden_ui';
 	import ModuleIndicators from '$lib/components/modules/ModuleIndicators.svelte';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
+		$props();
 
 	const MODULE_USER_ITEM_KIND = 'module';
 	const MODULE_FOLDER_NODE_TYPE = 'module_folder';
@@ -22,11 +23,11 @@
 
 {@render defaultHeader?.(moduleHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content module-node-inspector">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
+{#snippet moduleContent()}
+	{@render defaultChildren?.()}
+{/snippet}
+
+{@render defaultContent?.(moduleContent, 'module-node-inspector')}
 
 <style>
 	.module-header-indicators {
@@ -45,7 +46,7 @@
 		height: 1.15rem;
 	}
 
-	.module-node-inspector {
+	:global(.module-node-inspector) {
 		min-inline-size: 0;
 	}
 </style>

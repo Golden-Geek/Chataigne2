@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from jcodemunch_mcp import config as jcodemunch_config
@@ -20,13 +21,42 @@ LOCK_PATH = INDEX_ROOT / "chataigne2-workspace-watch.lock"
 POLL_SECONDS = 1.0
 GIT_POLL_SECONDS = 5.0
 
-EXPECTED_SOURCE_ROOTS = (
-    WORKSPACE,
-    WORKSPACE / "src-ui" / "src" / "lib" / "golden_alchemist_ui",
-    WORKSPACE / "src-ui" / "src" / "lib" / "golden_ui",
-    WORKSPACE / "submodules" / "golden_alchemist_core",
-    WORKSPACE / "submodules" / "golden_core",
+
+@dataclass(frozen=True)
+class WorkspaceRepository:
+    name: str
+    source_root: Path
+    responsibility: str
+
+
+EXPECTED_REPOSITORIES = (
+    WorkspaceRepository(
+        "Chataigne2",
+        WORKSPACE,
+        "app shell, app-owned nodes, app-owned UI, and workspace tooling",
+    ),
+    WorkspaceRepository(
+        "golden_core",
+        WORKSPACE / "submodules" / "golden_core",
+        "reusable engine, host runtime, protocol, persistence, and transports",
+    ),
+    WorkspaceRepository(
+        "golden_ui",
+        WORKSPACE / "src-ui" / "src" / "lib" / "golden_ui",
+        "reusable Svelte UI package",
+    ),
+    WorkspaceRepository(
+        "golden_alchemist_core",
+        WORKSPACE / "submodules" / "golden_alchemist_core",
+        "reusable alchemist engine package",
+    ),
+    WorkspaceRepository(
+        "golden_alchemist_ui",
+        WORKSPACE / "src-ui" / "src" / "lib" / "golden_alchemist_ui",
+        "reusable alchemist UI package",
+    ),
 )
+EXPECTED_SOURCE_ROOTS = tuple(repo.source_root for repo in EXPECTED_REPOSITORIES)
 
 SKIP_DIRECTORY_NAMES = {
     ".git",
@@ -98,31 +128,64 @@ def release_lock() -> None:
         LOCK_PATH.unlink(missing_ok=True)
 
 
+def workspace_relative(path: Path) -> str:
+    try:
+        relative = path.resolve().relative_to(WORKSPACE)
+    except ValueError:
+        return str(path)
+    return "." if not relative.parts else relative.as_posix()
+
+
+def matching_index_entries(
+    entries: list[dict[str, object]], source_root: Path
+) -> list[dict[str, object]]:
+    source_root = source_root.resolve()
+    matches: list[dict[str, object]] = []
+    for entry in entries:
+        entry_source_root = entry.get("source_root")
+        if not entry_source_root:
+            continue
+        if Path(str(entry_source_root)).resolve() == source_root:
+            matches.append(entry)
+    return matches
+
+
+def select_index_entry(
+    matches: list[dict[str, object]],
+) -> dict[str, object] | None:
+    local_matches = [
+        entry for entry in matches if str(entry.get("repo", "")).startswith("local/")
+    ]
+    chosen = local_matches or matches
+    return chosen[0] if len(chosen) == 1 else None
+
+
+def load_index(store: IndexStore, repo: str):
+    owner, name = repo.split("/", 1)
+    return store.load_index(owner, name)
+
+
 def canonical_repositories(store: IndexStore) -> dict[str, Path]:
     entries = store.list_repos()
     repositories: dict[str, Path] = {}
     errors: list[str] = []
 
-    for source_root in EXPECTED_SOURCE_ROOTS:
-        source_root = source_root.resolve()
-        matches = [
-            entry
-            for entry in entries
-            if Path(entry.get("source_root", "")).resolve() == source_root
-        ]
+    for expected in EXPECTED_REPOSITORIES:
+        source_root = expected.source_root.resolve()
+        matches = matching_index_entries(entries, source_root)
         # Prefer the local/* index: that is the namespace resolve_repo and every
         # query reads from. Stray non-local duplicates (e.g. git-remote-identity
         # indexes created by another MCP client) are tolerated and ignored here
         # rather than crashing the watcher on startup.
-        local_matches = [
-            entry for entry in matches if entry["repo"].startswith("local/")
-        ]
-        chosen = local_matches or matches
-        if len(chosen) != 1:
-            identities = ", ".join(entry["repo"] for entry in matches) or "none"
-            errors.append(f"{source_root} has indexes [{identities}]")
+        chosen = select_index_entry(matches)
+        if chosen is None:
+            identities = ", ".join(str(entry["repo"]) for entry in matches) or "none"
+            errors.append(
+                f"{expected.name} at {workspace_relative(source_root)} has indexes "
+                f"[{identities}]"
+            )
             continue
-        repositories[chosen[0]["repo"]] = source_root
+        repositories[str(chosen["repo"])] = source_root
 
     if errors:
         raise RuntimeError(
@@ -197,10 +260,10 @@ def matching_repository(
 
 
 def remove_indexed_file(store: IndexStore, repo: str, relative: str) -> None:
-    owner, name = repo.split("/", 1)
-    index = store.load_index(owner, name)
+    index = load_index(store, repo)
     if index is None or relative not in index.file_hashes:
         return
+    owner, name = repo.split("/", 1)
     store.incremental_save(
         owner=owner,
         name=name,
@@ -288,8 +351,7 @@ def synchronize_startup(
         if match is None:
             continue
         repo, source_root = match
-        owner, name = repo.split("/", 1)
-        index = store.load_index(owner, name)
+        index = load_index(store, repo)
         relative = path.relative_to(source_root).as_posix()
         if (
             index is None
@@ -299,8 +361,7 @@ def synchronize_startup(
             refresh_file(path)
 
     for repo, source_root in repositories.items():
-        owner, name = repo.split("/", 1)
-        index = store.load_index(owner, name)
+        index = load_index(store, repo)
         if index is None:
             continue
         for relative in list(index.file_hashes):
@@ -311,7 +372,120 @@ def synchronize_startup(
                 remove_indexed_file(store, repo, relative)
 
 
+def nested_index_prefixes() -> tuple[str, ...]:
+    prefixes: list[str] = []
+    for expected in EXPECTED_REPOSITORIES:
+        source_root = expected.source_root.resolve()
+        if source_root == WORKSPACE.resolve():
+            continue
+        try:
+            relative = source_root.relative_to(WORKSPACE).as_posix()
+        except ValueError:
+            continue
+        prefixes.append(relative.rstrip("/") + "/")
+    return tuple(prefixes)
+
+
+def root_index_nested_files(store: IndexStore, repo: str) -> list[str]:
+    index = load_index(store, repo)
+    if index is None:
+        return []
+    prefixes = nested_index_prefixes()
+    return sorted(
+        relative
+        for relative in index.file_hashes
+        if any(relative.startswith(prefix) for prefix in prefixes)
+    )
+
+
+def print_status() -> int:
+    configure_jcodemunch()
+    store = IndexStore(base_path=str(INDEX_ROOT))
+    entries = store.list_repos()
+    unhealthy = False
+
+    print("jCodeMunch workspace index status", flush=True)
+    for expected in EXPECTED_REPOSITORIES:
+        source_root = expected.source_root.resolve()
+        matches = matching_index_entries(entries, source_root)
+        chosen = select_index_entry(matches)
+        repo_id = "-"
+        status = "ok"
+        file_count = "-"
+        symbol_count = "-"
+
+        if not source_root.exists():
+            status = "missing-path"
+            unhealthy = True
+        elif chosen is None:
+            status = "missing-index" if not matches else "ambiguous-index"
+            unhealthy = True
+        else:
+            repo_id = str(chosen["repo"])
+            index = load_index(store, repo_id)
+            git_head = current_git_head(source_root)
+            indexed_head = (index.git_head if index is not None else "") or str(
+                chosen.get("git_head", "")
+            )
+            if index is None:
+                status = "missing-index"
+                unhealthy = True
+            elif git_head and indexed_head and indexed_head != git_head:
+                status = "stale-git-head"
+                unhealthy = True
+            file_count = str(len(index.file_hashes) if index is not None else "-")
+            symbol_count = str(chosen.get("symbol_count", "-"))
+
+        print(
+            f"- {expected.name}: {status}; repo={repo_id}; "
+            f"path={workspace_relative(source_root)}; files={file_count}; "
+            f"symbols={symbol_count}",
+            flush=True,
+        )
+        print(f"  {expected.responsibility}", flush=True)
+
+        ignored = [
+            str(entry["repo"])
+            for entry in matches
+            if chosen is not None and entry is not chosen
+        ]
+        if ignored:
+            print(f"  ignored duplicate indexes: {', '.join(ignored)}", flush=True)
+
+    workspace_entry = select_index_entry(
+        matching_index_entries(entries, WORKSPACE.resolve())
+    )
+    if workspace_entry is not None:
+        leaks = root_index_nested_files(store, str(workspace_entry["repo"]))
+        if leaks:
+            unhealthy = True
+            preview = ", ".join(leaks[:10])
+            suffix = "" if len(leaks) <= 10 else f", ... ({len(leaks)} total)"
+            print(
+                f"- root index leak: Chataigne2 contains nested repo files: "
+                f"{preview}{suffix}",
+                flush=True,
+            )
+
+    print("\nAgent routing:", flush=True)
+    print(
+        "- Resolve the concrete layer path first, then use that repo id for "
+        "plan_turn/search/read tools.",
+        flush=True,
+    )
+    for expected in EXPECTED_REPOSITORIES:
+        print(f"- {expected.name}: resolve_repo path={expected.source_root}", flush=True)
+
+    return 1 if unhealthy else 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1:
+        if sys.argv[1] in {"--status", "status"}:
+            return print_status()
+        print("usage: jcodemunch_workspace_watch.py [--status]", file=sys.stderr)
+        return 2
+
     print("jCodeMunch watcher starting", flush=True)
     acquire_lock()
     atexit.register(release_lock)

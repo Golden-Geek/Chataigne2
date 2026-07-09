@@ -4,7 +4,10 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 
-/// Filter that remaps an input range to an output range.
+/// Legacy filter wrapper retained for tree/UI persistence.
+///
+/// Runtime remapping behavior belongs to the Alchemist `remap` ANode and the
+/// managed filter-pipeline lowering path.
 #[node("sm_remap_filter", label = "Range Remap")]
 #[children(
     in_min: f64 = 0.0 (
@@ -33,7 +36,10 @@ impl Node for RangeRemapFilter {
     }
 }
 
-/// Filter that applies exponential smoothing to the input signal.
+/// Legacy filter wrapper retained for tree/UI persistence.
+///
+/// Runtime smoothing behavior belongs to the Alchemist `smooth_filter` ANode
+/// and the managed filter-pipeline lowering path.
 #[node("sm_smoothing_filter", label = "Smoothing")]
 #[children(
     factor: f64 = 0.1 [0.0..1.0] (
@@ -53,7 +59,10 @@ impl Node for SmoothingFilter {
     }
 }
 
-/// Filter that inverts the input value (1 - x).
+/// Legacy filter wrapper retained for tree/UI persistence.
+///
+/// Runtime inversion behavior belongs to the Alchemist `one_minus` ANode and
+/// the managed filter-pipeline lowering path.
 #[node("sm_invert_filter", label = "Invert")]
 pub struct InvertFilter {}
 
@@ -68,7 +77,10 @@ impl Node for InvertFilter {
     }
 }
 
-/// Filter that clamps the input value to [min, max].
+/// Legacy filter wrapper retained for tree/UI persistence.
+///
+/// Runtime clamping behavior belongs to the Alchemist `clamp` ANode and the
+/// managed filter-pipeline lowering path.
 #[node("sm_clamp_filter", label = "Clamp")]
 #[children(
     min: f64 = 0.0 (

@@ -1,14 +1,21 @@
 <script lang="ts">
-	import { showPanel, type NodeInspectorComponentProps, type UiNodeDto } from 'golden_ui';
+	import {
+		showPanel,
+		ReferenceEditor,
+		type NodeInspectorComponentProps,
+		type UiNodeDto
+	} from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
 	import formulaIconUrl from '../../golden_alchemist_ui/icons/formula.svg';
+	import ProcessorPreviewLaneSelector from './ProcessorPreviewLaneSelector.svelte';
 
-	let { node, defaultHeader, defaultChildren, collapsed }: NodeInspectorComponentProps = $props();
+	let { node, defaultHeader, defaultContent, defaultChildren }: NodeInspectorComponentProps =
+		$props();
 
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
 
-	let formulaNode = $derived.by((): UiNodeDto | null => {
+	let formulaRefNode = $derived.by((): UiNodeDto | null => {
 		if (!graphState) return null;
 		for (const childId of node.children) {
 			const child = graphState.nodesById.get(childId);
@@ -17,15 +24,22 @@
 				child.data.kind === 'parameter' &&
 				child.data.param.value.kind === 'reference'
 			) {
-				const reference = child.data.param.value;
-				if (reference.cached_id !== undefined) {
-					const cached = graphState.nodesById.get(reference.cached_id);
-					if (cached?.uuid === reference.uuid) return cached;
-				}
-				for (const n of graphState.nodesById.values()) {
-					if (n.uuid === reference.uuid) return n;
-				}
+				return child;
 			}
+		}
+		return null;
+	});
+
+	let formulaNode = $derived.by((): UiNodeDto | null => {
+		if (!graphState || formulaRefNode?.data.kind !== 'parameter') return null;
+		const value = formulaRefNode.data.param.value;
+		if (value.kind !== 'reference') return null;
+		if (value.cached_id !== undefined) {
+			const cached = graphState.nodesById.get(value.cached_id);
+			if (cached?.uuid === value.uuid) return cached;
+		}
+		for (const n of graphState.nodesById.values()) {
+			if (n.uuid === value.uuid) return n;
 		}
 		return null;
 	});
@@ -50,7 +64,16 @@
 
 {#snippet formulaHeaderExtra()}
 	<span class="processor-formula-header-extra">
-		<!-- <span class="formula-kind">{formulaKind}</span> -->
+		<ProcessorPreviewLaneSelector {node} />
+		{#if formulaRefNode}
+			<span
+				class="formula-reference-control"
+				role="presentation"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}>
+				<ReferenceEditor node={formulaRefNode} />
+			</span>
+		{/if}
 		<button
 			type="button"
 			class="formula-open-btn"
@@ -67,11 +90,11 @@
 
 {@render defaultHeader?.(formulaHeaderExtra)}
 
-{#if collapsed !== true}
-	<div class="node-inspector-content processor-formula-content">
-		{@render defaultChildren?.()}
-	</div>
-{/if}
+{#snippet formulaContent()}
+	{@render defaultChildren?.()}
+{/snippet}
+
+{@render defaultContent?.(formulaContent, 'processor-formula-content')}
 
 <style>
 	.processor-formula-header-extra {
@@ -80,6 +103,20 @@
 		gap: 0.25rem;
 		flex: 0 0 auto;
 		margin-inline-start: 0.2rem;
+	}
+
+	.formula-reference-control {
+		display: inline-flex;
+		align-items: center;
+		inline-size: min(14rem, 40vw);
+		min-inline-size: 6rem;
+		block-size: 1.4rem;
+		overflow: hidden;
+	}
+
+	.formula-reference-control :global(.reference-editor) {
+		inline-size: 100%;
+		min-inline-size: 0;
 	}
 
 	/* .formula-kind {
@@ -135,7 +172,7 @@
 		opacity: 1;
 	}
 
-	.processor-formula-content {
+	:global(.processor-formula-content) {
 		min-inline-size: 0;
 	}
 </style>
