@@ -6,6 +6,142 @@ use ts_rs::TS;
 use crate::node::NodeId;
 use crate::parameter::{ParamValue, ParamValueProjection};
 
+const MULTIPLEX_CONTEXT_LINK_PREFIX: &str = "@multiplex";
+
+/// Runtime target encoded in a context-link symbol for one multiplex lane.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MultiplexContextLinkTarget {
+    /// Zero- or one-based position of the lane item on an axis.
+    Index {
+        /// Stable multiplex axis id.
+        axis_id: String,
+        /// Whether the index starts at zero instead of one.
+        zero_based: bool,
+    },
+    /// One list value on an axis.
+    List {
+        /// Stable multiplex axis id.
+        axis_id: String,
+        /// List symbol within that multiplex.
+        symbol: String,
+    },
+}
+
+/// Optional multiplex selector used by smart string tokens.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MultiplexTokenSelector {
+    /// First available multiplex.
+    First,
+    /// One-based ordinal among available multiplexes.
+    Ordinal(usize),
+    /// Multiplex display name.
+    Name(String),
+}
+
+/// Smart string token resolved by a multiplex-aware lane runtime.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MultiplexTemplateToken {
+    /// Current lane index.
+    Index {
+        /// Whether the index starts at zero instead of one.
+        zero_based: bool,
+        /// Multiplex selected by default, ordinal, or name.
+        multiplex: MultiplexTokenSelector,
+    },
+    /// Current entry from a named list.
+    List {
+        /// Multiplex selected by default, ordinal, or name.
+        multiplex: MultiplexTokenSelector,
+        /// List symbol within the selected multiplex.
+        list: String,
+    },
+}
+
+/// Builds the opaque context-link symbol for a multiplex lane index.
+pub fn multiplex_index_context_link_symbol(axis_id: &str, zero_based: bool) -> String {
+    let basis = if zero_based { "index0" } else { "index" };
+    format!("{MULTIPLEX_CONTEXT_LINK_PREFIX}:{axis_id}:{basis}")
+}
+
+/// Builds the opaque context-link symbol for one list on a multiplex axis.
+pub fn multiplex_list_context_link_symbol(axis_id: &str, symbol: &str) -> String {
+    format!("{MULTIPLEX_CONTEXT_LINK_PREFIX}:{axis_id}:list:{symbol}")
+}
+
+/// Parses an opaque multiplex context-link symbol.
+pub fn parse_multiplex_context_link_symbol(symbol: &str) -> Option<MultiplexContextLinkTarget> {
+    let suffix = symbol
+        .trim()
+        .strip_prefix(MULTIPLEX_CONTEXT_LINK_PREFIX)?
+        .strip_prefix(':')?;
+    let (axis_id, target) = suffix.split_once(':')?;
+    if axis_id.is_empty() {
+        return None;
+    }
+    match target {
+        "index" => Some(MultiplexContextLinkTarget::Index {
+            axis_id: axis_id.to_owned(),
+            zero_based: false,
+        }),
+        "index0" => Some(MultiplexContextLinkTarget::Index {
+            axis_id: axis_id.to_owned(),
+            zero_based: true,
+        }),
+        _ => target
+            .strip_prefix("list:")
+            .filter(|list| !list.is_empty())
+            .map(|list| MultiplexContextLinkTarget::List {
+                axis_id: axis_id.to_owned(),
+                symbol: list.to_owned(),
+            }),
+    }
+}
+
+/// Parses `{index}`, `{index0}`, and `{list:...}` token contents.
+pub fn parse_multiplex_template_token(token: &str) -> Option<MultiplexTemplateToken> {
+    let token = token.trim();
+    if token == "index" || token == "index0" {
+        return Some(MultiplexTemplateToken::Index {
+            zero_based: token == "index0",
+            multiplex: MultiplexTokenSelector::First,
+        });
+    }
+    if let Some(selector) = token.strip_prefix("index:") {
+        return parse_multiplex_token_selector(selector).map(|multiplex| MultiplexTemplateToken::Index {
+            zero_based: false,
+            multiplex,
+        });
+    }
+    if let Some(selector) = token.strip_prefix("index0:") {
+        return parse_multiplex_token_selector(selector).map(|multiplex| MultiplexTemplateToken::Index {
+            zero_based: true,
+            multiplex,
+        });
+    }
+    let list = token.strip_prefix("list:")?.trim();
+    if list.is_empty() {
+        return None;
+    }
+    let (multiplex, list) = match list.split_once(':') {
+        Some((multiplex, list)) if !multiplex.trim().is_empty() && !list.trim().is_empty() => {
+            (parse_multiplex_token_selector(multiplex)?, list.trim().to_owned())
+        }
+        _ => (MultiplexTokenSelector::First, list.to_owned()),
+    };
+    Some(MultiplexTemplateToken::List { multiplex, list })
+}
+
+fn parse_multiplex_token_selector(selector: &str) -> Option<MultiplexTokenSelector> {
+    let selector = selector.trim();
+    if selector.is_empty() {
+        return None;
+    }
+    Some(match selector.parse::<usize>() {
+        Ok(ordinal) if ordinal > 0 => MultiplexTokenSelector::Ordinal(ordinal),
+        _ => MultiplexTokenSelector::Name(selector.to_owned()),
+    })
+}
+
 /// Typed value family used by `UserContext` entries and lookups.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -107,6 +243,12 @@ pub struct UserContextMultiplexList {
     pub list: NodeId,
     /// Stable axis id derived from the multiplex node UUID.
     pub axis_id: String,
+    /// Opaque link target for the one-based lane index.
+    pub index_link_symbol: String,
+    /// Opaque link target for the zero-based lane index.
+    pub index0_link_symbol: String,
+    /// Opaque link target for this list.
+    pub list_link_symbol: String,
     /// Entry value type.
     pub value_type: UserContextValueType,
     /// Direct parameter entries in display order.
@@ -227,6 +369,12 @@ pub struct UserContextCandidate {
     pub entry_param: NodeId,
     /// Whether the candidate is compatible with the expected type.
     pub compatible: bool,
+    /// Whether the source can be coerced without selecting a projection.
+    #[serde(default)]
+    pub directly_compatible: bool,
+    /// Whether this candidate's multiplex indexes can be linked to the target parameter.
+    #[serde(default)]
+    pub multiplex_index_compatible: bool,
     /// Whether this candidate is shadowed by a nearer scope with the same symbol.
     pub shadowed: bool,
     /// Optional projections that can make this candidate compatible.
@@ -380,6 +528,31 @@ impl UserContextRegistry {
         )
     }
 
+    /// Adds an additional multiplex list candidate whose display symbol is already present.
+    ///
+    /// The opaque list-link symbol is used only as the storage key, so lexical lookup by the
+    /// plain symbol keeps resolving the first entry while UIs can still enumerate every list.
+    pub fn upsert_additional_multiplex_list_entry(
+        &mut self,
+        owner: NodeId,
+        symbol: impl Into<String>,
+        list: UserContextMultiplexList,
+    ) -> Result<bool, String> {
+        let symbol = symbol.into().trim().to_string();
+        let key = list.list_link_symbol.clone();
+        let value_type = list.value_type;
+        let param = list.list;
+        self.upsert_entry_kind_with_key(
+            owner,
+            key,
+            symbol,
+            param,
+            value_type,
+            UserContextEntryKind::MultiplexList,
+            Some(list),
+        )
+    }
+
     fn upsert_entry_kind(
         &mut self,
         owner: NodeId,
@@ -390,6 +563,19 @@ impl UserContextRegistry {
         multiplex: Option<UserContextMultiplexList>,
     ) -> Result<bool, String> {
         let symbol = symbol.into().trim().to_string();
+        self.upsert_entry_kind_with_key(owner, symbol.clone(), symbol, param, value_type, kind, multiplex)
+    }
+
+    fn upsert_entry_kind_with_key(
+        &mut self,
+        owner: NodeId,
+        key: String,
+        symbol: String,
+        param: NodeId,
+        value_type: UserContextValueType,
+        kind: UserContextEntryKind,
+        multiplex: Option<UserContextMultiplexList>,
+    ) -> Result<bool, String> {
         if symbol.is_empty() {
             return Err("context symbol cannot be empty".to_string());
         }
@@ -405,11 +591,11 @@ impl UserContextRegistry {
             kind,
             multiplex,
         };
-        if scope.entries.get(&symbol) == Some(&next_entry) {
+        if scope.entries.get(&key) == Some(&next_entry) {
             return Ok(false);
         }
 
-        scope.entries.insert(symbol, next_entry);
+        scope.entries.insert(key, next_entry);
         scope.generation = scope.generation.saturating_add(1);
         self.bump_schema_generation();
         Ok(true)
@@ -597,6 +783,8 @@ impl UserContextRegistry {
                         lexical_depth: depth,
                         entry_param: entry.param,
                         compatible,
+                        directly_compatible: compatible,
+                        multiplex_index_compatible: false,
                         shadowed,
                         projections: Vec::new(),
                     });

@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use crate::contexts::{UserContextEntryKind, UserContextLookup, UserContextValueType};
+use crate::contexts::{
+    UserContextEntryKind, UserContextLookup, UserContextValueType, parse_multiplex_context_link_symbol,
+    parse_multiplex_template_token,
+};
 use crate::edit::Edit;
 use crate::events::EventKind;
 use crate::logger::{self, LogLevel};
@@ -1622,6 +1625,12 @@ impl<T: Node> Engine<T> {
             return None;
         }
 
+        if parse_multiplex_template_token(token).is_some()
+            && self.node_or_ancestor_has_tag(consumer, CONTEXT_LINK_LANE_DEFERRED_TAG)
+        {
+            return Some(format!("{{{token}}}"));
+        }
+
         if let Some(stripped) = token.strip_prefix('$') {
             return self.node_metadata_value(consumer, stripped).or_else(|| {
                 diagnostics.push(ParameterControlDiagnostic::new(
@@ -1670,6 +1679,11 @@ impl<T: Node> Engine<T> {
         param_snapshots: &HashMap<NodeId, ParameterSnapshot>,
         diagnostics: &mut Vec<ParameterControlDiagnostic>,
     ) -> Option<ParamValue> {
+        if parse_multiplex_context_link_symbol(symbol).is_some()
+            && self.node_or_ancestor_has_tag(consumer, CONTEXT_LINK_LANE_DEFERRED_TAG)
+        {
+            return None;
+        }
         let lookup = self.resolve_user_context_symbol(consumer, symbol, expected);
         match lookup {
             UserContextLookup::Resolved(resolution) => {

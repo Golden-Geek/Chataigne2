@@ -93,13 +93,18 @@ impl<T: Node> Engine<T> {
             .get(param)
             .and_then(|node| node.engine_param_snapshot())
             .map(|snapshot| snapshot.value);
+        let multiplex_index_compatible = target_value
+            .as_ref()
+            .is_some_and(|target| compatibility_for_values(&ParamValue::Int(0), target).is_compatible());
         let mut candidates = self.user_contexts.collect_candidates(param, expected, |node| {
             self.nodes.get(node).and_then(|entry| entry.node_data().parent)
         });
         candidates.retain(|candidate| candidate.entry_param != param);
         for candidate in &mut candidates {
+            candidate.multiplex_index_compatible = candidate.multiplex.is_some() && multiplex_index_compatible;
             let Some(target_value) = &target_value else {
                 candidate.compatible = false;
+                candidate.directly_compatible = false;
                 candidate.projections.clear();
                 continue;
             };
@@ -120,12 +125,14 @@ impl<T: Node> Engine<T> {
             else {
                 candidate.compatible =
                     candidate.kind == UserContextEntryKind::MultiplexList && Some(candidate.value_type) == expected;
+                candidate.directly_compatible = candidate.compatible;
                 candidate.projections.clear();
                 continue;
             };
 
             let compatibility = compatibility_for_values(&source_value, target_value);
             candidate.compatible = compatibility.is_compatible();
+            candidate.directly_compatible = compatibility.direct;
             candidate.projections = compatibility.projections;
         }
 
@@ -484,9 +491,10 @@ impl<T: Node> Engine<T> {
                 continue;
             };
             let symbol = child_node.node_data().meta.decl_id.0.trim().to_string();
-            if symbol.is_empty() || !seen_symbols.insert(symbol.clone()) {
+            if symbol.is_empty() {
                 continue;
             }
+            let first_with_symbol = seen_symbols.insert(symbol.clone());
 
             let mut entries = Vec::<UserContextMultiplexListEntry>::new();
             let mut entry_child = child_node.node_data().first_child;
@@ -510,18 +518,29 @@ impl<T: Node> Engine<T> {
                 index = index.saturating_add(1);
             }
 
+            let axis_id = self
+                .nodes
+                .get(multiplex_node)
+                .map(|node| node.node_data().meta.uuid.0.to_string())
+                .unwrap_or_else(|| multiplex_node.0.to_string());
             let list = UserContextMultiplexList {
                 multiplex: multiplex_node,
                 list: child_id,
-                axis_id: self
-                    .nodes
-                    .get(multiplex_node)
-                    .map(|node| node.node_data().meta.uuid.0.to_string())
-                    .unwrap_or_else(|| multiplex_node.0.to_string()),
+                index_link_symbol: crate::contexts::multiplex_index_context_link_symbol(axis_id.as_str(), false),
+                index0_link_symbol: crate::contexts::multiplex_index_context_link_symbol(axis_id.as_str(), true),
+                list_link_symbol: crate::contexts::multiplex_list_context_link_symbol(
+                    axis_id.as_str(),
+                    symbol.as_str(),
+                ),
+                axis_id,
                 value_type,
                 entries,
             };
-            let _ = registry.upsert_multiplex_list_entry(scope_owner, symbol, list);
+            let _ = if first_with_symbol {
+                registry.upsert_multiplex_list_entry(scope_owner, symbol, list)
+            } else {
+                registry.upsert_additional_multiplex_list_entry(scope_owner, symbol, list)
+            };
         }
     }
 

@@ -181,12 +181,76 @@ fn projection_supports_color_rgb_hsv_mappings() {
 }
 
 #[test]
-fn compatibility_includes_float_to_vec2_projections() {
+fn compatibility_requires_projection_for_float_vector_expansions() {
     let compatibility = compatibility_for_values(&ParamValue::Float(3.0), &ParamValue::Vec2(0.0, 0.0));
-    assert!(compatibility.direct, "float->vec2 keeps direct coercion");
+    assert!(!compatibility.direct, "float->vec2 requires an explicit expansion");
     assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2X0));
     assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec20Y));
     assert!(compatibility.projections.contains(&ParamValueProjection::FloatToVec2XX));
+
+    let compatibility = compatibility_for_values(&ParamValue::Float(3.0), &ParamValue::Vec3(0.0, 0.0, 0.0));
+    assert!(!compatibility.direct, "float->vec3 requires an explicit expansion");
+    assert!(
+        compatibility
+            .projections
+            .contains(&ParamValueProjection::FloatToVec3X00)
+    );
+    assert!(
+        compatibility
+            .projections
+            .contains(&ParamValueProjection::FloatToVec3XXX)
+    );
+}
+
+#[test]
+fn compatibility_keeps_scalar_and_text_coercions_direct() {
+    let source = ParamValue::Float(3.0);
+    assert!(compatibility_for_values(&source, &ParamValue::Float(0.0)).direct);
+    assert!(compatibility_for_values(&source, &ParamValue::Int(0)).direct);
+    assert!(compatibility_for_values(&source, &ParamValue::Str(String::new())).direct);
+}
+
+#[test]
+fn compatibility_requires_every_projection_that_directly_produces_the_target_kind() {
+    let sources = [
+        ParamValue::Float(0.25),
+        ParamValue::Vec2(0.25, 0.5),
+        ParamValue::Vec3(0.25, 0.5, 0.75),
+        ParamValue::Color(0.25, 0.5, 0.75, 1.0),
+    ];
+    let targets = [
+        ParamValue::Float(0.0),
+        ParamValue::Vec2(0.0, 0.0),
+        ParamValue::Vec3(0.0, 0.0, 0.0),
+        ParamValue::Color(0.0, 0.0, 0.0, 1.0),
+    ];
+
+    for source in &sources {
+        for target in &targets {
+            let target_projections = ParamValueProjection::available_for_source(source)
+                .into_iter()
+                .filter(|projection| {
+                    project_param_value(source, *projection)
+                        .is_some_and(|projected| std::mem::discriminant(&projected) == std::mem::discriminant(target))
+                })
+                .collect::<Vec<_>>();
+            if target_projections.is_empty() {
+                continue;
+            }
+
+            let compatibility = compatibility_for_values(source, target);
+            assert!(
+                !compatibility.direct,
+                "{source:?} -> {target:?} must require one of {target_projections:?}"
+            );
+            assert!(
+                target_projections
+                    .iter()
+                    .all(|projection| compatibility.projections.contains(projection)),
+                "all direct-to-target projections must be offered for {source:?} -> {target:?}"
+            );
+        }
+    }
 }
 
 #[test]

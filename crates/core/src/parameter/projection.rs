@@ -513,11 +513,15 @@ pub fn coerce_param_value_for_target_reverse(
 
 /// Computes compatibility between `source` and `target`.
 pub fn compatibility_for_values(source: &ParamValue, target: &ParamValue) -> ParamValueCompatibility {
-    let direct = coerce_param_value_for_target(source, target, None).is_some();
     let projections = ParamValueProjection::available_for_source(source)
         .into_iter()
         .filter(|projection| coerce_param_value_for_target(source, target, Some(*projection)).is_some())
-        .collect();
+        .collect::<Vec<_>>();
+    let requires_explicit_projection = projections.iter().any(|projection| {
+        project_param_value(source, *projection)
+            .is_some_and(|projected| std::mem::discriminant(&projected) == std::mem::discriminant(target))
+    });
+    let direct = !requires_explicit_projection && coerce_param_value_for_target(source, target, None).is_some();
 
     ParamValueCompatibility { direct, projections }
 }

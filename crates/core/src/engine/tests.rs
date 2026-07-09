@@ -3599,6 +3599,31 @@ fn multiplex_context_indexes_lists_and_resizes_entries_stably() {
         "multiplex list should be indexed once as the context symbol"
     );
 
+    engine.add_node(
+        Parameter::new(
+            "Index target",
+            ParamValue::Float(0.0),
+            ParameterChangeCheck::ValueChange,
+        )
+        .into(),
+        None,
+    );
+    engine.apply_edits().expect("index target should attach");
+    let index_target = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Index target")
+        .map(|(id, _)| id)
+        .expect("index target should exist");
+    assert!(
+        engine
+            .ui_context_candidates_for_param(index_target)
+            .candidates
+            .iter()
+            .any(|candidate| candidate.multiplex_index_compatible),
+        "multiplex indexes should be offered when the target accepts integer coercion"
+    );
+
     let entry_decl = engine
         .nodes
         .get(entry_ids[0])
@@ -4121,6 +4146,7 @@ fn ui_context_candidates_report_shadowing_and_compatibility() {
         nearest.compatible,
         "inner Int value should be coercible for Float targets"
     );
+    assert!(nearest.directly_compatible);
 
     let shadowed = &dto.candidates[1];
     assert_eq!(shadowed.symbol, "tempo");
@@ -4131,6 +4157,7 @@ fn ui_context_candidates_report_shadowing_and_compatibility() {
         shadowed.compatible,
         "outer Float value should be compatible with Float target"
     );
+    assert!(shadowed.directly_compatible);
 }
 
 #[test]
