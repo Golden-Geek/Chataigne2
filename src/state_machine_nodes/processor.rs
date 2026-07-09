@@ -6,7 +6,7 @@ use golden_core::{
     events::{Event, EventFrame, EventKind},
     node,
     node::{
-        DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
+        CONTEXT_LINK_LANE_DEFERRED_TAG, DeclId, Node, NodeCreationContext, NodeId, NodeMetaPatch,
         NodeReference, NodeUuid, NodeUserPermissions, UserContainerRules,
         UserContextNode, UserCreatableItem, USER_CONTEXT_DEFAULT_LABEL,
         USER_CONTEXT_ITEM_KIND, USER_CONTEXT_NODE_TYPE,
@@ -211,6 +211,10 @@ fn create_processor_context_item(node_type: &str) -> Option<Box<dyn Node>> {
 
 fn initialize_processor_item(node: &mut dyn Node) {
     node.node_data_mut().meta.user_permissions = NodeUserPermissions::all();
+    let tags = &mut node.node_data_mut().meta.tags;
+    if !tags.iter().any(|tag| tag == CONTEXT_LINK_LANE_DEFERRED_TAG) {
+        tags.push(CONTEXT_LINK_LANE_DEFERRED_TAG.to_owned());
+    }
 }
 
 fn find_formula_library(snapshot: &ProcessTreeSnapshot) -> Option<NodeId> {

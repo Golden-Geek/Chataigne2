@@ -5,20 +5,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use golden_alchemist::{
-    AlchemistFormula, ManagedRegionDefinition, ManagedRegionId, ManagedRegionKind,
-    SurfaceItemKind,
-};
+use golden_alchemist::AlchemistFormula;
 use golden_core::{
     app::{preferences_data_folder_from_snapshot, ProjectNode, PREFERENCES_APP_DATA_TAG},
     edit::NodeTree,
     node::{
-        DashboardWidgetTargetDescriptor, DeclId, Node, NodeId, NodeMeta,
-        NodeReference, NodeUserPermissions, NodeUuid, PresentationHint,
-        UserCreatableItem,
+        DeclId, Node, NodeId, NodeMeta, NodeReference, NodeUserPermissions, NodeUuid,
+        PresentationHint, UserCreatableItem,
     },
     parameter::{CssValue, ParamValue},
-    process_ctx::{ProcessTreeNodeSnapshot, ProcessTreeSnapshot},
+    process_ctx::ProcessTreeSnapshot,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -31,8 +27,7 @@ use crate::app::{
         FORMULA_EXTERNAL_BUILTIN_TAG_PREFIX, FORMULA_EXTERNAL_FILE_DECL_ID,
         FORMULA_EXTERNAL_DELETE_FILE_DECL_ID, FORMULA_EXTERNAL_FILE_TAG,
         FORMULA_EXTERNAL_READ_ONLY_TAG, FORMULA_EXTERNAL_SOURCE_DECL_ID,
-        FORMULA_COPY_SOURCE_DECL_ID, FORMULA_MANAGED_REGIONS_JSON_DECL_ID,
-        PROPERTIES_DECL_ID, PROPERTY_FOLDER_NODE_TYPE, PROPERTY_MANAGER_NODE_TYPE,
+        FORMULA_COPY_SOURCE_DECL_ID,
     },
     AppNode,
 };
@@ -572,12 +567,8 @@ impl FormulaCatalog {
                 source: error,
             })?;
         let tree = decode_exported_formula_tree(path, &source)?;
-        let identity_hint = path
-            .file_name()
-            .and_then(|file_name| file_name.to_str())
-            .and_then(BuiltinFormulaIdentity::legacy_hint_from_file_name);
         let icon = sibling_icon_data_uri(path)?;
-        tree.into_external_node_tree(false, identity_hint, icon)
+        tree.into_external_node_tree(false, icon)
     }
 
     /// Serializes `formula_node`'s subtree to the same `golden-ui.node-tree`
@@ -627,7 +618,7 @@ impl FormulaCatalog {
             }
         })?;
         decode_exported_formula_tree(Path::new("<formula>"), &source)?.into_formula_node_tree(
-            None, false, None, None, None,
+            None, false, None, None,
         )
     }
 }
@@ -871,12 +862,8 @@ struct BuiltinFormulaIdentity {
 }
 
 impl BuiltinFormulaIdentity {
-    /// Derives an identity for any file in the builtin formula directory,
-    /// from its file stem. New files need no code changes to get a stable
-    /// identity: the app-shipped `action.json`/`mapping.json` keep their
-    /// historical hardcoded UUIDs (see `stable_node_uuid`) for backward
-    /// compatibility with already-saved projects; every other filename gets
-    /// a deterministic UUID derived from its name instead.
+    /// Derives an identity for any file in the builtin formula directory from
+    /// its file stem. New files need no code changes to get a stable identity.
     fn from_file_name(file_name: &str) -> Option<Self> {
         let stem = Path::new(file_name).file_stem().and_then(|stem| stem.to_str())?;
         if stem.is_empty() {
@@ -889,32 +876,7 @@ impl BuiltinFormulaIdentity {
         })
     }
 
-    /// Narrow legacy lookup used only for the arbitrary external-file-link
-    /// hint (a single project-scoped formula linked to a file the user
-    /// picked), preserved exactly as before: only the two shipped built-in
-    /// filenames resolve to an identity there.
-    fn legacy_hint_from_file_name(file_name: &str) -> Option<Self> {
-        let formula_id = match file_name.to_ascii_lowercase().as_str() {
-            "action.json" => "action",
-            "mapping.json" => "mapping",
-            _ => return None,
-        };
-        Some(Self {
-            package: "chataigne".to_owned(),
-            formula_id: formula_id.to_owned(),
-            version: 1,
-        })
-    }
-
     fn stable_node_uuid(&self) -> NodeUuid {
-        let legacy = match self.formula_id.as_str() {
-            "action" => Some("11111111-2222-4333-8444-000000000001"),
-            "mapping" => Some("11111111-2222-4333-8444-000000000002"),
-            _ => None,
-        };
-        if let Some(value) = legacy {
-            return NodeUuid(Uuid::parse_str(value).expect("built-in formula uuid should be valid"));
-        }
         let namespace = Uuid::parse_str(BUILTIN_FORMULA_UUID_NAMESPACE)
             .expect("built-in formula uuid namespace should be valid");
         let name = format!("{}.{}", self.package, self.formula_id);
@@ -976,7 +938,6 @@ impl ExportedNodeTree {
             Some(identity.stable_node_uuid()),
             true,
             Some(identity.external_tag()),
-            Some(identity),
             icon,
         )
     }
@@ -984,10 +945,9 @@ impl ExportedNodeTree {
     fn into_external_node_tree(
         self,
         read_only: bool,
-        identity_hint: Option<BuiltinFormulaIdentity>,
         icon: Option<String>,
     ) -> Result<NodeTree, BuiltinFormulaLoadError> {
-        self.into_formula_node_tree(None, read_only, None, identity_hint, icon)
+        self.into_formula_node_tree(None, read_only, None, icon)
     }
 
     fn into_formula_node_tree(
@@ -995,7 +955,6 @@ impl ExportedNodeTree {
         forced_uuid: Option<NodeUuid>,
         read_only: bool,
         root_provenance_tag: Option<String>,
-        builtin_identity: Option<BuiltinFormulaIdentity>,
         icon: Option<String>,
     ) -> Result<NodeTree, BuiltinFormulaLoadError> {
         if self.kind != EXPORTED_NODE_TREE_KIND {
@@ -1015,7 +974,7 @@ impl ExportedNodeTree {
         }
 
         let manager_roles = self.manager_roles_by_uuid()?;
-        let mut root_node = self.nodes.into_iter().next().expect("checked length");
+        let root_node = self.nodes.into_iter().next().expect("checked length");
         if root_node.node_type != FORMULA_NODE_TYPE {
             return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
                 reason: format!(
@@ -1023,12 +982,6 @@ impl ExportedNodeTree {
                     root_node.label
                 ),
             });
-        }
-
-        if let Some(managed_regions_json) =
-            derived_managed_regions_json(&root_node, &manager_roles, builtin_identity.as_ref())?
-        {
-            set_exported_managed_regions_json(&mut root_node, managed_regions_json)?;
         }
 
         exported_node_to_tree(
@@ -1070,8 +1023,6 @@ fn decode_exported_formula_tree(
 
 #[derive(Clone, Debug, Deserialize)]
 struct ExportedNode {
-    #[serde(rename = "sourceId")]
-    source_id: u64,
     #[serde(rename = "sourceUuid")]
     source_uuid: Uuid,
     node_type: String,
@@ -1086,10 +1037,6 @@ struct ExportedNode {
 }
 
 impl ExportedNode {
-    fn node_id(&self) -> NodeId {
-        NodeId(self.source_id)
-    }
-
     fn node_uuid(&self) -> NodeUuid {
         NodeUuid(self.source_uuid)
     }
@@ -1130,80 +1077,6 @@ impl Default for ExportedNodeData {
 #[derive(Debug, Deserialize)]
 struct ExportedParameter {
     value: JsonValue,
-}
-
-fn push_exported_snapshot_node(
-    mut node: ExportedNode,
-    parent: Option<NodeId>,
-    next_sibling: Option<NodeId>,
-    parent_enabled: bool,
-    manager_roles: &HashMap<NodeUuid, String>,
-    nodes: &mut HashMap<NodeId, ProcessTreeNodeSnapshot>,
-) -> Result<(), BuiltinFormulaLoadError> {
-    let id = node.node_id();
-    let uuid = node.node_uuid();
-    let first_child = node.children.first().map(ExportedNode::node_id);
-    let enabled = parent_enabled && node.meta.enabled;
-    let child_count = node.children.len();
-    let mut tags = std::mem::take(&mut node.meta.tags);
-    if node.node_type == "alchemist_anode"
-        && !tags
-            .iter()
-            .any(|tag| tag.starts_with(ANODE_TYPE_TAG_PREFIX))
-    {
-        if let Some(type_id) = exported_anode_type(&node, manager_roles)? {
-            tags.push(format!("{ANODE_TYPE_TAG_PREFIX}{type_id}"));
-        }
-    }
-    let param_value = exported_param_value(&node)?;
-    let label = node.meta.label.unwrap_or(node.label);
-    let decl_id = node.decl_id;
-    let short_name = decl_id
-        .rsplit('/')
-        .next()
-        .filter(|value| !value.is_empty())
-        .unwrap_or(decl_id.as_str())
-        .to_owned();
-
-    let children = node.children;
-    nodes.insert(
-        id,
-        ProcessTreeNodeSnapshot {
-            id,
-            uuid,
-            parent,
-            first_child,
-            next_sibling,
-            node_type: node.node_type,
-            decl_id,
-            short_name,
-            label,
-            tags,
-            presentation: node.meta.presentation,
-            enabled,
-            can_be_disabled: node.meta.can_be_disabled,
-            child_count,
-            param_value,
-            param_constraints: None,
-            dashboard_widget_target: DashboardWidgetTargetDescriptor::inspector_only(),
-            script_properties: HashMap::new(),
-            script_methods: Vec::new(),
-        },
-    );
-
-    let mut iter = children.into_iter().peekable();
-    while let Some(child) = iter.next() {
-        let next_child = iter.peek().map(ExportedNode::node_id);
-        push_exported_snapshot_node(
-            child,
-            Some(id),
-            next_child,
-            enabled,
-            manager_roles,
-            nodes,
-        )?;
-    }
-    Ok(())
 }
 
 fn exported_param_value(
@@ -1284,6 +1157,9 @@ fn exported_node_to_tree(
             .map_err(|reason| BuiltinFormulaLoadError::InvalidExportedFormula {
                 reason: format!("failed to decode exported node '{}': {reason}", node.label),
             })?;
+    if let (true, AppNode::Parameter(parameter)) = (read_only, &mut decoded) {
+        parameter.read_only = true;
+    }
     decoded.node_data_mut().meta = meta;
 
     let mut tree = NodeTree::new(decoded);
@@ -1527,6 +1403,22 @@ fn collect_exported_manager_roles(
     Ok(())
 }
 
+fn exported_child_string(
+    node: &ExportedNode,
+    decl_id: &str,
+) -> Result<Option<String>, BuiltinFormulaLoadError> {
+    let Some(child) = node.children.iter().find(|child| child.decl_id == decl_id) else {
+        return Ok(None);
+    };
+    let Some(value) = exported_param_value(child)? else {
+        return Ok(None);
+    };
+    Ok(match value {
+        ParamValue::Str(value) | ParamValue::Enum(value) => Some(value),
+        _ => None,
+    })
+}
+
 fn exported_anode_type(
     node: &ExportedNode,
     manager_roles: &HashMap<NodeUuid, String>,
@@ -1565,222 +1457,6 @@ fn exported_manager_reference(
         ParamValue::Reference(reference) if !reference.is_empty() => Some(reference.uuid()),
         _ => None,
     })
-}
-
-fn exported_child_string(
-    node: &ExportedNode,
-    decl_id: &str,
-) -> Result<Option<String>, BuiltinFormulaLoadError> {
-    let Some(child) = node.children.iter().find(|child| child.decl_id == decl_id) else {
-        return Ok(None);
-    };
-    let Some(value) = exported_param_value(child)? else {
-        return Ok(None);
-    };
-    Ok(match value {
-        ParamValue::Str(value) | ParamValue::Enum(value) => Some(value),
-        _ => None,
-    })
-}
-
-fn derived_managed_regions_json(
-    root_node: &ExportedNode,
-    manager_roles: &HashMap<NodeUuid, String>,
-    identity: Option<&BuiltinFormulaIdentity>,
-) -> Result<Option<String>, BuiltinFormulaLoadError> {
-    if exported_child_string(root_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)?
-        .as_deref()
-        .is_some_and(|value| !value.trim().is_empty())
-    {
-        return Ok(None);
-    }
-
-    let root = root_node.node_id();
-    let mut nodes = HashMap::new();
-    push_exported_snapshot_node(
-        root_node.clone(),
-        None,
-        None,
-        true,
-        manager_roles,
-        &mut nodes,
-    )?;
-    let snapshot = ProcessTreeSnapshot::new(root, nodes);
-    let regions = managed_regions_from_property_managers(&snapshot, root, identity);
-    if regions.is_empty() {
-        return Ok(None);
-    }
-    serde_json::to_string(&regions)
-        .map(Some)
-        .map_err(BuiltinFormulaLoadError::Decode)
-}
-
-fn set_exported_managed_regions_json(
-    root_node: &mut ExportedNode,
-    managed_regions_json: String,
-) -> Result<(), BuiltinFormulaLoadError> {
-    let Some(child) = root_node
-        .children
-        .iter_mut()
-        .find(|child| child.decl_id == FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
-    else {
-        return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
-            reason: format!(
-                "built-in formula '{}' does not expose managed region metadata",
-                root_node.label
-            ),
-        });
-    };
-    let Some(param) = child.data.get_mut("param") else {
-        return Err(BuiltinFormulaLoadError::InvalidExportedFormula {
-            reason: format!(
-                "built-in formula '{}' has invalid managed region metadata parameter",
-                root_node.label
-            ),
-        });
-    };
-    param["value"] = serde_json::json!({
-        "kind": "str",
-        "value": managed_regions_json,
-    });
-    Ok(())
-}
-
-fn managed_regions_from_property_managers(
-    snapshot: &ProcessTreeSnapshot,
-    formula_node: NodeId,
-    identity: Option<&BuiltinFormulaIdentity>,
-) -> Vec<ManagedRegionDefinition> {
-    let Some(properties) = snapshot.find_child_by_decl_id(formula_node, PROPERTIES_DECL_ID) else {
-        return Vec::new();
-    };
-
-    let mut used_ids = HashSet::new();
-    let mut regions = Vec::new();
-    collect_managed_regions_from_property_managers(
-        snapshot,
-        properties,
-        identity,
-        &mut used_ids,
-        &mut regions,
-    );
-    regions
-}
-
-fn collect_managed_regions_from_property_managers(
-    snapshot: &ProcessTreeSnapshot,
-    container: NodeId,
-    identity: Option<&BuiltinFormulaIdentity>,
-    used_ids: &mut HashSet<String>,
-    regions: &mut Vec<ManagedRegionDefinition>,
-) {
-    for child in snapshot.child_ids(container) {
-        let Some(node) = snapshot.node(child) else {
-            continue;
-        };
-        if node.node_type == PROPERTY_MANAGER_NODE_TYPE {
-            if let Some(region) =
-                managed_region_from_property_manager(snapshot, child, identity, used_ids)
-            {
-                regions.push(region);
-            }
-        } else if node.node_type == PROPERTY_FOLDER_NODE_TYPE {
-            collect_managed_regions_from_property_managers(
-                snapshot, child, identity, used_ids, regions,
-            );
-        }
-    }
-}
-
-fn managed_region_from_property_manager(
-    snapshot: &ProcessTreeSnapshot,
-    manager: NodeId,
-    identity: Option<&BuiltinFormulaIdentity>,
-    used_ids: &mut HashSet<String>,
-) -> Option<ManagedRegionDefinition> {
-    let node = snapshot.node(manager)?;
-    let role = snapshot_child_string(snapshot, manager, "role")
-        .unwrap_or_else(|| "condition".to_owned());
-    let (kind, accepted_role) = managed_region_contract(identity, &role)?;
-    let id = stable_managed_region_id(&node.label, &role, used_ids);
-
-    Some(ManagedRegionDefinition {
-        id: ManagedRegionId::new(id),
-        kind,
-        label: node.label.clone(),
-        input_socket: None,
-        output_socket: None,
-        accepted_roles: vec![accepted_role],
-    })
-}
-
-fn managed_region_contract(
-    identity: Option<&BuiltinFormulaIdentity>,
-    role: &str,
-) -> Option<(ManagedRegionKind, SurfaceItemKind)> {
-    match role {
-        "condition" => Some((
-            ManagedRegionKind::TriggerInput,
-            SurfaceItemKind::Input,
-        )),
-        "filter" => Some((
-            ManagedRegionKind::FilterPipeline,
-            SurfaceItemKind::Filter,
-        )),
-        "input" => Some((ManagedRegionKind::InputSet, SurfaceItemKind::Input)),
-        "output" if identity.is_some_and(|identity| identity.formula_id == "action") => {
-            Some((ManagedRegionKind::CommandSet, SurfaceItemKind::Command))
-        }
-        "output" => Some((ManagedRegionKind::OutputSet, SurfaceItemKind::Output)),
-        _ => None,
-    }
-}
-
-fn stable_managed_region_id(
-    label: &str,
-    role: &str,
-    used_ids: &mut HashSet<String>,
-) -> String {
-    let fallback = slug_identifier(role);
-    let base = slug_identifier(label);
-    let base = if base.is_empty() { fallback } else { base };
-    let mut id = base.clone();
-    let mut index = 2;
-    while !used_ids.insert(id.clone()) {
-        id = format!("{base}_{index}");
-        index += 1;
-    }
-    id
-}
-
-fn slug_identifier(value: &str) -> String {
-    let mut slug = String::new();
-    let mut previous_was_separator = false;
-    for character in value.chars().flat_map(char::to_lowercase) {
-        if character.is_ascii_alphanumeric() {
-            slug.push(character);
-            previous_was_separator = false;
-        } else if !previous_was_separator && !slug.is_empty() {
-            slug.push('_');
-            previous_was_separator = true;
-        }
-    }
-    if previous_was_separator {
-        slug.pop();
-    }
-    slug
-}
-
-fn snapshot_child_string(
-    snapshot: &ProcessTreeSnapshot,
-    node: NodeId,
-    decl_id: &str,
-) -> Option<String> {
-    let child = snapshot.find_child_by_decl_id(node, decl_id)?;
-    match snapshot.node(child)?.param_value.as_ref()? {
-        ParamValue::Str(value) | ParamValue::Enum(value) => Some(value.clone()),
-        _ => None,
-    }
 }
 
 const fn default_enabled() -> bool {

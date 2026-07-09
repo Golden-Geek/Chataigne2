@@ -8,7 +8,8 @@ use golden_alchemist::{
     EvaluationCtx, EvaluationFrame, ExecNodeId, FormulaAnalysis, FormulaId, FormulaPropertyId, FormulaRef,
     FormulaSurface, LaneRuntimePool, ManagedRegionInstances, OutputPreviewStatus, RuntimeContextFrame,
     RuntimeDiagnostic, RuntimeOutput, RuntimePropertyFrame, RuntimePropertyFrameError, RuntimeSubscription,
-    RuntimeValue, SocketId, ValueTypeId, compile_graph, evaluate_compiled_graph, evaluate_compiled_graph_stateless,
+    RuntimeValue, SocketId, SurfaceItemId, ValueTypeId, compile_graph, evaluate_compiled_graph,
+    evaluate_compiled_graph_stateless,
 };
 use golden_statechart::StateId;
 use indexmap::{IndexMap, IndexSet};
@@ -211,10 +212,18 @@ pub struct Processor {
     pub id: ProcessorId,
     pub label: String,
     pub formula_instance: AlchemistFormulaInstance,
+    pub context_property_bindings: IndexMap<SurfaceItemId, ProcessorContextPropertyBinding>,
     pub enabled: bool,
     pub lifecycle: ProcessorLifecyclePolicy,
     pub memory_policy: ProcessorMemoryPolicy,
     pub command_policy: ProcessorCommandPolicy,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ProcessorContextPropertyBinding {
+    pub axis: ContextAxisId,
+    pub path: ContextValuePath,
 }
 
 impl Processor {
@@ -224,6 +233,7 @@ impl Processor {
             id: ProcessorId::new(),
             label: label.into(),
             formula_instance,
+            context_property_bindings: IndexMap::new(),
             enabled: true,
             lifecycle: ProcessorLifecyclePolicy::default(),
             memory_policy: ProcessorMemoryPolicy::default(),
@@ -714,14 +724,21 @@ impl ProcessorRuntime {
         &self,
         processor: &Processor,
         compiled: &CompiledAlchemistFormula,
-        _context_key: &ContextKey,
-        _context_provider: &dyn ProcessorContextProvider,
+        context_key: &ContextKey,
+        context_provider: &dyn ProcessorContextProvider,
     ) -> Result<RuntimePropertyFrame, RuntimePropertyFrameError> {
         let mut overrides = IndexMap::new();
         for (surface_item, value) in &processor.formula_instance.overrides.values {
             let property_id = FormulaPropertyId::new(surface_item.as_str());
             if compiled.properties.get(&property_id).is_some() {
-                overrides.insert(property_id, value.clone());
+                let value = processor
+                    .context_property_bindings
+                    .get(surface_item)
+                    .and_then(|binding| {
+                        context_provider.resolve_context_value(context_key, &binding.axis, &binding.path)
+                    })
+                    .unwrap_or_else(|| value.clone());
+                overrides.insert(property_id, value);
             }
         }
         RuntimePropertyFrame::with_overrides(&compiled.properties, &overrides)

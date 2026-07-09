@@ -1629,39 +1629,17 @@ fn unit_value_constraints() -> golden_core::parameter::ParameterConstraints {
     constraints
 }
 
+#[cfg(test)]
 fn spatializer_value(
     config: &SpatializerConfig,
     target: &SpatializerEndpointConfig,
     source: &SpatializerEndpointConfig,
 ) -> f64 {
-    let values = spatializer_values_for_target(config, target);
-    source_value_from_map(&values, source.item_id)
-}
-
-fn spatializer_values_for_target(
-    config: &SpatializerConfig,
-    target: &SpatializerEndpointConfig,
-) -> HashMap<NodeId, f64> {
-    match config.mode {
-        SpatializerMode::Voronoi => spatializer_values_by_target(config)
-            .remove(&target.item_id)
-            .unwrap_or_default(),
-        SpatializerMode::TargetRadius => {
-            scalar_spatializer_values_for_target(config, target, |distance, _| {
-                radius_influence(distance, target.radius)
-            })
-        }
-        SpatializerMode::SourceRadius => {
-            scalar_spatializer_values_for_target(config, target, |distance, source| {
-                radius_influence(distance, source.radius)
-            })
-        }
-        SpatializerMode::Overlap => {
-            scalar_spatializer_values_for_target(config, target, |distance, source| {
-                overlap_value(distance, source.radius, target.radius)
-            })
-        }
-    }
+    value_for_pair(
+        &spatializer_values_by_target(config),
+        target.item_id,
+        source.item_id,
+    )
 }
 
 fn spatializer_values_by_target(
@@ -1738,10 +1716,6 @@ fn scalar_spatializer_values_for_target(
             (source.item_id, value_for_source(distance, source))
         })
         .collect()
-}
-
-fn source_value_from_map(values: &HashMap<NodeId, f64>, source_id: NodeId) -> f64 {
-    values.get(&source_id).copied().unwrap_or(0.0)
 }
 
 fn voronoi_values_by_target(config: &SpatializerConfig) -> HashMap<NodeId, HashMap<NodeId, f64>> {

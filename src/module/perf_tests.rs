@@ -1,7 +1,10 @@
 use std::time::{Duration, Instant};
 
 use golden_core::{
-    app::{load_sparse_project_file, to_sparse_project_json_pretty, ProjectFileSpec, ProjectNode},
+    app::{
+        from_sparse_project_json, load_sparse_project_file, to_sparse_project_json_pretty,
+        ProjectFileSpec, ProjectNode,
+    },
     node::{Folder, Node, NodeId},
     ui_read_model::UiReadModel,
     ui_sync::UiSubscriptionScope,
@@ -106,6 +109,64 @@ fn duplicate_node(
         |node| node.project_encode_data(),
         |node_type, data, meta| AppNode::project_decode_node(node_type, data, meta),
     )
+}
+
+#[test]
+fn simple_sample_project_loads_and_round_trips() {
+    const SAMPLE: &str = "test_simple_load.noisette";
+
+    let path = sample_project_path(SAMPLE);
+    let engine = load_sparse_project_file::<AppNode, _>(&path).expect("simple sample should load");
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1,
+        "simple sample should contain one signals module"
+    );
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "state_processor")
+            .count(),
+        1,
+        "simple sample should contain one state action"
+    );
+
+    let saved_json = to_sparse_project_json_pretty(&engine).expect("simple sample should save");
+    let reloaded =
+        from_sparse_project_json::<AppNode>(&saved_json).expect("saved simple sample should reload");
+    assert_eq!(
+        reloaded
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn multiplex_sample_project_loads_and_round_trips() {
+    const SAMPLE: &str = "test_multiplex.noisette";
+
+    let path = sample_project_path(SAMPLE);
+    let engine = load_sparse_project_file::<AppNode, _>(&path).expect("multiplex sample should load");
+    assert_eq!(
+        engine
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.get_type() == "signals_module")
+            .count(),
+        1,
+        "multiplex sample should contain one signals module"
+    );
+
+    let saved_json = to_sparse_project_json_pretty(&engine).expect("multiplex sample should save");
+    from_sparse_project_json::<AppNode>(&saved_json).expect("saved multiplex sample should reload");
 }
 
 #[test]

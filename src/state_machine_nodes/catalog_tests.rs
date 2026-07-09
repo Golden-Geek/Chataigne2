@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fs, time::SystemTime};
+use std::{
+    collections::HashSet,
+    fs,
+    sync::{Mutex, MutexGuard},
+    time::SystemTime,
+};
 
 use golden_core::{
     app::ensure_preferences_tree,
@@ -49,11 +54,11 @@ fn shipped_builtin_formula_files_load_as_read_only_external_formulas() {
         vec![
             (
                 "Action",
-                "11111111-2222-4333-8444-000000000001".to_owned(),
+                "22930516-b6bb-56de-9914-d55cd7f6f094".to_owned(),
             ),
             (
                 "Mapping",
-                "11111111-2222-4333-8444-000000000002".to_owned(),
+                "9b0a8eda-dcb7-584d-8cad-b47f151c3444".to_owned(),
             ),
         ]
     );
@@ -96,31 +101,16 @@ fn shipped_builtin_formula_files_load_as_read_only_external_formulas() {
         assert!(parameter_count > 0, "{label} should have parameters to lock");
     }
 
-    let (action_id, ..) = formulas[0];
-    let regions_param = snapshot
-        .find_child_by_decl_id(action_id, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
-        .expect("Action formula should expose managed region metadata");
-    let raw_regions = match snapshot.node(regions_param).and_then(|node| node.param_value.as_ref())
-    {
-        Some(ParamValue::Str(value)) => value,
-        other => panic!("Action managed region metadata should be a string, got {other:?}"),
-    };
-    let regions: Vec<serde_json::Value> =
-        serde_json::from_str(raw_regions).expect("Action managed regions should decode");
-    assert_eq!(
-        regions
-            .iter()
-            .map(|region| (
-                region["id"].as_str().unwrap_or_default(),
-                region["label"].as_str().unwrap_or_default(),
-            ))
-            .collect::<Vec<_>>(),
-        vec![
-            ("conditions", "Conditions"),
-            ("on_true", "On True"),
-            ("on_false", "On False"),
-        ]
-    );
+    for (formula_id, label, ..) in &formulas {
+        let regions_param = snapshot
+            .find_child_by_decl_id(*formula_id, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
+            .unwrap_or_else(|| panic!("{label} formula should expose managed region metadata"));
+        assert_eq!(
+            snapshot.node(regions_param).and_then(|node| node.param_value.as_ref()),
+            Some(&ParamValue::Str(String::new())),
+            "{label} should not ship generated managed-region runtime metadata"
+        );
+    }
 }
 
 #[test]
@@ -150,9 +140,7 @@ fn exported_formula_json_uses_tagged_parameter_values() {
         exported_node_by_decl_id(root, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
             .expect("managed region metadata should be exported");
     assert_eq!(managed_regions["data"]["param"]["value"]["kind"], "str");
-    assert!(managed_regions["data"]["param"]["value"]["value"]
-        .as_str()
-        .is_some_and(|value| value.contains("on_true")));
+    assert_eq!(managed_regions["data"]["param"]["value"]["value"], "");
 
     let role = exported_node_by_decl_id(root, "role").expect("role should be exported");
     assert_eq!(role["data"]["param"]["value"]["kind"], "enum");
@@ -734,7 +722,7 @@ fn processor_palette_groups_builtin_shared_and_project_formulas() {
 }
 
 #[test]
-fn exported_action_file_name_forces_stable_builtin_identity() {
+fn exported_action_file_name_derives_builtin_identity_from_file_stem() {
     let mut action: serde_json::Value =
         serde_json::from_str(ACTION_FORMULA).expect("Action export should be JSON");
     let root = action
@@ -761,7 +749,7 @@ fn exported_action_file_name_forces_stable_builtin_identity() {
 
     assert_eq!(
         action.node.node_data().meta.uuid.0.to_string(),
-        "11111111-2222-4333-8444-000000000001"
+        "22930516-b6bb-56de-9914-d55cd7f6f094"
     );
     assert_eq!(action.node.node_data().meta.label, "Action Reexport");
     assert!(action
@@ -910,6 +898,7 @@ fn catalog_with_shared_and_project_formulas(
 /// value to build against. Restores the previous value (if any) when dropped.
 struct SharedFormulaDirTestOverride {
     previous: Option<std::ffi::OsString>,
+    _lock: MutexGuard<'static, ()>,
 }
 
 impl Drop for SharedFormulaDirTestOverride {
@@ -921,7 +910,12 @@ impl Drop for SharedFormulaDirTestOverride {
     }
 }
 
+static SHARED_FORMULA_DIR_ENV_LOCK: Mutex<()> = Mutex::new(());
+
 fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
+    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+        .lock()
+        .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
     unsafe {
         std::env::set_var(
@@ -929,23 +923,38 @@ fn shared_formula_dir_test_override() -> SharedFormulaDirTestOverride {
             "chataigne2-tests-nonexistent-shared-formulas-dir",
         );
     }
-    SharedFormulaDirTestOverride { previous }
+    SharedFormulaDirTestOverride {
+        previous,
+        _lock: lock,
+    }
 }
 
 fn shared_formula_dir_test_override_to(path: &std::path::Path) -> SharedFormulaDirTestOverride {
+    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+        .lock()
+        .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
     unsafe {
         std::env::set_var("CHATAIGNE_SHARED_FORMULAS_DIR", path);
     }
-    SharedFormulaDirTestOverride { previous }
+    SharedFormulaDirTestOverride {
+        previous,
+        _lock: lock,
+    }
 }
 
 fn shared_formula_dir_env_removed() -> SharedFormulaDirTestOverride {
+    let lock = SHARED_FORMULA_DIR_ENV_LOCK
+        .lock()
+        .expect("shared formula env lock should not be poisoned");
     let previous = std::env::var_os("CHATAIGNE_SHARED_FORMULAS_DIR");
     unsafe {
         std::env::remove_var("CHATAIGNE_SHARED_FORMULAS_DIR");
     }
-    SharedFormulaDirTestOverride { previous }
+    SharedFormulaDirTestOverride {
+        previous,
+        _lock: lock,
+    }
 }
 
 fn engine_with_builtin_formula_library() -> AppEngine {
@@ -962,7 +971,7 @@ fn engine_with_builtin_formula_library() -> AppEngine {
         parent: engine.root,
         prev_sibling: None,
     });
-    for _ in 0..4 {
+    for _ in 0..8 {
         engine
             .apply_edits()
             .expect("built-in formula library should attach");

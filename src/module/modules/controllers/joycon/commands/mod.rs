@@ -46,7 +46,12 @@ macro_rules! joycon_command_node_impl {
             let Some(snapshot_arc) = ctx.tree_snapshot_arc() else {
                 return;
             };
-            let snapshot = snapshot_arc.as_ref();
+            let snapshot = module_command::command_execute_snapshot(
+                &event,
+                snapshot_arc.as_ref(),
+                self.id(),
+            );
+            let snapshot = snapshot.as_ref();
             if let Err(error) = self.request_payload(snapshot).and_then(|payload| {
                 module_command::emit_module_command_request(ctx, snapshot, self.id(), self.get_type(), &payload)
             }) {

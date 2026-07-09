@@ -62,7 +62,7 @@
             "param": {
               "value": {
                 "kind": "str",
-                "value": "[{\"id\":\"conditions\",\"kind\":\"trigger_input\",\"label\":\"Conditions\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Input\"]},{\"id\":\"on_true\",\"kind\":\"command_set\",\"label\":\"On True\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Command\"]},{\"id\":\"on_false\",\"kind\":\"command_set\",\"label\":\"On False\",\"input_socket\":null,\"output_socket\":null,\"accepted_roles\":[\"Command\"]}]"
+                "value": ""
               }
             }
           },

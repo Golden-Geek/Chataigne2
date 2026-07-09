@@ -28,10 +28,10 @@ pub use output_set::{
 };
 pub use processor::{
     ANodeOutputPreviewSample, DefaultProcessorContextProvider, Processor, ProcessorBindingAnalysis,
-    ProcessorCommandPolicy, ProcessorContextProvider, ProcessorDebugCapture, ProcessorDirtyFlags,
-    ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorFormulaSourceKind, ProcessorFormulaUiState,
-    ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy, ProcessorMemoryPolicy,
-    ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
+    ProcessorCommandPolicy, ProcessorContextPropertyBinding, ProcessorContextProvider, ProcessorDebugCapture,
+    ProcessorDirtyFlags, ProcessorExecutionPlan, ProcessorExecutionStrategy, ProcessorFormulaSourceKind,
+    ProcessorFormulaUiState, ProcessorId, ProcessorLaneOutput, ProcessorLifecycleEvent, ProcessorLifecyclePolicy,
+    ProcessorMemoryPolicy, ProcessorRuntime, ProcessorUiModel, processor_output_preview_samples,
 };
 pub use protocol::{
     ANodeOutputPreviewSampleDto, ContextKeyDto, ManagedItemDto, ManagedItemUiStateDto, ManagedRegionDefinitionDto,
@@ -42,7 +42,7 @@ pub use state_machine::{
     ChataigneStateMachine, ChataigneStateMachineRuntime, ChataigneTransition, GlobalCompiledGraphRuntime,
     GlobalStateMachineContextFrame, RuntimeExecutionMatrix, StateMachineTickOutput, StateMachineTransitionRuntime,
 };
-pub use value_set::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError};
+pub use value_set::{ValueLaneKey, ValueSet, ValueSetEntry, ValueSetError, lane_scoped_stable_ref};
 pub use value_set_pipeline::{ValueSetPipelineError, ValueSetPipelineRuntime, ValueSetProjectionRuntime};
 
 #[cfg(test)]

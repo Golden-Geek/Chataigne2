@@ -2402,6 +2402,8 @@ dependencies = [
  "golden_engine",
  "golden_transport_server",
  "rfd",
+ "serde",
+ "serde_json",
  "tauri",
 ]
 

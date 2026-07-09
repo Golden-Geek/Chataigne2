@@ -57,8 +57,11 @@ impl Node for GenericLogCommand {
         events.iter().any(|event| match &event.kind {
             EventKind::ParamChanged { .. } => true,
             EventKind::Custom(custom) => {
-                self.cached_message.is_empty()
-                    && module_command::is_command_execute_request(custom, self.id())
+                if self.cached_message.is_empty() {
+                    module_command::is_command_execute_request(custom, self.id())
+                } else {
+                    module_command::command_execute_has_param_overrides(custom, self.id())
+                }
             }
             _ => false,
         })
@@ -87,6 +90,12 @@ impl Node for GenericLogCommand {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         if module_command::is_command_execute_request(&event, self.id()) {
+            if let Some(message) = ctx.tree_snapshot().and_then(|snapshot| {
+                command_string_param_override(&event, snapshot, self.id(), "message")
+            }) {
+                self.run_message(message.as_str());
+                return;
+            }
             if self.cached_message.is_empty() {
                 if let Some(snapshot) = ctx.tree_snapshot() {
                     self.refresh_cached_message(snapshot);
@@ -99,13 +108,26 @@ impl Node for GenericLogCommand {
 
 impl GenericLogCommand {
     fn run(&self) {
-        let message = self.cached_message.as_str();
+        self.run_message(self.cached_message.as_str());
+    }
+
+    fn run_message(&self, message: &str) {
         golden_core::log!(origin = self.id(); format!("{message}"));
     }
 
     fn refresh_cached_message(&mut self, snapshot: &ProcessTreeSnapshot) {
         self.cached_message = command_string_param(snapshot, self.id(), "message").unwrap_or_default();
     }
+}
+
+fn command_string_param_override(
+    event: &golden_core::events::CustomEvent,
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    path: &str,
+) -> Option<String> {
+    module_command::command_execute_param_value(event, snapshot, command_id, path)
+        .and_then(|value| value.as_str())
 }
 
 fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path: &str) -> Option<String> {
@@ -116,3 +138,6 @@ fn command_string_param(snapshot: &ProcessTreeSnapshot, command_id: NodeId, path
             .and_then(ParamValue::as_str)
     })
 }
+
+#[cfg(test)]
+mod generic_commands_tests;

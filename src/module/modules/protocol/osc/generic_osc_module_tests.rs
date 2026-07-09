@@ -861,8 +861,11 @@ fn execute_event_runs_osc_command_through_module_output() {
     let execute_event = golden_core::events::CustomEvent::new(
         crate::app::module_command::MODULE_COMMAND_EXECUTE_TOPIC,
         Some(command_id),
-        serde_json::to_value(crate::app::module_command::ModuleCommandExecuteEvent { command_id })
-            .expect("execute event payload should serialize"),
+        serde_json::to_value(crate::app::module_command::ModuleCommandExecuteEvent {
+            command_id,
+            param_overrides: Vec::new(),
+        })
+        .expect("execute event payload should serialize"),
     );
     engine.edits.push(Edit::EmitCustomEvent { event: execute_event });
     engine.apply_edits().expect("execute event edit should apply");

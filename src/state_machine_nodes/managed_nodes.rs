@@ -11,6 +11,7 @@ use golden_core::{
 };
 
 const INPUT_ITEM_KIND: &str = "sm_input";
+use crate::app::module_command::{self, ModuleCommandParamOverrides};
 use crate::app::state_machine_nodes_generic_commands::GENERIC_COMMAND_ITEM_KIND;
 const GENERIC_OUTPUT_MENU_PATH: &str = "Generic";
 
@@ -40,6 +41,7 @@ pub(crate) struct OutputSchedule {
 struct PendingOutput {
     target: NodeId,
     remaining: f64,
+    param_overrides: ModuleCommandParamOverrides,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -76,7 +78,12 @@ impl OutputSchedule {
         self.pending.is_empty()
     }
 
-    fn on_trigger_cached(&mut self, ctx: &mut ProcessCtx, cache: &OutputRuntimeCache) {
+    fn on_trigger_cached(
+        &mut self,
+        ctx: &mut ProcessCtx,
+        cache: &OutputRuntimeCache,
+        param_overrides: ModuleCommandParamOverrides,
+    ) {
         if cache.cancel_on_trigger {
             self.pending.clear();
         }
@@ -84,9 +91,17 @@ impl OutputSchedule {
         for (index, child) in cache.outputs.iter().copied().enumerate() {
             let remaining = cache.delay + (index as f64) * cache.stagger;
             if remaining <= f64::EPSILON {
-                let _ = crate::app::module_command::emit_command_execute(ctx, child);
+                let _ = module_command::emit_command_execute_with_overrides(
+                    ctx,
+                    child,
+                    param_overrides.clone(),
+                );
             } else {
-                self.pending.push(PendingOutput { target: child, remaining });
+                self.pending.push(PendingOutput {
+                    target: child,
+                    remaining,
+                    param_overrides: param_overrides.clone(),
+                });
             }
         }
     }
@@ -96,18 +111,22 @@ impl OutputSchedule {
         if self.pending.is_empty() {
             return;
         }
-        let mut due: Vec<NodeId> = Vec::new();
+        let mut due: Vec<PendingOutput> = Vec::new();
         self.pending.retain_mut(|pending| {
             pending.remaining -= delta_seconds;
             if pending.remaining <= f64::EPSILON {
-                due.push(pending.target);
+                due.push(pending.clone());
                 false
             } else {
                 true
             }
         });
-        for target in due {
-            let _ = crate::app::module_command::emit_command_execute(ctx, target);
+        for pending in due {
+            let _ = module_command::emit_command_execute_with_overrides(
+                ctx,
+                pending.target,
+                pending.param_overrides,
+            );
         }
     }
 }
@@ -730,7 +749,8 @@ impl Node for OutputsManager {
             }
         }
         if Some(param) == self.output_cache.trigger_param {
-            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+            self.schedule
+                .on_trigger_cached(ctx, &self.output_cache, Vec::new());
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -747,13 +767,14 @@ impl Node for OutputsManager {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if crate::app::module_command::is_command_execute_request(&event, id) {
+        if let Some(param_overrides) = module_command::command_execute_param_overrides(&event, id) {
             if self.output_cache.dirty {
                 if let Some(snapshot) = ctx.tree_snapshot() {
                     refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
                 }
             }
-            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+            self.schedule
+                .on_trigger_cached(ctx, &self.output_cache, param_overrides);
         }
     }
 
@@ -912,7 +933,8 @@ impl Node for OutputGroup {
             }
         }
         if Some(param) == self.output_cache.trigger_param {
-            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+            self.schedule
+                .on_trigger_cached(ctx, &self.output_cache, Vec::new());
         }
         if Some(param) == self.output_cache.delay_param
             || Some(param) == self.output_cache.stagger_param
@@ -929,13 +951,14 @@ impl Node for OutputGroup {
 
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
-        if crate::app::module_command::is_command_execute_request(&event, id) {
+        if let Some(param_overrides) = module_command::command_execute_param_overrides(&event, id) {
             if self.output_cache.dirty {
                 if let Some(snapshot) = ctx.tree_snapshot() {
                     refresh_output_runtime_cache(&mut self.output_cache, snapshot, id);
                 }
             }
-            self.schedule.on_trigger_cached(ctx, &self.output_cache);
+            self.schedule
+                .on_trigger_cached(ctx, &self.output_cache, param_overrides);
         }
     }
 

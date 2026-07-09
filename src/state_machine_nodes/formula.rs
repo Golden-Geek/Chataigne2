@@ -40,7 +40,10 @@ use golden_core::{
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::app::state_machine_nodes_processor::{shared_formula_dir_from_snapshot, FormulaCatalog};
+use crate::app::{
+    state_machine_nodes_processor::{shared_formula_dir_from_snapshot, FormulaCatalog},
+    AppNode,
+};
 
 pub(crate) const FORMULA_ITEM_KIND: &str = "alchemist_formula";
 pub(crate) const FORMULA_FOLDER_ITEM_KIND: &str =
@@ -1085,6 +1088,22 @@ fn anode_property_ref_config_decl_id(type_id: &str) -> Option<&'static str> {
     manager_anode_uses_property_ref(type_id).then_some("config/manager_id")
 }
 
+fn anode_parent_formula_is_read_only(
+    snapshot: &ProcessTreeSnapshot,
+    anode: NodeId,
+) -> bool {
+    snapshot
+        .node(anode)
+        .and_then(|node| node.parent)
+        .and_then(|formula| snapshot.node(formula))
+        .is_some_and(|formula| {
+            formula
+                .tags
+                .iter()
+                .any(|tag| tag == FORMULA_EXTERNAL_READ_ONLY_TAG)
+        })
+}
+
 pub(crate) fn constraint_value_type(
     constraint: &TypeConstraint,
     bindings: &TypeBindings,
@@ -1985,6 +2004,8 @@ impl AlchemistANode {
             &instance,
             &instance.type_bindings,
         );
+        let config_read_only =
+            anode_parent_formula_is_read_only(snapshot.as_ref(), self.id());
 
         let mut desired_config = HashSet::new();
         for field in config_fields_for_instance(declaration.as_ref(), &instance) {
@@ -2016,7 +2037,7 @@ impl AlchemistANode {
                         &field.label,
                         &value_decl,
                         &selected_type,
-                        false,
+                        config_read_only,
                         &type_options,
                     ),
                 );
@@ -2037,7 +2058,7 @@ impl AlchemistANode {
                     &format!("{} Type", field.label),
                     &type_decl,
                     &selected_type,
-                    false,
+                    config_read_only,
                     &type_options,
                 );
                 // A runtime value's type is explicit (there are no inputs to
@@ -2067,7 +2088,7 @@ impl AlchemistANode {
                     &field.label,
                     &value_decl,
                     value,
-                    false,
+                    config_read_only,
                 );
                 if !field.enum_options.is_empty() {
                     let selected = child_string(
@@ -3182,6 +3203,13 @@ fn formula_managed_regions_from_snapshot(
     snapshot: &ProcessTreeSnapshot,
     formula_node: NodeId,
 ) -> Result<Vec<ManagedRegionDefinition>, String> {
+    if snapshot.child_ids(formula_node).into_iter().any(|child| {
+        snapshot
+            .node(child)
+            .is_some_and(|node| node.node_type == ANODE_NODE_TYPE)
+    }) {
+        return Ok(Vec::new());
+    }
     let Some(ParamValue::Str(raw)) =
         child_param(snapshot, formula_node, FORMULA_MANAGED_REGIONS_JSON_DECL_ID)
     else {
@@ -3523,29 +3551,18 @@ fn preserve_external_formula_child(decl_id: &str) -> bool {
     )
 }
 
-fn imported_formula_content_children(imported: NodeTree) -> (Option<String>, Vec<NodeTree>) {
-    let mut managed_regions_json = None;
-    let children = imported
+fn imported_formula_content_children(imported: NodeTree) -> Vec<NodeTree> {
+    imported
         .children
         .into_iter()
         .filter_map(|child| {
             let decl_id = child.node.node_data().meta.decl_id.0.as_str();
             if decl_id == FORMULA_MANAGED_REGIONS_JSON_DECL_ID {
-                managed_regions_json = managed_regions_json_from_tree_node(&child);
                 return None;
             }
             (!preserve_external_formula_child(decl_id)).then_some(child)
         })
-        .collect();
-    (managed_regions_json, children)
-}
-
-fn managed_regions_json_from_tree_node(node: &NodeTree) -> Option<String> {
-    let parameter = node.node.as_any().downcast_ref::<Parameter>()?;
-    match &parameter.value {
-        ParamValue::Str(value) => Some(value.clone()),
-        _ => None,
-    }
+        .collect()
 }
 
 fn write_formula_node_to_file(
@@ -4059,7 +4076,7 @@ impl AlchemistFormulaDefinition {
         let Some(snapshot) = ctx.tree_snapshot_arc() else {
             return;
         };
-        let (managed_regions_json, children) = imported_formula_content_children(imported);
+        let children = imported_formula_content_children(imported);
         for child in snapshot.child_ids(self.id()) {
             let Some(node) = snapshot.node(child) else {
                 continue;
@@ -4069,8 +4086,7 @@ impl AlchemistFormulaDefinition {
             }
             ctx.edits.push(Edit::RemoveNode { node: child });
         }
-        self.managed_regions_json
-            .set(ctx, managed_regions_json.unwrap_or_default());
+        self.managed_regions_json.set(ctx, String::new());
         for child in children {
             ctx.edits.push(Edit::AddNodeTree {
                 tree: child,
@@ -4116,13 +4132,16 @@ impl AlchemistFormulaDefinition {
         ctx.edits.push(Edit::CallNodeMutation {
             node: self.id(),
             callback: Box::new(|node, ctx| {
-                let Some(formula) = node
-                    .as_any_mut()
-                    .downcast_mut::<AlchemistFormulaDefinition>()
-                else {
-                    return Ok(());
-                };
-                formula.enforce_external_formula_permissions(ctx);
+                if let Some(formula) =
+                    node.as_any_mut()
+                        .downcast_mut::<AlchemistFormulaDefinition>()
+                {
+                    formula.enforce_external_formula_permissions(ctx);
+                } else if let Some(AppNode::AlchemistFormulaDefinition(formula)) =
+                    node.as_any_mut().downcast_mut::<AppNode>()
+                {
+                    formula.enforce_external_formula_permissions(ctx);
+                }
                 Ok(())
             }),
             needs_tree_snapshot: true,
@@ -4149,6 +4168,10 @@ impl AlchemistFormulaDefinition {
             node: node_id,
             callback: Box::new(|node, _ctx| {
                 if let Some(parameter) = node.as_any_mut().downcast_mut::<Parameter>() {
+                    parameter.read_only = true;
+                } else if let Some(AppNode::Parameter(parameter)) =
+                    node.as_any_mut().downcast_mut::<AppNode>()
+                {
                     parameter.read_only = true;
                 }
                 Ok(())

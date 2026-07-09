@@ -237,6 +237,7 @@ pub struct ProcessorUiDto {
     pub managed_regions: Vec<ManagedRegionDefinitionDto>,
     pub managed_region_instances: Vec<ManagedRegionInstanceDto>,
     pub diagnostic_ids: Vec<String>,
+    pub multiplex_lane_count: usize,
 }
 
 impl From<&ProcessorUiModel> for ProcessorUiDto {
@@ -288,6 +289,7 @@ impl From<&ProcessorUiModel> for ProcessorUiDto {
                 .iter()
                 .map(|diagnostic| diagnostic.code.to_string())
                 .collect(),
+            multiplex_lane_count: 0,
         }
     }
 }

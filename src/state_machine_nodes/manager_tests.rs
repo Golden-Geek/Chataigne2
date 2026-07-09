@@ -6,16 +6,19 @@ use chataigne_state_machine::{
 };
 use golden_alchemist::{
     ANodeId, ANodeInstance, ANodeTypeId, AlchemistFormula, AlchemistGraph, CompileCtx,
-    EvaluationCtx, ExecNodeId, FormulaContextContract, FormulaId, FormulaPropertySchema,
-    FormulaSurface, InputSocketRef, OutputPreviewStatus, OutputSocketRef, RuntimeInputSnapshot,
-    RuntimeOutput, RuntimeRegistries, RuntimeValue, SocketId, TriggerValue, ValueTypeRegistry,
-    primitive_node_registry,
+    ContextAxisId, ContextItemId, ContextKey, EvaluationCtx, ExecNodeId, FormulaContextContract,
+    FormulaId, FormulaPropertySchema, FormulaSurface, InputSocketRef, OutputPreviewStatus,
+    OutputSocketRef, RuntimeInputSnapshot, RuntimeOutput, RuntimeRegistries, RuntimeValue,
+    SocketId, TriggerValue, ValueTypeRegistry, primitive_node_registry,
 };
 use golden_core::{
     app::ProjectNode,
     engine::EngineTime,
     node::{DeclId, Folder, Node},
-    parameter::{ParamValue, Parameter, ParameterChangeCheck},
+    parameter::{
+        ParamValue, Parameter, ParameterChangeCheck, ParameterControlMode, ParameterControlSpec,
+        ParameterControlState,
+    },
     process_ctx::{ExecutionPhase, ProcessCtx},
     ui_sync::UiEditIntent,
 };
@@ -27,9 +30,11 @@ use super::{
     merge_output_preview_snapshot, next_input_value_condition_validity,
     next_input_value_condition_valid_state, output_preview_signature, processor_formula_from_snapshot,
     processor_formula_source_ref, processor_override_value, processor_should_evaluate,
-    set_output_target_param, runtime_invalidation_for_node, should_emit_runtime_log,
-    RuntimeInvalidation, RuntimeLogKey, StateMachineManager, PROCESSOR_MANAGER_DECL_ID,
-    STATE_ITEM_KIND,
+    resolved_output_param_overrides, runtime_invalidation_for_node, set_output_target_param,
+    should_emit_runtime_log, LaneParamResolver, ProcessorContextAxisRuntime,
+    ProcessorContextEntryRuntime, ProcessorContextListRuntime, ProcessorContextRuntime,
+    RuntimeInvalidation, RuntimeLogKey, SnapshotProcessorContextProvider, StateMachineManager,
+    PROCESSOR_MANAGER_DECL_ID, STATE_ITEM_KIND,
 };
 use crate::app::state_machine_nodes_processor::{
     FormulaCatalog, FormulaSourceRef, PROCESSOR_FORMULA_SOURCE_DECL_ID,
@@ -141,6 +146,108 @@ fn output_target_param_write_skips_unchanged_non_trigger_values() {
         ParamValue::Trigger()
     ));
     assert_eq!(ctx.edits.pending.len(), 1);
+}
+
+#[test]
+fn output_param_overrides_resolve_context_links_per_lane() {
+    let root: crate::app::AppNode = Folder::new("root").into();
+    let mut engine = crate::app::AppEngine::new(root);
+
+    engine.add_node(Folder::new("Command").into(), None);
+    engine
+        .apply_edits()
+        .expect("command container should attach");
+    let command_id = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Command")
+        .map(|(id, _)| id)
+        .expect("command container should exist");
+
+    let mut message = Parameter::new(
+        "Message",
+        ParamValue::Str("original".to_owned()),
+        ParameterChangeCheck::ValueChange,
+    );
+    message.node_data_mut().meta.decl_id = DeclId("message".to_owned());
+    message
+        .engine_set_param_control_state(ParameterControlState::new(
+            ParameterControlMode::ContextLink,
+            ParameterControlSpec::ContextLink {
+                symbol: "msg".to_owned(),
+                projection: None,
+            },
+        ))
+        .expect("context link should be valid for string parameter");
+    engine.add_node(message.into(), Some(command_id));
+    engine
+        .apply_edits()
+        .expect("message parameter should attach");
+
+    let snapshot = engine.process_tree_snapshot();
+    let message_id = snapshot
+        .find_child_by_decl_id(command_id, "message")
+        .expect("message parameter should exist");
+    let processor_id = ProcessorId::new();
+    let axis = ContextAxisId::new("lane");
+    let left_item = ContextItemId::new("left");
+    let right_item = ContextItemId::new("right");
+    let provider = SnapshotProcessorContextProvider {
+        processors: HashMap::from([(
+            processor_id,
+            ProcessorContextRuntime {
+                axes: vec![ProcessorContextAxisRuntime {
+                    axis: axis.clone(),
+                    items: vec![left_item.clone(), right_item.clone()],
+                }],
+                lists: vec![ProcessorContextListRuntime {
+                    axis: axis.clone(),
+                    symbol: "msg".to_owned(),
+                    list_id: "messages".to_owned(),
+                    entries: vec![
+                        ProcessorContextEntryRuntime {
+                            item: left_item,
+                            value: RuntimeValue::String("left lane".into()),
+                        },
+                        ProcessorContextEntryRuntime {
+                            item: right_item,
+                            value: RuntimeValue::String("right lane".into()),
+                        },
+                    ],
+                }],
+            },
+        )]),
+    };
+
+    let left_key = ContextKey::single("lane", "left");
+    let left_resolver = LaneParamResolver {
+        processor_id,
+        context_key: &left_key,
+        context_provider: &provider,
+    };
+    let left_overrides =
+        resolved_output_param_overrides(&snapshot, command_id, Some(&left_resolver));
+    assert_eq!(left_overrides.len(), 1);
+    assert_eq!(left_overrides[0].param_id, message_id);
+    assert_eq!(
+        left_overrides[0].value,
+        ParamValue::Str("left lane".to_owned())
+    );
+
+    let right_key = ContextKey::single("lane", "right");
+    let right_resolver = LaneParamResolver {
+        processor_id,
+        context_key: &right_key,
+        context_provider: &provider,
+    };
+    let right_overrides =
+        resolved_output_param_overrides(&snapshot, command_id, Some(&right_resolver));
+    assert_eq!(right_overrides.len(), 1);
+    assert_eq!(right_overrides[0].param_id, message_id);
+    assert_eq!(
+        right_overrides[0].value,
+        ParamValue::Str("right lane".to_owned())
+    );
 }
 
 #[test]
@@ -275,12 +382,21 @@ fn initial_condition_observation_without_dirty_source_is_not_an_edge() {
 }
 
 #[test]
+fn condition_recompute_after_prior_state_can_emit_edge() {
+    assert_eq!(condition_manager_edge_previous(Some(false), true, true), Some(false));
+    assert_eq!(condition_manager_edge_previous(Some(true), false, true), Some(true));
+    assert_eq!(condition_manager_edge_previous(Some(false), true, false), Some(false));
+    assert_eq!(condition_manager_edge_previous(Some(true), false, false), Some(true));
+}
+
+#[test]
 fn processor_evaluation_requires_runtime_or_signal_reason() {
-    assert!(!processor_should_evaluate(false, false, false, false));
-    assert!(processor_should_evaluate(true, false, false, false));
-    assert!(processor_should_evaluate(false, true, false, false));
-    assert!(processor_should_evaluate(false, false, true, false));
-    assert!(processor_should_evaluate(false, false, false, true));
+    assert!(!processor_should_evaluate(false, false, false, false, false));
+    assert!(processor_should_evaluate(true, false, false, false, false));
+    assert!(processor_should_evaluate(false, true, false, false, false));
+    assert!(processor_should_evaluate(false, false, true, false, false));
+    assert!(processor_should_evaluate(false, false, false, true, false));
+    assert!(processor_should_evaluate(false, false, false, false, true));
 }
 
 #[test]

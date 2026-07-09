@@ -752,25 +752,9 @@ fn builtin_action_processor_created_inside_state_exposes_managers() {
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(
-        actual,
-        vec![
-            (
-                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
-                processor_managed_region_decl_id("conditions"),
-                "Conditions".to_owned(),
-            ),
-            (
-                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
-                processor_managed_region_decl_id("on_true"),
-                "On True".to_owned(),
-            ),
-            (
-                StateProcessorManagedRegion::NODE_TYPE.to_owned(),
-                processor_managed_region_decl_id("on_false"),
-                "On False".to_owned(),
-            ),
-        ]
+    assert!(
+        actual.is_empty(),
+        "graph formulas should not synthesize managed sidecar regions: {actual:?}"
     );
 }
 

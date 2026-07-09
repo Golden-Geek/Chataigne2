@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { UiNodeDto } from 'golden_ui';
 	import { appState } from 'golden_ui/store/workbench.svelte';
+	import type { StateMachineProtocolBundle } from '../generated';
+	import { STATE_MACHINE_RUNTIME_PREVIEW_TOPIC } from '../preview/formulaOutputPreviewStore.svelte';
 	import ValidationChip from './ValidationChip.svelte';
 
 	const PROCESSOR_ITEM_KIND = 'state_processor';
@@ -13,6 +15,12 @@
 	}>();
 
 	let session = $derived(appState.session);
+	let runtimePreviewBundle = $derived.by((): StateMachineProtocolBundle | null => {
+		if (!session) return null;
+		return session.getCustomEventPayload<StateMachineProtocolBundle>(
+			STATE_MACHINE_RUNTIME_PREVIEW_TOPIC
+		) ?? null;
+	});
 	let graph = $derived(session?.graph.state ?? null);
 	let liveNode = $derived(graph?.nodesById.get(node.node_id) ?? node);
 	let isProcessorNode = $derived(
@@ -59,10 +67,20 @@
 	};
 
 	let conditionManagers = $derived(isProcessorNode ? processorConditionManagers(liveNode) : []);
+	let multiplexLaneCount = $derived.by((): number => {
+		if (!isProcessorNode || !runtimePreviewBundle) return 0;
+		return runtimePreviewBundle.processors.find((processor) => processor.id === liveNode.uuid)
+			?.multiplex_lane_count ?? 0;
+	});
 </script>
 
-{#if conditionManagers.length > 0}
-	<span class="processor-validation-chips" aria-label="Condition manager status">
+{#if conditionManagers.length > 0 || multiplexLaneCount > 0}
+	<span class="processor-row-supplements">
+		{#if multiplexLaneCount > 0}
+			<span class="processor-multiplex-badge" title={`${multiplexLaneCount} multiplex lanes`}>
+				M : {multiplexLaneCount}
+			</span>
+		{/if}
 		{#each conditionManagers as manager (manager.node_id)}
 			{@const valid = conditionManagerValid(manager)}
 			<ValidationChip
@@ -74,11 +92,24 @@
 {/if}
 
 <style>
-	.processor-validation-chips {
+	.processor-row-supplements {
 		display: inline-flex;
 		justify-content: end;
 		align-items: center;
-		gap: 0.15rem;
+		gap: 0.25rem;
 		flex: 1 0 auto;
+	}
+
+	.processor-multiplex-badge {
+		display: inline-flex;
+		align-items: center;
+		min-height: 1.25em;
+		padding: 0 0.35em;
+		border: 0.0625rem solid color-mix(in srgb, currentColor 28%, transparent);
+		border-radius: 0.25rem;
+		font-size: 0.72em;
+		font-weight: 650;
+		line-height: 1.2;
+		white-space: nowrap;
 	}
 </style>

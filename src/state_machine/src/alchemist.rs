@@ -14,6 +14,7 @@ pub use golden_alchemist as alchemist;
 
 pub use crate::value_set::VALUE_SET_TYPE;
 use crate::value_set::ValueSet;
+use crate::value_set::lane_scoped_stable_ref;
 
 pub const MODULE_TYPE: &str = "chataigne.module";
 pub const MODULE_ENDPOINT_TYPE: &str = "chataigne.module_endpoint";
@@ -373,7 +374,17 @@ impl CompiledNodeEvaluator for ConditionManagerEval {
         let values = self
             .source
             .as_ref()
-            .and_then(|source| evaluation.ctx.inputs.get(source))
+            .and_then(|source| {
+                if evaluation.context.context_key().is_default_lane() {
+                    return evaluation.ctx.inputs.get(source);
+                }
+                let lane_source = lane_scoped_stable_ref(source, evaluation.context.context_key());
+                evaluation
+                    .ctx
+                    .inputs
+                    .get(&lane_source)
+                    .or_else(|| evaluation.ctx.inputs.get(source))
+            })
             .and_then(|value| ValueSet::from_runtime_value(value).ok());
         let mut valid = false;
         let mut on_true = TriggerValue::default();

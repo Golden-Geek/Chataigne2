@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use golden_core::{
     events::CustomEvent,
@@ -231,24 +231,94 @@ pub(crate) fn decode_module_command_request(event: &CustomEvent) -> Option<Modul
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct ModuleCommandExecuteEvent {
     pub command_id: NodeId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub param_overrides: ModuleCommandParamOverrides,
 }
 
-/// Asks a single command node to run once. Emitted with the command as the
-/// event origin so the command itself receives it (depth-0 recipient), which is
-/// what makes per-lane / multiplexed firing possible without coalescing.
-pub(crate) fn emit_command_execute(ctx: &mut ProcessCtx, command_id: NodeId) -> Result<(), String> {
-    let event = ModuleCommandExecuteEvent { command_id };
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct ModuleCommandParamOverride {
+    pub param_id: NodeId,
+    pub value: ParamValue,
+}
+
+pub(crate) type ModuleCommandParamOverrides = Vec<ModuleCommandParamOverride>;
+
+pub(crate) fn emit_command_execute_with_overrides(
+    ctx: &mut ProcessCtx,
+    command_id: NodeId,
+    param_overrides: ModuleCommandParamOverrides,
+) -> Result<(), String> {
+    let event = ModuleCommandExecuteEvent {
+        command_id,
+        param_overrides,
+    };
     ctx.emit_custom_payload(MODULE_COMMAND_EXECUTE_TOPIC, Some(command_id), &event)
         .map_err(|error| format!("failed to emit module command execute: {error}"))
 }
 
 /// Returns `true` when `event` asks `command_id` to run.
 pub(crate) fn is_command_execute_request(event: &CustomEvent, command_id: NodeId) -> bool {
-    event.topic == MODULE_COMMAND_EXECUTE_TOPIC
-        && event
-            .payload_as::<ModuleCommandExecuteEvent>()
-            .map(|decoded| decoded.command_id == command_id)
-            .unwrap_or(false)
+    decode_command_execute(event, command_id).is_some()
+}
+
+pub(crate) fn command_execute_param_value(
+    event: &CustomEvent,
+    snapshot: &ProcessTreeSnapshot,
+    command_id: NodeId,
+    path: &str,
+) -> Option<ParamValue> {
+    let decoded = decode_command_execute(event, command_id)?;
+    let param_id = resolve_module_command_child(snapshot, command_id, path)?;
+    decoded
+        .param_overrides
+        .iter()
+        .find(|entry| entry.param_id == param_id)
+        .map(|entry| entry.value.clone())
+}
+
+pub(crate) fn command_execute_param_overrides(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> Option<ModuleCommandParamOverrides> {
+    decode_command_execute(event, command_id).map(|decoded| decoded.param_overrides)
+}
+
+pub(crate) fn command_execute_has_param_overrides(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> bool {
+    decode_command_execute(event, command_id)
+        .is_some_and(|decoded| !decoded.param_overrides.is_empty())
+}
+
+pub(crate) fn command_execute_snapshot<'a>(
+    event: &CustomEvent,
+    snapshot: &'a ProcessTreeSnapshot,
+    command_id: NodeId,
+) -> Cow<'a, ProcessTreeSnapshot> {
+    let Some(overrides) = command_execute_param_overrides(event, command_id) else {
+        return Cow::Borrowed(snapshot);
+    };
+    if overrides.is_empty() {
+        return Cow::Borrowed(snapshot);
+    }
+    Cow::Owned(
+        snapshot.with_param_values(
+            overrides
+                .into_iter()
+                .map(|override_value| (override_value.param_id, override_value.value)),
+        ),
+    )
+}
+
+fn decode_command_execute(
+    event: &CustomEvent,
+    command_id: NodeId,
+) -> Option<ModuleCommandExecuteEvent> {
+    (event.topic == MODULE_COMMAND_EXECUTE_TOPIC)
+        .then(|| event.payload_as::<ModuleCommandExecuteEvent>().ok())
+        .flatten()
+        .filter(|decoded| decoded.command_id == command_id)
 }
 
 #[node("module_command_manager_base", label = "Commands")]
